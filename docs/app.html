@@ -3990,7 +3990,7 @@ async function loadGames(dateStr){
     pRows.push({hA:g.hA,awA:g.awA,ens,mc,d:g.date});
   }
   if(el&&isToday)el.innerHTML=html||'<div class="empty">NO GAMES TODAY</div>';
-  if(isToday){renderPicks(picks);renderParlayG(pRows);logDailyRecs(picks,today());try{renderMLBEnginePicks();}catch(e){}}try{storeOpeningLines(ESPN_GAMES||[]);checkLineMovements(ESPN_GAMES||[]);}catch(e){}
+  if(isToday){renderPicks(picks);renderParlayG(pRows);logDailyRecs(picks,today());try{renderMLBEnginePicks();}catch(e){}}
   const _hpk=document.getElementById('h-pk');if(_hpk)_hpk.textContent=picks.filter(p=>tier(p.p,p.ev2)>=2).length;
   const es=document.getElementById('espn-status');
   if(es&&isToday){
@@ -4478,7 +4478,11 @@ function mlbMC(hA,awA,n=25000,ouLine=8.5){
     outlierPct:outlierCt/n,outlierMargin:OUTLIER_MARGIN,n};
 }
 function _ouAdj(hA,awA,date,baseOverP,ouL,delta){
-  var nl=(parseFloat(ouL)+delta).toFixed(1);
+  // Explicit request: every locked O/U line must end in .5, never a
+  // whole number -- forced here too even though delta is normally a
+  // half-point nudge, since ouL itself isn't guaranteed to already be a
+  // real half-point line at every call site.
+  var nl=_forceHalfLine(parseFloat(ouL)+delta);
   var np=Math.min(.72,Math.max(.28,baseOverP-delta*0.035));
   var dir=np>=.5?'OVER':'UNDER';
   lockPick(hA,awA,'OU',dir+' '+nl,np,'-110',1.91,date||today());
@@ -4495,6 +4499,12 @@ function _ouLockDir(hA,awA,date,baseOverP,baseL,inputId,dir,sport){
   var inp=document.getElementById(inputId);
   var nl=inp?parseFloat(inp.value):parseFloat(baseL);
   if(isNaN(nl))nl=parseFloat(baseL);
+  // Explicit request: every locked O/U line must end in .5, never a whole
+  // number -- real books price these at a half-point specifically to
+  // avoid a push. Forced here (before the probability delta below is
+  // computed) rather than just at display time, so the locked
+  // probability and the locked label always agree on the same final line.
+  nl=parseFloat(_forceHalfLine(nl));
   var delta=nl-parseFloat(baseL);
   var np=Math.min(.78,Math.max(.22,baseOverP-delta*0.07));
   var lockP=dir==='OVER'?np:1-np;
@@ -4509,6 +4519,9 @@ function _ouParlayDir(hA,awA,date,baseOverP,baseL,inputId,dir,sport){
   var inp=document.getElementById(inputId);
   var nl=inp?parseFloat(inp.value):parseFloat(baseL);
   if(isNaN(nl))nl=parseFloat(baseL);
+  // Same .5-forcing as _ouLockDir above -- explicit request, every locked
+  // O/U line must end in .5.
+  nl=parseFloat(_forceHalfLine(nl));
   var delta=nl-parseFloat(baseL);
   var np=Math.min(.78,Math.max(.22,baseOverP-delta*0.07));
   var lockP=dir==='OVER'?np:1-np;
@@ -4520,6 +4533,12 @@ function _spreadLockDir(favN,dogN,hA,awA,date,baseP,baseSprd,inputId,dir,sport){
   var inp=document.getElementById(inputId);
   var ns=inp?parseFloat(inp.value):parseFloat(baseSprd);
   if(isNaN(ns))ns=parseFloat(baseSprd);
+  // Explicit request: every locked spread line must end in .5, never a
+  // whole number -- same reasoning as O/U (avoids a push, matches real
+  // book pricing). Forces the MAGNITUDE (sign is reconstructed from
+  // `dir` below regardless), before the probability delta so the locked
+  // probability and the locked label agree on the same final line.
+  ns=(ns<0?-1:1)*parseFloat(_forceHalfLine(Math.abs(ns)));
   var delta=Math.abs(ns)-Math.abs(parseFloat(baseSprd));
   var sp=dir==='FAV'?Math.max(.15,Math.min(.82,baseP-delta*0.045)):Math.max(.15,Math.min(.82,(1-baseP)+delta*0.045));
   // Favorite is always negative and dog always positive by definition —
@@ -4551,6 +4570,9 @@ function _spreadParlayDir(favN,dogN,hA,awA,date,baseP,baseSprd,inputId,dir,sport
   var inp=document.getElementById(inputId);
   var ns=inp?parseFloat(inp.value):parseFloat(baseSprd);
   if(isNaN(ns))ns=parseFloat(baseSprd);
+  // Same .5-forcing as _spreadLockDir above -- explicit request, every
+  // locked spread line must end in .5.
+  ns=(ns<0?-1:1)*parseFloat(_forceHalfLine(Math.abs(ns)));
   var delta=Math.abs(ns)-Math.abs(parseFloat(baseSprd));
   var sp=dir==='FAV'?Math.max(.15,Math.min(.82,baseP-delta*0.045)):Math.max(.15,Math.min(.82,(1-baseP)+delta*0.045));
   var label=dir==='FAV'?favN+' -'+(Math.abs(ns)).toFixed(1):dogN+' +'+(Math.abs(ns)).toFixed(1);
@@ -5548,6 +5570,26 @@ function renderPicks(picks){
   });
   el.innerHTML=html;
 }
+// One game-level market pick (ML/SPREAD/OU/RL/PL) per game, period —
+// explicit request: don't allow a second ML lock for the same game even
+// if it's the OTHER team (or a differently-worded betOn string for the
+// same team), and don't allow a second SPREAD lock on either side of the
+// same game once one side is already locked. The existing dedup right
+// below this (exact id, or exact date+teams+betOn match) only catches a
+// literal re-lock of the identical selection -- it does nothing to stop
+// locking both sides of the same spread, or the same market re-worded.
+// PROP is deliberately excluded -- a game can (and should) carry many
+// distinct player props at once, that's not a duplicate by any
+// definition here. Matches regardless of outcome (pending OR already
+// settled) and regardless of which team is passed as home/away, since a
+// second capture of the same real game can occasionally see the
+// home/away order swapped.
+const _GAME_LEVEL_BET_TYPES=new Set(['ML','SPREAD','OU','RL','PL']);
+function _findSameMarketLock(preds,dateKey,hA,awA,betType){
+  if(!_GAME_LEVEL_BET_TYPES.has(betType))return null;
+  return preds.find(x=>x.date===dateKey&&x.betType===betType&&
+    ((x.hA===hA&&x.awA===awA)||(x.hA===awA&&x.awA===hA)));
+}
 async function lockPick(hA,awA,type,betOn,p,ml,d,date,source){
   // source: 'queue' when locked via the Pick Queue's automated review-and-
   // confirm flow, 'manual' (the default) for every other lock path in the
@@ -5622,6 +5664,8 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source){
     WTA:'WTA',TEN:(typeof ATP_DB!=='undefined'&&ATP_DB[hA]?'ATP':typeof WTA_DB!=='undefined'&&WTA_DB[hA]?'WTA':'ATP')};
   const leagueTag=_leagueMap[sportTag]||sportTag;
   const _betTypeNorm=type==='PL'?'PL':type==='RL'?'RL':type==='OU'?'OU':type==='PROP'?'PROP':type==='SPREAD'?'SPREAD':'ML';
+  const _apiDup=_findSameMarketLock(getP(),dateKey,hA,awA,_betTypeNorm);
+  if(_apiDup){toast(`// ALREADY LOCKED: ${_apiDup.betOn} ${_apiDup.ml} (${_apiDup.outcome==='pending'?'still pending':_apiDup.outcome.toUpperCase()})`);return;}
   if(API_ONLINE()){
     const mlInt=parseInt(String(ml).replace('+',''))||0;
     const espnGame=ESPN_GAMES.find(g=>(g.hA===hA&&g.awA===awA)||(g.hA===awA&&g.awA===hA));
@@ -5651,14 +5695,15 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source){
   // this session). A stale-id check alone would let the same already-
   // locked/settled match get relocked under a new id, creating a phantom
   // "pending" duplicate sitting next to its own already-settled original.
-  const _dup=preds.find(x=>x.id===id)||preds.find(x=>x.date===dateKey&&x.hA===hA&&x.awA===awA&&x.betOn===betOn);
+  const _dup=preds.find(x=>x.id===id)||preds.find(x=>x.date===dateKey&&x.hA===hA&&x.awA===awA&&x.betOn===betOn)
+    ||_findSameMarketLock(preds,dateKey,hA,awA,_betTypeNorm);
   // A duplicate lock click used to fall through to the exact same "LOCKED"
   // toast/popup as a real new lock, with no indication nothing was added —
   // someone clicking the button again (thinking a prior click didn't take)
   // would see an identical success message every time and have no way to
   // tell whether they now had 1 pending bet or several. Bail out early
   // with an explicit "already locked" toast instead.
-  if(_dup){toast(`// ALREADY LOCKED: ${betOn} ${ml} (${_dup.outcome==='pending'?'still pending':_dup.outcome.toUpperCase()})`);return;}
+  if(_dup){toast(`// ALREADY LOCKED: ${_dup.betOn} ${_dup.ml} (${_dup.outcome==='pending'?'still pending':_dup.outcome.toUpperCase()})`);return;}
   _removeWipedIds([id]); // see _removeWipedIds' own comment -- a deliberate new lock must never be silently swallowed by an old wipe of this same id
   preds.push({id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:0,outcome:'pending',lockedAt:Date.now(),hScore:null,aScore:null,source:_lockSource});saveP(preds);
   const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
@@ -7062,18 +7107,32 @@ function cfbMC(hA,awA,n,ouLine,g){
   // consistent with whatever line actually gets shown.
   const finalOU=ouLine!=null?parseFloat(ouLine):parseFloat(_forceHalfLine(baseTotal));
   n=n||15000;
-  let hw=0,ov=0,marginSum=0,totalSum=0;
+  let hw=0,ov=0,marginSum=0,totalSum=0,hScoreSum=0,aScoreSum=0;
   for(let i=0;i<n;i++){
     const simMargin=margin0+_boxMullerZ()*_CFB_SIGMA_MARGIN;
     const simTotal=Math.max(20,baseTotal+_boxMullerZ()*_CFB_SIGMA_TOTAL);
     marginSum+=simMargin;totalSum+=simTotal;
     if(simMargin>0)hw++;
     if(simTotal>finalOU)ov++;
+    // Real bug, found+fixed: avgH/avgA below used to derive straight from
+    // the AGGREGATE avgMargin/avgTotal, which can't itself go negative but
+    // CAN produce a negative per-team score once margin and total are both
+    // large in the same direction (a team literally can't score negative
+    // points, but nothing capped |margin0| relative to baseTotal -- several
+    // individually-capped margin components stacking the same direction
+    // could exceed a low baseTotal). Floor each SIM's own implied score at
+    // 0 before summing, not just the final average, so this can never
+    // surface as a negative projected score regardless of how lopsided any
+    // single sim's margin/total draw is. simMargin/simTotal themselves are
+    // untouched -- win probability and O/U probability above are still
+    // computed from the real, unclamped margin/total distributions.
+    hScoreSum+=Math.max(0,(simTotal+simMargin)/2);
+    aScoreSum+=Math.max(0,(simTotal-simMargin)/2);
   }
   const avgMargin=marginSum/n,avgTotal=totalSum/n;
   return{
     hwP:hw/n,avgMargin:+avgMargin.toFixed(1),avgTotal:+avgTotal.toFixed(1),
-    avgH:+((avgTotal+avgMargin)/2).toFixed(1),avgA:+((avgTotal-avgMargin)/2).toFixed(1),
+    avgH:+(hScoreSum/n).toFixed(1),avgA:+(aScoreSum/n).toFixed(1),
     overP:ov/n,underP:1-ov/n,ouLine:+finalOU.toFixed(1),
     n, // exposed so the UI can label "MC SIM (N runs)" from the real value, not a hardcoded string
     wx,wxImpact,hasFpi,marketMargin,
@@ -8157,18 +8216,27 @@ function nflMC(hA,awA,n,ouLine,g){
   baseTotal=Math.max(20,baseTotal+wxImpact.totalAdj);
   const finalOU=ouLine!=null?parseFloat(ouLine):parseFloat(_forceHalfLine(baseTotal));
   n=n||15000;
-  let hw=0,ov=0,marginSum=0,totalSum=0;
+  let hw=0,ov=0,marginSum=0,totalSum=0,hScoreSum=0,aScoreSum=0;
   for(let i=0;i<n;i++){
     const simMargin=margin0+_boxMullerZ()*_NFL_SIGMA_MARGIN;
     const simTotal=Math.max(20,baseTotal+_boxMullerZ()*_NFL_SIGMA_TOTAL);
     marginSum+=simMargin;totalSum+=simTotal;
     if(simMargin>0)hw++;
     if(simTotal>finalOU)ov++;
+    // Same real bug as cfbMC (fixed together): floor each SIM's own
+    // implied per-team score at 0 before summing -- a team can't score
+    // negative points, but nothing capped |margin0| relative to baseTotal,
+    // so a large enough margin draw combined with a small total draw could
+    // otherwise average out to a negative displayed score. simMargin/
+    // simTotal themselves are untouched -- win/O-U probability above still
+    // use the real, unclamped distributions.
+    hScoreSum+=Math.max(0,(simTotal+simMargin)/2);
+    aScoreSum+=Math.max(0,(simTotal-simMargin)/2);
   }
   const avgMargin=marginSum/n,avgTotal=totalSum/n;
   return{
     hwP:hw/n,avgMargin:+avgMargin.toFixed(1),avgTotal:+avgTotal.toFixed(1),
-    avgH:+((avgTotal+avgMargin)/2).toFixed(1),avgA:+((avgTotal-avgMargin)/2).toFixed(1),
+    avgH:+(hScoreSum/n).toFixed(1),avgA:+(aScoreSum/n).toFixed(1),
     overP:ov/n,underP:1-ov/n,ouLine:+finalOU.toFixed(1),n,wx,wxImpact,hasDiff,marketMargin,
   };
 }
@@ -8631,13 +8699,21 @@ function renderNHLPicks(){
       const hML=p2ml(hP),aML=p2ml(aP),hD=ml2d(hML),aD=ml2d(aML);
       const ouP=typeof mc.overP==='number'?mc.overP:0.52;
       // date: use outer today() ET function
-      [[hP,hML,hD,ev(hP,hD),`ML ${g.h}`,g.h],[aP,aML,aD,ev(aP,aD),`ML ${g.a}`,g.a],[ouP,'-110',1.91,ev(ouP,1.91),`${ouP>=.5?'OVER':'UNDER'} ${g.ou||5.5}`,ouP>=.5?'OVER':'UNDER']].forEach(([p,ml,d2,e2,lb,betOn])=>{
+      // Real bugs found+fixed here: (1) betType was hardcoded 'PL' (puck
+      // line) for ALL three picks including the two ML rows and the O/U
+      // row, mislabeling them in stats/dedup; (2) the O/U row's betOn
+      // dropped the line number entirely (just 'OVER'/'UNDER'); (3) the
+      // date arg was `${today}` (the function itself, stringified to its
+      // source) instead of `${today()}` -- every NHL lock made from this
+      // card was saving its own function source as the pick's date.
+      const _nhlOuLine=_forceHalfLine(g.ou||5.5);
+      [[hP,hML,hD,ev(hP,hD),`ML ${g.h}`,g.h,'ML'],[aP,aML,aD,ev(aP,aD),`ML ${g.a}`,g.a,'ML'],[ouP,'-110',1.91,ev(ouP,1.91),`${ouP>=.5?'OVER':'UNDER'} ${_nhlOuLine}`,(ouP>=.5?'OVER':'UNDER')+' '+_nhlOuLine,'OU']].forEach(([p,ml,d2,e2,lb,betOn,betType])=>{
         const t=tier(p,e2);if(t<1)return;
         const bc=t===3?'pkb-g':t===2?'pkb-p':'pkb-n';
         const col=t===3?'var(--gc)':t===2?'var(--pc)':'var(--nc)';
         const lbl=t===3?'PREMIUM':t===2?'OPTIMAL':'LEAN';
         const _injBadge=(ens.injH&&ens.injH.flag||ens.injA&&ens.injA.flag)?`<div style="margin-top:3px">${injFlagHTML(ens.injH,ens.injA)}</div>`:'';
-        html+=`<div class="pk" style="border-left:2px solid ${col}"><div class="pkb ${bc}">${lbl}</div><div style="flex:1"><div class="pkt">${h.name||g.h} vs ${aw.name||g.a} · G${g.gn}</div><div class="pkt2">${lb}</div><div class="pkd">WIN: <strong style="color:var(--t)">${(p*100).toFixed(1)}%</strong> · EV: <strong style="color:${e2>=0?'var(--nc)':'var(--hc)'}">${e2>=0?'+':''}${(e2*100).toFixed(1)}%</strong></div><div style="font-size:17px;color:var(--t3);margin-top:3px">${g.ctx||''}</div>${_injBadge}</div><button class="btn btn-o btn-sm" style="margin-left:8px" onclick="lockPick('${g.h}','${g.a}','PL','${betOn}',${p.toFixed(4)},'${ml}',${d2.toFixed(4)},'${today}')">OPTIMAL</button></div>`;
+        html+=`<div class="pk" style="border-left:2px solid ${col}"><div class="pkb ${bc}">${lbl}</div><div style="flex:1"><div class="pkt">${h.name||g.h} vs ${aw.name||g.a} · G${g.gn}</div><div class="pkt2">${lb}</div><div class="pkd">WIN: <strong style="color:var(--t)">${(p*100).toFixed(1)}%</strong> · EV: <strong style="color:${e2>=0?'var(--nc)':'var(--hc)'}">${e2>=0?'+':''}${(e2*100).toFixed(1)}%</strong></div><div style="font-size:17px;color:var(--t3);margin-top:3px">${g.ctx||''}</div>${_injBadge}</div><button class="btn btn-o btn-sm" style="margin-left:8px" onclick="lockPick('${g.h}','${g.a}','${betType}','${betOn}',${p.toFixed(4)},'${ml}',${d2.toFixed(4)},'${today()}')">OPTIMAL</button></div>`;
       });
     }
     el.innerHTML=html||'<div class="empty">NO QUALIFYING PICKS — CHECK THRESHOLDS OR GAME DATA</div>';
@@ -10620,14 +10696,18 @@ function renderNBARatings(){
   el.innerHTML='<div class="g2">'+teams.map((t,i)=>`<div class="card" style="border-left:2px solid var(--${i===0?'vc':i===1?'nc':'t3'})"><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-family:var(--orb);font-size:24px;font-weight:700">${t.abbr} <span style="font-size:18px;color:var(--t3)">${t.conf}</span></div><div style="font-family:var(--orb);font-size:27px;font-weight:900;color:var(--${i===0?'vc':i===1?'nc':'t2'})">${t.score}</div></div><div style="font-size:18px;color:var(--t2);margin:3px 0">${t.n}</div><div style="font-family:var(--mono);font-size:17px;color:var(--t3)">PO ${t.pw}W-${t.pl}L · NET: +${t.net} · eFG: ${(t.efg*100).toFixed(1)}%</div><div style="font-family:var(--mono);font-size:17px;color:var(--nc);margin-top:3px">★ ${t.star}</div><div style="font-family:var(--mono);font-size:16px;color:var(--t3);margin-top:2px">${t.note}</div></div>`).join('')+'</div>';
 }
 function lockNBAGame(gameStr,pick,ml){
+  // Real bugs found+fixed: this used to build+push a pred object by hand,
+  // bypassing lockPick() entirely -- so it got NONE of lockPick's dedup
+  // protection (neither the original exact-match check nor the new
+  // same-market check), and it hardcoded betType:'ML' even for the O/U
+  // button, mislabeling every O/U lock made from this card. Routing
+  // through lockPick() fixes both, and forces the O/U line to a half-point.
   const parts=gameStr.split(' @ ');const hA=parts[1]||parts[0]||gameStr;const awA=parts[0]||'';
   const mlNum=parseInt(String(ml).replace('+',''))||0;
   const dec=mlNum>0?mlNum/100+1:100/Math.abs(mlNum)+1;
-  const id=`nba_${today()}_${hA}_${awA}_${pick.replace(/\s/g,'')}`;
-  const pred={id,date:today(),hA,awA,sport:'NBA',league:'NBA',betType:'ML',betOn:pick,winProb:0.55,ml,decOdds:dec,wager:0,outcome:'pending',lockedAt:Date.now()};
-  const preds=getP();if(!preds.find(p=>p.id===id)){_removeWipedIds([id]);preds.push(pred);saveP(preds);}
-  updHdr();renderNBALockedBets();try{renderHomeLockedBets();}catch(e){}
-  toast('// NBA LOCKED: '+pick);try{window.showBetPopup({type:'lock',betOn:pick,sport:'NBA',league:'NBA',betType:'ML',ml,prob:0.55,decOdds:dec});}catch(ex){}
+  const _ouM=pick.match(/^(OVER|UNDER)\s+(.+)$/);
+  const betOn=_ouM?`${_ouM[1]} ${_forceHalfLine(_ouM[2])}`:pick;
+  lockPick(hA,awA,_ouM?'OU':'NBA',betOn,0.55,ml,dec,today());
 }
 function renderNBALockedBets(){
   const el=document.getElementById('nba-locked');if(!el)return;
@@ -17816,7 +17896,7 @@ function tennisGamesLine(sim,bo5,customLine){
 }
 function _tenGamesOULock(p1,p2,td,expected,std,inputId,dir){
   const inp=document.getElementById(inputId);
-  const line=inp?parseFloat(inp.value)||expected:expected;
+  const line=inp?parseFloat(_forceHalfLine(parseFloat(inp.value)||expected)):expected;
   const sigma=std||5.5;
   const overP=+(1-normalCDF((line-expected)/sigma)).toFixed(4);
   const prob=dir==='OVER'?overP:1-overP;
@@ -17825,7 +17905,7 @@ function _tenGamesOULock(p1,p2,td,expected,std,inputId,dir){
 }
 function _tenSetsOULock(p1,p2,td,overP,inputId,dir){
   const inp=document.getElementById(inputId);
-  const line=inp?parseFloat(inp.value)||2.5:2.5;
+  const line=inp?parseFloat(_forceHalfLine(parseFloat(inp.value)||2.5)):2.5;
   const prob=dir==='OVER'?+overP:+(1-overP);
   const label=dir+' '+line+' SETS';
   lockPick(p1,p2,'TEN',label,prob,'-110',1.909,td);
@@ -21725,77 +21805,6 @@ setTimeout(()=>{(async function cvVersionCheck(){
 })();
 (async function INIT(){
 
-// ═══════════════════════════════════════════════════════════════════════════
-// LINE MOVEMENT ALERT SYSTEM
-// ═══════════════════════════════════════════════════════════════════════════
-const LINE_STORE = 'cv_lines_v1';
-function getStoredLines(){try{return JSON.parse(localStorage.getItem(LINE_STORE)||'{}');}catch{return {};}}
-function saveStoredLines(d){localStorage.setItem(LINE_STORE,JSON.stringify(d));}
-
-function storeOpeningLines(games){
-  const stored=getStoredLines();const dt=today();
-  for(const g of games){
-    const k=`${g.awA||g.away||''}_${g.hA||g.home||''}_${dt}`;
-    if(!stored[k]){stored[k]={homeML:g.homeML||g.hML||null,awayML:g.awayML||g.aML||null,ou:g.ou||null,storedAt:Date.now(),date:dt};}
-  }
-  saveStoredLines(stored);
-}
-
-function checkLineMovements(games){
-  const stored=getStoredLines();const alerts=[];
-  const lockedBets=getP().filter(p=>p.outcome==='pending');
-  for(const g of games){
-    const dt=g.date||today();
-    const k=`${g.awA||g.away||''}_${g.hA||g.home||''}_${dt}`;
-    const open=stored[k];if(!open)continue;
-    const curHML=g.homeML||g.hML||null,curAML=g.awayML||g.aML||null,curOU=g.ou||null;
-    const hDiff=curHML&&open.homeML?(curHML-open.homeML):0;
-    const ouDiff=curOU&&open.ou?(curOU-open.ou):0;
-    const gameName=`${g.awA||g.away||'?'} @ ${g.hA||g.home||'?'}`;
-    if(Math.abs(hDiff)>=8){
-      const dir=hDiff>0?'HOME shortening (sharp action)':'HOME lengthening (money on away)';
-      alerts.push({game:gameName,type:'ML',change:hDiff,dir,homeTeam:g.hA||g.home,awayTeam:g.awA||g.away});
-    }
-    if(Math.abs(ouDiff)>=0.5){
-      alerts.push({game:gameName,type:'OU',change:ouDiff,dir:ouDiff>0?`TOTAL UP (sharp OVER action)`:' TOTAL DOWN (sharp UNDER action)'});
-    }
-  }
-  // Notify on locked bets
-  for(const al of alerts){
-    const locked=lockedBets.find(p=>al.game.includes(p.hA)||al.game.includes(p.awA));
-    if(locked){
-      const betHome=locked.betOn===locked.hA;
-      const movingYourWay=(betHome&&al.change<0)||((!betHome)&&al.change>0);
-      const msg=movingYourWay?`✓ LINE MOVING YOUR WAY · ${al.game} · ${al.dir}`:
-                              `⚠ LINE MOVING AGAINST · ${al.game} · ${al.dir}`;
-      toast(msg);
-      sendLocalNotification(movingYourWay?'LINE MOVE — VALIDATED':' LINE MOVE — REASSESS',msg);
-    }
-  }
-  // Store updated lines
-  if(games.length)storeOpeningLines(games);
-  // Update line movement panel if visible
-  try{renderLineMovements(alerts);}catch(e){}
-  return alerts;
-}
-
-// #line-movement-panel doesn't exist in markup, so this always no-ops —
-// the primary user-facing alerting for line movement (toast() +
-// sendLocalNotification() in checkLineMovements above, specifically for
-// locked bets) already works independently of this function. This would
-// just be a secondary "all detected movements" panel; left undecided
-// rather than guessing where in the UI it belongs.
-function renderLineMovements(alerts){
-  const el=document.getElementById('line-movement-panel');if(!el)return;
-  if(!alerts.length){el.innerHTML='<div style="font-family:var(--mono);font-size:15px;color:rgba(220,190,255,.5)">NO SIGNIFICANT LINE MOVEMENT DETECTED</div>';return;}
-  el.innerHTML=alerts.map(al=>{
-    const col=al.change>0?'#00f0ff':'#ff2090';
-    return`<div style="padding:8px;margin-bottom:6px;background:rgba(10,4,24,.9);border:1px solid ${col}44;border-left:3px solid ${col};border-radius:2px">
-      <div style="font-family:var(--mono);font-size:16px;color:var(--t);font-weight:700">${al.game}</div>
-      <div style="font-family:var(--mono);font-size:15px;color:${col};margin-top:3px">${al.type} · ${al.dir} · Change: ${al.change>=0?'+':''}${al.change}</div>
-    </div>`;
-  }).join('');
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // BET JOURNAL / REASONING LAYER
@@ -25089,7 +25098,7 @@ function renderGlobalLiveBets(){
   // v5.1 — start enhanced live refresh
   try{startLiveRefresh();}catch(e){console.warn('startLiveRefresh',e);}
   // Expose all render/utility functions defined inside INIT to global scope
-  const _exp=[getStoredLines,saveStoredLines,storeOpeningLines,checkLineMovements,renderLineMovements,
+  const _exp=[
     showBetJournalModal,analyzeJournalReasons,requestNotifPermission,sendLocalNotification,buildInjuryRoster,computeInjuryImpact,injFlagHTML,computeStreaks,renderHotHandTracker,
     notifyElitePick,notifySettlement,renderHotHandTracker,computeStreaks,
     getFutures,saveFutures,lockFuture,updateFutureML,settleFuture,renderFuturesTab,
@@ -26320,7 +26329,7 @@ async function _renderWNBAGamesInner(el,dateEl,force){
         +'<button onclick="event.stopPropagation();_wnbaSprdDir(\''+g.hab+'\',\''+g.aab+'\','+(g.hP>=.5?Math.max(.25,g.hP-0.08):Math.max(.25,(1-g.hP)-0.08)).toFixed(4)+',\''+parseFloat(g.spread)+'\',\'sprd_wnbap_'+g.hab+'_'+g.aab+'\',\'FAV\',\''+g.gameKey+'\')" style="font-size:14px;padding:1px 5px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer">'+(g.hP>=.5?g.hab:g.aab)+'▼</button>'
         +'<button onclick="event.stopPropagation();_wnbaSprdDir(\''+g.hab+'\',\''+g.aab+'\','+(g.hP>=.5?Math.max(.25,g.hP-0.08):Math.max(.25,(1-g.hP)-0.08)).toFixed(4)+',\''+parseFloat(g.spread)+'\',\'sprd_wnbap_'+g.hab+'_'+g.aab+'\',\'DOG\',\''+g.gameKey+'\')" style="font-size:14px;padding:1px 5px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer">+'+(g.hP>=.5?g.aab:g.hab)+'</button>'
         +'</div>'
-        +'<button class="btn btn-o btn-sm" style="font-size:15px" onclick="addWNBAGameLeg(\''+g.hab+'\',\''+g.aab+'\',\'OU\',\'O\/U '+g.ou+' OVER\',0.52,110,2.10,\''+g.gameKey+'\')">O/U '+g.ou+'</button>'
+        +'<button class="btn btn-o btn-sm" style="font-size:15px" onclick="addWNBAGameLeg(\''+g.hab+'\',\''+g.aab+'\',\'OU\',\'O\/U '+_forceHalfLine(g.ou)+' OVER\',0.52,110,2.10,\''+g.gameKey+'\')">O/U '+_forceHalfLine(g.ou)+'</button>'
         +'</div></div>';
     }).join('');
     if(_wnbaGamesCache)_wnbaGamesCache.parlayHtml=pgl.innerHTML;
@@ -33000,15 +33009,19 @@ function _simRender(el,sport,home,away,N,r){
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
       +'<button class="btn btn-p btn-sm" id="sim-lock-h">OPTIMAL '+home+' ML '+(hML>0?'+':'')+hML+'</button>'
       +'<button class="btn btn-o btn-sm" id="sim-lock-a">OPTIMAL '+away+' ML '+(aML>0?'+':'')+aML+'</button>'
-      +'<button class="btn btn-o btn-sm" id="sim-lock-ou">OPTIMAL '+(r.overP>=.5?'OVER':'UNDER')+' '+r.ou+'</button>'
+      +'<button class="btn btn-o btn-sm" id="sim-lock-ou">OPTIMAL '+(r.overP>=.5?'OVER':'UNDER')+' '+_forceHalfLine(r.ou)+'</button>'
     +'</div>';
   el.innerHTML=html;
   setTimeout(function(){
     var bH=document.getElementById('sim-lock-h'),bA=document.getElementById('sim-lock-a'),bOU=document.getElementById('sim-lock-ou');
     var ouDir=r.overP>=.5?'OVER':'UNDER';
+    // Explicit request: every locked O/U line must end in .5 -- r.ou is
+    // the simulator's raw computed total, not guaranteed to already be a
+    // half-point line.
+    var _simOu=_forceHalfLine(r.ou);
     if(bH &&typeof lockPick==='function')bH.onclick =function(){lockPick(home,away,'ML',home,r.hP,hML,hD,td);};
     if(bA &&typeof lockPick==='function')bA.onclick =function(){lockPick(home,away,'ML',away,r.aP,aML,aD,td);};
-    if(bOU&&typeof lockPick==='function')bOU.onclick=function(){lockPick(home,away,'OU',ouDir+' '+r.ou,r.overP,'-110',1.91,td);};
+    if(bOU&&typeof lockPick==='function')bOU.onclick=function(){lockPick(home,away,'OU',ouDir+' '+_simOu,r.overP,'-110',1.91,td);};
   },80);
 }
 

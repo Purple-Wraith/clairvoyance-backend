@@ -1166,8 +1166,26 @@ def lock_game_leg(page, q: dict, date_override: str | None = None) -> str:
           const dateKey = dateOverride || today();
           const id = `${dateKey}_${hA}_${awA}_${type}_${betOn.replace(/\\s/g,'')}`;
           const preds = getP();
+          // Real gap, found+fixed alongside the new one-market-per-game
+          // dedup added to lockPick() itself (docs/app.html): this
+          // pre-check used to only replicate lockPick's OLD exact-id/
+          // exact-betOn check, so a market-level duplicate (e.g. the
+          // opposite side of an already-locked spread, or a re-worded ML
+          // for the same team) would pass this check as "not a dup", get
+          // silently rejected by lockPick's own newer internal guard
+          // (getP().length doesn't grow), and get misreported as
+          // 'failed' below -- exactly the "already-locked reported as a
+          // failure" conflation this same function's own comment already
+          // documents fixing once before. typeof _findSameMarketLock is
+          // guarded since this eval runs against whatever app.html
+          // version is actually deployed.
+          const marketDup = (typeof _findSameMarketLock === 'function')
+            ? _findSameMarketLock(preds, dateKey, hA, awA,
+                type === 'PL' ? 'PL' : type === 'RL' ? 'RL' : type === 'OU' ? 'OU' : type === 'PROP' ? 'PROP' : type === 'SPREAD' ? 'SPREAD' : 'ML')
+            : null;
           const dup = preds.find(x => x.id === id) ||
-                      preds.find(x => x.date === dateKey && x.hA === hA && x.awA === awA && x.betOn === betOn);
+                      preds.find(x => x.date === dateKey && x.hA === hA && x.awA === awA && x.betOn === betOn) ||
+                      marketDup;
           if (dup) return 'already-locked';
           const before = getP().length;
           await lockPick(hA, awA, type, betOn, prob, ml != null ? ml : '-110', dec || 1.91, dateKey, 'manual');
