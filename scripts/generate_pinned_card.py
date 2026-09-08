@@ -349,7 +349,7 @@ def generate(t: dict) -> Image.Image:
     val_font   = _font(20)
     rows = [
         ("SPORTS COVERED",
-         "MLB  ·  NBA  ·  NHL  ·  TENNIS  ·  F1  ·  More Coming"),
+         "MLB  ·  NBA  ·  NHL  ·  F1  ·  More Coming"),
         ("EVERY PICK GRADED",
          "Advanced Analytics  ·  Confidence Scores  ·  Market Edge"),
         ("ADAPTIVE ENGINE",

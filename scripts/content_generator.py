@@ -24,7 +24,7 @@ Usage:
 """
 
 import argparse, json, os, subprocess, sys
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # ── .env loader ───────────────────────────────────────────────────────────────
@@ -52,14 +52,6 @@ DATE_MT      = NOW_MT.date()
 DATE_DISPLAY = NOW_MT.strftime("%B %d, %Y")
 DATE_SHORT   = NOW_MT.strftime("%m/%d")
 DATE_SLUG    = NOW_MT.strftime("%Y-%m-%d")
-
-# ── Tennis gate: only during Grand Slams ─────────────────────────────────────
-_SLAMS_2026 = [
-    (date(2026,  5, 25), date(2026,  6,  8)),   # Roland Garros
-    (date(2026,  6, 29), date(2026,  7, 12)),   # Wimbledon
-    (date(2026,  8, 31), date(2026,  9, 13)),   # US Open
-]
-INCLUDE_TENNIS = any(s <= DATE_MT <= e for s, e in _SLAMS_2026)
 
 # ── Slot system ───────────────────────────────────────────────────────────────
 SLOT_NAMES = ["10am", "2pm", "445pm", "7pm", "10pm"]

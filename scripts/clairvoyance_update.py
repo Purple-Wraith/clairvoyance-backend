@@ -3,8 +3,7 @@ from __future__ import annotations
 """
 clairvoyance_update.py — Clairvoyance Master Data Refresh Engine v6.0
 Fetches live stats, odds, schedules, standings, props, injuries, advanced
-analytics across MLB, NBA, NHL, Tennis (Roland Garros), F1 then pushes to
-GitHub Pages.
+analytics across MLB, NBA, NHL, F1 then pushes to GitHub Pages.
 
 Usage:
   python3 scripts/clairvoyance_update.py                  # full fetch + write
@@ -1918,294 +1917,6 @@ def fetch_hockey_reference_team_stats() -> dict:
         log(f"Hockey Reference team stats: {exc}", "WARN")
     return result
 
-def _parse_tennis_abstract_table(soup: BeautifulSoup, limit: int = 100) -> list[dict]:
-    tables = soup.find_all("table")
-    table  = next((t for t in tables if t.find("tbody") and len(t.find("tbody").find_all("tr")) > 50), None)
-    if not table: return []
-    tbody = table.find("tbody")
-    players = []
-    for i, row in enumerate(tbody.find_all("tr")[:limit]):
-        cells = row.find_all("td")
-        if len(cells) < 4: continue
-        def cell(n): return cells[n].get_text(strip=True).replace("\xa0"," ") if len(cells)>n else ""
-        def icell(n):
-            try: return int(float(cell(n).replace(",","").replace(" ",""))) if cell(n) else 0
-            except: return 0
-        players.append({
-            "rank": icell(0) or i+1, "name": cell(1), "age": cell(2),
-            "elo": icell(3), "eloHard": icell(6), "eloClay": icell(8), "eloGrass": icell(10),
-        })
-    return players
-
-def fetch_tennis_elo(tour: str = "atp") -> list[dict]:
-    log(f"TennisAbstract {tour.upper()} ELO…")
-    soup = fetch_html(f"https://tennisabstract.com/reports/{tour}_elo_ratings.html")
-    if not soup: return []
-    players = _parse_tennis_abstract_table(soup, 100)
-    vlog(f"  {tour.upper()} ELO: {len(players)} players")
-    return players
-
-def fetch_tennis_yelo(tour: str = "atp") -> list[dict]:
-    log(f"TennisAbstract {tour.upper()} yElo…")
-    url  = f"https://tennisabstract.com/reports/{tour}_season_yelo_ratings.html"
-    soup = fetch_html(url)
-    if not soup: return []
-    tables = soup.find_all("table")
-    table  = next((t for t in tables if t.find("tbody") and len(t.find("tbody").find_all("tr")) > 50), None)
-    if not table: return []
-    players = []
-    for i, row in enumerate(table.find("tbody").find_all("tr")[:100]):
-        cells = row.find_all("td")
-        if len(cells) < 3: continue
-        def cell(n): return cells[n].get_text(strip=True).replace("\xa0"," ") if len(cells)>n else ""
-        def icell(n):
-            try: return int(float(cell(n).replace(",","").replace(" ",""))) if cell(n) else 0
-            except: return 0
-        players.append({
-            "rank": icell(0) or i+1, "name": cell(1),
-            "yElo": icell(2), "yEloClay": icell(3), "yEloHard": icell(4),
-        })
-    vlog(f"  {tour.upper()} yElo: {len(players)} players")
-    return players
-
-def fetch_tennis_recent_form(tour: str = "atp") -> list[dict]:
-    """
-    Additive: TennisAbstract's surface-specific ("52-week") Elo report,
-    which layers recent-form/fatigue signal on top of the season-long yElo
-    already fetched by fetch_tennis_yelo() — distinct report, not a
-    duplicate — giving Monte Carlo sims a way to weight players who are
-    hot/cold right now rather than only their full-season rating.
-    """
-    log(f"TennisAbstract {tour.upper()} recent form…")
-    url = f"https://tennisabstract.com/reports/{tour}_elo_52routing.html"
-    soup = fetch_html(url)
-    if not soup:
-        # fall back to the standard overall elo report's most-recent-form columns
-        soup = fetch_html(f"https://tennisabstract.com/reports/{tour}_elo_ratings.html")
-        if not soup:
-            return []
-    tables = soup.find_all("table")
-    table = next((t for t in tables if t.find("tbody") and len(t.find("tbody").find_all("tr")) > 30), None)
-    if not table:
-        return []
-    players = []
-    for i, row in enumerate(table.find("tbody").find_all("tr")[:100]):
-        cells = row.find_all("td")
-        if len(cells) < 4:
-            continue
-        def cell(n): return cells[n].get_text(strip=True).replace("\xa0", " ") if len(cells) > n else ""
-        def fcell(n):
-            try: return float(cell(n).replace(",", "")) if cell(n) else 0.0
-            except (ValueError, TypeError): return 0.0
-        players.append({
-            "rank": i + 1, "name": cell(1),
-            "recentElo": fcell(3), "matches52w": int(fcell(2)) if fcell(2) else 0,
-        })
-    vlog(f"  {tour.upper()} recent form: {len(players)} players")
-    return players
-
-def fetch_tennis_ratio(player1: str = "", player2: str = "") -> dict:
-    """TennisRatio — player comparison, surface stats, serve/return, H2H."""
-    log("TennisRatio stats…")
-    result: dict = {"players": {}, "comparisons": [], "surfaceStats": {}, "serveReturn": {}}
-    try:
-        base = "https://www.tennisratio.com"
-        soup = fetch_html(base)
-        if not soup:
-            # Return enriched static data from ATP_DB / WTA_DB elo entries if scrape fails
-            return result
-        # Scrape any available player stats tables
-        tables = soup.find_all("table")
-        for tbl in tables[:5]:
-            headers = [th.get_text(strip=True) for th in tbl.find_all("th")]
-            if not headers:
-                continue
-            for row in tbl.find_all("tr")[1:100]:
-                cells = row.find_all(["td","th"])
-                if len(cells) < len(headers):
-                    continue
-                entry = {headers[i]: cells[i].get_text(strip=True) for i in range(min(len(headers), len(cells)))}
-                name = entry.get("Player", entry.get("Name", ""))
-                if name:
-                    result["players"][name] = entry
-        # Try to get surface win rates from dedicated pages
-        for surface in ["hard", "clay", "grass"]:
-            try:
-                s_soup = fetch_html(f"{base}/surface/{surface}")
-                if not s_soup:
-                    continue
-                for tbl in s_soup.find_all("table")[:2]:
-                    hdrs = [th.get_text(strip=True) for th in tbl.find_all("th")]
-                    if not hdrs:
-                        continue
-                    for row in tbl.find_all("tr")[1:50]:
-                        cells = row.find_all(["td","th"])
-                        if len(cells) < len(hdrs):
-                            continue
-                        entry = {hdrs[i]: cells[i].get_text(strip=True) for i in range(min(len(hdrs), len(cells)))}
-                        name = entry.get("Player", entry.get("Name", ""))
-                        if name:
-                            if name not in result["surfaceStats"]:
-                                result["surfaceStats"][name] = {}
-                            result["surfaceStats"][name][surface] = entry
-            except Exception:
-                pass
-        # Try serve/return stats page
-        try:
-            srv_soup = fetch_html(f"{base}/serve")
-            if srv_soup:
-                for tbl in srv_soup.find_all("table")[:2]:
-                    hdrs = [th.get_text(strip=True) for th in tbl.find_all("th")]
-                    if not hdrs:
-                        continue
-                    for row in tbl.find_all("tr")[1:50]:
-                        cells = row.find_all(["td","th"])
-                        if len(cells) < len(hdrs):
-                            continue
-                        entry = {hdrs[i]: cells[i].get_text(strip=True) for i in range(min(len(hdrs), len(cells)))}
-                        name = entry.get("Player", entry.get("Name", ""))
-                        if name:
-                            result["serveReturn"][name] = entry
-        except Exception:
-            pass
-        vlog(f"  TennisRatio: {len(result['players'])} player entries, {len(result['surfaceStats'])} surface entries")
-    except Exception as e:
-        log(f"TennisRatio fetch error: {e}", "WARN")
-    return result
-
-# Tournament-name keyword -> surface, checked against The Odds API's own
-# sport `title` field (e.g. "ATP Wimbledon", "WTA Cincinnati Open"). The
-# API has no surface field of its own, and there's no single authoritative
-# list of every one of its ~40 tennis sport_keys to hardcode against
-# instead -- keyword matching against the human-readable title is the
-# only signal available without maintaining that list by hand. Grass and
-# clay swings are a short, well-known set of tournaments; everything else
-# on tour (hard-court Masters/500s/250s, the US/Asian hard swings, indoor
-# season) defaults to hard, which is also genuinely the majority surface
-# across a real ATP/WTA season -- an unmatched title is far more likely
-# hard than clay or grass.
-_TENNIS_GRASS_KW = ("wimbledon", "halle", "queen's", "queens", "eastbourne",
-                     "mallorca", "newport", "birmingham", "nottingham", "bad homburg")
-_TENNIS_CLAY_KW = ("french open", "roland garros", "monte carlo", "madrid",
-                    "rome", "italian open", "barcelona", "munich", "geneva",
-                    "hamburg", "bastad", "gstaad", "kitzbuhel", "umag",
-                    "estoril", "houston", "marrakech", "rio de janeiro",
-                    "santiago", "bogota", "buenos aires", "cordoba")
-# Only these 4 are best-of-5 for ATP -- every other tour event (Masters
-# 1000s included) is best-of-3. WTA is best-of-3 everywhere, majors
-# included, so this list is ATP-only by construction.
-_TENNIS_ATP_MAJORS_KW = ("australian open", "french open", "roland garros",
-                          "wimbledon", "us open")
-
-
-def _tennis_surface_for_title(title: str) -> str:
-    t = title.lower()
-    if any(kw in t for kw in _TENNIS_GRASS_KW):
-        return "grass"
-    if any(kw in t for kw in _TENNIS_CLAY_KW):
-        return "clay"
-    return "hard"
-
-
-def fetch_tennis_odds() -> dict:
-    """
-    Fetch real ATP/WTA match odds from The Odds API for whichever
-    tournament(s) are actually active right now, instead of one hardcoded
-    tournament.
-
-    Real gap, found via audit: this used to hardcode
-    tennis_atp_french_open/tennis_wta_french_open specifically -- Roland
-    Garros, which ends in early June. Once that tournament's odds market
-    closed for the year, every match here silently went to zero,
-    permanently, for the other ~10 months of the season (confirmed via a
-    live ledger check: zero tennis coverage outside the 2 majors this app
-    has hand-built brackets for). The Odds API has no single umbrella key
-    for "the ATP/WTA tour" as a whole -- confirmed against their own docs --
-    it's ~40+ individual per-tournament keys spanning the real calendar, so
-    the fix is to ask /v4/sports/ which of those are marked active right
-    now and pull odds for all of them, rather than pin one in code.
-
-    Returns {matches: [{p1, p2, p1ml, p2ml, tour, commence, book, surface,
-    tournament, bo5}], source, remaining}.
-    """
-    api_key = os.environ.get("ODDS_API_KEY", "")
-    result: dict = {"matches": [], "source": "none", "remaining": None}
-    if not api_key:
-        return result
-
-    try:
-        sports_resp = fetch_json("https://api.the-odds-api.com/v4/sports/", params={"apiKey": api_key})
-    except Exception as exc:
-        log(f"Tennis Odds API sports list: {exc}", "WARN")
-        return result
-    if not isinstance(sports_resp, list):
-        return result
-
-    active_tennis = [
-        s for s in sports_resp
-        if isinstance(s, dict) and s.get("active")
-        and isinstance(s.get("key"), str)
-        and (s["key"].startswith("tennis_atp_") or s["key"].startswith("tennis_wta_"))
-    ]
-    if not active_tennis:
-        log("Tennis Odds API: no active ATP/WTA tournaments right now")
-        return result
-
-    all_matches: list[dict] = []
-    for sport in active_tennis:
-        sport_key = sport["key"]
-        tour_label = "ATP" if sport_key.startswith("tennis_atp_") else "WTA"
-        title = sport.get("title") or sport_key
-        surface = _tennis_surface_for_title(title)
-        is_major = any(kw in title.lower() for kw in _TENNIS_ATP_MAJORS_KW)
-        bo5 = tour_label == "ATP" and is_major
-        try:
-            url  = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/"
-            resp = fetch_json(url, params={
-                "apiKey": api_key, "regions": "us",
-                "markets": "h2h", "oddsFormat": "american", "dateFormat": "iso",
-            })
-            if not isinstance(resp, list):
-                continue
-            matched_here = 0
-            for ev in resp:
-                p1_name = ev.get("home_team", "")
-                p2_name = ev.get("away_team", "")
-                commence = ev.get("commence_time", "")
-                best_p1_ml: int | None = None
-                best_p2_ml: int | None = None
-                best_book = ""
-                for bk in (ev.get("bookmakers") or []):
-                    for mkt in (bk.get("markets") or []):
-                        if mkt.get("key") != "h2h": continue
-                        for o in (mkt.get("outcomes") or []):
-                            p, nm = o.get("price"), o.get("name","")
-                            if p is None: continue
-                            if nm == p1_name and (best_p1_ml is None or int(p) > best_p1_ml):
-                                best_p1_ml = int(p); best_book = bk.get("title","")
-                            elif nm == p2_name and (best_p2_ml is None or int(p) > best_p2_ml):
-                                best_p2_ml = int(p)
-                if best_p1_ml is not None or best_p2_ml is not None:
-                    matched_here += 1
-                    all_matches.append({
-                        "tour":    tour_label,
-                        "p1":      p1_name,
-                        "p2":      p2_name,
-                        "p1ml":    best_p1_ml,
-                        "p2ml":    best_p2_ml,
-                        "book":    best_book,
-                        "commence": commence,
-                        "surface": surface,
-                        "tournament": title,
-                        "bo5":     bo5,
-                    })
-            log(f"Tennis Odds API {title} ({tour_label}, {surface}): {matched_here} matches")
-        except Exception as exc:
-            log(f"Tennis Odds API {sport_key}: {exc}", "WARN")
-    result["matches"] = all_matches
-    result["source"]  = "The Odds API" if all_matches else "none"
-    return result
-
 
 def fetch_futures_odds() -> dict:
     """
@@ -2257,447 +1968,6 @@ def fetch_futures_odds() -> dict:
     return result
 
 
-def _enrich_rg_bets(bets: list[dict], tennis_odds: dict) -> list[dict]:
-    """
-    Re-score Roland Garros ELO bets using real Odds API ML lines.
-    Falls back to original bet if no Odds API line found.
-    """
-    if not bets:
-        return []
-    odds_matches = tennis_odds.get("matches", [])
-    # Build lookup: lowercase player name → match
-    name_map: dict[str, dict] = {}
-    for m in odds_matches:
-        for field in ("p1", "p2"):
-            name_map[m[field].lower()] = m
-            # Last name only fallback
-            parts = m[field].split()
-            if parts:
-                name_map[parts[-1].lower()] = m
-
-    enriched = []
-    for bet in bets:
-        pick = bet.get("pick", "")
-        match = name_map.get(pick.lower()) or name_map.get(pick.split()[-1].lower() if pick else "")
-        if match:
-            is_p1 = pick.lower() in match["p1"].lower() or match["p1"].lower().endswith(pick.split()[-1].lower() if pick else "")
-            real_ml = match["p1ml"] if is_p1 else match["p2ml"]
-            if real_ml is not None:
-                dec = real_ml / 100 + 1 if real_ml > 0 else 100 / abs(real_ml) + 1
-                prob = bet.get("prob", 0.5) / 100
-                ev_new = round((prob * dec - 1) * 100, 1)
-                bet = {**bet, "ml": f"+{real_ml}" if real_ml > 0 else str(real_ml),
-                       "ev": ev_new, "book": match.get("book", ""), "oddsSource": "OddsAPI"}
-        enriched.append(bet)
-    return enriched
-
-
-def fetch_tennis_schedule() -> list[dict]:
-    """Fetch today's ATP + WTA matches from ESPN scoreboard API."""
-    matches: list[dict] = []
-    for tour in ("atp","wta"):
-        try:
-            data = fetch_json(
-                f"https://site.api.espn.com/apis/site/v2/sports/tennis/{tour}"
-                f"/scoreboard?dates={TODAY_MT}"
-            )
-            for ev in (data or {}).get("events") or []:
-                comp    = (ev.get("competitions") or [{}])[0]
-                players = comp.get("competitors") or []
-                p1  = (players[0].get("athlete") or {}).get("displayName","TBD") if players else "TBD"
-                p2  = (players[1].get("athlete") or {}).get("displayName","TBD") if len(players)>1 else "TBD"
-                st  = comp.get("status",{})
-                state = st.get("type",{}).get("state","pre")
-                statusText = st.get("type",{}).get("shortDetail","")
-                # ESPN's tennis status text marks in-match retirements/
-                # walkovers directly (e.g. "Ret.", "W/O", "Walkover") --
-                # there's no individual-athlete injury API for tennis (the
-                # /injuries endpoint is team-roster-shaped, see
-                # fetch_injuries_all's docstring), so a real retirement or
-                # walkover happening right now is the closest real signal
-                # this pipeline can get to "this player may be hurt" —
-                # surfaced separately so app.html can flag it as an
-                # injury/withdrawal watch item instead of just a final score.
-                is_retirement = bool(re.search(r"\bret\.?\b|walkover|\bw/?o\b", statusText, re.I))
-                matches.append({
-                    "tour":       tour.upper(),
-                    "player1":    p1, "player2": p2,
-                    "state":      state,
-                    "score1":     players[0].get("score","") if players else "",
-                    "score2":     players[1].get("score","") if len(players)>1 else "",
-                    "statusText": statusText,
-                    "retirement": is_retirement,
-                    "tournament": (comp.get("venue") or {}).get("fullName",""),
-                    "date":       ev.get("date",""),
-                    "network":    ((comp.get("broadcasts") or [{}])[0].get("names") or [""])[0],
-                })
-        except Exception as exc:
-            log(f"Tennis schedule {tour}: {exc}", "WARN")
-    log(f"Tennis schedule: {len(matches)} matches")
-    return matches
-
-USO_ROUND_MAP = {
-    "Round 1": "r1", "Round 2": "r2", "Round 3": "r3", "Round 4": "r4",
-    "Quarterfinal": "qf", "Semifinal": "sf", "Final": "f",
-}
-
-def _uso_short_name(display_name: str) -> str:
-    """"Jannik Sinner" -> "J.Sinner" -- the F.Lastname format TEN_TOURNAMENTS'
-    hand-authored USO draw already uses everywhere (ATP_DB/WTA_DB keys, every
-    other match's p1/p2), so real fetched matches slot into the exact same
-    shape without a separate name-matching layer."""
-    parts = (display_name or "").split(" ", 1)
-    if len(parts) < 2 or not parts[0]:
-        return display_name or ""
-    return f"{parts[0][0]}.{parts[1]}"
-
-def fetch_uso_bracket() -> dict:
-    """Real, complete, always-current US Open bracket (both tours, every
-    round) straight from ESPN's tennis scoreboard API.
-
-    Real gap found investigating "loads of US Open matchups not showing,
-    so they're not getting locked": TEN_TOURNAMENTS' uso2026 entry hand-
-    authors Round 1 (fetched once, 2026-08-29, before a single R1 match
-    had been played) and leaves Round 2 onward as empty placeholders by
-    design, meant to be derived client-side round-by-round from resolved
-    winners. That derivation only works once R1's real winners are known
-    -- and the ONLY way this app could ever learn a winner was a manual
-    UI click (_usoSetWinnerManual, localStorage) or the ~15-minute live-
-    score tracker feed, which only carries currently-in-progress/very-
-    recent matches, not a match that finished 1-2 days ago. Net effect:
-    almost no R1 winners were ever resolvable after the fact, so almost
-    no R2 pairings could ever be derived either -- the tournament looked
-    nearly empty in the UI (a handful of matches) days after real play
-    had already moved on to Round 2/3.
-
-    Confirmed live: site.api.espn.com's tennis scoreboard endpoint
-    doesn't return one event per match the way fetch_tennis_schedule()
-    (today-only) assumes -- for a Slam it returns ONE event per
-    tournament (id like "189-2026"/"US Open"), and that event's
-    groupings[].competitions[] already contains the ENTIRE draw --
-    every round, qualifying through the final, real opponents (even for
-    rounds that haven't been played yet) and a real competitor[].winner
-    boolean the instant a match finishes. One call per tour, valid for
-    the whole fortnight -- no day-by-day iteration, no name-fuzzy-
-    matching, no CORS issue (same site.api.espn.com domain the rest of
-    this pipeline already uses with empty HEADERS).
-    """
-    log("US Open bracket (real ESPN draw, both tours)…")
-    out: dict = {"atp": {}, "wta": {}}
-    for tour, slug in (("atp", "mens-singles"), ("wta", "womens-singles")):
-        try:
-            data = fetch_json(
-                f"https://site.api.espn.com/apis/site/v2/sports/tennis/{tour}/scoreboard",
-                params={"dates": TODAY_MT},
-            )
-            events = (data or {}).get("events") or []
-            ev = next((e for e in events if "us open" in (e.get("name") or "").lower()), None)
-            if not ev:
-                log(f"US Open bracket {tour}: no matching event for {TODAY_MT}", "WARN")
-                continue
-            grouping = next((g for g in ev.get("groupings", [])
-                              if g.get("grouping", {}).get("slug") == slug), None)
-            if not grouping:
-                continue
-            rounds: dict = {rid: [] for rid in USO_ROUND_MAP.values()}
-            for comp in grouping.get("competitions", []):
-                rname = (comp.get("round") or {}).get("displayName", "")
-                rid = USO_ROUND_MAP.get(rname)
-                if not rid:
-                    continue  # qualifying rounds -- not part of the 128-player main draw
-                competitors = comp.get("competitors") or []
-                if len(competitors) < 2:
-                    continue
-                c1, c2 = competitors[0], competitors[1]
-                a1, a2 = c1.get("athlete") or {}, c2.get("athlete") or {}
-                p1, p2 = _uso_short_name(a1.get("displayName")), _uso_short_name(a2.get("displayName"))
-                if not p1 or not p2:
-                    continue
-                s1 = c1.get("curatedRank", {}).get("current")
-                s2 = c2.get("curatedRank", {}).get("current")
-                comp_state = (comp.get("status") or {}).get("type", {}).get("state", "pre")
-                # Real bug, found auditing settlement: this used to read
-                # competitors[].winner with no state check at all --
-                # ESPN's live feed can flag the leading competitor's
-                # winner as true before the match's own status.type.state
-                # actually flips to "post" (an in-progress match still
-                # mid-decider, or the brief window between match point and
-                # the feed's official close-out). A premature winner here
-                # doesn't just mis-render the bracket -- _usoAdvanceRound
-                # (docs/app.html) derives the NEXT round's real pairing the
-                # instant both feeding matches show a winner, and
-                # _captureUSOLegs feeds that derived pairing straight into
-                # the real auto-lock pipeline -- so a too-early winner here
-                # could lock a real subscriber pick against an R2 matchup
-                # that isn't official yet. Only trust winner once ESPN
-                # itself has closed the match out.
-                winner = None
-                if comp_state == "post":
-                    if c1.get("winner"):
-                        winner = p1
-                    elif c2.get("winner"):
-                        winner = p2
-                # Built directly from each competitor's real per-set
-                # linescores rather than regex-parsing the free-text note
-                # ("Daniel Merida (ESP) bt (23) Andrey Rublev (RUS) 6-7 ...")
-                # -- a seeded loser's "(23)" sits right after "bt", which a
-                # naive "first ')' after bt" regex mistakes for the
-                # country-code paren and mangles the score. linescores is
-                # always positionally correct regardless of seeding/naming.
-                ls1, ls2 = c1.get("linescores") or [], c2.get("linescores") or []
-                sets = []
-                for i in range(min(len(ls1), len(ls2))):
-                    v1, v2 = ls1[i].get("value"), ls2[i].get("value")
-                    if v1 is None or v2 is None:
-                        continue
-                    tb = ls1[i].get("tiebreak") or ls2[i].get("tiebreak")
-                    sets.append(f"{int(v1)}-{int(v2)}" + (f"({tb})" if tb else ""))
-                score = " ".join(sets) if sets else None
-                match_date = None
-                raw_date = comp.get("date")
-                if raw_date:
-                    try:
-                        dt = datetime.strptime(raw_date, "%Y-%m-%dT%H:%MZ").replace(tzinfo=timezone.utc)
-                        match_date = dt.astimezone(_MT).strftime("%Y-%m-%d")
-                    except Exception:
-                        match_date = None
-                rounds[rid].append({
-                    "p1": p1, "s1": f"({s1})" if s1 else "",
-                    "p2": p2, "s2": f"({s2})" if s2 else "",
-                    "matchDate": match_date, "winner": winner, "score": score,
-                    "state": comp_state,
-                })
-            out[tour] = rounds
-        except Exception as exc:
-            log(f"US Open bracket {tour}: {exc}", "WARN")
-    total = sum(len(v) for r in out.values() for v in r.values())
-    log(f"  US Open bracket: {total} real matches across both tours")
-    return out
-
-def fetch_tennis_rankings_espn() -> dict:
-    """Fetch ATP + WTA rankings from ESPN as a secondary validation
-    reference alongside the primary TennisAbstract Elo ratings (different
-    methodology -- ATP/WTA's own official ranking-points system rather
-    than an Elo model -- so a player whose Elo diverges sharply from
-    their ESPN rank is worth a second look, not proof either source is
-    wrong).
-
-    Uses ESPN's JSON API (site.api.espn.com/.../rankings), NOT the HTML
-    page at espn.com/tennis/rankings the URL a human would visit --
-    confirmed directly that the HTML page now serves a JS bot-challenge
-    ("JavaScript is disabled... we need to verify you're not a robot")
-    to this pipeline's requests-based fetch regardless of User-Agent, so
-    the previous tr.Table__TR scrape always silently returned zero rows.
-    The JSON endpoint has no such gate and additionally exposes the
-    same "last updated" date ESPN shows at the bottom of the HTML page
-    (rankings.update), letting callers check staleness -- ATP/WTA update
-    rankings weekly (Mondays), so treat this as stale if update is more
-    than ~9 days old.
-    """
-    log("ESPN tennis rankings…")
-    result: dict = {"atp": [], "wta": [], "atpUpdated": None, "wtaUpdated": None}
-    for tour in ("atp", "wta"):
-        try:
-            r = _session.get(f"https://site.api.espn.com/apis/site/v2/sports/tennis/{tour}/rankings", timeout=15)
-            if not r.ok:
-                log(f"ESPN tennis rankings {tour}: HTTP {r.status_code}", "WARN")
-                continue
-            d = r.json()
-            rk = (d.get("rankings") or [{}])[0]
-            result[f"{tour}Updated"] = rk.get("update")
-            for row in rk.get("ranks") or []:
-                ath = row.get("athlete") or {}
-                result[tour].append({
-                    "rank": row.get("current"), "previous": row.get("previous"),
-                    "trend": row.get("trend"), "points": row.get("points"),
-                    "name": ath.get("displayName", ""),
-                })
-        except Exception as exc:
-            log(f"ESPN tennis rankings {tour}: {exc}", "WARN")
-    vlog(f"  ATP rankings: {len(result['atp'])} (updated {result['atpUpdated']}) | "
-         f"WTA: {len(result['wta'])} (updated {result['wtaUpdated']})")
-    return result
-
-def fetch_tennis_schedule_full() -> dict:
-    """Return comprehensive 2026 ATP/WTA tournament calendar (hardcoded + ESPN live)."""
-    log("Tennis full schedule (2026 calendar)…")
-
-    def _active(start_iso: str, end_iso: str) -> bool:
-        try:
-            return start_iso <= TODAY_ISO <= end_iso
-        except Exception:
-            return False
-
-    def _status(start_iso: str, end_iso: str) -> str:
-        if TODAY_ISO < start_iso:
-            return "upcoming"
-        if TODAY_ISO > end_iso:
-            return "completed"
-        return "active"
-
-    # Retired everything but the 4 Grand Slams (2026-08-22): ATP Masters
-    # 1000s, WTA 1000/500s (the "WTA Premier" tier under its old pre-2021
-    # naming), and both tours' season-ending Finals. Cincinnati additionally
-    # had its own dedicated live-draw scraper (fetch_cincinnati_open(),
-    # removed alongside this) since it was in progress at the time it was
-    # built -- that's gone too, not just its calendar entry.
-    ATP_2026 = [
-        {"name":"Australian Open","dates":"Jan 12–26","startDate":"2026-01-12","endDate":"2026-01-26","location":"Melbourne","surface":"Hard","category":"Grand Slam"},
-        {"name":"French Open (Roland Garros)","dates":"May 25–Jun 8","startDate":"2026-05-25","endDate":"2026-06-08","location":"Paris","surface":"Clay","category":"Grand Slam"},
-        {"name":"Wimbledon","dates":"Jun 30–Jul 13","startDate":"2026-06-30","endDate":"2026-07-13","location":"London","surface":"Grass","category":"Grand Slam"},
-        {"name":"US Open","dates":"Aug 24–Sep 7","startDate":"2026-08-24","endDate":"2026-09-07","location":"New York","surface":"Hard","category":"Grand Slam"},
-    ]
-
-    WTA_2026 = [
-        {"name":"Australian Open","dates":"Jan 12–26","startDate":"2026-01-12","endDate":"2026-01-26","location":"Melbourne","surface":"Hard","category":"Grand Slam"},
-        {"name":"French Open","dates":"May 25–Jun 8","startDate":"2026-05-25","endDate":"2026-06-08","location":"Paris","surface":"Clay","category":"Grand Slam"},
-        {"name":"Wimbledon","dates":"Jun 30–Jul 13","startDate":"2026-06-30","endDate":"2026-07-13","location":"London","surface":"Grass","category":"Grand Slam"},
-        {"name":"US Open","dates":"Aug 24–Sep 7","startDate":"2026-08-24","endDate":"2026-09-07","location":"New York","surface":"Hard","category":"Grand Slam"},
-    ]
-
-    for ev in ATP_2026:
-        ev["active"] = _active(ev["startDate"], ev["endDate"])
-        ev["status"] = _status(ev["startDate"], ev["endDate"])
-    for ev in WTA_2026:
-        ev["active"] = _active(ev["startDate"], ev["endDate"])
-        ev["status"] = _status(ev["startDate"], ev["endDate"])
-
-    result: dict = {"atp": ATP_2026, "wta": WTA_2026}
-
-    # Also try ESPN for live schedule supplement
-    for tour, path in [("atp","tennis/schedule"),("wta","tennis/schedule/_/type/wta")]:
-        try:
-            # ref=True -- see fetch_tennis_rankings_espn's comment on why
-            # www.espn.com needs the real browser UA (_ref_session), unlike
-            # site.api.espn.com which needs none at all.
-            soup = fetch_html(f"https://www.espn.com/{path}", ref=True)
-            if not soup: continue
-            espn_events = []
-            for row in soup.select("tr.Table__TR"):
-                cells = row.find_all("td")
-                if len(cells) >= 2:
-                    espn_events.append({
-                        "tournament": cells[0].get_text(strip=True),
-                        "surface":    cells[1].get_text(strip=True) if len(cells) > 1 else "",
-                        "dates":      cells[2].get_text(strip=True) if len(cells) > 2 else "",
-                    })
-            if espn_events:
-                result[f"{tour}_espn"] = espn_events
-        except Exception as exc:
-            log(f"Tennis full schedule {tour}: {exc}", "WARN")
-
-    log(f"Tennis calendar: {len(ATP_2026)} ATP, {len(WTA_2026)} WTA events")
-    return result
-
-# ── Roland Garros ─────────────────────────────────────────────────────────────
-# Clay specialists that get +0.05 Elo surface bonus
-_CLAY_SPECIALISTS: set = {
-    "Novak Djokovic", "Rafael Nadal", "Carlos Alcaraz", "Casper Ruud",
-    "Jannik Sinner", "Stefanos Tsitsipas", "Holger Rune", "Andrey Rublev",
-    "Lorenzo Musetti", "Grigor Dimitrov", "Alexander Zverev", "Hubert Hurkacz",
-    "Iga Swiatek", "Marketa Vondrousova", "Barbora Krejcikova", "Elena Rybakina",
-    "Coco Gauff", "Aryna Sabalenka", "Simona Halep", "Petra Kvitova",
-}
-
-def _elo_win_prob(elo_a: float, elo_b: float,
-                  player_a: str = "", player_b: str = "") -> float:
-    """Win probability for player A vs player B using Elo formula.
-    Applies clay surface adjustment (+0.05 raw prob) for known specialists."""
-    prob = 1.0 / (1.0 + 10.0 ** ((elo_b - elo_a) / 400.0))
-    clay_adj = 0.0
-    if player_a in _CLAY_SPECIALISTS: clay_adj += 0.025
-    if player_b in _CLAY_SPECIALISTS: clay_adj -= 0.025
-    return min(0.97, max(0.03, prob + clay_adj))
-
-def fetch_roland_garros() -> dict:
-    """Fetch Roland Garros 2026 data: ESPN scoreboard, draws, and TennisAbstract Elo bets."""
-    log("Roland Garros 2026…")
-    result: dict = {
-        "atpMatches": [], "wtaMatches": [],
-        "atpElo": [], "wtaElo": [],
-        "draw": {"atp": [], "wta": []},
-        "tournament": {"name": "Roland Garros 2026", "surface": "Clay", "location": "Paris"},
-        "bets": [],
-        "fetchedAt": TODAY_ISO,
-    }
-
-    # 1. ESPN tennis scoreboard
-    try:
-        data = fetch_json("https://site.api.espn.com/apis/site/v2/sports/tennis/scoreboard")
-        for ev in (data or {}).get("events") or []:
-            comp    = (ev.get("competitions") or [{}])[0]
-            players = comp.get("competitors") or []
-            p1  = (players[0].get("athlete") or {}).get("displayName", "TBD") if players else "TBD"
-            p2  = (players[1].get("athlete") or {}).get("displayName", "TBD") if len(players)>1 else "TBD"
-            st  = comp.get("status", {})
-            state = st.get("type", {}).get("state", "pre")
-            tour_val = ""
-            for note_obj in (comp.get("notes") or []):
-                t = note_obj.get("headline", "")
-                if t: tour_val = t; break
-            entry = {
-                "player1": p1, "player2": p2,
-                "state": state,
-                "score1": players[0].get("score","") if players else "",
-                "score2": players[1].get("score","") if len(players)>1 else "",
-                "statusText": st.get("type",{}).get("shortDetail",""),
-                "tournament": (comp.get("venue") or {}).get("fullName","") or tour_val,
-                "date": ev.get("date",""),
-            }
-            # Classify ATP vs WTA by league/gender metadata
-            is_wta = any("wta" in str(v).lower() for v in ev.values())
-            if is_wta:
-                result["wtaMatches"].append(entry)
-            else:
-                result["atpMatches"].append(entry)
-    except Exception as exc:
-        log(f"Roland Garros ESPN scoreboard: {exc}", "WARN")
-
-    # 2. TennisAbstract Elo (top 50 for bet generation)
-    atp_elo_list = fetch_tennis_elo("atp")[:50]
-    wta_elo_list = fetch_tennis_elo("wta")[:50]
-    result["atpElo"] = atp_elo_list
-    result["wtaElo"] = wta_elo_list
-
-    # 3. Generate Roland Garros R1 bets using Elo clay model
-    elo_map_atp: dict[str, float] = {p["name"]: float(p.get("eloClay") or p.get("elo") or 1500)
-                                      for p in atp_elo_list}
-    elo_map_wta: dict[str, float] = {p["name"]: float(p.get("eloClay") or p.get("elo") or 1500)
-                                      for p in wta_elo_list}
-
-    all_matches = result["atpMatches"] + result["wtaMatches"]
-    for match in all_matches:
-        p1, p2 = match.get("player1",""), match.get("player2","")
-        if not p1 or not p2 or p1 == "TBD" or p2 == "TBD": continue
-        # Determine ATP vs WTA elo map
-        elo_map = elo_map_atp if match in result["atpMatches"] else elo_map_wta
-        elo_p1 = elo_map.get(p1, 1500.0)
-        elo_p2 = elo_map.get(p2, 1500.0)
-        prob = _elo_win_prob(elo_p1, elo_p2, p1, p2)
-        # Implied market prob (assume -120 line for favourite as baseline)
-        # Only emit if we have strong edge (prob > 65% and would be EV > 4% at -120)
-        if prob > 0.65:
-            fav_dec = 1.833  # -120 implied decimal
-            ev_pct = round((prob * fav_dec - 1) * 100, 1)
-            if ev_pct > 4.0:
-                result["bets"].append({
-                    "sport": "TENNIS",
-                    "game":  f"{p1} vs {p2}",
-                    "pick":  f"{p1} ML",
-                    "prob":  round(prob * 100, 1),
-                    "ev":    ev_pct,
-                    "evGrade": _ev_grade(ev_pct),
-                    "confidence": _confidence(prob, ev_pct, 1),
-                    "ml":    "-120",
-                    "grade": "LOCK" if prob > 0.72 else "GOOD",
-                    "note":  f"Clay Elo: {p1} {elo_p1:.0f} vs {p2} {elo_p2:.0f}",
-                    "date":  TODAY_ISO,
-                    "tour":  "ATP" if match in result["atpMatches"] else "WTA",
-                    "surface": "Clay",
-                })
-
-    log(f"Roland Garros: {len(result['atpMatches'])} ATP, {len(result['wtaMatches'])} WTA, {len(result['bets'])} bets")
-    return result
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # F1
@@ -4374,8 +3644,6 @@ ESPN_LEAGUE_PATHS: dict[str, str] = {
     "cbb":      "basketball/mens-college-basketball",
     "nfl":      "football/nfl",
     "cfb":      "football/college-football",
-    "tennis":   "tennis/atp",
-    "wta":      "tennis/wta",
     "f1":       "racing/f1",
     "mls":      "soccer/usa.1",
     "cl":       "soccer/UEFA.champions",
@@ -4752,7 +4020,7 @@ def fetch_injuries_all() -> dict:
     # injury report").
     result: dict = {}
     for key, path in ESPN_LEAGUE_PATHS.items():
-        if key in ("tennis", "wta", "f1"):
+        if key == "f1":
             continue
         result[key] = fetch_espn_injuries(path, key)
     return result
@@ -4767,7 +4035,7 @@ def fetch_transactions_all() -> dict:
     log("ESPN transaction logs…")
     result: dict = {}
     for key, path in ESPN_LEAGUE_PATHS.items():
-        if key in ("tennis", "wta", "f1"):
+        if key == "f1":
             continue
         result[key] = fetch_espn_transactions(path, key)
     return result
@@ -5746,8 +5014,7 @@ def verify_deployment(retries: int = 3, delay_sec: int = 20) -> bool:
             d = r.json()
             games_total = (len(d.get("mlb", {}).get("today", [])) + len(d.get("nba", {}).get("today", []))
                            + len(d.get("nhl", {}).get("today", [])) + len(d.get("wnba", {}).get("today", []))
-                           + len(d.get("pwhl", {}).get("today", []))
-                           + len(d.get("tennis", {}).get("schedule", [])))
+                           + len(d.get("pwhl", {}).get("today", [])))
             bets_total = len(d.get("bestBets", [])) + len(d.get("heroPicksForDay", []))
             has_content = bool(d.get("generated")) and (games_total > 0 or bets_total > 0)
             if has_content:
@@ -5782,14 +5049,12 @@ def run_live_window(push: bool = True, interval_sec: int = 120) -> None:
             mlb_t, _  = fetch_mlb_scoreboard()
             nba_t, _  = fetch_nba_scoreboard()
             nhl_t, _  = fetch_nhl_today()
-            tennis    = fetch_tennis_schedule()
             live_bundle = {
                 "generatedMT": now_mt.isoformat(),
                 "ts":          now_mt.strftime("%H:%M MT"),
                 "mlbLive":     [g for g in mlb_t  if g.get("state") == "in"],
                 "nbaLive":     [g for g in nba_t  if g.get("state") == "in"],
                 "nhlLive":     [g for g in nhl_t  if g.get("state") in ("LIVE","CRIT","IN")],
-                "tennisLive":  [m for m in tennis if m.get("state") == "in"],
                 "mlbAll":      mlb_t,
                 "nbaAll":      nba_t,
                 "nhlAll":      nhl_t,
@@ -5857,7 +5122,7 @@ def main() -> None:
     parser.add_argument("--no-linemate",   action="store_true", help="Skip Playwright/Linemate")
     parser.add_argument("--no-reference",  action="store_true", help="Skip Baseball/Basketball/Hockey Reference")
     parser.add_argument("--mode",          choices=["full","live","props"], default="full")
-    parser.add_argument("--sport",         choices=["nba","mlb","nhl","nfl","tennis","soccer","all"], default="all")
+    parser.add_argument("--sport",         choices=["nba","mlb","nhl","nfl","soccer","all"], default="all")
     parser.add_argument("--verbose","-v",  action="store_true")
     args    = parser.parse_args()
     _verbose = args.verbose
@@ -5921,7 +5186,7 @@ def main() -> None:
 
     # ── full fetch phase ─────────────────────────────────────────────────────
     # Schedule accuracy: log the exact dates used per sport to confirm alignment
-    log(f"Schedule dates → MLB/NBA: {TODAY_ET} (ET) · NHL/Tennis/F1: {TODAY_ISO} (MT ISO)")
+    log(f"Schedule dates → MLB/NBA: {TODAY_ET} (ET) · NHL/F1: {TODAY_ISO} (MT ISO)")
     mlb_today, mlb_tom   = fetch_mlb_scoreboard(TODAY_ET)  if S in ("mlb","all") else ([],[])
     mlb_standings        = fetch_mlb_standings()          if S in ("mlb","all") else {}
     mlb_week             = fetch_mlb_schedule_week()      if S in ("mlb","all") else []
@@ -5955,18 +5220,6 @@ def main() -> None:
     hockey_ref           = (fetch_hockey_reference()      if not args.no_reference else {}) if S in ("nhl","all") else {}
     hockey_ref_teams     = (fetch_hockey_reference_team_stats() if not args.no_reference else {}) if S in ("nhl","all") else {}
 
-    atp_elo   = fetch_tennis_elo("atp")      if S in ("tennis","all") else []
-    wta_elo   = fetch_tennis_elo("wta")      if S in ("tennis","all") else []
-    atp_yelo  = fetch_tennis_yelo("atp")     if S in ("tennis","all") else []
-    wta_yelo  = fetch_tennis_yelo("wta")     if S in ("tennis","all") else []
-    atp_form  = fetch_tennis_recent_form("atp") if S in ("tennis","all") else []
-    wta_form  = fetch_tennis_recent_form("wta") if S in ("tennis","all") else []
-    tennis_ratio      = fetch_tennis_ratio()          if S in ("tennis","all") else {}
-    tennis_schedule   = fetch_tennis_schedule()       if S in ("tennis","all") else []
-    tennis_sched_full = fetch_tennis_schedule_full()  if S in ("tennis","all") else {}
-    uso_bracket       = fetch_uso_bracket()           if S in ("tennis","all") else {}
-    tennis_rankings   = fetch_tennis_rankings_espn()  if S in ("tennis","all") else {}
-
     # F1 is no longer tracked in the engine — purged from the daily fetch.
     # Bundle keys are kept (empty) below so the frontend's d.get('f1',...)
     # reads don't need matching changes.
@@ -5977,8 +5230,6 @@ def main() -> None:
     f1_comprehensive: dict = {}
     f1_unchained: dict     = {}
 
-    roland_garros    = fetch_roland_garros()    if S in ("tennis","all") else {}
-    tennis_odds      = fetch_tennis_odds()      if S in ("tennis","all") else {}
     futures_odds     = fetch_futures_odds()
 
     # Weather for MLB home teams
@@ -6203,11 +5454,6 @@ def main() -> None:
         nba_adv=nba_adv,
         mlb_standings=mlb_standings,
     )
-    # Merge Roland Garros Elo bets (with real Odds API lines when available)
-    rg_bets = _enrich_rg_bets(roland_garros.get("bets", []), tennis_odds)
-    if rg_bets:
-        best_bets = best_bets + rg_bets
-        log(f"Roland Garros bets merged: +{len(rg_bets)} → {len(best_bets)} total")
     # Merge F1 race bets
     if f1_comprehensive.get("raceBets"):
         best_bets = best_bets + [b for b in f1_comprehensive["raceBets"] if b.get("ev", 0) > 0]
@@ -6312,24 +5558,6 @@ def main() -> None:
         "pwhl":         pwhl,
         "mp":      mp,
         "weather": weather,
-        "tennis": {
-            "atpElo":        atp_elo[:100],
-            "wtaElo":        wta_elo[:100],
-            "atpYelo":       atp_yelo[:100],
-            "wtaYelo":       wta_yelo[:100],
-            "atpRecentForm": atp_form[:100],
-            "wtaRecentForm": wta_form[:100],
-            "schedule":      tennis_schedule,
-            "scheduleFull":  tennis_sched_full,
-            "usoBracket":    uso_bracket,
-            "rankings":      tennis_rankings,
-            "scheduleDate":  TODAY_ISO,
-            "rolandGarros":  roland_garros,
-            "oddsMatches":   tennis_odds.get("matches", []),
-            "oddsSource":    tennis_odds.get("source", ""),
-            "tennisRatio":   tennis_ratio,
-            "calendar":      tennis_sched_full,
-        },
         "futures":   futures_odds,
         "f1": {
             **f1_data,
@@ -6404,8 +5632,7 @@ def main() -> None:
             f"MLB: {len(mlb_today)} games | NBA: {len(nba_today)} games | "
             f"NHL: {len(nhl_today)} games\n"
             f"Best bets: {len(best_bets)} | Settled: {len(settled)} | "
-            f"History: {len(history)} total\n"
-            f"ATP ELO: {len(atp_elo)} | WTA ELO: {len(wta_elo)}"
+            f"History: {len(history)} total"
         )
         pushed = git_push(summary)
         if pushed:

@@ -478,18 +478,6 @@ def _render_intel(img: Image.Image, y: int, data: dict) -> tuple[Image.Image, in
     # Build intel items
     items: list[tuple[str, str]] = []
 
-    # ATP #1 ELO
-    atp = data.get("tennis", {}).get("atpElo", [])
-    if atp:
-        p = atp[0]
-        items.append(("ATP #1", f"{p.get('name','')}  {p.get('elo','')} ELO"))
-
-    # WTA #1 ELO
-    wta = data.get("tennis", {}).get("wtaElo", [])
-    if wta:
-        p = wta[0]
-        items.append(("WTA #1", f"{p.get('name','')}  {p.get('elo','')} ELO"))
-
     # NHL MoneyPuck xGF% leader
     mp = data.get("mp", {}).get("teams", {})
     if mp:

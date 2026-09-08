@@ -342,88 +342,6 @@ def fetch_nhl_live() -> list[dict]:
         games.append(game)
     return games
 
-def fetch_tennis_live() -> list[dict]:
-    """Fetch live tennis scores from ESPN, ATP + WTA.
-
-    Real bug, found and fixed: this used to hit a bare `/tennis/scoreboard`
-    URL that doesn't exist (ESPN's tennis scoreboard is always tour-scoped:
-    `/tennis/atp/scoreboard` or `/tennis/wta/scoreboard`) -- confirmed
-    directly, the old URL 404s. Even with the right URL, a Grand Slam's
-    real response shape is completely different from a regular tour
-    event's: instead of one flat `events[]` entry per match, a major
-    returns ONE meta-event for the whole tournament with per-match data
-    nested under `groupings[].competitions[]` (grouped by draw: Men's
-    Singles/Women's Singles/doubles) -- confirmed directly against the
-    real 2026 US Open response (239 competitions in the men's singles
-    grouping alone). The old code only ever read the flat shape, so it
-    silently found zero matches for every major, ever -- this is what
-    the app's own live tennis lookup (_usoLiveLookup et al, docs/app.html)
-    depends on for automatic round-advancement/settlement, so no slam's
-    live results were ever actually reaching it."""
-    matches: list[dict] = []
-    for tour in ("atp", "wta"):
-        data = _get(f"{ESPN_BASE}/tennis/{tour}/scoreboard")
-        if not data:
-            continue
-        for ev in data.get("events") or []:
-            tourn_name = ev.get("name", "")
-            groupings = ev.get("groupings")
-            if groupings:
-                # Major (grouped): one meta-event, many real matches nested
-                # under each draw's own competitions list.
-                for g in groupings:
-                    draw_name = (g.get("grouping") or {}).get("displayName", "")
-                    for comp in g.get("competitions") or []:
-                        m = _parse_tennis_competition(comp, tourn_name, draw_name)
-                        if m:
-                            matches.append(m)
-            else:
-                # Regular tour event: flat, one competition per event.
-                comp = (ev.get("competitions") or [{}])[0]
-                m = _parse_tennis_competition(comp, tourn_name, "")
-                if m:
-                    matches.append(m)
-    return matches
-
-
-def _parse_tennis_competition(comp: dict, tournament: str, draw: str) -> dict | None:
-    comps = comp.get("competitors") or []
-    if len(comps) < 2:
-        return None
-    c1, c2 = comps[0], comps[1]
-    p1 = (c1.get("athlete") or c1.get("team") or {}).get("displayName", "")
-    p2 = (c2.get("athlete") or c2.get("team") or {}).get("displayName", "")
-    if not p1 or not p2:
-        return None
-    status = comp.get("status") or {}
-    state = (status.get("type") or {}).get("state", "pre")
-    # Total sets won (linescores has one entry per set), not raw set-game
-    # counts -- matches what the frontend's own score-comparison logic
-    # (winner = higher total) expects for a real completed match.
-    ls1 = c1.get("linescores") or []
-    ls2 = c2.get("linescores") or []
-    p1_sets = sum(1 for s in ls1 if s.get("winner"))
-    p2_sets = sum(1 for s in ls2 if s.get("winner"))
-    set_scores = ", ".join(
-        f"{int(a.get('value', 0))}-{int(b.get('value', 0))}"
-        + (f"({a.get('tiebreak')})" if a.get("tiebreak") else "")
-        for a, b in zip(ls1, ls2)
-    )
-    return {
-        "id": comp.get("id"),
-        "sport": "TEN",
-        # Field names match what docs/app.html's _usoLiveLookup actually
-        # reads (g.home/g.p1, g.hs/g.homeScore, g.as/g.awayScore) -- both
-        # p1/hs (this function's own convention) and home/homeScore are
-        # provided so any other consumer using either convention works too.
-        "p1": p1, "home": p1, "p2": p2, "away": p2,
-        "hs": p1_sets, "homeScore": p1_sets,
-        "as": p2_sets, "awayScore": p2_sets,
-        "state": state,
-        "note": set_scores or (status.get("type") or {}).get("shortDetail", ""),
-        "tournament": f"{tournament} {draw}".strip(),
-    }
-
 # ─── BET PROBABILITY UPDATER ──────────────────────────────────────────────────
 def update_bet_probs(
     mlb_live: list, nba_live: list, nhl_live: list, locked_bets: list
@@ -517,7 +435,6 @@ def poll_once() -> dict:
     mlb  = fetch_mlb_live()
     nba  = fetch_nba_live()
     nhl  = fetch_nhl_live()
-    ten  = fetch_tennis_live()
     cfb  = fetch_cfb_live()
     nfl  = fetch_nfl_live()
 
@@ -537,7 +454,6 @@ def poll_once() -> dict:
     active_mlb = [g for g in mlb  if g.get("state") == "in"]
     active_nba = [g for g in nba  if g.get("state") == "in"]
     active_nhl = [g for g in nhl  if g.get("state") in ("LIVE","CRIT")]
-    active_ten = [m for m in ten  if m.get("state") == "in"]
     active_cfb = [g for g in cfb  if g.get("state") == "in"]
     active_nfl = [g for g in nfl  if g.get("state") == "in"]
 
@@ -547,7 +463,6 @@ def poll_once() -> dict:
         "mlb":        mlb,
         "nba":        nba,
         "nhl":        nhl,
-        "tennis":     ten,
         "cfb":        cfb,
         "nfl":        nfl,
         "liveBets":   live_bets,
@@ -555,11 +470,10 @@ def poll_once() -> dict:
             "mlb": len(active_mlb),
             "nba": len(active_nba),
             "nhl": len(active_nhl),
-            "ten": len(active_ten),
             "cfb": len(active_cfb),
             "nfl": len(active_nfl),
         },
-        "hasLiveGames": bool(active_mlb or active_nba or active_nhl or active_ten or active_cfb or active_nfl),
+        "hasLiveGames": bool(active_mlb or active_nba or active_nhl or active_cfb or active_nfl),
     }
 
     FE_LIVE.write_text(json.dumps(payload))
@@ -569,7 +483,6 @@ def poll_once() -> dict:
         f"MLB:{len(active_mlb)}" if active_mlb else "",
         f"NBA:{len(active_nba)}" if active_nba else "",
         f"NHL:{len(active_nhl)}" if active_nhl else "",
-        f"TEN:{len(active_ten)}" if active_ten else "",
         f"CFB:{len(active_cfb)}" if active_cfb else "",
         f"NFL:{len(active_nfl)}" if active_nfl else "",
     ])) or "no live games"

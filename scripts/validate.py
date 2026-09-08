@@ -142,7 +142,7 @@ required_ids = [
     ('sp-mlb',               'Baseball pane'),
     ('sp-nba',               'Basketball pane'),
     ('sp-hk',                'Hockey pane'),
-    ('sp-ten',               'Tennis pane'),
+    # ('sp-ten',             'Tennis pane — REMOVED 2026-09-08, tennis engine retired (personal-use-only, never a paid product)'),
     # ('sp-f1',              'F1 pane — REMOVED'),
     ('sp-fb',                'Football pane'),
     ('sp-ovr',               'Overall pane'),
@@ -162,7 +162,7 @@ required_ids = [
     ('navd-mlb',             'Baseball nav dropdown'),
     ('navd-nba',             'Basketball nav dropdown'),
     ('navd-hk',              'Hockey nav dropdown'),
-    ('navd-ten',             'Tennis nav dropdown'),
+    # ('navd-ten',           'Tennis nav dropdown — REMOVED 2026-09-08, tennis engine retired'),
     # ('navd-f1',            'F1 nav dropdown — REMOVED'),
     ('navd-fb',              'Football nav dropdown'),
     # ('navd-social',        'Social nav dropdown — REMOVED 2026-09-02, same as sp-social above'),
@@ -201,7 +201,7 @@ required_fns = [
     '(function seedBetHistory(',
     'function renderNHLPicks(',
     'function renderNBAPicks(',
-    'function renderTennisPicks(',
+    # 'function renderTennisPicks(' — REMOVED 2026-09-08, tennis engine retired
 ]
 for fn in required_fns:
     if fn in main_js:
@@ -438,35 +438,9 @@ for eid, desc in render_targets:
         err(f'MISSING RENDER TARGET: #{eid} ({desc})')
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 17. renderRGDraw() ARGUMENT VALIDITY
-#     Every renderRGDraw('tour','round') call in HTML must match a handled
-#     (tour===... && round===...) branch in the function body.
-#     NOTE: renderRGDraw uses heavy template literals which confuse simple
-#     brace counters. We search from function start to its real terminator
-#     (el.innerHTML=html followed by closing brace) to get the true body.
+# 17. renderRGDraw() ARGUMENT VALIDITY — REMOVED 2026-09-08, tennis engine
+#     (including renderRGDraw, the Roland Garros draw renderer) retired.
 # ─────────────────────────────────────────────────────────────────────────────
-rg_draw_fn_start = main_js.find('function renderRGDraw(')
-if rg_draw_fn_start != -1:
-    # Find the real function end: el.innerHTML=html;\n} right after the last else-if
-    # Search forward from function start for the terminating pattern
-    rg_search_window = main_js[rg_draw_fn_start:rg_draw_fn_start + 30000]
-    rg_term = re.search(r'el\.innerHTML=html;\s*\n\s*\}', rg_search_window)
-    if rg_term:
-        rg_fn = rg_search_window[:rg_term.end()]
-    else:
-        rg_fn = rg_search_window  # fallback: search whole window
-    # Extract all handled (tour, round) pairs
-    handled_pairs = set(re.findall(r"tour==='(\w+)'&&round==='(\w+)'", rg_fn))
-    # Extract all calls from HTML
-    called_pairs  = set(re.findall(r"renderRGDraw\('(\w+)','(\w+)'\)", html))
-    bad_calls = called_pairs - handled_pairs
-    if bad_calls:
-        for tour, rnd in sorted(bad_calls):
-            err(f"renderRGDraw('{tour}','{rnd}') called but NOT handled in function — silently renders blank")
-    else:
-        ok(f"All renderRGDraw() calls use handled round codes ({len(called_pairs)} calls, {len(handled_pairs)} handlers)")
-else:
-    warn('renderRGDraw function not found — skipping argument validity check')
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 18. T() NAV ROUTING ARGUMENT VALIDITY

@@ -15,13 +15,14 @@ functions -- then flushes everything back to Supabase via the app's own
 syncBetsToSupabase().
 
 Auto-lock scope: ML, spread, and O/U for every sport/league with a real
-proprietary model (MLB, NBA, WNBA, NHL, NFL, CFB, and 6 soccer leagues),
-plus sets/games O/U for tennis (ATP/WTA). CBB, NCAAH, and tennis moneyline
-already only have a market-read-back model (no proprietary edge to grade),
-matching how the rest of the app already treats them -- ML only there via
-_epGatherESPNCacheLegs/_epGatherTennisLegs, not extended here. Player props
-covered for NBA/WNBA/NHL/NFL (the four sports with real live prop engines
-built this session).
+proprietary model (MLB, NBA, WNBA, NHL, NFL, CFB, and 6 soccer leagues).
+CBB and NCAAH only have a market-read-back model (no proprietary edge to
+grade), matching how the rest of the app already treats them -- ML only
+there via _epGatherESPNCacheLegs, not extended here. Player props covered
+for NBA/WNBA/NHL/NFL (the four sports with real live prop engines built
+this session). Tennis engine retired 2026-09-08 (personal-use-only,
+never a paid product) -- no longer fetched, locked, or settled anywhere
+in this pipeline.
 
 Grade capture for game markets: docs/app.html has a small _autoLockCapture()
 hook wired into every sport's real game-card render function, right after
@@ -85,7 +86,6 @@ SPORT_DISPLAY_NAME = {
     "MLB": "MLB", "NBA": "NBA", "WNBA": "WNBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
     "SOC_BL": "Bundesliga", "SOC_LIGA": "La Liga", "SOC_MLS": "MLS", "SOC_PL": "Premier League",
     "SOC_ITA": "Serie A", "SOC_CL": "Champions League",
-    "ATP": "ATP", "WTA": "WTA",
 }
 
 # Display names keyed by the LEDGER's own `league` field (lockPick()'s
@@ -98,7 +98,7 @@ LEDGER_LEAGUE_DISPLAY_NAME = {
     "MLB": "MLB", "NBA": "NBA", "WNBA": "WNBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
     "KHL": "KHL", "SHL": "SHL", "LIIGA": "Liiga", "CBB": "CBB", "NCAAH": "College Hockey",
     "CL": "Champions League", "PL": "Premier League", "LIGA": "La Liga", "BUND": "Bundesliga",
-    "MLS": "MLS", "SERIEA": "Serie A", "WORLD_CUP": "World Cup", "ATP": "ATP", "WTA": "WTA",
+    "MLS": "MLS", "SERIEA": "Serie A", "WORLD_CUP": "World Cup",
 }
 
 # Maps the sport tag docs/app.html's _autoLockCapture() attaches to each
@@ -109,7 +109,6 @@ SPORT_TO_LOCKPICK_TYPE = {
     "MLB": "MLB", "NBA": "NBA", "WNBA": "WNBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
     "SOC_BL": "BUND", "SOC_LIGA": "LIGA", "SOC_MLS": "MLS", "SOC_PL": "PL_SOC",
     "SOC_ITA": "SERIEA", "SOC_CL": "CL",
-    "ATP": "ATP", "WTA": "WTA",
 }
 # The 5 European leagues, kept separate from SOC_MLS as its own constant
 # purely so build_locks_email_html can split the combined soccer email into
@@ -122,19 +121,21 @@ EURO_SOCCER_SPORTS = frozenset({"SOC_CL", "SOC_PL", "SOC_LIGA", "SOC_BL", "SOC_I
 # maps to the exact sport tags gather_legs()/_autoLockCapture use. Soccer
 # bundles all 6 leagues (5 European + MLS) as one purchase. Hockey is
 # NHL-only.
-# Explicit decision 2026-09-03: tennis (ATP/WTA), WNBA, KHL, SHL, LIIGA,
-# and College Hockey (NCAAH) are real, live engine features kept running
-# for PERSONAL USE ONLY -- never sold, and explicitly routed to the
-# owner-only "other" pass (see run_lock_segmented below) rather than
-# bundled into any paid product, even though SHL/LIIGA/NCAAH have no real
-# game cards wired up yet. "tennis" and "wnba" were dropped from
-# PRODUCT_SPORTS/PRODUCT_LABEL entirely; KHL/SHL/LIIGA were removed from
-# hockey's sport set (down to NHL only); NCAAH was never added to any
-# product's set. Their pick generation/lock/settle logic elsewhere in
-# this file (and app.html) is untouched -- this mapping only controls
-# what ships to paying subscribers, not what the engine runs. User plans
-# to build SHL/LIIGA/NCAAH out for real later -- when that happens, this
-# is the mapping to revisit for making them paid.
+# Explicit decision 2026-09-03: WNBA, KHL, SHL, LIIGA, and College Hockey
+# (NCAAH) are real, live engine features kept running for PERSONAL USE
+# ONLY -- never sold, and explicitly routed to the owner-only "other" pass
+# (see run_lock_segmented below) rather than bundled into any paid
+# product, even though SHL/LIIGA/NCAAH have no real game cards wired up
+# yet. "wnba" was dropped from PRODUCT_SPORTS/PRODUCT_LABEL entirely;
+# KHL/SHL/LIIGA were removed from hockey's sport set (down to NHL only);
+# NCAAH was never added to any product's set. Their pick generation/lock/
+# settle logic elsewhere in this file (and app.html) is untouched -- this
+# mapping only controls what ships to paying subscribers, not what the
+# engine runs. User plans to build SHL/LIIGA/NCAAH out for real later --
+# when that happens, this is the mapping to revisit for making them paid.
+# (Tennis was also personal-use-only under this same decision, but the
+# tennis engine itself was fully retired 2026-09-08 -- removed from
+# app.html and this pipeline entirely, not just kept off paid products.)
 PRODUCT_SPORTS: dict[str, frozenset[str]] = {
     "nfl": frozenset({"NFL"}),
     "cfb": frozenset({"CFB"}),
@@ -145,15 +146,16 @@ PRODUCT_SPORTS: dict[str, frozenset[str]] = {
 }
 # Explicit request, 2026-09-03 (revised same day): auto-lock for
 # nfl/cfb/nba/mlb/nhl/soccer goes to a paying subscriber's inbox;
-# ATP/WTA (tennis), SHL, LIIGA, and NCAAH (College Hockey) also auto-lock
-# now, but route to the owner-only "other" email instead -- personal use,
-# never sold. Only WNBA, KHL, and CBB are excluded from the automated
+# SHL, LIIGA, and NCAAH (College Hockey) also auto-lock now, but route to
+# the owner-only "other" email instead -- personal use, never sold.
+# (Tennis was in this "other" group too until the engine was fully
+# retired 2026-09-08.) Only WNBA, KHL, and CBB are excluded from the automated
 # pipeline entirely (their own manual lock/settle buttons in the app UI
 # still work for personal use -- this only scopes run_lock_segmented's
 # automated pass). SHL/LIIGA/NCAAH have no real _autoLockCapture calls
 # yet, so they're a no-op today, but the allow-list is already correct
 # for when that changes.
-OTHER_ALLOWED_SPORTS: frozenset[str] = frozenset({"ATP", "WTA", "SHL", "LIIGA", "NCAAH"})
+OTHER_ALLOWED_SPORTS: frozenset[str] = frozenset({"SHL", "LIIGA", "NCAAH"})
 PRODUCT_LABEL: dict[str, str] = {
     "nfl": "NFL", "cfb": "CFB", "nba": "NBA", "mlb": "MLB",
     "hockey": "HOCKEY", "soccer": "SOCCER",
@@ -492,7 +494,6 @@ def run_settle(page, live: bool, only_dates: list[str] | None = None) -> list[di
             try { if (typeof autoSettleCFB === 'function') await autoSettleCFB(targetDate); r.cfb = 'ok'; } catch (e) { r.cfb = 'err:' + e.message; }
             try { if (typeof autoSettleSoccer === 'function') await autoSettleSoccer(targetDate); r.soccer = 'ok'; } catch (e) { r.soccer = 'err:' + e.message; }
             try { if (typeof autoSettleWNBA === 'function') await autoSettleWNBA(targetDate); r.wnba = 'ok'; } catch (e) { r.wnba = 'err:' + e.message; }
-            try { if (typeof autoSettleTennis === 'function') await autoSettleTennis(targetDate); r.tennis = 'ok'; } catch (e) { r.tennis = 'err:' + e.message; }
             try { if (typeof autoSettleNFL2 === 'function') await autoSettleNFL2(targetDate); r.nfl = 'ok'; } catch (e) { r.nfl = 'err:' + e.message; }
             try { if (typeof autoSettlePropsESPN === 'function') await autoSettlePropsESPN(targetDate); r.props = 'ok'; } catch (e) { r.props = 'err:' + e.message; }
             results.perDate[targetDate] = r;
@@ -778,18 +779,6 @@ def gather_legs(page) -> dict:
             ['bl', 'liga', 'mls', 'pl', 'ita', 'cl'].forEach(k => warmups.push(renderLeagueMatches(k).catch(() => {})));
           }
           await Promise.allSettled(warmups);
-          if (typeof renderTennisScheduleOdds === 'function') { try { renderTennisScheduleOdds(); } catch (e) {} }
-          // Real gap, found and fixed: renderTennisScheduleOdds' own data
-          // source (fetch_tennis_odds()) is hardcoded to Roland Garros'
-          // now-defunct odds market -- it produces zero real matches for
-          // any other tournament, so tennis never actually reached this
-          // pipeline once RG ended. _captureUSOLegs feeds the real,
-          // hand-built US Open draw (TEN_TOURNAMENTS uso2026, fetched
-          // live from ESPN) through the same _autoLockCapture hook,
-          // using the full tennisMatchWinProbFull ensemble on the
-          // correct 'hard' surface instead of RG's cruder clay-Elo-only
-          // model.
-          if (typeof _captureUSOLegs === 'function') { try { _captureUSOLegs(); } catch (e) {} }
           // Card renders above are synchronous once their data warmup
           // resolves, but give any trailing async chip/radar work a moment
           // before reading back what _autoLockCapture collected.
@@ -1955,7 +1944,7 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
     part: real browser + live data warmups), then split into a separate
     qualifying-legs list + a separately-addressed email for each of the 6
     paid sport products (see _subscribers.py), plus one more pass for
-    OTHER_ALLOWED_SPORTS (ATP/WTA, SHL/LIIGA/NCAAH -- personal-use, never
+    OTHER_ALLOWED_SPORTS (SHL/LIIGA/NCAAH -- personal-use, never
     sold) sent to the owner only. Anything outside covered_sports |
     OTHER_ALLOWED_SPORTS (WNBA, KHL, CBB -- explicit 2026-09-03 decision)
     is dropped entirely before either pass, never auto-locked by this
@@ -2034,7 +2023,7 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
             log(f"Locks email ({label}) skipped -- already sent today ({result.new} locked this pass)")
 
     other_qualifying = [q for q in all_qualifying if q["sport"] in OTHER_ALLOWED_SPORTS]
-    log(f"[other] {len(other_qualifying)} qualifying legs (ATP/WTA/SHL/LIIGA/NCAAH, personal-use -- owner only)")
+    log(f"[other] {len(other_qualifying)} qualifying legs (SHL/LIIGA/NCAAH, personal-use -- owner only)")
     owner_to = [OWNER_EMAIL] if OWNER_EMAIL else None
     if not live:
         if send_email:
@@ -2045,7 +2034,7 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
         log(f"[other] {result.new} new, {result.already_locked} already locked, "
             f"{result.failed} failed -- {result.confirmed}/{len(other_qualifying)} confirmed locked")
         # No early/evening-pass exclusion here (unlike soccer/cfb above)
-        # -- ATP/WTA/SHL/LIIGA/NCAAH have no dedicated pass of their own,
+        # -- SHL/LIIGA/NCAAH have no dedicated pass of their own,
         # so this unscoped run's final check IS their only report, same as every
         # other non-soccer/CFB product. Reverted an over-broad
         # locked==0-means-skip guard here for the same reason explained

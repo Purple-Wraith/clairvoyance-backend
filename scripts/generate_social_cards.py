@@ -90,11 +90,11 @@ ROOT = Path(__file__).resolve().parent.parent
 # "end": "YYYY-MM-DD", "leagues": [<league filter labels, matching
 # LEAGUE_FILTER_LABELS in app.html, or [] for no filter / all activity>]}.
 EVENTS: list[dict] = [
-    {"name": "WIMBLEDON 2026", "start": "2026-06-29", "end": "2026-07-12", "leagues": ["ATP", "WTA"]},
     {"name": "WORLD CUP 2026", "start": "2026-06-11", "end": "2026-07-19", "leagues": ["World Cup"]},
-    {"name": "CINCINNATI OPEN 2026", "start": "2026-08-12", "end": "2026-08-23", "leagues": ["ATP", "WTA"]},
-    {"name": "US OPEN 2026", "start": "2026-08-04", "end": "2026-09-13", "leagues": ["ATP", "WTA"]},
-    # Still needed, not guessed: exact 2026 dates for ATP/WTA Finals, end
+    # Wimbledon/Cincinnati Open/US Open entries removed 2026-09-08 (tennis
+    # engine retired -- tennis was never in the public/subscriber bet feed
+    # these cards read from, so these three never matched anything anyway).
+    # Still needed, not guessed: end
     # of NFL/CFB season, start of NHL/NBA seasons aren't "end of window"
     # events so don't belong here, and end of MLB playoffs (World Series
     # date TBD). Add each with real dates once known.
@@ -151,7 +151,6 @@ SPORT_LEAGUES = {
     "FOOTBALL": "NFL, CFB",
     "HOCKEY": "NHL, SHL, LIIGA",
     "SOCCER": "Bundesliga, Champions League, La Liga, MLS, Premier League, Serie A",
-    "TENNIS": "ATP, WTA",
 }
 
 
@@ -375,10 +374,9 @@ def get_year_stats(page, year: int) -> dict:
             if (['NFL','CFB'].includes(t)) return 'FOOTBALL';
             if (['NHL','SHL','LIIGA','NCAAH'].includes(t)) return 'HOCKEY';
             if (['SOC','WC','WORLD_CUP','WORLDCUP','PL','LIGA','BL','MLS','CH'].includes(t)) return 'SOCCER';
-            if (['ATP','WTA','TEN','TENNIS'].includes(t)) return 'TENNIS';
             return null;
           };
-          const SPORT_ORDER = ['BASEBALL','BASKETBALL','FOOTBALL','HOCKEY','SOCCER','TENNIS'];
+          const SPORT_ORDER = ['BASEBALL','BASKETBALL','FOOTBALL','HOCKEY','SOCCER'];
           const bucket = {}; SPORT_ORDER.forEach(s => bucket[s] = []);
           inYear.forEach(b => { const s = _broadSport(_normSport(b)); if (s && bucket[s]) bucket[s].push(b); });
           const bySport = SPORT_ORDER.map(s => {
@@ -564,7 +562,6 @@ def get_sport_performance(page) -> dict | None:
             {lbl:'NHL',codes:['NHL']},{lbl:'College Hockey',codes:['NCAAH','COLLEGE HOCKEY']},
             {lbl:'SHL',codes:['SHL']},{lbl:'LIIGA',codes:['LIIGA']},
             {lbl:'NBA',codes:['NBA']},{lbl:'WNBA',codes:['WNBA']},{lbl:'CBB',codes:['CBB','NCAAB']},
-            {lbl:'ATP',codes:['ATP']},{lbl:'WTA',codes:['WTA']},
             {lbl:'Champions League',codes:['CL','CH']},
             {lbl:'Premier League',codes:['PL']},{lbl:'La Liga',codes:['LIGA']},
             {lbl:'Bundesliga',codes:['BUND','BL']},{lbl:'MLS',codes:['MLS']},{lbl:'Serie A',codes:['SERIEA']},

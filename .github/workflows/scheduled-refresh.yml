@@ -95,7 +95,7 @@ jobs:
           for i in 1 2 3; do
             sleep 25
             if curl -sf "https://purple-wraith.github.io/clairvoyance-backend/data.json?_v=$(date +%s)" -o /tmp/live_data.json; then
-              if python3 -c "import json,sys; d=json.load(open('/tmp/live_data.json')); games=len(d.get('mlb',{}).get('today',[]))+len(d.get('nba',{}).get('today',[]))+len(d.get('nhl',{}).get('today',[]))+len(d.get('wnba',{}).get('today',[]))+len(d.get('pwhl',{}).get('today',[]))+len(d.get('tennis',{}).get('schedule',[])); bets=len(d.get('bestBets',[]))+len(d.get('heroPicksForDay',[])); sys.exit(0 if d.get('generated') and (games>0 or bets>0) else 1)"; then
+              if python3 -c "import json,sys; d=json.load(open('/tmp/live_data.json')); games=len(d.get('mlb',{}).get('today',[]))+len(d.get('nba',{}).get('today',[]))+len(d.get('nhl',{}).get('today',[]))+len(d.get('wnba',{}).get('today',[]))+len(d.get('pwhl',{}).get('today',[])); bets=len(d.get('bestBets',[]))+len(d.get('heroPicksForDay',[])); sys.exit(0 if d.get('generated') and (games>0 or bets>0) else 1)"; then
                 ok=true
                 break
               fi
