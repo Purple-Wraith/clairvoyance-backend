@@ -49,11 +49,20 @@
      flex:1 children fall back to their min-content (here 0, since
      min-width:0), collapsing the whole row. An explicit width gives
      flex-grow something real to distribute. */
-  .stats { display:flex; gap:18px; margin-top:56px; width:980px; }
+  /* justify-content:center + max-width on .stat: when a caller hides
+     one or more stat boxes (e.g. an ad card showing only WIN %), the
+     remaining flex:1 items would otherwise stretch to fill the whole
+     980px row edge-to-edge -- max-width caps each box at its normal
+     4-across size, and centering the leftover space keeps 1-2 visible
+     stats looking like a deliberate compact layout instead of a
+     stretched, mostly-empty box. max-width:231px keeps the full
+     4-stat case visually unchanged (4*231 + 3*18 = 978, ~2px under
+     the row width). */
+  .stats { display:flex; gap:18px; margin-top:56px; width:980px; justify-content:center; }
   .stat {
     text-align:center;
     background:rgba(20,10,40,.55); border:1px solid rgba(240,0,255,.2); border-radius:8px;
-    padding:22px 8px; flex:1 1 0; width:0; min-width:0;
+    padding:22px 8px; flex:1 1 0; width:0; max-width:231px; min-width:0;
     opacity:0;
   }
   .stat-val {
