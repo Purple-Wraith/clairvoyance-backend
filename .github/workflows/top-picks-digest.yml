@@ -130,8 +130,7 @@ jobs:
         if: ${{ steps.flags.outputs.should_run == '1' }}
         run: |
           pip install -q playwright requests
-          playwright install --with-deps chromium
-
+          for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
       - name: Send top picks digest
         if: ${{ steps.flags.outputs.should_run == '1' }}
         env:

@@ -70,8 +70,7 @@ jobs:
         if: ${{ !steps.gate.outputs.skip }}
         run: |
           pip install -q playwright requests imageio-ffmpeg
-          playwright install chromium --with-deps
-
+          for i in 1 2 3; do playwright install chromium --with-deps && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
       - name: Generate top-3-picks posts and email
         if: ${{ !steps.gate.outputs.skip }}
         env:

@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -q requests beautifulsoup4 lxml playwright
-          playwright install chromium --with-deps 2>/dev/null || true
+          for i in 1 2 3; do playwright install chromium --with-deps 2>/dev/null && break; echo "Playwright install attempt $i failed -- retrying in 20s..."; sleep 20; done || true
 
       - name: Run Clairvoyance update v7.0
         env:
