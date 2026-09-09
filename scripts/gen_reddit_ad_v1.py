@@ -15,28 +15,14 @@ Output: ~/Desktop/ClairvoyanceRedditAd.png
 """
 from design_system import (
     W, H, CX, BG, CARD, MAG, CYN, GOLD, RED, WHT, DIM, T2, T3,
-    orb, mono, glow, draw_footer, hline,
+    orb, mono, glow, make_background_covers, draw_footer, hline,
     TITLE_GLOW, SUB_GLOW, HDR_GLOW,
 )
 from PIL import Image, ImageDraw, ImageFilter
 
-# ── Background (covers_card style — matches covers_card4.png / _cfBg()
-# in docs/app.html, same background now used on CorrectPinnedCard6.0.png):
-# #222233 fill + tight 45° crosshatch grid + radial vignette. ──────
-base = Image.new('RGBA', (W, H), (34, 34, 51, 255))
-d = ImageDraw.Draw(base)
-_DS = max(8, round(W / 64))
-_half = int(max(W, H) * 1.5)
-for _i in range(-_half, W + _half + 1, _DS):
-    d.line([(_i, 0), (_i + H, H)], fill=(78, 166, 176, 128), width=1)
-    d.line([(_i, H), (_i + H, 0)], fill=(78, 166, 176, 128), width=1)
-_vg = Image.new('RGBA', (W, H), (0, 0, 0, 0))
-for _r in range(int(W * 0.72), int(W * 0.30), -6):
-    _a = int(56 * (_r - W * 0.30) / (W * 0.72 - W * 0.30))
-    ImageDraw.Draw(_vg).ellipse([W//2-_r, H//2-_r, W//2+_r, H//2+_r], fill=(0, 0, 0, _a))
-_vg = _vg.filter(ImageFilter.GaussianBlur(30))
-base = Image.alpha_composite(base, _vg)
-
+# covers_card-style background — matches covers_card4.png / _cfBg() in
+# docs/app.html, same background now used on CorrectPinnedCard6.0.png.
+base = make_background_covers()
 draw = ImageDraw.Draw(base)
 
 def cx_text(text, font):
