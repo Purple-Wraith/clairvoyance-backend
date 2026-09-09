@@ -13930,8 +13930,6 @@ function setSub(sport,sub){
   // Auto-jump to TODAY tab when switching to a live sub-league
   if(sport==='hk'&&sub==='nhl'){try{T('nhl','games');renderNHLTonight();renderNHLGames();}catch(e){}}
   if(sport==='nba'&&sub==='nba'){try{T('nba','games');}catch(e){}}
-  if(sport==='nba'&&sub==='wnba'){try{T('wnba','games');if(typeof renderWNBAGames==='function')renderWNBAGames();}catch(e){}}
-  if(sport==='nba'&&sub==='cbb'){try{T('cbb','games');}catch(e){}}
   // Soccer league tabs (cl/pl/liga/bl/mls) start with a static "LOADING…"
   // placeholder baked into the HTML and only ever get replaced with real
   // content when T(key,'matches') fires — which normally only happens via
@@ -14266,15 +14264,15 @@ function renderNFLPropsTracker(){
 }
 
 function T(sport,tabId){const D=window.__CV_DATA||{};
-  const saMap={nhl:'nhl-sa',nba:'nba-sa',ovr:'ovr-sa',ten:'ten-sa',f1:'f1-sa',live:'live-sa',news:'news-sa',fut:'fut-sa',hk:'nhl-sa',fb:'mlb-sa',wnba:'wnba-sa',wc:'wc-sa',cbb:'cbb-sa',pl:'pl-sa',liga:'liga-sa',bl:'bl-sa',mls:'mls-sa',cl:'cl-sa',ita:'ita-sa',ncaah:'ncaah-sa',khl:'khl-sa',shl:'shl-sa',liiga:'liiga-sa'};
-  const navMap={nhl:'nhl-in',nba:'nba-in',ovr:'ovr-in',ten:'ten-in',f1:'f1-in',live:'live-in',news:'news-in',fut:'fut-in',hk:'nhl-in',fb:'mlb-in',wnba:'wnba-in',wc:'wc-in',cbb:'cbb-in',ncaah:'ncaah-in',khl:'khl-in',shl:'shl-in',liiga:'liiga-in',cl:'cl-in',pl:'pl-in',liga:'liga-in',bl:'bl-in',mls:'mls-in',ita:'ita-in'};
-  const saId=saMap[sport]||'mlb-sa';
-  const navId=navMap[sport]||'mlb-in';
-  const mnId=sport==='nhl'?'mn2':sport==='nba'?'mn3':sport==='ovr'?'mn4':sport==='ten'?'mn5':sport==='live'?'mn7':sport==='wnba'?'mn8':'mn';
+  const saMap={nhl:'nhl-sa',nba:'nba-sa',ovr:'ovr-sa',live:'live-sa',news:'news-sa',hk:'nhl-sa',pl:'pl-sa',liga:'liga-sa',bl:'bl-sa',mls:'mls-sa',cl:'cl-sa',ita:'ita-sa',ncaah:'ncaah-sa',khl:'khl-sa',shl:'shl-sa',liiga:'liiga-sa'};
+  const navMap={nhl:'nhl-in',nba:'nba-in',ovr:'ovr-in',live:'live-in',news:'news-in',hk:'nhl-in',ncaah:'ncaah-in',khl:'khl-in',shl:'shl-in',liiga:'liiga-in',cl:'cl-in',pl:'pl-in',liga:'liga-in',bl:'bl-in',mls:'mls-in',ita:'ita-in'};
+  const saId=saMap[sport]||'nba-sa';
+  const navId=navMap[sport]||'nba-in';
+  const mnId=sport==='nhl'?'mn2':sport==='nba'?'mn3':sport==='ovr'?'mn4':sport==='live'?'mn7':'mn3';
   document.querySelectorAll(`#${saId} .tab`).forEach(t=>t.classList.remove('act'));
   document.querySelectorAll(`#${navId} .nb,#${mnId} .mb`).forEach(b=>b.classList.remove('act','ai','ap'));
   document.getElementById(`${sport}-tab-${tabId}`)?.classList.add('act');
-  const cls=(sport==='nhl'||sport==='nba'||sport==='wnba')?'ai':'act';
+  const cls=(sport==='nhl'||sport==='nba')?'ai':'act';
   document.querySelectorAll(`#${navId} .nb,#${mnId} .mb`).forEach(b=>{if(b.getAttribute('onclick')?.includes(`'${tabId}'`))b.classList.add(cls);});
   if(sport==='nhl'){if(tabId==='picks')renderNHLPicks();if(tabId==='games'){renderNHLTonight();renderNHLGames();renderNHLUpcoming();};if(tabId==='goalies')renderGoaliesFromBackend();if(tabId==='props'){renderProps();renderNHLSCFProps();setTimeout(()=>renderNHLPropsLive(window._nhlPropFilter||'all'),50);}if(tabId==='edge')renderNHLEdge('team');if(tabId==='puck')renderMoneyPuck();if(tabId==='history')renderNHLHistory();if(tabId==='live'){
   startNHLLive();renderNHLLiveBets();
@@ -24652,14 +24650,11 @@ function saveParlayToTracker(legs,sport){
       <button onclick="SS('nba');T('nba','config');hideAllND()">Config</button>
     </div>
   </div>
-  <!-- WNBA removed from the Basketball dropdown, 2026-09-03: no longer a
-       sellable product (see PRODUCT_SPORTS in scripts/auto_lock_settle.py)
-       -- the tab itself (setSub('nba','wnba') etc.) is untouched and still
-       reachable via the Basketball section's own WNBA sub-tab, only this
-       quick-nav dropdown entry was removed. -->
-  <!-- CBB retired from the Basketball dropdown: no proprietary model or
-       lock button was ever wired up for it (confirmed during a session
-       audit), so the entry led to an effectively empty page. -->
+  <!-- WNBA and CBB were both fully retired 2026-09-08 -- removed from
+       app.html and this pipeline entirely (not merely dropped from this
+       quick-nav dropdown, which already happened 2026-09-03 for WNBA).
+       Neither has a sub-tab, render function, or lock button left
+       anywhere in the Basketball section. -->
 </div>
 <div id="navd-fb" class="nav-drop-fixed" onmouseenter="cancelHideND()" onmouseleave="startHideND()">
   <div class="ndl"><button onclick="SS('fb');setSub('fb','nfl');hideAllND()">NFL</button>
