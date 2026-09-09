@@ -505,7 +505,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=["roster", "schedule", "standings", "stats", "player_stats", "injuries", "transactions", "all"], default="all")
     ap.add_argument("--push", action="store_true")
-    ap.add_argument("--stats-season", type=int, default=2025)
+    ap.add_argument("--stats-season", type=int, default=None)
     ap.add_argument("--schedule-year", type=int, default=2026)
     args = ap.parse_args()
 
@@ -534,8 +534,32 @@ if __name__ == "__main__":
             else:
                 _log("  no roster available for stats — run --mode roster first")
         if roster_teams:
-            stats = fetch_all_team_stats(roster_teams, args.stats_season)
-            _write(STATS_OUT, {"teams": stats})
+            # --stats-season=None (the default, used by the scheduled
+            # workflow with no override) auto-detects: tries the real
+            # current calendar year first, and only falls back to the
+            # prior season if most teams come back with no stats at all
+            # (i.e. this season's games genuinely haven't started yet).
+            # Same real bug CFB had (fetch_cfb.py's write_stats() docstring)
+            # -- this hardcoded --stats-season=2025 with no fallback logic
+            # at all, so the scheduled weekly workflow would have kept
+            # fetching 2025 forever even once 2026 games started this
+            # week, with nothing ever automatically switching over. Found
+            # and fixed in the same audit pass that caught CFB's version.
+            if args.stats_season is not None:
+                stats_season = args.stats_season
+                stats = fetch_all_team_stats(roster_teams, stats_season)
+            else:
+                current_year = int(time.strftime("%Y", time.gmtime()))
+                stats = fetch_all_team_stats(roster_teams, current_year)
+                if len(stats) < len(roster_teams) * 0.5:
+                    _log(f"  season={current_year} returned stats for only "
+                         f"{len(stats)}/{len(roster_teams)} teams -- season hasn't "
+                         f"started yet, falling back to {current_year - 1}")
+                    stats_season = current_year - 1
+                    stats = fetch_all_team_stats(roster_teams, stats_season)
+                else:
+                    stats_season = current_year
+            _write(STATS_OUT, {"season": stats_season, "teams": stats})
 
     if args.mode in ("player_stats", "all"):
         if not roster_teams:
