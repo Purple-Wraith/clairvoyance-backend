@@ -56,7 +56,12 @@ EXPIRY_DAYS = 30
 # ledger (Venmo payments aren't tracked here at all), just what someone
 # following the standard pricing would owe for their current product count.
 # Capped at 5 (len(PRODUCTS)) -- there is no 6th+ product to bundle anymore.
-PRICING_BY_COUNT = {1: 20, 2: 30, 3: 40, 4: 50, 5: 60}
+# Repriced 2026-09-09: flat $15/sport marginal cost from the 2nd product
+# onward (was a $10/sport marginal, decreasing avg/sport as more were
+# added) -- explicit decision not to engineer a bulk-bundle discount,
+# each additional sport is charged for the real added value (more picks,
+# more opportunity), not discounted to push full-package signups.
+PRICING_BY_COUNT = {1: 20, 2: 30, 3: 45, 4: 60, 5: 75}
 
 # Hosted (not inline-attached) so it actually renders across mail clients --
 # many strip inline/CID images or require an extra click, while a plain
