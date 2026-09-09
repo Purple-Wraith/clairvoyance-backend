@@ -8,10 +8,11 @@ name: StatMuse Insights Refresh
 
 on:
   schedule:
-    # 8:00 MT = 14:00 UTC (MDT) / 15:00 UTC (MST)
-    - cron: '0 14 * * *'
-    # 18:00 MT = 00:00 UTC next day (MDT) / 01:00 UTC (MST)
-    - cron: '0 0 * * *'
+    # ~8:00 MT = 14:00 UTC (MDT) / 15:00 UTC (MST). Minute nudged off :00
+    # 2026-09-09 (account-wide congestion cleanup).
+    - cron: '27 14 * * *'
+    # ~18:00 MT = 00:00 UTC next day (MDT) / 01:00 UTC (MST)
+    - cron: '43 0 * * *'
   workflow_dispatch:
 
 permissions:

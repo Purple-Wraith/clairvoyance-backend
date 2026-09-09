@@ -7,8 +7,9 @@ name: NFL Roster Refresh
 
 on:
   schedule:
-    # Monday 6:00 AM MT = 12:00 UTC (MDT) / 13:00 UTC (MST)
-    - cron: '0 12 * * 1'
+    # ~Monday 6:00 AM MT = 12:00 UTC (MDT) / 13:00 UTC (MST). Minute
+    # nudged off :00 2026-09-09 (account-wide congestion cleanup).
+    - cron: '23 12 * * 1'
   workflow_dispatch:
 
 permissions:

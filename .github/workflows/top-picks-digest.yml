@@ -57,8 +57,9 @@ on:
     # repo's own scheduled workflows). Two widely-spaced slots is enough
     # for a true backstop since workflow_run should be doing the real
     # work above.
-    - cron: '30 17 * * *'
-    - cron: '30 19 * * *'
+    # Minutes nudged off :30 2026-09-09 (account-wide congestion cleanup).
+    - cron: '43 17 * * *'
+    - cron: '43 19 * * *'
   workflow_dispatch:
     inputs:
       live:

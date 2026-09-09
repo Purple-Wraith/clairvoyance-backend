@@ -18,7 +18,8 @@ on:
     # delay (main lock nominal 14:30 UTC, CFB early nominal ~15:00-15:30
     # UTC, soccer early nominal ~12:20 UTC -- latest of the three plus
     # worst-case delay lands comfortably before this).
-    - cron: '30 17 * * *'
+    # Minute nudged off :30 2026-09-09 (account-wide congestion cleanup).
+    - cron: '38 17 * * *'
   workflow_dispatch: {}
 
 permissions:

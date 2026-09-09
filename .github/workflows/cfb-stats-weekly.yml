@@ -16,12 +16,19 @@ name: CFB Team Stats Refresh
 
 on:
   schedule:
-    # Daily 8:00 AM MT = 14:00 UTC (MDT) -- season-opener coverage.
-    - cron: '0 14 * * *'
-    # Sunday 8:00 PM MT = 02:00 UTC Monday (MDT) / 03:00 UTC (MST)
-    - cron: '0 2 * * 1'
-    # Monday 8:00 AM MT = 14:00 UTC (MDT) / 15:00 UTC (MST)
-    - cron: '0 14 * * 1'
+    # Daily ~8:00 AM MT = 14:00 UTC (MDT) -- season-opener coverage.
+    # Minute nudged off :00 (see 2026-09-09 congestion cleanup below).
+    - cron: '33 14 * * *'
+    # Sunday ~8:00 PM MT = 02:00 UTC Monday (MDT) / 03:00 UTC (MST)
+    - cron: '17 2 * * 1'
+    # The separate "Monday 8am MT" cron that used to live here (`0 14 * *
+    # 1`) was fully redundant with the daily 14:00 UTC cron above -- which
+    # already fires every day including Monday -- so it never added any
+    # real coverage, just a second identical run once a week. Removed
+    # 2026-09-09 as part of a broader pass nudging every remaining :00/:30
+    # cron in this account off round minutes, since GitHub's own scheduler
+    # (and multiple community reports of multi-hour delays) is documented
+    # to cluster load hardest right at the top/half of each hour.
   workflow_dispatch:
 
 permissions:

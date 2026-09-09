@@ -51,7 +51,11 @@ on:
     # 6am MT = 12:00 UTC, 11pm MT = 05:00 UTC next day (MDT), hence the
     # split hour range. Like every other fixed-UTC cron in this repo,
     # drifts ~1hr earlier MT once MST returns in November.
-    - cron: '*/30 12-23,0-5 * * *'
+    # Minute nudged off :00/:30 2026-09-09 -- part of an account-wide pass
+    # moving every remaining round-minute cron off the top/half of the
+    # hour, since that's documented (both by GitHub itself and multiple
+    # community reports) as the most congested instant for the scheduler.
+    - cron: '7,37 12-23,0-5 * * *'
   workflow_dispatch:
 
 permissions:

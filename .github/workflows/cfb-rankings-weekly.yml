@@ -17,10 +17,11 @@ name: CFB Rankings + FPI Refresh
 
 on:
   schedule:
-    # Monday 7:00 AM MT = 13:00 UTC (MDT) / 14:00 UTC (MST)
-    - cron: '0 13 * * 1'
-    # Tuesday 7:00 AM MT = 13:00 UTC (MDT) / 14:00 UTC (MST)
-    - cron: '0 13 * * 2'
+    # ~Monday 7:00 AM MT = 13:00 UTC (MDT) / 14:00 UTC (MST). Minute
+    # nudged off :00 2026-09-09 (account-wide congestion cleanup).
+    - cron: '47 13 * * 1'
+    # ~Tuesday 7:00 AM MT = 13:00 UTC (MDT) / 14:00 UTC (MST)
+    - cron: '47 13 * * 2'
   workflow_dispatch:
 
 permissions:

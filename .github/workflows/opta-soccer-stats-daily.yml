@@ -16,10 +16,13 @@ name: Daily Opta Soccer Stats Refresh
 
 on:
   schedule:
-    # 5:00 AM MT = 11:00 UTC (MDT) / 12:00 UTC (MST) — well after Opta's own
+    # ~5:00 AM MT = 11:00 UTC (MDT) / 12:00 UTC (MST) — well after Opta's own
     # nightly data update, off-peak minute to avoid GitHub's scheduled-
-    # workflow queue congestion at round cron minutes.
-    - cron: '0 11 * * *'
+    # workflow queue congestion at round cron minutes. Comment already
+    # said this; the cron itself was still sitting at :00 until fixed
+    # 2026-09-09 as part of an account-wide pass doing the same for every
+    # other workflow still left on a round minute.
+    - cron: '33 11 * * *'
   workflow_dispatch:
 
 permissions:

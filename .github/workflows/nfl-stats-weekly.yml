@@ -12,8 +12,11 @@ name: NFL Team Stats + Standings Refresh
 
 on:
   schedule:
-    # Tuesday 7:00 AM MT = 13:00 UTC (MDT) / 14:00 UTC (MST)
-    - cron: '0 13 * * 2'
+    # ~Tuesday 7:00 AM MT = 13:00 UTC (MDT) / 14:00 UTC (MST). Minute
+    # nudged off :00 2026-09-09 (account-wide congestion cleanup); offset
+    # from CFB Rankings' own Tuesday :47 slot at the same hour so the two
+    # don't just trade one collision for another.
+    - cron: '53 13 * * 2'
   workflow_dispatch:
 
 permissions:

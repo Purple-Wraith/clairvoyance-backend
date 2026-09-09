@@ -8,8 +8,9 @@ name: CFB Roster Refresh
 
 on:
   schedule:
-    # 1st of the month, 5:00 AM MT = 11:00 UTC (MDT) / 12:00 UTC (MST)
-    - cron: '0 11 1 * *'
+    # 1st of the month, ~5:00 AM MT = 11:00 UTC (MDT) / 12:00 UTC (MST).
+    # Minute nudged off :00 2026-09-09 (account-wide congestion cleanup).
+    - cron: '23 11 1 * *'
   workflow_dispatch:
 
 permissions:

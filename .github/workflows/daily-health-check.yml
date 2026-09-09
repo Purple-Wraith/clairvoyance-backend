@@ -20,7 +20,8 @@ on:
     # checks has had its chance to run for the day, in the same open
     # 17:00-21:00 UTC gap other lightweight non-Playwright jobs in this
     # repo use.
-    - cron: '30 20 * * *'
+    # Minute nudged off :30 2026-09-09 (account-wide congestion cleanup).
+    - cron: '33 20 * * *'
   workflow_dispatch: {}
 
 permissions:
