@@ -36,16 +36,29 @@
     text-align:center; margin-top:10px; opacity:0;
     animation: reveal .01s linear 2.4s forwards;
   }
-  .stats { display:flex; gap:22px; margin-top:56px; }
+  /* Fixed total width + equal flex columns (flex:1 1 0 with width:0
+     overrides the default content-based sizing) so a long value like a
+     3-digit record can never push the row past the 1080px canvas — it
+     used to (min-width:150px let boxes grow with their content), which
+     clipped both edges once a stat exceeded ~4 chars. Long values now
+     shrink to fit instead, via the auto-fit pass generate_video_reveal.py
+     runs on .stat-val right after populating the text. */
+  /* width (not max-width): .stage centers children via align-items:center
+     rather than stretch, so a flex row sized only by max-width never
+     actually grows to it -- with no definite container width, the
+     flex:1 children fall back to their min-content (here 0, since
+     min-width:0), collapsing the whole row. An explicit width gives
+     flex-grow something real to distribute. */
+  .stats { display:flex; gap:18px; margin-top:56px; width:980px; }
   .stat {
     text-align:center;
     background:rgba(20,10,40,.55); border:1px solid rgba(240,0,255,.2); border-radius:8px;
-    padding:22px 20px; min-width:150px;
+    padding:22px 8px; flex:1 1 0; width:0; min-width:0;
     opacity:0;
   }
   .stat-val {
     font-family:'Orbitron',sans-serif; font-weight:900; font-size:56px; white-space:nowrap;
-    display:inline-block;
+    display:inline-block; max-width:100%; overflow:hidden;
   }
   .stat-lbl {
     font-family:'Share Tech Mono',monospace; font-size:20px; letter-spacing:3px; color:#f000ff;

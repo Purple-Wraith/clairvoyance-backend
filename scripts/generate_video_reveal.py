@@ -178,6 +178,26 @@ STATS_VARIANTS = {
 STATS_VARIANT_NAMES = ["glitch"]
 
 
+# Shared post-populate pass: shrinks any .stat-val whose text no longer
+# fits its (now fixed-width, see glitch_reveal.html) box instead of
+# letting it overflow the box or the 1080px canvas. No-op on templates
+# without that markup (querySelectorAll just returns nothing), so it's
+# safe to run unconditionally for every STATS_VARIANTS template.
+_FIT_STAT_VALS_JS = """
+      document.querySelectorAll('.stat-val').forEach(function(el){
+        var box = el.closest('.stat');
+        if (!box) return;
+        var maxW = box.clientWidth - 40;
+        var fs = 56;
+        el.style.fontSize = fs + 'px';
+        while (el.scrollWidth > maxW && fs > 30) {
+          fs -= 2;
+          el.style.fontSize = fs + 'px';
+        }
+      });
+"""
+
+
 def record_stats_reveal(headline: str, record: str, pct: str, units: str, out_path: Path,
                          variant: str = "fade", duration_s: float | None = None, locked: str | None = None,
                          date_str: str | None = None) -> Path:
@@ -192,6 +212,7 @@ def record_stats_reveal(headline: str, record: str, pct: str, units: str, out_pa
       if (lockedEl) lockedEl.textContent = {json.dumps(locked or "—")};
       var dateEl = document.getElementById('headline-date');
       if (dateEl) dateEl.textContent = {json.dumps(date_str or "")};
+{_FIT_STAT_VALS_JS}
     }}
     """
     return _record_template(template_name, setup_js, out_path, duration_s or default_duration)
@@ -212,6 +233,7 @@ def record_stats_still(headline: str, record: str, pct: str, units: str, out_pat
       if (lockedEl) lockedEl.textContent = {json.dumps(locked or "—")};
       var dateEl = document.getElementById('headline-date');
       if (dateEl) dateEl.textContent = {json.dumps(date_str or "")};
+{_FIT_STAT_VALS_JS}
     }}
     """
     return _screenshot_settled(template_name, setup_js, out_path, default_duration)
