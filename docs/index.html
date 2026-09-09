@@ -10298,7 +10298,15 @@ function renderNBAHistory(){renderHistoryForSport('NBA','nba-history-summary','n
 // ═══ OVERALL DASHBOARD ═══════════════════════════════════════
 function renderOverall(){
   const el=document.getElementById('ovr-dashboard');if(!el)return;
-  const all=getP();
+  // Explicit request, 2026-09-09: this whole tab (Period Performance,
+  // BY SPORT/BET TYPE/LEAGUE, Recent Form, calibration, streaks) now
+  // only reflects the engine's current real scope -- NBA/NFL/CFB/NHL
+  // (+KHL/SHL/LIIGA/NCAAH personal-use) and the 6 soccer leagues.
+  // _broadSportOf/_normSport are the same pair Track Record's public
+  // card already uses to draw this exact line; retired-sport bets
+  // (MLB/WNBA/CBB/World Cup/tennis) are now excluded from every number
+  // on this tab, not just from the BY SPORT/LEAGUE row lists.
+  const all=getP().filter(p=>_broadSportOf(_normSport(p))!==null);
   // Real perf bug, found via a live desktop-lag audit (2026-09-02):
   // this function's sport/league/type breakdown blocks below re-filter
   // the WHOLE all-time settled array once per row (6 sports + 5 bet
@@ -11668,6 +11676,15 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   } else {
     const old=document.getElementById('ovr-pending-section');if(old)old.remove();
   }
+  // Explicit request, 2026-09-09: the browsable ALL BETS list below only
+  // shows the engine's current real scope -- NBA/NFL/CFB/NHL (+KHL/SHL/
+  // LIIGA/NCAAH personal-use) and the 6 soccer leagues. Uses window._
+  // (not the bare names) because this function's own _normSport const
+  // below shadows the global helper of the same name within this scope.
+  // Deliberately NOT applied to pendingAll above -- a legacy pending bet
+  // in a retired sport still needs to stay visible/actionable here so it
+  // doesn't become a permanently stuck ghost bet with no settle button.
+  all=all.filter(p=>window._broadSportOf(window._normSport(p))!==null);
   // Sport filter — null means "preserve stored", undefined means "not passed"
   const sf=(sportFilter!=null)?sportFilter:(window._ovrHistSport||'ALL');
   window._ovrHistSport=sf;
@@ -13452,6 +13469,16 @@ function renderHomePage(){
   // ── ENGINE PERFORMANCE ──────────────────────────────────────────────────────
   const recEl=document.getElementById('home-engine-record');
   if(recEl){
+    // Explicit request, 2026-09-09: this card (and its nested PERIOD
+    // PERFORMANCE — LEAGUE breakdown) only reflects the engine's current
+    // real scope -- NBA/NFL/CFB/NHL (+KHL/SHL/LIIGA/NCAAH personal-use)
+    // and the 6 soccer leagues. Scoped to this block only (a local copy,
+    // not reassigning allBets/settled) so the rest of renderHomePage --
+    // pending-bets-needing-attention, live games, best bets -- is
+    // untouched; hiding a legacy pending bet in a retired sport from the
+    // action queue would just make it a permanently stuck ghost bet.
+    const keptBets=allBets.filter(p=>_broadSportOf(_normSport(p))!==null);
+    const keptSettled=keptBets.filter(p=>p.outcome==='win'||p.outcome==='loss');
     const nowD=getMSTNow();
     const wk7ts=now-7*86400000;
     const firstOfMonth=mstFirstOfMonth(nowD);
@@ -13468,12 +13495,12 @@ function renderHomePage(){
       return{w,l,n:s.length,pct:s.length?w/s.length:null,units:u};
     };
 
-    const rtd  = hCalc(allBets.filter(p=>p.date===todayStr));
-    const ry   = hCalc(allBets.filter(p=>p.date===yd));
-    const r7   = hCalc(allBets.filter(p=>p.lockedAt&&p.lockedAt>=wk7ts));
-    const rMo  = hCalc(allBets.filter(p=>p.lockedAt&&p.lockedAt>=firstOfMonth.getTime()));
-    const rLMo = hCalc(allBets.filter(p=>p.lockedAt&&p.lockedAt>=firstOfLastMonth.getTime()&&p.lockedAt<firstOfMonth.getTime()));
-    const rAll = hCalc(allBets);
+    const rtd  = hCalc(keptBets.filter(p=>p.date===todayStr));
+    const ry   = hCalc(keptBets.filter(p=>p.date===yd));
+    const r7   = hCalc(keptBets.filter(p=>p.lockedAt&&p.lockedAt>=wk7ts));
+    const rMo  = hCalc(keptBets.filter(p=>p.lockedAt&&p.lockedAt>=firstOfMonth.getTime()));
+    const rLMo = hCalc(keptBets.filter(p=>p.lockedAt&&p.lockedAt>=firstOfLastMonth.getTime()&&p.lockedAt<firstOfMonth.getTime()));
+    const rAll = hCalc(keptBets);
 
     // League performance — mirrors the Overall tab's BY LEAGUE grouping,
     // toggleable between the current month (time-relevant default) and
@@ -13481,12 +13508,11 @@ function renderHomePage(){
     // Selection persists across re-renders via window._homeLgPerfPeriod,
     // same pattern as Overall's window._ovrSelectedMonth.
     const leagueMap=[
-      {lbl:'NFL',codes:['NFL','FB']},{lbl:'CFB',codes:['CFB']},{lbl:'MLB',codes:['MLB']},
+      {lbl:'NFL',codes:['NFL','FB']},{lbl:'CFB',codes:['CFB']},
       {lbl:'NHL',codes:['NHL']},{lbl:'College Hockey',codes:['NCAAH','COLLEGE HOCKEY']},
       {lbl:'SHL',codes:['SHL']},{lbl:'LIIGA',codes:['LIIGA']},{lbl:'KHL',codes:['KHL']},
-      {lbl:'NBA',codes:['NBA']},{lbl:'WNBA',codes:['WNBA']},{lbl:'CBB',codes:['CBB','NCAAB']},
-      
-      {lbl:'World Cup',codes:['SOC','WC']},{lbl:'Champions League',codes:['CL','CH']},
+      {lbl:'NBA',codes:['NBA']},
+      {lbl:'Champions League',codes:['CL','CH']},
       {lbl:'Premier League',codes:['PL']},{lbl:'La Liga',codes:['LIGA']},
       {lbl:'Bundesliga',codes:['BUND','BL']},{lbl:'MLS',codes:['MLS']},{lbl:'Serie A',codes:['SERIEA']},
     ];
@@ -13497,10 +13523,10 @@ function renderHomePage(){
     // own filter a few lines up, so this breakdown's total always agrees
     // with the TODAY card's W-L figure instead of a subtly different
     // "locked in the last 24h" count.
-    const lgPerfBets=(lgPerfPeriod==='today'?allBets.filter(p=>p.date===todayStr)
-      :lgPerfPeriod==='all'?allBets
-      :lgPerfPeriod==='lastMonth'?allBets.filter(p=>p.lockedAt&&p.lockedAt>=firstOfLastMonth.getTime()&&p.lockedAt<firstOfMonth.getTime())
-      :allBets.filter(p=>p.lockedAt&&p.lockedAt>=firstOfMonth.getTime())).filter(p=>p.outcome!=='pending');
+    const lgPerfBets=(lgPerfPeriod==='today'?keptBets.filter(p=>p.date===todayStr)
+      :lgPerfPeriod==='all'?keptBets
+      :lgPerfPeriod==='lastMonth'?keptBets.filter(p=>p.lockedAt&&p.lockedAt>=firstOfLastMonth.getTime()&&p.lockedAt<firstOfMonth.getTime())
+      :keptBets.filter(p=>p.lockedAt&&p.lockedAt>=firstOfMonth.getTime())).filter(p=>p.outcome!=='pending');
     const byLeagueHome=leagueMap.map(lm=>{
       const lb=lgPerfBets.filter(p=>lm.codes.some(c=>p._spUC===c));
       if(!lb.length)return null;
@@ -13547,7 +13573,7 @@ function renderHomePage(){
     recEl.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
       <span style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--nc)">// ENGINE PERFORMANCE</span>
-      <span style="font-family:var(--mono);font-size:15px;color:var(--t3)">${allBets.length} LOCKED · ${settled.length} SETTLED</span>
+      <span style="font-family:var(--mono);font-size:15px;color:var(--t3)">${keptBets.length} LOCKED · ${keptSettled.length} SETTLED</span>
     </div>
     <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--t3);margin-bottom:10px">LIVE TRACK RECORD — UPDATES CONTINUOUSLY</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
