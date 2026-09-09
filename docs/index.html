@@ -6569,6 +6569,27 @@ async function autoSettleSoccer(targetDate){
   // once a matchday's games rolled off it.
   targetDate=targetDate||today();
   const preds=getP();let changed=false;
+  // Real bug, found live 2026-09-09: a real ledger check found 4 MLS bets
+  // stuck pending since 2026-09-05 despite this function running hourly
+  // -- the SAME-GAME check below requires an exact string match on both
+  // p.hA/p.awA against ESPN's own team name, but the ledger stores
+  // "Atlanta United"/"Orlando City" while ESPN's real API returns
+  // "Atlanta United FC"/"Orlando City SC" (confirmed directly against
+  // the live scoreboard), so sameGame silently never matched and these
+  // bets could never auto-settle no matter how many times this ran.
+  // Same normalization Python's _soccer_club_key() already applies for
+  // odds resolution (clairvoyance_update.py) -- strips the generic
+  // corporate-entity suffixes FBref/ESPN disagree on including. Plus a
+  // small alias table for the one real case that isn't a suffix at all:
+  // ESPN names the LA MLS club "LAFC", not a "... FC" variant of a
+  // longer name, so a bet stored as "Los Angeles Football Club" (also
+  // confirmed live, stuck the same way) needs an explicit alias rather
+  // than suffix-stripping.
+  const _socMatchAliases={'los angeles football club':'lafc','lafc':'lafc'};
+  const _socMatchKey=n=>{
+    const k=(n||'').trim().toLowerCase().replace(/\s+(fc|cf|afc|sc|cd|ud)$/,'');
+    return _socMatchAliases[k]||k;
+  };
   for(const lg of _SOC_SETTLE_LEAGUES){
     try{
       const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/'+lg.espn+'/scoreboard?dates='+targetDate.replace(/-/g,''));
@@ -6591,8 +6612,10 @@ async function autoSettleSoccer(targetDate){
         const hs=parseInt(home?.score||0),as=parseInt(away?.score||0);
         for(const p of preds){
           if(p.outcome!=='pending'||_normSport(p)!==lg.sport||p.date!==targetDate)continue;
-          const pHomeMatch=p.hA===hn||p.hA===hAbbr,pAwayMatch=p.awA===an||p.awA===aAbbr;
-          const pSwapMatch=p.hA===an||p.hA===aAbbr,pSwapAwayMatch=p.awA===hn||p.awA===hAbbr;
+          const pHomeMatch=p.hA===hn||p.hA===hAbbr||_socMatchKey(p.hA)===_socMatchKey(hn);
+          const pAwayMatch=p.awA===an||p.awA===aAbbr||_socMatchKey(p.awA)===_socMatchKey(an);
+          const pSwapMatch=p.hA===an||p.hA===aAbbr||_socMatchKey(p.hA)===_socMatchKey(an);
+          const pSwapAwayMatch=p.awA===hn||p.awA===hAbbr||_socMatchKey(p.awA)===_socMatchKey(hn);
           const sameGame=(pHomeMatch&&pAwayMatch)||(pSwapMatch&&pSwapAwayMatch);
           if(!sameGame)continue;
           let outcome=null;
@@ -6604,7 +6627,15 @@ async function autoSettleSoccer(targetDate){
           // abbreviation directly (not p.hA/p.awA, whose own naming
           // convention varies by bet -- already resolved via sameGame).
           const betOn=p.betOn||'';
-          const matchesTeam=(names)=>names.some(n=>n&&(betOn===n||betOn===n+' Win'||betOn===n+' ML'));
+          // Same suffix/alias tolerance as sameGame above, so e.g.
+          // betOn:"Atlanta United Win" still resolves against ESPN's
+          // "Atlanta United FC" instead of only ever matching an exact
+          // string equal to the fetched name.
+          const matchesTeam=(names)=>names.some(n=>{
+            if(!n)return false;
+            if(betOn===n||betOn===n+' Win'||betOn===n+' ML')return true;
+            return _socMatchKey(betOn.replace(/\s+(Win|ML)$/i,''))===_socMatchKey(n);
+          });
           if(matchesTeam([hn,hAbbr]))outcome=hs>as?'win':(hs===as?'loss':'loss');
           else if(matchesTeam([an,aAbbr]))outcome=as>hs?'win':(hs===as?'loss':'loss');
           else if(betOn.toUpperCase()==='DRAW')outcome=hs===as?'win':'loss';
