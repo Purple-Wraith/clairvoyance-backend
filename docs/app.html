@@ -7092,10 +7092,21 @@ function renderNFLConfig2(){
 }
 function lockNFLGame(hA,awA,betType,betOn,ml,winProb,ouLine){
   const dec=ml2d(ml);
-  const id=`nfl_${today()}_${hA}_${awA}_${betType}_${betOn.replace(/\s+/g,'')}`;
-  const pred={id,date:today(),hA,awA,sport:'FOOTBALL',league:'NFL',betType,betOn,winProb,ml,decOdds:dec,
+  const dateKey=today();
+  const id=`nfl_${dateKey}_${hA}_${awA}_${betType}_${betOn.replace(/\s+/g,'')}`;
+  const pred={id,date:dateKey,hA,awA,sport:'FOOTBALL',league:'NFL',betType,betOn,winProb,ml,decOdds:dec,
     ou:ouLine!=null?ouLine:null,wager:0,outcome:'pending',lockedAt:Date.now()};
-  const preds=getP();if(!preds.find(p=>p.id===id)){_removeWipedIds([id]);preds.push(pred);saveP(preds);}
+  const preds=getP();
+  // Same gap as lockCFBGame (fixed 2026-09-09, see its own comment): only
+  // checked its own exact id, never the automated pipeline's separate
+  // lockPick()-based locks for the same game -- see the "block double
+  // locking any event" audit that added this same _findSameMarketLock
+  // check to every remaining game-level lock function that bypassed
+  // lockPick() (lockNFLGame, lockNHLGame here; lockNBAGame/soccer's game
+  // card already routed through lockPick() and so already had it).
+  const dup=preds.find(p=>p.id===id)||_findSameMarketLock(preds,dateKey,hA,awA,betType);
+  if(dup){toast(`// ALREADY LOCKED: ${dup.betOn} (${dup.outcome==='pending'?'still pending':dup.outcome.toUpperCase()})`);return;}
+  _removeWipedIds([id]);preds.push(pred);saveP(preds);
   updHdr();
   toast('// NFL LOCKED: '+betOn);
   try{window.showBetPopup({type:'lock',betOn,sport:'FOOTBALL',league:'NFL',betType,ml,prob:winProb,decOdds:dec});}catch(e){}
@@ -8042,9 +8053,19 @@ function lockNHLGame(gameStr,pick,ml){
   const parts=gameStr.split(' @ ');const hA=parts[1]||parts[0]||gameStr;const awA=parts[0]||'';
   const mlNum=parseInt(String(ml).replace('+',''))||0;
   const dec=mlNum>0?mlNum/100+1:100/Math.abs(mlNum)+1;
-  const id=`nhl_${today()}_${hA}_${awA}_${pick.replace(/\s/g,'')}`;
-  const pred={id,date:today(),hA,awA,sport:'NHL',league:'NHL',betType:'ML',betOn:pick,winProb:0.55,ml,decOdds:dec,wager:0,outcome:'pending',lockedAt:Date.now()};
-  const preds=getP();if(!preds.find(p=>p.id===id)){_removeWipedIds([id]);preds.push(pred);saveP(preds);}
+  const dateKey=today();
+  const id=`nhl_${dateKey}_${hA}_${awA}_${pick.replace(/\s/g,'')}`;
+  const pred={id,date:dateKey,hA,awA,sport:'NHL',league:'NHL',betType:'ML',betOn:pick,winProb:0.55,ml,decOdds:dec,wager:0,outcome:'pending',lockedAt:Date.now()};
+  const preds=getP();
+  // Same gap as lockCFBGame/lockNFLGame (block-double-locking audit,
+  // 2026-09-09): only checked its own exact id, never lockPick()'s
+  // separate automated-pipeline id scheme for the same game. Also covers
+  // the "LIVE" buttons below (lockNHLSeriesBet -> this same function),
+  // which previously had zero protection against re-locking the same
+  // game's moneyline mid-game.
+  const dup=preds.find(p=>p.id===id)||_findSameMarketLock(preds,dateKey,hA,awA,'ML');
+  if(dup){toast(`// ALREADY LOCKED: ${dup.betOn} (${dup.outcome==='pending'?'still pending':dup.outcome.toUpperCase()})`);return;}
+  _removeWipedIds([id]);preds.push(pred);saveP(preds);
   updHdr();renderNHLLockedBets();try{renderHomeLockedBets();}catch(e){}
   toast('// NHL LOCKED: '+pick);try{window.showBetPopup({type:'lock',betOn:pick,sport:'NHL',league:'NHL',betType:'ML',ml,prob:0.55,decOdds:dec});}catch(ex){}
 }
@@ -14319,7 +14340,15 @@ function renderNFLProps(filter){
 function lockNFLProp(idx){
   const p=(window._nflPropsCurrent||[])[idx];if(!p)return;
   const dec=p.ml?ml2d(p.ml):(1/Math.max(0.01,(p.conf||55)/100));
-  const prop={id:`prop_nfl_${Date.now()}`,team:p.team,player:p.player,line:p.line,over:p.over,conf:(p.conf||55)/100,
+  // Real gap found in the block-double-locking audit (2026-09-09): this
+  // was the one prop-lock function still missed by the earlier props-
+  // dedup pass (lockProp/lockNHLProp/lockNFLModelProp all already fixed,
+  // see their own comments) -- id was Date.now()-based, always unique by
+  // construction, zero dedup at all. Same deterministic-id + LOCKED_PROPS
+  // check as those three.
+  const propId=`prop_nfl_linemate_${today()}_${p.player}_${p.stat}_${p.over?'O':'U'}_${p.line}`.replace(/\s/g,'');
+  if(LOCKED_PROPS.some(x=>x.id===propId)){toast(`// ALREADY LOCKED: ${p.player} ${p.over?'OVER':'UNDER'} ${p.line} ${p.stat}`);return;}
+  const prop={id:propId,team:p.team,player:p.player,line:p.line,over:p.over,conf:(p.conf||55)/100,
     lockedAt:Date.now(),outcome:'pending',date:today(),sport:'FOOTBALL',league:'NFL',betType:'PROP',
     hA:p.team,awA:p.opp||p.team,
     betOn:`${p.player} ${p.over?'OVER':'UNDER'} ${p.line} ${p.stat}`,winProb:(p.conf||55)/100,decOdds:dec,wager:0};
