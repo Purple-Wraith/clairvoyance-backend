@@ -10651,7 +10651,7 @@ function renderOverall(){
     }
     return out;
   };
-  for(const _sp of ['NHL','NBA','SOC']){
+  for(const _sp of ['NHL','NBA','SOC','CFB']){
     // _spUC precomputed once per pick near the top of this function (see
     // that comment for why mutating these fresh getP() objects is safe)
     // -- reused here instead of recomputing .toUpperCase() per item per
@@ -10660,8 +10660,18 @@ function renderOverall(){
     // renderOverall() before this change (8.25s vs the 0.9-3.7s range
     // already established), confirming this run into the same redundant-
     // recompute pattern already fixed elsewhere in this function.
+    // CFB added 2026-09-09 -- was the one sport with real weight excluded
+    // from this loop entirely, running on static hardcoded ensemble/rank
+    // constants that never corrected for actual bet outcomes (62.3% win
+    // rate at an avg -193.7 ML price needs ~66% to break even). CFB is
+    // tagged sport:'FOOTBALL'/league:'CFB' (shared sport tag with NFL, see
+    // lockPickCFB/lockPickNFL2), so unlike NHL/NBA it can't be matched via
+    // _spUC — needs the league field instead, same reason SOC needs
+    // _SOC_LEAGUE_TAGS rather than a plain _spUC equality check.
     const _spBets=_sp==='SOC'
       ?settled.filter(p=>_SOC_LEAGUE_TAGS.has(p._spUC))
+      :_sp==='CFB'
+      ?settled.filter(p=>(p.league||'').toUpperCase()==='CFB')
       :settled.filter(p=>p._spUC===_sp);
     _newAdjBySport[_sp]=_calcBandAdjFor(_spBets,_prevAdjBySport[_sp]||{});
   }
@@ -16641,6 +16651,14 @@ function _normSport(p){
   }
   return raw||'MISC';
 }
+// Missing since the 2026-09-09 sport-scope filtering change added
+// window._normSport(...) calls from renderHomePage/renderOverallDashboard
+// (other scopes shadow the bare name with a local const) -- _broadSportOf
+// got this same export line above but this one was never added, so every
+// page load threw "ReferenceError: _normSport is not defined" in those two
+// functions on the live site (confirmed in Auto Lock + Settle's own
+// Playwright console-error logs).
+window._normSport=_normSport;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PERFORMANCE GRAPHIC EXPORT — Canvas 1080×1350 (4:5, fits X + Instagram)
