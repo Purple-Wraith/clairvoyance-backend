@@ -10495,7 +10495,7 @@ function renderOverall(){
     }
     return out;
   };
-  for(const _sp of ['NHL','NBA','SOC','CFB']){
+  for(const _sp of ['NHL','NBA','SOC','CFB','NFL']){
     // _spUC precomputed once per pick near the top of this function (see
     // that comment for why mutating these fresh getP() objects is safe)
     // -- reused here instead of recomputing .toUpperCase() per item per
@@ -10512,10 +10512,15 @@ function renderOverall(){
     // lockPickCFB/lockPickNFL2), so unlike NHL/NBA it can't be matched via
     // _spUC — needs the league field instead, same reason SOC needs
     // _SOC_LEAGUE_TAGS rather than a plain _spUC equality check.
+    // NFL added same day as a same-session follow-up -- identical gap
+    // (sportCalibrate(p,'NFL') at the NFL pick-generation call site was
+    // already wired to read this table, same as CFB's was, it just never
+    // had an 'NFL' entry to read), same league-field fix needed since NFL
+    // shares the exact 'FOOTBALL' sport tag with CFB.
     const _spBets=_sp==='SOC'
       ?settled.filter(p=>_SOC_LEAGUE_TAGS.has(p._spUC))
-      :_sp==='CFB'
-      ?settled.filter(p=>(p.league||'').toUpperCase()==='CFB')
+      :_sp==='CFB'||_sp==='NFL'
+      ?settled.filter(p=>(p.league||'').toUpperCase()===_sp)
       :settled.filter(p=>p._spUC===_sp);
     _newAdjBySport[_sp]=_calcBandAdjFor(_spBets,_prevAdjBySport[_sp]||{});
   }
