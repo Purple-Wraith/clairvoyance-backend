@@ -96,16 +96,30 @@ LEAGUES: dict[str, dict] = {
         # assuming each league's ratings were on its own separate scale
         # -- wrong assumption, reverted once this was confirmed.)
         #
-        # IMPORTANT: as of 2026-09-01 this tmcl's data is still the
-        # *2025/26 season's final totals* (lastUpdated 2026-06-02, right
-        # after that season's final) -- the 2026/27 league phase hasn't
-        # kicked off yet (real UEFA calendar: starts Sept 8 2026). Once
-        # it does, re-verify this tmcl the same way the docstring above
-        # describes for the other leagues (or repeat the network-capture
-        # trick this comment used, if the static grep still finds
-        # nothing) -- it may roll to a new id, or this same one may just
-        # start reflecting the new season's live totals in place.
-        "tmcl": "2mr0u0l78k2gdsm79q56tb2fo",
+        # UPDATE 2026-09-09: confirmed the season DID roll to a new tmcl,
+        # exactly as the note below anticipated -- the old one
+        # (2mr0u0l78k2gdsm79q56tb2fo) was still frozen on 2025/26's final
+        # totals (lastUpdated 2026-06-02) as late as today, a full day
+        # after the real 2026/27 league phase kicked off (Sept 8).
+        # Re-captured the live network request theanalyst.com's frontend
+        # makes on this same referer page and found the new id below --
+        # confirmed it returns real current-season data (lastUpdated
+        # 2026-09-09, 12 teams with stats so far matching the actual
+        # staggered league-phase schedule -- AEK Athens/Aston Villa/
+        # Dortmund/Club Brugge/Porto/Inter/LASK/Lille/Man City/Real
+        # Betis/Real Madrid/Villarreal, all real 2026/27 CL participants
+        # per this app's own ESPN standings, not last season's field).
+        # meta_post_id is unchanged -- it identifies the referer PAGE
+        # itself, not the season, and the page didn't move.
+        #
+        # Original note (kept for the next time this needs re-deriving):
+        # tmcl (tournament/competition-season id) is per-season and WILL
+        # go stale again once 2026/27 ends -- when this same "old season's
+        # frozen totals" symptom reappears, re-verify by capturing the
+        # live network request this same referer page makes (this file's
+        # own top docstring describes the process), the same way this
+        # value and the one before it were both found.
+        "tmcl": "99jev9kv55deht65t6myggxlg",
         "referer": "https://theanalyst.com/competition/uefa-champions-league/stats",
         "power_referer": None,
         "meta_post_id": "194412",
