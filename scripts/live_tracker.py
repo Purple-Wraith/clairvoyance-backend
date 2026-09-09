@@ -13,7 +13,6 @@ Run modes:
 The frontend polls live_data.json every 45s and updates:
   - Live score display for every active game
   - Win probability meter for every locked bet
-  - NRFI live status
   - In-game O/U likelihood
   - Auto-settle triggers when games go FINAL
 """
@@ -70,19 +69,9 @@ def _get(url: str, timeout: int = 8) -> dict | None:
         return None
 
 # ─── IN-GAME WIN PROBABILITY ──────────────────────────────────────────────────
-# MLB: score differential × inning leverage (historical RE288 approximation)
-_MLB_INNING_FACTOR = {1:0.18,2:0.26,3:0.34,4:0.42,5:0.50,6:0.60,7:0.72,8:0.86,9:1.0}
-
-def mlb_win_prob(score_diff: int, inning: int, top_half: bool) -> float:
-    """Approx win prob for the leading team based on score diff and inning."""
-    if score_diff == 0:
-        return 0.50
-    f = _MLB_INNING_FACTOR.get(min(inning, 9), 1.0)
-    if top_half and inning >= 9:
-        f = 0.93
-    # logistic: each run ≈ 0.25 logit units at inning factor
-    logit = score_diff * 0.9 * f
-    return 1 / (1 + math.exp(-logit))
+# MLB's mlb_win_prob()/_MLB_INNING_FACTOR removed 2026-09-08 -- MLB retired
+# from the engine entirely, matching tennis's earlier full removal from
+# this same file.
 
 def nba_win_prob(score_diff: int, seconds_remaining: int) -> float:
     """In-game NBA win probability. Uses Pythagorean-style model."""
@@ -128,65 +117,8 @@ def _parse_clock(clock_str: str) -> int:
     return 0
 
 # ─── LIVE SCOREBOARD FETCHERS ─────────────────────────────────────────────────
-def fetch_mlb_live() -> list[dict]:
-    today = (datetime.now(timezone.utc) - timedelta(hours=5)).strftime("%Y%m%d")
-    data = _get(f"{ESPN_BASE}/baseball/mlb/scoreboard?dates={today}&limit=20")
-    if not data:
-        return []
-    games = []
-    for ev in data.get("events") or []:
-        comp = (ev.get("competitions") or [{}])[0]
-        comps = comp.get("competitors") or []
-        home = next((c for c in comps if c.get("homeAway") == "home"), {})
-        away = next((c for c in comps if c.get("homeAway") == "away"), {})
-        status = ev.get("status") or {}
-        state  = (status.get("type") or {}).get("state", "pre")
-        hs = int(home.get("score") or 0) if state != "pre" else 0
-        as_ = int(away.get("score") or 0) if state != "pre" else 0
-        inning = status.get("period") or 1
-        situation = (comp.get("situation") or {})
-        top_half = situation.get("isTopHalf", True)
-
-        g = {
-            "id":     ev.get("id"),
-            "sport":  "MLB",
-            "home":   (home.get("team") or {}).get("abbreviation", ""),
-            "away":   (away.get("team") or {}).get("abbreviation", ""),
-            "homeScore": hs,
-            "awayScore": as_,
-            "state":  state,  # pre | in | post
-            "inning": inning,
-            "topHalf": top_half,
-            "outs":   situation.get("outs", 0),
-            "onBase": situation.get("onBase", ""),
-            "note":   (status.get("type") or {}).get("shortDetail", ""),
-            "displayClock": status.get("displayClock", ""),
-            "venue":  (comp.get("venue") or {}).get("fullName", ""),
-            "network": ((comp.get("broadcasts") or [{}])[0].get("names") or [""])[0],
-        }
-
-        # NRFI: first inning runs
-        g["nrfiSafe"] = (inning > 1) or (state == "post")
-        g["firstInningRuns"] = 0   # would need play-by-play for accuracy
-
-        # Win probability for home team
-        if state == "in":
-            diff = hs - as_
-            g["homeWinProb"] = round(mlb_win_prob(diff, inning, top_half), 3)
-        elif state == "post":
-            g["homeWinProb"] = 1.0 if hs > as_ else (0.5 if hs == as_ else 0.0)
-        else:
-            g["homeWinProb"] = 0.5
-
-        # Current O/U pace
-        if state == "in" and inning > 0:
-            innings_played = inning - (1 if top_half else 0)
-            if innings_played > 0:
-                pace = (hs + as_) * 9 / innings_played
-                g["ouPace"] = round(pace, 1)
-
-        games.append(g)
-    return games
+# fetch_mlb_live() removed 2026-09-08 -- MLB retired from the engine
+# entirely, matching tennis's earlier full removal from this same file.
 
 def fetch_nba_live() -> list[dict]:
     today = (datetime.now(timezone.utc) - timedelta(hours=5)).strftime("%Y%m%d")
@@ -244,7 +176,7 @@ def fetch_nba_live() -> list[dict]:
 def _fetch_football_live(espn_path: str, sport_tag: str) -> list[dict]:
     """Shared CFB/NFL live-score fetcher -- both are quarter-based ESPN
     scoreboards with an identical response shape, just different paths.
-    No win-probability here (unlike MLB/NBA/NHL above): those 3 have a
+    No win-probability here (unlike NBA/NHL above): those 2 have a
     real if simplistic score-diff/time-remaining model already tuned for
     this app; football's isn't (down/distance/possession all matter a lot
     more than in basketball, and no such model exists in this codebase
@@ -344,7 +276,7 @@ def fetch_nhl_live() -> list[dict]:
 
 # ─── BET PROBABILITY UPDATER ──────────────────────────────────────────────────
 def update_bet_probs(
-    mlb_live: list, nba_live: list, nhl_live: list, locked_bets: list
+    nba_live: list, nhl_live: list, locked_bets: list
 ) -> list[dict]:
     """
     For each pending locked bet, find the matching live game and
@@ -352,7 +284,7 @@ def update_bet_probs(
     """
     # Index live games by (home, away)
     live_idx: dict = {}
-    for g in mlb_live + nba_live + nhl_live:
+    for g in nba_live + nhl_live:
         h, a = g.get("home",""), g.get("away","")
         live_idx[(h, a)] = g
         live_idx[(a, h)] = g
@@ -397,9 +329,7 @@ def update_bet_probs(
             else:
                 adj_diff = (as_ - hs) + line
             sport = game.get("sport","")
-            if sport == "MLB":
-                current_prob = mlb_win_prob(adj_diff, game.get("inning",1), game.get("topHalf",True))
-            elif sport == "NBA":
+            if sport == "NBA":
                 current_prob = nba_win_prob(adj_diff * 2.5, game.get("secondsRemaining",0))
             elif sport == "NHL":
                 current_prob = nhl_win_prob(int(adj_diff), game.get("secondsRemaining",0))
@@ -432,7 +362,8 @@ def poll_once() -> dict:
     ts = datetime.now(timezone.utc)
     et_now = ts - timedelta(hours=5)
 
-    mlb  = fetch_mlb_live()
+    # MLB retired 2026-09-08 -- no longer fetched here, matching tennis's
+    # earlier full removal from this same file.
     nba  = fetch_nba_live()
     nhl  = fetch_nhl_live()
     cfb  = fetch_cfb_live()
@@ -448,10 +379,9 @@ def poll_once() -> dict:
             pass
 
     # Update bet probabilities
-    live_bets = update_bet_probs(mlb, nba, nhl, locked)
+    live_bets = update_bet_probs(nba, nhl, locked)
 
     # Summarise live games
-    active_mlb = [g for g in mlb  if g.get("state") == "in"]
     active_nba = [g for g in nba  if g.get("state") == "in"]
     active_nhl = [g for g in nhl  if g.get("state") in ("LIVE","CRIT")]
     active_cfb = [g for g in cfb  if g.get("state") == "in"]
@@ -460,27 +390,24 @@ def poll_once() -> dict:
     payload = {
         "ts":         ts.isoformat(),
         "tsET":       et_now.strftime("%Y-%m-%d %H:%M:%S ET"),
-        "mlb":        mlb,
         "nba":        nba,
         "nhl":        nhl,
         "cfb":        cfb,
         "nfl":        nfl,
         "liveBets":   live_bets,
         "activeCounts": {
-            "mlb": len(active_mlb),
             "nba": len(active_nba),
             "nhl": len(active_nhl),
             "cfb": len(active_cfb),
             "nfl": len(active_nfl),
         },
-        "hasLiveGames": bool(active_mlb or active_nba or active_nhl or active_cfb or active_nfl),
+        "hasLiveGames": bool(active_nba or active_nhl or active_cfb or active_nfl),
     }
 
     FE_LIVE.write_text(json.dumps(payload))
     DC_LIVE.write_text(json.dumps(payload))
 
     live_str = ", ".join(filter(None, [
-        f"MLB:{len(active_mlb)}" if active_mlb else "",
         f"NBA:{len(active_nba)}" if active_nba else "",
         f"NHL:{len(active_nhl)}" if active_nhl else "",
         f"CFB:{len(active_cfb)}" if active_cfb else "",

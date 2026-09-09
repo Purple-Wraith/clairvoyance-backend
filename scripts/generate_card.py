@@ -6,7 +6,7 @@ generate_card.py — Clairvoyance Engine Model Card Generator
 1080×1350 dark-mode PNG matching the Clairvoyance brand:
   • Carbon fiber background
   • Neon eye icon, purple/cyan palette
-  • League-filtered sections (MLB / NBA / NHL)
+  • League-filtered sections (NBA / NHL)
   • Original pick → score result → WIN / LOSS badge
 
 Output: frontend/card.png + docs/card.png
@@ -235,7 +235,7 @@ def _sep_line(draw: ImageDraw.ImageDraw, y: int,
     draw.rectangle([rx - 3, y - 2, rx + 3, y + 2], fill=CYAN)
 
 
-# ── Section header (  ══ MLB ══  ) ────────────────────────────────────────────
+# ── Section header (  ══ NBA ══  ) ────────────────────────────────────────────
 def _section_header(draw: ImageDraw.ImageDraw, y: int, label: str) -> int:
     f = _font(12, bold=True)
     pad = "    "
@@ -509,35 +509,6 @@ def _render_intel(img: Image.Image, y: int, data: dict) -> tuple[Image.Image, in
         rows = math.ceil(len(items) / 2)
         y += rows * 34 + 8
 
-    # Tomorrow's slate (MLB only — most predictable)
-    mlb_tom = data.get("mlb", {}).get("tomorrow", [])
-    if mlb_tom and y < H - footer_reserve - 80:
-        _sep_line(draw, y)
-        y += 12
-        draw = ImageDraw.Draw(img)
-        draw.text((68, y), "TOMORROW  —  MLB", font=f_lbl, fill=MUTED)
-        y += 18
-        max_tom = min(4, (H - footer_reserve - y) // 22)
-        for g in mlb_tom[:max_tom]:
-            away, home = g.get("away", ""), g.get("home", "")
-            game_dt = g.get("date", "")
-            time_str = ""
-            if game_dt:
-                try:
-                    from datetime import datetime as _dt2
-                    gd = _dt2.fromisoformat(game_dt.replace("Z", "+00:00"))
-                    time_str = (gd - timedelta(hours=5)).strftime("%-I:%M %p")
-                except Exception:
-                    pass
-            draw.text((68, y), f"{away} @ {home}", font=f_val, fill=(160, 148, 192))
-            if time_str:
-                draw.text((W - 68 - _tw(draw, time_str, f_xs), y + 2),
-                          time_str, font=f_xs, fill=MUTED)
-            y += 22
-        if len(mlb_tom) > max_tom:
-            draw.text((68, y), f"+ {len(mlb_tom) - max_tom} more", font=f_xs, fill=MUTED)
-            y += 16
-
     return img, y
 
 
@@ -601,15 +572,12 @@ def generate_card(data: dict, social: dict, platform: str = "instagram") -> Imag
     # Dynamic space budget across leagues
     footer_reserve = 94
     available      = H - y - footer_reserve
-    mlb = data.get("mlb", {}).get("today", [])
     nba = data.get("nba", {}).get("today", [])
     nhl = data.get("nhl", {}).get("today", [])
-    active = sum(1 for g in [mlb, nba, nhl] if g)
+    active = sum(1 for g in [nba, nhl] if g)
     row_px = 44
     per_league = max(2, (available // row_px) // max(active, 1))
 
-    img, y = _render_league(img, y, "MLB", mlb, best_bets, settled,
-                             max_games=min(per_league, 7))
     img, y = _render_league(img, y, "NBA", nba, best_bets, settled,
                              max_games=min(per_league, 4))
     img, y = _render_league(img, y, "NHL", nhl, best_bets, settled,

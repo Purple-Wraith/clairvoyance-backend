@@ -14,12 +14,14 @@ name: Landing Page Performance Refresh
 # to satisfy.
 #
 # engine_performance_subscriber.json (added 2026-09-03): same periods as
-# engine_performance.json, but filtered to only the 6 real paid-product
-# sports (nfl/cfb/nba/mlb/nhl/soccer) -- explicit request that the public
-# Live Track Record section not include personal-use-only WNBA/tennis/etc
-# performance. The landing page's Live Track Record section fetches this
-# one now; engine_performance.json (the full, unfiltered ledger) stays
-# published too, just unused by that section currently.
+# engine_performance.json, but filtered to only the 5 real paid-product
+# sports (nfl/cfb/nba/nhl/soccer -- was 6 with mlb until it was retired
+# from the engine entirely 2026-09-08) -- explicit request that the
+# public Live Track Record section not include personal-use-only
+# WNBA/tennis/etc performance. The landing page's Live Track Record
+# section fetches this one now; engine_performance.json (the full,
+# unfiltered ledger) stays published too, just unused by that section
+# currently.
 #
 # Runs generate_social_cards.py --json-only (added alongside this
 # workflow): reuses the exact same browser-launch + Supabase-load +

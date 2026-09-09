@@ -106,7 +106,7 @@ def _ev_grade(edge_pct: float) -> str:
 def _games_by_sport(data: dict, state: str | None = None) -> dict[str, list]:
     """Return today's games per sport, optionally filtered by state."""
     out = {}
-    for key, sport in [("mlb", "MLB"), ("nba", "NBA"), ("nhl", "NHL")]:
+    for key, sport in [("nba", "NBA"), ("nhl", "NHL")]:
         games = data.get(key, {}).get("today", [])
         if state:
             games = [g for g in games if g.get("state") == state]
@@ -123,7 +123,7 @@ def _slate_str(data: dict) -> str:
 
 def _live_games(data: dict) -> list[dict]:
     out = []
-    for key, sport in [("mlb", "MLB"), ("nba", "NBA"), ("nhl", "NHL")]:
+    for key, sport in [("nba", "NBA"), ("nhl", "NHL")]:
         for g in data.get(key, {}).get("today", []):
             if g.get("state") == "in":
                 out.append({**g, "_sport": sport})
@@ -131,7 +131,7 @@ def _live_games(data: dict) -> list[dict]:
 
 def _final_games(data: dict) -> list[dict]:
     out = []
-    for key, sport in [("mlb", "MLB"), ("nba", "NBA"), ("nhl", "NHL")]:
+    for key, sport in [("nba", "NBA"), ("nhl", "NHL")]:
         for g in data.get(key, {}).get("today", []):
             if g.get("state") == "post":
                 out.append({**g, "_sport": sport})
@@ -139,7 +139,7 @@ def _final_games(data: dict) -> list[dict]:
 
 def _upcoming_games(data: dict) -> list[dict]:
     out = []
-    for key, sport in [("mlb", "MLB"), ("nba", "NBA"), ("nhl", "NHL")]:
+    for key, sport in [("nba", "NBA"), ("nhl", "NHL")]:
         for g in data.get(key, {}).get("today", []):
             if g.get("state") not in ("in", "post"):
                 out.append({**g, "_sport": sport})
@@ -157,7 +157,7 @@ def _all_picks(data: dict) -> list[dict]:
 def _top_prop(data: dict) -> dict | None:
     lm = data.get("linemateForm", {})
     best, best_hr = None, -1.0
-    for sk in ["nba", "mlb", "nhl"]:
+    for sk in ["nba", "nhl"]:
         for p in lm.get(sk, []):
             if not isinstance(p, dict):
                 continue
@@ -172,7 +172,7 @@ def _top_prop(data: dict) -> dict | None:
 def _all_props(data: dict) -> list[dict]:
     out = []
     lm = data.get("linemateForm", {})
-    for sk in ["nba", "mlb", "nhl"]:
+    for sk in ["nba", "nhl"]:
         for p in lm.get(sk, []):
             if isinstance(p, dict):
                 out.append({**p, "_sport": sk.upper()})
@@ -221,7 +221,7 @@ def _top_weather(data: dict) -> tuple[str, dict] | None:
 
 def _series_notes(data: dict) -> list[str]:
     notes = []
-    for key in ["mlb", "nba", "nhl"]:
+    for key in ["nba", "nhl"]:
         for g in data.get(key, {}).get("today", []):
             s = g.get("seriesNote", "")
             if s:
@@ -361,7 +361,7 @@ def _build_morning(data: dict) -> dict:
         tw3 = (
             f"Prop data refreshing with today's matchups.\n\n"
             f"Model tracks hit rate trends, line movement direction, and closing value "
-            f"across MLB, NBA, and NHL prop markets."
+            f"across NBA and NHL prop markets."
         )
 
     if series:
@@ -827,7 +827,7 @@ def _build_recap(data: dict) -> dict:
     record    = _record_str(data)
     today_rec = _today_record(data)
     settled   = data.get("settled", [])
-    mlb_tom   = data.get("mlb", {}).get("tomorrow", [])
+    nba_tom   = data.get("nba", {}).get("tomorrow", [])
 
     n_final = len(finals)
     n_total = n_final + len(live)
@@ -896,9 +896,9 @@ def _build_recap(data: dict) -> dict:
 
     # Forward look
     tw4 = "Tomorrow:\n\n"
-    if mlb_tom:
-        tw4 += f"MLB — {len(mlb_tom)} games\n"
-        for g in mlb_tom[:3]:
+    if nba_tom:
+        tw4 += f"NBA — {len(nba_tom)} games\n"
+        for g in nba_tom[:3]:
             tw4 += f"• {g.get('away','')} @ {g.get('home','')}\n"
     tw4 += "\nMorning preview at 10 AM MT."
 
@@ -924,8 +924,8 @@ def _build_recap(data: dict) -> dict:
     if record:
         bullets.append(f"Season: {record}")
     bullets.append(f"{n_final} game{'s' if n_final!=1 else ''} final today")
-    if mlb_tom:
-        bullets.append(f"Tomorrow: {len(mlb_tom)} MLB games")
+    if nba_tom:
+        bullets.append(f"Tomorrow: {len(nba_tom)} NBA games")
     bullets.append("Morning preview: 10 AM Mountain")
     bullets = [b[:50] for b in bullets[:3]]
 

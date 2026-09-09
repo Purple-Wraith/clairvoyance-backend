@@ -90,14 +90,15 @@ ROOT = Path(__file__).resolve().parent.parent
 # "end": "YYYY-MM-DD", "leagues": [<league filter labels, matching
 # LEAGUE_FILTER_LABELS in app.html, or [] for no filter / all activity>]}.
 EVENTS: list[dict] = [
-    {"name": "WORLD CUP 2026", "start": "2026-06-11", "end": "2026-07-19", "leagues": ["World Cup"]},
     # Wimbledon/Cincinnati Open/US Open entries removed 2026-09-08 (tennis
     # engine retired -- tennis was never in the public/subscriber bet feed
     # these cards read from, so these three never matched anything anyway).
+    # WORLD CUP 2026 entry removed 2026-09-08 (World Cup retired the same
+    # day, same reasoning -- MLB and CBB were retired then too but never
+    # had an EVENTS entry to begin with).
     # Still needed, not guessed: end
     # of NFL/CFB season, start of NHL/NBA seasons aren't "end of window"
-    # events so don't belong here, and end of MLB playoffs (World Series
-    # date TBD). Add each with real dates once known.
+    # events so don't belong here. Add each with real dates once known.
 ]
 
 # Bonus content that isn't tied to daily performance data — cycles once
@@ -146,10 +147,9 @@ def _mt_now() -> datetime:
 # Matches SPORT_LEAGUES in docs/app.html's Sport Performance card exactly
 # — shown as the sub-line under each sport row in the breakdown videos.
 SPORT_LEAGUES = {
-    "BASEBALL": "MLB",
-    "BASKETBALL": "NBA, WNBA, CBB",
+    "BASKETBALL": "NBA",
     "FOOTBALL": "NFL, CFB",
-    "HOCKEY": "NHL, SHL, LIIGA",
+    "HOCKEY": "NHL, KHL, SHL, LIIGA",
     "SOCCER": "Bundesliga, Champions League, La Liga, MLS, Premier League, Serie A",
 }
 
@@ -369,14 +369,13 @@ def get_year_stats(page, year: int) -> dict:
           // mapping table is inlined here instead of calling it directly.
           const _broadSport = (tag) => {
             const t = (tag || '').toUpperCase().trim();
-            if (t === 'MLB') return 'BASEBALL';
-            if (['NBA','WNBA','CBB','NCAAB'].includes(t)) return 'BASKETBALL';
+            if (t === 'NBA') return 'BASKETBALL';
             if (['NFL','CFB'].includes(t)) return 'FOOTBALL';
-            if (['NHL','SHL','LIIGA','NCAAH'].includes(t)) return 'HOCKEY';
-            if (['SOC','WC','WORLD_CUP','WORLDCUP','PL','LIGA','BL','MLS','CH'].includes(t)) return 'SOCCER';
+            if (['NHL','KHL','SHL','LIIGA','NCAAH'].includes(t)) return 'HOCKEY';
+            if (['PL','LIGA','BUND','BL','MLS','SERIEA','CL','CH'].includes(t)) return 'SOCCER';
             return null;
           };
-          const SPORT_ORDER = ['BASEBALL','BASKETBALL','FOOTBALL','HOCKEY','SOCCER'];
+          const SPORT_ORDER = ['BASKETBALL','FOOTBALL','HOCKEY','SOCCER'];
           const bucket = {}; SPORT_ORDER.forEach(s => bucket[s] = []);
           inYear.forEach(b => { const s = _broadSport(_normSport(b)); if (s && bucket[s]) bucket[s].push(b); });
           const bySport = SPORT_ORDER.map(s => {
@@ -458,7 +457,7 @@ def get_engine_performance(page) -> dict | None:
 def get_engine_performance_subscriber(page) -> dict | None:
     """Same Today/Yesterday/Rolling 7D/This Month/Last Month/All Time
     hCalc() logic as get_engine_performance() above, but pre-filtered to
-    ONLY the 6 real paid-product sports (nfl, cfb, nba, mlb, hockey=NHL,
+    ONLY the 5 real paid-product sports (nfl, cfb, nba, hockey=NHL,
     soccer's 6 leagues -- see PRODUCT_SPORTS in auto_lock_settle.py)
     before computing each period. Explicit request, 2026-09-03: the
     landing page's public "Live Track Record" section should reflect
@@ -467,7 +466,10 @@ def get_engine_performance_subscriber(page) -> dict | None:
     session's PRODUCT_SPORTS/OTHER_ALLOWED_SPORTS work) -- unlike that
     other JSON, this one is landing-page-only and never read by the home
     page's own Engine Performance boxes, so filtering it doesn't affect
-    the personal dashboard at all.
+    the personal dashboard at all. MLB was dropped 2026-09-08 when it was
+    retired from the engine entirely (6 paid products became 5) -- CBB
+    and World Cup, retired the same day, were never in this set to begin
+    with (never paid products).
 
     Sport-tag codes below are the REAL ledger's own p.sport values (not
     the auto-lock backend's internal SOC_* naming) -- copied from the
@@ -480,7 +482,7 @@ def get_engine_performance_subscriber(page) -> dict | None:
         """
         async () => {
           const SUBSCRIBER_CODES = new Set([
-            'NFL','FB','CFB','MLB','NHL','NBA',
+            'NFL','FB','CFB','NHL','NBA',
             'PL','LIGA','BUND','MLS','SERIEA','CL',
           ]);
           const allBets = getP().filter(p => p.sport && SUBSCRIBER_CODES.has(p.sport.toUpperCase()));
@@ -550,18 +552,21 @@ def get_sport_performance(page) -> dict | None:
           const thisMonthLbl = nowD.toLocaleDateString('en-US', {month:'short',year:'numeric'}).toUpperCase();
           const lastMonthLbl = firstOfLastMonth.toLocaleDateString('en-US', {month:'short',year:'numeric'}).toUpperCase();
 
-          // Deliberate copy of renderHomePage's own leagueMap (docs/app.html)
+          // Deliberate copy of renderOverall's own leagueMap (docs/app.html)
           // -- no shared constant between the two, so if a league is ever
           // added/renamed there, update both or they'll silently drift on
           // which leagues this snapshot covers. World Cup deliberately
-          // dropped from THIS copy only (unlike the home page's own table,
-          // which keeps it) -- not a real recurring league on a Last
-          // Month/All Time snapshot the way the other rows are.
+          // dropped from THIS copy even before it was retired 2026-09-08
+          // -- not a real recurring league on a Last Month/All Time
+          // snapshot the way the other rows are. MLB/WNBA/CBB removed
+          // 2026-09-08 when all three were retired from the engine
+          // entirely; KHL added the same day to match the real app.html
+          // leagueMap, which already had it.
           const leagueMap = [
-            {lbl:'NFL',codes:['NFL','FB']},{lbl:'CFB',codes:['CFB']},{lbl:'MLB',codes:['MLB']},
+            {lbl:'NFL',codes:['NFL','FB']},{lbl:'CFB',codes:['CFB']},
             {lbl:'NHL',codes:['NHL']},{lbl:'College Hockey',codes:['NCAAH','COLLEGE HOCKEY']},
-            {lbl:'SHL',codes:['SHL']},{lbl:'LIIGA',codes:['LIIGA']},
-            {lbl:'NBA',codes:['NBA']},{lbl:'WNBA',codes:['WNBA']},{lbl:'CBB',codes:['CBB','NCAAB']},
+            {lbl:'SHL',codes:['SHL']},{lbl:'LIIGA',codes:['LIIGA']},{lbl:'KHL',codes:['KHL']},
+            {lbl:'NBA',codes:['NBA']},
             {lbl:'Champions League',codes:['CL','CH']},
             {lbl:'Premier League',codes:['PL']},{lbl:'La Liga',codes:['LIGA']},
             {lbl:'Bundesliga',codes:['BUND','BL']},{lbl:'MLS',codes:['MLS']},{lbl:'Serie A',codes:['SERIEA']},
@@ -698,9 +703,10 @@ def run(out_dir: Path, force: set[str] | None = None, json_only: bool = False) -
             log(f"WARNING: engine performance snapshot failed: {e}")
 
         # Subscriber-scoped Engine Performance snapshot -- same periods, but
-        # filtered to only the 6 real paid-product sports. Explicit request,
-        # 2026-09-03: the landing page's public Live Track Record should not
-        # include personal-use-only WNBA/tennis/etc performance. Separate
+        # filtered to only the 5 real paid-product sports (was 6 until MLB
+        # was retired 2026-09-08). Explicit request, 2026-09-03: the
+        # landing page's public Live Track Record should not include
+        # personal-use-only WNBA/tennis/etc performance. Separate
         # file so engine_performance.json (also read by nothing else, but
         # kept as the "real, full" snapshot) stays the complete picture.
         try:
@@ -965,16 +971,21 @@ def build_covers_caption() -> dict[str, str]:
     # leagues across 5 sports: NFL/CFB/NBA/NHL/MLB + 6 soccer leagues) --
     # was stale at "20 leagues across 6 sports" from before WNBA/tennis/
     # CBB/College Hockey/SHL/LIIGA/KHL were split out as personal-use-only
-    # (see project_subscriber_vs_personal_leagues memory).
+    # (see project_subscriber_vs_personal_leagues memory). Updated again
+    # 2026-09-08: MLB retired from the engine entirely, dropping the
+    # count to 10 leagues across 5 sports (still 5 -- NFL/CFB/NBA/NHL/
+    # soccer -- MLB's departure just means one fewer of the 5 has its own
+    # dedicated league; soccer's bundle absorbed the difference in the
+    # league count, not the sport count).
     ig = (
         "One engine. Every sport that matters.\n\nThis is Clairvoyance.\n\n"
-        "11 leagues across 5 sports, every pick graded, every result tracked publicly — model outputs, not gut feelings.\n\n"
+        "10 leagues across 5 sports, every pick graded, every result tracked publicly — model outputs, not gut feelings.\n\n"
         "Follow for daily signals, subscribe for exclusive graded picks, and intelligence briefs.\n\n"
         "clairvoyanceengine.info\nIG @clairvoyanceengine\nX @clairvoyanceeng\n\n"
         "#foryou #sportsbetting #bettingtips #bettingpicks"
     )
     x = (
-        "One engine. Every sport that matters.\n\n11 leagues, 5 sports, every pick graded.\n\n"
+        "One engine. Every sport that matters.\n\n10 leagues, 5 sports, every pick graded.\n\n"
         "clairvoyanceengine.info\n\n#sportsbetting #bettingpicks"
     )
     return {"instagram": ig, "x": x}

@@ -33,14 +33,16 @@ OUT_PATH = ROOT / "docs" / "statmuse_data.json"
 SECTIONS = {
     "nfl": "https://www.statmuse.com/nfl",
     "cfb": "https://www.statmuse.com/cfb",
-    "mlb": "https://www.statmuse.com/mlb",
-    "wnba": "https://www.statmuse.com/wnba",
     "nhl": "https://www.statmuse.com/nhl",
     "nba": "https://www.statmuse.com/nba",
     "soccer": "https://www.statmuse.com/fc",
     "news": "https://www.statmuse.com/news",
     "scores": "https://www.statmuse.com/scores",
 }
+# mlb/wnba sections removed 2026-09-08 -- both sports retired from the
+# engine entirely, and no docs/app.html call site has passed either
+# section name to _statmuseGameInsightsHTML() since (grep confirmed
+# zero remaining callers), so scraping them was pure wasted effort.
 
 # Nav/chrome lines that show up on every page (top nav, footer) — stripped
 # out so only real blurb content survives. Matched as exact, case-sensitive
