@@ -72,12 +72,6 @@ jobs:
           TZ: America/Denver
         run: python3 scripts/scrape_player_stats.py --push
 
-      - name: Refresh WNBA props (was wnba-props-daily.yml)
-        continue-on-error: true
-        env:
-          TZ: America/Denver
-        run: python3 scripts/update_wnba_props.py --push
-
       - name: Refresh Opta soccer stats (was opta-soccer-stats-daily.yml's 16:00 UTC run)
         continue-on-error: true
         env:

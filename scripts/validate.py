@@ -139,7 +139,7 @@ else:
 # ─────────────────────────────────────────────────────────────────────────────
 required_ids = [
     ('sp-home',              'Home pane'),
-    ('sp-mlb',               'Baseball pane'),
+    # ('sp-mlb',             'Baseball pane — REMOVED 2026-09-08, MLB engine retired (accuracy/scope reasons)'),
     ('sp-nba',               'Basketball pane'),
     ('sp-hk',                'Hockey pane'),
     # ('sp-ten',             'Tennis pane — REMOVED 2026-09-08, tennis engine retired (personal-use-only, never a paid product)'),
@@ -159,7 +159,7 @@ required_ids = [
     ('home-yesterday-results','Home yesterday results'),
     ('home-data-ts',         'Home data-as-of timestamp'),
     ('navd-ovr',             'Overall nav dropdown'),
-    ('navd-mlb',             'Baseball nav dropdown'),
+    # ('navd-mlb',           'Baseball nav dropdown — REMOVED 2026-09-08, same as sp-mlb above'),
     ('navd-nba',             'Basketball nav dropdown'),
     ('navd-hk',              'Hockey nav dropdown'),
     # ('navd-ten',           'Tennis nav dropdown — REMOVED 2026-09-08, tennis engine retired'),
@@ -168,7 +168,7 @@ required_ids = [
     # ('navd-social',        'Social nav dropdown — REMOVED 2026-09-02, same as sp-social above'),
     ('splash',               'Splash screen'),
     ('app',                  'App container'),
-    ('mn',                   'Mobile nav'),
+    # ('mn',                 'Mobile nav — REMOVED 2026-09-08, this was actually MLB's own mobile nav (MATCHES/MODEL/CONFIG), removed with sp-mlb above; mn2-mn11 (the other sports\' real mobile navs) are untouched'),
     ('toast',                'Toast notification'),
 ]
 for eid, label in required_ids:

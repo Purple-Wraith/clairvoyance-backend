@@ -5012,8 +5012,8 @@ def verify_deployment(retries: int = 3, delay_sec: int = 20) -> bool:
             r = requests.get(f"{url}?_v={int(time.time())}", timeout=15)
             r.raise_for_status()
             d = r.json()
-            games_total = (len(d.get("mlb", {}).get("today", [])) + len(d.get("nba", {}).get("today", []))
-                           + len(d.get("nhl", {}).get("today", [])) + len(d.get("wnba", {}).get("today", []))
+            games_total = (len(d.get("nba", {}).get("today", []))
+                           + len(d.get("nhl", {}).get("today", []))
                            + len(d.get("pwhl", {}).get("today", [])))
             bets_total = len(d.get("bestBets", [])) + len(d.get("heroPicksForDay", []))
             has_content = bool(d.get("generated")) and (games_total > 0 or bets_total > 0)
@@ -5046,28 +5046,24 @@ def run_live_window(push: bool = True, interval_sec: int = 120) -> None:
 
         log(f"Live refresh {now_mt.strftime('%H:%M')}…")
         try:
-            mlb_t, _  = fetch_mlb_scoreboard()
+            # MLB retired 2026-09-08 -- no longer fetched here.
             nba_t, _  = fetch_nba_scoreboard()
             nhl_t, _  = fetch_nhl_today()
             live_bundle = {
                 "generatedMT": now_mt.isoformat(),
                 "ts":          now_mt.strftime("%H:%M MT"),
-                "mlbLive":     [g for g in mlb_t  if g.get("state") == "in"],
                 "nbaLive":     [g for g in nba_t  if g.get("state") == "in"],
                 "nhlLive":     [g for g in nhl_t  if g.get("state") in ("LIVE","CRIT","IN")],
-                "mlbAll":      mlb_t,
                 "nbaAll":      nba_t,
                 "nhlAll":      nhl_t,
             }
-            live_probs = {"mlb":[], "nba":[], "nhl":[]}
-            for g in live_bundle["mlbLive"]:
-                live_probs["mlb"].append(compute_live_win_prob(g, "mlb"))
+            live_probs = {"nba":[], "nhl":[]}
             for g in live_bundle["nbaLive"]:
                 live_probs["nba"].append(compute_live_win_prob(g, "nba"))
             for g in live_bundle["nhlLive"]:
                 live_probs["nhl"].append(compute_live_win_prob(g, "nhl"))
             live_bundle["liveProbs"] = live_probs
-            live_bundle["autoSettled"] = auto_settle(live_bundle["mlbAll"], live_bundle["nbaAll"], live_bundle["nhlAll"])
+            live_bundle["autoSettled"] = auto_settle([], live_bundle["nbaAll"], live_bundle["nhlAll"])
             live_data_fe.write_text(json.dumps(live_bundle, indent=2))
 
             if push:
@@ -5122,7 +5118,7 @@ def main() -> None:
     parser.add_argument("--no-linemate",   action="store_true", help="Skip Playwright/Linemate")
     parser.add_argument("--no-reference",  action="store_true", help="Skip Baseball/Basketball/Hockey Reference")
     parser.add_argument("--mode",          choices=["full","live","props"], default="full")
-    parser.add_argument("--sport",         choices=["nba","mlb","nhl","nfl","soccer","all"], default="all")
+    parser.add_argument("--sport",         choices=["nba","nhl","nfl","soccer","all"], default="all")
     parser.add_argument("--verbose","-v",  action="store_true")
     args    = parser.parse_args()
     _verbose = args.verbose
@@ -5157,7 +5153,7 @@ def main() -> None:
         bundle.setdefault("linemate", {}).setdefault("props", {})
         bundle["linemate"].setdefault("trends", {})
         bundle["linemate"].setdefault("form", {})
-        for sport in ["mlb","nba","nhl","nfl"]:
+        for sport in ["nba","nhl","nfl"]:  # MLB retired 2026-09-08
             if S in (sport,"all"):
                 props = fetch_linemate_props(sport)
                 # This fast-path never applied validate_props_against_schedule()
@@ -5187,19 +5183,21 @@ def main() -> None:
     # ── full fetch phase ─────────────────────────────────────────────────────
     # Schedule accuracy: log the exact dates used per sport to confirm alignment
     log(f"Schedule dates → MLB/NBA: {TODAY_ET} (ET) · NHL/F1: {TODAY_ISO} (MT ISO)")
-    mlb_today, mlb_tom   = fetch_mlb_scoreboard(TODAY_ET)  if S in ("mlb","all") else ([],[])
-    mlb_standings        = fetch_mlb_standings()          if S in ("mlb","all") else {}
-    mlb_week             = fetch_mlb_schedule_week()      if S in ("mlb","all") else []
-    mlb_ref              = (fetch_baseball_reference()    if not args.no_reference else {}) if S in ("mlb","all") else {}
-    mlb_bullpen          = (fetch_mlb_bullpen_stats(mlb_ref.get("pitching", [])) if not args.no_reference else {}) if S in ("mlb","all") else {}
-    mlb_sabre            = (fetch_mlb_team_sabermetrics() if not args.no_reference else {}) if S in ("mlb","all") else {}
-    mlb_fielding         = (fetch_mlb_team_fielding()     if not args.no_reference else {}) if S in ("mlb","all") else {}
-    mlb_batters          = fetch_mlb_batter_rosters()     if S in ("mlb","all") else {}
-    mlb_statcast         = fetch_mlb_statcast_team(mlb_batters) if S in ("mlb","all") else {}
-    mlb_nrfi             = fetch_mlb_nrfi_data(mlb_today) if S in ("mlb","all") else []
-    if S in ("mlb","all"):
-        _check_source_health("MLB batter rosters (ESPN)", len(mlb_batters))
-        _check_source_health("MLB Statcast (Baseball Savant)", len(mlb_statcast))
+    # MLB is no longer tracked in the engine — retired 2026-09-08, purged
+    # from the daily fetch (same pattern as F1/NCAA baseball below). Bundle
+    # keys are kept (empty) so any remaining d.get('mlb', ...) reads don't
+    # need matching changes.
+    mlb_today: list      = []
+    mlb_tom: list        = []
+    mlb_standings: dict  = {}
+    mlb_week: list       = []
+    mlb_ref: dict        = {}
+    mlb_bullpen: dict    = {}
+    mlb_sabre: dict      = {}
+    mlb_fielding: dict   = {}
+    mlb_batters: dict    = {}
+    mlb_statcast: dict   = {}
+    mlb_nrfi: list       = []
 
     nba_today, nba_tom   = fetch_nba_scoreboard()         if S in ("nba","all") else ([],[])
     nba_standings        = fetch_nba_standings()          if S in ("nba","all") else {}
@@ -5232,16 +5230,9 @@ def main() -> None:
 
     futures_odds     = fetch_futures_odds()
 
-    # Weather for MLB home teams
+    # Weather (was MLB home teams -- MLB retired 2026-09-08, purged along
+    # with its fetch above). Bundle key kept (empty) for the same reason.
     weather: dict = {}
-    if S in ("mlb","all"):
-        log("Fetching MLB weather…")
-        for g in mlb_today:
-            home = g.get("home","")
-            if home and home not in weather:
-                w = fetch_weather(home)
-                if w: weather[home] = w
-                time.sleep(0.3)
 
     # Linemate
     lm_props:  dict = {"nba":[],"mlb":[],"nhl":[],"wnba":[],"nfl":[]}
@@ -5249,8 +5240,9 @@ def main() -> None:
     lm_form:   dict = {"nba":[],"mlb":[],"nhl":[],"wnba":[],"nfl":[]}
     _lm_schedule = {"nba": nba_today, "mlb": mlb_today, "nhl": nhl_today, "wnba": []}
     if not args.no_linemate:
-        for sport in ["nba","mlb","nhl","wnba","nfl"]:
-            if S in (sport,"all") or (sport=="wnba" and S=="nba"):
+        # MLB and WNBA both retired 2026-09-08 -- no longer fetched here.
+        for sport in ["nba","nhl","nfl"]:
+            if S in (sport,"all"):
                 lm_props[sport]  = fetch_linemate_props(sport);     time.sleep(1)
                 lm_trends[sport] = fetch_linemate_trends(sport);    time.sleep(1)
                 lm_form[sport]   = fetch_linemate_cheatsheet(sport); time.sleep(1)
@@ -5259,18 +5251,17 @@ def main() -> None:
                     # whole week rather than clustering on "today" the way
                     # the other sports' schedules do.
                     lm_props[sport] = validate_props_against_schedule(lm_props[sport], fetch_week_schedule("football/nfl","nfl"))
-                elif sport != "wnba":  # WNBA's today-schedule isn't fetched yet — validated below
+                else:
                     lm_props[sport] = validate_props_against_schedule(lm_props[sport], _lm_schedule[sport])
 
     # NCAA Baseball + WNBA + PWHL
     # NCAA baseball is no longer tracked in the engine — purged from the
     # daily fetch. Bundle key kept (empty) below for the same reason as F1.
+    # WNBA was fully retired 2026-09-08 (same reason) -- removed from
+    # app.html and this pipeline entirely, not merely kept off paid
+    # products (see auto_lock_settle.py's PRODUCT_SPORTS comment).
     ncaa_baseball: dict = {}
-    wnba          = fetch_wnba()          if S in ("nba","all") else {}
-    wnba_roster   = fetch_wnba_roster()   if S in ("nba","all") else {}
-    if wnba: wnba["roster"] = wnba_roster
-    if lm_props.get("wnba"):
-        lm_props["wnba"] = validate_props_against_schedule(lm_props["wnba"], wnba.get("today", []))
+    wnba: dict          = {}
     pwhl          = fetch_pwhl()          if S in ("nhl","all") else {}
 
     # Soccer — Champions League / Premier League / La Liga / Bundesliga / MLS
@@ -5385,7 +5376,7 @@ def main() -> None:
         note("mls_schedule.json written")
 
     # Week schedules
-    mlb_week_schedule = fetch_week_schedule("baseball/mlb","mlb",10)      if S in ("mlb","all") else []
+    mlb_week_schedule: list = []  # MLB retired 2026-09-08
     nba_week_schedule = fetch_week_schedule("basketball/nba","nba",8)      if S in ("nba","all") else []
     nhl_week_schedule = fetch_week_schedule("hockey/nhl","nhl",8)          if S in ("nhl","all") else []
 
@@ -5397,7 +5388,7 @@ def main() -> None:
 
     # Best bets + auto-settle
     # Best odds per sport (Odds API if key set, ESPN fallback)
-    mlb_best_odds = fetch_best_odds("mlb", mlb_today) if S in ("mlb","all") else {}
+    mlb_best_odds: dict = {}  # MLB retired 2026-09-08
     nba_best_odds = fetch_best_odds("nba", nba_today) if S in ("nba","all") else {}
     nhl_best_odds = fetch_best_odds("nhl", nhl_today) if S in ("nhl","all") else {}
     # WNBA/NFL/CFB weren't covered server-side before — the frontend was
@@ -5409,7 +5400,7 @@ def main() -> None:
     # here instead means one shared call per scheduled run, not one per
     # visitor per page load. Soccer leagues aren't covered yet — their team
     # names need their own name->abbr map, tracked as a follow-up.
-    wnba_best_odds = fetch_best_odds("wnba", wnba.get("today", [])) if S in ("nba","all") else {}
+    wnba_best_odds: dict = {}  # WNBA retired 2026-09-08
     nfl_best_odds  = fetch_best_odds("nfl", []) if S in ("all",) else {}
     cfb_best_odds  = fetch_best_odds("cfb", []) if S in ("all",) else {}
     # Soccer leagues — the piece explicitly deferred in the last odds pass.
@@ -5421,7 +5412,7 @@ def main() -> None:
     liga_best_odds = fetch_best_odds("liga", [], name_resolver=_soccer_club_key) if S in ("soccer","all") else {}
     bl_best_odds   = fetch_best_odds("bl",   [], name_resolver=_soccer_club_key) if S in ("soccer","all") else {}
     mls_best_odds = fetch_best_odds("mls", [], name_resolver=_soccer_club_key) if S in ("soccer","all") else {}
-    wc_best_odds   = fetch_best_odds("wc",   [], name_resolver=_wc_name_to_abbr) if S in ("soccer","all") else {}
+    wc_best_odds: dict = {}  # World Cup retired 2026-09-08
 
     # Backfill real book odds into game objects so the app displays them
     def _backfill_odds(game_list: list, odds_map: dict) -> None:

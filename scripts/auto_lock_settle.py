@@ -15,14 +15,15 @@ functions -- then flushes everything back to Supabase via the app's own
 syncBetsToSupabase().
 
 Auto-lock scope: ML, spread, and O/U for every sport/league with a real
-proprietary model (MLB, NBA, WNBA, NHL, NFL, CFB, and 6 soccer leagues).
-CBB and NCAAH only have a market-read-back model (no proprietary edge to
-grade), matching how the rest of the app already treats them -- ML only
+proprietary model (NBA, NHL, NFL, CFB, and 6 soccer leagues).
+NCAAH only has a market-read-back model (no proprietary edge to
+grade), matching how the rest of the app already treats it -- ML only
 there via _epGatherESPNCacheLegs, not extended here. Player props covered
-for NBA/WNBA/NHL/NFL (the four sports with real live prop engines built
-this session). Tennis engine retired 2026-09-08 (personal-use-only,
-never a paid product) -- no longer fetched, locked, or settled anywhere
-in this pipeline.
+for NBA/NHL/NFL (the three sports with real live prop engines built
+this session). Tennis engine retired 2026-09-08, and MLB/WNBA/CBB/World
+Cup retired 2026-09-08 (removed from app.html and this pipeline
+entirely, not merely kept off paid products) -- none are fetched,
+locked, or settled anywhere in this pipeline anymore.
 
 Grade capture for game markets: docs/app.html has a small _autoLockCapture()
 hook wired into every sport's real game-card render function, right after
@@ -36,8 +37,8 @@ keyword ('OU'/'SPREAD'/'RL'/'PL'), not always both -- passing the explicit
 sport tag (required for correct classification on non-abbreviation-
 guessable sports) means the stored betType field defaults to 'ML' even for
 a real spread/O-U pick. This already happens for real manually-locked bets
-today (confirmed: MLB's own spread-lock button passes type='MLB', not
-'RL'). This script matches that exact existing behavior rather than
+today (confirmed: NHL's own spread-lock button passes type='NHL', not
+'PL'). This script matches that exact existing behavior rather than
 inventing a new convention -- the betOn text itself (e.g. "PHI -1.5") is
 always correct regardless.
 
@@ -83,7 +84,7 @@ LOCKS_EMAIL_TO = os.environ.get("LOCKS_EMAIL_TO", "") or os.environ.get("SOCIAL_
 # Human-readable section headers for the email, keyed by the same sport
 # tags SPORT_TO_LOCKPICK_TYPE/_autoLockCapture use.
 SPORT_DISPLAY_NAME = {
-    "MLB": "MLB", "NBA": "NBA", "WNBA": "WNBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
+    "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
     "SOC_BL": "Bundesliga", "SOC_LIGA": "La Liga", "SOC_MLS": "MLS", "SOC_PL": "Premier League",
     "SOC_ITA": "Serie A", "SOC_CL": "Champions League",
 }
@@ -95,10 +96,10 @@ SPORT_DISPLAY_NAME = {
 # groups by the stored `league` field (what's actually on a locked bet
 # row), so it needs this mapping, not SPORT_DISPLAY_NAME.
 LEDGER_LEAGUE_DISPLAY_NAME = {
-    "MLB": "MLB", "NBA": "NBA", "WNBA": "WNBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
-    "KHL": "KHL", "SHL": "SHL", "LIIGA": "Liiga", "CBB": "CBB", "NCAAH": "College Hockey",
+    "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
+    "KHL": "KHL", "SHL": "SHL", "LIIGA": "Liiga", "NCAAH": "College Hockey",
     "CL": "Champions League", "PL": "Premier League", "LIGA": "La Liga", "BUND": "Bundesliga",
-    "MLS": "MLS", "SERIEA": "Serie A", "WORLD_CUP": "World Cup",
+    "MLS": "MLS", "SERIEA": "Serie A",
 }
 
 # Maps the sport tag docs/app.html's _autoLockCapture() attaches to each
@@ -106,7 +107,7 @@ LEDGER_LEAGUE_DISPLAY_NAME = {
 # lockPick's own type='PL' means NHL puck line) to the exact `type` string
 # lockPick() itself expects to resolve the correct sportTag.
 SPORT_TO_LOCKPICK_TYPE = {
-    "MLB": "MLB", "NBA": "NBA", "WNBA": "WNBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
+    "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
     "SOC_BL": "BUND", "SOC_LIGA": "LIGA", "SOC_MLS": "MLS", "SOC_PL": "PL_SOC",
     "SOC_ITA": "SERIEA", "SOC_CL": "CL",
 }
@@ -117,47 +118,49 @@ SPORT_TO_LOCKPICK_TYPE = {
 # it just labels which of the two a given qualifying leg belongs to.
 EURO_SOCCER_SPORTS = frozenset({"SOC_CL", "SOC_PL", "SOC_LIGA", "SOC_BL", "SOC_ITA"})
 
-# The 6 paid products (confirmed structure, see _subscribers.py) -- each
+# The 5 paid products (confirmed structure, see _subscribers.py) -- each
 # maps to the exact sport tags gather_legs()/_autoLockCapture use. Soccer
 # bundles all 6 leagues (5 European + MLS) as one purchase. Hockey is
 # NHL-only.
-# Explicit decision 2026-09-03: WNBA, KHL, SHL, LIIGA, and College Hockey
+# Explicit decision 2026-09-03: KHL, SHL, LIIGA, and College Hockey
 # (NCAAH) are real, live engine features kept running for PERSONAL USE
 # ONLY -- never sold, and explicitly routed to the owner-only "other" pass
 # (see run_lock_segmented below) rather than bundled into any paid
 # product, even though SHL/LIIGA/NCAAH have no real game cards wired up
-# yet. "wnba" was dropped from PRODUCT_SPORTS/PRODUCT_LABEL entirely;
-# KHL/SHL/LIIGA were removed from hockey's sport set (down to NHL only);
-# NCAAH was never added to any product's set. Their pick generation/lock/
-# settle logic elsewhere in this file (and app.html) is untouched -- this
-# mapping only controls what ships to paying subscribers, not what the
-# engine runs. User plans to build SHL/LIIGA/NCAAH out for real later --
-# when that happens, this is the mapping to revisit for making them paid.
-# (Tennis was also personal-use-only under this same decision, but the
-# tennis engine itself was fully retired 2026-09-08 -- removed from
-# app.html and this pipeline entirely, not just kept off paid products.)
+# yet. KHL/SHL/LIIGA were removed from hockey's sport set (down to NHL
+# only); NCAAH was never added to any product's set. Their pick
+# generation/lock/settle logic elsewhere in this file (and app.html) is
+# untouched -- this mapping only controls what ships to paying
+# subscribers, not what the engine runs. User plans to build SHL/LIIGA/
+# NCAAH out for real later -- when that happens, this is the mapping to
+# revisit for making them paid.
+# Explicit decision 2026-09-08: tennis, MLB, WNBA, CBB, and World Cup
+# were all retired from the engine entirely -- removed from app.html and
+# this pipeline, not merely kept off paid products. "mlb" was dropped
+# from PRODUCT_SPORTS/PRODUCT_LABEL, leaving 5 paid products instead of
+# 6 (WNBA had already never been a paid product).
 PRODUCT_SPORTS: dict[str, frozenset[str]] = {
     "nfl": frozenset({"NFL"}),
     "cfb": frozenset({"CFB"}),
     "nba": frozenset({"NBA"}),
-    "mlb": frozenset({"MLB"}),
     "hockey": frozenset({"NHL"}),
     "soccer": EURO_SOCCER_SPORTS | frozenset({"SOC_MLS"}),
 }
 # Explicit request, 2026-09-03 (revised same day): auto-lock for
-# nfl/cfb/nba/mlb/nhl/soccer goes to a paying subscriber's inbox;
+# nfl/cfb/nba/nhl/soccer goes to a paying subscriber's inbox;
 # SHL, LIIGA, and NCAAH (College Hockey) also auto-lock now, but route to
-# the owner-only "other" email instead -- personal use, never sold.
-# (Tennis was in this "other" group too until the engine was fully
-# retired 2026-09-08.) Only WNBA, KHL, and CBB are excluded from the automated
-# pipeline entirely (their own manual lock/settle buttons in the app UI
-# still work for personal use -- this only scopes run_lock_segmented's
-# automated pass). SHL/LIIGA/NCAAH have no real _autoLockCapture calls
-# yet, so they're a no-op today, but the allow-list is already correct
-# for when that changes.
+# the owner-only "other" email instead -- personal use, never sold. Only
+# KHL is excluded from the automated pipeline entirely (its own manual
+# lock/settle buttons in the app UI still work for personal use -- this
+# only scopes run_lock_segmented's automated pass). SHL/LIIGA/NCAAH have
+# no real _autoLockCapture calls yet, so they're a no-op today, but the
+# allow-list is already correct for when that changes. (Tennis, MLB,
+# WNBA, CBB, and World Cup were all fully retired 2026-09-08 -- none of
+# them have any pick generation left anywhere in this pipeline, so none
+# belong in this allow-list at all anymore.)
 OTHER_ALLOWED_SPORTS: frozenset[str] = frozenset({"SHL", "LIIGA", "NCAAH"})
 PRODUCT_LABEL: dict[str, str] = {
-    "nfl": "NFL", "cfb": "CFB", "nba": "NBA", "mlb": "MLB",
+    "nfl": "NFL", "cfb": "CFB", "nba": "NBA",
     "hockey": "HOCKEY", "soccer": "SOCCER",
 }
 # OPTIMAL=2, PREMIUM=3 in _evalMkts()'s own tierN scale.
@@ -279,7 +282,7 @@ def run_adaptive_recalibration(page, live: bool) -> None:
             // NHL_ENS carries an extra `hv` field state.weights.NHL doesn't
             // capture, and overwriting NHL_ENS with an incomplete object at
             // boot would silently drop it.
-            raw: {ens: ENS, nhl_ens: NHL_ENS, nba_ens: NBA_ENS, wnba_ens: WNBA_ENS, ten_ens: TEN_ENS},
+            raw: {ens: ENS, nhl_ens: NHL_ENS, nba_ens: NBA_ENS, wnba_ens: WNBA_ENS},
             calAdjBySport: window.__CV_CAL_ADJ_BY_SPORT || null,
           };
         }
@@ -316,7 +319,6 @@ def run_adaptive_recalibration(page, live: bool) -> None:
         "nhl_ens": raw.get("nhl_ens"),
         "nba_ens": raw.get("nba_ens"),
         "wnba_ens": raw.get("wnba_ens"),
-        "ten_ens": raw.get("ten_ens"),
         "cal_adj_by_sport": cal_adj_by_sport,
         "evt": state.get("evThreshold"),
         "betsAnalyzed": state.get("betsAnalyzed"),
@@ -470,30 +472,10 @@ def run_settle(page, live: bool, only_dates: list[str] | None = None) -> list[di
           for (const targetDate of pendingDates) {
             const dEspn = targetDate.replace(/-/g, '');
             const r = {};
-            try {
-              // Real bug, found and fixed: this used to await loadGames(dEspn)
-              // and then read the games back out of the shared ESPN_GAMES
-              // global -- but that global is also written by the page's own
-              // background refresh interval (loadGames(todayESPN()) every
-              // 5 minutes, completely uncoordinated with this backfill loop),
-              // so whichever concurrent loadGames() call finished last won
-              // the global, regardless of which date this specific step
-              // meant to read. Confirmed live: a same-day CLE@TOR pick got
-              // settled with the PRIOR day's real final score because of
-              // exactly this (the two teams play a real back-to-back series,
-              // so the wrong-date game matched the team pairing cleanly).
-              // loadGames() now returns its own games array directly --
-              // using that local result instead of the global is immune to
-              // whatever else touches ESPN_GAMES concurrently.
-              const dayGames = (typeof loadGames === 'function') ? await loadGames(dEspn).catch(() => []) : null;
-              if (typeof autoSettleFromESPN === 'function' && dayGames) autoSettleFromESPN(dayGames, targetDate);
-              r.mlb = 'ok';
-            } catch (e) { r.mlb = 'err:' + e.message; }
             try { if (typeof autoSettleNBA === 'function') await autoSettleNBA(targetDate); r.nba = 'ok'; } catch (e) { r.nba = 'err:' + e.message; }
             try { if (typeof autoSettleNHL === 'function') await autoSettleNHL(targetDate); r.nhl = 'ok'; } catch (e) { r.nhl = 'err:' + e.message; }
             try { if (typeof autoSettleCFB === 'function') await autoSettleCFB(targetDate); r.cfb = 'ok'; } catch (e) { r.cfb = 'err:' + e.message; }
             try { if (typeof autoSettleSoccer === 'function') await autoSettleSoccer(targetDate); r.soccer = 'ok'; } catch (e) { r.soccer = 'err:' + e.message; }
-            try { if (typeof autoSettleWNBA === 'function') await autoSettleWNBA(targetDate); r.wnba = 'ok'; } catch (e) { r.wnba = 'err:' + e.message; }
             try { if (typeof autoSettleNFL2 === 'function') await autoSettleNFL2(targetDate); r.nfl = 'ok'; } catch (e) { r.nfl = 'err:' + e.message; }
             try { if (typeof autoSettlePropsESPN === 'function') await autoSettlePropsESPN(targetDate); r.props = 'ok'; } catch (e) { r.props = 'err:' + e.message; }
             results.perDate[targetDate] = r;
@@ -720,31 +702,6 @@ def gather_legs(page) -> dict:
           // pre-step feeds it into the same card-render function a real
           // page load would use, so _autoLockCapture still fires with
           // real data instead of nothing.
-          try {
-            const mlbToday = (window.__CV_DATA && window.__CV_DATA.mlb && window.__CV_DATA.mlb.today) || [];
-            const todayIso = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
-            if (mlbToday.length && typeof mlbCard === 'function' && typeof TEAMS !== 'undefined') {
-              mlbToday.forEach(g => {
-                if (!g.home || !g.away || !TEAMS[g.home] || !TEAMS[g.away]) return;
-                if (g.state === 'post') return; // already final, nothing to lock
-                // __CV_DATA.mlb.today is only as fresh as the last pipeline
-                // refresh -- if it ran before midnight MT rolled over (or
-                // hasn't run yet today), this array is still yesterday's
-                // slate. Only render games actually dated today (Denver
-                // time, same as today()/lockPick's own date stamp) instead
-                // of trusting the array's "today" label blindly. Parse+
-                // convert rather than a raw slice(0,10) -- g.date is a UTC
-                // timestamp, and a raw slice would misdate any game whose
-                // UTC date differs from its Denver-local date (any night
-                // game past ~6pm MT).
-                const gd = new Date(g.date);
-                const dateStr = isNaN(gd) ? (g.date || '').slice(0, 10) : gd.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
-                if (dateStr !== todayIso) return;
-                const espnGame = { hML: g.homeML, aML: g.awayML, ou: g.ou, status: g.state };
-                try { mlbCard(g.home, g.away, '', dateStr, espnGame); } catch (e) {}
-              });
-            }
-          } catch (e) {}
           // cfb_schedule.json is a same-origin static file the Python
           // pipeline already publishes (unlike NFL, which currently has
           // no equivalent published file) -- same unblocked fetch as
@@ -766,10 +723,7 @@ def gather_legs(page) -> dict:
             }
           } catch (e) {}
           const warmups = [];
-          if (typeof loadGames === 'function') warmups.push(loadGames().catch(() => {}));
-          if (typeof renderMLBGames === 'function') { try { renderMLBGames(); } catch (e) {} }
           if (typeof renderNBAGames === 'function') { try { renderNBAGames(); } catch (e) {} }
-          if (typeof renderWNBAGames === 'function') warmups.push(renderWNBAGames().catch(() => {}));
           if (typeof renderNHLGames === 'function') warmups.push(renderNHLGames().catch(() => {}));
           if (typeof renderGenericWeek === 'function') {
             warmups.push(renderGenericWeek('cfb-week-list', 'football/college-football', 'CFB').catch(() => {}));
@@ -786,22 +740,18 @@ def gather_legs(page) -> dict:
 
           const gameLegs = window._autoLockLegs || [];
 
-          // Real gap, found via audit: every one of these 4 catches was a
+          // Real gap, found via audit: every one of these catches was a
           // bare `catch (e) {}` -- if a prop generator ever threw (a live
           // ESPN fetch blocked/erroring in this headless context, a shape
           // mismatch in the stats payload, anything), it failed completely
           // silently. Confirmed via the real ledger: 0 settled PROP-type
-          // bets in 21+ days despite WNBA game legs actively locking on the
+          // bets in 21+ days despite game legs actively locking on the
           // same days from the same gather_legs() pass, which is exactly
           // the shape a silent props-path failure would produce and
           // exactly what these bare catches made impossible to diagnose
           // from the CI logs alone. propDiag doesn't fix whatever's wrong
-          // (a manual browser check found the underlying stats fetch/
-          // fallback itself working, games=0 today just because there are
-          // no real WNBA games -- so this may already be healthy and
-          // simply waiting on a real game day) -- it makes the next real
-          // failure visible instead of indistinguishable from "nothing
-          // qualified today."
+          // -- it makes the next real failure visible instead of
+          // indistinguishable from "nothing qualified today."
           const propLegs = [];
           const propDiag = {};
           try {
@@ -818,15 +768,6 @@ def gather_legs(page) -> dict:
               propDiag.nba = { games: games.length, stats: stats ? Object.keys(stats).length : 0, generated: generated.length };
             } else propDiag.nba = { skipped: 'fn missing' };
           } catch (e) { propDiag.nba = { error: e.message }; }
-          try {
-            if (typeof _generateWNBAPropsLive === 'function' && typeof _fetchWNBAPlayerStats === 'function') {
-              const stats = await _fetchWNBAPlayerStats();
-              const games = window._wnbaGameData || [];
-              const generated = stats ? _generateWNBAPropsLive(games, stats) : [];
-              generated.forEach(p => propLegs.push({ ...p, sportTag: 'WNBA' }));
-              propDiag.wnba = { games: games.length, stats: stats ? Object.keys(stats).length : 0, generated: generated.length };
-            } else propDiag.wnba = { skipped: 'fn missing' };
-          } catch (e) { propDiag.wnba = { error: e.message }; }
           try {
             if (typeof _generateNHLPropsLive === 'function' && typeof _fetchNHLPlayerStats === 'function') {
               const stats = await _fetchNHLPlayerStats();
@@ -892,7 +833,7 @@ def gather_soccer_legs_for_date(page, target_date_iso: str) -> dict:
     European soccer leagues and a single target date instead of "today".
 
     Unlike the main gather_legs() (which drives the live page's own render
-    functions -- renderMLBGames(), renderLeagueMatches(), etc. -- all of
+    functions -- renderNBAGames(), renderLeagueMatches(), etc. -- all of
     which are hardcoded to "today" by design, see _fetchLeagueScoreboard's
     own comment on why), this calls docs/app.html's _renderSocMatchCard(g,
     leagueKey) directly, one game object at a time, sourced from
@@ -1003,7 +944,7 @@ def _dedupe_opposite_sides(game_qualifying: list[dict]) -> list[dict]:
     _usoMatchCards' own comment on why -- which makes near-50/50 matches
     the likeliest place for both sides to independently clear the EV bar),
     but the same shape is possible for any sport's ML/spread ties too, so
-    this runs for every sport, ahead of MLB's own narrower same-team
+    this runs for every sport, ahead of the narrower same-team
     ML+spread cap below (which handles a different, less severe kind of
     correlation -- two DIFFERENT markets on the same team, not two sides
     of the same one).
@@ -1102,7 +1043,7 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
                     break
             game_qualifying = picked
         qualifying.extend(game_qualifying)
-    # Props only exist for NBA/WNBA/NHL/NFL -- neither early pass (soccer,
+    # Props only exist for NBA/NHL/NFL -- neither early pass (soccer,
     # CFB) needs or has any to filter, so props are simply included only on
     # the unscoped (full) run.
     if only_sports is None:
@@ -1211,7 +1152,7 @@ def lock_prop_leg(page, sport: str, leg: dict) -> str:
              "dir": "OVER" if leg.get("over") is not False else "UNDER",
              "prob": leg.get("prob") or (leg.get("conf", 0) / 100), "ml": leg.get("ml"), "line": leg.get("line")},
         )
-    if sport in ("NBA", "WNBA"):
+    if sport == "NBA":
         return page.evaluate(
             """
             ({ team, player, line, over, prob, ml, sport, opp }) => {
@@ -1667,7 +1608,7 @@ def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | Non
     date_override: see lock_game_leg's own docstring -- only ever passed
     by the evening-prior soccer lock, which locks GAME legs for a date
     that isn't today() yet. Props never use this (there are none in the
-    evening-prior pass's qualifying list -- only NBA/WNBA/NHL/NFL have
+    evening-prior pass's qualifying list -- only NBA/NHL/NFL have
     prop legs, none of which run on this path).
 
     Real gap, found and fixed in the same audit that added this type:
@@ -1942,14 +1883,16 @@ def run_cfb_evening_lock(page, live: bool, send_email: bool = True, to: list[str
 def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
     """Main (unscoped) lock run -- ONE gather_legs() call (the expensive
     part: real browser + live data warmups), then split into a separate
-    qualifying-legs list + a separately-addressed email for each of the 6
+    qualifying-legs list + a separately-addressed email for each of the 5
     paid sport products (see _subscribers.py), plus one more pass for
     OTHER_ALLOWED_SPORTS (SHL/LIIGA/NCAAH -- personal-use, never
     sold) sent to the owner only. Anything outside covered_sports |
-    OTHER_ALLOWED_SPORTS (WNBA, KHL, CBB -- explicit 2026-09-03 decision)
-    is dropped entirely before either pass, never auto-locked by this
-    automated run at all -- their own manual lock/settle buttons in the
-    app UI are untouched, this only scopes automation. A subscriber to
+    OTHER_ALLOWED_SPORTS (KHL -- explicit 2026-09-03 decision; tennis,
+    MLB, WNBA, CBB, and World Cup are all fully retired, so they no
+    longer generate any legs here at all) is dropped entirely before
+    either pass, never auto-locked by this automated run at all -- KHL's
+    own manual lock/settle buttons in the app UI are untouched, this only
+    scopes automation. A subscriber to
     one product only ever sees that product's email; nothing IN SCOPE is
     ever silently dropped -- every qualifying leg that survives the
     top-level filter lands in exactly one of these passes. send_email=False

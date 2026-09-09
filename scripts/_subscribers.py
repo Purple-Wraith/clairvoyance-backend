@@ -20,7 +20,7 @@ The account owner's own address is always included for every product
 regardless of subscriber list state, so the personal daily reference
 this was originally built for keeps working with zero paying subscribers.
 
-6 paid products (confirmed structure, 2026-09-03): nfl, cfb, nba, mlb,
+5 paid products (confirmed structure, 2026-09-08): nfl, cfb, nba,
 hockey (NHL only), soccer (all 6 leagues bundled -- the 5 European
 leagues + MLS -- as one purchase, not sold separately). Explicit
 decision 2026-09-03: tennis (ATP/WTA), WNBA, KHL, SHL, and LIIGA are
@@ -29,6 +29,9 @@ subscribers, so "tennis" and "wnba" were removed from PRODUCTS entirely
 and KHL/SHL/LIIGA were dropped from the hockey product's sport set (see
 PRODUCT_SPORTS in auto_lock_settle.py). Their qualifying legs route to
 the owner-only "other" locks email instead of a subscriber email.
+Explicit decision 2026-09-08: MLB, CBB, and World Cup were removed from
+the engine entirely (accuracy/scope reasons), dropping "mlb" from
+PRODUCTS too -- 6 products became 5.
 """
 from __future__ import annotations
 import json
@@ -43,7 +46,7 @@ from _gmail_email import send_email as _send_gmail  # noqa: E402
 
 SUBSCRIBERS_FILE = Path(__file__).resolve().parent.parent / "data" / "subscribers.json"
 EVENTS_FILE = Path(__file__).resolve().parent.parent / "data" / "subscriber_events.json"
-PRODUCTS = ("nfl", "cfb", "nba", "mlb", "hockey", "soccer")
+PRODUCTS = ("nfl", "cfb", "nba", "hockey", "soccer")
 OWNER_EMAIL = os.environ.get("LOCKS_EMAIL_TO", "") or os.environ.get("SOCIAL_CARD_EMAIL_TO", "")
 EXPIRY_DAYS = 30
 
@@ -52,8 +55,8 @@ EXPIRY_DAYS = 30
 # revenue from active subscription counts -- this is not a real payment
 # ledger (Venmo payments aren't tracked here at all), just what someone
 # following the standard pricing would owe for their current product count.
-# Capped at 6 (len(PRODUCTS)) -- there is no 7th/8th product to bundle anymore.
-PRICING_BY_COUNT = {1: 20, 2: 30, 3: 40, 4: 50, 5: 60, 6: 65}
+# Capped at 5 (len(PRODUCTS)) -- there is no 6th+ product to bundle anymore.
+PRICING_BY_COUNT = {1: 20, 2: 30, 3: 40, 4: 50, 5: 60}
 
 # Hosted (not inline-attached) so it actually renders across mail clients --
 # many strip inline/CID images or require an extra click, while a plain

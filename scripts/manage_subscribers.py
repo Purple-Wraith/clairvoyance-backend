@@ -7,7 +7,7 @@ pays, you run `add`, and it commits + pushes data/subscribers.json for you
 
 Usage:
   python3 scripts/manage_subscribers.py add nba someone@example.com
-  python3 scripts/manage_subscribers.py add nba nfl mlb someone@example.com  # one email, multiple products -- any order, email can go anywhere
+  python3 scripts/manage_subscribers.py add nba nfl hockey someone@example.com  # one email, multiple products -- any order, email can go anywhere
   python3 scripts/manage_subscribers.py remove nba someone@example.com
   python3 scripts/manage_subscribers.py list                                  # every product
   python3 scripts/manage_subscribers.py list nba                              # one product

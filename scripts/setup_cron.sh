@@ -11,15 +11,11 @@ LIVE_LOG="$ROOT/logs/live.log"
 
 mkdir -p "$ROOT/logs"
 
-WNBA_LOG="$ROOT/logs/wnba_props.log"
-
 CRON_LINES="TZ=America/Denver
 # Clairvoyance v7.0 — full refresh at 09:00, 15:00, 23:00 MT
 0 9,15,23 * * * cd $ROOT && bash scripts/run_update.sh --push >> $LOG 2>&1
 # Clairvoyance v7.0 — live window 16:00 MT (runs until 23:00 self-terminates)
-0 16 * * * cd $ROOT && bash scripts/run_update.sh --mode live --push >> $LIVE_LOG 2>&1
-# Clairvoyance — WNBA player props daily refresh 10:00 MT (after schedule posts, before games)
-0 10 * * * cd $ROOT && python3 scripts/update_wnba_props.py --push >> $WNBA_LOG 2>&1"
+0 16 * * * cd $ROOT && bash scripts/run_update.sh --mode live --push >> $LIVE_LOG 2>&1"
 
 echo "Current crontab:"
 crontab -l 2>/dev/null || echo "(empty)"
@@ -37,7 +33,6 @@ crontab -l
 echo ""
 echo "Schedule (all Mountain Time):"
 echo "  09:00 MT — Full refresh (all sports, push to GitHub)"
-echo "  10:00 MT — WNBA player props refresh (ESPN schedule + BBRef stats, push)"
 echo "  15:00 MT — Full refresh (all sports, push to GitHub)"
 echo "  16:00 MT — Live window starts (2-min intervals, self-terminates at 23:00)"
 echo "  23:00 MT — Full refresh (all sports, push to GitHub)"

@@ -64,16 +64,6 @@ echo "════════════════════════�
 cd "$REPO_DIR"
 $PYTHON "$SCRIPT" "$@" 2>&1 | tee -a "$LOG_FILE"
 
-# ── WNBA props refresh (runs after every full update, skipped in live/props mode)
-# Checks if today's props are already current; skips if WNBA_PROPS_DATE matches today.
-if [[ "$*" != *"--mode live"* ]] && [[ "$*" != *"--mode props"* ]]; then
-  WNBA_LOG="$LOG_DIR/wnba_props_$(date +%Y%m%d).log"
-  PUSH_FLAG=""
-  [[ "$*" == *"--push"* ]] && PUSH_FLAG="--push"
-  echo "[$(date +%H:%M:%S)] Running WNBA props refresh…" | tee -a "$LOG_FILE"
-  $PYTHON "$REPO_DIR/scripts/update_wnba_props.py" --no-bbref $PUSH_FLAG 2>&1 | tee -a "$WNBA_LOG" | tail -5 | tee -a "$LOG_FILE" || true
-fi
-
 echo "[$(date +%H:%M:%S)] Done." | tee -a "$LOG_FILE"
 
 # ── rotate old logs ───────────────────────────────────────────────────────────
