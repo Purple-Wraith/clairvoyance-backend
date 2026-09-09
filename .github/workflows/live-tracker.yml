@@ -38,8 +38,7 @@ name: Live Score Tracker
 # data to the SAME docs/live_data.json file via a completely separate,
 # redundant 120s-interval local process -- two writers racing on one
 # file for no real benefit. live_tracker.py is the more complete of the
-# two (also writes frontend/live_data.json), so it's the one that
-# survives.
+# two, so it's the one that survives.
 
 on:
   schedule:
@@ -223,7 +222,7 @@ jobs:
         run: |
           git config user.name  "Clairvoyance Bot"
           git config user.email "bot@clairvoyance"
-          git add docs/live_data.json frontend/live_data.json
+          git add docs/live_data.json
           if git diff --cached --quiet; then
             echo "Nothing changed."
           else

@@ -49,17 +49,18 @@ jobs:
         run: |
           python scripts/generate_social_cards.py --force "${{ github.event.inputs.force }}"
 
-      # Pick of Day ledger (docs/pick_of_day.json — the home page's PICK OF
-      # DAY tile fetches this directly) has to persist across runs so
-      # yesterday's pick gets settled before today's is picked. GitHub
-      # Actions runners are ephemeral, so the repo itself is the only
-      # place that can hold this state. (Milestone emails retired —
-      # data/social_milestones.json is no longer written.)
+      # docs/pick_of_day.json removed 2026-09-09 -- confirmed nothing writes
+      # or reads it anymore (generate_social_cards.py stopped touching it
+      # at some point; app.html never referenced it either), leaving it
+      # frozen since 2026-08-04 while this step committed a no-op "no
+      # state change" every single day for over a month. (Milestone
+      # emails also retired earlier -- data/social_milestones.json is no
+      # longer written.)
       - name: Commit pick-of-day state
         run: |
           git config user.name  "Clairvoyance Bot"
           git config user.email "bot@clairvoyance"
-          git add docs/pick_of_day.json docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
+          git add docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
           if git diff --cached --quiet; then
             echo "No state change"
           else

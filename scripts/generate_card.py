@@ -9,7 +9,7 @@ generate_card.py — Clairvoyance Engine Model Card Generator
   • League-filtered sections (NBA / NHL)
   • Original pick → score result → WIN / LOSS badge
 
-Output: frontend/card.png + docs/card.png
+Output: docs/card.png
 """
 
 import argparse, json, math, subprocess, sys
@@ -23,10 +23,11 @@ except ImportError:
     from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 ROOT      = Path(__file__).parent.parent
-FE_DATA   = ROOT / "frontend" / "data.json"
-FE_SOCIAL = ROOT / "frontend" / "social_copy.json"
-FE_CARD   = ROOT / "frontend" / "card.png"
-DC_CARD   = ROOT / "docs"     / "card.png"
+# frontend/ retired 2026-09-09 (never actually served -- only docs/ is
+# deployed). FE_DATA/FE_SOCIAL now point at the real docs/ copies.
+FE_DATA   = ROOT / "docs" / "data.json"
+FE_SOCIAL = ROOT / "docs" / "social_copy.json"
+DC_CARD   = ROOT / "docs" / "card.png"
 
 W, H = 1080, 1350
 
@@ -597,7 +598,7 @@ def main() -> None:
     p.add_argument("--platform", choices=["x", "instagram"], default="instagram",
                    help="Card variant: 'x' highlights @ClairvoyanceEng, 'instagram' highlights @clairvoyanceengine")
     p.add_argument("--output",   type=str, default=None,
-                   help="Additional output path (PNG). Always also saves to frontend/ + docs/")
+                   help="Additional output path (PNG). Always also saves to docs/")
     args = p.parse_args()
 
     if not FE_DATA.exists():
@@ -610,10 +611,9 @@ def main() -> None:
 
     img = generate_card(data, social, platform=args.platform)
 
-    img.save(str(FE_CARD), "PNG", optimize=True)
     img.save(str(DC_CARD), "PNG", optimize=True)
-    kb = FE_CARD.stat().st_size // 1024
-    print(f"[INFO] card.png written ({kb} KB) → frontend/ + docs/")
+    kb = DC_CARD.stat().st_size // 1024
+    print(f"[INFO] card.png written ({kb} KB) → docs/")
 
     if args.output:
         out = Path(args.output)
@@ -623,7 +623,7 @@ def main() -> None:
         print(f"[INFO] card.png written ({kb2} KB) → {out}")
 
     if args.open:
-        subprocess.run(["open", str(FE_CARD)])
+        subprocess.run(["open", str(DC_CARD)])
 
 
 if __name__ == "__main__":

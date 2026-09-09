@@ -1920,25 +1920,6 @@ function teamMomentum(teamKey){
   return trend;
 }
 
-// D9: WAR approximation for players
-function warApprox(player,sport){
-  if(sport==='MLB'){
-    const obp=player.obp||0.320,slg=player.slg||0.400,era=player.era||4.50;
-    const batWAR=((obp+slg-0.650)/0.160)*2.5;
-    const pitWAR=player.era?(4.50-era)/0.50*1.5:0;
-    return Math.round((batWAR+pitWAR)*10)/10;
-  }
-  if(sport==='NHL'){
-    const pts=player.pts||0,gp=player.gp||1;
-    return Math.round((pts/gp-0.60)*3.0*10)/10;
-  }
-  if(sport==='NBA'){
-    const pts=player.pts||0,reb=player.reb||0,ast=player.ast||0;
-    return Math.round(((pts+reb*0.7+ast*0.6)-18)/4*10)/10;
-  }
-  return 0;
-}
-
 // ═══ BACKEND API CONFIG ══════════════════════════════════════
 // Set this to your Railway/Render URL once deployed.
 // While empty, the app falls back to localStorage (offline mode).
@@ -7951,7 +7932,7 @@ function lockNHLGame(gameStr,pick,ml){
   // Same gap as lockCFBGame/lockNFLGame (block-double-locking audit,
   // 2026-09-09): only checked its own exact id, never lockPick()'s
   // separate automated-pipeline id scheme for the same game. Also covers
-  // the "LIVE" buttons below (lockNHLSeriesBet -> this same function),
+  // the "LIVE" buttons below (which call this function directly),
   // which previously had zero protection against re-locking the same
   // game's moneyline mid-game.
   const dup=preds.find(p=>p.id===id)||_findSameMarketLock(preds,dateKey,hA,awA,'ML');
@@ -7960,7 +7941,6 @@ function lockNHLGame(gameStr,pick,ml){
   updHdr();renderNHLLockedBets();try{renderHomeLockedBets();}catch(e){}
   toast('// NHL LOCKED: '+pick);try{window.showBetPopup({type:'lock',betOn:pick,sport:'NHL',league:'NHL',betType:'ML',ml,prob:0.55,decOdds:dec});}catch(ex){}
 }
-function lockNHLSeriesBet(gameStr,pick,ml){lockNHLGame(gameStr,pick,ml);}
 function renderNHLLockedBets(){
   const el=document.getElementById('nhl-locked');if(!el)return;
   const picks=getP().filter(p=>p.sport==='NHL'||p.betType==='PL');
@@ -8492,31 +8472,6 @@ function renderLrn(){const el=document.getElementById('lrn');if(!el)return;const
 
 // ═══ SETTINGS + UTILS ════════════════════════════════════════
 function saveSet(){S.s('hfa',+document.getElementById('s-hfa')?.value||4);S.s('elk',+document.getElementById('s-elk')?.value||20);S.s('evt',+document.getElementById('s-evt')?.value||2);toast('// CONFIG SAVED');}
-function doExp(fmt='csv'){
-  const preds=getP();
-  if(fmt==='csv'){
-    const hdr=['Date','Sport','Home','Away','BetType','BetOn','ML','WinProb','DecOdds','Outcome','HomeScore','AwayScore','LockedAt'];
-    const rows=preds.map(p=>[
-      p.date||'',p.sport||'',p.hA||'',p.awA||'',p.betType||'',p.betOn||'',p.ml||'',
-      p.winProb!=null?(p.winProb*100).toFixed(1)+'%':'',
-      p.decOdds!=null?p.decOdds.toFixed(3):'',
-      p.outcome||'pending',
-      p.hScore!=null?p.hScore:'',p.aScore!=null?p.aScore:'',
-      p.lockedAt?new Date(p.lockedAt).toLocaleString():''
-    ].map(v=>String(v).includes(',')?`"${v}"`:v).join(','));
-    const csv=[hdr.join(','),...rows].join('\n');
-    const b=new Blob([csv],{type:'text/csv'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`clairvoyance_picks_${today()}.csv`;a.click();
-    toast('// EXPORTED CSV');
-  }else{
-    const d={preds,elo:ELO,ens:ENS,daily_log:getDailyLog()};
-    const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`clairvoyance_${today()}.json`;a.click();
-    toast('// EXPORTED JSON');
-  }
-}
-// (exportBetHistoryCSV lives further down, ~line 17098 — this was a dead
-// duplicate definition that the later one silently shadowed; removed.)
 function doImp(){const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=e=>{const fr=new FileReader();fr.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.preds)saveP(d.preds);if(d.elo){ELO=d.elo;S.s('elo',ELO);}if(d.ens)ENS=d.ens;if(d.daily_log)saveDailyLog(d.daily_log);updHdr();toast('// IMPORTED');}catch{toast('// IMPORT FAILED');}};fr.readAsText(e.target.files[0]);};i.click();}
 function doReset(){['preds','elo','ens','last_upd','last_upd_date','last_nhl_upd','last_nhl_upd_date','daily_log','nhl_edge_date'].forEach(k=>S.d(k));ELO={};PAR=[];initELO();updHdr();toast('// SYSTEM RESET');}
 function toast(msg,col){
@@ -9266,43 +9221,6 @@ function _nbaGameCard(espnEv){
     ${pre?parlayBtn:''}
   </div>
 </div>`;
-}
-
-// ═══ NBA 7-DAY MATCHES WINDOW + DATE FILTER ═══════════════════════════════
-// Same pattern as MLB's renderMLBWeek(): fetch a 7-day ESPN scoreboard
-// range, group by day, reuse the existing per-game card (_nbaGameCard,
-// extracted above). NBA is in the real offseason as of this build (next
-// game October 2026) so this will correctly render "no games" until then —
-// dormant infrastructure, not untested guesswork, since it reuses the exact
-// same fetch/render technique already proven live against MLB.
-var _nbaWeekCache=null,_nbaWeekCacheTs=0;
-async function _fetchNBAWeekGames(){
-  // See _fetchGenericWeekGames' comment -- same browser-local-date bug,
-  // same fix (todayESPN() instead of a raw new Date() format).
-  try{
-    var r=await fetch('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates='+todayESPN()+'&limit=300',{mode:'cors',cache:'no-cache'});
-    if(!r.ok)throw new Error(r.status);
-    var d=await r.json();
-    return d.events||[];
-  }catch(e){console.warn('[CV] NBA today fetch:',e.message);return[];}
-}
-async function renderNBAWeek(){
-  var el=document.getElementById('nba-week-list');if(!el)return;
-  el.innerHTML='<div class="loading"><span class="spi"></span> LOADING TODAY\'S GAMES…</div>';
-  var now=Date.now();
-  if(!_nbaWeekCache||now-_nbaWeekCacheTs>5*60*1000){_nbaWeekCache=await _fetchNBAWeekGames();_nbaWeekCacheTs=now;}
-  var events=_nbaWeekCache||[];
-  var todayIso=today();
-  events=events.filter(function(ev){
-    var iso=(ev.date||'').slice(0,10);
-    var d=new Date(ev.date);
-    var localIso=isNaN(d)?iso:d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
-    return localIso===todayIso;
-  });
-  var html='';
-  if(!events.length)html+='<div class="empty">NO GAMES TODAY</div>';
-  events.forEach(function(ev){html+=_nbaGameCard(ev);});
-  el.innerHTML=html;
 }
 
 async function renderNBAGames(day){
@@ -10151,7 +10069,6 @@ function addNBALeg(name,ml,prob,matchup){
   renderNBALegs();calcNBAP();toast(`// +LEG: ${name}`);
 }
 function removeNBALeg(i){NBA_PAR.splice(i,1);renderNBALegs();calcNBAP();}
-function clrNBAP(){NBA_PAR=[];renderNBALegs();const r=document.getElementById('nba-p-res');if(r)r.innerHTML='';const lc=document.getElementById('nba-lc');if(lc)lc.textContent='(0)';}
 function renderNBALegs(){
   const el=document.getElementById('nba-p-legs');if(!el)return;
   const lc=document.getElementById('nba-lc');if(lc)lc.textContent=`(${NBA_PAR.length})`;

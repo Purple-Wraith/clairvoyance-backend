@@ -393,352 +393,6 @@ def fetch_espn_transactions(sport_path: str, sport_key: str, limit: int = 25) ->
     vlog(f"  {sport_key} transactions: {len(items)}")
     return items[:limit]
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# MLB
-# ═══════════════════════════════════════════════════════════════════════════════
-def fetch_mlb_scoreboard(date: str = TODAY_ET) -> tuple[list, list]:
-    """Fetch MLB scoreboard. Uses Eastern Time date since MLB schedules games in ET.
-    Deduplicates by event ID and filters to only include today's games (ET date)."""
-    log(f"MLB scoreboard {date} (ET)…")
-    data = fetch_json(f"{ESPN_BASE}/baseball/mlb/scoreboard?dates={date}&limit=30")
-    if not data: return [], []
-    seen_ids: set = set()
-    games = []
-    for e in (data.get("events") or []):
-        eid = e.get("id", "")
-        # Only include events whose date matches today (ET) — event date is YYYYMMDD-prefixed in UTC
-        event_date_raw = e.get("date", "")  # ISO string e.g. "2026-05-23T18:05Z"
-        try:
-            event_date_et = datetime.fromisoformat(event_date_raw.replace("Z", "+00:00")).astimezone(
-                _ET if "zoneinfo" in sys.modules else timezone(timedelta(hours=-4))
-            ).strftime("%Y%m%d")
-        except Exception:
-            event_date_et = date  # default to requested date if parse fails
-        if event_date_et != date:
-            vlog(f"  MLB skip stale/future event {eid} dated {event_date_et}")
-            continue
-        if eid in seen_ids:
-            vlog(f"  MLB skip duplicate event {eid}")
-            continue
-        seen_ids.add(eid)
-        games.append(_espn_game(e, "MLB"))
-    tom   = (datetime.strptime(date, "%Y%m%d") + timedelta(days=1)).strftime("%Y%m%d")
-    data2 = fetch_json(f"{ESPN_BASE}/baseball/mlb/scoreboard?dates={tom}&limit=30")
-    seen_tom: set = set()
-    tomorrow = []
-    for e in ((data2 or {}).get("events") or []):
-        eid = e.get("id", "")
-        if eid in seen_tom: continue
-        seen_tom.add(eid)
-        tomorrow.append(_espn_game(e, "MLB"))
-    vlog(f"  MLB: {len(games)} today, {len(tomorrow)} tomorrow")
-    return games, tomorrow
-
-def fetch_mlb_standings() -> dict:
-    log("MLB standings…")
-    data = fetch_json(
-        "https://site.web.api.espn.com/apis/v2/sports/baseball/mlb/standings"
-        "?region=us&lang=en&season=2026&type=2"
-    )
-    if not data: return {}
-    out: dict = {}
-    for division in data.get("children") or []:
-        for entry in (division.get("standings") or {}).get("entries") or []:
-            team  = entry.get("team") or {}
-            abbr  = team.get("abbreviation", "")
-            stats = {s["name"]: s.get("displayValue", s.get("value", ""))
-                     for s in (entry.get("stats") or [])}
-            out[abbr] = {
-                "w": stats.get("wins","0"), "l": stats.get("losses","0"),
-                "pct": stats.get("winPercent",".000"), "gb": stats.get("gamesBehind","—"),
-                "streak": stats.get("streak",""), "rs": stats.get("pointsFor","0"),
-                "ra": stats.get("pointsAgainst","0"),
-                "div": (division.get("name") or team.get("shortDisplayName","")),
-            }
-    vlog(f"  MLB standings: {len(out)} teams")
-    return out
-
-def fetch_mlb_schedule_week() -> list[dict]:
-    """Fetch MLB schedule for next 7 days (using Eastern Time base)."""
-    log("MLB week schedule…")
-    games: list[dict] = []
-    for offset in range(7):
-        d = (NOW_ET + timedelta(days=offset)).strftime("%Y%m%d")
-        data = fetch_json(f"{ESPN_BASE}/baseball/mlb/scoreboard?dates={d}&limit=30")
-        for e in (data or {}).get("events") or []:
-            g = _espn_game(e, "MLB")
-            g["schedDate"] = d
-            games.append(g)
-    vlog(f"  MLB week: {len(games)} games")
-    return games
-
-def fetch_baseball_reference() -> dict:
-    """Scrape MLB batting & pitching leaders from Baseball Reference."""
-    log("Baseball Reference stats…")
-    result: dict = {"batting": [], "pitching": [], "fetchedAt": TODAY_ISO}
-    pairs = [
-        ("batting",  "https://www.baseball-reference.com/leagues/majors/2026-standard-batting.shtml",   "players_standard_batting"),
-        ("pitching", "https://www.baseball-reference.com/leagues/majors/2026-standard-pitching.shtml",  "players_standard_pitching"),
-    ]
-    for key, url, tbl_id in pairs:
-        # Real gap, found via a live MLB-accuracy audit: the pitching table
-        # was capped at limit=50 (league-wide, sorted by IP) -- fine for a
-        # "top-50 leaders" display, nowhere near enough to see a real
-        # bullpen. Confirmed live: the real 2026 players_standard_pitching
-        # table has 1079 rows; a reliever with modest IP sits well past
-        # row 50, sorted behind every team's starters. Raised to 1500 --
-        # comfortably above the real current total with room for the rest
-        # of the season's roster churn, and this table naturally self-caps
-        # at "however many pitchers have actually appeared in a real MLB
-        # game this year," not an ever-growing number. batting keeps its
-        # original 50-row cap -- this fix is specifically about pitching/
-        # bullpen coverage, not batting leaders, which nothing here needs
-        # beyond the existing top-50 display use.
-        limit = 1500 if key == "pitching" else 50
-        try:
-            time.sleep(2)    # rate-limit SR
-            soup = fetch_html(url, timeout=25, ref=True)
-            if not soup: continue
-            rows = _table_to_rows(soup, tbl_id, limit=limit)
-            if not rows:   # fallback: first big table
-                for tbl in soup.find_all("table"):
-                    r = _table_to_rows(soup, tbl.get("id",""), limit=limit) if tbl.get("id") else []
-                    if len(r) > 10: rows = r; break
-            result[key] = rows[:limit]
-            vlog(f"  Baseball Ref {key}: {len(rows)} rows")
-        except Exception as exc:
-            log(f"Baseball Ref {key}: {exc}", "WARN")
-    return result
-
-
-# Baseball-Reference's team_name_abbr occasionally differs from this app's
-# own canonical MLB team keys (see the MLB const in docs/app.html) --
-# confirmed via a live scrape of players_standard_pitching (2026-09-02).
-_BREF_TEAM_ABBR_MAP = {
-    "ATH": "OAK", "CHW": "CWS", "KCR": "KC", "SDP": "SD", "SFG": "SF", "TBR": "TB",
-}
-
-
-def fetch_mlb_bullpen_stats(pitching_rows: list[dict]) -> dict:
-    """
-    Isolates real bullpen-only pitching quality per team from Baseball-
-    Reference's players_standard_pitching rows (see fetch_baseball_reference,
-    now fetched at a high enough limit to cover the whole league's real
-    usage, not just the top-50 overall leaders) -- the MLB win-probability
-    model (adjLam/mlbMC in docs/app.html) currently has real signal for a
-    team's OFFENSE (bat.RG) and today's probable STARTER (PIT[abbr], from
-    ESPN's live probable-pitcher feed) but nothing at all for the bullpen
-    that actually pitches innings 6-9 of a real game -- a team with a great
-    rotation and a terrible bullpen currently prices identically to one
-    with a great rotation AND a great bullpen.
-
-    A pitcher is classified as a reliever when GS/G < 0.5 (mostly relief
-    appearances, the standard sabermetric convention) -- everything else
-    (a real starter, or a spot-starter who's mostly started) is excluded.
-    Real per-team, per-stint rows only: Baseball-Reference's own combined
-    "2TM"/"3TM"/etc rows for a traded player are excluded (confirmed live:
-    a real traded pitcher's 2TM row's IP exactly equals the sum of his 2
-    separate real-team stint rows -- keeping both would double-count that
-    pitcher's innings onto both his own team AND the league-wide total).
-
-    Filters below a minimum-innings threshold so a one-batter emergency/
-    position-player appearance (real ERA of 27.00 off 2 batters faced,
-    common in real blowouts) can't skew a team's actual bullpen quality
-    off a tiny, noisy sample -- and drops any team with fewer than 3 real
-    relievers on record rather than reporting a number from 1-2 pitchers.
-
-    Returns {team_abbr: {era, fip, ip, n}} -- era/fip are innings-weighted
-    averages across that team's real relief corps (not a simple mean --
-    a reliever with 60 IP should count far more than one with 5), ip is
-    total relief innings (a rough bullpen workload/depth signal), n is the
-    real reliever count that sample was built from.
-    """
-    MIN_IP = 3.0
-    MIN_RELIEVERS = 3
-    agg: dict[str, dict] = {}
-    for row in pitching_rows:
-        tm_raw = (row.get("team_name_abbr") or "").strip()
-        if not tm_raw or tm_raw in ("", "Tm", "--") or re.match(r"^\d+TM$", tm_raw):
-            continue  # blank/header row or a combined multi-team summary row
-        tm = _BREF_TEAM_ABBR_MAP.get(tm_raw, tm_raw)
-        try:
-            g  = float(row.get("p_g") or 0)
-            gs = float(row.get("p_gs") or 0)
-            ip = float(row.get("p_ip") or 0)
-        except (ValueError, TypeError):
-            continue
-        if g <= 0 or ip < MIN_IP:
-            continue
-        if gs / g >= 0.5:
-            continue  # a real starter (or mostly-starter), not bullpen
-        try:
-            era = float(row.get("p_earned_run_avg") or 0)
-        except (ValueError, TypeError):
-            era = 0.0
-        try:
-            fip = float(row.get("p_fip") or 0)
-        except (ValueError, TypeError):
-            fip = 0.0
-        a = agg.setdefault(tm, {"era_ip": 0.0, "fip_ip": 0.0, "era_wsum": 0.0, "fip_wsum": 0.0, "ip": 0.0, "n": 0})
-        a["ip"] += ip
-        a["n"]  += 1
-        if era > 0:
-            a["era_wsum"] += era * ip
-            a["era_ip"]   += ip
-        if fip > 0:
-            a["fip_wsum"] += fip * ip
-            a["fip_ip"]   += ip
-    result: dict = {}
-    for tm, a in agg.items():
-        if a["n"] < MIN_RELIEVERS:
-            continue
-        result[tm] = {
-            "era": round(a["era_wsum"] / a["era_ip"], 3) if a["era_ip"] > 0 else None,
-            "fip": round(a["fip_wsum"] / a["fip_ip"], 3) if a["fip_ip"] > 0 else None,
-            "ip":  round(a["ip"], 1),
-            "n":   a["n"],
-        }
-    log(f"MLB bullpen: {len(result)} teams (from {len(pitching_rows)} pitching rows)")
-    return result
-
-def fetch_mlb_team_sabermetrics() -> dict:
-    """
-    Fetch team-level sabermetrics from Baseball Reference 2026 team batting/pitching.
-    Returns dict keyed by team abbreviation with wOBA, ISO, FIP, ERA-.
-    """
-    log("MLB team sabermetrics…")
-    result: dict = {}
-    try:
-        # Team batting — OPS+, ISO, wOBA proxy
-        time.sleep(2)
-        soup = fetch_html("https://www.baseball-reference.com/leagues/majors/2026-standard-batting.shtml",
-                          timeout=25, ref=True)
-        if soup:
-            tbl = soup.find("table", {"id": "teams_standard_batting"})
-            if tbl:
-                for tr in tbl.find_all("tr")[1:]:
-                    cells = tr.find_all(["th","td"])
-                    if len(cells) < 18: continue
-                    tm = cells[0].get_text(strip=True)
-                    if tm in ("","Tm","LgAvg","--"): continue
-                    try:
-                        ops_plus = float(cells[15].get_text(strip=True) or 100)
-                    except: ops_plus = 100.0
-                    try:
-                        iso = float(cells[17].get_text(strip=True) or 0.15)
-                    except: iso = 0.15
-                    result[tm] = result.get(tm, {})
-                    result[tm].update({"ops_plus": ops_plus, "iso": iso})
-    except Exception as exc:
-        log(f"MLB team batting sabermetrics: {exc}", "WARN")
-    try:
-        # Team pitching — FIP, ERA-
-        time.sleep(2)
-        soup = fetch_html("https://www.baseball-reference.com/leagues/majors/2026-standard-pitching.shtml",
-                          timeout=25, ref=True)
-        if soup:
-            tbl = soup.find("table", {"id": "teams_standard_pitching"})
-            if tbl:
-                for tr in tbl.find_all("tr")[1:]:
-                    cells = tr.find_all(["th","td"])
-                    if len(cells) < 20: continue
-                    tm = cells[0].get_text(strip=True)
-                    if tm in ("","Tm","LgAvg","--"): continue
-                    try:
-                        fip = float(cells[18].get_text(strip=True) or 4.20)
-                    except: fip = 4.20
-                    try:
-                        era_minus = float(cells[19].get_text(strip=True) or 100)
-                    except: era_minus = 100.0
-                    result[tm] = result.get(tm, {})
-                    result[tm].update({"fip": fip, "era_minus": era_minus})
-    except Exception as exc:
-        log(f"MLB team pitching sabermetrics: {exc}", "WARN")
-    log(f"MLB team sabermetrics: {len(result)} teams")
-    return result
-
-def fetch_mlb_team_fielding() -> dict:
-    """
-    Additive: team-level defensive efficiency from Baseball Reference's
-    teams_standard_fielding table (not covered by fetch_mlb_team_sabermetrics,
-    which only reads batting/pitching). Uses _table_to_rows for resilience
-    instead of positional cell-index parsing.
-    """
-    log("MLB team fielding…")
-    result: dict = {}
-    try:
-        time.sleep(2)
-        soup = fetch_html("https://www.baseball-reference.com/leagues/majors/2026-standard-fielding.shtml",
-                          timeout=25, ref=True)
-        if not soup:
-            return result
-        rows = _table_to_rows(soup, "teams_standard_fielding", limit=40)
-        for row in rows:
-            tm = (row.get("team_name") or row.get("team") or "").strip()
-            if not tm or tm in ("", "Tm", "LgAvg", "--"):
-                continue
-            try:
-                fld_pct = float(row.get("fielding_perc") or 0.982)
-            except (ValueError, TypeError):
-                fld_pct = 0.982
-            try:
-                dp = float(row.get("double_plays") or 0)
-            except (ValueError, TypeError):
-                dp = 0.0
-            try:
-                rtot = float(row.get("total_zone_runs_total") or row.get("range_factor_per_game") or 0)
-            except (ValueError, TypeError):
-                rtot = 0.0
-            result[tm] = {"fld_pct": fld_pct, "dp": dp, "def_runs": rtot}
-        log(f"MLB team fielding: {len(result)} teams")
-    except Exception as exc:
-        log(f"MLB team fielding: {exc}", "WARN")
-    return result
-
-def fetch_mlb_batter_rosters() -> dict:
-    """
-    Closes the injury-integration gap documented in app.html above
-    computeInjuryImpact(): the frontend's MLB injury penalty only ever
-    matched starting pitchers (window.PIT), because no batter roster
-    existed anywhere — baseW()'s position weights for C/SS/CF/3B/etc were
-    dead code. This doesn't need a separate "rating" system the way NBA
-    does; baseW() already weights purely by POSITION (C/SS/CF/3B highest,
-    corner spots lower), and ESPN's team roster endpoint returns exactly
-    that — name, team, position — for every player on all 30 teams in one
-    request per team, no per-player stat calls needed.
-
-    Returns {"lastname firstname": {"team": "SD", "pos": "SS"}, ...} keyed
-    the same way the frontend's window.PIT/window.NBA_PLAYERS rosters are,
-    for direct use building window._injRoster in buildInjuryRoster().
-    """
-    log("MLB batter rosters (ESPN)…")
-    result: dict = {}
-    try:
-        teams_data = fetch_json("https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams?limit=40")
-        teams = ((teams_data or {}).get("sports") or [{}])[0].get("leagues", [{}])[0].get("teams", [])
-        for t in teams:
-            tm = t.get("team", {})
-            team_id, abbr = tm.get("id"), tm.get("abbreviation", "")
-            if not team_id or not abbr:
-                continue
-            try:
-                time.sleep(0.2)
-                roster = fetch_json(f"https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/{team_id}/roster")
-                for grp in (roster or {}).get("athletes", []):
-                    for p in grp.get("items", []):
-                        pos = (p.get("position") or {}).get("abbreviation", "")
-                        if pos in ("SP", "RP"):  # pitchers already covered by window.PIT (today's starters)
-                            continue
-                        name = p.get("fullName", "")
-                        if name:
-                            result[name.lower()] = {"team": abbr, "pos": pos}
-            except Exception as exc:
-                log(f"MLB roster {abbr}: {exc}", "WARN")
-        log(f"  MLB batter rosters: {len(result)} players across {len(teams)} teams")
-    except Exception as exc:
-        log(f"MLB batter rosters: {exc}", "WARN")
-    return result
-
 def fetch_nba_roster() -> dict:
     """
     Real, current NBA roster for all 30 teams -- replaces the app's
@@ -748,10 +402,9 @@ def fetch_nba_roster() -> dict:
     reflects real offseason trades/signings automatically instead of
     needing another manual edit every time a player changes teams.
 
-    Same fetch_mlb_batter_rosters() pattern: one ESPN team-list call,
-    then one roster call per team. Returns {"player name": {"team":
-    "ABBR", "pos": "PG"}, ...}, keyed lowercase to match this
-    codebase's existing name-lookup convention (see fetch_mlb_batter_rosters).
+    One ESPN team-list call, then one roster call per team. Returns
+    {"player name": {"team": "ABBR", "pos": "PG"}, ...}, keyed
+    lowercase to match this codebase's existing name-lookup convention.
     """
     log("NBA rosters (ESPN)…")
     result: dict = {}
@@ -783,9 +436,9 @@ def fetch_nhl_roster() -> dict:
     Real, current NHL roster for all 32 teams -- this codebase had NO
     NHL player-roster source at all before this (only the hand-curated
     4-team NHL object's implicit "goalie/skater" mentions). Same
-    ESPN team-list -> per-team-roster pattern as fetch_nba_roster()/
-    fetch_mlb_batter_rosters(). Returns {"player name": {"team": "ABBR",
-    "pos": "C"}, ...}, keyed lowercase.
+    ESPN team-list -> per-team-roster pattern as fetch_nba_roster().
+    Returns {"player name": {"team": "ABBR", "pos": "C"}, ...}, keyed
+    lowercase.
     """
     log("NHL rosters (ESPN)…")
     result: dict = {}
@@ -844,65 +497,6 @@ def fetch_wnba_roster() -> dict:
     except Exception as exc:
         log(f"WNBA rosters: {exc}", "WARN")
     return result
-
-def fetch_mlb_statcast_team(batter_rosters: dict) -> dict:
-    """
-    Real Statcast quality-of-contact metrics — xwOBA, barrel rate, hard-hit%,
-    xSLG — a tier beyond the traditional sabermetrics already fetched
-    (fetch_mlb_team_sabermetrics: OPS+/ISO/FIP/ERA-, all Baseball-Reference).
-    Baseball Savant's leaderboard only exports at the individual-player
-    level (no team-aggregate endpoint), so this aggregates qualified
-    batters up to team level itself, using the ESPN roster name->team
-    lookup already built by fetch_mlb_batter_rosters() rather than a second
-    roster fetch. Savant names are "Last, First"; ESPN's are "First Last" —
-    reformatted to match the same lowercase key convention.
-    """
-    log("MLB Statcast quality-of-contact (Baseball Savant)…")
-    result: dict = {}
-    try:
-        r = _session.get(
-            "https://baseballsavant.mlb.com/leaderboard/custom",
-            params={"year": date.today().year, "type": "batter", "min": "1", "chart": "false", "csv": "true",
-                    "selections": "xwoba,barrel_batted_rate,hard_hit_percent,xslg,xba"},
-            timeout=20,
-        )
-        r.raise_for_status()
-        rows = list(csv.DictReader(io.StringIO(r.text.lstrip("﻿"))))
-        buckets: dict[str, dict] = {}
-        for row in rows:
-            raw_name = row.get("last_name, first_name", "")
-            if "," not in raw_name:
-                continue
-            last, first = [s.strip() for s in raw_name.split(",", 1)]
-            key = f"{first} {last}".lower()
-            entry = batter_rosters.get(key)
-            if not entry:
-                continue
-            team = entry["team"]
-            b = buckets.setdefault(team, {"n": 0, "xwoba": 0.0, "barrel": 0.0, "hardhit": 0.0, "xslg": 0.0})
-            try:
-                b["n"] += 1
-                b["xwoba"]   += float(row.get("xwoba") or 0)
-                b["barrel"]  += float(row.get("barrel_batted_rate") or 0)
-                b["hardhit"] += float(row.get("hard_hit_percent") or 0)
-                b["xslg"]    += float(row.get("xslg") or 0)
-            except (ValueError, TypeError):
-                b["n"] -= 1
-        for team, b in buckets.items():
-            if b["n"] == 0:
-                continue
-            result[team] = {
-                "xwoba":   round(b["xwoba"] / b["n"], 3),
-                "barrel_pct": round(b["barrel"] / b["n"], 1),
-                "hardhit_pct": round(b["hardhit"] / b["n"], 1),
-                "xslg":    round(b["xslg"] / b["n"], 3),
-                "n_batters": b["n"],
-            }
-        log(f"  MLB Statcast: {len(result)} teams from {len(rows)} qualified batters")
-    except Exception as exc:
-        log(f"MLB Statcast: {exc}", "WARN")
-    return result
-
 
 def fetch_nba_team_advanced() -> dict:
     """
@@ -1223,18 +817,6 @@ def fetch_best_odds(sport: str, game_list: list, name_resolver=None) -> dict:
     return best
 
 
-def fetch_mlb_nrfi_data(mlb_today: list) -> list[dict]:
-    """Build NRFI entries from today's MLB game list + any weather data."""
-    return [
-        {"game": f"{g['away']} @ {g['home']}", "home": g["home"], "away": g["away"],
-         "ou": g.get("ou"), "homeML": g.get("homeML"), "awayML": g.get("awayML"),
-         "state": g.get("state","pre"), "venue": g.get("venue","")}
-        for g in mlb_today
-    ]
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# NBA
-# ═══════════════════════════════════════════════════════════════════════════════
 def fetch_nba_scoreboard(date: str = TODAY_ET) -> tuple[list, list]:
     """Fetch NBA scoreboard. Uses Eastern Time date since NBA game times are listed in ET."""
     log(f"NBA scoreboard {date} (ET)…")
@@ -3091,12 +2673,11 @@ def fetch_mls_rosters() -> dict:
     MLS is the only one actually in-season right now (CL/PL/La Liga/
     Bundesliga are all confirmed empty on injuries — offseason — so building
     150-team roster coverage across all 5 for zero real signal isn't worth
-    it yet; revisit once those leagues resume in August). Same pattern as
-    fetch_mlb_batter_rosters(): ESPN's team-roster endpoint gives name/team/
-    position for all 30 MLS clubs in one request per team — no separate
-    stat-based rating needed, computeInjuryImpact()'s soccer branch will key
-    off position (GK highest impact, then DEF/MID/FWD) same as MLB keys off
-    the injury record's own position field.
+    it yet; revisit once those leagues resume in August). ESPN's team-
+    roster endpoint gives name/team/position for all 30 MLS clubs in one
+    request per team — no separate stat-based rating needed,
+    computeInjuryImpact()'s soccer branch will key off position (GK
+    highest impact, then DEF/MID/FWD).
     """
     log("MLS rosters (ESPN)…")
     result: dict = {}
@@ -4908,10 +4489,7 @@ def compute_live_win_prob(game: dict, sport: str) -> dict:
 def write_data_json(bundle: dict) -> None:
     payload = json.dumps(bundle, indent=2)
     FE_DATA.write_text(payload)
-    # Also mirror to frontend/ for local dev
-    fe_mirror = ROOT / "frontend" / "data.json"
-    fe_mirror.write_text(payload)
-    note(f"data.json written ({len(payload)//1024} KB) → docs/ (github.io) + frontend/ (local)")
+    note(f"data.json written ({len(payload)//1024} KB) → docs/ (github.io)")
     # Write version.json — mobile PWA reads this to detect when a new build is deployed
     version_payload = json.dumps({"built": TODAY_ISO.replace("-","")[:8]+"-"+datetime.now().strftime("%H%M"), "ts": int(time.time())}, indent=2)
     (ROOT / "docs" / "version.json").write_text(version_payload)
@@ -4957,10 +4535,6 @@ def git_push(summary: str = "") -> bool:
             "data/soccer_fbref.json",
             "data/mls_stats.json",
             "data/mls_schedule.json",
-            # local frontend mirror (not pushed to Pages but kept in sync)
-            "frontend/data.json",
-            "frontend/index.html",
-            "frontend/live_data.json",
         ], capture_output=True, check=False)
         diff = subprocess.run(["git","-C",str(ROOT),"diff","--cached","--quiet"],
                               capture_output=True)
@@ -5608,8 +5182,7 @@ def main() -> None:
             write_social_json(social)
             note("social_copy.json written")
             img = generate_card(bundle, social)
-            for p in (ROOT/"frontend"/"card.png", ROOT/"docs"/"card.png"):
-                img.save(str(p), format="PNG", optimize=True)
+            img.save(str(ROOT/"docs"/"card.png"), format="PNG", optimize=True)
             note("card.png written")
             top_pick = bundle.get("bestBets", [{}])[0]
             pick_summary = f"{top_pick.get('pick','—')}  EV {top_pick.get('ev','?')}%" if top_pick else "No picks today"

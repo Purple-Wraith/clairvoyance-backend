@@ -39,8 +39,11 @@ if _env_file.exists():
                 os.environ.setdefault(_k.strip(), _v)
 
 ROOT        = Path(__file__).parent.parent
-FE_DATA     = ROOT / "frontend" / "data.json"
-FE_SOCIAL   = ROOT / "frontend" / "social_copy.json"
+# Was ROOT/"frontend"/"data.json" -- the frontend/ directory was retired
+# 2026-09-09 (nothing had served it since a repo rename months earlier;
+# only docs/ is ever deployed). docs/data.json is the same content and
+# the one clairvoyance_update.py actually keeps fresh.
+FE_DATA     = ROOT / "docs"     / "data.json"
 DC_SOCIAL   = ROOT / "docs"     / "social_copy.json"
 DESKTOP_DIR = Path.home() / "Desktop" / "Clairvoyance"
 CARD_SCRIPT = Path(__file__).parent / "generate_card.py"
@@ -1068,7 +1071,6 @@ def write_social_json(content: dict) -> None:
     if not content:
         return
     payload = json.dumps(content, indent=2)
-    FE_SOCIAL.write_text(payload)
     DC_SOCIAL.write_text(payload)
 
 

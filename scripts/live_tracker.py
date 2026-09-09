@@ -35,7 +35,6 @@ except ImportError:
     import requests
 
 ROOT    = Path(__file__).parent.parent
-FE_LIVE = ROOT / "frontend" / "live_data.json"
 DC_LIVE = ROOT / "docs"    / "live_data.json"
 DATA    = ROOT / "data"
 
@@ -404,7 +403,6 @@ def poll_once() -> dict:
         "hasLiveGames": bool(active_nba or active_nhl or active_cfb or active_nfl),
     }
 
-    FE_LIVE.write_text(json.dumps(payload))
     DC_LIVE.write_text(json.dumps(payload))
 
     live_str = ", ".join(filter(None, [
