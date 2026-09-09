@@ -6457,15 +6457,32 @@ function renderCFBConfig(){
 }
 function lockCFBGame(hA,awA,betType,betOn,ml,winProb,ouLine){
   const dec=ml2d(ml);
-  const id=`cfb_${today()}_${hA}_${awA}_${betType}_${betOn.replace(/\s+/g,'')}`;
+  const dateKey=today();
+  const id=`cfb_${dateKey}_${hA}_${awA}_${betType}_${betOn.replace(/\s+/g,'')}`;
   // sport:'FOOTBALL' (broad) + league:'CFB' (specific) — safe now that
   // _normSport() prefers the league field over an ambiguous broad sport
   // tag (fixed alongside this so 'FOOTBALL' can't get mis-read as NFL,
   // which it otherwise would since _normSport treats FOOTBALL as an NFL
   // synonym on its own).
-  const pred={id,date:today(),hA,awA,sport:'FOOTBALL',league:'CFB',betType,betOn,winProb,ml,decOdds:dec,
+  const pred={id,date:dateKey,hA,awA,sport:'FOOTBALL',league:'CFB',betType,betOn,winProb,ml,decOdds:dec,
     ou:ouLine!=null?ouLine:null,wager:0,outcome:'pending',lockedAt:Date.now()};
-  const preds=getP();if(!preds.find(p=>p.id===id)){_removeWipedIds([id]);preds.push(pred);saveP(preds);}
+  const preds=getP();
+  // Real bug found 2026-09-09: this only ever checked its OWN exact id
+  // (`cfb_${date}_...`), never against the automated pipeline's separate
+  // lockPick()-based locks for the same game (auto_lock_settle.py's
+  // lock_game_leg calls generic lockPick() with an explicit type:'CFB',
+  // which builds a DIFFERENT id shape: `${date}_${hA}_${awA}_CFB_...`).
+  // lockPick() itself already guards against double-locking a market via
+  // _findSameMarketLock, but this function never shared that check, so a
+  // manual lock here (from the game-card ML buttons or the spread/O-U
+  // adjuster above) for a market the automated pass already locked the
+  // same day created a real second, differently-ID'd bet for the exact
+  // same pick -- confirmed live: "ND ML" and "OVER 46.5" (ND @ WIS,
+  // 2026-09-06) and "OVER 54.5" (ILL @ UAB, 2026-09-03) each got double-
+  // counted this way. Same dedup lockPick() already relies on.
+  const dup=preds.find(p=>p.id===id)||_findSameMarketLock(preds,dateKey,hA,awA,betType);
+  if(dup){toast(`// ALREADY LOCKED: ${dup.betOn} (${dup.outcome==='pending'?'still pending':dup.outcome.toUpperCase()})`);return;}
+  _removeWipedIds([id]);preds.push(pred);saveP(preds);
   updHdr();
   toast('// CFB LOCKED: '+betOn);
   try{window.showBetPopup({type:'lock',betOn,sport:'FOOTBALL',league:'CFB',betType,ml,prob:winProb,decOdds:dec});}catch(e){}
