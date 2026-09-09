@@ -31,7 +31,7 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _gmail_email import send_email  # noqa: E402
 
-REPO = "MercMink21/clairvoyance-backend"
+REPO = "Purple-Wraith/clairvoyance-backend"
 ROOT = Path(__file__).resolve().parent.parent
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 ALERT_TO = os.environ.get("SOCIAL_CARD_EMAIL_TO", "") or os.environ.get("LOCKS_EMAIL_TO", "")
@@ -59,6 +59,21 @@ MONITORED = [
     ("send-expiry-reminders.yml", "Expiry Reminders", 26),
     ("social-cards-daily.yml", "Social Cards Daily", 26),
     ("pick-of-day-social-daily.yml", "Pick-of-Day Social", 26),
+    # Real gap found in a 2026-09-09 audit: the evening ("tomorrow's
+    # slate") locks are the same subscriber-facing/paid-product locking
+    # logic as their early-lock counterparts above, writing their own
+    # last_cfb_evening_lock_date.txt/last_soccer_evening_lock_date.txt
+    # markers -- but neither workflow was in this list or in
+    # LOCK_MARKERS below, so a silent failure or dropped schedule on
+    # either would have gone completely undetected. Added at the same
+    # 26h backup-signal age as the early locks; not yet given a tighter
+    # LOCK_MARKERS entry like the early locks have, since this script's
+    # own two daily runs (see daily-health-check.yml) both fire before
+    # these evening locks' own ~10:30-11:30pm MT catch-up window closes
+    # -- would need a third, later scheduled run to check that marker
+    # meaningfully same-night, which this pass didn't add.
+    ("cfb-lock-evening.yml", "CFB Evening Lock (Tomorrow's Slate)", 26),
+    ("soccer-lock-evening.yml", "Soccer Evening Lock (Tomorrow's Slate)", 26),
 ]
 
 # (marker file, human label, cutoff hour in MT past which today's date
