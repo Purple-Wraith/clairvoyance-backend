@@ -5153,78 +5153,6 @@ function renderModelWeights(sport, containerId) {
   el.innerHTML = renderWeightsPanel(sport, factors);
 }
 
-// StatMuse insights (docs/statmuse_data.json — scraped narrative stat
-// blurbs) sit alongside INJURY INTEL as context, rendered as-is via
-// renderStatMuseInsights below. Separately, the "player_stats" key (a
-// minority of blurbs that had a usable numeric rate-stat) feeds
-// _statmuseFormNudge as a small, capped secondary cross-check against
-// the NBA/WNBA prop MC sims' own player averages — never the raw blurb
-// text, never a primary input. Self-creates its own sibling container
-// after `anchorId` instead of assuming a dedicated container already
-// exists in markup, since several sports don't have one.
-let _STATMUSE = null;
-function loadStatMuse(){
-  if(_STATMUSE) return Promise.resolve(_STATMUSE);
-  return fetch('statmuse_data.json',{cache:'no-store'}).then(r=>r.ok?r.json():null)
-    .then(d=>{_STATMUSE=d||{sections:{}};return _STATMUSE;})
-    .catch(()=>{_STATMUSE={sections:{}};return _STATMUSE;});
-}
-// Warm the cache early — by the time a user opens an NBA/WNBA props tab
-// (or anything else that calls loadStatMuse), this is very likely
-// already resolved, so _statmuseFormNudge has real data to work with
-// instead of always failing safe to "not loaded yet".
-loadStatMuse();
-// Per-game StatMuse insights — StatMuse's own data has no team/matchup
-// tag on each blurb (just {headline, detail} bucketed by broad section:
-// 'cfb', 'nfl', 'mlb', etc.), so this filters that section's real scraped
-// blurbs down to only the ones that actually name one of this specific
-// game's two teams, instead of dumping the whole section's unrelated
-// headlines onto every card. Returns [] (renders nothing) rather than a
-// generic filler when no real blurb mentions either team — never fakes
-// relevance. `names` should include every real name variant worth
-// matching (full name, mascot-less short name, abbreviation) since
-// StatMuse's own phrasing is inconsistent about which form it uses.
-function _statmuseForGame(section,homeNames,awayNames){
-  const items=((_STATMUSE||{}).sections||{})[section]||[];
-  if(!items.length)return{home:[],away:[]};
-  const norm=s=>(s||'').toLowerCase();
-  const hNames=(homeNames||[]).filter(Boolean).map(norm);
-  const aNames=(awayNames||[]).filter(Boolean).map(norm);
-  // Some scraped blurbs' "detail" field is a full standings/leaderboard
-  // page dump (every ranked team's record, league leaders, etc.), not a
-  // targeted note -- matching against that would flag almost every team
-  // as "mentioned" on almost every card, which is technically true but
-  // not actually relevant. Long detail blocks (>400 chars, empirically a
-  // full-page dump vs. a real note) only count as a match if the team is
-  // named in the headline itself; short/targeted blurbs still match on
-  // either field.
-  const mentions=(item,names)=>{
-    const headline=norm(item.headline);
-    const detail=norm(item.detail);
-    const detailIsDump=detail.length>400;
-    const text=detailIsDump?headline:headline+' '+detail;
-    return names.some(n=>n.length>=3&&text.indexOf(n)>=0);
-  };
-  return{
-    home:items.filter(it=>mentions(it,hNames)).slice(0,2),
-    away:items.filter(it=>mentions(it,aNames)).slice(0,2),
-  };
-}
-// Renders the matched blurbs as a compact card-footer section — same
-// visual language as renderStatMuseInsights' section-level version, just
-// scoped to one matchup and inline (returns an HTML string, not a DOM
-// side-effect) so it can be embedded directly inside a game card's own
-// template string.
-function _statmuseGameInsightsHTML(section,homeAbbr,homeNames,awayAbbr,awayNames){
-  const m=_statmuseForGame(section,homeNames,awayNames);
-  if(!m.home.length&&!m.away.length)return'';
-  const row=(label,items)=>items.length?`<div style="margin-bottom:4px"><span style="color:var(--ic);font-weight:700">${label}</span> ${items.map(n=>n.headline+(n.detail?' — '+n.detail:'')).join(' · ')}</div>`:'';
-  return`<div style="margin-top:6px;padding:6px 9px;background:rgba(0,240,255,.04);border:1px solid rgba(0,240,255,.15);border-radius:3px">
-    <div style="font-family:var(--mono);font-size:12px;color:var(--ic);letter-spacing:1.5px;margin-bottom:4px">◆ STATMUSE INSIGHTS</div>
-    <div style="font-family:var(--mono);font-size:13px;color:var(--t2);line-height:1.5">${row(homeAbbr,m.home)}${row(awayAbbr,m.away)}</div>
-  </div>`;
-}
-
 // ═══ CFB DATA LOADER + MC SIM ENGINE ══════════════════════════════════
 // Three source files (scripts/fetch_cfb.py): cfb_teams.json (conference
 // rosters), cfb_power.json (AP Top 25 + FPI/Resume/Efficiencies),
@@ -6349,7 +6277,6 @@ function _cfbGameCard(g){
         <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">SPREAD REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${sprdReasoning}</div></div>
         <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">O/U REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${ouReasoning}</div></div>
       </div>
-      ${(()=>{try{return _statmuseGameInsightsHTML('cfb',g.home,[g.homeName,g.home],g.away,[g.awayName,g.away]);}catch(e){return'';}})()}
     </div>
   </div>`;
 }
@@ -6998,7 +6925,6 @@ function _nflGameCard2(g){
       </div>
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
       <div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${reasoning}</div>
-      ${(()=>{try{return _statmuseGameInsightsHTML('nfl',g.home,[g.homeName,g.home],g.away,[g.awayName,g.away]);}catch(e){return'';}})()}
     </div>
   </div>`;
 }
@@ -7190,39 +7116,6 @@ function renderNFLInjuryTransactionNews(containerId){
   el.innerHTML=injuryHtml+txHtml||'<div class="empty">NO NFL INJURY/TRANSACTION DATA LOADED YET</div>';
 }
 
-function renderStatMuseInsights(section, anchorId, limit){
-  const anchor=document.getElementById(anchorId);if(!anchor)return;
-  const hostId=anchorId+'-statmuse';
-  let host=document.getElementById(hostId);
-  if(!host){anchor.insertAdjacentHTML('afterend','<div id="'+hostId+'"></div>');host=document.getElementById(hostId);}
-  const items=((_STATMUSE||{}).sections||{})[section]||[];
-  if(!items.length){host.innerHTML='';return;}
-  host.innerHTML=`<div class="sh" style="margin:8px 0 6px"><span style="color:var(--ic)">◆</span> STATMUSE INSIGHTS</div>`+
-    items.slice(0,limit||6).map(n=>`<div class="card" style="border-left:2px solid var(--ic);margin-bottom:5px;padding:8px 10px">
-      <div style="font-family:var(--mono);font-size:17px;color:var(--t1);line-height:1.5">${n.headline}</div>
-      ${n.detail?`<div style="font-size:15px;color:var(--t3);margin-top:3px;line-height:1.4">${n.detail}</div>`:''}
-    </div>`).join('');
-}
-// Secondary cross-check only — never a primary input. Blends in at most
-// 10% weight, and only when StatMuse's own number is within 35% of the
-// sim's existing average (a bigger gap is far more likely a name
-// collision — e.g. two different "AJ"-initialed players — than a real
-// signal, and this must never be able to meaningfully move a sim's
-// output). Fails safe to the original average whenever StatMuse data
-// isn't loaded yet, has no entry for the player, or doesn't have this
-// specific stat — this is a minor addition to *inform* the sim with
-// more context, never something that can hurt it.
-function _statmuseFormNudge(playerName, statKey, currentAvg){
-  if(currentAvg==null||!isFinite(currentAvg))return currentAvg;
-  const table=(_STATMUSE||{}).player_stats||{};
-  const entry=table[(playerName||'').toLowerCase()];
-  if(!entry)return currentAvg;
-  const smVal=entry[statKey];
-  if(smVal==null||!isFinite(smVal))return currentAvg;
-  const diff=Math.abs(smVal-currentAvg)/Math.max(1,currentAvg);
-  if(diff>0.35)return currentAvg;
-  return +(currentAvg*0.9+smVal*0.1).toFixed(2);
-}
 function renderInjuryNews(sport, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
@@ -7256,7 +7149,6 @@ function renderNHLPicks(){
   const el=document.getElementById('nhl-picks');if(!el)return;
   renderNHLCFCards();
   renderInjuryNews('nhl','nhl-injury-news');
-  loadStatMuse().then(()=>renderStatMuseInsights('nhl','nhl-picks'));
   try{
     if(!TONIGHT.length){
       el.innerHTML=`<div class="empty">STANLEY CUP FINALS — CAR at VGK · VGK LEADS 2-1<br><span style="font-size:18px;color:var(--nc);display:block;margin-top:6px">G4 · June 9 · T-Mobile Arena, Las Vegas · 8 PM ET TNT</span><span style="font-size:17px;color:var(--t3);display:block;margin-top:3px">G1 @ PNC: VGK WIN · G2 @ PNC: CAR WIN · G3 @ T-Mobile: VGK WIN · VGK leads 2-1</span></div>`;
@@ -7520,7 +7412,6 @@ function _nhlGameCard(espnEv){
     }catch(e){return'';}})()}
     <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
     <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm3.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
-    ${(()=>{try{return _statmuseGameInsightsHTML('nhl',hn,[_TEAM_NAMES?.NHL?.[hn],hn],an,[_TEAM_NAMES?.NHL?.[an],an]);}catch(e){return'';}})()}
   </div>
   <div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px">
     <span class="mono" style="font-size:16px;color:var(--t3)">MC:${(ens.mc*100).toFixed(0)}% xGF:${(ens.xgf*100).toFixed(0)}% ELO:${(ens.elo*100).toFixed(0)}%</span>
@@ -9368,7 +9259,6 @@ function _nbaGameCard(espnEv){
     }):''}
     <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
     <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nmNBA.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
-    ${(()=>{try{return _statmuseGameInsightsHTML('nba',hn,[_TEAM_NAMES?.NBA?.[hn],hn],an,[_TEAM_NAMES?.NBA?.[an],an]);}catch(e){return'';}})()}
   </div>
   <div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px">
     <span class="mono" style="font-size:16px;color:var(--t3)">MC:${(ens.mc*100).toFixed(0)}% BAY:${(ens.bay*100).toFixed(0)}% ELO:${(ens.elo*100).toFixed(0)}%${espnHL?' ESPN:blended':''}</span>
@@ -9740,7 +9630,6 @@ function renderNBACFCards(){
 function renderNBAPicks(){
   renderNBAFinalsPreview(document.getElementById('nba-finals-preview'));
   renderNBAFinalsProps('nba-finals-props');
-  loadStatMuse().then(()=>renderStatMuseInsights('nba','nba-picks-list'));
   const el=document.getElementById('nba-picks-list');if(!el)return;
   const picks=NBA_TONIGHT.map(g=>{
     const ht=NBA_TEAMS[g.h]||{},at=NBA_TEAMS[g.a]||{};
@@ -10176,7 +10065,7 @@ function _generateNBAProps(games,statsData){
         var pKey=pl.name+'_'+statKey;if(seen.has(pKey))return;
         var base=pl[statKey];if(base==null||base<minAvg)return;
         seen.add(pKey);
-        var baseN=_statmuseFormNudge(pl.name,label,base);
+        var baseN=base;
         var line=parseFloat(_forceHalfLine(baseN));
         var adjMu=Math.max(0.1,baseN*(1+factor));
         var sigma=Math.max(minAvg*0.3,baseN*cv);
@@ -14041,7 +13930,7 @@ function setSub(sport,sub){
   // (see cfbSubTab/renderCFBGames) — renderGenericWeek is still called here
   // too, but only to keep _genericWeekCache warm for the Parlay tab's CFB
   // leg-gathering, which reads that cache independently.
-  if(sport==='fb'&&sub==='cfb'){try{renderGenericWeek('cfb-week-list','football/college-football','CFB');cfbSubTab(window._cfbActiveTab||'games');loadStatMuse().then(()=>renderStatMuseInsights('cfb','cfb-games-list'));}catch(e){}}
+  if(sport==='fb'&&sub==='cfb'){try{renderGenericWeek('cfb-week-list','football/college-football','CFB');cfbSubTab(window._cfbActiveTab||'games');}catch(e){}}
   if(sport==='fb'&&sub==='nfl'){try{renderGenericWeek('nfl-week-list','football/nfl','NFL');nflSubTab2(window._nflActiveTab||'games');}catch(e){}}
 }
 
@@ -20773,45 +20662,6 @@ function loadSoccerScheduleSnapshot(){
   return _socSchedSnapLoading;
 }
 
-// Per-league StatMuse feed -- filters the one shared, undifferentiated
-// _STATMUSE.sections.soccer bucket down to only the blurbs that mention
-// a real team from THIS league's own roster (via _fetchLeagueStandings,
-// ESPN's own standings -- not a hand-maintained team list, so it stays
-// correct across promotion/relegation and new seasons). Mirrors
-// _statmuseForGame's mention-based matching (long "detail" dumps only
-// count if the team's named in the headline itself), just against a
-// whole league's roster instead of one game's two teams. Renders
-// nothing (not a generic filler) when no real blurb names a team from
-// this league -- same "never fake relevance" rule as the per-game version.
-async function _socLeagueTeamNames(leagueKey){
-  const rows=await _fetchLeagueStandings(leagueKey);
-  return(rows||[]).map(r=>r.name).filter(Boolean);
-}
-async function renderLeagueStatMuseInsights(leagueKey,anchorId){
-  const anchor=document.getElementById(anchorId);if(!anchor)return;
-  const hostId=anchorId+'-statmuse';
-  let host=document.getElementById(hostId);
-  if(!host){anchor.insertAdjacentHTML('afterend','<div id="'+hostId+'"></div>');host=document.getElementById(hostId);}
-  const items=((_STATMUSE||{}).sections||{}).soccer||[];
-  if(!items.length){host.innerHTML='';return;}
-  const names=(await _socLeagueTeamNames(leagueKey)).map(n=>n.toLowerCase());
-  if(!names.length){host.innerHTML='';return;} // no real roster to filter against -- don't guess, show nothing
-  const mentions=item=>{
-    const headline=(item.headline||'').toLowerCase();
-    const detail=(item.detail||'').toLowerCase();
-    const detailIsDump=detail.length>400;
-    const text=detailIsDump?headline:headline+' '+detail;
-    return names.some(n=>n.length>=3&&text.indexOf(n)>=0);
-  };
-  const matched=items.filter(mentions).slice(0,6);
-  if(!matched.length){host.innerHTML='';return;}
-  const cfg=_LEAGUE_CFG[leagueKey]||{};
-  host.innerHTML=`<div class="sh" style="margin:8px 0 6px"><span style="color:var(--ic)">◆</span> STATMUSE INSIGHTS — ${cfg.name||leagueKey.toUpperCase()}</div>`+
-    matched.map(n=>`<div class="card" style="border-left:2px solid var(--ic);margin-bottom:5px;padding:8px 10px">
-      <div style="font-family:var(--mono);font-size:17px;color:var(--t1);line-height:1.5">${n.headline}</div>
-      ${n.detail?`<div style="font-size:15px;color:var(--t3);margin-top:3px;line-height:1.4">${n.detail}</div>`:''}
-    </div>`).join('');
-}
 
 function _socGC(p){var e=ev(p,1.909);var t=tier(p,e);if(t===3)return{c:'chip-g',pl:'pg',lb:'PREMIUM'};if(t===2)return{c:'chip-p',pl:'pp',lb:'OPTIMAL'};if(t===1)return{c:'chip-n',pl:'pn',lb:'LEAN'};return{c:'chip-h',pl:'ph',lb:'SKIP'};}
 function _renderSocMatchCard(g,leagueKey){
@@ -21019,7 +20869,6 @@ function _renderSocMatchCard(g,leagueKey){
     })
     +'<div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">'+explanation+'</div>'
     +'<div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: '+_mkts.mkts.map(function(m){return m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN];}).join(' · ')+'</div>'
-    +(function(){try{return _statmuseGameInsightsHTML('soccer',hc,[g.home],ac,[g.away]);}catch(e){return'';}})()
     +'</div>'
     +'<div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px">'
     +'<span class="mono" style="font-size:16px;color:var(--t3)">xG: '+g.home+' '+hxg.toFixed(2)+' · '+g.away+' '+axg.toFixed(2)+' · H:'+Math.round(hP*100)+'% D:'+Math.round(dP*100)+'% A:'+Math.round(aP*100)+'%</span>'
@@ -21078,16 +20927,6 @@ async function _fetchMLSScheduleReal(){
 
 async function renderLeagueMatches(key){
   var el=document.getElementById(key+'-matches-list');if(!el)return;
-  // Per-league StatMuse soccer feed. StatMuse's own scrape (statmuse.com/fc)
-  // covers every league in one undifferentiated bucket with no league tag
-  // per blurb -- this used to just dump that whole mixed bucket once, into
-  // MLS's tab, so a Bundesliga or Serie A headline could show up under
-  // "MLS insights" with nothing to say otherwise. Now filtered to only the
-  // blurbs that actually mention one of THIS league's real teams (from
-  // ESPN's own standings, not a hand-maintained list), same mention-based
-  // technique _statmuseForGame already uses per-game -- wired into every
-  // league's own tab, not just MLS.
-  loadStatMuse().then(()=>renderLeagueStatMuseInsights(key,key+'-matches-list'));
   // Prefetch this league's Opta detail (offense/defense radar breakdown)
   // if it's one of the 4 covered leagues, then re-render once it lands --
   // same prefetch-then-rerender pattern CFB's weather uses. Renders once
