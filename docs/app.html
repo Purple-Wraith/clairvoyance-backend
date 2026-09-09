@@ -2146,17 +2146,11 @@ let NBA_ENS={mc:.50,bay:.20,elo:.30};
 // ('SOC'/'WC') is intentionally excluded: different model, different context.
 const _SOC_LEAGUE_TAGS=new Set(['PL','LIGA','BUND','BL','CL','SERIEA','MLS']);
 const SPORT_CAL={
-  MLB:{B:0.033}, // avg model 65.6% → calibrated ~66.4% (actual 67.4%, 1348-bet sample)
+  // MLB and WNBA constants removed 2026-09-08 -- both sports retired from
+  // the engine entirely, and nothing calls sportCalibrate(p,'MLB'|'WNBA')
+  // anymore (grep-confirmed zero remaining callers).
   NHL:{B:0.41},  // avg model 57.8% → calibrated ~66.8% (actual 79.3%, 121-bet sample)
   NBA:{B:0.55},  // avg model 62.0% → calibrated ~74%  (actual 86.7%) -- stale (44-bet sample), not touched this pass
-  // Adaptive-learning coverage audit found WNBA had a real proprietary
-  // ensemble (wnbaEns) that never ran through sportCalibrate() at all --
-  // zero correction applied to the actual probability, unlike every other
-  // single-win-prob sport. Real settled-bet check: 329-bet sample, avg
-  // model 57.8% vs actual 75.1% -- same underconfidence direction as every
-  // other sport calibrated this session, and the largest real sample of
-  // any sport calibrated so far (bigger than NHL's 121 or TEN's 260).
-  WNBA:{B:0.3148}, // avg model 57.8% → calibrated ~68.6% (actual 75.1%, 329-bet sample)
   // Soccer's 3-way (home/draw/away) market never ran through calibration
   // at all -- the biggest remaining coverage gap the adaptive-learning
   // audit found. Unlike a single win-prob sport, there's no one number to
@@ -10575,14 +10569,15 @@ function renderOverall(){
   // Real gap found (2026-09-02 MLB-accuracy audit, explicit per-band-
   // system follow-up): the block above pools EVERY sport's settled bets
   // into one shared set of probability bands -- a sport with a real,
-  // distinct miscalibration (MLB badly overconfident at 75%+, while
-  // other sports in that same band are underconfident) gets averaged
-  // together with whichever other sports land in the same band,
-  // diluting/masking each sport's true, separate correction. Computed
-  // only for the 4 sports sportCalibrate()/SPORT_CAL already special-
-  // case (MLB/NHL/NBA/TEN) -- every other sport (soccer, CFB, NFL,
-  // WNBA, CBB, props, etc.) keeps using the global/blended adjustment
-  // above exactly as before, unchanged. Deliberately NOT threaded
+  // distinct miscalibration gets averaged together with whichever other
+  // sports land in the same band, diluting/masking each sport's true,
+  // separate correction. Computed only for the sports sportCalibrate()/
+  // SPORT_CAL still special-case (NHL/NBA/SOC -- MLB, WNBA, and TEN were
+  // all removed 2026-09-08/earlier when their engines were fully retired;
+  // nothing calls sportCalibrate() with any of those three tags anymore)
+  // -- every other sport (CFB, NFL, props, etc.) keeps using the global/
+  // blended adjustment above exactly as before, unchanged. Deliberately
+  // NOT threaded
   // through tier()'s own separate _calAdjProbByType call (~30 call
   // sites across every sport's pick-generation code, several of them
   // dense one-line template literals) -- sportCalibrate() is the
@@ -10617,7 +10612,7 @@ function renderOverall(){
     }
     return out;
   };
-  for(const _sp of ['MLB','NHL','NBA','TEN','WNBA','SOC']){
+  for(const _sp of ['NHL','NBA','SOC']){
     // _spUC precomputed once per pick near the top of this function (see
     // that comment for why mutating these fresh getP() objects is safe)
     // -- reused here instead of recomputing .toUpperCase() per item per
@@ -10626,9 +10621,7 @@ function renderOverall(){
     // renderOverall() before this change (8.25s vs the 0.9-3.7s range
     // already established), confirming this run into the same redundant-
     // recompute pattern already fixed elsewhere in this function.
-    const _spBets=_sp==='TEN'
-      ?settled.filter(p=>p._spUC==='ATP'||p._spUC==='WTA')
-      :_sp==='SOC'
+    const _spBets=_sp==='SOC'
       ?settled.filter(p=>_SOC_LEAGUE_TAGS.has(p._spUC))
       :settled.filter(p=>p._spUC===_sp);
     _newAdjBySport[_sp]=_calcBandAdjFor(_spBets,_prevAdjBySport[_sp]||{});
