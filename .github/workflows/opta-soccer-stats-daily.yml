@@ -43,7 +43,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -q playwright
+          pip install -q playwright requests
           playwright install chromium --with-deps
 
       - name: Scrape and push
