@@ -13002,6 +13002,35 @@ async function autoSettlePropsESPN(targetDate){
   // happens to list them first.
   function extractNFLStat(teamData,propPlayer,statWordsUpper){
     const sw=statWordsUpper.toLowerCase();
+    // Real gap, found via audit: Anytime TD (added same session as the
+    // MC-sim work) was never wired into settlement -- NFL_STAT_MAP only
+    // knows the original 7 categories, so an Anytime TD prop would hit
+    // the "unrecognized stat -> don't guess" bail-out below and sit
+    // pending forever. Combines real rushing + receiving TDs into one
+    // total, matching _nflBuildAnytimeTDRow's own definition exactly
+    // (passing TDs excluded -- thrown, not scored, by the QB) -- can't
+    // reuse the single-category-block lookup below since this one
+    // genuinely spans two blocks and needs their sum, not either alone.
+    if(sw.includes('anytime')){
+      let total=null,dName=null;
+      for(const cat of['rushing','receiving']){
+        for(const statBlock of teamData.statistics||[]){
+          const blockName=(statBlock.name||statBlock.displayName||'').toLowerCase();
+          if(!blockName.includes(cat))continue;
+          const names=statBlock.names||[];
+          const idx=names.findIndex(n=>(n||'').toUpperCase()==='TD');
+          if(idx<0)continue;
+          for(const ath of statBlock.athletes||[]){
+            const dn=ath.athlete?.displayName||'';
+            if(!nameMatch(dn,propPlayer))continue;
+            const raw=(ath.stats||[])[idx];
+            const val=parseFloat(raw);
+            if(!isNaN(val)){total=(total||0)+val;dName=dn;}
+          }
+        }
+      }
+      return total===null?null:{dName,val:total};
+    }
     const match=NFL_STAT_MAP.find(m=>m.kw.some(k=>sw===k||sw.includes(k)));
     if(!match)return null; // unrecognized stat label -> don't guess
     for(const statBlock of teamData.statistics||[]){
