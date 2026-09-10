@@ -1074,8 +1074,32 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
     # CFB) needs or has any to filter, so props are simply included only on
     # the unscoped (full) run.
     if only_sports is None:
+        # NFL-specific cap, found necessary the day the real-roster fix
+        # landed: before that fix, propDiag.nfl was always near-empty (the
+        # old team-"leaders" data source never had more than a handful of
+        # players), so this loop's total NFL volume was naturally tiny.
+        # Once real rosters flowed in (9-15 skill players/team x up to 8
+        # categories each, including the new Anytime TD market), a single
+        # game can produce 90+ candidate prop rows -- with no per-game cap,
+        # every PREMIUM/OPTIMAL one of those would lock, which could mean
+        # dozens of correlated same-game prop picks a day. GAME legs
+        # already have an equivalent same-game correlated-market cap right
+        # above this block; props never did. Capped at the best 5 per game
+        # by grade then likelihood, mirroring that same philosophy.
+        NFL_PROPS_PER_GAME_CAP = 5
+        _grade_rank = {"PREMIUM": 0, "OPTIMAL": 1}
+        nfl_props_by_game: dict[str, list[dict]] = {}
         for p in result.get("propLegs") or []:
-            if p.get("grade") in ("PREMIUM", "OPTIMAL"):
+            if p.get("grade") not in ("PREMIUM", "OPTIMAL"):
+                continue
+            if p.get("sportTag") == "NFL":
+                game_id = (p.get("_nflGame") or {}).get("id") or f"{p.get('team')}_{p.get('opp')}"
+                nfl_props_by_game.setdefault(game_id, []).append(p)
+            else:
+                qualifying.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": p})
+        for game_id, props in nfl_props_by_game.items():
+            props.sort(key=lambda p: (_grade_rank.get(p.get("grade"), 2), -(p.get("likelihood") or 0)))
+            for p in props[:NFL_PROPS_PER_GAME_CAP]:
                 qualifying.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": p})
     return qualifying
 
