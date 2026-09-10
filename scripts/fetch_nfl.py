@@ -368,12 +368,49 @@ def fetch_all_team_stats(roster: list[dict], season: int) -> dict:
 _NFL_SKILL_POSITIONS = {"QB", "RB", "WR", "TE"}
 
 
+def fetch_team_depth_chart_qb1(team_id: str) -> str | None:
+    """Real starter identification via ESPN's live depth chart, not a
+    guess -- explicit request to only ever build QB props for the
+    actual QB1, since (unlike RB/WR, where several players genuinely
+    see real game action every week) exactly one QB starts. Verified
+    live across 4 real teams before trusting this: structurally
+    consistent (a 'qb' key always resolvable by searching every
+    formation entry, not tied to one hardcoded formation name/label),
+    and its ordering matched known real starters for 3 of the 4 (KC/
+    PHI/SEA) -- the 4th (ARI) has a separate, real ESPN-side data gap
+    (their actual starting QB doesn't appear ANYWHERE in ESPN's roster
+    feed, not even injured reserve), which no amount of depth-chart
+    cross-referencing on our end can fix, only avoid making worse by
+    substituting a wrong backup instead. Returns None (not a guess) if
+    the depth chart fetch fails or has no resolvable QB group, so the
+    caller can fall back to the pre-depth-chart behavior rather than
+    silently dropping QB coverage for that team entirely."""
+    try:
+        r = requests.get(f"{ESPN_BASE}/teams/{team_id}/depthcharts", headers=HEADERS, timeout=15)
+        r.raise_for_status()
+        d = r.json()
+    except Exception as exc:
+        _log(f"  team {team_id} depth chart FAILED: {exc}")
+        return None
+    for chart in d.get("depthchart") or []:
+        qb_group = (chart.get("positions") or {}).get("qb")
+        if qb_group:
+            athletes = qb_group.get("athletes") or []
+            if athletes:
+                return athletes[0].get("id")
+    return None
+
+
 def fetch_team_roster(team_id: str) -> list[dict]:
     """Real active roster for one team, filtered to offensive skill
-    positions only (props are only ever built for QB/RB/WR/TE/FB) --
+    positions only (props are only ever built for QB/RB/WR/TE) --
     excludes the injuredReserveOrOut/suspended/practiceSquad groups
     ESPN's roster response also returns, since those players aren't
-    live game-day candidates."""
+    live game-day candidates. QB is further filtered down to just the
+    real depth-chart QB1 -- RB/WR/TE are deliberately left as every
+    active player at that position, since multiple backs and receivers
+    genuinely see real snaps most weeks, unlike QB where only one
+    player starts."""
     try:
         r = requests.get(f"{ESPN_BASE}/teams/{team_id}/roster", headers=HEADERS, timeout=15)
         r.raise_for_status()
@@ -381,6 +418,7 @@ def fetch_team_roster(team_id: str) -> list[dict]:
     except Exception as exc:
         _log(f"  team {team_id} roster FAILED: {exc}")
         return []
+    qb1_id = fetch_team_depth_chart_qb1(team_id)
     players = []
     for grp in d.get("athletes") or []:
         if grp.get("position") != "offense":
@@ -389,6 +427,11 @@ def fetch_team_roster(team_id: str) -> list[dict]:
             pos = (item.get("position") or {}).get("abbreviation")
             aid = item.get("id")
             if not aid or pos not in _NFL_SKILL_POSITIONS:
+                continue
+            # qb1_id is None only when the depth-chart lookup itself
+            # failed -- fall back to every roster QB rather than
+            # silently dropping the position for this team.
+            if pos == "QB" and qb1_id is not None and aid != qb1_id:
                 continue
             players.append({"id": aid, "name": item.get("fullName") or item.get("displayName"), "position": pos})
     return players
