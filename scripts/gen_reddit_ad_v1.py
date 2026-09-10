@@ -96,7 +96,7 @@ vy += 46
 draw = ImageDraw.Draw(base)
 cf = mono(19)
 dotted_row(draw, ['NFL', 'CFB', 'NBA', 'NHL'], vy + 8, cf)
-vy += 32
+vy += 28
 dotted_row(draw, ['Bundesliga', 'Serie A', 'La Liga'], vy + 8, cf)
 vy += 28
 dotted_row(draw, ['MLS', 'Premier League', 'Champions League'], vy + 8, cf)
