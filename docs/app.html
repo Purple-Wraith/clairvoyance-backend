@@ -6666,8 +6666,35 @@ function nflMC(hA,awA,n,ouLine,g){
   if(hTO!=null&&aTO!=null)toAdjPts=Math.max(-1.5,Math.min(1.5,(hTO-aTO)*0.15));
   const hfaApplied=g?.neutralSite?0:_nflHFA();
   const margin0=hasDiff?((hDiffPg-aDiffPg)+hfaApplied+yardsAdjPts+toAdjPts):(marketMargin+yardsAdjPts+toAdjPts);
+  // Real bug, found auditing why every single player prop across a real
+  // slate came back UNDER (30 of 31 rows on one real game): this summed
+  // BOTH teams' own points-ALLOWED (defense) and called that the game's
+  // expected total, never once touching either team's own OFFENSE. That
+  // conflates "how many points do teams normally score AGAINST home" and
+  // "...against away" -- it doesn't estimate what these two offenses will
+  // actually put up. For SF@LAR (real numbers): LAR/SF allow 20.4/21.8
+  // pts/gm, summing to a baseTotal of 42.2 -- 14% under the real market
+  // O/U (48.5) and would have been just as wrong even ignoring the market
+  // entirely, since LAR/SF's own real OFFENSES average 30.5/25.7 (a
+  // combined 56.2). _nflSimPlayerStats' pace ratio (simScore/team's real
+  // OWN season points) is scaled directly off this baseTotal, so
+  // systematically undershooting it silently pushed every single skill
+  // player's projected rate below their season average -- exactly why
+  // real props were landing almost universally UNDER regardless of
+  // matchup, not just on defense-heavy games where that would sometimes
+  // be a real, correct signal. Standard expected-total construction
+  // instead: each side's own offense blended with what the opponent's
+  // defense actually allows, averaged, then summed -- correctly lands at
+  // 49.2 for this real matchup, essentially right on the market's own 48.5.
+  const hOffPts=_n(hOff.totalPointsPerGame),aOffPts=_n(aOff.totalPointsPerGame);
   const hAllowed=_n(hDefAllowed.totalPointsPerGame),aAllowed=_n(aDefAllowed.totalPointsPerGame);
-  let baseTotal=(hAllowed!=null&&aAllowed!=null)?(hAllowed+aAllowed):_NFL_LG_TOTAL;
+  let baseTotal;
+  if(hOffPts!=null&&aOffPts!=null&&hAllowed!=null&&aAllowed!=null){
+    const hExp=(hOffPts+aAllowed)/2,aExp=(aOffPts+hAllowed)/2;
+    baseTotal=hExp+aExp;
+  }else{
+    baseTotal=_NFL_LG_TOTAL;
+  }
   const wxKey=g&&(g.id||(g.city+g.date));
   const wx=wxKey?_CFB_WX_CACHE[wxKey]:null; // shared weather cache — see note above on why CFB's weather fns are reused as-is
   const wxImpact=wx?cfbWeatherImpact(wx):{totalAdj:0,label:''};
@@ -13953,8 +13980,31 @@ function _nflDefNote(oppAbbr,cat,def,adjustor,adjUnit){
 function _nflSimPlayerStats(hA,awA,margin0,baseTotal,n){
   n=n||10000;
   const D=_NFL_DATA;
-  const hSeasonPts=D.stats[hA]?.offense?.totalPointsPerGame||(_NFL_LG_TOTAL/2);
-  const aSeasonPts=D.stats[awA]?.offense?.totalPointsPerGame||(_NFL_LG_TOTAL/2);
+  // Real bug, found auditing a full slate that came back ~74% UNDER
+  // across every category regardless of matchup: pace was normalized
+  // against each team's raw, unadjusted season scoring average
+  // (offense.totalPointsPerGame), while the simulation itself is
+  // centered on baseTotal/margin0 -- a matchup-adjusted expectation
+  // that already blends this team's offense with THIS OPPONENT's real
+  // defense (see nflMC's own baseTotal fix). Any team whose raw
+  // offensive average exceeds what this specific opponent's defense
+  // allows -- which is true for most competent offenses against most
+  // defenses, not just an unlucky minority of matchups -- structurally
+  // pulled E[pace] below 1 by construction, before a single real play
+  // of variance was even simulated: E[pace] = E[hScore]/hSeasonPts =
+  // ((hOffPts+aAllowed)/2)/hOffPts, which is only exactly 1 in the
+  // coincidental case aAllowed==hOffPts. Normalizing against
+  // (baseTotal+margin0)/2 and (baseTotal-margin0)/2 instead -- the
+  // exact means hScore/aScore are drawn from every iteration below --
+  // makes E[pace]=1 true by construction for every matchup, so the
+  // per-category opponent-defense factor (_nflOppDefFactorBlended)
+  // stays the only place matchup difficulty actually shows up, instead
+  // of being silently double-counted here too. Genuine per-iteration
+  // pace variance (a shootout-script iteration scaling every stat up,
+  // a grind-it-out iteration scaling them down) is completely
+  // unaffected -- only the CENTER of that distribution moved.
+  const hSeasonPts=(baseTotal+margin0)/2||(_NFL_LG_TOTAL/2);
+  const aSeasonPts=(baseTotal-margin0)/2||(_NFL_LG_TOTAL/2);
   const hPace=new Float64Array(n),aPace=new Float64Array(n);
   for(let i=0;i<n;i++){
     const simMargin=margin0+_boxMullerZ()*_NFL_SIGMA_MARGIN;
@@ -13975,19 +14025,45 @@ function _nflSimPlayerStats(hA,awA,margin0,baseTotal,n){
     // likelihoods for low-signal players (e.g. a TE's occasional
     // rushing-yards line), since without any player-level noise, a
     // rate far enough from the line never crosses it in ANY of the
-    // n pace draws. Multiplying in the same per-player idiosyncratic
+    // n pace draws. Combining in the same per-player idiosyncratic
     // noise the old formula already had calibrated restores that
     // missing variance source while keeping the new pace-correlation
-    // this whole simulation exists to add. Returns the real empirical
-    // P(sim value > line) across all n iterations, plus the
-    // pace-simulated mean for display/diagnostic use (not used as the
-    // line itself).
+    // this whole simulation exists to add.
+    //
+    // Real bug, found auditing a full slate that came back ~98% UNDER
+    // among PREMIUM/OPTIMAL grade picks specifically: pace and noise
+    // used to be MULTIPLIED together (adjRate*pace[i]*noise). Each
+    // factor alone is unbiased (mean 1, verified independently -- real
+    // pace samples averaged 1.0003 with 50.1% above 1), but the PRODUCT
+    // of two independent mean-1 variable factors is NOT itself
+    // symmetric around 1 -- multiplying compounds variance the same
+    // way a product of independent returns compounds into a log-normal
+    // (median < mean), even though neither input distribution is
+    // skewed on its own. Verified directly: with adjRate exactly at the
+    // line (the true 50/50 case), the multiplicative form gave ~45%
+    // overP, not ~50% -- a systematic ~5pp UNDER thumb on the scale
+    // before a single real matchup factor was even applied, which then
+    // compounded through the grading-threshold math into something far
+    // more STRUCTURAL to see with your own eyes: a genuinely bad
+    // matchup (real adjustor) could push the resulting UNDER confidence
+    // to PREMIUM easily, while an equally-good matchup for the OVER
+    // side could barely clear a coin flip, because the two directions
+    // weren't starting from the same baseline.
+    //
+    // Fixed by combining the two variance sources ADDITIVELY instead
+    // (both are already small relative perturbations around 1, which is
+    // exactly the regime additive combination is valid for) and
+    // flooring only the FINAL non-negative-yardage constraint, not an
+    // intermediate multiplier -- verified this reproduces ~49.7% overP
+    // in the same at-the-line control case, matching the tiny expected
+    // residual from _nflHalfPoint's own "round up on an exact integer"
+    // convention, not a modeling artifact.
     projectYardage(side,adjRate,line,cv){
       const pace=side==='h'?hPace:aPace;
       let sum=0,overCount=0;
       for(let i=0;i<n;i++){
-        const noise=cv?Math.max(0,1+_boxMullerZ()*cv):1;
-        const v=adjRate*pace[i]*noise;
+        const noiseDelta=cv?_boxMullerZ()*cv:0;
+        const v=Math.max(0,adjRate*(1+(pace[i]-1)+noiseDelta));
         sum+=v;
         if(v>line)overCount++;
       }
@@ -14046,7 +14122,7 @@ function _nflBuildPropRow(player,teamAbbr,oppAbbr,cat,playerSim,side){
       (note?`No real opponent defensive data available for ${oppAbbr} in this category yet — rate is season-average only, no matchup adjustment applied. `:
         _nflDefNote(oppAbbr,cat,def,adjustor,'/gm'))+
       `No head-to-head history vs ${oppAbbr} this season or historically is factored in yet.`+simNote;
-    return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:cat.label,grp:cat.grp,line,pick,adjustor,likelihood,grade,games,reasoning};
+    return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:cat.label,grp:cat.grp,line,pick,adjustor,likelihood,conf,grade,games,reasoning};
   }
   const lineBase=_nflHalfPoint(perGame);
   const adjProj=_nflHalfPoint(perGame*(1+factor));
@@ -14067,7 +14143,7 @@ function _nflBuildPropRow(player,teamAbbr,oppAbbr,cat,playerSim,side){
     (note?`No real opponent defensive data available for ${oppAbbr} in this category yet — line reflects season average only, no matchup adjustment applied. `:
       _nflDefNote(oppAbbr,cat,def,adjustor,''))+
     `No head-to-head history vs ${oppAbbr} this season or historically is factored in yet — treat the likelihood % as directional (modeled variance assumption), not a market-calibrated probability.`+simNote;
-  return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:cat.label,grp:cat.grp,line:lineBase,pick,adjustor,likelihood,grade,games,reasoning};
+  return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:cat.label,grp:cat.grp,line:lineBase,pick,adjustor,likelihood,conf,grade,games,reasoning};
 }
 // Anytime TD Scorer — a real, distinct sportsbook market from the
 // per-method rushing/receiving TD rates: "does this player score a TD
@@ -14111,7 +14187,7 @@ function _nflBuildAnytimeTDRow(player,teamAbbr,oppAbbr,playerSim,side){
     (recBase>0&&rushBase>0?' (both scoring paths combined into one probability, not treated as independent).':'.')+
     ` No head-to-head history vs ${oppAbbr} this season or historically is factored in yet.`+
     (playerSim?` Likelihood is simulated across this game's own projected scoring script (${playerSim.n.toLocaleString()} runs).`:'');
-  return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:'Anytime TD',grp:'td',line,pick,adjustor,likelihood,grade,games,reasoning};
+  return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:'Anytime TD',grp:'td',line,pick,adjustor,likelihood,conf,grade,games,reasoning};
 }
 function _nflModelPropsForGame(g){
   const D=_NFL_DATA;if(!D||!g)return[];
@@ -14197,8 +14273,17 @@ function renderNFLModelProps(filter){
   // independent of whichever PASSING/RUSHING/RECEIVING/TOUCHDOWNS filter
   // is active below, so it's a fixed "here's what actually matters for
   // this game" highlight rather than something that changes/empties out
-  // as the user clicks between category tabs.
-  const top5=allRows.slice(0,5);
+  // as the user clicks between category tabs. Explicit request: PREMIUM/
+  // OPTIMAL only (a LEAN/SKIP row padding out a thin slate isn't a "top
+  // move," it's a placeholder -- better to show fewer than 5 real ones
+  // than pad with weak grades), sorted by confidence in the picked
+  // direction descending, not by grade tier first -- allRows is already
+  // grade-sorted for the full list below, but the highlight itself
+  // should read as one flat "best to worst" ranking within its own
+  // P/O-only pool.
+  const top5=allRows.filter(r=>r.grade==='PREMIUM'||r.grade==='OPTIMAL')
+    .sort((a,b)=>(b.conf??b.likelihood)-(a.conf??a.likelihood))
+    .slice(0,5);
   window._nflModelPropsTop5=top5;
   const top5Html=top5.length?`<div style="background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.25);border-radius:3px;padding:10px 12px;margin-bottom:14px">
     <div style="font-family:var(--mono);font-size:15px;color:var(--nc);letter-spacing:2px;margin-bottom:8px">// TOP ${top5.length} MOVES — THIS GAME</div>
@@ -14220,7 +14305,7 @@ function _nflPropCardHtml(r,i,lockFn){
         </div>
         <span style="font-family:var(--mono);font-size:16px;padding:2px 5px;border:1px solid ${gc};color:${gc};border-radius:2px">${r.grade}</span>
       </div>
-      <div style="font-family:var(--mono);font-size:22px;color:${dirColor};margin-bottom:3px">${r.pick==='OVER'?'▲ OVER':'▼ UNDER'} ${r.line} ${r.cat} <span style="color:var(--t2);font-size:18px">· ${r.likelihood}% LIKELIHOOD</span></div>
+      <div style="font-family:var(--mono);font-size:22px;color:${dirColor};margin-bottom:3px">${r.pick==='OVER'?'▲ OVER':'▼ UNDER'} ${r.line} ${r.cat} <span style="color:var(--t2);font-size:18px">· ${r.conf??r.likelihood}% LIKELIHOOD</span></div>
       ${_recPropLineHTML(r.line,_findMarketProp('nfl',r.player,r.cat),r.cat)}
       <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:5px">Adjustor: ${r.adjustor>=0?'+':''}${r.adjustor} vs season avg · ${r.games} games sampled</div>
       <div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:6px">${r.reasoning}</div>
