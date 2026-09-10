@@ -365,7 +365,7 @@ def fetch_all_team_stats(roster: list[dict], season: int) -> dict:
 # per-athlete stats endpoint (confirmed live: returns passing/rushing/
 # receiving categories with a real per-player gamesPlayed count, more
 # accurate than the old approach's team-level win+loss approximation).
-_NFL_SKILL_POSITIONS = {"QB", "RB", "WR", "TE", "FB"}
+_NFL_SKILL_POSITIONS = {"QB", "RB", "WR", "TE"}
 
 
 def fetch_team_roster(team_id: str) -> list[dict]:
@@ -627,10 +627,22 @@ if __name__ == "__main__":
             else:
                 player_stats_season = int(time.strftime("%Y", time.gmtime()))
             player_stats = fetch_all_player_stats(roster_teams, player_stats_season)
-            total_players = sum(len(v) for v in player_stats.values())
-            if total_players == 0 and args.stats_season is None and stats_season is None:
-                _log(f"  season={player_stats_season} returned 0 players with stats league-wide -- "
-                     f"season hasn't started yet, falling back to {player_stats_season - 1}")
+            # Real bug, found via audit: an exact-zero check here missed
+            # the actual early-season case -- once even ONE game has been
+            # played (e.g. a Wednesday-night opener), a couple of that
+            # game's players already have 1 real game of current-season
+            # stats, so total_players is a small nonzero number instead of
+            # 0, and the season never fell back even though the other 30+
+            # teams still had nothing. Matches fetch_all_team_stats'
+            # existing team-level proportional check instead of an exact
+            # count: fall back unless at least half the LEAGUE's teams
+            # have any real current-season data yet.
+            teams_with_data = sum(1 for v in player_stats.values() if v)
+            if (teams_with_data < len(roster_teams) * 0.5
+                    and args.stats_season is None and stats_season is None):
+                _log(f"  season={player_stats_season} returned real stats for only "
+                     f"{teams_with_data}/{len(roster_teams)} teams -- season hasn't "
+                     f"started yet, falling back to {player_stats_season - 1}")
                 player_stats_season -= 1
                 player_stats = fetch_all_player_stats(roster_teams, player_stats_season)
             _write(PLAYER_STATS_OUT, {"season": player_stats_season, "teams": player_stats})
