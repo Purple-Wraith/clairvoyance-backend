@@ -14090,10 +14090,17 @@ function _nflPopulateModelPropsGameFilter(){
   // actually matters for props, not August exhibition games. D.weeks'
   // own key order already matches the real season order (fetch_nfl.py
   // writes it that way), so no separate sort is needed here.
+  // A completed week (every one of its games at state 'post') also
+  // drops off entirely -- there's no live prop use for a week whose
+  // games have all finished, and leaving it in just makes the list
+  // grow all season. A week with even one game still 'pre'/'in' stays
+  // (e.g. a Monday-nighter still to come), so nothing disappears while
+  // it's still actionable.
   let html='<option value="">SELECT A GAME…</option>';
   Object.entries(D.weeks||{}).forEach(([weekLabel,list])=>{
     const games=(list||[]).filter(g=>g.seasonType!==1);
     if(!games.length)return;
+    if(games.every(g=>g.state==='post'))return;
     html+=`<optgroup label="${weekLabel.toUpperCase()}">`
       +games.map(g=>`<option value="${g.id}">${g.away} @ ${g.home} — ${g.date?new Date(g.date).toLocaleDateString():''}</option>`).join('')
       +'</optgroup>';
