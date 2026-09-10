@@ -78,8 +78,9 @@ base = hline(base, 360, color=MAG, alpha=90)
 # ── Value proposition ────────────────────────────────────────────
 draw = ImageDraw.Draw(base)
 vp_lines = [
-    'Every pick is model-generated, graded, and published live —',
-    'no cherry-picking, no deleted losses, no hindsight bias.',
+    'Every pick uses mathematical precision, multi-layered ensemble models,',
+    'and adaptive intelligence.',
+    'Published live and graded on outcome — no cherry-picking, no deleted losses.',
 ]
 bf = mono(19)
 vy = 440
