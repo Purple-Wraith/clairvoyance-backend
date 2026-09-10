@@ -2052,6 +2052,17 @@ let _rankFilter='all';
 let ENS={mc:.50,bay:.20,elo:.30};
 let NHL_ENS={mc:.50,bay:.20,elo:.30,hv:.00};
 let NBA_ENS={mc:.50,bay:.20,elo:.30};
+// nflEns()/cfbEns() already read window.NFL_ENS/window.CFB_ENS (falling
+// back to these exact same defaults when unset) -- the consumption side
+// was built and ready, but until adaptiveTick() was fixed to actually
+// write to these two, nothing ever did, so NFL/CFB silently ran on their
+// hardcoded fallback forever. Declared here (matching cfbEns's real
+// {mc:.70,bay:.18,elo:.12} and nflEns's real {mc:.75,bay:.25}) so
+// adaptiveTick can read+update them the same way it already does for
+// NHL_ENS/NBA_ENS, instead of leaving them as bare fallback literals
+// only nflEns/cfbEns themselves knew about.
+window.NFL_ENS={mc:.75,bay:.25};
+window.CFB_ENS={mc:.70,bay:.18,elo:.12};
 // Tennis's own 5-component ensemble (elo/mc/form/serve/fat) — previously
 // hardcoded literals inside tennisMatchWinProbFull(), never adaptively
 // tuned from real settled-bet performance the way MLB/NHL/NBA/WNBA are.
@@ -4941,12 +4952,45 @@ function nhlEns(hA,awA){
   const mpHv=_mpNorm(mpH?.xgfPct??mpH?.xgf_pct),mpAv=_mpNorm(mpA?.xgfPct??mpA?.xgf_pct);
   const mpBoost=(mpHv!=null&&mpAv!=null)?(mpHv-mpAv)*.004:0;
   const edgeBoost=(h.edge?.avg_spd||20.5)-(aw.edge?.avg_spd||20.5);
-  const blended=mc.hwP*.45+xgf*.26+(mc.hwP+gE)*.19+sm*0.625+hvM*0.625+mpBoost+edgeBoost*.005+.04;
+  // Real bug, found auditing the Adaptive tab: this blend was fully
+  // hardcoded and never read NHL_ENS, so adaptiveTick()'s "NHL weight
+  // nudged UP/DOWN" findings never touched a single real NHL prediction.
+  // Unlike NBA, NHL's formula was never a clean 3-way MC/Bayesian/Elo
+  // weighted average -- NHL has no rating-based Elo signal anywhere in
+  // this codebase (confirmed: no NHL_ELO exists, unlike NBA_ELO/
+  // _CFB_DATA.elo) -- it's really MC (mc.hwP) + an xG-share rate stat
+  // (xgf) + a handful of small situational edges (goalie quality/gE,
+  // special teams/sm, home-value/hvM, MoneyPuck/mpBoost, skating speed/
+  // edgeBoost) added at fixed magnitudes, plus a flat +.04 home-ice
+  // constant (kept outside the weighted mix below, same role as NBA's
+  // own separate hfa constant). To let NHL_ENS.mc/.bay/.elo genuinely
+  // drive this without redesigning the model or shifting today's live
+  // predictions the moment this ships: mc.hwP and xgf are the only two
+  // genuinely independent, standalone probability-scale signals here (so
+  // they map onto MC/BAY cleanly); every other small edge term is
+  // combined into one composite "edgeRaw" signal mapped onto ELO, the
+  // slot NHL never had a real rating for. Each bucket is scaled by
+  // (its old fixed coefficient / NHL_ENS's declared default for that
+  // slot), so at NHL_ENS's default (.50/.20/.30) this reproduces the OLD
+  // formula EXACTLY (.64/.26/1.0 respectively -- .45+.19 both being
+  // mc.hwP-linear terms in the old formula) -- a true no-op today, that
+  // only diverges as adaptiveTick() actually nudges NHL_ENS from default.
+  const edgeRaw=gE*.19+sm*0.625+hvM*0.625+mpBoost+edgeBoost*.005;
+  const _nhlW=NHL_ENS||{mc:.50,bay:.20,elo:.30};
+  const blended=mc.hwP*(.64/.50)*_nhlW.mc+xgf*(.26/.20)*_nhlW.bay+edgeRaw*(1/.30)*_nhlW.elo+.04;
   let p=sportCalibrate(Math.min(.92,Math.max(.08,blended)),'NHL');
   const injH=computeInjuryImpact(hA,'nhl');
   const injA=computeInjuryImpact(awA,'nhl');
   p=Math.min(.92,Math.max(.08,p-injH.penalty+injA.penalty));
-  return{p,mc:mc.hwP,xgf,gE,hvM,sm,mcD:mc,injH,injA};
+  // bay/elo added to the returned object -- previously absent entirely
+  // (nhlEns() never had a bay/elo field), so every game-card display
+  // string reading ens.bay/ens.elo (e.g. "MC:X% BAY:Y% ELO:Z%") was
+  // silently rendering "NaN%" for both. bay=xgf (the real analytics
+  // signal feeding this blend); elo=0.5+edgeRaw, centered at 50% the
+  // same way mc/bay already read as roughly-0-1 confidence numbers, so
+  // it displays as "slightly above/below neutral" rather than a raw
+  // small delta.
+  return{p,mc:mc.hwP,bay:xgf,elo:Math.min(1,Math.max(0,.5+edgeRaw)),xgf,gE,hvM,sm,mcD:mc,injH,injA};
 }
 function renderBracket(){
   const el=document.getElementById('bracket');if(!el)return;
@@ -8960,7 +9004,20 @@ function nbaEns(hA,awA,espnGame){
   const hBay=nbaGetBayes(hA).m,aBay=nbaGetBayes(awA).m;
   const bay=Math.min(.90,Math.max(.10,hBay/(hBay+aBay)+hfa));
   const eloP=Math.min(.90,Math.max(.10,nbaEloWP(NBA_ELO[hA]||1550,NBA_ELO[awA]||1550)+hfa));
-  let p=Math.min(.90,Math.max(.10,(mc.hwP*.45+bay*.30+eloP*.25)));
+  // Real bug, found auditing the Adaptive tab: this blend used to be
+  // hardcoded (.45/.30/.25) and never actually read NBA_ENS, even though
+  // adaptiveTick() has been computing and displaying "NBA weight nudged
+  // UP/DOWN" the whole time -- those nudges never touched a single real
+  // NBA prediction. NBA_ENS's own declared default (.50/.20/.30) doesn't
+  // match these hardcoded coefficients, so a naive direct substitution
+  // would itself have shifted every live NBA prediction the moment this
+  // shipped, with zero adaptive tuning involved. Scaling each component
+  // by (its old hardcoded coefficient / NBA_ENS's declared default for
+  // that slot) makes this an exact no-op at NBA_ENS's default -- the
+  // live blend is identical to today's until adaptiveTick() actually
+  // nudges NBA_ENS away from default, and then it responds proportionally.
+  const _nbaW=NBA_ENS||{mc:.50,bay:.20,elo:.30};
+  let p=Math.min(.90,Math.max(.10,(mc.hwP*(.45/.50)*_nbaW.mc+bay*(.30/.20)*_nbaW.bay+eloP*(.25/.30)*_nbaW.elo)));
   // Blend with ESPN implied odds if available
   if(espnGame?.hL){const mld=ml2d(espnGame.hL);const imp=Math.min(.88,Math.max(.12,1/mld));p=p*.75+imp*.25;}
   p=sportCalibrate(p,'NBA');
@@ -12196,7 +12253,14 @@ function renderAdaptiveLearning(){
   if(state.status==='INSUFFICIENT_DATA'){el.innerHTML=html+`<div class="empty">${state.msg}</div>`;return;}
 
   // ── PERFORMANCE SNAPSHOT ─────────────────────────────────────────────────
-  const all=getP().filter(p=>p.outcome!=='pending');
+  // Same fix as adaptiveTick()'s own allPreds (see its comment): sorted
+  // chronologically and scoped to the engine's current real sports,
+  // instead of raw getP() order (id-string sorted, not time) -- this
+  // snapshot used to show a "recent" window built from whatever bets
+  // happened to sort last by id, confirmed live as NBA bets over a year
+  // stale on a September CL/NFL slate.
+  const all=getP().filter(p=>p.outcome!=='pending'&&_broadSportOf(_normSport(p))!==null)
+    .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
   const now=Date.now();
   const L10=all.slice(-10);const L30=all.slice(-30);
   const l10w=L10.filter(p=>p.outcome==='win').length;const l30w=L30.filter(p=>p.outcome==='win').length;
@@ -12221,7 +12285,7 @@ function renderAdaptiveLearning(){
   // ── WHAT CHANGED THIS CYCLE ──────────────────────────────────────────────
   if(prevState&&prevState.weights){
     const changes=[];
-    for(const sport of ['NHL','NBA']){const cw=state.weights?.[sport],pw=prevState.weights?.[sport];if(!cw||!pw)continue;for(const key of ['mc','bay','elo','form','serve','fat']){const delta=((cw[key]||0)-(pw[key]||0))*100;if(Math.abs(delta)>=0.8)changes.push({sport,key:key.toUpperCase(),delta});}}
+    for(const sport of ['NHL','NBA','NFL','CFB']){const cw=state.weights?.[sport],pw=prevState.weights?.[sport];if(!cw||!pw)continue;for(const key of ['mc','bay','elo','form','serve','fat']){const delta=((cw[key]||0)-(pw[key]||0))*100;if(Math.abs(delta)>=0.8)changes.push({sport,key:key.toUpperCase(),delta});}}
     const accDelta=((state.overallAcc||0)-(prevState.overallAcc||0))*100;
     const betsDelta=(state.totalBets||0)-(prevState.totalBets||0);
     html+=`<div class="card" style="margin-bottom:12px;padding:12px;border-left:3px solid var(--pc)">
@@ -12270,7 +12334,7 @@ function renderAdaptiveLearning(){
   // ── IMPLEMENTED THIS CYCLE ────────────────────────────────────────────────
   const implItems=[];
   if(prevState?.weights){
-    for(const sp of['NHL','NBA']){const cw=state.weights?.[sp],pw=prevState.weights?.[sp];if(!cw||!pw)continue;for(const k of['mc','bay','elo','form','serve','fat']){const d=((cw[k]||0)-(pw[k]||0))*100;if(Math.abs(d)>=0.5)implItems.push(`${sp} ${k.toUpperCase()} weight ${d>0?'increased':'decreased'} by ${Math.abs(d).toFixed(1)}%`);}}
+    for(const sp of['NHL','NBA','NFL','CFB']){const cw=state.weights?.[sp],pw=prevState.weights?.[sp];if(!cw||!pw)continue;for(const k of['mc','bay','elo','form','serve','fat']){const d=((cw[k]||0)-(pw[k]||0))*100;if(Math.abs(d)>=0.5)implItems.push(`${sp} ${k.toUpperCase()} weight ${d>0?'increased':'decreased'} by ${Math.abs(d).toFixed(1)}%`);}}
   }
   if(state.evThreshold&&prevState?.evThreshold&&Math.abs(state.evThreshold-prevState.evThreshold)>=0.1)
     implItems.push(`EV threshold adjusted from ${prevState.evThreshold.toFixed(1)}% to ${state.evThreshold.toFixed(1)}%`);
@@ -12282,14 +12346,23 @@ function renderAdaptiveLearning(){
   }
 
   // ── AUTO-TUNED ENSEMBLE WEIGHTS ───────────────────────────────────────────
+  // NFL/CFB added now that adaptiveTick() actually maintains window.
+  // NFL_ENS/window.CFB_ENS and nflEns()/cfbEns() actually read them (see
+  // their own comments) -- previously these nudges were entirely dead,
+  // and the display only ever covered NHL/NBA anyway. NFL is a real
+  // 2-component (MC/BAY) ensemble with no Elo signal, so the ELO row is
+  // only rendered when a sport's weights object actually has one --
+  // unconditionally reading w.elo for NFL would render "ELO: NaN%".
   html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--ic);margin:12px 0 6px">// AUTO-TUNED ENSEMBLE WEIGHTS</div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">
-    ${['NHL','NBA'].filter(s=>state.weights?.[s]).map(sport=>{
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-bottom:12px">
+    ${['NHL','NBA','NFL','CFB'].filter(s=>state.weights?.[s]).map(sport=>{
       const w=state.weights[sport];
       const sp=Object.entries(state.sportPerf||{}).find(([s])=>s===sport)?.[1];
+      const rows=[['MC',w.mc,'var(--pc)'],['BAY',w.bay,'var(--ic)']];
+      if(w.elo!=null)rows.push(['ELO',w.elo,'var(--nc)']);
       return`<div class="card" style="padding:10px">
         <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:6px">${sport}${sp?' · '+(sp.acc*100).toFixed(0)+'%':''}</div>
-        ${[['MC',w.mc,'var(--pc)'],['BAY',w.bay,'var(--ic)'],['ELO',w.elo,'var(--nc)']].map(([l,v,c])=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        ${rows.map(([l,v,c])=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
           <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">${l}</span>
           <div style="flex:1;height:3px;background:rgba(255,255,255,.08);border-radius:1px;margin:0 6px"><div style="width:${(v*100).toFixed(0)}%;height:100%;background:${c};border-radius:1px"></div></div>
           <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:${c}">${(v*100).toFixed(0)}%</span>
@@ -15594,7 +15667,7 @@ function showPickCard(){
 // ═══ CROSS-DEVICE SYNC CODE ═══════════════════════════════════
 // ══════════════════════════════════════════════════════════════
 function genSyncCode(){
-  const data={preds:getP(),elo:ELO,daily_log:getDailyLog(),ens:ENS,nhl_ens:NHL_ENS,nba_ens:NBA_ENS,v:2};
+  const data={preds:getP(),elo:ELO,daily_log:getDailyLog(),ens:ENS,nhl_ens:NHL_ENS,nba_ens:NBA_ENS,nfl_ens:window.NFL_ENS,cfb_ens:window.CFB_ENS,v:2};
   const b64=btoa(unescape(encodeURIComponent(JSON.stringify(data))));
   navigator.clipboard?.writeText(b64).then(()=>toast('// SYNC CODE COPIED')).catch(()=>{
     const ta=document.createElement('textarea');ta.value=b64;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('// SYNC CODE COPIED');
@@ -15611,6 +15684,8 @@ function importSyncCode(code){
     if(d.ens){ENS=d.ens;S.s('ens',ENS);}
     if(d.nhl_ens){NHL_ENS=d.nhl_ens;S.s('nhl_ens',NHL_ENS);}
     if(d.nba_ens){NBA_ENS=d.nba_ens;S.s('nba_ens',NBA_ENS);}
+    if(d.nfl_ens){window.NFL_ENS=d.nfl_ens;S.s('nfl_ens',window.NFL_ENS);}
+    if(d.cfb_ens){window.CFB_ENS=d.cfb_ens;S.s('cfb_ens',window.CFB_ENS);}
     if(d.daily_log)saveDailyLog(d.daily_log);
     updHdr();renderHistory();
     toast(`// IMPORTED ${added} NEW PICKS + MODEL STATE`);
@@ -15630,7 +15705,25 @@ function renderSyncCodePanel(){
 // ═══ ADAPTIVE LEARNING ENGINE ═════════════════════════════════
 // ══════════════════════════════════════════════════════════════
 function adaptiveTick(){
-  const allPreds=getP().filter(p=>p.outcome!=='pending');
+  // Real bug, found auditing the Adaptive tab: getP() returns bets in
+  // whatever order they last synced from Supabase (sorted by id STRING,
+  // not time -- see syncPicksFromSupabase's own order=id query), not
+  // chronological order. Every "recent window" below used to be built
+  // via allPreds.slice(-30)/(-10) directly on that array -- confirmed
+  // live, this pulled a slice of NBA bets from May-June 2025 as "recent
+  // performance" on a September 2026 CL/NFL slate, silently poisoning
+  // every weight nudge, streak/momentum finding, and recommendation this
+  // whole function produces. Sorting by date (then lockedAt as a same-
+  // day tiebreaker) once here, up front, fixes every downstream user of
+  // W30/W10 in one place -- same sort Dashboard's settledByDate already
+  // uses correctly for its own "Recent Form" strip (renderOverall).
+  // Also scoped to _broadSportOf(_normSport(p))!==null, the same
+  // "engine's current real scope" filter Dashboard applies (2026-09-09
+  // decision) -- without it, retired-sport bets (MLB/WNBA/CBB/World Cup/
+  // tennis) could still leak into what's supposed to be an assessment of
+  // the ACTIVE model's recent performance.
+  const allPreds=getP().filter(p=>p.outcome!=='pending'&&_broadSportOf(_normSport(p))!==null)
+    .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
   if(allPreds.length<5){
     const st={lastRun:Date.now(),betsAnalyzed:0,status:'INSUFFICIENT_DATA',msg:'Need at least 5 settled bets to begin adaptive learning. Lock picks and record outcomes.'};
     S.s('adaptive_state',st);return st;
@@ -15697,6 +15790,18 @@ function adaptiveTick(){
     const s=rMC+rBAY+rELO;
     return{mc:rMC/s,bay:rBAY/s,elo:rELO/s};
   }
+  // 2-component variant for NFL -- nflEns() only ever reads window.NFL_ENS
+  // .mc/.bay (a real 2-way MC/Bayesian split, no elo term -- NFL has no
+  // rating-based signal wired up), so renormalizing against a 3rd elo
+  // slot that doesn't exist in that ensemble would silently shrink both
+  // real components by whatever share elo would otherwise have claimed.
+  function updateWeights2(ens,ms,bs){
+    const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+    const rMC=clamp(ens.mc*(1-LR)+ens.mc*ms*LR,0.15,0.85);
+    const rBAY=clamp(ens.bay*(1-LR)+ens.bay*bs*LR,0.15,0.85);
+    const s=rMC+rBAY;
+    return{mc:rMC/s,bay:rBAY/s};
+  }
 
   const prevENS={...ENS};
   ENS=updateWeights(ENS,mcSignal,baySignal,eloSignal);
@@ -15713,14 +15818,31 @@ function adaptiveTick(){
     NBA_ENS=updateWeights(NBA_ENS,adj,baySignal,eloSignal);
     S.s('nba_ens',NBA_ENS);
   }
+  // Real bug, found and fixed: this used to reassign the unrelated
+  // GLOBAL `ENS` (the shared/generic fallback ensemble, read by nothing
+  // NFL-specific) based on NFL's own performance signal, then only ever
+  // persisted a single throwaway `adj` scalar via S.s('nfl_ens_adj',...)
+  // that nothing else in the codebase ever reads back -- confirmed by
+  // grep, zero other references. nflEns() actually reads
+  // window.NFL_ENS.mc/.bay (falling back to {mc:.75,bay:.25} if unset,
+  // same object declared alongside NHL_ENS/NBA_ENS above) -- this now
+  // updates THAT object, the same way NHL/NBA already do, so NFL's
+  // weight tuning genuinely reaches its own live prediction blend
+  // instead of mutating an object NFL predictions never read.
   if(sportPerf.NFL?.n>=5){
     const adj=sportPerf.NFL.acc>0.58?1.04:sportPerf.NFL.acc<0.47?0.93:1.0;
-    ENS=updateWeights({mc:ENS.mc,bay:ENS.bay,elo:ENS.elo},adj,baySignal,eloSignal);
-    S.s('nfl_ens_adj',adj);
+    window.NFL_ENS=updateWeights2(window.NFL_ENS||{mc:.75,bay:.25},adj,baySignal);
+    S.s('nfl_ens',window.NFL_ENS);
   }
+  // Same real bug as NFL above, fixed the same way: cfbEns() reads
+  // window.CFB_ENS.mc/.bay/.elo (falling back to {mc:.70,bay:.18,
+  // elo:.12}) -- a genuine 3-way ensemble, since CFB (unlike NFL) has a
+  // real Elo rating system (cfbEloWP/_CFB_DATA.elo.ratings). Previously
+  // only wrote a dead 'cfb_ens_adj' scalar nothing ever read.
   if(sportPerf.CFB?.n>=5){
     const adj=sportPerf.CFB.acc>0.58?1.04:sportPerf.CFB.acc<0.47?0.93:1.0;
-    S.s('cfb_ens_adj',adj);
+    window.CFB_ENS=updateWeights(window.CFB_ENS||{mc:.70,bay:.18,elo:.12},adj,baySignal,eloSignal);
+    S.s('cfb_ens',window.CFB_ENS);
   }
 
   // EV threshold auto-tune
@@ -15843,7 +15965,8 @@ function adaptiveTick(){
   const state={
     lastRun:Date.now(),betsAnalyzed:W30.length,totalBets:allPreds.length,
     overallAcc,recentAcc,sportPerf,typePerf,calErrors,
-    weights:{NHL:{mc:NHL_ENS.mc,bay:NHL_ENS.bay,elo:NHL_ENS.elo},NBA:{mc:NBA_ENS.mc,bay:NBA_ENS.bay,elo:NBA_ENS.elo}},
+    weights:{NHL:{mc:NHL_ENS.mc,bay:NHL_ENS.bay,elo:NHL_ENS.elo},NBA:{mc:NBA_ENS.mc,bay:NBA_ENS.bay,elo:NBA_ENS.elo},
+      NFL:{mc:window.NFL_ENS.mc,bay:window.NFL_ENS.bay},CFB:{mc:window.CFB_ENS.mc,bay:window.CFB_ENS.bay,elo:window.CFB_ENS.elo}},
     findings,weaknesses,recommendations,history,evThreshold:+(S.g('evt')||2),status:'OK'
   };
   S.s('adaptive_state',state);
@@ -18778,6 +18901,8 @@ document.addEventListener('DOMContentLoaded',()=>{(async()=>{
       if(_aw.nhl_ens)NHL_ENS=_aw.nhl_ens;
       if(_aw.nba_ens)NBA_ENS=_aw.nba_ens;
       if(_aw.wnba_ens)WNBA_ENS=_aw.wnba_ens;
+      if(_aw.nfl_ens)window.NFL_ENS=_aw.nfl_ens;
+      if(_aw.cfb_ens)window.CFB_ENS=_aw.cfb_ens;
       if(_aw.evt!=null)S.s('evt',_aw.evt);
     }
   }catch(e){}
@@ -18789,6 +18914,11 @@ document.addEventListener('DOMContentLoaded',()=>{(async()=>{
   // back at boot -- WNBA's own adaptive learning has never actually
   // persisted across sessions, even before this file-based fix existed.
   try{const we=S.g('wnba_ens');if(we)WNBA_ENS=we;}catch{}
+  // Same restore for NFL_ENS/CFB_ENS -- newly wired into adaptiveTick()
+  // (see its own comment); without this they'd reset to their hardcoded
+  // fallback every single page load instead of persisting tuned weights.
+  try{const fe=S.g('nfl_ens');if(fe)window.NFL_ENS=fe;}catch{}
+  try{const ce=S.g('cfb_ens');if(ce)window.CFB_ENS=ce;}catch{}
   try{resetTodayIncorrectSettlements();}catch(e){console.error('resetSettlements',e);}
   try{initELO();}catch(e){console.error('initELO',e);}
   try{updHdr();}catch(e){console.error('updHdr',e);}
