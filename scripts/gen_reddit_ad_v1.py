@@ -16,7 +16,7 @@ Output: ~/Desktop/ClairvoyanceRedditAd.png
 from design_system import (
     W, H, CX, BG, CARD, MAG, CYN, GOLD, RED, WHT, DIM, T2, T3,
     orb, mono, glow, make_background_covers, draw_footer, hline,
-    TITLE_GLOW, SUB_GLOW, HDR_GLOW,
+    TITLE_GLOW, SUB_GLOW, HDR_GLOW, SOCIAL_GLOW,
 )
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -29,8 +29,8 @@ def cx_text(text, font):
     bb = draw.textbbox((0, 0), text, font=font)
     return (W - (bb[2] - bb[0])) // 2
 
-def dotted_row(draw, parts, ym, font, color=WHT, dot_color=MAG):
-    DOT_W, dot_r = 20, 1
+def dotted_row(draw, parts, ym, font, color=WHT, dot_color=MAG, dot_w=20):
+    DOT_W, dot_r = dot_w, 1
     total = sum(font.getlength(p) for p in parts) + DOT_W * (len(parts) - 1)
     x = CX - total / 2
     for i, p in enumerate(parts):
@@ -41,6 +41,21 @@ def dotted_row(draw, parts, ym, font, color=WHT, dot_color=MAG):
             dot_x = x + DOT_W // 2
             draw.ellipse([dot_x - dot_r, ym - dot_r, dot_x + dot_r, ym + dot_r], fill=(*dot_color, 230))
             x += DOT_W
+
+def glow_tracked(base, text, cy, font, color, layers, tracking=3):
+    """Same as glow(), but with manual letter-spacing (PIL text has no
+    tracking param). Without it, a short all-caps header like 'WHAT WE
+    COVER' at a small size has its per-letter glow halos overlap into a
+    smeared blob -- the video templates avoid this via CSS letter-spacing,
+    so this reproduces that here by glowing each character separately."""
+    widths = [font.getlength(ch) for ch in text]
+    total = sum(widths) + tracking * (len(text) - 1)
+    x = CX - total / 2
+    for ch, w in zip(text, widths):
+        if ch != ' ':
+            base = glow(base, ch, (x + w / 2, cy), font, color, layers, anchor='mm')
+        x += w + tracking
+    return base
 
 def dotted_glow_row(base, parts, ym, font, color, glow_layers, dot_color=MAG, dot_r=2, gap=28):
     """Same 'no Unicode dot' rule as dotted_row, but for glowing text
@@ -91,15 +106,15 @@ for ln in vp_lines:
 vy += 24
 
 # ── Coverage ──────────────────────────────────────────────────────
-base = glow(base, 'WHAT WE COVER', (CX, vy + 10), orb(22), MAG, HDR_GLOW)
+base = glow_tracked(base, 'WHAT WE COVER', vy + 10, orb(22), MAG, SOCIAL_GLOW)
 vy += 46
 draw = ImageDraw.Draw(base)
 cf = mono(19)
-dotted_row(draw, ['NFL', 'CFB', 'NBA', 'NHL'], vy + 8, cf)
+dotted_row(draw, ['NFL', 'CFB', 'NBA', 'NHL'], vy + 8, cf, dot_w=30)
 vy += 28
-dotted_row(draw, ['Bundesliga', 'Serie A', 'La Liga'], vy + 8, cf)
+dotted_row(draw, ['Bundesliga', 'Serie A', 'La Liga'], vy + 8, cf, dot_w=30)
 vy += 28
-dotted_row(draw, ['MLS', 'Premier League', 'Champions League'], vy + 8, cf)
+dotted_row(draw, ['MLS', 'Premier League', 'Champions League'], vy + 8, cf, dot_w=30)
 vy += 56
 
 # ── CTA box ───────────────────────────────────────────────────────
