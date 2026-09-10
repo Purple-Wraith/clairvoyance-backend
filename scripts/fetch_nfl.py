@@ -344,73 +344,119 @@ def fetch_all_team_stats(roster: list[dict], season: int) -> dict:
 # stat category directly (team.leaders[]) -- exactly the skill players
 # who'd have real prop markets anyway (QB1, lead backs, top targets).
 # Season-to-date totals, not a per-game log -- see module docstring.
-_LEADER_CATEGORY_MAP = {
-    "passingYards": "passingYards",
-    "passingTouchdowns": "passingTouchdowns",
-    "rushingYards": "rushingYards",
-    "rushingTouchdowns": "rushingTouchdowns",
-    "receivingYards": "receivingYards",
-    "receivingTouchdowns": "receivingTouchdowns",
-    "receivingReceptions": "receptions",
-}
+# Real gap, found via audit 2026-09-10: the old approach (fetch_team_leaders,
+# below this comment in git history) read ESPN's team-level "leaders" field --
+# that ONLY ever returns each team's statistical LEADER(s) per category (the
+# #1 passer, #1 rusher, top 1-2 receivers), not a roster. Confirmed via the
+# real git history: docs/nfl_player_stats.json has been 100% empty -- 0
+# players, every team -- since its very first commit (2026-08-21), because
+# ESPN doesn't populate "leaders" until enough real games have accumulated
+# league-wide. Even once populated, it would only ever surface a handful of
+# star players per team -- a WR2/WR3/RB2/backup TE would NEVER appear as a
+# prop candidate no matter how much they played, since they're not their
+# team's category leader. That's a leaderboard, not a roster.
+#
+# Fixed by using ESPN's real roster endpoint (/teams/{id}/roster, confirmed
+# live to return ~80 real players per team across offense/defense/special-
+# teams/IR/practice-squad groups, each with real name+position+athlete id)
+# to get every ACTIVE offensive skill-position player (QB/RB/WR/TE -- the
+# only positions _NFL_PROP_CATS in app.html builds props for), then fetching
+# each of those players' own real season stats individually via ESPN's
+# per-athlete stats endpoint (confirmed live: returns passing/rushing/
+# receiving categories with a real per-player gamesPlayed count, more
+# accurate than the old approach's team-level win+loss approximation).
+_NFL_SKILL_POSITIONS = {"QB", "RB", "WR", "TE", "FB"}
 
 
-def fetch_team_leaders(team_id: str) -> dict:
-    """Top players per real season stat category for one team, keyed by
-    ESPN athlete id so a player who leads multiple categories (e.g. a
-    receiving-yards AND receiving-TD leader) merges into one row."""
-    players: dict[str, dict] = {}
+def fetch_team_roster(team_id: str) -> list[dict]:
+    """Real active roster for one team, filtered to offensive skill
+    positions only (props are only ever built for QB/RB/WR/TE/FB) --
+    excludes the injuredReserveOrOut/suspended/practiceSquad groups
+    ESPN's roster response also returns, since those players aren't
+    live game-day candidates."""
     try:
-        r = requests.get(f"{ESPN_BASE}/teams/{team_id}", headers=HEADERS, timeout=15)
+        r = requests.get(f"{ESPN_BASE}/teams/{team_id}/roster", headers=HEADERS, timeout=15)
         r.raise_for_status()
         d = r.json()
-        leaders = (d.get("team") or {}).get("leaders") or []
-        for cat in leaders:
-            field = _LEADER_CATEGORY_MAP.get(cat.get("name"))
-            if not field:
-                continue
-            for entry in cat.get("leaders") or []:
-                athlete = entry.get("athlete") or {}
-                aid = athlete.get("id")
-                if not aid:
-                    continue
-                row = players.setdefault(aid, {
-                    "name": athlete.get("displayName"),
-                    "position": (athlete.get("position") or {}).get("abbreviation"),
-                })
-                val = entry.get("value")
-                if val is not None:
-                    row[field] = val
     except Exception as exc:
-        _log(f"  team {team_id} leaders FAILED: {exc}")
+        _log(f"  team {team_id} roster FAILED: {exc}")
+        return []
+    players = []
+    for grp in d.get("athletes") or []:
+        if grp.get("position") != "offense":
+            continue
+        for item in grp.get("items") or []:
+            pos = (item.get("position") or {}).get("abbreviation")
+            aid = item.get("id")
+            if not aid or pos not in _NFL_SKILL_POSITIONS:
+                continue
+            players.append({"id": aid, "name": item.get("fullName") or item.get("displayName"), "position": pos})
     return players
 
 
-def fetch_all_player_stats(roster: list[dict], standings: dict) -> dict:
-    """standings is the {"conferences": {...}} shape from fetch_standings --
-    used only to turn each player's season totals into an honest
-    per-game average via their team's real games-played count."""
-    games_by_abbr: dict[str, int] = {}
-    for rows in (standings.get("conferences") or {}).values():
-        for row in rows or []:
-            abbr = row.get("abbr")
-            if not abbr:
+def fetch_player_season_stats(athlete_id: str, season: int) -> dict:
+    """Real per-player season stats (passing/rushing/receiving), keyed
+    to match _NFL_PROP_CATS' field names in app.html exactly, plus a
+    real per-player gamesPlayed count. Empty dict (not an exception) if
+    this player has no stats recorded for `season` yet -- normal for a
+    player who hasn't played, not an error."""
+    try:
+        r = requests.get(
+            f"https://site.web.api.espn.com/apis/common/v3/sports/football/nfl/athletes/{athlete_id}/stats",
+            params={"season": season}, headers=HEADERS, timeout=15,
+        )
+        r.raise_for_status()
+        d = r.json()
+    except Exception:
+        return {}
+    out: dict = {}
+    games = None
+    keys = {"passingYards", "passingTouchdowns", "rushingYards", "rushingTouchdowns",
+            "receivingYards", "receivingTouchdowns", "receptions"}
+    for cat in d.get("categories") or []:
+        names = cat.get("names") or []
+        for entry in cat.get("statistics") or []:
+            if (entry.get("season") or {}).get("year") != season:
                 continue
-            w = row.get("wins") or 0
-            l = row.get("losses") or 0
-            t = row.get("ties") or 0
-            games_by_abbr[abbr] = w + l + t
+            row = dict(zip(names, entry.get("stats") or []))
+            if "gamesPlayed" in row:
+                try:
+                    games = int(float(row["gamesPlayed"]))
+                except (TypeError, ValueError):
+                    pass
+            for k in keys:
+                if k in row:
+                    try:
+                        out[k] = float(row[k])
+                    except (TypeError, ValueError):
+                        pass
+    if games is not None:
+        out["games"] = games
+    return out
 
+
+def fetch_all_player_stats(roster: list[dict], season: int) -> dict:
+    """For every team, fetch the real active offensive-skill-position
+    roster, then each of those players' own real season stats. Players
+    with zero real stats yet (season just started, or a backup who
+    hasn't touched the ball) are dropped -- same "no real signal ->
+    don't fabricate a row" principle _nflBuildPropRow already applies
+    in app.html, just enforced one layer earlier here."""
     out: dict[str, list[dict]] = {}
     for i, tm in enumerate(roster):
         abbr, tid = tm.get("abbr"), tm.get("id")
         if not abbr or not tid:
             continue
-        players = fetch_team_leaders(tid)
-        games = games_by_abbr.get(abbr) or 0
-        out[abbr] = [{**p, "games": games} for p in players.values()]
-        if (i + 1) % 8 == 0:
-            _log(f"  player stats …{i + 1}/{len(roster)}")
+        players = fetch_team_roster(tid)
+        rows = []
+        for p in players:
+            stats = fetch_player_season_stats(p["id"], season)
+            time.sleep(0.1)
+            if not stats.get("games"):
+                continue
+            rows.append({"name": p["name"], "position": p["position"], **stats})
+        out[abbr] = rows
+        _log(f"  {abbr}: {len(rows)}/{len(players)} skill players with real {season} stats  ({i + 1}/{len(roster)})")
         time.sleep(0.2)
     return out
 
@@ -527,6 +573,7 @@ if __name__ == "__main__":
         standings = fetch_standings(args.schedule_year)
         _write(STANDINGS_OUT, standings)
 
+    stats_season = None
     if args.mode in ("stats", "all"):
         if not roster_teams:
             if TEAMS_OUT.exists():
@@ -567,14 +614,26 @@ if __name__ == "__main__":
                 roster_teams = json.loads(TEAMS_OUT.read_text()).get("teams", [])
             else:
                 _log("  no roster available for player_stats — run --mode roster first")
-        standings_data = {"conferences": {}}
-        if STANDINGS_OUT.exists():
-            standings_data = json.loads(STANDINGS_OUT.read_text())
-        elif args.mode == "player_stats":
-            standings_data = fetch_standings(args.schedule_year)
         if roster_teams:
-            player_stats = fetch_all_player_stats(roster_teams, standings_data)
-            _write(PLAYER_STATS_OUT, {"teams": player_stats})
+            # Reuses --stats-season, or stats_season already computed by
+            # the team-stats block above in the same run (--mode all),
+            # or auto-detects fresh the same way that block does --
+            # tries the current year, falls back to the prior season if
+            # nobody league-wide has real stats yet.
+            if args.stats_season is not None:
+                player_stats_season = args.stats_season
+            elif stats_season is not None:
+                player_stats_season = stats_season
+            else:
+                player_stats_season = int(time.strftime("%Y", time.gmtime()))
+            player_stats = fetch_all_player_stats(roster_teams, player_stats_season)
+            total_players = sum(len(v) for v in player_stats.values())
+            if total_players == 0 and args.stats_season is None and stats_season is None:
+                _log(f"  season={player_stats_season} returned 0 players with stats league-wide -- "
+                     f"season hasn't started yet, falling back to {player_stats_season - 1}")
+                player_stats_season -= 1
+                player_stats = fetch_all_player_stats(roster_teams, player_stats_season)
+            _write(PLAYER_STATS_OUT, {"season": player_stats_season, "teams": player_stats})
 
     if args.mode in ("injuries", "all"):
         _write(INJURIES_OUT, fetch_injuries())

@@ -4,11 +4,18 @@ name: NFL Team Stats + Standings Refresh
 # Monday Night Football closes out the week, so the following week's
 # stats/standings are locked in and updated before Thursday's next
 # kickoff. A single Tuesday-morning run covers team stats
-# (offense/defense/special-teams), standings (W-L/PF/PA/diff), and
-# player leader stats (for the analytical player-props model) -- all
-# three only meaningfully change once a week's games are all final.
-# Standings run BEFORE player_stats since player_stats needs each
-# team's games-played count from the just-refreshed standings file.
+# (offense/defense/special-teams), standings (W-L/PF/PA/diff), and real
+# per-player season stats for every active offensive skill-position
+# player (for the analytical player-props model) -- all three only
+# meaningfully change once a week's games are all final.
+#
+# player_stats fetches each team's real roster then each of those
+# players' own stats individually (~500-650 requests total across the
+# league, replacing an earlier team-"leaders"-only approach that never
+# returned more than a handful of stars per team) -- budget real time
+# for this step, especially the one-time cost early in a season when
+# the current-year auto-detect comes back empty and it re-runs the
+# whole league against the prior season as a fallback.
 
 on:
   schedule:
@@ -25,7 +32,7 @@ permissions:
 jobs:
   refresh-nfl-stats:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
