@@ -6706,6 +6706,12 @@ function nflMC(hA,awA,n,ouLine,g){
     hwP:hw/n,avgMargin:+avgMargin.toFixed(1),avgTotal:+avgTotal.toFixed(1),
     avgH:+(hScoreSum/n).toFixed(1),avgA:+(aScoreSum/n).toFixed(1),
     overP:ov/n,underP:1-ov/n,ouLine:+finalOU.toFixed(1),n,wx,wxImpact,hasDiff,marketMargin,
+    // Pre-noise baseline (not the post-sim averages above, which are
+    // noisy 25k-sample estimates of these same two numbers) -- exposed
+    // so _nflSimPlayerStats can run its own independent player-prop
+    // simulation off the exact same baseline this game-level sim uses,
+    // without duplicating margin0/baseTotal's own derivation logic.
+    margin0:+margin0.toFixed(2),baseTotal:+baseTotal.toFixed(2),
   };
 }
 // Beta-binomial posterior on this season's actual W-L record (standings-
@@ -13873,14 +13879,24 @@ function setSub(sport,sub){
 // assumption (typical yardage/TD variance shapes), not measured from
 // real game logs -- likelihood reads as directional, not a
 // market-calibrated true probability.
+// validPositions: real gap, found via audit -- with no position gate at
+// all, a QB's fluke trick-play reception (or a WR/TE's rare trick-play
+// pass) could still generate a real, gradeable prop off essentially
+// zero real signal, since the only existing guard was "is this stat
+// nonzero", not "does this position meaningfully participate in this
+// stat at all". A stray 1-catch season for a QB is real data (not
+// fabricated), but building a PREMIUM/OPTIMAL-gradeable prop out of it
+// doesn't reflect a real, repeatable skill the way the same category
+// does for a WR/TE. Omit validPositions on a category to leave it
+// ungated (none currently need that).
 const _NFL_PROP_CATS=[
-  {key:'passingYards',label:'Passing Yards',grp:'pass',defKey:'netPassingYardsPerGame',defPerGame:true,leagueAvg:215,cv:0.22},
-  {key:'rushingYards',label:'Rushing Yards',grp:'rush',defKey:'rushingYardsPerGame',defPerGame:true,leagueAvg:70,cv:0.45},
-  {key:'receivingYards',label:'Receiving Yards',grp:'rec',defKey:'receivingYards',defKeyPG:'receivingYardsPerGame',defPerGame:false,leagueAvg:45,cv:0.5},
-  {key:'receptions',label:'Receptions',grp:'rec',defKey:null,leagueAvg:3.6,cv:0.35},
-  {key:'passingTouchdowns',label:'Passing TDs',grp:'td',isTD:true,defKey:'passingTouchdowns',defPerGame:false,leagueAvg:1.4},
-  {key:'rushingTouchdowns',label:'Rushing TDs',grp:'td',isTD:true,defKey:'rushingTouchdowns',defPerGame:false,leagueAvg:0.65},
-  {key:'receivingTouchdowns',label:'Receiving TDs',grp:'td',isTD:true,defKey:'receivingTouchdowns',defPerGame:false,leagueAvg:0.65},
+  {key:'passingYards',label:'Passing Yards',grp:'pass',defKey:'netPassingYardsPerGame',defPerGame:true,leagueAvg:215,cv:0.22,validPositions:['QB']},
+  {key:'rushingYards',label:'Rushing Yards',grp:'rush',defKey:'rushingYardsPerGame',defPerGame:true,leagueAvg:70,cv:0.45,validPositions:['QB','RB','WR']},
+  {key:'receivingYards',label:'Receiving Yards',grp:'rec',defKey:'receivingYards',defKeyPG:'receivingYardsPerGame',defPerGame:false,leagueAvg:45,cv:0.5,validPositions:['RB','WR','TE']},
+  {key:'receptions',label:'Receptions',grp:'rec',defKey:null,leagueAvg:3.6,cv:0.35,validPositions:['RB','WR','TE']},
+  {key:'passingTouchdowns',label:'Passing TDs',grp:'td',isTD:true,defKey:'passingTouchdowns',defPerGame:false,leagueAvg:1.4,validPositions:['QB']},
+  {key:'rushingTouchdowns',label:'Rushing TDs',grp:'td',isTD:true,defKey:'rushingTouchdowns',defPerGame:false,leagueAvg:0.65,validPositions:['QB','RB','WR']},
+  {key:'receivingTouchdowns',label:'Receiving TDs',grp:'td',isTD:true,defKey:'receivingTouchdowns',defPerGame:false,leagueAvg:0.65,validPositions:['RB','WR','TE']},
 ];
 function _nflNormCdf(x){ // Abramowitz-Stegun erf approximation
   const t=1/(1+0.3275911*Math.abs(x));
@@ -13974,16 +13990,101 @@ function _nflDefNote(oppAbbr,cat,factor,perGame,leagueAvg,rank,total,realAvg,adj
     :`${oppAbbr} allows ${perGame.toFixed(2)} ${cat.label.toLowerCase()} per game (real per-game production) vs an assumed ~${cat.leagueAvg} league baseline -- not enough teams loaded yet to compute a real league average`;
   return`${rankTxt}, a ${(factor*100).toFixed(0)}% ${dir} folded in as a ${adjustor>=0?'+':''}${adjustor}${adjUnit} adjustment. `;
 }
-function _nflBuildPropRow(player,teamAbbr,oppAbbr,cat){
+// Player-prop Monte Carlo, run alongside (not inside) nflMC's own game-
+// level sim -- reuses the exact same margin0/baseTotal baseline nflMC
+// already computed (passed in, never re-derived, so this can't drift
+// out of sync with that same game's win%/spread/total numbers), but
+// kept as its own independent loop rather than touching nflMC's own
+// accumulation logic directly, so the already-verified game-level sim
+// can't regress from this addition. For each iteration, derives each
+// team's simulated score and scales it against that team's own real
+// season-average points (D.stats[abbr].offense.totalPointsPerGame)
+// into a "pace ratio" -- then project() applies that per-iteration
+// ratio to a player's own opponent-adjusted per-game rate, so a
+// player's likelihood is now correlated with THIS specific game's
+// projected script (a shootout iteration scales every skill player's
+// counting stat up together; a low-scoring iteration scales them
+// down) instead of coming from a fixed single-point estimate the way
+// the pre-sim formula did.
+//
+// Deliberately keeps the LINE itself at the same season-average/
+// market-proxy value the pre-sim version used (lineBase for yardage,
+// the fixed 0.5 sportsbook convention for TD props) rather than
+// re-deriving the line from the sim's own mean -- a line drawn from a
+// distribution's own mean would trivially split ~50/50 around it
+// (a rounding artifact, not a real edge), destroying the exact signal
+// this is meant to sharpen. The sim's job is to make the LIKELIHOOD
+// against that fixed line pace-aware, not to move the line itself.
+function _nflSimPlayerStats(hA,awA,margin0,baseTotal,n){
+  n=n||10000;
+  const D=_NFL_DATA;
+  const hSeasonPts=D.stats[hA]?.offense?.totalPointsPerGame||(_NFL_LG_TOTAL/2);
+  const aSeasonPts=D.stats[awA]?.offense?.totalPointsPerGame||(_NFL_LG_TOTAL/2);
+  const hPace=new Float64Array(n),aPace=new Float64Array(n);
+  for(let i=0;i<n;i++){
+    const simMargin=margin0+_boxMullerZ()*_NFL_SIGMA_MARGIN;
+    const simTotal=Math.max(20,baseTotal+_boxMullerZ()*_NFL_SIGMA_TOTAL);
+    const hScore=Math.max(0,(simTotal+simMargin)/2);
+    const aScore=Math.max(0,(simTotal-simMargin)/2);
+    hPace[i]=hSeasonPts>0?hScore/hSeasonPts:1;
+    aPace[i]=aSeasonPts>0?aScore/aSeasonPts:1;
+  }
+  return{
+    n,
+    // Yardage/receptions-style: adjRate is the player's own opponent-
+    // adjusted per-game rate, cv the same category coefficient-of-
+    // variation the old static formula used for its own normal-CDF
+    // stdev. Both variance sources are combined here -- pace alone
+    // (team-level game-script variance) isn't enough on its own: a
+    // real audit caught this producing degenerate exact-0%/exact-100%
+    // likelihoods for low-signal players (e.g. a TE's occasional
+    // rushing-yards line), since without any player-level noise, a
+    // rate far enough from the line never crosses it in ANY of the
+    // n pace draws. Multiplying in the same per-player idiosyncratic
+    // noise the old formula already had calibrated restores that
+    // missing variance source while keeping the new pace-correlation
+    // this whole simulation exists to add. Returns the real empirical
+    // P(sim value > line) across all n iterations, plus the
+    // pace-simulated mean for display/diagnostic use (not used as the
+    // line itself).
+    projectYardage(side,adjRate,line,cv){
+      const pace=side==='h'?hPace:aPace;
+      let sum=0,overCount=0;
+      for(let i=0;i<n;i++){
+        const noise=cv?Math.max(0,1+_boxMullerZ()*cv):1;
+        const v=adjRate*pace[i]*noise;
+        sum+=v;
+        if(v>line)overCount++;
+      }
+      return{mean:+(sum/n).toFixed(2),overP:+(overCount/n*100).toFixed(1)};
+    },
+    // TD-style: adjRate is the player's opponent-adjusted per-game TD
+    // RATE (a Poisson lambda at season-average pace). Each iteration's
+    // pace-scaled lambda gives that iteration's own P(>=1 TD) via
+    // 1-e^-lambda; averaging that across iterations is an exact,
+    // unbiased estimate of the marginal P(>=1 TD) under a model where
+    // the scoring rate itself varies with game script, rather than a
+    // single fixed-lambda point estimate.
+    projectTD(side,adjRate){
+      const pace=side==='h'?hPace:aPace;
+      let sum=0;
+      for(let i=0;i<n;i++)sum+=1-Math.exp(-Math.max(0,adjRate*pace[i]));
+      return{likelihood:+(sum/n*100).toFixed(1)};
+    },
+  };
+}
+function _nflBuildPropRow(player,teamAbbr,oppAbbr,cat,playerSim,side){
+  if(cat.validPositions&&!cat.validPositions.includes((player.position||'').toUpperCase()))return null;
   const base=parseFloat(player[cat.key]);
   const games=player.games;
   if(isNaN(base)||base<=0||!games)return null; // no real signal -> don't fabricate a row
   const perGame=base/games;
   const{factor,perGame:oppPerGame,leagueAvg,rank,total,realAvg,note}=_nflOppDefFactor(oppAbbr,cat,games);
+  const simNote=playerSim?` Likelihood is simulated across this game's own projected scoring script (${playerSim.n.toLocaleString()} runs), correlated with the matchup's own projected pace rather than a fixed variance assumption.`:'';
   if(cat.isTD){
     const line=0.5;
     const adjMean=Math.max(0.05,perGame*(1+factor));
-    const likelihood=+((1-Math.exp(-adjMean))*100).toFixed(1); // Poisson P(X>=1)
+    const likelihood=playerSim?playerSim.projectTD(side,adjMean).likelihood:+((1-Math.exp(-adjMean))*100).toFixed(1); // Poisson P(X>=1)
     const pick=likelihood>=50?'OVER':'UNDER';
     const conf=pick==='OVER'?likelihood:100-likelihood;
     const adjustor=+(adjMean-perGame).toFixed(2);
@@ -13994,22 +14095,28 @@ function _nflBuildPropRow(player,teamAbbr,oppAbbr,cat){
     const reasoning=`${player.name} has ${base} ${cat.label.toLowerCase()} in ${games} games this season (${perGame.toFixed(2)}/gm). `+
       (note?`No real opponent defensive data available for ${oppAbbr} in this category yet — rate is season-average only, no matchup adjustment applied. `:
         _nflDefNote(oppAbbr,cat,factor,oppPerGame,leagueAvg,rank,total,realAvg,adjustor,'/gm'))+
-      `No head-to-head history vs ${oppAbbr} this season or historically is factored in yet.`;
+      `No head-to-head history vs ${oppAbbr} this season or historically is factored in yet.`+simNote;
     return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:cat.label,grp:cat.grp,line,pick,adjustor,likelihood,grade,games,reasoning};
   }
   const lineBase=_nflHalfPoint(perGame);
   const adjProj=_nflHalfPoint(perGame*(1+factor));
   const adjustor=+(adjProj-lineBase).toFixed(1);
-  const stdev=Math.max(1,perGame*cat.cv);
-  const z=(lineBase-adjProj)/stdev;
-  const likelihood=+((1-_nflNormCdf(z))*100).toFixed(1);
-  const pick=adjustor>0?'OVER':adjustor<0?'UNDER':(likelihood>=50?'OVER':'UNDER');
+  let likelihood,pick;
+  if(playerSim){
+    likelihood=playerSim.projectYardage(side,perGame*(1+factor),lineBase,cat.cv).overP;
+    pick=likelihood>=50?'OVER':'UNDER';
+  }else{
+    const stdev=Math.max(1,perGame*cat.cv);
+    const z=(lineBase-adjProj)/stdev;
+    likelihood=+((1-_nflNormCdf(z))*100).toFixed(1);
+    pick=adjustor>0?'OVER':adjustor<0?'UNDER':(likelihood>=50?'OVER':'UNDER');
+  }
   const conf=pick==='OVER'?likelihood:100-likelihood;
   const grade=(adjustor===0&&Math.abs(likelihood-50)<4)?'SKIP':_nflPropGrade(conf,games);
   const reasoning=`${player.name} is averaging ${perGame.toFixed(1)} ${cat.label.toLowerCase()} across ${games} games this season. `+
     (note?`No real opponent defensive data available for ${oppAbbr} in this category yet — line reflects season average only, no matchup adjustment applied. `:
       _nflDefNote(oppAbbr,cat,factor,oppPerGame,leagueAvg,rank,total,realAvg,adjustor,''))+
-    `No head-to-head history vs ${oppAbbr} this season or historically is factored in yet — treat the likelihood % as directional (modeled variance assumption), not a market-calibrated probability.`;
+    `No head-to-head history vs ${oppAbbr} this season or historically is factored in yet — treat the likelihood % as directional (modeled variance assumption), not a market-calibrated probability.`+simNote;
   return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:cat.label,grp:cat.grp,line:lineBase,pick,adjustor,likelihood,grade,games,reasoning};
 }
 // Anytime TD Scorer — a real, distinct sportsbook market from the
@@ -14021,7 +14128,7 @@ function _nflBuildPropRow(player,teamAbbr,oppAbbr,cat){
 // on the ground same as any other rusher). Built as its own function
 // rather than a _NFL_PROP_CATS entry since it needs two stat fields
 // (rushing + receiving) merged into one Poisson rate, not one.
-function _nflBuildAnytimeTDRow(player,teamAbbr,oppAbbr){
+function _nflBuildAnytimeTDRow(player,teamAbbr,oppAbbr,playerSim,side){
   const games=player.games;if(!games)return null;
   const rushBase=parseFloat(player.rushingTouchdowns)||0;
   const recBase=parseFloat(player.receivingTouchdowns)||0;
@@ -14046,7 +14153,7 @@ function _nflBuildAnytimeTDRow(player,teamAbbr,oppAbbr){
   }
   if(lambda<=0)return null;
   const line=0.5;
-  const likelihood=+((1-Math.exp(-lambda))*100).toFixed(1); // Poisson P(X>=1) on the COMBINED rate
+  const likelihood=playerSim?playerSim.projectTD(side,lambda).likelihood:+((1-Math.exp(-lambda))*100).toFixed(1); // Poisson P(X>=1) on the COMBINED rate
   const pick=likelihood>=50?'OVER':'UNDER';
   const conf=pick==='OVER'?likelihood:100-likelihood;
   const adjustor=+(lambda-rawPerGame).toFixed(2);
@@ -14054,19 +14161,30 @@ function _nflBuildAnytimeTDRow(player,teamAbbr,oppAbbr){
   const reasoning=`${player.name} anytime-TD likelihood combines `+notes.join(' and ')+
     (isQB?' — passing TDs excluded from this market since those are thrown, not scored, by the QB himself.':
       recBase>0&&rushBase>0?' (both scoring paths combined into one probability, not treated as independent).':'.')+
-    ` No head-to-head history vs ${oppAbbr} this season or historically is factored in yet.`;
+    ` No head-to-head history vs ${oppAbbr} this season or historically is factored in yet.`+
+    (playerSim?` Likelihood is simulated across this game's own projected scoring script (${playerSim.n.toLocaleString()} runs).`:'');
   return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:'Anytime TD',grp:'td',line,pick,adjustor,likelihood,grade,games,reasoning};
 }
 function _nflModelPropsForGame(g){
   const D=_NFL_DATA;if(!D||!g)return[];
+  // mc/playerSim are computed ONCE per game and shared across every
+  // player+category built below -- both the real win%/spread/total
+  // sim and the player-prop sim reuse the exact same margin0/baseTotal
+  // baseline, so a player's prop likelihood is genuinely correlated
+  // with this specific matchup's own projected script rather than
+  // independently re-derived per player (which would also be far more
+  // expensive: one _nflSimPlayerStats pass per game, not one per
+  // player x category).
+  const mc=nflMC(g.home,g.away,10000,g.overUnder,g);
+  const playerSim=mc?_nflSimPlayerStats(g.home,g.away,mc.margin0,mc.baseTotal,10000):null;
   const rows=[];
-  [[g.home,g.away],[g.away,g.home]].forEach(([teamAbbr,oppAbbr])=>{
+  [[g.home,g.away,'h'],[g.away,g.home,'a']].forEach(([teamAbbr,oppAbbr,side])=>{
     const players=D.playerStats?.[teamAbbr]||[];
     players.forEach(p=>{
       _NFL_PROP_CATS.forEach(cat=>{
-        try{const row=_nflBuildPropRow(p,teamAbbr,oppAbbr,cat);if(row)rows.push(row);}catch(e){}
+        try{const row=_nflBuildPropRow(p,teamAbbr,oppAbbr,cat,playerSim,side);if(row)rows.push(row);}catch(e){}
       });
-      try{const atd=_nflBuildAnytimeTDRow(p,teamAbbr,oppAbbr);if(atd)rows.push(atd);}catch(e){}
+      try{const atd=_nflBuildAnytimeTDRow(p,teamAbbr,oppAbbr,playerSim,side);if(atd)rows.push(atd);}catch(e){}
     });
   });
   return rows;

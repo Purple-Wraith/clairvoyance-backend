@@ -833,8 +833,28 @@ def gather_legs(page) -> dict:
             // (explicit `window.x = ...` assignments elsewhere in
             // app.html), not a `let`-scoped bare variable.
             if (typeof _nflModelPropsForGame === 'function' && typeof _NFL_DATA !== 'undefined' && _NFL_DATA) {
+              // Real bug, found via audit: this iterated EVERY week in
+              // the entire season schedule with no date filter at all --
+              // unlike the CFB/NFL GAME-LEG warmup above, which already
+              // filters to todayIso. lockNFLModelProp stamps whatever it
+              // locks with today()'s date regardless of which game the
+              // leg's _nflGame actually belongs to, so a prop for a game
+              // 10 weeks out could get locked as if it were today's pick
+              // -- unsettleable (no real game today to check it against)
+              // and wrong. Was latent/low-impact before the real-roster
+              // fix (propDiag.nfl was near-empty regardless of this gap),
+              // fully exposed now that real player data flows through --
+              // 13,202 candidate rows across ~272 games in one real test
+              // run, instead of the ~50-100 a single day's slate produces.
+              // Filtered the exact same way the game-leg warmup already
+              // does: today's local date, exclude finished games.
+              const todayIso = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
               const games = [];
-              Object.values(_NFL_DATA.weeks || {}).forEach(list => (list || []).forEach(g => games.push(g)));
+              Object.values(_NFL_DATA.weeks || {}).forEach(list => (list || []).forEach(g => {
+                const d = new Date(g.date);
+                const localIso = isNaN(d) ? (g.date || '').slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
+                if (localIso === todayIso && g.state !== 'post') games.push(g);
+              }));
               let generated = 0;
               games.forEach(g => { try { const p = _nflModelPropsForGame(g); p.forEach(pp => propLegs.push({ ...pp, sportTag: 'NFL', _nflGame: g })); generated += p.length; } catch (e) {} });
               propDiag.nfl = { games: games.length, generated };
