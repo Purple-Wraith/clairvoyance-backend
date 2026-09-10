@@ -9,9 +9,8 @@ Usage:
   python3 scripts/clairvoyance_update.py                  # full fetch + write
   python3 scripts/clairvoyance_update.py --push           # + git push
   python3 scripts/clairvoyance_update.py --mode live      # live-window loop (17:00–23:00 MT)
-  python3 scripts/clairvoyance_update.py --mode props     # Linemate only
+  python3 scripts/clairvoyance_update.py --mode props     # retired no-op (Linemate removed 2026-09-10)
   python3 scripts/clairvoyance_update.py --sport nhl      # single sport
-  python3 scripts/clairvoyance_update.py --no-linemate    # skip Playwright
   python3 scripts/clairvoyance_update.py --no-reference   # skip Baseball/Basketball/Hockey Ref
   python3 scripts/clairvoyance_update.py --verbose
 
@@ -23,7 +22,7 @@ Data sources (v6.0):
   ESPN APIs, NHL API, MoneyPuck, HockeyViz, TennisAbstract Elo, Ergast F1,
   ESPN F1 scoreboard/standings, TennisAbstract Roland Garros, Sports-Reference
   (Baseball/Basketball/Hockey-Reference), FBref (Champions League/Premier
-  League/La Liga/Bundesliga/MLS), Open-Meteo weather, Linemate Playwright
+  League/La Liga/Bundesliga/MLS), Open-Meteo weather
 
 IMPORTANT — Sports-Reference family lag (Baseball-Ref, Basketball-Ref,
 Hockey-Ref, FBref, TennisAbstract): these sites finalize a given day's box
@@ -1959,128 +1958,23 @@ def fetch_soccer_weather(team_name: str) -> dict | None:
     }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Linemate props / trends / cheatsheets  (Playwright)
+# Linemate props / trends / cheatsheets — REMOVED 2026-09-10.
+# Every per-league page on linemate.io (confirmed for /nfl, /nba, /nhl,
+# and /mlb, both bare and /trends) now redirects an unauthenticated
+# request straight back to the marketing homepage — a site-wide login
+# wall, not an off-season or NFL-specific gap. This scraper had nothing
+# real left to find for any sport; the real production bundle showed
+# zero props/trends/form for every sport still in this loop before
+# removal. NFL and NBA now source props from their own real ESPN-stats
+# + Monte Carlo sim generators (docs/app.html's renderNFLModelProps /
+# renderNBAProps); NHL already had that same live fallback built in.
+# validate_props_against_schedule() is kept below since nothing else
+# in this file references fetch_linemate_props's removed team-tag bug
+# it guarded against, but no caller passes it real data anymore either.
 # ═══════════════════════════════════════════════════════════════════════════════
-def _linemate_playwright(url: str, selectors: list[str], limit: int = 100) -> list[str]:
-    """Generic Playwright scraper — returns list of raw inner_text strings."""
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        log("Playwright not installed — skipping", "WARN"); return []
-    items: list[str] = []
-    try:
-        with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=True, args=["--no-sandbox"])
-            ctx     = browser.new_context(user_agent=HEADERS["User-Agent"],
-                                          viewport={"width":1280,"height":900})
-            page    = ctx.new_page()
-            page.goto(url, wait_until="networkidle", timeout=45_000)
-            page.wait_for_timeout(5_000)
-            for sel in selectors:
-                rows = page.query_selector_all(sel)
-                if len(rows) > 3:
-                    for row in rows[:limit]:
-                        txt = row.inner_text().strip()
-                        if len(txt) > 8: items.append(txt)
-                    break
-            # Fallback: grab large content sections from main/body
-            if not items:
-                for container in ['main', '[class*="content"]', 'body']:
-                    try:
-                        txt = page.inner_text(container)
-                        if txt and len(txt) > 200:
-                            # split into blocks separated by blank lines
-                            blocks = [b.strip() for b in re.split(r'\n{2,}', txt) if len(b.strip()) > 20]
-                            items = blocks[:limit]
-                            if items: break
-                    except: pass
-            browser.close()
-    except Exception as exc:
-        log(f"Playwright {url}: {exc}", "WARN")
-    return items
-
-def fetch_linemate_props(sport: str) -> list[dict]:
-    log(f"Linemate props {sport.upper()}…")
-    raw = _linemate_playwright(
-        f"https://linemate.io/{sport}",
-        ["[class*='PlayerPropCard']","[class*='player-prop-card']","[class*='PropCard']",
-         "[class*='prop-card']","[class*='PlayerRow']","[class*='player-row']",
-         "[data-testid*='prop']","[data-testid*='player']","article","li[class*='prop']"],
-    )
-    props = []
-    STAT_KWDS = [("strikeout","Ks"),("saves","Saves"),("goal","Goals"),
-                 ("point","PTS"),("rebound","REB"),("assist","AST"),
-                 ("hit","Hits"),("rbi","RBIs"),("home run","HR"),
-                 ("total base","TB"),("shot","Shots"),("three","3PM"),("block","BLK"),("steal","STL"),
-                 ("passing yard","Pass Yds"),("rushing yard","Rush Yds"),("receiving yard","Rec Yds"),
-                 ("reception","Rec"),("passing touchdown","Pass TD"),("rushing touchdown","Rush TD"),
-                 ("receiving touchdown","Rec TD"),("interception","INT"),("completion","Comp")]
-    for t in raw:
-        if not t or len(t) < 8: continue
-        lines = [l.strip() for l in t.split("\n") if l.strip()]
-        txt_lower = t.lower()
-        # Identify player name: first Title Case line that's not a pure stat/number line
-        player_name = ""
-        for ln in lines[:6]:
-            # Skip pure stat lines like "5+ Points", numbers, team tags, Over/Under
-            is_stat_line = bool(re.match(r'^\d+[+\-.]', ln)) or ln.lower() in ('over','under','home','away')
-            is_team_tag = bool(re.match(r'^[A-Z]{2,4}$', ln))
-            is_pct = bool(re.search(r'\d+%', ln))
-            is_fraction = bool(re.search(r'\d+/\d+', ln))
-            is_name = bool(re.match(r'^[A-Z][a-zA-Z\'.\-]+ [A-Z][a-zA-Z\'.\-]+', ln)) and not is_stat_line
-            if is_name and not is_team_tag and not is_pct and not is_fraction:
-                player_name = ln; break
-        # Extract over/under and line value
-        over_match  = re.search(r'(over|under)\s*([\d.]+)', txt_lower)
-        # Also match patterns like "15+ Points" → line=15, over=True
-        plus_match  = re.search(r'(\d+(?:\.\d+)?)\+\s+\w', t) if not over_match else None
-        conf_match  = re.search(r'(\d{2,3})%', t)
-        team_match  = re.search(r'\b([A-Z]{2,4})\b', t)
-        hit_match   = re.search(r'(\d+)/(\d+)', t)
-        stat_cat = next((c for kw,c in STAT_KWDS if kw in txt_lower), "")
-        # No fallback to lines[0] here on purpose — when a sport's Linemate
-        # page has no real prop cards (e.g. NBA/NFL off-season), the
-        # selector fallback in _linemate_playwright grabs generic page
-        # content instead ("Daily picks", "GET ACCESS TO ADVANCED PLAYS…"),
-        # and treating that first line as a "player name" injected page
-        # marketing chrome into the live props feed as if it were a real
-        # card. Require an actual name-shaped match; skip the block
-        # entirely otherwise rather than inventing a fake player.
-        if not player_name:
-            continue
-        over_val = None; line_val = None
-        if over_match:
-            over_val = over_match.group(1).lower() == "over"
-            line_val = float(over_match.group(2))
-        elif plus_match:
-            over_val = True
-            line_val = float(plus_match.group(1))
-        # Also require a real line/over-under value — a name-shaped line
-        # with no actual prop number attached isn't a usable card either.
-        if line_val is None:
-            continue
-        hit_rate = f"{hit_match.group(1)}/{hit_match.group(2)}" if hit_match else ""
-        props.append({
-            "raw":      t[:300],
-            "sport":    sport.upper(),
-            "src":      "Linemate",
-            "player":   player_name,
-            "team":     team_match.group(1) if team_match else "",
-            "over":     over_val,
-            "line":     line_val,
-            "conf":     int(conf_match.group(1)) if conf_match else 55,
-            "stat":     stat_cat,
-            "hitRate":  hit_rate,
-        })
-    log(f"  Linemate {sport.upper()}: {len(props)} cards")
-    return props
-
 def validate_props_against_schedule(props: list[dict], todays_games: list[dict]) -> list[dict]:
     """Drop any prop whose parsed team abbreviation doesn't belong to a team
-    actually playing today per the real ESPN schedule for that sport — guards
-    against Linemate's regex-based team-tag extraction (fetch_linemate_props'
-    team_match) silently mis-assigning a prop to the wrong matchup, which is
-    exactly the bug that produced wrong-matchup prop cards this session.
+    actually playing today per the real ESPN schedule for that sport.
     If we have no schedule to validate against yet, don't drop anything —
     an empty schedule means "unknown", not "invalid"."""
     valid_teams = set()
@@ -2099,62 +1993,6 @@ def validate_props_against_schedule(props: list[dict], todays_games: list[dict])
     if dropped:
         log(f"  Prop-matchup validation: dropped {dropped}/{len(props)} props (team not in today's schedule)")
     return kept
-
-def fetch_linemate_trends(sport: str) -> list[dict]:
-    log(f"Linemate trends {sport.upper()}…")
-    raw = _linemate_playwright(
-        f"https://linemate.io/{sport}/trends",
-        ["[class*='TrendRow']","[class*='trend-row']","[class*='PlayerRow']",
-         "[class*='player-row']","[class*='prop-row']","table tr","article"],
-    )
-    trends: list[dict] = []
-    for txt in raw:
-        if not txt or len(txt) < 5: continue
-        parts     = [p.strip() for p in txt.split("\n") if p.strip()]
-        txt_lower = txt.lower()
-        # Skip pure header/table rows
-        if parts and (parts[0].lower() in ("player","name","trend","gp","h","r","tb","ab","timeframe") or
-                      parts[0][0].isdigit() or "	" in parts[0]):
-            continue
-        # Player name is usually the first non-numeric, non-header line
-        player_name = next((p for p in parts if len(p) > 2 and not p[0].isdigit() and
-                           p.lower() not in ("over","under","home","away","season")), parts[0] if parts else "")
-        direction = ("hot" if any(k in txt_lower for k in ["hot","fire","streak","on fire"]) else
-                     "cold" if any(k in txt_lower for k in ["cold","slump","cold streak"]) else
-                     "up"   if any(k in txt_lower for k in ["up","↑","trending up"]) else
-                     "down" if any(k in txt_lower for k in ["down","↓","trending down"]) else "neutral")
-        # Extract L5/L10 hit rates like "4/5" or "8/10"
-        nums = re.findall(r'(\d+)/(\d+)', txt)
-        # Detect stat category from content
-        stat_category = ""
-        for kw, cat in [("strikeout","Ks"),("saves","Saves"),("goal","Goals"),
-                        ("point","PTS"),("rebound","REB"),("assist","AST"),
-                        ("hit","Hits"),("rbi","RBIs"),("home run","HR"),
-                        ("total base","TB"),("shot","Shots")]:
-            if kw in txt_lower:
-                stat_category = cat
-                break
-        if not player_name or len(player_name) < 3:
-            continue
-        trends.append({
-            "player":    player_name,
-            "category":  stat_category or (parts[1] if len(parts)>1 else ""),
-            "direction": direction,
-            "l5":        f"{nums[0][0]}/{nums[0][1]}" if nums else "",
-            "l10":       f"{nums[1][0]}/{nums[1][1]}" if len(nums)>1 else "",
-            "lineMove":  "up" if "line up" in txt_lower else ("down" if "line down" in txt_lower else ""),
-            "raw":       txt[:250], "sport": sport.upper(), "src": "Linemate/trends",
-        })
-    log(f"  Linemate trends {sport.upper()}: {len(trends)} entries")
-    return trends
-
-def fetch_linemate_cheatsheet(sport: str) -> list[dict]:
-    log(f"Linemate cheatsheet {sport.upper()}…")
-    raw = _linemate_playwright(
-        f"https://linemate.io/{sport}/cheatsheets/recent-form",
-        ["[class*='Row']","[class*='row']","table tr","li","article"],
-    )
-    return [{"raw":t, "sport":sport.upper(), "src":"Linemate/form"} for t in raw]
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Sports news + injuries
@@ -4689,7 +4527,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Clairvoyance v6.0 data refresh")
     parser.add_argument("--push",          action="store_true", help="Commit + push to GitHub")
     parser.add_argument("--dry-run",       action="store_true", help="Fetch only, no writes")
-    parser.add_argument("--no-linemate",   action="store_true", help="Skip Playwright/Linemate")
+    parser.add_argument("--no-linemate",   action="store_true", help="No-op — Linemate scraper removed 2026-09-10 (kept so scheduled-refresh.yml/manual-sync.yml, which still pass this flag, don't fail argparse)")
     parser.add_argument("--no-reference",  action="store_true", help="Skip Baseball/Basketball/Hockey Reference")
     parser.add_argument("--mode",          choices=["full","live","props"], default="full")
     parser.add_argument("--sport",         choices=["nba","nhl","nfl","soccer","all"], default="all")
@@ -4709,44 +4547,19 @@ def main() -> None:
 
     S = args.sport  # shorthand
 
-    # ── props-only mode ──────────────────────────────────────────────────────
-    # Was writing to data/linemate.json, which nothing else in this codebase
-    # ever reads — the live app only reads docs/data.json's own
-    # bundle["linemate"] key (written by the full run below), so this mode
-    # ran real scrapes whose output silently went nowhere. Now reads the
-    # current docs/data.json, merges in just this run's props/trends/form
-    # for the requested sport(s), and writes it back through the same
-    # write_data_json()/git_push() path the full run uses — everything else
-    # in the bundle (standings, odds, injuries, etc, last written by the
-    # most recent full 3x/day run) passes through untouched.
+    # ── props-only mode — RETIRED 2026-09-10 ─────────────────────────────────
+    # This mode existed solely to run the Linemate scraper (fetch_linemate_
+    # props/trends/cheatsheet) for NBA/NHL/NFL's daily props workflows.
+    # linemate.io now login-walls every per-league page site-wide (see the
+    # removed scraper's own comment, just above validate_props_against_
+    # schedule() near the top of this file), so there is nothing left for
+    # this mode to fetch. NFL/NBA/NHL props all now come from their own
+    # real ESPN-stats + Monte Carlo generators, wired directly into
+    # docs/app.html's render functions rather than through this pipeline.
+    # Kept as a recognized (no-op) mode rather than removed outright since
+    # daily-player-stats-refresh.yml still invokes it for all three sports.
     if args.mode == "props":
-        if not FE_DATA.exists():
-            log("props-only mode: docs/data.json doesn't exist yet — run a full sync first", "ERROR")
-            return
-        bundle = json.loads(FE_DATA.read_text())
-        bundle.setdefault("linemate", {}).setdefault("props", {})
-        bundle["linemate"].setdefault("trends", {})
-        bundle["linemate"].setdefault("form", {})
-        for sport in ["nba","nhl"]:  # MLB retired 2026-09-08, NFL retired 2026-09-10 (see full-sync loop's comment above)
-            if S in (sport,"all"):
-                props = fetch_linemate_props(sport)
-                # This fast-path never applied validate_props_against_schedule()
-                # at all -- the real fix for Linemate's regex-based team-tag
-                # extraction silently mis-assigning a prop to the wrong
-                # matchup only ever ran in the full sync path. Since NBA/
-                # NHL's actual daily props workflows call --mode props (this
-                # exact code path), every real daily refresh for those two
-                # sports was missing this protection. Validate against
-                # whatever real schedule the last full sync already cached
-                # in this same bundle, avoiding an extra fetch here.
-                props = validate_props_against_schedule(props, (bundle.get(sport) or {}).get("today") or [])
-                bundle["linemate"]["props"][sport]  = props
-                bundle["linemate"]["trends"][sport] = fetch_linemate_trends(sport)
-                bundle["linemate"]["form"][sport]   = fetch_linemate_cheatsheet(sport)
-                time.sleep(1)
-        bundle["linemate"]["generatedAt"] = TS_DISPLAY
-        write_data_json(bundle)
-        if args.push: git_push("props-only refresh")
+        log("props-only mode retired 2026-09-10 — Linemate is login-walled site-wide; NFL/NBA/NHL props now come from their own ESPN+MC-sim generators. No-op.", "WARN")
         return
 
     # ── full fetch phase ─────────────────────────────────────────────────────
@@ -4803,25 +4616,18 @@ def main() -> None:
     # with its fetch above). Bundle key kept (empty) for the same reason.
     weather: dict = {}
 
-    # Linemate
+    # Linemate — scraper removed 2026-09-10 (linemate.io login-walls every
+    # per-league page site-wide now; see the removed fetch_linemate_props/
+    # trends/cheatsheet's replacement comment near validate_props_against_
+    # schedule() above). Dicts kept as always-empty so the bundle["linemate"]
+    # shape below and every downstream .get("nba"/"nhl", []) reader stays
+    # unchanged rather than needing an audit of every consumer for missing-
+    # key safety. NFL/NBA/NHL props all come from their own real ESPN+MC-sim
+    # generators now (docs/app.html's renderNFLModelProps/renderNBAProps/
+    # renderNHLPropsLive), independent of this bundle key entirely.
     lm_props:  dict = {"nba":[],"mlb":[],"nhl":[],"wnba":[],"nfl":[]}
     lm_trends: dict = {"nba":[],"mlb":[],"nhl":[],"wnba":[],"nfl":[]}
     lm_form:   dict = {"nba":[],"mlb":[],"nhl":[],"wnba":[],"nfl":[]}
-    _lm_schedule = {"nba": nba_today, "mlb": mlb_today, "nhl": nhl_today, "wnba": []}
-    if not args.no_linemate:
-        # MLB and WNBA both retired 2026-09-08 -- no longer fetched here.
-        # NFL retired 2026-09-10: linemate.io now redirects every
-        # unauthenticated per-league/trends URL (confirmed against both
-        # /nfl and /mlb/trends) straight back to its marketing homepage,
-        # so this scraper had nothing real left to find for NFL — the
-        # app's NFL props are sourced entirely from the analytical
-        # ESPN/MC-sim model (docs/app.html's renderNFLModelProps) now.
-        for sport in ["nba","nhl"]:
-            if S in (sport,"all"):
-                lm_props[sport]  = fetch_linemate_props(sport);     time.sleep(1)
-                lm_trends[sport] = fetch_linemate_trends(sport);    time.sleep(1)
-                lm_form[sport]   = fetch_linemate_cheatsheet(sport); time.sleep(1)
-                lm_props[sport] = validate_props_against_schedule(lm_props[sport], _lm_schedule[sport])
 
     # NCAA Baseball + WNBA + PWHL
     # NCAA baseball is no longer tracked in the engine — purged from the
