@@ -12518,6 +12518,15 @@ const _OPS_SPORT_TABS=[
   {k:'NBA',label:'NBA',color:'var(--pc)'},
   {k:'NHL',label:'NHL',color:'var(--ic)'},
   {k:'NFL',label:'NFL',color:'var(--hc)'},
+  // Real gap, found auditing Engine Ops: CFB has been a fully active
+  // sport all session (its own lockCFBGame/autoSettleCFB, real
+  // conference/FPI/Elo data via loadCFBData, its own manual weight
+  // slider at applyCFBWeights) but had zero manual ops controls here --
+  // no tab, no props/stats/schedule buttons, unlike every other active
+  // sport. MLB staying absent is intentional (explicitly retired from
+  // the engine's real scope, 2026-09-09 -- see Dashboard's own comment),
+  // not an oversight; CFB's absence was.
+  {k:'CFB',label:'CFB',color:'var(--gc)'},
   {k:'SOCCER',label:'SOCCER',color:'var(--nc)'},
 ];
 const _OPS_SOCCER_LEAGUES=[
@@ -12563,8 +12572,19 @@ function renderEngineOps(){
     ${_OPS_SOCCER_LEAGUES.map(l=>`<button class="btn btn-sm" style="border:1px solid ${activeLeague===l.k?'var(--nc)':'rgba(255,255,255,.14)'};color:${activeLeague===l.k?'var(--nc)':'rgba(255,255,255,.5)'};background:transparent;font-size:14px;padding:2px 8px" onclick="_opsSetLeague('${l.k}')">${l.label}</button>`).join('')}
   </div>`:'');
 
-  const NO_PROPS=new Set(['NFL','BUND','CL','LIGA','MLS','PL','SERIEA']);
-  const NO_STATS=new Set(['NFL']);
+  // CFB has no props feature anywhere in the app (no lock/render path for
+  // it), same real gap as NFL/every soccer league -- added here rather
+  // than silently rendering a props button that does nothing.
+  const NO_PROPS=new Set(['NFL','CFB','BUND','CL','LIGA','MLS','PL','SERIEA']);
+  // Real bug, found and fixed: NFL used to be the one sport permanently
+  // excluded from STAT REINTEGRATION with a hardcoded "model not active"
+  // message -- accurate when NFL's season hadn't started, false and
+  // actively misleading once it had (confirmed live: this session's own
+  // NFL prop/game-line work has been running on real per-game data the
+  // whole time). NFL DOES have a real, re-fetchable stat source
+  // (loadNFLData()/_NFL_DATA, same nfl_*.json files fetch_nfl.py writes)
+  // -- it just never had a manual refresh button wired to it.
+  const NO_STATS=new Set();
   const NO_SCHED=new Set();
   const label=activeSport==='SOCCER'?(_OPS_SOCCER_LEAGUES.find(l=>l.k===activeLeague)||{}).label:(_OPS_SPORT_TABS.find(t=>t.k===activeSport)||{}).label;
 
@@ -12581,7 +12601,7 @@ function renderEngineOps(){
   // ── STAT REINTEGRATION ───────────────────────────────────────────────────
   const statSection=sec('STAT REINTEGRATION','var(--pc)','ops-stats',
     NO_STATS.has(code)
-      ?`<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">${label} — no stat source wired yet${code==='NFL'?' (model not active)':''}.</div>`
+      ?`<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">${label} — no stat source wired yet.</div>`
       :`<div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:10px">Pull latest ${label} player/team stats into the engine model layer.</div>
     ${btnRow(btn(label.toUpperCase()+' STATS',`opsRunStats('${code}',this)`,'btn-p'))}`);
 
@@ -12616,30 +12636,40 @@ function renderEngineOps(){
   </div>`;
 
   // ── SPORT WEIGHTS DISPLAY ────────────────────────────────────────────────
-  // MLB/NHL/NBA/WNBA each have real, independently-tuned ensemble
-  // weights. NFL/CFB still don't have their
-  // own tuned models - quietly reusing MLB's ENS object with no
-  // indication of that, which reads as if they had real independent
-  // weights. Labeled honestly instead of hidden.
-  const _weightRow=r=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+  // Real bug, found and fixed alongside the Adaptive tab audit: this
+  // used to show NFL/CFB as "sharing baseline ensemble weights (no
+  // dedicated model yet)", quietly reusing the unrelated global ENS
+  // object -- true once, but NFL/CFB have ALWAYS had their own real,
+  // independently-tuned ensembles (window.NFL_ENS/window.CFB_ENS,
+  // manually adjustable via applyNFLWeights2()/applyCFBWeights() on
+  // their own Config tabs), and nflEns()/cfbEns() have always read
+  // those, never the generic ENS. The only real gap (adaptiveTick()
+  // never actually updating them) is fixed now too -- see its own
+  // comment -- so both lines were false: they never shared a baseline,
+  // and now they aren't even missing adaptive tuning. NFL's ensemble is
+  // a genuine 2-component MC/Bayesian split (no Elo signal exists for
+  // NFL, same reason CFB's own Elo weight ramps in only once real games
+  // are played) -- the ELO row is only rendered when a sport's ensemble
+  // actually has one, instead of unconditionally reading r.ens.elo and
+  // rendering "NaN%".
+  const _weightRow=r=>{
+    const rows=[['MC',r.ens.mc,'var(--nc)'],['BAY',r.ens.bay,'var(--vc)']];
+    if(r.ens.elo!=null)rows.push(['ELO',r.ens.elo,'var(--pc)']);
+    return`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)">
       <span style="font-family:var(--mono);font-size:15px;color:${r.col}">${r.lbl}</span>
       <div style="display:flex;gap:10px;font-family:var(--mono);font-size:15px">
-        <span>MC <span style="color:var(--nc)">${((r.ens.mc||0)*100).toFixed(0)}%</span></span>
-        <span>BAY <span style="color:var(--vc)">${((r.ens.bay||0)*100).toFixed(0)}%</span></span>
-        <span>ELO <span style="color:var(--pc)">${((r.ens.elo||0)*100).toFixed(0)}%</span></span>
+        ${rows.map(([l,v,c])=>`<span>${l} <span style="color:${c}">${((v||0)*100).toFixed(0)}%</span></span>`).join('')}
       </div>
     </div>`;
+  };
   const swSection=`<div class="card" style="margin-bottom:10px;padding:10px;border-top:2px solid var(--vc)">
     <div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--vc);margin-bottom:8px">// ENSEMBLE WEIGHTS BY SPORT</div>
-    <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:6px">Independently-tuned model weights (MC / Bayesian / ELO)</div>
+    <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:6px">Independently-tuned model weights (MC / Bayesian / ELO) — manually via each sport's own Config tab, and automatically by the Adaptive tab</div>
     ${[
       {lbl:'NHL',ens:NHL_ENS,col:'var(--ic)'},
       {lbl:'NBA',ens:NBA_ENS,col:'var(--pc)'},
-    ].map(_weightRow).join('')}
-    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px;margin:10px 0 4px">SHARING BASELINE ENSEMBLE WEIGHTS (NO DEDICATED MODEL YET)</div>
-    ${[
-      {lbl:'NFL',ens:ENS,col:'var(--hc)'},
-      {lbl:'CFB',ens:ENS,col:'var(--hc)'},
+      {lbl:'NFL',ens:window.NFL_ENS,col:'var(--hc)'},
+      {lbl:'CFB',ens:window.CFB_ENS,col:'var(--gc)'},
     ].map(_weightRow).join('')}
     <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px;margin:10px 0 4px">SOCCER — POISSON/xG MODEL (not MC/Bayesian/ELO — same model shared across all 6 leagues)</div>
     <div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">
@@ -12677,8 +12707,8 @@ async function opsRunProps(sport,btn){
   const orig=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='⏳...';}
   const sectionId='ops-props';
-  const sports=sport==='ALL'?['NBA','NHL','NFL','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
-  const _NO_PROP_SOURCE=new Set(['NFL','BUND','CL','LIGA','MLS','PL','SERIEA']);
+  const sports=sport==='ALL'?['NBA','NHL','NFL','CFB','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
+  const _NO_PROP_SOURCE=new Set(['NFL','CFB','BUND','CL','LIGA','MLS','PL','SERIEA']);
   _opsLog(sectionId,`▶ PROP REFRESH — ${sport}`);
   for(const s of sports){
     try{
@@ -12703,7 +12733,7 @@ async function opsRunStats(sport,btn){
   const orig=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='⏳...';}
   const sectionId='ops-stats';
-  const sports=sport==='ALL'?['NBA','NHL','NFL','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
+  const sports=sport==='ALL'?['NBA','NHL','NFL','CFB','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
   const _CLUB_LEAGUES_ST={BUND:'bl',CL:'cl',LIGA:'liga',PL:'pl',SERIEA:'ita',MLS:'mls'};
   _opsLog(sectionId,`▶ STAT UPDATE — ${sport}`);
   for(const s of sports){
@@ -12711,7 +12741,19 @@ async function opsRunStats(sport,btn){
       _opsLog(sectionId,`  · ${s}: pulling stats...`);
       if(s==='NBA'){renderNBAStats&&renderNBAStats();renderNBAPlayers&&renderNBAPlayers();_opsLog(sectionId,`  · ${s}: ✓ stats updated`);}
       else if(s==='NHL'){renderNHLPropsLive&&renderNHLPropsLive();_opsLog(sectionId,`  · ${s}: ✓ NHL stats refreshed`);}
-      else if(s==='NFL'){_opsLog(sectionId,'  · NFL: — no stat source wired yet (model not active)','err');}
+      // Real bug, found and fixed: this used to unconditionally log "no
+      // stat source wired yet (model not active)" for NFL -- true when
+      // this branch was written (preseason), false and misleading once
+      // the season actually started (NFL has real, re-fetchable stats
+      // via loadNFLData()/_NFL_DATA -- the same nfl_*.json files
+      // fetch_nfl.py writes). Forces a genuine re-fetch by clearing the
+      // cached _NFL_DATA first -- loadNFLData() early-returns the cache
+      // otherwise, same caching behavior loadCFBData() has below.
+      else if(s==='NFL'){window._NFL_DATA=null;await loadNFLData();if(window._nflActiveTab==='games')typeof renderNFLGames2==='function'&&renderNFLGames2();_opsLog(sectionId,`  · ${s}: ✓ stats refreshed (${Object.keys((_NFL_DATA&&_NFL_DATA.playerStats)||{}).length} teams' player stats)`);}
+      // CFB had zero manual ops coverage at all before this (see
+      // _OPS_SPORT_TABS' own comment) despite real, re-fetchable data
+      // via loadCFBData()/_CFB_DATA.
+      else if(s==='CFB'){window._CFB_DATA=null;await loadCFBData();if(window._cfbActiveTab==='games')typeof renderCFBGames==='function'&&renderCFBGames();_opsLog(sectionId,`  · ${s}: ✓ stats refreshed (${Object.keys((_CFB_DATA&&_CFB_DATA.stats)||{}).length} teams)`);}
       else if(s==='WC'){typeof renderWCMatches==='function'&&renderWCMatches();typeof renderWCProps==='function'&&renderWCProps();_opsLog(sectionId,`  · ${s}: ✓ WC schedule + props refreshed`);}
       else if(_CLUB_LEAGUES_ST[s]){
         const lk=_CLUB_LEAGUES_ST[s];
@@ -12729,7 +12771,7 @@ async function opsRunSched(sport,btn){
   const orig=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='⏳...';}
   const sectionId='ops-sched';
-  const sports=sport==='ALL'?['NBA','NHL','NFL','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
+  const sports=sport==='ALL'?['NBA','NHL','NFL','CFB','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
   _opsLog(sectionId,`▶ SCHEDULE REFRESH — ${sport}`);
   const _CLUB_LEAGUES={BUND:'bl',CL:'cl',LIGA:'liga',PL:'pl',SERIEA:'ita'};
   for(const s of sports){
@@ -12737,7 +12779,12 @@ async function opsRunSched(sport,btn){
       _opsLog(sectionId,`  · ${s}: checking schedule...`);
       if(s==='NBA'){renderNBAGames&&renderNBAGames();_opsLog(sectionId,'  · NBA: ✓ schedule refreshed');}
       else if(s==='NHL'){renderNHLGames&&renderNHLGames();_opsLog(sectionId,'  · NHL: ✓ schedule refreshed');}
-      else if(s==='NFL'){_opsLog(sectionId,'  · NFL: — model not active yet (season starts September; button wired and ready for kickoff)','err');}
+      // Real bug, found and fixed: hardcoded "model not active yet
+      // (season starts September)" -- stale the moment the season
+      // actually started; confirmed live this session's entire NFL
+      // props/game-line work has been running on real Week 1 games.
+      else if(s==='NFL'){window._NFL_DATA=null;await loadNFLData();if(window._nflActiveTab==='games')typeof renderNFLGames2==='function'&&renderNFLGames2();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${Object.keys((_NFL_DATA&&_NFL_DATA.weeks)||{}).length} week(s) loaded)`);}
+      else if(s==='CFB'){window._CFB_DATA=null;await loadCFBData();if(window._cfbActiveTab==='games')typeof renderCFBGames==='function'&&renderCFBGames();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${Object.keys((_CFB_DATA&&_CFB_DATA.weeks)||{}).length} week(s) loaded)`);}
       else if(s==='WC'){renderWCMatches&&renderWCMatches();_opsLog(sectionId,'  · WC: ✓ World Cup matches refreshed');}
       else if(s==='MLS'){await _fetchMLSScheduleReal();typeof renderLeagueMatches==='function'&&renderLeagueMatches('mls');_opsLog(sectionId,'  · MLS: ✓ schedule refreshed');}
       else if(_CLUB_LEAGUES[s]){
