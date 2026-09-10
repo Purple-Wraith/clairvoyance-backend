@@ -4727,24 +4727,19 @@ def main() -> None:
         bundle.setdefault("linemate", {}).setdefault("props", {})
         bundle["linemate"].setdefault("trends", {})
         bundle["linemate"].setdefault("form", {})
-        for sport in ["nba","nhl","nfl"]:  # MLB retired 2026-09-08
+        for sport in ["nba","nhl"]:  # MLB retired 2026-09-08, NFL retired 2026-09-10 (see full-sync loop's comment above)
             if S in (sport,"all"):
                 props = fetch_linemate_props(sport)
                 # This fast-path never applied validate_props_against_schedule()
                 # at all -- the real fix for Linemate's regex-based team-tag
                 # extraction silently mis-assigning a prop to the wrong
-                # matchup only ever ran in the full sync path. Since NBA/NFL/
+                # matchup only ever ran in the full sync path. Since NBA/
                 # NHL's actual daily props workflows call --mode props (this
-                # exact code path), every real daily refresh for those three
-                # sports was missing this protection. NFL's schedule spans a
-                # week rather than "today" like the others, so it needs its
-                # own fresh weekly fetch; MLB/NBA/NHL validate against
+                # exact code path), every real daily refresh for those two
+                # sports was missing this protection. Validate against
                 # whatever real schedule the last full sync already cached
                 # in this same bundle, avoiding an extra fetch here.
-                if sport == "nfl":
-                    props = validate_props_against_schedule(props, fetch_week_schedule("football/nfl","nfl"))
-                else:
-                    props = validate_props_against_schedule(props, (bundle.get(sport) or {}).get("today") or [])
+                props = validate_props_against_schedule(props, (bundle.get(sport) or {}).get("today") or [])
                 bundle["linemate"]["props"][sport]  = props
                 bundle["linemate"]["trends"][sport] = fetch_linemate_trends(sport)
                 bundle["linemate"]["form"][sport]   = fetch_linemate_cheatsheet(sport)
@@ -4815,18 +4810,18 @@ def main() -> None:
     _lm_schedule = {"nba": nba_today, "mlb": mlb_today, "nhl": nhl_today, "wnba": []}
     if not args.no_linemate:
         # MLB and WNBA both retired 2026-09-08 -- no longer fetched here.
-        for sport in ["nba","nhl","nfl"]:
+        # NFL retired 2026-09-10: linemate.io now redirects every
+        # unauthenticated per-league/trends URL (confirmed against both
+        # /nfl and /mlb/trends) straight back to its marketing homepage,
+        # so this scraper had nothing real left to find for NFL — the
+        # app's NFL props are sourced entirely from the analytical
+        # ESPN/MC-sim model (docs/app.html's renderNFLModelProps) now.
+        for sport in ["nba","nhl"]:
             if S in (sport,"all"):
                 lm_props[sport]  = fetch_linemate_props(sport);     time.sleep(1)
                 lm_trends[sport] = fetch_linemate_trends(sport);    time.sleep(1)
                 lm_form[sport]   = fetch_linemate_cheatsheet(sport); time.sleep(1)
-                if sport == "nfl":
-                    # Weekly, not daily, schedule — NFL games span the
-                    # whole week rather than clustering on "today" the way
-                    # the other sports' schedules do.
-                    lm_props[sport] = validate_props_against_schedule(lm_props[sport], fetch_week_schedule("football/nfl","nfl"))
-                else:
-                    lm_props[sport] = validate_props_against_schedule(lm_props[sport], _lm_schedule[sport])
+                lm_props[sport] = validate_props_against_schedule(lm_props[sport], _lm_schedule[sport])
 
     # NCAA Baseball + WNBA + PWHL
     # NCAA baseball is no longer tracked in the engine — purged from the
