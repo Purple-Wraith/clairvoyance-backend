@@ -669,7 +669,7 @@ body{line-height:1.5}
       <div id="nfl2-games-list"><div class="loading"><span class="spi"></span> LOADING…</div></div>
     </div></div>
     <div id="nfl2-tab-props" class="subp" style="display:none"><div class="sa">
-      <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:10px">Sourced from the existing Linemate props feed (window._remoteNFLProps), not this session's new NFL model — the analytical passing/rushing/receiving/TD prop-likelihood build (using real ESPN player stats) is a planned phase 2.</div>
+      <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:10px">Sourced from the existing Linemate props feed (window._remoteNFLProps), not this session's NFL model — the analytical passing/rushing/receiving/TD prop-likelihood build (using real ESPN player stats, real depth charts, and a shared per-game MC simulation) is the "MODEL PROPS (ANALYTICAL)" section below.</div>
       <div id="nfl-props-filter" style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">
         <button class="btn btn-o btn-sm act" onclick="renderNFLProps('all')">ALL</button>
         <button class="btn btn-o btn-sm" onclick="renderNFLProps('pass')">PASSING</button>
@@ -679,7 +679,7 @@ body{line-height:1.5}
       </div>
       <div id="nfl-props"><div class="empty">NO NFL PROPS — OFF-SEASON</div></div>
       <div class="sh" style="margin-top:18px">MODEL PROPS (ANALYTICAL)</div>
-      <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:10px">Generated from each player's real season-to-date per-game average (ESPN team leaders) adjusted for the specific opponent's real per-game defensive production -- ESPN's own per-game figures where available, otherwise divided by that team's own real games-played count from the same stats snapshot (never a cross-file guess), then compared against a real league average + rank computed live from every loaded team's own per-game numbers. No per-game head-to-head or division-rival history is factored in yet -- that needs a heavier per-player game-log scrape not built yet. Likelihood % uses a modeled variance assumption per stat category, not measured from real game logs -- read it as directional, not a market-calibrated probability.</div>
+      <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:10px">Generated from each player's real season-to-date per-game average (real ESPN roster + depth-chart data, position-gated to QB/RB/WR/TE) adjusted for the specific opponent's real per-game defensive production -- ESPN's own per-game figures where available, otherwise divided by that team's own real games-played count from the same stats snapshot (never a cross-file guess), then compared against a real league average + rank computed live from every loaded team's own per-game numbers. Likelihood is simulated across the same 10,000-run Monte Carlo projection used for the game-level model, correlated with that matchup's own projected pace and scoring rather than a fixed variance assumption. No per-game head-to-head or division-rival history is factored in yet -- that needs a heavier per-player game-log scrape not built yet. Includes an Anytime TD market (rushing + receiving TD rate combined) under TOUCHDOWNS.</div>
       <select id="nfl-model-props-game" onchange="renderNFLModelProps(window._nflModelPropFilter||'all')" style="width:100%;padding:8px;margin-bottom:10px;background:rgba(4,0,12,.9);border:1px solid rgba(0,120,255,.25);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"><option value="">SELECT A GAME…</option></select>
       <div id="nfl-model-props-filter" style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">
         <button class="btn btn-o btn-sm act" onclick="renderNFLModelProps('all')">ALL</button>
@@ -14317,7 +14317,7 @@ function renderNFLProps(filter){
     const kws=STAT_FILTER[filter]||[filter];
     data=data.filter(p=>kws.some(k=>(p.stat||'').toLowerCase().includes(k)||(p.raw||'').toLowerCase().includes(k)));
   }
-  if(!data.length){el.innerHTML='<div class="empty">NO NFL PROPS — OFF-SEASON (ACTIVATES SEP 3, 2026)</div>';try{renderNFLPropsTracker();}catch(e){}return;}
+  if(!data.length){el.innerHTML='<div class="empty">NO LINEMATE NFL PROPS LOADED — SEE MODEL PROPS (ANALYTICAL) BELOW</div>';try{renderNFLPropsTracker();}catch(e){}return;}
   el.innerHTML=data.map((p,i)=>{
     const grade=p.conf>=67?'PREMIUM':p.conf>=62?'OPTIMAL':p.conf>=55?'LEAN':'SKIP';
     const gc=gradeC[grade]||'var(--t3)';
