@@ -3732,6 +3732,29 @@ function _migrateMissingSpreadSign(){
     if(changed){saveP(preds);try{console.warn('[migrate] added missing "-" sign to',changed,'favorite spread bet(s)');}catch(e){}}
   }catch(e){}
 }
+// ── Fix already-locked soccer O/U bets mistagged ML via the shared
+// lockPick/_ouLockDir betType-override bug (see lockPick's own comment) ──
+// Every club-soccer league's match card passes its league code (CL/PL_SOC/
+// LIGA/BUND/MLS/SERIEA) as lockPick's `type` for BOTH the ML chip and the
+// O/U buttons -- before the fix, that collapsed every market on a soccer
+// match to betType='ML', including real OVER/UNDER locks. Fixed at the
+// source, but any O/U bet locked before that fix is stuck mistagged
+// forever (and keeps blocking a genuine later ML lock on the same match
+// via _findSameMarketLock's own-betType dedup) unless corrected here.
+// Only retags betType itself -- outcome/settlement already graded these
+// correctly against their real OVER/UNDER line (grading reads betOn, not
+// betType), so no score/outcome data needs to change, just the market tag.
+function _migrateSoccerOuMislabeledML(){
+  try{
+    const _SOC_LEAGUES=new Set(['CL','PL','LIGA','BUND','MLS','SERIEA']);
+    const preds=getP();let changed=0;
+    preds.forEach(p=>{
+      if(!_SOC_LEAGUES.has(p.sport)||p.betType!=='ML'||!p.betOn)return;
+      if(/^(OVER|UNDER)\s/i.test(p.betOn)){p.betType='OU';changed++;}
+    });
+    if(changed){saveP(preds);try{console.warn('[migrate] re-tagged',changed,'soccer O/U bet(s) mislabeled ML');}catch(e){}}
+  }catch(e){}
+}
 // ── Shared team->sport classifier (single source of truth) ────────────────
 // Same membership-scoring approach used live in lockPick's fallback path —
 // factored out here so the dry-run audit below can never drift from what
@@ -18761,6 +18784,7 @@ document.addEventListener('DOMContentLoaded',()=>{(async()=>{
   }catch(e){console.error('parallelSync',e);}
   try{_migrateMlbNhlMislabel();}catch(e){console.error('migrateMlbNhl',e);}
   try{_migrateMissingSpreadSign();}catch(e){console.error('migrateSpreadSign',e);}
+  try{_migrateSoccerOuMislabeledML();}catch(e){console.error('migrateSoccerOuMislabeledML',e);}
   // Recurring guard against the erroneous "M. Cilic at Daniil Medvedev" seed bet
   // resurfacing (via GitHub/backend/IDB sync re-adding it after the one-time
   // cleanup above already ran once and set its flag). Runs every load, after
