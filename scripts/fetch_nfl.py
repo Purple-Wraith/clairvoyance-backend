@@ -537,6 +537,110 @@ def fetch_all_player_stats(roster: list[dict], season: int) -> dict:
     return out
 
 
+def _current_nfl_week() -> int:
+    """Regular-season week number, used purely to gate the season-blend
+    below (explicit request: 100% prior-season through week 3, 70/30
+    current/prior from week 4 on) -- the first "Week N" (1-18) with at
+    least one game not yet final. Reads the already-fresh
+    docs/nfl_schedule.json (refreshed daily by another job) rather than
+    re-fetching the whole season here -- same 'state' field the
+    frontend's own week-dropoff logic (docs/app.html) already keys off,
+    so both stay in sync on what "the current week" means. Returns 1 if
+    the file's missing or nothing's been played yet (preseason -- keeps
+    the >=4 gate correctly closed), and 18 if every regular-season week
+    is already complete (deep into the postseason -- keeps the gate
+    correctly open rather than needing a separate postseason case)."""
+    try:
+        data = json.loads(SCHEDULE_OUT.read_text())
+    except Exception:
+        return 1
+    weeks = data.get("weeks", {})
+    for wk in range(1, 19):
+        games = weeks.get(f"Week {wk}")
+        if not games:
+            continue
+        if any(g.get("state") != "post" for g in games):
+            return wk
+    return 18
+
+
+_BLEND_STAT_KEYS = {"passingYards", "passingTouchdowns", "rushingYards", "rushingTouchdowns",
+                     "receivingYards", "receivingTouchdowns", "receptions"}
+
+
+def _blend_stats(cur: dict, prior: dict) -> dict:
+    """70% current-season / 30% last-season blend, explicit request:
+    after week 3 there's enough current-season signal to lead, but
+    folding in 30% of a real prior season smooths out the noise a
+    single 4-6-game current sample still has on its own. Blends at the
+    PER-GAME RATE, not raw totals -- the two seasons never share a
+    games-played count, so blending totals directly would silently
+    weight by games played instead of the intended 70/30 split.
+    Reconstructs a total (blended per-game * current games) so every
+    downstream consumer keeps working unchanged -- both this file's own
+    output shape and app.html's _nflBuildPropRow (perGame=base/games).
+    games stays the player's real CURRENT-season count on purpose:
+    grading's small-sample downgrade (_nflPropGrade in app.html) should
+    key off how many real games we've actually seen him play THIS
+    season, not an inflated blended count.
+    A stat key present in only one season (e.g. a rookie's rushingYards
+    with no prior-season record at all) treats the missing side as 0 --
+    a deliberate, documented choice: no real prior signal exists for
+    that key, so blending in a made-up value would be worse than
+    discounting toward 0 by the prior season's 30% weight."""
+    cur_games = cur.get("games") or 0
+    prior_games = prior.get("games") or 0
+    if cur_games <= 0:
+        return prior  # no current-season games yet -- nothing to blend with
+    if prior_games <= 0:
+        return cur  # rookie / no prior-season record -- nothing to blend with
+    out = {"games": cur_games}
+    for key in _BLEND_STAT_KEYS:
+        cur_v, prior_v = cur.get(key), prior.get(key)
+        if cur_v is None and prior_v is None:
+            continue
+        cur_pg = (cur_v / cur_games) if cur_v is not None else 0.0
+        prior_pg = (prior_v / prior_games) if prior_v is not None else 0.0
+        out[key] = round((0.7 * cur_pg + 0.3 * prior_pg) * cur_games, 1)
+    return out
+
+
+def fetch_all_player_stats_blended(roster: list[dict], current_year: int, current_week: int) -> dict:
+    """Weeks 1-3: pure prior-season stats (a 1-3-game current sample is
+    too small to trust over a full prior season -- same judgment the
+    old "half the league has no data yet" fallback was already making,
+    just gated on the real schedule week instead of an indirect proxy
+    for it). Week 4+: blends 70% current-season / 30% last-season per
+    player (see _blend_stats). Prior-season is always fetched first and
+    unconditionally -- needed either way, as the whole story through
+    week 3 or as blend input after -- so the extra current-season fetch
+    (and its real added API time) only happens once it's actually
+    needed."""
+    out: dict[str, list[dict]] = {}
+    for i, tm in enumerate(roster):
+        abbr, tid = tm.get("abbr"), tm.get("id")
+        if not abbr or not tid:
+            continue
+        players = fetch_team_roster(tid, abbr)
+        rows = []
+        for p in players:
+            prior_stats = fetch_player_season_stats(p["id"], current_year - 1)
+            time.sleep(0.1)
+            if current_week < 4:
+                stats = prior_stats
+            else:
+                cur_stats = fetch_player_season_stats(p["id"], current_year)
+                time.sleep(0.1)
+                stats = _blend_stats(cur_stats, prior_stats) if cur_stats.get("games") else prior_stats
+            if not stats.get("games"):
+                continue
+            rows.append({"name": p["name"], "position": p["position"], **stats})
+        out[abbr] = rows
+        _log(f"  {abbr}: {len(rows)}/{len(players)} skill players with real stats  ({i + 1}/{len(roster)})")
+        time.sleep(0.2)
+    return out
+
+
 def fetch_injuries() -> dict:
     """Per-team injury report: player, status, injury description,
     estimated return date when ESPN publishes one. Feeds both the
@@ -691,37 +795,35 @@ if __name__ == "__main__":
             else:
                 _log("  no roster available for player_stats — run --mode roster first")
         if roster_teams:
-            # Reuses --stats-season, or stats_season already computed by
-            # the team-stats block above in the same run (--mode all),
-            # or auto-detects fresh the same way that block does --
-            # tries the current year, falls back to the prior season if
-            # nobody league-wide has real stats yet.
             if args.stats_season is not None:
+                # Manual override -- single season, no blending. A debug/
+                # backfill escape hatch (e.g. re-pull a known-good past
+                # season by hand); the scheduled workflow never passes this.
                 player_stats_season = args.stats_season
-            elif stats_season is not None:
-                player_stats_season = stats_season
-            else:
-                player_stats_season = int(time.strftime("%Y", time.gmtime()))
-            player_stats = fetch_all_player_stats(roster_teams, player_stats_season)
-            # Real bug, found via audit: an exact-zero check here missed
-            # the actual early-season case -- once even ONE game has been
-            # played (e.g. a Wednesday-night opener), a couple of that
-            # game's players already have 1 real game of current-season
-            # stats, so total_players is a small nonzero number instead of
-            # 0, and the season never fell back even though the other 30+
-            # teams still had nothing. Matches fetch_all_team_stats'
-            # existing team-level proportional check instead of an exact
-            # count: fall back unless at least half the LEAGUE's teams
-            # have any real current-season data yet.
-            teams_with_data = sum(1 for v in player_stats.values() if v)
-            if (teams_with_data < len(roster_teams) * 0.5
-                    and args.stats_season is None and stats_season is None):
-                _log(f"  season={player_stats_season} returned real stats for only "
-                     f"{teams_with_data}/{len(roster_teams)} teams -- season hasn't "
-                     f"started yet, falling back to {player_stats_season - 1}")
-                player_stats_season -= 1
                 player_stats = fetch_all_player_stats(roster_teams, player_stats_season)
-            _write(PLAYER_STATS_OUT, {"season": player_stats_season, "teams": player_stats})
+                _write(PLAYER_STATS_OUT, {"season": player_stats_season, "teams": player_stats})
+            else:
+                # Explicit request: weeks 1-3 stay 100% prior-season (a
+                # 1-3-game current sample is too noisy to trust alone --
+                # the same judgment the old "half the league has no data
+                # yet" fallback was already making, just gated on the real
+                # schedule week instead of an indirect proxy for it);
+                # week 4+ blends 70% current-season / 30% last-season per
+                # player. See _current_nfl_week/_blend_stats/
+                # fetch_all_player_stats_blended's own docstrings.
+                current_year = int(time.strftime("%Y", time.gmtime()))
+                current_week = _current_nfl_week()
+                player_stats = fetch_all_player_stats_blended(roster_teams, current_year, current_week)
+                blended = current_week >= 4
+                _log(f"  week={current_week} -> "
+                     + (f"blending {current_year}(70%)/{current_year - 1}(30%)" if blended
+                        else f"100% {current_year - 1} (pre-week-4)"))
+                _write(PLAYER_STATS_OUT, {
+                    "season": current_year if blended else current_year - 1,
+                    "week": current_week,
+                    "blend": "70/30 current/prior after week 3" if blended else None,
+                    "teams": player_stats,
+                })
 
     if args.mode in ("injuries", "all"):
         _write(INJURIES_OUT, fetch_injuries())
