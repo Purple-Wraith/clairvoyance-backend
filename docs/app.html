@@ -14012,6 +14012,51 @@ function _nflBuildPropRow(player,teamAbbr,oppAbbr,cat){
     `No head-to-head history vs ${oppAbbr} this season or historically is factored in yet — treat the likelihood % as directional (modeled variance assumption), not a market-calibrated probability.`;
   return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:cat.label,grp:cat.grp,line:lineBase,pick,adjustor,likelihood,grade,games,reasoning};
 }
+// Anytime TD Scorer — a real, distinct sportsbook market from the
+// existing per-method Rushing/Receiving TD props: "does this player
+// score a TD at all this game" combines BOTH scoring paths into one
+// probability, rather than treating them as two independent coinflips.
+// Passing TDs are excluded -- those are thrown, not scored, by the QB
+// -- but a rushing QB's own rushing-TD rate still counts (he can score
+// on the ground same as any other rusher). Built as its own function
+// rather than a _NFL_PROP_CATS entry since it needs two stat fields
+// (rushing + receiving) merged into one Poisson rate, not one.
+function _nflBuildAnytimeTDRow(player,teamAbbr,oppAbbr){
+  const games=player.games;if(!games)return null;
+  const rushBase=parseFloat(player.rushingTouchdowns)||0;
+  const recBase=parseFloat(player.receivingTouchdowns)||0;
+  const isQB=(player.position||'').toUpperCase()==='QB';
+  if(rushBase<=0&&(isQB||recBase<=0))return null; // no real signal -> don't fabricate a row
+  const rushCat=_NFL_PROP_CATS.find(c=>c.key==='rushingTouchdowns');
+  const recCat=_NFL_PROP_CATS.find(c=>c.key==='receivingTouchdowns');
+  let lambda=0,rawPerGame=0;const notes=[];
+  if(rushBase>0){
+    const perGame=rushBase/games;
+    const{factor,note}=_nflOppDefFactor(oppAbbr,rushCat,games);
+    const adj=Math.max(0,perGame*(1+factor));
+    lambda+=adj;rawPerGame+=perGame;
+    notes.push(`${adj.toFixed(2)}/gm rushing-TD rate vs ${oppAbbr}${note?' (season avg only, no matchup data yet)':''}`);
+  }
+  if(!isQB&&recBase>0){
+    const perGame=recBase/games;
+    const{factor,note}=_nflOppDefFactor(oppAbbr,recCat,games);
+    const adj=Math.max(0,perGame*(1+factor));
+    lambda+=adj;rawPerGame+=perGame;
+    notes.push(`${adj.toFixed(2)}/gm receiving-TD rate vs ${oppAbbr}${note?' (season avg only, no matchup data yet)':''}`);
+  }
+  if(lambda<=0)return null;
+  const line=0.5;
+  const likelihood=+((1-Math.exp(-lambda))*100).toFixed(1); // Poisson P(X>=1) on the COMBINED rate
+  const pick=likelihood>=50?'OVER':'UNDER';
+  const conf=pick==='OVER'?likelihood:100-likelihood;
+  const adjustor=+(lambda-rawPerGame).toFixed(2);
+  const grade=(Math.abs(adjustor)<0.02&&Math.abs(likelihood-50)<4)?'SKIP':_nflPropGrade(conf,games);
+  const reasoning=`${player.name} anytime-TD likelihood combines `+notes.join(' and ')+
+    (isQB?' — passing TDs excluded from this market since those are thrown, not scored, by the QB himself.':
+      recBase>0&&rushBase>0?' (both scoring paths combined into one probability, not treated as independent).':'.')+
+    ` No head-to-head history vs ${oppAbbr} this season or historically is factored in yet.`;
+  return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:'Anytime TD',grp:'td',line,pick,adjustor,likelihood,grade,games,reasoning};
+}
 function _nflModelPropsForGame(g){
   const D=_NFL_DATA;if(!D||!g)return[];
   const rows=[];
@@ -14021,6 +14066,7 @@ function _nflModelPropsForGame(g){
       _NFL_PROP_CATS.forEach(cat=>{
         try{const row=_nflBuildPropRow(p,teamAbbr,oppAbbr,cat);if(row)rows.push(row);}catch(e){}
       });
+      try{const atd=_nflBuildAnytimeTDRow(p,teamAbbr,oppAbbr);if(atd)rows.push(atd);}catch(e){}
     });
   });
   return rows;
