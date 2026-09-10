@@ -17313,7 +17313,7 @@ function renderTrackRecord(){
       {lbl:'Champions League',codes:['CH','CL']},
       {lbl:'Premier League',codes:['PL']},
       {lbl:'La Liga',      codes:['LIGA']},
-      {lbl:'Bundesliga',   codes:['BL']},
+      {lbl:'Bundesliga',   codes:['BUND','BL']},
       {lbl:'Serie A',      codes:['SERIEA']},
       {lbl:'MLS',          codes:['MLS']},
     ];
@@ -17332,7 +17332,7 @@ function renderTrackRecord(){
     const rC2=p=>p===null?'rgba(220,190,255,.45)':p>=.62?'#00f0ff':p>=.50?'#bbff00':'#ff2090';
     const uC2=u=>u>=0?'#00f0ff':'#ff2090';
     const activeLDEFS=leagueFilter?LDEFS.filter(lm=>lm.lbl===leagueFilter):LDEFS;
-    const filteredBets2=leagueFilter?periodBets2.filter(b=>{const lm=LDEFS.find(l=>l.lbl===leagueFilter);return lm&&lm.codes.some(c=>b.sport&&b.sport.toUpperCase()===c.toUpperCase());}):periodBets2;
+    const filteredBets2=leagueFilter?periodBets2.filter(b=>{const lm=LDEFS.find(l=>l.lbl===leagueFilter);return lm&&lm.codes.some(c=>_normSport(b)===c.toUpperCase());}):periodBets2;
     const totalP2=cP(filteredBets2);
     window._cvLeaguePeriodData={LDEFS:activeLDEFS,periodBets:periodBets2,activePeriod,frameLabel:frameLabel2,totalP:totalP2,leagueFilter};
 
@@ -17348,7 +17348,7 @@ function renderTrackRecord(){
       {lbl:'Champions League',codes:['CH','CL']},
       {lbl:'Premier League',codes:['PL']},
       {lbl:'La Liga',      codes:['LIGA']},
-      {lbl:'Bundesliga',   codes:['BL']},
+      {lbl:'Bundesliga',   codes:['BUND','BL']},
       {lbl:'Serie A',      codes:['SERIEA']},
       {lbl:'MLS',          codes:['MLS']},
     ];
@@ -17362,14 +17362,14 @@ function renderTrackRecord(){
       activePeriod==='SINCE LAUNCH'?pubBets.filter(b=>b.lockedAt&&b.lockedAt>=new Date('2026-07-01T04:00:00Z').getTime()):
       pubBets;
     const pubActiveLDEFS=pubLeagueFilter?LDEFS_PUB.filter(lm=>lm.lbl===pubLeagueFilter):LDEFS_PUB;
-    const pubFilteredBets2=pubLeagueFilter?pubPeriodBets2.filter(b=>{const lm=LDEFS_PUB.find(l=>l.lbl===pubLeagueFilter);return lm&&lm.codes.some(c=>b.sport&&b.sport.toUpperCase()===c.toUpperCase());}):pubPeriodBets2;
+    const pubFilteredBets2=pubLeagueFilter?pubPeriodBets2.filter(b=>{const lm=LDEFS_PUB.find(l=>l.lbl===pubLeagueFilter);return lm&&lm.codes.some(c=>_normSport(b)===c.toUpperCase());}):pubPeriodBets2;
     const pubTotalP2=cP(pubFilteredBets2);
     window._cvLeaguePeriodDataPub={LDEFS:pubActiveLDEFS,periodBets:pubPeriodBets2,activePeriod,frameLabel:frameLabel2,totalP:pubTotalP2,leagueFilter:pubLeagueFilter};
     const hdr='<div style="text-align:center;margin-bottom:8px"><div style="font-family:\'Orbitron\',sans-serif;font-size:18px;font-weight:900;color:#f000ff;text-shadow:0 0 14px #f000ff;letter-spacing:2px">CLAIRVOYANCE</div><div style="font-family:var(--mono);font-size:11px;color:rgba(220,190,255,.4);letter-spacing:3px">LEAGUE PERFORMANCE</div><div style="font-family:\'Orbitron\',sans-serif;font-size:13px;font-weight:700;color:#f000ff;letter-spacing:1.5px;margin-top:3px;text-shadow:0 0 6px #f000ff88">'+frameLabel2+'</div></div>';
     const divider='<div style="height:1px;background:linear-gradient(90deg,transparent,rgba(240,0,255,.6),transparent);margin-bottom:6px"></div>';
     const colHdr='<div style="display:grid;grid-template-columns:2fr 1.4fr .9fr .9fr;gap:0;margin-bottom:4px"><div style="font-family:var(--mono);font-size:10px;color:rgba(220,190,255,.3);letter-spacing:1px">LEAGUE</div><div style="text-align:center;font-family:var(--mono);font-size:10px;color:rgba(220,190,255,.3)">RECORD</div><div style="text-align:center;font-family:var(--mono);font-size:10px;color:rgba(220,190,255,.3)">WIN%</div><div style="text-align:right;font-family:var(--mono);font-size:10px;color:rgba(220,190,255,.3)">UNITS</div></div>';
     const rows=(leagueFilter?[]:LDEFS).map(lm=>{
-      const lb=periodBets2.filter(b=>lm.codes.some(c=>b.sport&&b.sport.toUpperCase()===c.toUpperCase()));
+      const lb=periodBets2.filter(b=>lm.codes.some(c=>_normSport(b)===c.toUpperCase()));
       const p=cP(lb);
       const pctStr=p.n>0&&p.pct!==null?(p.pct*100).toFixed(1)+'%':'—';
       const unitStr=p.n>0?(p.units>=0?'+':'')+p.units.toFixed(1)+'u':'—';
@@ -17448,7 +17448,7 @@ function renderTrackRecord(){
       {lbl:'Champions League',codes:['CH','CL']},
       {lbl:'Premier League',codes:['PL']},
       {lbl:'La Liga',      codes:['LIGA']},
-      {lbl:'Bundesliga',   codes:['BL']},
+      {lbl:'Bundesliga',   codes:['BUND','BL']},
       {lbl:'MLS',          codes:['MLS']},
     ];
     const eventName=(renderTrackRecord._eventName||'EVENT').toUpperCase();
@@ -17466,7 +17466,7 @@ function renderTrackRecord(){
     // for which calendar day a bet belongs to.
     const eventBets=(eStart&&eEnd)?allBets.filter(b=>b.date&&b.date>=eStart&&b.date<=eEnd):[];
     const activeLDEFS3=eventFilters.length?LDEFS3.filter(lm=>eventFilters.includes(lm.lbl)):LDEFS3;
-    const filteredBets3=eventFilters.length?eventBets.filter(b=>activeLDEFS3.some(lm=>lm.codes.some(c=>b.sport&&b.sport.toUpperCase()===c.toUpperCase()))):eventBets;
+    const filteredBets3=eventFilters.length?eventBets.filter(b=>activeLDEFS3.some(lm=>lm.codes.some(c=>_normSport(b)===c.toUpperCase()))):eventBets;
     const totalP3=cP(filteredBets3);
     const totalLbl3=eventFilters.length===1?eventFilters[0].toUpperCase():eventFilters.length>1?eventFilters.map(f=>f.toUpperCase()).join(' + '):'TOTAL';
     window._cvEventPeriodData={LDEFS:activeLDEFS3,periodBets:eventBets,eventName,frameLabel:rangeLbl,totalP:totalP3,totalLbl:totalLbl3};
@@ -17500,7 +17500,7 @@ function renderTrackRecord(){
     }
     const colHdr3='<div style="display:grid;grid-template-columns:2fr 1.4fr .9fr .9fr;gap:0;margin-bottom:4px;position:relative"><div style="font-family:var(--mono);font-size:11px;color:rgba(220,190,255,.3);letter-spacing:1px">LEAGUE</div><div style="text-align:center;font-family:var(--mono);font-size:11px;color:rgba(220,190,255,.3);letter-spacing:1px">RECORD</div><div style="text-align:center;font-family:var(--mono);font-size:11px;color:rgba(220,190,255,.3);letter-spacing:1px">WIN%</div><div style="text-align:right;font-family:var(--mono);font-size:11px;color:rgba(220,190,255,.3);letter-spacing:1px">UNITS</div></div>';
     const rows3=activeLDEFS3.map(lm=>{
-      const lb=eventBets.filter(b=>lm.codes.some(c=>b.sport&&b.sport.toUpperCase()===c.toUpperCase()));
+      const lb=eventBets.filter(b=>lm.codes.some(c=>_normSport(b)===c.toUpperCase()));
       const p=cP(lb);
       if(!p.n)return'';
       const pctStr=p.pct!==null?(p.pct*100).toFixed(1)+'%':'—';
@@ -17801,7 +17801,7 @@ async function _genLeaguePerfGraphic(){
   const rowH=Math.min(80,(H-390)/Math.max(LDEFS.length,1));
 
   LDEFS.forEach((lm,i)=>{
-    const lb=periodBets.filter(b=>lm.codes.some(c=>b.sport&&b.sport.toUpperCase()===c.toUpperCase()));
+    const lb=periodBets.filter(b=>lm.codes.some(c=>_normSport(b)===c.toUpperCase()));
     const p=cP(lb);
     const y=startY+i*rowH+rowH/2;
 
@@ -17906,7 +17906,7 @@ async function _exportEventPerfCard(){
   // during the date range is just noise. LDEFS is already narrowed to
   // whichever leagues were multi-selected (or every league, if none were).
   const activeRows=LDEFS.map(lm=>{
-    const lb=periodBets.filter(b=>lm.codes.some(c=>b.sport&&b.sport.toUpperCase()===c.toUpperCase()));
+    const lb=periodBets.filter(b=>lm.codes.some(c=>_normSport(b)===c.toUpperCase()));
     return{lm,p:cP(lb)};
   }).filter(r=>r.p.n>0);
 
