@@ -64,25 +64,6 @@ def glow_tracked(base, text, cy, font, color, layers, tracking=3):
     return base
 
 
-def dotted_glow_row(base, parts, ym, font, color, glow_layers, dot_color=MAG, dot_r=2, gap=28):
-    """Same 'no Unicode dot' rule as dotted_row, but for glowing text
-    segments (glow() only draws one string per call, so each segment is
-    glowed independently and drawn circles fill the gaps between)."""
-    widths = [font.getlength(p) for p in parts]
-    total = sum(widths) + gap * (len(parts) - 1)
-    x = CX - total / 2
-    for i, (p, w) in enumerate(zip(parts, widths)):
-        cx_seg = x + w / 2
-        base = glow(base, p, (cx_seg, ym), font, color, glow_layers, anchor='mm')
-        x += w
-        if i < len(parts) - 1:
-            dot_x = x + gap / 2
-            d = ImageDraw.Draw(base)
-            d.ellipse([dot_x - dot_r, ym - dot_r, dot_x + dot_r, ym + dot_r], fill=(*dot_color, 230))
-            x += gap
-    return base
-
-
 def build_card(background_fn):
     base = background_fn()
     draw = ImageDraw.Draw(base)
