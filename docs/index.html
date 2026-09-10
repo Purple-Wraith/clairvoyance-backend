@@ -8658,7 +8658,7 @@ async function doUpdate(){
     // NHL
     await fetchNHLEdge();await autoSettleNHL();renderMoneyPuck();
     // Re-render all tabs
-    try{renderNBAGames();renderNBAProps();renderNBAParlayG();renderMLBGames();renderNHLGames();}catch(e){}
+    try{renderNBAGames();renderNBADailyProps();renderNBAParlayG();renderMLBGames();renderNHLGames();}catch(e){}
     toast('// OFFLINE SYNC COMPLETE — MLB·NBA·NHL REFRESHED');
   }
   const now=getMSTNow().toLocaleString();S.s('last_upd',now);S.s('last_upd_date',getMSTDate());S.s('last_sync_time',Date.now());
@@ -9543,7 +9543,6 @@ function renderNBACFCards(){
 }
 function renderNBAPicks(){
   renderNBAFinalsPreview(document.getElementById('nba-finals-preview'));
-  renderNBAFinalsProps('nba-finals-props');
   const el=document.getElementById('nba-picks-list');if(!el)return;
   const picks=NBA_TONIGHT.map(g=>{
     const ht=NBA_TEAMS[g.h]||{},at=NBA_TEAMS[g.a]||{};
@@ -9560,185 +9559,18 @@ function renderNBAPicks(){
   });
   el.innerHTML=picks.map(p=>{const eg=evGrd(p.eV*100);return`<div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-family:var(--orb);font-size:25px;font-weight:900;color:var(--nc)">${p.g.a} at ${p.g.h}</div><div style="display:flex;align-items:center;gap:4px"><span class="${p.c}" style="font-size:16px">${p.grade}</span>${p.eV>0.01?`<span style="font-family:var(--mono);font-size:15px;padding:1px 4px;border:1px solid ${eg.col};color:${eg.col};border-radius:2px">${eg.lbl}</span>`:''}</div></div><div style="font-family:var(--mono);font-size:18px;color:var(--t2);margin-bottom:6px">${p.g.ctx} · ${p.g.time}</div><div style="font-family:var(--mono);font-size:19px;color:var(--vc);margin-bottom:4px">▶ LEAN: ${p.fav} ML | CONF: ${p.conf}% | EV: ${p.eV>0?'+':''}${(p.eV*100).toFixed(1)}%</div><div style="font-family:var(--mono);font-size:17px;color:var(--t3)">SCORE GAP: ${Math.abs(p.hS-p.aS)} pts | ${p.favT.star||''} matchup advantage</div><div style="font-family:var(--mono);font-size:17px;color:var(--t2);margin-top:3px">${p.favT.note||''}</div></div>`}).join('')||'<div class="empty">NO NBA GAMES TODAY</div>';
 }
-// ═══ NBA FINALS G5 PROPS · NYK KNICKS at SA SPURS · JUNE 13 2026 · AT&T CENTER · NYK LEADS 3-1 ═══
-// G1 (@ SA): SA WIN — Wemby 31pts/14reb/4blk · Castle 19pts/7ast · Brunson 28pts · KAT 22pts/11reb
-// G2 (@ SA): NYK WIN — Brunson 34pts/7ast · OG 21pts · KAT 24pts/13reb · Wemby 27pts/12reb/3blk
-// G3 (@ MSG): NYK WIN — Brunson 31pts/8ast · KAT 26pts/12reb · Hart 14pts/13reb · Wemby 29pts/11reb/4blk
-// G5 TONIGHT @ AT&T CENTER — NYK leads 3-1 · SA must win to stay alive · NYK road close-out
-var NBA_PROPS_DATA=[
-];
-function renderNBAFinalsProps(containerId){
-  const D=window.__CV_DATA||{};
-  const el=document.getElementById(containerId||'nba-finals-props');if(!el)return;
-  if(!NBA_PROPS_DATA||!NBA_PROPS_DATA.length){el.innerHTML='<div class="empty">NO PROPS LOADED</div>';return;}
-  const gradeColor={PREMIUM:'var(--gc)',OPTIMAL:'var(--nc)',LEAN:'var(--ic)',SKIP:'rgba(255,32,144,.7)',GOOD:'var(--ic)',FAIR:'var(--t2)',FADE:'var(--hc)'};
-  const gradeOrder={PREMIUM:0,OPTIMAL:1,LEAN:2,SKIP:4,GOOD:2,FAIR:3,FADE:5};
-  const sorted=[...NBA_PROPS_DATA].sort((a,b)=>(gradeOrder[a.grade]||5)-(gradeOrder[b.grade]||5));
-  el.innerHTML=`<div style="background:rgba(255,221,0,.07);border:1px solid rgba(255,221,0,.35);border-radius:3px;padding:10px 14px;margin-bottom:12px;font-family:var(--mono)">
-  <div style="font-family:var(--orb);font-size:17px;font-weight:700;color:var(--gc);letter-spacing:2px;margin-bottom:5px">NBA FINALS G5 — TONIGHT · NYK at SA · AT&T CENTER · NYK LEADS 3-1 · SA ELIMINATION</div>
-  <div style="font-size:16px;color:var(--t2);line-height:1.8">G1 (@ SA): SA WIN — Wemby 26pts/14reb/4blk · Castle 19pts/7ast<br>G2 (@ SA): NYK WIN — Brunson 34pts/7ast · KAT 24pts/13reb · OG 21pts<br>G3 (@ MSG): NYK WIN — Brunson 31pts/8ast · Hart 14pts/13reb<br>G4 (@ MSG): NYK WIN 107-106 — Brunson 36pts · OG 33pts · Wemby 28pts · SA MUST WIN G5 AT HOME · June 13 8:30 PM ET ESPN</div>
-  <div style="font-size:15px;color:var(--nc);margin-top:4px">ENGINE: MC 5K + ELO + BBRef · GRADES: PREMIUM &gt; OPTIMAL &gt; LEAN &gt; SKIP</div>
-</div>`+
-  sorted.map(pp=>{
-    const gc=gradeColor[pp.grade]||'var(--t2)';
-    const pct=pp.conf||0;  // conf is 0-100 integer
-    const dec=pp.ml?+(parseFloat(pp.ml)<0?100/Math.abs(parseFloat(pp.ml))+1:parseFloat(pp.ml)/100+1).toFixed(3):2;
-    const ev=+((pct/100)*dec-1).toFixed(3);
-    const evCol=ev>0.03?'var(--nc)':ev>0?'var(--vc)':'var(--hc)';
-    const evTxt=ev>0?'+'+ev.toFixed(2):ev.toFixed(2);
-    const barW=Math.min(100,Math.max(0,pct));
-    const barCol=pct>=65?'var(--nc)':pct>=55?'var(--vc)':'var(--ic)';
-    const dirStr=pp.over===false?'UNDER':'OVER';
-    const safeName=pp.player.replace(/'/g,"\\'");
-    const lockLabel=`${pp.player} ${pp.stat} ${dirStr} ${pp.line}`;
-    const mlNum=parseFloat(pp.ml||'-110');
-    const mlStr=mlNum>0?'+'+mlNum:String(mlNum);
-    const pKey=pp.player.replace(/\W+/g,'_')+'_'+pp.stat;
-    return`<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-        <span style="font-family:var(--orb);font-size:17px;font-weight:700;color:var(--t)">${pp.player} <span style="font-size:14px;color:var(--t3);font-family:var(--mono)">(${pp.t})</span></span>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-family:var(--mono);font-size:17px;font-weight:700;color:${barCol}">${pct}%</span>
-          <span style="font-family:var(--mono);font-size:13px;padding:1px 5px;border:1px solid ${gc};color:${gc};border-radius:2px;letter-spacing:1px">${pp.grade}</span>
-        </div>
-      </div>
-      <div style="font-family:var(--mono);font-size:17px;color:var(--nc);margin-bottom:4px">${pp.stat} ${dirStr} ${pp.line} · ${pp.ml} · <span style="color:${evCol}">EV ${evTxt}</span></div>
-      <div style="background:rgba(255,255,255,.06);border-radius:2px;height:5px;margin-bottom:5px">
-        <div style="width:${barW}%;height:100%;background:${barCol};border-radius:2px;transition:width .4s"></div>
-      </div>
-      <div style="font-family:var(--mono);font-size:15px;color:var(--t2);margin-bottom:2px">${pp.hitRate}</div>
-      <div style="font-family:var(--mono);font-size:15px;color:rgba(200,180,255,.6);margin-bottom:5px">${pp.basis}</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px">
-        <button onclick="lockPick('SA','NYK','PROP','${lockLabel}',${pct/100},'${pp.ml||'-110'}',${dec},'${today()}')" style="font-family:var(--mono);font-size:14px;padding:2px 8px;background:rgba(0,240,255,.06);border:1px solid rgba(0,240,255,.3);color:var(--nc);border-radius:2px;cursor:pointer">OPTIMAL PICK</button>
-        <div style="display:flex;gap:5px;align-items:center">
-          <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">LINE</span>
-          <input type="number" step="0.5" value="${pp.line}" id="padj_nba_finals_${pKey}" style="width:58px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);color:var(--t);font-family:var(--mono);font-size:17px;padding:2px 6px;border-radius:2px;text-align:center">
-          <button class="btn btn-o btn-sm" style="font-size:14px;padding:2px 5px" onclick="_adjLockDelta('padj_nba_finals_${pKey}',-0.5,'${pp.t}','${safeName}','${pp.stat}',${pp.over!==false},${(pct/100).toFixed(3)},'${mlStr}','NBA','${pp.t==='SA'?'NYK':'SA'}')">-½</button>
-          <button class="btn btn-n btn-sm" style="color:var(--nc)" onclick="_adjLockO('padj_nba_finals_${pKey}','${pp.t}','${safeName}','${pp.stat}',${(pct/100).toFixed(3)},'${mlStr}','NBA','${pp.t==='SA'?'NYK':'SA'}')">▲O</button>
-          <button class="btn btn-o btn-sm" style="color:var(--hc)" onclick="_adjLockU('padj_nba_finals_${pKey}','${pp.t}','${safeName}','${pp.stat}',${(pct/100).toFixed(3)},'${mlStr}','NBA','${pp.t==='SA'?'NYK':'SA'}')">▼U</button>
-          <button class="btn btn-o btn-sm" style="font-size:14px;padding:2px 5px" onclick="_adjLockDelta('padj_nba_finals_${pKey}',0.5,'${pp.t}','${safeName}','${pp.stat}',${pp.over!==false},${(pct/100).toFixed(3)},'${mlStr}','NBA','${pp.t==='SA'?'NYK':'SA'}')">+½</button>
-          <button class="btn btn-o btn-sm" onclick="cvParlayAddLeg('nba','${safeName} ${pp.over!==false?'O':'U'}${pp.line} ${pp.stat}',${mlNum},${(pct/100).toFixed(3)},'${pp.t} PROP','PROP')">+PAR</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-function renderNBAProps(){
-  const el=document.getElementById('nba-props');if(!el)return;
-  const D=window.__CV_DATA||{};
-  const dpEl=document.getElementById('nba-props-date');
-  // Get linemate NBA props — filter to valid player names
-  const lmRaw=(D.linemate?.props?.nba||[]);
-  const lmProps=lmRaw.filter(p=>p.player&&/^[A-Z][a-z]+\s+[A-Z]/.test(p.player)&&p.line!=null);
-  const hasLinemate=lmProps.length>=3;
-  if(dpEl)dpEl.textContent=hasLinemate?'SOURCE: LINEMATE.IO/NBA · LIVE PROPS':'NBA FINALS SERIES DATA · MODEL ANALYSIS';
-  const gradeC={PREMIUM:'var(--gc)',OPTIMAL:'var(--nc)',LEAN:'var(--ic)',SKIP:'rgba(255,32,144,.8)',GOOD:'var(--ic)',FAIR:'var(--gc)',FADE:'var(--hc)'};
-  if(hasLinemate){
-    // Deduplicate by player+stat+line
-    const seen=new Set();
-    const uniq=lmProps.filter(p=>{const k=p.player+'_'+p.stat+'_'+p.line;if(seen.has(k))return false;seen.add(k);return true;});
-    // Sort by conf desc
-    uniq.sort((a,b)=>(b.conf||55)-(a.conf||55));
-    const srcHdr=`<div style="background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:8px 12px;margin-bottom:10px;font-family:var(--mono);font-size:16px">
-      <div style="color:var(--nc);font-weight:700;margin-bottom:3px;letter-spacing:1.5px">LINEMATE.IO/NBA · ${uniq.length} PLAYER PROPS</div>
-      <div style="color:var(--t3);font-size:15px">Live consensus odds · Hit rates from recent form</div>
-    </div>`;
-    el.innerHTML=srcHdr+uniq.map(p=>{
-      const prob=Math.min(.99,Math.max(.01,(p.conf||55)/100));
-      const mlNum=prob>=.5?-Math.round(prob/(1-prob)*100):Math.round((1-prob)/prob*100);
-      const mlStr=mlNum>0?'+'+mlNum:''+mlNum;
-      const gc=prob>=.67?'var(--gc)':prob>=.60?'var(--nc)':prob>=.54?'var(--ic)':'var(--t2)';
-      const grade=prob>=.67?'PREMIUM':prob>=.60?'OPTIMAL':prob>=.54?'LEAN':'FADE';
-      const statDisp=p.stat||'PROP';
-      const dirDisp=p.over!==false?'▲ OVER':'▼ UNDER';
-      const dirCol=p.over!==false?'var(--gc)':'var(--pc)';
-      const mu=p.team?p.player+' · '+p.team:'';
-      const conf=p.conf||55;
-      const confCol=conf>=67?'var(--nc)':conf>=60?'var(--vc)':'var(--t2)';
-      return`<div class="card" style="margin-bottom:9px;border-left:3px solid ${gc}">
-        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:5px">
-          <div><span style="font-family:var(--orb);font-size:23px;font-weight:700">${p.player}</span>
-          ${p.team?`<span style="font-family:var(--mono);font-size:16px;color:var(--t3);margin-left:5px">${p.team}</span>`:''}
-          </div>
-          <div style="display:flex;gap:4px;align-items:center">
-            ${p.hitRate?`<span style="font-family:var(--mono);font-size:16px;padding:2px 5px;border:1px solid rgba(255,255,255,.15);color:var(--t3);border-radius:2px">${p.hitRate}</span>`:''}
-            <span style="font-family:var(--mono);font-size:16px;padding:2px 6px;border:1px solid ${gc};color:${gc};border-radius:2px;font-weight:700">${grade}</span>
-          </div>
-        </div>
-        <div style="font-family:var(--mono);font-size:23px;color:${dirCol};margin-bottom:4px;font-weight:700">${dirDisp} ${p.line} ${statDisp} <span style="font-size:18px;font-weight:400;color:${mlNum>0?'var(--nc)':'var(--t3)'}">${mlStr}</span></div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-          <div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${confCol}">${conf}%</div>
-          <div style="flex:1;background:rgba(255,255,255,.06);border-radius:1px;height:4px;overflow:hidden">
-            <div style="width:${Math.min(100,conf)}%;height:100%;background:${confCol};border-radius:1px;transition:width .4s"></div>
-          </div>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px">
-          <span style="font-family:var(--mono);font-size:15px;color:var(--t3)">SRC: Linemate.io</span>
-          <div style="display:flex;gap:5px;align-items:center">
-            <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">LINE</span>
-            <input type="number" step="0.5" value="${p.line}" id="padj_nba_${p.player.replace(/\W+/g,'_')}_${p.stat}" style="width:58px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);color:var(--t);font-family:var(--mono);font-size:17px;padding:2px 6px;border-radius:2px;text-align:center">
-            <button class="btn btn-o btn-sm" style="font-size:14px;padding:2px 5px" onclick="_adjLockDelta('padj_nba_${p.player.replace(/\W+/g,'_')}_${p.stat}',-0.5,'${(p.team||'NBA').replace(/'/g,"\\'")}','${p.player.replace(/'/g,"\\'")}','${statDisp}',${p.over!==false?'true':'false'},${prob.toFixed(3)},'${mlStr}','NBA','${(p.opp||'').replace(/'/g,"\\'")}')">-½</button>
-            <button class="btn btn-n btn-sm" style="color:var(--nc)" onclick="_adjLockO('padj_nba_${p.player.replace(/\W+/g,'_')}_${p.stat}','${(p.team||'NBA').replace(/'/g,"\\'")}','${p.player.replace(/'/g,"\\'")}','${statDisp}',${prob.toFixed(3)},'${mlStr}','NBA','${(p.opp||'').replace(/'/g,"\\'")}')">▲O</button><button class="btn btn-o btn-sm" style="color:var(--hc)" onclick="_adjLockU('padj_nba_${p.player.replace(/\W+/g,'_')}_${p.stat}','${(p.team||'NBA').replace(/'/g,"\\'")}','${p.player.replace(/'/g,"\\'")}','${statDisp}',${prob.toFixed(3)},'${mlStr}','NBA','${(p.opp||'').replace(/'/g,"\\'")}')">▼U</button>
-            <button class="btn btn-o btn-sm" style="font-size:14px;padding:2px 5px" onclick="_adjLockDelta('padj_nba_${p.player.replace(/\W+/g,'_')}_${p.stat}',0.5,'${(p.team||'NBA').replace(/'/g,"\\'")}','${p.player.replace(/'/g,"\\'")}','${statDisp}',${p.over!==false?'true':'false'},${prob.toFixed(3)},'${mlStr}','NBA','${(p.opp||'').replace(/'/g,"\\'")}')">+½</button>
-            <button class="btn btn-o btn-sm" onclick="cvParlayAddLeg('nba','${p.player.replace(/'/g,"\\'")} ${p.over!==false?'O':'U'}${p.line} ${statDisp}',${mlNum},${prob.toFixed(3)},'${p.team||'NBA'} PROP','PROP')">+PAR</button>
-          </div>
-        </div>
-      </div>`;
-    }).join('');
-    return;
-  }
-  // ── Fallback: NBA_PROPS_DATA (hardcoded series props) ─────────────────────
-  const activeNBATeams=NBA_TONIGHT.flatMap(g=>[g.h,g.a]);
-  const hasTonightGames=activeNBATeams.length>0;
-  const filtered=hasTonightGames?NBA_PROPS_DATA.filter(p=>activeNBATeams.includes(p.t)):NBA_PROPS_DATA;
-  if(!filtered.length){el.innerHTML='<div class="empty">NO NBA PROPS FOR TONIGHT</div>';return;}
-  const order={PREMIUM:0,OPTIMAL:1,LEAN:2,SKIP:4,GOOD:2,FAIR:3,FADE:5};
-  const sorted=[...filtered].sort((a,b)=>(order[a.grade]||4)-(order[b.grade]||4)||b.conf-a.conf);
-  const injBanner=`<div style="background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.25);border-radius:3px;padding:10px 14px;margin-bottom:10px;font-family:var(--mono);font-size:17px">
-    <div style="color:var(--nc);font-weight:700;margin-bottom:5px">NBA FINALS G5 — NYK at SA · AT&T Center · 8:30 PM ET · NYK LEADS 3-1 · SA ELIMINATION</div>
-    <div style="color:var(--t2);line-height:1.8">G1 (@ SA): SA WIN — Wemby 26pts/14reb/4blk · Castle 19pts/7ast<br>G2 (@ SA): NYK WIN — Brunson 34pts/7ast · KAT 24pts/13reb · OG 21pts<br>G3 (@ MSG): NYK WIN — Brunson 31pts/8ast · Hart 14pts/13reb<br>G4 (@ MSG): NYK WIN 107-106 — Brunson 36pts · OG 33pts · Wemby 28pts · NYK -148 / SA +124</div>
-  </div>`;
-  const topTwo=sorted.slice(0,2);
-  const topBanner=topTwo.length?`<div style="background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:8px 12px;margin-bottom:10px">
-    <div style="font-family:var(--mono);font-size:16px;color:var(--nc);margin-bottom:6px;letter-spacing:1.5px">TOP PROPS TODAY — SERIES DATA BACKED</div>
-    ${topTwo.map(p=>`<div style="font-family:var(--mono);font-size:18px;color:var(--t);margin-bottom:3px">${p.player} ${p.over?'OVER':'UNDER'} ${p.line} ${p.stat} · ${p.conf}% · HIT: ${p.hitRate}</div>`).join('')}
-  </div>`:'' ;
-  el.innerHTML=injBanner+topBanner+sorted.map(p=>{
-    const mlLabel=parseFloat(p.ml)>0?`+${p.ml}`:p.ml;
-    const gc=gradeC[p.grade]||'var(--t3)';
-    const probColor=p.conf>=67?'var(--nc)':p.conf>=60?'var(--vc)':'var(--t2)';
-    return`<div class="card" style="margin-bottom:9px;border-left:3px solid ${gc}">
-      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:5px">
-        <div>
-          <span style="font-family:var(--orb);font-size:23px;font-weight:700">${p.player}</span>
-          <span style="font-family:var(--mono);font-size:16px;color:var(--t3);margin-left:5px">${p.t}</span>
-        </div>
-        <div style="display:flex;gap:4px;align-items:center">
-          <span style="font-family:var(--mono);font-size:16px;padding:2px 5px;border:1px solid rgba(255,255,255,.15);color:var(--t3);border-radius:2px">${p.hitRate||'--'}</span>
-          <span style="font-family:var(--mono);font-size:16px;padding:2px 6px;border:1px solid ${gc};color:${gc};border-radius:2px;font-weight:700">${p.grade}</span>
-        </div>
-      </div>
-      <div style="font-family:var(--mono);font-size:23px;color:${p.over?'var(--gc)':'var(--pc)'};margin-bottom:4px;font-weight:700">${p.over?'▲ OVER':'▼ UNDER'} ${p.line} ${p.stat} <span style="font-size:18px;font-weight:400;color:${parseFloat(p.ml)>0?'var(--nc)':'var(--t3)'}">${mlLabel}</span></div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-        <div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${probColor}">${p.conf}%</div>
-        <div style="flex:1;background:rgba(255,255,255,.06);border-radius:1px;height:4px;overflow:hidden">
-          <div style="width:${Math.min(100,p.conf)}%;height:100%;background:${probColor};border-radius:1px;transition:width .4s"></div>
-        </div>
-      </div>
-      <div style="font-family:var(--mono);font-size:17px;color:var(--t2);line-height:1.7;margin-bottom:6px">${p.basis}</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px">
-        <span style="font-family:var(--mono);font-size:15px;color:var(--t3)">SRC: ${p.src||'Model'}</span>
-        <div style="display:flex;gap:5px;align-items:center">
-          <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">LINE</span>
-          <input type="number" step="0.5" value="${p.line}" id="padj_nhl_${p.player.replace(/\W+/g,'_')}_${p.stat}" style="width:58px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);color:var(--t);font-family:var(--mono);font-size:17px;padding:2px 6px;border-radius:2px;text-align:center">
-          <button class="btn btn-o btn-sm" style="font-size:14px;padding:2px 5px" onclick="_adjLockDelta('padj_nhl_${p.player.replace(/\W+/g,'_')}_${p.stat}',-0.5,'${p.t}','${p.player.replace(/'/g,"\\'")}','${p.stat}',${p.over},${(p.conf/100).toFixed(2)},'${p.ml||'-110'}','NBA','${p.t==='SA'?'NYK':'SA'}')">-½</button>
-          <button class="btn btn-n btn-sm" style="color:var(--nc)" onclick="_adjLockO('padj_nhl_${p.player.replace(/\W+/g,'_')}_${p.stat}','${p.t}','${p.player.replace(/'/g,"\\'")}','${p.stat}',${(p.conf/100).toFixed(2)},'${p.ml||'-110'}','NBA','${p.t==='SA'?'NYK':'SA'}')">▲O</button><button class="btn btn-o btn-sm" style="color:var(--hc)" onclick="_adjLockU('padj_nhl_${p.player.replace(/\W+/g,'_')}_${p.stat}','${p.t}','${p.player.replace(/'/g,"\\'")}','${p.stat}',${(p.conf/100).toFixed(2)},'${p.ml||'-110'}','NBA','${p.t==='SA'?'NYK':'SA'}')">▼U</button>
-          <button class="btn btn-o btn-sm" style="font-size:14px;padding:2px 5px" onclick="_adjLockDelta('padj_nhl_${p.player.replace(/\W+/g,'_')}_${p.stat}',0.5,'${p.t}','${p.player.replace(/'/g,"\\'")}','${p.stat}',${p.over},${(p.conf/100).toFixed(2)},'${p.ml||'-110'}','NBA','${p.t==='SA'?'NYK':'SA'}')">+½</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
+// ═══ NBA PLAYER PROPS ══════════════════════════════════════
+// renderNBAProps()/renderNBAFinalsProps()/NBA_PROPS_DATA (this whole
+// old block, plus the Linemate NBA fetch removed from clairvoyance_
+// update.py the same session) were dead: their target elements
+// (#nba-props, #nba-finals-props) don't exist anywhere in the current
+// HTML, so every call was a silent no-op behind an `if(!el)return`
+// guard. The real, live NBA Props tab (#nba-tab-props -> #nba-dp-list)
+// is populated by renderNBADailyProps() below, using the same real
+// ESPN-stats + Monte Carlo pipeline (_fetchNBAPlayerStats/
+// _generateNBAProps) as the automated lock/settle pipeline -- NBA
+// already had its own live, non-Linemate props source; it just wasn't
+// this function.
 
 // ═══ NHL PROPS DATA — WCF G4: COL @ VGK (VGK LEADS 3-0 — SWEEP ATTEMPT) — May 26 2026 ═══
 // ═══ NHL PROPS DATA — SCF G4: VGK at CAR · June 9 2026 · VGK LEADS 2-1 ═══
@@ -12666,7 +12498,7 @@ async function opsRunProps(sport,btn){
     try{
       if(_NO_PROP_SOURCE.has(s)){_opsLog(sectionId,`  · ${s}: — no prop data source wired yet`,'err');continue;}
       _opsLog(sectionId,`  · ${s}: fetching props...`);
-      if(s==='NBA'){await Promise.resolve(renderNBAProps&&renderNBAProps());_opsLog(sectionId,`  · ${s}: ✓ props rendered`);}
+      if(s==='NBA'){await Promise.resolve(renderNBADailyProps&&renderNBADailyProps());_opsLog(sectionId,`  · ${s}: ✓ props rendered`);}
       else if(s==='MLB'){await Promise.resolve(renderProps&&renderProps());_opsLog(sectionId,`  · ${s}: ✓ props rendered`);}
       else if(s==='NHL'){await Promise.resolve(renderNHLPropsLive&&renderNHLPropsLive());_opsLog(sectionId,`  · ${s}: ✓ props rendered`);}
       else if(s==='WC'){await Promise.resolve(typeof renderWCProps==='function'&&renderWCProps());_opsLog(sectionId,`  · ${s}: ✓ WC props rendered`);}
@@ -14369,7 +14201,7 @@ function T(sport,tabId){const D=window.__CV_DATA||{};
     }catch(ex){console.error('nhl-stats',ex);if(ste)ste.innerHTML='<div class="empty">STATS ERROR: '+ex.message+'</div>';}
   })();
 }if(tabId==='parlay'){try{cvParlayInit('nhl');}catch(e){}}}
-  if(sport==='nba'){if(tabId==='picks'){renderNBAPicks();renderInjuryNews('nba','nba-injury-news');}if(tabId==='games')renderNBAGames();if(tabId==='stats'){renderNBAStats();renderNBAPlayers();}if(tabId==='props')renderNBAProps();if(tabId==='parlay'){renderNBAParlayG();try{cvParlayInit('nba');}catch(e){}}if(tabId==='history')renderNBAHistory();if(tabId==='live'){
+  if(sport==='nba'){if(tabId==='picks'){renderNBAPicks();renderInjuryNews('nba','nba-injury-news');}if(tabId==='games')renderNBAGames();if(tabId==='stats'){renderNBAStats();renderNBAPlayers();}if(tabId==='props')renderNBADailyProps();if(tabId==='parlay'){renderNBAParlayG();try{cvParlayInit('nba');}catch(e){}}if(tabId==='history')renderNBAHistory();if(tabId==='live'){
   startNBALive();renderNBALiveBets();
   const nbaLiveEl=document.getElementById('nba-live-scores-main');
   if(nbaLiveEl){
@@ -15971,7 +15803,9 @@ function applyServerSettlements(settled){
 }
 function patchLinemateProps(linemate){
   window._linematePropCards=linemate;
-  try{const np=document.getElementById('nba-tab-props');if(np&&np.classList.contains('act'))renderNBAProps();}catch(e){}
+  // NBA props no longer read from this patch at all -- renderNBADailyProps()
+  // (the real, live NBA Props tab) self-fetches from ESPN + MC-sim directly,
+  // independent of Linemate entirely, so there is nothing to re-render here.
   // Also hydrate NHL props/trends from linemate bundle if not already set —
   // real bundle shape is linemate.props.nhl / linemate.trends.nhl (a flat
   // dict keyed by sport), not linemate.nhl.props — that nesting never
@@ -18653,7 +18487,7 @@ document.addEventListener('DOMContentLoaded',()=>{(async()=>{
   try{renderNBAStats();}catch(e){console.error('renderNBAStats',e);}
   try{renderNBAPlayers();}catch(e){console.error('renderNBAPlayers',e);}
   try{renderNBAPicks();}catch(e){console.error('renderNBAPicks',e);}
-  try{renderNBAProps();}catch(e){console.error('renderNBAProps',e);}
+  try{renderNBADailyProps();}catch(e){console.error('renderNBADailyProps',e);}
   try{renderNBAParlayG();}catch(e){console.error('renderNBAParlayG',e);}
   try{renderNHLHistory();}catch(e){console.error('renderNHLHistory',e);}
   try{renderNBAHistory();}catch(e){console.error('renderNBAHistory',e);}
