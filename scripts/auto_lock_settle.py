@@ -856,7 +856,21 @@ def gather_legs(page) -> dict:
                 if (localIso === todayIso && g.state !== 'post') games.push(g);
               }));
               let generated = 0;
-              games.forEach(g => { try { const p = _nflModelPropsForGame(g); p.forEach(pp => propLegs.push({ ...pp, sportTag: 'NFL', _nflGame: g })); generated += p.length; } catch (e) {} });
+              // stat: pp.cat -- _nflBuildPropRow/_nflBuildAnytimeTDRow (app.html)
+              // name the stat-category field 'cat' ("Rushing Yards", "Anytime
+              // TD", ...), but every other sport's prop generator
+              // (_generateNBAProps/_generateNHLPropsLive) names the same
+              // concept 'stat'. _leg_html below (the locks-email renderer,
+              // shared across every sport) only ever reads leg.stat -- real
+              // bug, found while checking why the NFL section of the
+              // subscriber email showed "Player OVER 42.5" with no category
+              // at all: leg.get("stat") was silently None for every NFL
+              // prop, and _esc(None) renders as an empty string, not an
+              // error, so it went unnoticed instead of throwing. Aliasing
+              // here (rather than renaming 'cat' throughout app.html, or
+              // teaching the Python side a second field name) keeps every
+              // existing consumer of pp.cat in app.html untouched.
+              games.forEach(g => { try { const p = _nflModelPropsForGame(g); p.forEach(pp => propLegs.push({ ...pp, stat: pp.cat, sportTag: 'NFL', _nflGame: g })); generated += p.length; } catch (e) {} });
               propDiag.nfl = { games: games.length, generated };
             } else propDiag.nfl = { skipped: 'nfl data not ready' };
           } catch (e) { propDiag.nfl = { error: e.message }; }
