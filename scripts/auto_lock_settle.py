@@ -702,11 +702,10 @@ def gather_legs(page) -> dict:
           // pre-step feeds it into the same card-render function a real
           // page load would use, so _autoLockCapture still fires with
           // real data instead of nothing.
-          // cfb_schedule.json is a same-origin static file the Python
-          // pipeline already publishes (unlike NFL, which currently has
-          // no equivalent published file) -- same unblocked fetch as
-          // window.__CV_DATA, just a separate file rather than bundled
-          // into data.json.
+          // cfb_schedule.json / nfl_schedule.json are same-origin static
+          // files the Python pipeline already publishes -- same unblocked
+          // fetch as window.__CV_DATA, just a separate file rather than
+          // bundled into data.json.
           try {
             if (typeof _cfbGameCard === 'function') {
               const r = await fetch('cfb_schedule.json');
@@ -718,6 +717,34 @@ def gather_legs(page) -> dict:
                   const localIso = isNaN(d) ? (g.date || '').slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
                   if (localIso !== todayIso || g.state === 'post') return;
                   try { _cfbGameCard(g); } catch (e) {}
+                }));
+              }
+            }
+          } catch (e) {}
+          // Real gap, found via audit 2026-09-09: NFL's own warmup below
+          // (renderGenericWeek('nfl-week-list', ...)) depends entirely on
+          // the same blocked live cross-origin ESPN fetch as CFB's did --
+          // confirmed live in a fresh headless Playwright session that the
+          // cross-origin call fails ('Failed to fetch') while the
+          // same-origin nfl_schedule.json (25 weeks, 318 games) loads
+          // fine. Unlike CFB, this never got a same-origin fallback added,
+          // meaning the morning auto-lock pass has likely been silently
+          // capturing zero NFL game legs (ML/spread/O-U) for its entire
+          // lifetime -- found and fixed just before the 2026 NFL season
+          // opener. Mirrors the CFB block above exactly, using
+          // _nflGameCard2 (confirmed to call _autoLockCapture('NFL', ...)
+          // same as _cfbGameCard does for CFB).
+          try {
+            if (typeof _nflGameCard2 === 'function') {
+              const r = await fetch('nfl_schedule.json');
+              if (r.ok) {
+                const sched = await r.json();
+                const todayIso = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
+                Object.values(sched.weeks || {}).forEach(week => (week || []).forEach(g => {
+                  const d = new Date(g.date);
+                  const localIso = isNaN(d) ? (g.date || '').slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
+                  if (localIso !== todayIso || g.state === 'post') return;
+                  try { _nflGameCard2(g); } catch (e) {}
                 }));
               }
             }
