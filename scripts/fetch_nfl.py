@@ -368,49 +368,60 @@ def fetch_all_team_stats(roster: list[dict], season: int) -> dict:
 _NFL_SKILL_POSITIONS = {"QB", "RB", "WR", "TE"}
 
 
-def fetch_team_depth_chart_qb1(team_id: str) -> str | None:
-    """Real starter identification via ESPN's live depth chart, not a
-    guess -- explicit request to only ever build QB props for the
-    actual QB1, since (unlike RB/WR, where several players genuinely
-    see real game action every week) exactly one QB starts. Verified
-    live across 4 real teams before trusting this: structurally
-    consistent (a 'qb' key always resolvable by searching every
-    formation entry, not tied to one hardcoded formation name/label),
-    and its ordering matched known real starters for 3 of the 4 (KC/
-    PHI/SEA) -- the 4th (ARI) has a separate, real ESPN-side data gap
-    (their actual starting QB doesn't appear ANYWHERE in ESPN's roster
-    feed, not even injured reserve), which no amount of depth-chart
-    cross-referencing on our end can fix, only avoid making worse by
-    substituting a wrong backup instead. Returns None (not a guess) if
-    the depth chart fetch fails or has no resolvable QB group, so the
-    caller can fall back to the pre-depth-chart behavior rather than
-    silently dropping QB coverage for that team entirely."""
+# Explicit request, after the user reviewed the real depth-chart data
+# for all 32 teams and confirmed it accurate: only these 9 teams keep a
+# real committee/2-back rotation worth a second RB prop pool -- every
+# other team is single-RB-only. WR is capped at the top 2 slots
+# (WR1/WR2) for every team; WR3 dropped everywhere.
+_NFL_RB2_TEAMS = {"CAR", "CHI", "CLE", "DEN", "LAR", "MIN", "NE", "SEA", "WSH"}
+
+
+def fetch_team_depth_chart(team_id: str) -> dict:
+    """Real depth-chart order per position, via ESPN's live endpoint --
+    verified structurally consistent across real teams before trusting
+    it (a resolvable group found by searching every formation entry,
+    not tied to one hardcoded formation name/label), and the resulting
+    QB1/WR1-3/RB1-2/TE1 lists for all 32 teams were reviewed and
+    confirmed accurate by the user directly. Returns
+    {'QB': [ids], 'WR': [ids], 'RB': [ids], 'TE': [ids]} in depth
+    order. WR merges the wr1/wr2/wr3 slot groups in slot order (each
+    slot's own #1 first) -- ESPN structures WR depth as three separate
+    ranked slots, not one flat list the way QB/RB/TE are. Empty lists
+    (not an exception) if the fetch fails or a position has no
+    resolvable group, so callers can fall back rather than silently
+    dropping a position for that team."""
     try:
         r = requests.get(f"{ESPN_BASE}/teams/{team_id}/depthcharts", headers=HEADERS, timeout=15)
         r.raise_for_status()
         d = r.json()
     except Exception as exc:
         _log(f"  team {team_id} depth chart FAILED: {exc}")
-        return None
+        return {"QB": [], "WR": [], "RB": [], "TE": []}
+    out: dict[str, list[str]] = {"QB": [], "WR": [], "RB": [], "TE": []}
     for chart in d.get("depthchart") or []:
-        qb_group = (chart.get("positions") or {}).get("qb")
-        if qb_group:
-            athletes = qb_group.get("athletes") or []
-            if athletes:
-                return athletes[0].get("id")
-    return None
+        positions = chart.get("positions") or {}
+        for key, label in (("qb", "QB"), ("rb", "RB"), ("te", "TE")):
+            if key in positions and not out[label]:
+                out[label] = [a.get("id") for a in (positions[key].get("athletes") or [])]
+        for slot in ("wr1", "wr2", "wr3"):
+            if slot in positions:
+                athletes = positions[slot].get("athletes") or []
+                if athletes:
+                    aid = athletes[0].get("id")
+                    if aid not in out["WR"]:
+                        out["WR"].append(aid)
+    return out
 
 
-def fetch_team_roster(team_id: str) -> list[dict]:
+def fetch_team_roster(team_id: str, team_abbr: str) -> list[dict]:
     """Real active roster for one team, filtered to offensive skill
     positions only (props are only ever built for QB/RB/WR/TE) --
     excludes the injuredReserveOrOut/suspended/practiceSquad groups
     ESPN's roster response also returns, since those players aren't
-    live game-day candidates. QB is further filtered down to just the
-    real depth-chart QB1 -- RB/WR/TE are deliberately left as every
-    active player at that position, since multiple backs and receivers
-    genuinely see real snaps most weeks, unlike QB where only one
-    player starts."""
+    live game-day candidates. Each position is further filtered to its
+    real depth-chart slice: QB1 only, WR1+WR2 only (WR3 dropped), and
+    RB1 only except the 9 teams in _NFL_RB2_TEAMS which also keep RB2.
+    TE is left as every active TE on the roster."""
     try:
         r = requests.get(f"{ESPN_BASE}/teams/{team_id}/roster", headers=HEADERS, timeout=15)
         r.raise_for_status()
@@ -418,7 +429,11 @@ def fetch_team_roster(team_id: str) -> list[dict]:
     except Exception as exc:
         _log(f"  team {team_id} roster FAILED: {exc}")
         return []
-    qb1_id = fetch_team_depth_chart_qb1(team_id)
+    depth = fetch_team_depth_chart(team_id)
+    qb1_id = depth["QB"][0] if depth["QB"] else None
+    wr_keep = set(depth["WR"][:2])
+    rb_n = 2 if team_abbr in _NFL_RB2_TEAMS else 1
+    rb_keep = set(depth["RB"][:rb_n])
     players = []
     for grp in d.get("athletes") or []:
         if grp.get("position") != "offense":
@@ -428,10 +443,15 @@ def fetch_team_roster(team_id: str) -> list[dict]:
             aid = item.get("id")
             if not aid or pos not in _NFL_SKILL_POSITIONS:
                 continue
-            # qb1_id is None only when the depth-chart lookup itself
-            # failed -- fall back to every roster QB rather than
-            # silently dropping the position for this team.
+            # Each guard only applies when the depth chart actually
+            # resolved for that position -- if the fetch itself failed
+            # (empty list), fall back to every roster player at that
+            # position rather than silently dropping it for this team.
             if pos == "QB" and qb1_id is not None and aid != qb1_id:
+                continue
+            if pos == "WR" and depth["WR"] and aid not in wr_keep:
+                continue
+            if pos == "RB" and depth["RB"] and aid not in rb_keep:
                 continue
             players.append({"id": aid, "name": item.get("fullName") or item.get("displayName"), "position": pos})
     return players
@@ -490,7 +510,7 @@ def fetch_all_player_stats(roster: list[dict], season: int) -> dict:
         abbr, tid = tm.get("abbr"), tm.get("id")
         if not abbr or not tid:
             continue
-        players = fetch_team_roster(tid)
+        players = fetch_team_roster(tid, abbr)
         rows = []
         for p in players:
             stats = fetch_player_season_stats(p["id"], season)
