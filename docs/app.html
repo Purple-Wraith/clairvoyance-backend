@@ -11521,12 +11521,12 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   if(pendingAll.length){
     const sportColor2={NHL:'var(--ic)',NBA:'var(--pc)',NFL:'var(--hc)',CFB:'var(--hc)',default:'var(--t3)'};
     const pHtml=pendingAll.map(p=>{
-      const sc=sportColor2[p.sport]||sportColor2.default;
+      const sc=sportColor2[window._normSport(p)]||sportColor2.default;
       const mu=_gameTitle(p.hA,p.awA,p.sport);
       return`<div style="padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
-            ${_sportBadgeHtml(p.sport,()=>sc)}
+            ${_sportBadgeHtml(window._normSport(p),()=>sc)}
             <span style="font-family:var(--mono);font-size:16px;color:var(--t2)">${mu}</span>
             ${_gradeChipHtml(p)}
             <span style="font-family:var(--mono);font-size:15px;color:var(--t3)">${p.date||''}</span>
@@ -11685,7 +11685,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   const betCard=(p)=>{
     const oColor=p.outcome==='win'?'var(--nc)':p.outcome==='loss'?'var(--hc)':p.outcome==='push'?'var(--vc)':'var(--pc)';
     const st=p.outcome==='pending'?'PENDING':p.outcome==='push'?'PUSH':p.outcome?.toUpperCase()||'PENDING';
-    const sc=sportColor[p.sport]||sportColor.default;
+    const sc=sportColor[window._normSport(p)]||sportColor.default;
     const mu=_gameTitle(p.hA,p.awA,p.sport);
     const rawBetOn=_expandBetOn(p.betOn||'',p.sport);
     const parlayLegs=_parlayLegs(p);
@@ -11700,7 +11700,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap">
-            ${_sportBadgeHtml(p.sport,()=>sc)}
+            ${_sportBadgeHtml(window._normSport(p),()=>sc)}
             <span style="font-family:var(--mono);font-size:15px;color:var(--t2)">${parlayHeader||mu}</span>
           </div>
           <div style="margin-bottom:2px">${legHtml}</div>
@@ -12055,10 +12055,10 @@ function renderOverallTrends(){
         marginStr=`margin: ${Math.abs((p.hScore||0)-(p.aScore||0))}`;
       }
       const mu=_gameTitle(p.hA,p.awA,p.sport);
-      const sc=sportCol[p.sport]||'var(--t3)';
+      const sc=sportCol[window._normSport(p)]||'var(--t3)';
       return`<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-          ${_sportBadgeHtml(p.sport,()=>sc)}
+          ${_sportBadgeHtml(window._normSport(p),()=>sc)}
           <span style="font-family:var(--mono);font-size:15px;color:var(--t2)">${mu}</span>
           <span style="font-family:var(--mono);font-size:15px;color:var(--vc)">${_expandBetOn(p.betOn||'',p.sport)}</span>
         </div>
@@ -12133,9 +12133,9 @@ function renderOverallTrends(){
   if(winAnalysis.length){
     h+=`<div class="card" style="margin-bottom:12px;padding:10px;border-left:3px solid var(--nc)">
       <div style="font-family:var(--mono);font-size:15px;color:var(--nc);letter-spacing:2px;margin-bottom:8px">// WIN ANALYSIS — LAST ${winAnalysis.length}</div>
-      ${winAnalysis.map(({p,factors})=>{const sc=sportCol[p.sport]||'var(--t3)';const mu=_gameTitle(p.hA,p.awA,p.sport);return`<div style="padding:6px 0;border-bottom:1px solid rgba(0,240,255,.07)">
+      ${winAnalysis.map(({p,factors})=>{const sc=sportCol[window._normSport(p)]||'var(--t3)';const mu=_gameTitle(p.hA,p.awA,p.sport);return`<div style="padding:6px 0;border-bottom:1px solid rgba(0,240,255,.07)">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:2px">
-          ${_sportBadgeHtml(p.sport,()=>sc)}
+          ${_sportBadgeHtml(window._normSport(p),()=>sc)}
           <span style="font-family:var(--mono);font-size:15px;color:var(--t)">${_expandBetOn(p.betOn||'',p.sport)}</span>
           <span style="font-family:var(--mono);font-size:14px;color:var(--nc)">WIN</span>
         </div>
@@ -12149,9 +12149,9 @@ function renderOverallTrends(){
   if(lossAnalysis.length){
     h+=`<div class="card" style="margin-bottom:12px;padding:10px;border-left:3px solid var(--hc)">
       <div style="font-family:var(--mono);font-size:15px;color:var(--hc);letter-spacing:2px;margin-bottom:8px">// LOSS ANALYSIS — LAST ${lossAnalysis.length}</div>
-      ${lossAnalysis.map(({p,factors})=>{const sc=sportCol[p.sport]||'var(--t3)';const mu=_gameTitle(p.hA,p.awA,p.sport);return`<div style="padding:6px 0;border-bottom:1px solid rgba(255,32,144,.07)">
+      ${lossAnalysis.map(({p,factors})=>{const sc=sportCol[window._normSport(p)]||'var(--t3)';const mu=_gameTitle(p.hA,p.awA,p.sport);return`<div style="padding:6px 0;border-bottom:1px solid rgba(255,32,144,.07)">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:2px">
-          ${_sportBadgeHtml(p.sport,()=>sc)}
+          ${_sportBadgeHtml(window._normSport(p),()=>sc)}
           <span style="font-family:var(--mono);font-size:15px;color:var(--t)">${_expandBetOn(p.betOn||'',p.sport)}</span>
           <span style="font-family:var(--mono);font-size:14px;color:var(--hc)">LOSS</span>
         </div>
@@ -13523,7 +13523,7 @@ function renderHomePage(){
         return`<div style="padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
-              ${_sportBadgeHtml(p.sport,sc)}
+              ${_sportBadgeHtml(window._normSport(p),sc)}
               <span style="font-family:var(--mono);font-size:16px;color:var(--t2)">${mu}</span>
               ${dateLbl?`<span style="font-family:var(--mono);font-size:13px;color:var(--t3);border:1px solid rgba(255,255,255,.15);padding:0 4px;border-radius:2px">${dateLbl}</span>`:''}
               ${_gradeChipHtml(p)}
