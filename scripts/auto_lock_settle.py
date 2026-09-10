@@ -1132,7 +1132,15 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
             else:
                 qualifying.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": p})
         for game_id, props in nfl_props_by_game.items():
-            props.sort(key=lambda p: (_grade_rank.get(p.get("grade"), 2), -(p.get("likelihood") or 0)))
+            # Real bug, same shape as the app's own renderNFLModelProps top-5
+            # fix (docs/app.html): likelihood is always raw P(OVER), not
+            # confidence in the direction actually picked -- sorting by it
+            # ranked a genuinely 86%-confident UNDER pick (likelihood=14)
+            # near the bottom of this per-game cap instead of near the top.
+            # conf (confidence in the picked side) is what both the UI and
+            # this cap should rank by; falls back to likelihood only for a
+            # row from before that field existed.
+            props.sort(key=lambda p: (_grade_rank.get(p.get("grade"), 2), -(p.get("conf") if p.get("conf") is not None else (p.get("likelihood") or 0))))
             for p in props[:NFL_PROPS_PER_GAME_CAP]:
                 qualifying.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": p})
     return qualifying
@@ -1157,9 +1165,27 @@ def lock_game_leg(page, q: dict, date_override: str | None = None) -> str:
         return f"skip: no lockPick type mapping for sport {q['sport']}"
     ml = q.get("ml")
     dec = q.get("dec")
+    # Real bug, found auditing lock/settle across every sport: `type` here
+    # is always the SPORT tag (see lockPick's own comment in docs/app.html
+    # on why -- CL/PL_SOC/etc need it for correct classification), which
+    # isn't one of lockPick's betType-shorthand strings ('OU'/'SPREAD'/
+    # 'PL'/'RL'/'PROP'), so _betTypeNorm silently defaulted every leg this
+    # function ever locked -- ML, SPREAD, and OU alike -- to betType='ML'.
+    # Confirmed live: hundreds of real settled MLB/CFB/WNBA/tennis/soccer
+    # spread and O/U legs sitting in the ledger tagged 'ML' (grading itself
+    # was never affected -- autoSettle* always reads betOn's own text, not
+    # betType, same fix pattern already documented there -- but the market
+    # label was wrong on every one, and it fed the exact same _findSame
+    # MarketLock collision the in-app UI fix (see lockPick's own comment)
+    # was written to close: a bot-locked O/U leg mistagged 'ML' silently
+    # blocked ever locking that game's real moneyline, and vice versa).
+    # q["side"] already carries the leg's real market ('ML'/'over_X'/
+    # 'under_X'/'fav'/'dog' etc, see _market_type) at the point this leg
+    # was qualified -- reuse that instead of re-parsing q["label"] text.
+    bet_type_override = _market_type(q.get("side"))
     return page.evaluate(
         """
-        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride }) => {
+        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride }) => {
           // Real gap, found auditing the locks-email "X of Y legs actually
           // locked" line: this used to return a single 'dup-or-failed' for
           // BOTH "this exact leg was already locked by an earlier pass
@@ -1195,20 +1221,19 @@ def lock_game_leg(page, q: dict, date_override: str | None = None) -> str:
           // guarded since this eval runs against whatever app.html
           // version is actually deployed.
           const marketDup = (typeof _findSameMarketLock === 'function')
-            ? _findSameMarketLock(preds, dateKey, hA, awA,
-                type === 'PL' ? 'PL' : type === 'RL' ? 'RL' : type === 'OU' ? 'OU' : type === 'PROP' ? 'PROP' : type === 'SPREAD' ? 'SPREAD' : 'ML')
+            ? _findSameMarketLock(preds, dateKey, hA, awA, betTypeOverride)
             : null;
           const dup = preds.find(x => x.id === id) ||
                       preds.find(x => x.date === dateKey && x.hA === hA && x.awA === awA && x.betOn === betOn) ||
                       marketDup;
           if (dup) return 'already-locked';
           const before = getP().length;
-          await lockPick(hA, awA, type, betOn, prob, ml != null ? ml : '-110', dec || 1.91, dateKey, 'manual');
+          await lockPick(hA, awA, type, betOn, prob, ml != null ? ml : '-110', dec || 1.91, dateKey, 'manual', betTypeOverride);
           const after = getP().length;
           return after > before ? 'locked' : 'failed';
         }
         """,
-        {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "prob": q["prob"], "ml": ml, "dec": dec, "dateOverride": date_override},
+        {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "prob": q["prob"], "ml": ml, "dec": dec, "dateOverride": date_override, "betTypeOverride": bet_type_override},
     )
 
 
@@ -1258,7 +1283,20 @@ def lock_prop_leg(page, sport: str, leg: dict) -> str:
             """
             (leg) => {
               const g = leg._nflGame;
-              const row = { ...leg, team: leg.team, opp: leg.opp, cat: leg.stat || leg.cat, pick: leg.over === false ? 'UNDER' : 'OVER', likelihood: Math.round((leg.prob || 0.6) * 100), grade: leg.grade };
+              // `...leg` already carries the real likelihood/conf straight
+              // from the JS engine's own row (see gather_legs' NFL block --
+              // propLegs.push({ ...pp, ... }) spreads the full row, conf
+              // included). This used to then overwrite likelihood with
+              // Math.round((leg.prob || 0.6) * 100) -- leg.prob was never
+              // actually set for NFL props (only likelihood/conf are), so
+              // that always evaluated to a flat, fake 60% -- harmless only
+              // because _nflLockModelPropFrom itself now prefers r.conf
+              // over r.likelihood (see its own comment), so the real value
+              // survived via conf regardless. Left in, that overwrite was a
+              // landmine: anything that ever reads likelihood directly
+              // instead of conf, or any refactor of the spread order,
+              // silently regresses to locking every NFL prop at a fake 60%.
+              const row = { ...leg, team: leg.team, opp: leg.opp, cat: leg.stat || leg.cat, pick: leg.over === false ? 'UNDER' : 'OVER', grade: leg.grade };
               window._nflModelPropsCurrent = window._nflModelPropsCurrent || [];
               window._nflModelPropsCurrent.push(row);
               const before = getP().length;

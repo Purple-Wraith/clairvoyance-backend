@@ -3732,27 +3732,44 @@ function _migrateMissingSpreadSign(){
     if(changed){saveP(preds);try{console.warn('[migrate] added missing "-" sign to',changed,'favorite spread bet(s)');}catch(e){}}
   }catch(e){}
 }
-// ── Fix already-locked soccer O/U bets mistagged ML via the shared
-// lockPick/_ouLockDir betType-override bug (see lockPick's own comment) ──
-// Every club-soccer league's match card passes its league code (CL/PL_SOC/
-// LIGA/BUND/MLS/SERIEA) as lockPick's `type` for BOTH the ML chip and the
-// O/U buttons -- before the fix, that collapsed every market on a soccer
-// match to betType='ML', including real OVER/UNDER locks. Fixed at the
-// source, but any O/U bet locked before that fix is stuck mistagged
-// forever (and keeps blocking a genuine later ML lock on the same match
-// via _findSameMarketLock's own-betType dedup) unless corrected here.
+// ── Fix already-locked O/U and spread bets mistagged ML — every sport,
+// not just soccer — via the shared lockPick `type`-doubles-as-betType
+// overload bug (see lockPick's own comment). Two distinct sources fed
+// this, both since fixed at the root but neither retroactively: (1)
+// _ouLockDir/_spreadLockDir (docs/app.html) passing a real sport hint
+// (a club-soccer league code, or the literal 'NHL') into lockPick's
+// `type` slot for a non-ML lock -- confirmed live on Champions League
+// specifically; (2) auto_lock_settle.py's lock_game_leg calling lockPick
+// directly with the SPORT tag as `type` for every game-level lock the
+// automated pipeline makes, across every sport it locks (MLB/NHL/NBA/
+// NFL/CFB/every soccer league/tennis) -- confirmed live: hundreds of
+// real settled MLB run-line and CFB/WNBA spread bets, and World-Cup-era
+// Asian Handicap and tennis sets/games totals, all sitting in the ledger
+// tagged betType='ML'. Both fixed at the source; this repairs whatever
+// already got locked wrong before either fix landed.
 // Only retags betType itself -- outcome/settlement already graded these
-// correctly against their real OVER/UNDER line (grading reads betOn, not
-// betType), so no score/outcome data needs to change, just the market tag.
-function _migrateSoccerOuMislabeledML(){
+// correctly against their real line/selection (grading reads betOn's
+// own text, not betType -- see autoSettleFromESPN's own comment), so no
+// score/outcome data needs to change, just the market tag. Detection is
+// deliberately sport-agnostic (the bug never was sport-specific) and
+// pattern-based on betOn's own text, verified against the full real
+// ledger before shipping: OVER/UNDER-prefixed labels (game and tennis
+// sets/games totals alike), "<name> <+/-><number>" spread/run-line/puck-
+// line/Asian-Handicap labels, and explicit "AH <name> <number>" labels
+// even on the handful missing their sign (never seen a false positive on
+// a genuine ML/DRAW/"<name> Win"/"<name> ML (...)" label across the real
+// ledger -- the "Win"/trailing-parenthetical suffixes are the only
+// ambiguous shapes and are explicitly excluded below).
+function _migrateMislabeledMLBets(){
   try{
-    const _SOC_LEAGUES=new Set(['CL','PL','LIGA','BUND','MLS','SERIEA']);
     const preds=getP();let changed=0;
     preds.forEach(p=>{
-      if(!_SOC_LEAGUES.has(p.sport)||p.betType!=='ML'||!p.betOn)return;
-      if(/^(OVER|UNDER)\s/i.test(p.betOn)){p.betType='OU';changed++;}
+      if(p.betType!=='ML'||!p.betOn)return;
+      const b=p.betOn;
+      if(/^(OVER|UNDER)\s/i.test(b)){p.betType='OU';changed++;}
+      else if(/^AH\s/i.test(b)||(/^.+\s[+-]\d+(\.\d+)?$/.test(b)&&!/\bWin$/i.test(b))){p.betType='SPREAD';changed++;}
     });
-    if(changed){saveP(preds);try{console.warn('[migrate] re-tagged',changed,'soccer O/U bet(s) mislabeled ML');}catch(e){}}
+    if(changed){saveP(preds);try{console.warn('[migrate] re-tagged',changed,'O/U or spread bet(s) mislabeled ML');}catch(e){}}
   }catch(e){}
 }
 // ── Shared team->sport classifier (single source of truth) ────────────────
@@ -14386,20 +14403,34 @@ function lockNFLModelPropTop(idx){_nflLockModelPropFrom(window._nflModelPropsTop
 function lockNFLModelProp(idx){_nflLockModelPropFrom(window._nflModelPropsCurrent,idx);}
 function _nflLockModelPropFrom(list,idx){
   const r=(list||[])[idx];if(!r)return;
-  const dec=1/Math.max(0.01,r.likelihood/100);
+  // Real bug, found auditing lock/settle -- and the direct cause of locked
+  // NFL prop picks showing the wrong grade: r.likelihood is always raw
+  // P(OVER), not confidence in whichever side was actually picked (r.conf,
+  // added alongside the NFL props MC fixes -- see _nflBuildPropRow's own
+  // comment). Storing r.likelihood into winProb/conf here meant every
+  // locked UNDER prop (the majority of picks, since most props grade
+  // UNDER) persisted its LOW p(over) as its own win probability -- e.g. a
+  // genuinely 73.7%-confident UNDER pick got stored as winProb=0.263, so
+  // _gradeLabel() (which recomputes every locked pick's grade live from
+  // its stored winProb/decOdds via tier()) showed SKIP instead of PREMIUM
+  // for a pick the model had actually graded as one of its best. The
+  // selection screen itself already showed the correct grade (via the
+  // same r.conf fix); only the persisted lock record was still wrong.
+  const conf=(r.conf??r.likelihood)/100;
+  const dec=1/Math.max(0.01,conf);
   // Real bug, found auditing lock/settle: no dedup at all (Date.now()-
   // based id, always unique) -- same real duplicate-lock risk as
   // lockProp()/lockNHLProp(), fixed the same way.
   const propId=`prop_nfl_model_${today()}_${r.player}_${r.cat}_${r.pick}_${r.line}`.replace(/\s/g,'');
   if(LOCKED_PROPS.some(p=>p.id===propId)){toast(`// ALREADY LOCKED: ${r.player} ${r.pick} ${r.line} ${r.cat}`);return;}
-  const prop={id:propId,team:r.team,player:r.player,line:r.line,over:r.pick==='OVER',conf:r.likelihood/100,
+  const prop={id:propId,team:r.team,player:r.player,line:r.line,over:r.pick==='OVER',conf,
     lockedAt:Date.now(),outcome:'pending',date:today(),sport:'FOOTBALL',league:'NFL',betType:'PROP',
     // hA/awA -- without these autoSettlePropsESPN's event-matching loop
     // can never locate the game this prop belongs to, and it sits
     // pending forever (real bug, fixed alongside NFL support in
     // autoSettlePropsESPN itself).
     hA:r.team,awA:r.opp||r.team,
-    betOn:`${r.player} ${r.pick} ${r.line} ${r.cat}`,winProb:r.likelihood/100,decOdds:dec,wager:0};
+    betOn:`${r.player} ${r.pick} ${r.line} ${r.cat}`,winProb:conf,decOdds:dec,wager:0};
   LOCKED_PROPS.push(prop);
   localStorage.setItem('locked_props',JSON.stringify(LOCKED_PROPS));
   const preds=getP();preds.push(prop);saveP(preds);updHdr();
@@ -18802,7 +18833,7 @@ document.addEventListener('DOMContentLoaded',()=>{(async()=>{
   }catch(e){console.error('parallelSync',e);}
   try{_migrateMlbNhlMislabel();}catch(e){console.error('migrateMlbNhl',e);}
   try{_migrateMissingSpreadSign();}catch(e){console.error('migrateSpreadSign',e);}
-  try{_migrateSoccerOuMislabeledML();}catch(e){console.error('migrateSoccerOuMislabeledML',e);}
+  try{_migrateMislabeledMLBets();}catch(e){console.error('migrateMislabeledMLBets',e);}
   // Recurring guard against the erroneous "M. Cilic at Daniil Medvedev" seed bet
   // resurfacing (via GitHub/backend/IDB sync re-adding it after the one-time
   // cleanup above already ran once and set its flag). Runs every load, after
