@@ -669,7 +669,7 @@ body{line-height:1.5}
       <div id="nfl2-games-list"><div class="loading"><span class="spi"></span> LOADING…</div></div>
     </div></div>
     <div id="nfl2-tab-props" class="subp" style="display:none"><div class="sa">
-      <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:10px">Generated from each player's real season-to-date per-game average (real ESPN roster + depth-chart data) adjusted for the specific opponent's real per-game defensive production -- ESPN's own per-game figures where available, otherwise divided by that team's own real games-played count from the same stats snapshot (never a cross-file guess), then compared against a real league average + rank computed live from every loaded team's own per-game numbers. Markets are position-scoped: QB gets Passing Yards + Passing TDs only, RB gets Rushing Yards + Receptions + Anytime TD, WR/TE get Receiving Yards + Receptions + Anytime TD. Passing TD lines are set off each QB's own real per-game rate (not a fixed 0.5), so a pass-heavy team's QB can show a 2.5+ line — every other TD market stays a fixed 0.5 "scores at all" line. Likelihood is simulated across the same 10,000-run Monte Carlo projection used for the game-level model, correlated with that matchup's own projected pace and scoring rather than a fixed variance assumption. No per-game head-to-head or division-rival history is factored in yet -- that needs a heavier per-player game-log scrape not built yet. Rows are sorted best-grade-first within each game.</div>
+      <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:10px">Generated from each player's real season-to-date per-game average (real ESPN roster + depth-chart data) adjusted for the specific opponent's real per-game defensive production -- ESPN's own per-game figures where available, otherwise divided by that team's own real games-played count from the same stats snapshot (never a cross-file guess), then compared against a real league average + rank computed live from every loaded team's own per-game numbers. Each category's own specific opponent stat (e.g. rushing yards allowed for a rushing prop) is blended 70/30 with the opponent's overall defense -- total yards allowed for yardage props, points allowed for TD-rate props -- so a defense that's leaky across the board moves a projection further than its category-specific number alone would. Markets are position-scoped: QB gets Passing Yards + Passing TDs only, RB gets Rushing Yards + Receptions + Anytime TD, WR/TE get Receiving Yards + Receptions + Anytime TD. Passing TD lines are set off each QB's own real per-game rate (not a fixed 0.5), so a pass-heavy team's QB can show a 2.5+ line — every other TD market stays a fixed 0.5 "scores at all" line. Likelihood is simulated across the same 10,000-run Monte Carlo projection used for the game-level model, correlated with that matchup's own projected pace and scoring rather than a fixed variance assumption. No per-game head-to-head or division-rival history is factored in yet -- that needs a heavier per-player game-log scrape not built yet. Rows are sorted best-grade-first within each game.</div>
       <select id="nfl-model-props-game" onchange="renderNFLModelProps(window._nflModelPropFilter||'all')" style="width:100%;padding:8px;margin-bottom:10px;background:rgba(4,0,12,.9);border:1px solid rgba(0,120,255,.25);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"><option value="">SELECT A GAME…</option></select>
       <div id="nfl-model-props-filter" style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">
         <button class="btn btn-o btn-sm act" onclick="renderNFLModelProps('all')">ALL</button>
@@ -13850,6 +13850,51 @@ function _nflOppDefFactor(oppAbbr,cat,games){
   }
   return{factor,perGame,leagueAvg,rank,total,realAvg:haveLeague,note:null};
 }
+// Secondary "how good/bad is this defense overall" signals, blended in
+// alongside each category's own specific allowed-stat -- explicit
+// request: a category-specific number alone (e.g. rushing yards
+// allowed) doesn't capture whether the defense is leaky/stout as a
+// whole, or specifically live around the goal line. Yardage categories
+// blend in real total yards allowed per game; TD-rate categories (and
+// receptions, which has no direct "receptions allowed" defensive stat
+// -- ESPN's team defense endpoint doesn't publish one) blend in real
+// points allowed per game instead, since scoring defense is the more
+// relevant "how live is this defense" signal for how often a player
+// finds the end zone or keeps seeing volume against a defense playing
+// from behind. Both fields (yardsPerGame, totalPointsPerGame) are
+// already-fetched, already-real per-game figures on every team's own
+// defenseAllowed stats -- no new data source needed.
+const _NFL_TOTAL_YARDS_DEF_CAT={label:'total yards',defKey:'yardsPerGame',defKeyPG:'yardsPerGame',leagueAvg:330};
+const _NFL_POINTS_DEF_CAT={label:'points',defKey:'totalPointsPerGame',defKeyPG:'totalPointsPerGame',leagueAvg:22};
+// Blends a category's own specific opponent-allowed stat with the
+// secondary overall-quality signal above -- 70/30, re-capped to the
+// same +-15% ceiling _nflOppDefFactor already uses so the two signals
+// stacking never produces a swing outside that established range.
+// Returns the same shape _nflOppDefFactor does, plus the secondary
+// sub-factor so _nflDefNote can cite both signals in the reasoning
+// text rather than collapsing them into one opaque number.
+function _nflOppDefFactorBlended(oppAbbr,cat,games){
+  if(cat.defKey==null){
+    // Receptions: no direct "receptions allowed" stat exists at all --
+    // receiving yards allowed is the closest real proxy (yardage
+    // allowed correlates with catch volume far more directly than
+    // scoring does for a pure catch-count market), so it stands in as
+    // the primary signal here rather than being blended as secondary.
+    // catLabelOverride so _nflDefNote describes what's actually being
+    // measured ("receiving yards", real per-game figures in yards) --
+    // without it, the reasoning text would report a yards number while
+    // calling it "receptions per game", a real unit mismatch.
+    const proxyCat=_NFL_PROP_CATS.find(c=>c.key==='receivingYards');
+    return{..._nflOppDefFactor(oppAbbr,proxyCat,games),catLabelOverride:proxyCat.label};
+  }
+  const primary=_nflOppDefFactor(oppAbbr,cat,games);
+  if(primary.note)return primary; // no real category data -- nothing to blend in
+  const secondaryCat=cat.isTD?_NFL_POINTS_DEF_CAT:_NFL_TOTAL_YARDS_DEF_CAT;
+  const secondary=_nflOppDefFactor(oppAbbr,secondaryCat,games);
+  if(secondary.note)return primary; // secondary unavailable -- fall back to category-specific alone
+  const blendedFactor=Math.max(-0.15,Math.min(0.15,0.7*primary.factor+0.3*secondary.factor));
+  return{...primary,factor:blendedFactor,secondaryLabel:secondaryCat.label,secondaryFactor:secondary.factor,secondaryPerGame:secondary.perGame,secondaryLeagueAvg:secondary.leagueAvg};
+}
 function _nflPropGrade(conf,games){
   // conf = probability of the SIDE ACTUALLY PICKED (always >=50), same
   // PREMIUM/OPTIMAL/LEAN/SKIP taxonomy and thresholds as the Linemate
@@ -13862,11 +13907,23 @@ function _nflPropGrade(conf,games){
   return g;
 }
 const _NFL_PROP_GRADE_COLOR={PREMIUM:'var(--vc)',OPTIMAL:'var(--nc)',LEAN:'var(--ic)',SKIP:'var(--t3)'};
-function _nflDefNote(oppAbbr,cat,factor,perGame,leagueAvg,rank,total,realAvg,adjustor,adjUnit){
+function _nflDefNote(oppAbbr,cat,def,adjustor,adjUnit){
+  const{factor,perGame,leagueAvg,rank,total,realAvg}=def;
   const dir=factor>=0?'boost':'reduction';
-  const rankTxt=realAvg&&rank?`${oppAbbr} allows ${perGame.toFixed(2)} ${cat.label.toLowerCase()} per game (real per-game production, not a season-total guess) -- ranks ${rank} of ${total} vs a ${leagueAvg.toFixed(2)}/gm league average computed from every currently-loaded defense's own real per-game numbers, the actual production every opposing player has put up against them`
-    :`${oppAbbr} allows ${perGame.toFixed(2)} ${cat.label.toLowerCase()} per game (real per-game production) vs an assumed ~${cat.leagueAvg} league baseline -- not enough teams loaded yet to compute a real league average`;
-  return`${rankTxt}, a ${(factor*100).toFixed(0)}% ${dir} folded in as a ${adjustor>=0?'+':''}${adjustor}${adjUnit} adjustment. `;
+  // catLabelOverride (receptions borrowing the receiving-yards proxy,
+  // see _nflOppDefFactorBlended) -- describes what def.perGame/leagueAvg
+  // actually measure, since it's not necessarily this category's own
+  // stat.
+  const label=(def.catLabelOverride||cat.label).toLowerCase();
+  const rankTxt=realAvg&&rank?`${oppAbbr} allows ${perGame.toFixed(2)} ${label} per game (real per-game production, not a season-total guess) -- ranks ${rank} of ${total} vs a ${leagueAvg.toFixed(2)}/gm league average computed from every currently-loaded defense's own real per-game numbers, the actual production every opposing player has put up against them`
+    :`${oppAbbr} allows ${perGame.toFixed(2)} ${label} per game (real per-game production) vs an assumed ~${cat.leagueAvg} league baseline -- not enough teams loaded yet to compute a real league average`;
+  // Overall-defense secondary signal (see _nflOppDefFactorBlended) --
+  // only cited when it actually contributed (blend succeeded); omitted
+  // silently otherwise rather than claiming a signal wasn't used.
+  const secondaryTxt=def.secondaryFactor!=null
+    ?` Blended with ${oppAbbr}'s overall defense -- ${def.secondaryPerGame.toFixed(1)} ${def.secondaryLabel} allowed per game vs a ${def.secondaryLeagueAvg.toFixed(1)} league average (${def.secondaryFactor>=0?'+':''}${(def.secondaryFactor*100).toFixed(0)}% on its own) -- at 70% category-specific / 30% overall.`
+    :'';
+  return`${rankTxt}, a ${(factor*100).toFixed(0)}% ${dir} folded in as a ${adjustor>=0?'+':''}${adjustor}${adjUnit} adjustment.${secondaryTxt} `;
 }
 // Player-prop Monte Carlo, run alongside (not inside) nflMC's own game-
 // level sim -- reuses the exact same margin0/baseTotal baseline nflMC
@@ -13963,7 +14020,8 @@ function _nflBuildPropRow(player,teamAbbr,oppAbbr,cat,playerSim,side){
   const games=player.games;
   if(isNaN(base)||base<=0||!games)return null; // no real signal -> don't fabricate a row
   const perGame=base/games;
-  const{factor,perGame:oppPerGame,leagueAvg,rank,total,realAvg,note}=_nflOppDefFactor(oppAbbr,cat,games);
+  const def=_nflOppDefFactorBlended(oppAbbr,cat,games);
+  const{factor,note}=def;
   const simNote=playerSim?` Likelihood is simulated across this game's own projected scoring script (${playerSim.n.toLocaleString()} runs), correlated with the matchup's own projected pace rather than a fixed variance assumption.`:'';
   if(cat.isTD){
     // Passing TDs get a real market-proxy line off the QB's own season
@@ -13986,7 +14044,7 @@ function _nflBuildPropRow(player,teamAbbr,oppAbbr,cat,playerSim,side){
     const grade=(Math.abs(adjustor)<0.02&&Math.abs(likelihood-50)<4)?'SKIP':_nflPropGrade(conf,games);
     const reasoning=`${player.name} has ${base} ${cat.label.toLowerCase()} in ${games} games this season (${perGame.toFixed(2)}/gm). `+
       (note?`No real opponent defensive data available for ${oppAbbr} in this category yet — rate is season-average only, no matchup adjustment applied. `:
-        _nflDefNote(oppAbbr,cat,factor,oppPerGame,leagueAvg,rank,total,realAvg,adjustor,'/gm'))+
+        _nflDefNote(oppAbbr,cat,def,adjustor,'/gm'))+
       `No head-to-head history vs ${oppAbbr} this season or historically is factored in yet.`+simNote;
     return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:cat.label,grp:cat.grp,line,pick,adjustor,likelihood,grade,games,reasoning};
   }
@@ -14007,7 +14065,7 @@ function _nflBuildPropRow(player,teamAbbr,oppAbbr,cat,playerSim,side){
   const grade=(adjustor===0&&Math.abs(likelihood-50)<4)?'SKIP':_nflPropGrade(conf,games);
   const reasoning=`${player.name} is averaging ${perGame.toFixed(1)} ${cat.label.toLowerCase()} across ${games} games this season. `+
     (note?`No real opponent defensive data available for ${oppAbbr} in this category yet — line reflects season average only, no matchup adjustment applied. `:
-      _nflDefNote(oppAbbr,cat,factor,oppPerGame,leagueAvg,rank,total,realAvg,adjustor,''))+
+      _nflDefNote(oppAbbr,cat,def,adjustor,''))+
     `No head-to-head history vs ${oppAbbr} this season or historically is factored in yet — treat the likelihood % as directional (modeled variance assumption), not a market-calibrated probability.`+simNote;
   return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:cat.label,grp:cat.grp,line:lineBase,pick,adjustor,likelihood,grade,games,reasoning};
 }
@@ -14030,17 +14088,17 @@ function _nflBuildAnytimeTDRow(player,teamAbbr,oppAbbr,playerSim,side){
   let lambda=0,rawPerGame=0;const notes=[];
   if(rushBase>0){
     const perGame=rushBase/games;
-    const{factor,note}=_nflOppDefFactor(oppAbbr,rushCat,games);
+    const{factor,note}=_nflOppDefFactorBlended(oppAbbr,rushCat,games);
     const adj=Math.max(0,perGame*(1+factor));
     lambda+=adj;rawPerGame+=perGame;
-    notes.push(`${adj.toFixed(2)}/gm rushing-TD rate vs ${oppAbbr}${note?' (season avg only, no matchup data yet)':''}`);
+    notes.push(`${adj.toFixed(2)}/gm rushing-TD rate vs ${oppAbbr}${note?' (season avg only, no matchup data yet)':' (blended with overall points allowed)'}`);
   }
   if(recBase>0){
     const perGame=recBase/games;
-    const{factor,note}=_nflOppDefFactor(oppAbbr,recCat,games);
+    const{factor,note}=_nflOppDefFactorBlended(oppAbbr,recCat,games);
     const adj=Math.max(0,perGame*(1+factor));
     lambda+=adj;rawPerGame+=perGame;
-    notes.push(`${adj.toFixed(2)}/gm receiving-TD rate vs ${oppAbbr}${note?' (season avg only, no matchup data yet)':''}`);
+    notes.push(`${adj.toFixed(2)}/gm receiving-TD rate vs ${oppAbbr}${note?' (season avg only, no matchup data yet)':' (blended with overall points allowed)'}`);
   }
   if(lambda<=0)return null;
   const line=0.5;
