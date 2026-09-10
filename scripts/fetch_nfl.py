@@ -485,15 +485,25 @@ def fetch_player_season_stats(athlete_id: str, season: int) -> dict:
             if (entry.get("season") or {}).get("year") != season:
                 continue
             row = dict(zip(names, entry.get("stats") or []))
+            # This endpoint's stats[] entries are display strings, not raw
+            # numbers -- ESPN comma-formats anything >= 1000 (e.g. a
+            # starting QB's season passing yards: "2,167"). float() throws
+            # on the comma and the bare except silently dropped the whole
+            # field, meaning passingYards (almost always 4 digits for a
+            # real starter) was missing for essentially every QB, while
+            # smaller same-shape fields like rushingYards parsed fine --
+            # real bug, found while auditing why QB prop rows had no
+            # Passing Yards market despite QBs clearly having real season
+            # stats. Strip thousands separators before parsing.
             if "gamesPlayed" in row:
                 try:
-                    games = int(float(row["gamesPlayed"]))
+                    games = int(float(str(row["gamesPlayed"]).replace(",", "")))
                 except (TypeError, ValueError):
                     pass
             for k in keys:
                 if k in row:
                     try:
-                        out[k] = float(row[k])
+                        out[k] = float(str(row[k]).replace(",", ""))
                     except (TypeError, ValueError):
                         pass
     if games is not None:
