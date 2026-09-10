@@ -419,9 +419,9 @@ def fetch_team_roster(team_id: str, team_abbr: str) -> list[dict]:
     excludes the injuredReserveOrOut/suspended/practiceSquad groups
     ESPN's roster response also returns, since those players aren't
     live game-day candidates. Each position is further filtered to its
-    real depth-chart slice: QB1 only, WR1+WR2 only (WR3 dropped), and
-    RB1 only except the 9 teams in _NFL_RB2_TEAMS which also keep RB2.
-    TE is left as every active TE on the roster."""
+    real depth-chart slice: QB1 only, WR1+WR2 only (WR3 dropped), RB1
+    only except the 9 teams in _NFL_RB2_TEAMS which also keep RB2, and
+    TE1 only."""
     try:
         r = requests.get(f"{ESPN_BASE}/teams/{team_id}/roster", headers=HEADERS, timeout=15)
         r.raise_for_status()
@@ -434,6 +434,7 @@ def fetch_team_roster(team_id: str, team_abbr: str) -> list[dict]:
     wr_keep = set(depth["WR"][:2])
     rb_n = 2 if team_abbr in _NFL_RB2_TEAMS else 1
     rb_keep = set(depth["RB"][:rb_n])
+    te1_id = depth["TE"][0] if depth["TE"] else None
     players = []
     for grp in d.get("athletes") or []:
         if grp.get("position") != "offense":
@@ -452,6 +453,8 @@ def fetch_team_roster(team_id: str, team_abbr: str) -> list[dict]:
             if pos == "WR" and depth["WR"] and aid not in wr_keep:
                 continue
             if pos == "RB" and depth["RB"] and aid not in rb_keep:
+                continue
+            if pos == "TE" and te1_id is not None and aid != te1_id:
                 continue
             players.append({"id": aid, "name": item.get("fullName") or item.get("displayName"), "position": pos})
     return players
