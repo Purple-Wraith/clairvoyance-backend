@@ -669,7 +669,7 @@ body{line-height:1.5}
       <div id="nfl2-games-list"><div class="loading"><span class="spi"></span> LOADING…</div></div>
     </div></div>
     <div id="nfl2-tab-props" class="subp" style="display:none"><div class="sa">
-      <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:10px">Generated from each player's real season-to-date per-game average (real ESPN roster + depth-chart data, position-gated to QB/RB/WR/TE) adjusted for the specific opponent's real per-game defensive production -- ESPN's own per-game figures where available, otherwise divided by that team's own real games-played count from the same stats snapshot (never a cross-file guess), then compared against a real league average + rank computed live from every loaded team's own per-game numbers. Likelihood is simulated across the same 10,000-run Monte Carlo projection used for the game-level model, correlated with that matchup's own projected pace and scoring rather than a fixed variance assumption. No per-game head-to-head or division-rival history is factored in yet -- that needs a heavier per-player game-log scrape not built yet. Includes an Anytime TD market (rushing + receiving TD rate combined) under TOUCHDOWNS.</div>
+      <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:10px">Generated from each player's real season-to-date per-game average (real ESPN roster + depth-chart data) adjusted for the specific opponent's real per-game defensive production -- ESPN's own per-game figures where available, otherwise divided by that team's own real games-played count from the same stats snapshot (never a cross-file guess), then compared against a real league average + rank computed live from every loaded team's own per-game numbers. Markets are position-scoped: QB gets Passing Yards + Passing TDs only, RB gets Rushing Yards + Receptions + Anytime TD, WR/TE get Receiving Yards + Receptions + Anytime TD. Passing TD lines are set off each QB's own real per-game rate (not a fixed 0.5), so a pass-heavy team's QB can show a 2.5+ line — every other TD market stays a fixed 0.5 "scores at all" line. Likelihood is simulated across the same 10,000-run Monte Carlo projection used for the game-level model, correlated with that matchup's own projected pace and scoring rather than a fixed variance assumption. No per-game head-to-head or division-rival history is factored in yet -- that needs a heavier per-player game-log scrape not built yet. Rows are sorted best-grade-first within each game.</div>
       <select id="nfl-model-props-game" onchange="renderNFLModelProps(window._nflModelPropFilter||'all')" style="width:100%;padding:8px;margin-bottom:10px;background:rgba(4,0,12,.9);border:1px solid rgba(0,120,255,.25);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"><option value="">SELECT A GAME…</option></select>
       <div id="nfl-model-props-filter" style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">
         <button class="btn btn-o btn-sm act" onclick="renderNFLModelProps('all')">ALL</button>
@@ -13741,15 +13741,41 @@ function setSub(sport,sub){
 // doesn't reflect a real, repeatable skill the way the same category
 // does for a WR/TE. Omit validPositions on a category to leave it
 // ungated (none currently need that).
+// Per-position market scope, explicit request: QB = passing yards +
+// passing TDs only (no rushing yards/rushing-TD market, even for a
+// mobile QB -- that's a deliberate narrowing from this session's
+// earlier "QB rushing TDs count toward Anytime TD" design). RB =
+// rushing yards + receptions + Anytime TD (no standalone receiving-
+// yards market). WR/TE = receiving yards + receptions + Anytime TD (no
+// standalone rushing-yards market). rushingTouchdowns/receivingTouchdowns
+// stay defined here (skipStandalone) purely as config objects --
+// _nflOppDefFactor needs their defKey/leagueAvg/cv to compute each half
+// of the combined Anytime TD rate in _nflBuildAnytimeTDRow -- but the
+// main per-category loop below no longer emits them as their own rows.
 const _NFL_PROP_CATS=[
   {key:'passingYards',label:'Passing Yards',grp:'pass',defKey:'netPassingYardsPerGame',defPerGame:true,leagueAvg:215,cv:0.22,validPositions:['QB']},
-  {key:'rushingYards',label:'Rushing Yards',grp:'rush',defKey:'rushingYardsPerGame',defPerGame:true,leagueAvg:70,cv:0.45,validPositions:['QB','RB','WR']},
-  {key:'receivingYards',label:'Receiving Yards',grp:'rec',defKey:'receivingYards',defKeyPG:'receivingYardsPerGame',defPerGame:false,leagueAvg:45,cv:0.5,validPositions:['RB','WR','TE']},
+  {key:'rushingYards',label:'Rushing Yards',grp:'rush',defKey:'rushingYardsPerGame',defPerGame:true,leagueAvg:70,cv:0.45,validPositions:['RB']},
+  {key:'receivingYards',label:'Receiving Yards',grp:'rec',defKey:'receivingYards',defKeyPG:'receivingYardsPerGame',defPerGame:false,leagueAvg:45,cv:0.5,validPositions:['WR','TE']},
   {key:'receptions',label:'Receptions',grp:'rec',defKey:null,leagueAvg:3.6,cv:0.35,validPositions:['RB','WR','TE']},
   {key:'passingTouchdowns',label:'Passing TDs',grp:'td',isTD:true,defKey:'passingTouchdowns',defPerGame:false,leagueAvg:1.4,validPositions:['QB']},
-  {key:'rushingTouchdowns',label:'Rushing TDs',grp:'td',isTD:true,defKey:'rushingTouchdowns',defPerGame:false,leagueAvg:0.65,validPositions:['QB','RB','WR']},
-  {key:'receivingTouchdowns',label:'Receiving TDs',grp:'td',isTD:true,defKey:'receivingTouchdowns',defPerGame:false,leagueAvg:0.65,validPositions:['RB','WR','TE']},
+  {key:'rushingTouchdowns',label:'Rushing TDs',grp:'td',isTD:true,defKey:'rushingTouchdowns',defPerGame:false,leagueAvg:0.65,validPositions:['RB','WR'],skipStandalone:true},
+  {key:'receivingTouchdowns',label:'Receiving TDs',grp:'td',isTD:true,defKey:'receivingTouchdowns',defPerGame:false,leagueAvg:0.65,validPositions:['RB','WR','TE'],skipStandalone:true},
 ];
+// P(X > k) for a Poisson(lambda) count -- used for TD-count props whose
+// line isn't the fixed 0.5 "scores at all" convention (a real pass-heavy
+// QB can post 1/2/3/4-TD games; pinning every QB to a 0.5 line ignores
+// that entirely). k is always a non-negative integer -- the line itself
+// is an X.5 value (_nflHalfPoint), so floor(line) is the exact
+// "how many TDs would push this to a coin flip" threshold.
+function _poissonSf(lambda,k){
+  lambda=Math.max(0,lambda);
+  let cdf=0,term=Math.exp(-lambda);
+  for(let j=0;j<=k;j++){
+    if(j>0)term*=lambda/j;
+    cdf+=term;
+  }
+  return Math.max(0,Math.min(1,1-cdf));
+}
 function _nflNormCdf(x){ // Abramowitz-Stegun erf approximation
   const t=1/(1+0.3275911*Math.abs(x));
   const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);
@@ -13912,20 +13938,26 @@ function _nflSimPlayerStats(hA,awA,margin0,baseTotal,n){
     },
     // TD-style: adjRate is the player's opponent-adjusted per-game TD
     // RATE (a Poisson lambda at season-average pace). Each iteration's
-    // pace-scaled lambda gives that iteration's own P(>=1 TD) via
-    // 1-e^-lambda; averaging that across iterations is an exact,
-    // unbiased estimate of the marginal P(>=1 TD) under a model where
-    // the scoring rate itself varies with game script, rather than a
-    // single fixed-lambda point estimate.
-    projectTD(side,adjRate){
+    // pace-scaled lambda gives that iteration's own P(X>line) via the
+    // Poisson survival function (line defaults to 0.5 -- the "scores at
+    // all" convention Anytime TD and rushing/receiving-TD use -- but a
+    // pass-heavy QB's real passing-TD line can be 1.5/2.5/3.5+, so this
+    // takes any X.5 line rather than assuming 1-e^-lambda always applies);
+    // averaging that across iterations is an exact, unbiased estimate of
+    // the marginal P(X>line) under a model where the scoring rate itself
+    // varies with game script, rather than a single fixed-lambda point
+    // estimate.
+    projectTD(side,adjRate,line){
       const pace=side==='h'?hPace:aPace;
+      const k=Math.floor(line??0.5);
       let sum=0;
-      for(let i=0;i<n;i++)sum+=1-Math.exp(-Math.max(0,adjRate*pace[i]));
+      for(let i=0;i<n;i++)sum+=_poissonSf(Math.max(0,adjRate*pace[i]),k);
       return{likelihood:+(sum/n*100).toFixed(1)};
     },
   };
 }
 function _nflBuildPropRow(player,teamAbbr,oppAbbr,cat,playerSim,side){
+  if(cat.skipStandalone)return null; // config-only entry (Anytime TD reads it directly) -- not its own market
   if(cat.validPositions&&!cat.validPositions.includes((player.position||'').toUpperCase()))return null;
   const base=parseFloat(player[cat.key]);
   const games=player.games;
@@ -13934,9 +13966,17 @@ function _nflBuildPropRow(player,teamAbbr,oppAbbr,cat,playerSim,side){
   const{factor,perGame:oppPerGame,leagueAvg,rank,total,realAvg,note}=_nflOppDefFactor(oppAbbr,cat,games);
   const simNote=playerSim?` Likelihood is simulated across this game's own projected scoring script (${playerSim.n.toLocaleString()} runs), correlated with the matchup's own projected pace rather than a fixed variance assumption.`:'';
   if(cat.isTD){
-    const line=0.5;
+    // Passing TDs get a real market-proxy line off the QB's own season
+    // rate (_nflHalfPoint, same convention yardage props use) instead of
+    // a fixed 0.5 -- a pass-heavy team's QB can post 1/2/3/4-TD games
+    // routinely, and pinning every QB to "scores at all" throws that
+    // signal away. Every other TD category here is skipStandalone (see
+    // _NFL_PROP_CATS) and never reaches this branch as its own row --
+    // Anytime TD (a real, separate "scores at all" market) keeps 0.5.
+    const line=cat.key==='passingTouchdowns'?_nflHalfPoint(perGame):0.5;
+    const k=Math.floor(line);
     const adjMean=Math.max(0.05,perGame*(1+factor));
-    const likelihood=playerSim?playerSim.projectTD(side,adjMean).likelihood:+((1-Math.exp(-adjMean))*100).toFixed(1); // Poisson P(X>=1)
+    const likelihood=playerSim?playerSim.projectTD(side,adjMean,line).likelihood:+(_poissonSf(adjMean,k)*100).toFixed(1);
     const pick=likelihood>=50?'OVER':'UNDER';
     const conf=pick==='OVER'?likelihood:100-likelihood;
     const adjustor=+(adjMean-perGame).toFixed(2);
@@ -13972,20 +14012,19 @@ function _nflBuildPropRow(player,teamAbbr,oppAbbr,cat,playerSim,side){
   return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:cat.label,grp:cat.grp,line:lineBase,pick,adjustor,likelihood,grade,games,reasoning};
 }
 // Anytime TD Scorer — a real, distinct sportsbook market from the
-// existing per-method Rushing/Receiving TD props: "does this player
-// score a TD at all this game" combines BOTH scoring paths into one
-// probability, rather than treating them as two independent coinflips.
-// Passing TDs are excluded -- those are thrown, not scored, by the QB
-// -- but a rushing QB's own rushing-TD rate still counts (he can score
-// on the ground same as any other rusher). Built as its own function
-// rather than a _NFL_PROP_CATS entry since it needs two stat fields
-// (rushing + receiving) merged into one Poisson rate, not one.
+// per-method rushing/receiving TD rates: "does this player score a TD
+// at all this game" combines BOTH scoring paths into one probability,
+// rather than treating them as two independent coinflips. QB-only,
+// explicit scope decision: QB props are passing yards + passing TDs
+// only, so this market is RB/WR/TE-only now -- a mobile QB's own
+// rushing-TD rate no longer feeds an Anytime TD row for him (this
+// session's earlier design let it; narrowed on direct request).
 function _nflBuildAnytimeTDRow(player,teamAbbr,oppAbbr,playerSim,side){
   const games=player.games;if(!games)return null;
+  if((player.position||'').toUpperCase()==='QB')return null;
   const rushBase=parseFloat(player.rushingTouchdowns)||0;
   const recBase=parseFloat(player.receivingTouchdowns)||0;
-  const isQB=(player.position||'').toUpperCase()==='QB';
-  if(rushBase<=0&&(isQB||recBase<=0))return null; // no real signal -> don't fabricate a row
+  if(rushBase<=0&&recBase<=0)return null; // no real signal -> don't fabricate a row
   const rushCat=_NFL_PROP_CATS.find(c=>c.key==='rushingTouchdowns');
   const recCat=_NFL_PROP_CATS.find(c=>c.key==='receivingTouchdowns');
   let lambda=0,rawPerGame=0;const notes=[];
@@ -13996,7 +14035,7 @@ function _nflBuildAnytimeTDRow(player,teamAbbr,oppAbbr,playerSim,side){
     lambda+=adj;rawPerGame+=perGame;
     notes.push(`${adj.toFixed(2)}/gm rushing-TD rate vs ${oppAbbr}${note?' (season avg only, no matchup data yet)':''}`);
   }
-  if(!isQB&&recBase>0){
+  if(recBase>0){
     const perGame=recBase/games;
     const{factor,note}=_nflOppDefFactor(oppAbbr,recCat,games);
     const adj=Math.max(0,perGame*(1+factor));
@@ -14005,14 +14044,13 @@ function _nflBuildAnytimeTDRow(player,teamAbbr,oppAbbr,playerSim,side){
   }
   if(lambda<=0)return null;
   const line=0.5;
-  const likelihood=playerSim?playerSim.projectTD(side,lambda).likelihood:+((1-Math.exp(-lambda))*100).toFixed(1); // Poisson P(X>=1) on the COMBINED rate
+  const likelihood=playerSim?playerSim.projectTD(side,lambda,line).likelihood:+(_poissonSf(lambda,0)*100).toFixed(1); // P(X>=1) on the COMBINED rate
   const pick=likelihood>=50?'OVER':'UNDER';
   const conf=pick==='OVER'?likelihood:100-likelihood;
   const adjustor=+(lambda-rawPerGame).toFixed(2);
   const grade=(Math.abs(adjustor)<0.02&&Math.abs(likelihood-50)<4)?'SKIP':_nflPropGrade(conf,games);
   const reasoning=`${player.name} anytime-TD likelihood combines `+notes.join(' and ')+
-    (isQB?' — passing TDs excluded from this market since those are thrown, not scored, by the QB himself.':
-      recBase>0&&rushBase>0?' (both scoring paths combined into one probability, not treated as independent).':'.')+
+    (recBase>0&&rushBase>0?' (both scoring paths combined into one probability, not treated as independent).':'.')+
     ` No head-to-head history vs ${oppAbbr} this season or historically is factored in yet.`+
     (playerSim?` Likelihood is simulated across this game's own projected scoring script (${playerSim.n.toLocaleString()} runs).`:'');
   return{player:player.name,position:player.position,team:teamAbbr,opp:oppAbbr,cat:'Anytime TD',grp:'td',line,pick,adjustor,likelihood,grade,games,reasoning};
@@ -14044,10 +14082,23 @@ function _nflModelPropsForGame(g){
 function _nflPopulateModelPropsGameFilter(){
   const sel=document.getElementById('nfl-model-props-game');if(!sel)return;
   const D=_NFL_DATA;if(!D)return;
-  const games=[];
-  Object.values(D.weeks||{}).forEach(list=>(list||[]).forEach(g=>games.push(g)));
   const cur=sel.value;
-  sel.innerHTML='<option value="">SELECT A GAME…</option>'+games.map(g=>`<option value="${g.id}">${g.away} @ ${g.home} — ${g.date?new Date(g.date).toLocaleDateString():''}</option>`).join('');
+  // Grouped by week (an <optgroup> per D.weeks key, e.g. "Week 1",
+  // "Wild Card") instead of one flat list spanning the whole season --
+  // preseason weeks are dropped entirely (seasonType 1; regular season
+  // is 2, postseason 3) since week 1 of the real season (9/9) is what
+  // actually matters for props, not August exhibition games. D.weeks'
+  // own key order already matches the real season order (fetch_nfl.py
+  // writes it that way), so no separate sort is needed here.
+  let html='<option value="">SELECT A GAME…</option>';
+  Object.entries(D.weeks||{}).forEach(([weekLabel,list])=>{
+    const games=(list||[]).filter(g=>g.seasonType!==1);
+    if(!games.length)return;
+    html+=`<optgroup label="${weekLabel.toUpperCase()}">`
+      +games.map(g=>`<option value="${g.id}">${g.away} @ ${g.home} — ${g.date?new Date(g.date).toLocaleDateString():''}</option>`).join('')
+      +'</optgroup>';
+  });
+  sel.innerHTML=html;
   if(cur)sel.value=cur;
 }
 function renderNFLModelProps(filter){
@@ -14069,7 +14120,14 @@ function renderNFLModelProps(filter){
   if(!g){el.innerHTML='<div class="empty">GAME NOT FOUND</div>';return;}
   let rows=_nflModelPropsForGame(g);
   if(filter&&filter!=='all')rows=rows.filter(r=>r.grp===filter);
-  rows.sort((a,b)=>Math.abs(b.likelihood-50)-Math.abs(a.likelihood-50));
+  // Best picks first: grade tier (PREMIUM > OPTIMAL > LEAN > SKIP) beats
+  // raw confidence -- a PREMIUM row at 68% likelihood should still sort
+  // above a LEAN row at 71%, since grade already folds in the sample-size
+  // downgrade _nflPropGrade applies (see its own comment) that a bare
+  // likelihood number doesn't capture. Within the same grade, sort by
+  // how far the pick's confidence sits from a coin flip, same as before.
+  const _gradeRank={PREMIUM:0,OPTIMAL:1,LEAN:2,SKIP:3};
+  rows.sort((a,b)=>(_gradeRank[a.grade]??4)-(_gradeRank[b.grade]??4)||Math.abs(b.likelihood-50)-Math.abs(a.likelihood-50));
   if(!rows.length){el.innerHTML='<div class="empty">NO MODEL PROPS FOR THIS GAME/FILTER — LIKELY MISSING SEASON STATS FOR THESE PLAYERS YET</div>';window._nflModelPropsCurrent=[];return;}
   el.innerHTML=rows.map((r,i)=>{
     const gc=_NFL_PROP_GRADE_COLOR[r.grade]||'var(--t3)';
