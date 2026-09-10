@@ -10199,6 +10199,19 @@ function renderOverall(){
   const settled=all.filter(p=>p.outcome!=='pending');
   const pending=all.filter(p=>p.outcome==='pending');
   if(!settled.length){el.innerHTML='<div class="empty">NO SETTLED BETS YET — OPTIMAL AND SETTLE PICKS TO SEE DASHBOARD</div>';return;}
+  // Real bug, found auditing "is Dashboard accurate": getP() returns
+  // bets in whatever order they last synced from Supabase (sorted by id
+  // STRING, not time -- see syncPicksFromSupabase's own order=id query),
+  // not chronological order. Moved up from where this was only ever
+  // computed for "Recent Form" further down -- the "LAST N" cards
+  // below used to build their window via settled.slice(-n) directly,
+  // confirmed live to show 10 NBA bets from June 2025 as "Last 10" on a
+  // September 2026 slate, visibly disagreeing with the correctly-sorted
+  // "Recent Form" strip elsewhere on the same page. Same fix as
+  // adaptiveTick()'s own allPreds (see its comment) -- sort by date
+  // (then lockedAt as a same-day tiebreaker) once, reuse everywhere a
+  // "most recent N" window is needed in this function.
+  const settledByDate=settled.slice().sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
   const wins=settled.filter(p=>p.outcome==='win').length;
   const losses=settled.filter(p=>p.outcome==='loss').length;
   const pushes=settled.filter(p=>p.outcome==='push').length;
@@ -10336,10 +10349,10 @@ function renderOverall(){
     return{lbl:lm.lbl,...calcPerf(lb)};
   }).filter(d=>d.n>0);
 
-  // Last N
+  // Last N -- settledByDate, not settled: see its own comment above.
   const lastN=[10,25,50,75,100];
   const lastNData=lastN.map(n=>{
-    const s=settled.slice(-n);const w=s.filter(p=>p.outcome==='win').length;
+    const s=settledByDate.slice(-n);const w=s.filter(p=>p.outcome==='win').length;
     const u=s.reduce((a,p)=>{if(p.outcome==='win')return a+(parseFloat(p.decOdds)||2)-1;if(p.outcome==='loss')return a-1;return a;},0);
     return{n,w,l:s.length-w,acc:s.length?w/s.length:null,units:u,total:s.length};
   });
@@ -10553,8 +10566,7 @@ function renderOverall(){
   const lowConf =withProb.filter(p=>p.winProb<0.55);
   const agreeAcc=(bets)=>bets.length?bets.filter(p=>p.outcome==='win').length/bets.length:null;
 
-  // Recent form — sort by date ASC then lockedAt, take newest 25
-  const settledByDate=settled.slice().sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
+  // Recent form — newest 25 (settledByDate computed once, above)
   const recentForm=settledByDate.slice(-25);
   const rfW=recentForm.filter(p=>p.outcome==='win').length;
   const rfL=recentForm.filter(p=>p.outcome==='loss').length;
