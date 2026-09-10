@@ -3487,7 +3487,10 @@ function _ouLockDir(hA,awA,date,baseOverP,baseL,inputId,dir,sport){
   // misclassifies on any shared code (e.g. Portugal's 'POR' vs the NBA's
   // Portland Trail Blazers) or tags genuinely unmatched codes (BEL/USA) as
   // UNKNOWN. Callers for non-guessable sports must pass their sport explicitly.
-  lockPick(hA,awA,sport||'OU',dir+' '+nl.toFixed(1),lockP,'-110',1.91,date||today());
+  // The explicit 'OU' betType override (see lockPick's own comment) keeps
+  // this an OU lock even though `sport` -- not the literal string 'OU' --
+  // occupies lockPick's `type` slot here.
+  lockPick(hA,awA,sport||'OU',dir+' '+nl.toFixed(1),lockP,'-110',1.91,date||today(),undefined,'OU');
 }
 function _ouParlayDir(hA,awA,date,baseOverP,baseL,inputId,dir,sport){
   var inp=document.getElementById(inputId);
@@ -3528,7 +3531,10 @@ function _spreadLockDir(favN,dogN,hA,awA,date,baseP,baseSprd,inputId,dir,sport){
   // 3-letter code across those sports (e.g. 'BOS' is the Red Sox, Bruins,
   // AND Celtics), so every caller here needs to pass its real sport instead
   // of relying on the guesser to sort it out.
-  lockPick(hA,awA,sport||'SPREAD',label,sp,'-115',1.87,date||today());
+  // The explicit 'SPREAD' betType override (see lockPick's own comment)
+  // keeps this a SPREAD lock even though `sport` occupies lockPick's `type`
+  // slot here instead of the literal string 'SPREAD'.
+  lockPick(hA,awA,sport||'SPREAD',label,sp,'-115',1.87,date||today(),undefined,'SPREAD');
 }
 function _ahLockDir(hc,ac,date,favN,dogN,baseFavP,baseAH,inputId,dir){
   var inp=document.getElementById(inputId);
@@ -4091,7 +4097,7 @@ function _findSameMarketLock(preds,dateKey,hA,awA,betType){
   return preds.find(x=>x.date===dateKey&&x.betType===betType&&
     ((x.hA===hA&&x.awA===awA)||(x.hA===awA&&x.awA===hA)));
 }
-async function lockPick(hA,awA,type,betOn,p,ml,d,date,source){
+async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride){
   // source: 'queue' when locked via the Pick Queue's automated review-and-
   // confirm flow, 'manual' (the default) for every other lock path in the
   // app. Lets the Tier Calibration report eventually answer "is the
@@ -4099,6 +4105,27 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source){
   // without this, a queue-sourced and a manually-locked pick are
   // indistinguishable in history.
   const _lockSource=source==='queue'?'queue':'manual';
+  // betTypeOverride: `type` already does double duty below as BOTH a sport
+  // hint (so lockPick can classify e.g. Champions League correctly instead
+  // of guessing from team codes) and a bet-type shorthand ('OU'/'SPREAD'/
+  // 'PL'/'RL' fall through to that exact betType, anything else defaults to
+  // 'ML'). That collides the moment a caller needs to pass a real sport
+  // hint for a non-ML market -- e.g. _ouLockDir/_spreadLockDir pass the
+  // league code (a soccer league's `_lockType`, or the literal 'NHL') as
+  // `type` so lockPick's classifier resolves the correct sport instead of
+  // guessing off team abbreviations, but that same string isn't one of the
+  // betType-shorthand strings, so it silently fell through to 'ML' -- an
+  // OVER/UNDER or SPREAD lock got saved with betType='ML'. For a single-
+  // market game (NHL's own dedicated ML button uses lockH, a separate
+  // path) that's invisible; for Champions League and the other club-soccer
+  // leagues, BOTH the ML button and the OU buttons pass the exact same
+  // league code as `type`, so every market on the same match collapsed to
+  // betType='ML' -- locking the O/U first, then trying to lock the real ML
+  // afterward, hit _findSameMarketLock's own-market dedup and got rejected
+  // as "already locked" even though nothing had actually locked the
+  // moneyline yet. Fixed at the source (see _ouLockDir/_spreadLockDir) by
+  // passing the real bet type through this separate parameter instead of
+  // trying to cram both meanings into `type`.
   // Bet Journal: record reason (set via showBetJournalModal or skipped)
   const dateKey=date||today();
   // ── Sport + league + bet-type detection — computed FIRST so both the
@@ -4156,7 +4183,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source){
   const _leagueMap={NBA:'NBA',NFL:'NFL',CFB:'CFB',NHL:'NHL',
     KHL:'KHL',SHL:'SHL',LIIGA:'LIIGA',NCAAH:'NCAAH',CL:'CL',PL:'PL',LIGA:'LIGA',BUND:'BUND',MLS:'MLS',SERIEA:'SERIEA'};
   const leagueTag=_leagueMap[sportTag]||sportTag;
-  const _betTypeNorm=type==='PL'?'PL':type==='RL'?'RL':type==='OU'?'OU':type==='PROP'?'PROP':type==='SPREAD'?'SPREAD':'ML';
+  const _betTypeNorm=betTypeOverride||(type==='PL'?'PL':type==='RL'?'RL':type==='OU'?'OU':type==='PROP'?'PROP':type==='SPREAD'?'SPREAD':'ML');
   const _apiDup=_findSameMarketLock(getP(),dateKey,hA,awA,_betTypeNorm);
   if(_apiDup){toast(`// ALREADY LOCKED: ${_apiDup.betOn} ${_apiDup.ml} (${_apiDup.outcome==='pending'?'still pending':_apiDup.outcome.toUpperCase()})`);return;}
   if(API_ONLINE()){
