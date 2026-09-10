@@ -10026,7 +10026,7 @@ function renderOverall(){
   // onto these references) and reading that cached field everywhere
   // below removes the dominant redundant cost without changing which
   // picks match which row.
-  all.forEach(p=>{p._spUC=(p.sport||'').toUpperCase();p._btUC=(p.betType||'').toUpperCase();});
+  all.forEach(p=>{p._spUC=window._normSport(p);p._btUC=(p.betType||'').toUpperCase();});
   const settled=all.filter(p=>p.outcome!=='pending');
   const pending=all.filter(p=>p.outcome==='pending');
   if(!settled.length){el.innerHTML='<div class="empty">NO SETTLED BETS YET — OPTIMAL AND SETTLE PICKS TO SEE DASHBOARD</div>';return;}
@@ -10589,7 +10589,8 @@ function renderOverall(){
           const lbl=isW?'W':isPush?'P':'L';
           const bet=(p.betOn||'—').replace(/"/g,"'");
           const dt=p.date||'';
-          const sp=p.sport?`<span style="color:var(--t3);font-size:13px;margin-left:4px">${p.sport}</span>`:'';
+          const spNorm=window._normSport(p);
+          const sp=spNorm?`<span style="color:var(--t3);font-size:13px;margin-left:4px">${spNorm}</span>`:'';
           return `<div style="display:flex;align-items:center;gap:7px;padding:4px 6px;background:${c}08;border-left:2px solid ${c}55;border-radius:0 2px 2px 0">
             <span style="font-family:var(--mono);font-size:15px;font-weight:700;color:${c};min-width:14px">${lbl}</span>
             <span style="font-family:var(--mono);font-size:14px;color:var(--t2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${bet}</span>
@@ -13196,7 +13197,7 @@ function renderHomePage(){
   // the BY LEAGUE breakdown below (up to 19 rows, against the full
   // ledger when the ALL TIME period is selected) is worth the same
   // one-line precompute fix.
-  allBets.forEach(p=>{p._spUC=(p.sport||'').toUpperCase();});
+  allBets.forEach(p=>{p._spUC=window._normSport(p);});
   const settled=allBets.filter(p=>p.outcome==='win'||p.outcome==='loss');
   const pending=allBets.filter(p=>p.outcome==='pending');
   const now=Date.now();
@@ -21332,15 +21333,15 @@ function renderBySportAnalytics(key){
   // Determine bets to analyze
   let bets;
   if(activeLeague){
-    bets=all.filter(p=>(p.sport||'').toUpperCase()===activeLeague);
+    bets=all.filter(p=>window._normSport(p)===activeLeague);
   } else {
-    bets=all.filter(p=>def.codes.some(c=>(p.sport||'').toUpperCase()===c));
+    bets=all.filter(p=>def.codes.some(c=>window._normSport(p)===c));
   }
 
   // If ALL or multi-league sport without specific league, show per-league breakdown
   const showLeagueBreakdown=!activeLeague&&def.leagues&&def.leagues.length>1;
   const leasuesToShow=showLeagueBreakdown
-    ?def.leagues.map(l=>({...l,bets:all.filter(p=>(p.sport||'').toUpperCase()===l.k)})).filter(l=>l.bets.length)
+    ?def.leagues.map(l=>({...l,bets:all.filter(p=>window._normSport(p)===l.k)})).filter(l=>l.bets.length)
     :[{k:activeLeague||def.codes[0],label:activeLeague||def.label,bets}];
 
   const makeCard=(label,color,cardBets,isLeague)=>{
@@ -21378,7 +21379,7 @@ function renderBySportAnalytics(key){
       {key:'soccer',label:'SOCCER',codes:['PL','LIGA','BL','BUND','CL','SERIEA','MLS'],color:'var(--gc)'},
     ];
     for(const g of topGroups){
-      const gb=all.filter(p=>g.codes.some(c=>(p.sport||'').toUpperCase()===c));
+      const gb=all.filter(p=>g.codes.some(c=>window._normSport(p)===c));
       h+=makeCard(g.label,g.color,gb,false);
     }
   } else if(showLeagueBreakdown){
