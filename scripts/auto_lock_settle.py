@@ -2007,9 +2007,21 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
         label = PRODUCT_LABEL[product]
         recipients = recipients_for(product)
         log(f"[{product}] {len(qualifying)} qualifying legs -> {len(recipients)} recipient(s)")
+        # Explicit request: NBA and NHL are both off-season right now
+        # (confirmed live -- 2026-09-10's real run qualified 0 legs for
+        # both, every single check), so their subscriber email was going
+        # out empty every day: "0 qualifying picks" reads as the product
+        # being broken, not dormant. Gated on real qualifying legs
+        # existing (not a hardcoded date), so this resumes itself
+        # automatically the moment either league's real season actually
+        # starts producing real picks -- no separate code change needed
+        # once that happens.
+        season_inactive = product in ("nba", "hockey") and not qualifying
         if not live:
-            if send_email:
+            if send_email and not season_inactive:
                 send_locks_email(qualifying, live=False, label=label, to=recipients)
+            elif send_email:
+                log(f"Locks email ({label}) skipped -- season inactive, nothing qualifying yet")
             continue
         result = _lock_qualifying_legs(page, qualifying) if qualifying else LockResult(0, 0, 0)
         total_locked += result.new
@@ -2036,6 +2048,8 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
         if send_email and product in ("soccer", "cfb"):
             log(f"Locks email ({label}) skipped -- {product} has its own dedicated early/evening "
                 f"pass with a better-timed email; this run still locked as a safety net ({result.new} new)")
+        elif send_email and season_inactive:
+            log(f"Locks email ({label}) skipped -- season inactive, nothing qualifying yet")
         elif send_email:
             # Real bug, found via audit: this used to pass `locked` (this
             # pass's NEW count only) -- see LockResult's own docstring
@@ -2050,29 +2064,20 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
         else:
             log(f"Locks email ({label}) skipped -- already sent today ({result.new} locked this pass)")
 
+    # Explicit request: stop emailing the OTHER (SHL/LIIGA/NCAAH,
+    # owner-only) digest entirely -- it's been empty every single real
+    # run (0 qualifying legs), since none of those three leagues have
+    # any real _autoLockCapture calls wired up yet (see PRODUCT_SPORTS'
+    # own comment). Locking itself is untouched below -- if any of the
+    # three ever does start producing real qualifying legs, they'll
+    # still auto-lock as a safety net, just without a report email.
     other_qualifying = [q for q in all_qualifying if q["sport"] in OTHER_ALLOWED_SPORTS]
-    log(f"[other] {len(other_qualifying)} qualifying legs (SHL/LIIGA/NCAAH, personal-use -- owner only)")
-    owner_to = [OWNER_EMAIL] if OWNER_EMAIL else None
-    if not live:
-        if send_email:
-            send_locks_email(other_qualifying, live=False, label="OTHER", to=owner_to)
-    else:
+    log(f"[other] {len(other_qualifying)} qualifying legs (SHL/LIIGA/NCAAH, personal-use, no longer emailed)")
+    if live:
         result = _lock_qualifying_legs(page, other_qualifying) if other_qualifying else LockResult(0, 0, 0)
         total_locked += result.new
         log(f"[other] {result.new} new, {result.already_locked} already locked, "
             f"{result.failed} failed -- {result.confirmed}/{len(other_qualifying)} confirmed locked")
-        # No early/evening-pass exclusion here (unlike soccer/cfb above)
-        # -- SHL/LIIGA/NCAAH have no dedicated pass of their own,
-        # so this unscoped run's final check IS their only report, same as every
-        # other non-soccer/CFB product. Reverted an over-broad
-        # locked==0-means-skip guard here for the same reason explained
-        # on the per-product loop above: it would wrongly silence this
-        # on a normal day where an earlier check already locked
-        # everything.
-        if send_email:
-            send_locks_email(other_qualifying, live=True, locked_count=result.confirmed, label="OTHER", to=owner_to)
-        else:
-            log(f"Locks email (OTHER) skipped -- already sent today ({result.new} locked this pass)")
 
     if total_locked > 0:
         flush_to_supabase(page)
