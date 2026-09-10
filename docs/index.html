@@ -3948,7 +3948,25 @@ async function syncPicksFromSupabase(){
       if(row.outcome==='_removed'){
         // Soft-delete marker from another device (real DELETEs are blocked
         // by RLS, see _deleteBetsFromSupabase). Drop it locally if present
-        // and add it to the wipe-blocklist so it can never come back.
+        // and add it to the wipe-blocklist so it can never come back --
+        // UNLESS this device already holds a NEWER local record under the
+        // same id than the tombstone. Real bug, found and fixed: lockPick()
+        // deliberately un-wipes its own id on a fresh relock of the exact
+        // same real-world bet (see its own comment), but _doSupabaseSync()
+        // pulls before it pushes -- so relocking a bet that was soft-
+        // deleted earlier raced its own very next sync: this pull still
+        // saw the OLD tombstone sitting on Supabase (the fresh pending row
+        // hadn't been uploaded yet), re-wiped the id, and stripped the
+        // just-created pending pick right back out milliseconds after the
+        // UI had shown it as locked. The soft-delete PATCH only ever
+        // touches `outcome` -- locked_at on the tombstone is still the
+        // bet's ORIGINAL lock time -- so a local record whose lockedAt is
+        // newer than the tombstone's locked_at is a reliable signal this
+        // is a deliberate relock, not a removal from another device still
+        // to be caught up on. Confirmed live: Como/RB Leipzig CL UNDER 3.5.
+        const existingLocal=byId.get(row.id);
+        const localIsNewerRelock=existingLocal&&existingLocal.lockedAt&&row.locked_at&&existingLocal.lockedAt>new Date(row.locked_at).getTime();
+        if(localIsNewerRelock)continue; // keep the fresh relock; the imminent push overwrites the stale tombstone on Supabase
         if(byId.has(row.id)){
           local=local.filter(p=>p.id!==row.id);
           byId.delete(row.id);
