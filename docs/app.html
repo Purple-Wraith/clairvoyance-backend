@@ -11869,7 +11869,14 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
 // ═══ OVERALL TRENDS ═══════════════════════════════════════════════════════
 function renderOverallTrends(){
   const el=document.getElementById('ovr-trends');if(!el)return;
-  const all=getP().filter(p=>p.outcome!=='pending');
+  // Real bug, found auditing Analytics > Trends (this function is what
+  // that sub-tab actually renders, via renderAnalyticsTrends' DOM-id
+  // swap wrapper): getP()'s order is id-string sorted, not chronological
+  // -- the per-sport streak below (sb.slice(-10), then a forward run-
+  // length loop) needs real chronological order to mean anything. Same
+  // fix as adaptiveTick()/renderOverall's own settledByDate.
+  const all=getP().filter(p=>p.outcome!=='pending')
+    .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
   if(all.length<5){el.innerHTML='<div class="empty">NOT ENOUGH DATA — SETTLE MORE PICKS TO SEE TRENDS</div>';return;}
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -17473,7 +17480,16 @@ function renderTrackRecord(){
       const bySport={};SPORT_ORDER.forEach(s=>bySport[s]=[]);
       periodBets.forEach(b=>{const s=_broadSportOf(_normSport(b));if(s&&bySport[s])bySport[s].push(b);});
       const sportList=sportFilter?[sportFilter]:SPORT_ORDER;
-      const filteredBets=sportFilter?bySport[sportFilter]||[]:periodBets;
+      // Real bug, found and fixed: with no sport filter selected (the
+      // default "ALL SPORTS" view) this used to total periodBets --
+      // every bet in the period, ANY sport, including retired ones this
+      // card was never built to show (MLB/WNBA/tennis/etc, since bySport
+      // above only ever buckets the 4 groups actually rendered below) --
+      // instead of the sum of just those 4 groups. Confirmed live: the
+      // card's own 4 visible rows summed to 544W-219L while its TOTAL
+      // row said 2109W-891L, a public-facing exported graphic where the
+      // math visibly didn't add up.
+      const filteredBets=sportFilter?bySport[sportFilter]||[]:SPORT_ORDER.flatMap(s=>bySport[s]);
       const totalP=cP(filteredBets);
       window._cvSportPeriodData={sportList,bySport,activePeriod,frameLabel,totalP,sportFilter};
 
@@ -17494,7 +17510,16 @@ function renderTrackRecord(){
       pubPeriodBets.forEach(b=>{const s=_broadSportOf(_normSport(b));if(s&&pubBySport[s])pubBySport[s].push(b);});
       const pubSportFilter=(sportFilter&&PUB_SPORT_ORDER.includes(sportFilter))?sportFilter:'';
       const pubSportList=pubSportFilter?[pubSportFilter]:PUB_SPORT_ORDER;
-      const pubFilteredBets=pubSportFilter?pubBySport[pubSportFilter]||[]:pubPeriodBets;
+      // Same real bug as filteredBets above, fixed the same way -- this
+      // is the actual PNG export data (_genSportPerfGraphic reads
+      // window._cvSportPeriodDataPub), so this was the more consequential
+      // copy of the bug: pubBets/_PUB_SPORTS includes MLB (a real
+      // historical product sport, kept for accurate public track record
+      // -- see this function's own top comment), but MLB has no
+      // _broadSportOf() mapping to any of the 4 groups this card shows,
+      // so it silently inflated the exported TOTAL without ever
+      // appearing in a visible row.
+      const pubFilteredBets=pubSportFilter?pubBySport[pubSportFilter]||[]:PUB_SPORT_ORDER.flatMap(s=>pubBySport[s]);
       const pubTotalP=cP(pubFilteredBets);
       window._cvSportPeriodDataPub={sportList:pubSportList,bySport:pubBySport,activePeriod,frameLabel,totalP:pubTotalP,sportFilter:pubSportFilter};
       // Which leagues make up each broad sport — shown as a sub-line under
@@ -17600,7 +17625,12 @@ function renderTrackRecord(){
     const rC2=p=>p===null?'rgba(220,190,255,.45)':p>=.62?'#00f0ff':p>=.50?'#bbff00':'#ff2090';
     const uC2=u=>u>=0?'#00f0ff':'#ff2090';
     const activeLDEFS=leagueFilter?LDEFS.filter(lm=>lm.lbl===leagueFilter):LDEFS;
-    const filteredBets2=leagueFilter?periodBets2.filter(b=>{const lm=LDEFS.find(l=>l.lbl===leagueFilter);return lm&&lm.codes.some(c=>_normSport(b)===c.toUpperCase());}):periodBets2;
+    // Real bug, found and fixed: with no league filter (the default "ALL
+    // LEAGUES" view) this used to total periodBets2 -- every bet in the
+    // period, any sport at all -- instead of the sum of just the 14
+    // leagues LDEFS actually lists and renders as rows below. Same root
+    // cause as the Sport Performance card above.
+    const filteredBets2=periodBets2.filter(b=>activeLDEFS.some(lm=>lm.codes.some(c=>_normSport(b)===c.toUpperCase())));
     const totalP2=cP(filteredBets2);
     window._cvLeaguePeriodData={LDEFS:activeLDEFS,periodBets:periodBets2,activePeriod,frameLabel:frameLabel2,totalP:totalP2,leagueFilter};
 
@@ -17630,7 +17660,10 @@ function renderTrackRecord(){
       activePeriod==='SINCE LAUNCH'?pubBets.filter(b=>b.lockedAt&&b.lockedAt>=new Date('2026-07-01T04:00:00Z').getTime()):
       pubBets;
     const pubActiveLDEFS=pubLeagueFilter?LDEFS_PUB.filter(lm=>lm.lbl===pubLeagueFilter):LDEFS_PUB;
-    const pubFilteredBets2=pubLeagueFilter?pubPeriodBets2.filter(b=>{const lm=LDEFS_PUB.find(l=>l.lbl===pubLeagueFilter);return lm&&lm.codes.some(c=>_normSport(b)===c.toUpperCase());}):pubPeriodBets2;
+    // Same real bug as filteredBets2 above, fixed the same way -- this is
+    // the actual PNG export data (_genLeaguePerfGraphic reads window.
+    // _cvLeaguePeriodDataPub).
+    const pubFilteredBets2=pubPeriodBets2.filter(b=>pubActiveLDEFS.some(lm=>lm.codes.some(c=>_normSport(b)===c.toUpperCase())));
     const pubTotalP2=cP(pubFilteredBets2);
     window._cvLeaguePeriodDataPub={LDEFS:pubActiveLDEFS,periodBets:pubPeriodBets2,activePeriod,frameLabel:frameLabel2,totalP:pubTotalP2,leagueFilter:pubLeagueFilter};
     const hdr='<div style="text-align:center;margin-bottom:8px"><div style="font-family:\'Orbitron\',sans-serif;font-size:18px;font-weight:900;color:#f000ff;text-shadow:0 0 14px #f000ff;letter-spacing:2px">CLAIRVOYANCE</div><div style="font-family:var(--mono);font-size:11px;color:rgba(220,190,255,.4);letter-spacing:3px">LEAGUE PERFORMANCE</div><div style="font-family:\'Orbitron\',sans-serif;font-size:13px;font-weight:700;color:#f000ff;letter-spacing:1.5px;margin-top:3px;text-shadow:0 0 6px #f000ff88">'+frameLabel2+'</div></div>';
@@ -17734,7 +17767,13 @@ function renderTrackRecord(){
     // for which calendar day a bet belongs to.
     const eventBets=(eStart&&eEnd)?allBets.filter(b=>b.date&&b.date>=eStart&&b.date<=eEnd):[];
     const activeLDEFS3=eventFilters.length?LDEFS3.filter(lm=>eventFilters.includes(lm.lbl)):LDEFS3;
-    const filteredBets3=eventFilters.length?eventBets.filter(b=>activeLDEFS3.some(lm=>lm.codes.some(c=>_normSport(b)===c.toUpperCase()))):eventBets;
+    // Real bug, found and fixed: with no league filter selected this used
+    // to total every bet in the date range (eventBets, unscoped -- any
+    // sport at all, including retired ones this card was never built to
+    // show), instead of the sum of just the leagues this card actually
+    // supports (LDEFS3/activeLDEFS3) -- same root cause as the Sport/
+    // League Performance cards below (see their own comments).
+    const filteredBets3=eventBets.filter(b=>activeLDEFS3.some(lm=>lm.codes.some(c=>_normSport(b)===c.toUpperCase())));
     const totalP3=cP(filteredBets3);
     const totalLbl3=eventFilters.length===1?eventFilters[0].toUpperCase():eventFilters.length>1?eventFilters.map(f=>f.toUpperCase()).join(' + '):'TOTAL';
     window._cvEventPeriodData={LDEFS:activeLDEFS3,periodBets:eventBets,eventName,frameLabel:rangeLbl,totalP:totalP3,totalLbl:totalLbl3};
@@ -21836,7 +21875,17 @@ function renderBySportAnalytics(key){
   }
 
   const el=document.getElementById('analytics-bysport-content');if(!el)return;
-  const all=getP().filter(p=>p.outcome!=='pending');
+  // Real bug, found auditing Analytics: getP() returns bets in whatever
+  // order they last synced from Supabase (sorted by id STRING, not
+  // time -- see syncPicksFromSupabase's own order=id query), not
+  // chronological order. makeCard()'s L10/STREAK below iterate this
+  // array by position (slice(-10), a backwards loop from the end) --
+  // confirmed live, FOOTBALL showed "STREAK: 16W" from array order, not
+  // a real 16-game streak. Same fix as adaptiveTick()/renderOverall's
+  // own settledByDate (see their comments): sort by date (then lockedAt
+  // as a same-day tiebreaker) once, up front.
+  const all=getP().filter(p=>p.outcome!=='pending')
+    .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
   if(!all.length){el.innerHTML='<div class="empty">NO SETTLED BETS YET</div>';return;}
   const pnl=p=>p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1;
   const pC=r=>r>=.62?'var(--nc)':r>=.52?'var(--vc)':'var(--hc)';
@@ -21974,7 +22023,16 @@ function renderByTeamAnalytics(key){
   // Extract unique teams/picks from scoped bets
   const teamMap={};
   scopedBets.forEach(p=>{
-    const raw=(p.betOn||'').replace(/(OVER|UNDER|[\d.]+\s*(PTS|REB|AST|BLK|STL|GOALS)|ML|PL|RL|\s[+-]\d{3})/gi,'').trim();
+    // Real bug, found and fixed: a moneyline pick has been labeled two
+    // different ways across the app's history -- plain "Barcelona" and
+    // "Barcelona Win" both mean the exact same real-world bet, just
+    // different label eras (see lockPick's own betOn construction sites).
+    // This regex already normalized OVER/UNDER/stat-suffixes/ML/PL/RL/
+    // odds away but never the trailing "Win", so the two spellings of
+    // the same moneyline pick tracked as separate rows here -- confirmed
+    // live: Barcelona, Manchester City, AS Roma, and Arsenal each split
+    // into two entries this way.
+    const raw=(p.betOn||'').replace(/(OVER|UNDER|[\d.]+\s*(PTS|REB|AST|BLK|STL|GOALS)|ML|PL|RL|\s[+-]\d{3}|\s+WIN$)/gi,'').trim();
     const t=(raw.length>=2&&raw.length<=30)?raw:(p.hA||'');
     if(!t||t.length<2)return;
     const key2=t.toUpperCase().trim();
@@ -22230,7 +22288,17 @@ function renderAnalyticsBetHistory(filter){
   const avgWO=winOdds.length?winOdds.reduce((a,v)=>a+v,0)/winOdds.length:null;
   const avgLO=lossOdds.length?lossOdds.reduce((a,v)=>a+v,0)/lossOdds.length:null;
   // Sport/league breakdown (for ALL/outcome filters)
-  const sportBreak={};settled.forEach(p=>{const s=p.sport||'?';if(!sportBreak[s])sportBreak[s]={w:0,l:0};if(p.outcome==='win')sportBreak[s].w++;else sportBreak[s].l++;});
+  // Real bug, found and fixed: grouped by the raw p.sport field instead
+  // of _normSport(p) (the shared resolver every other league breakdown
+  // in the app uses -- Dashboard, Adaptive, Track Record). Several NFL/
+  // CFB bets are stored with the broad ambiguous tag sport:'FOOTBALL'
+  // plus a separate, more specific league field (e.g. lockNFLGame's own
+  // pred object) -- _normSport() knows to prefer that league field for
+  // exactly this case, but raw p.sport doesn't, so those bets fell into
+  // a meaningless "FOOTBALL" bucket instead of NFL or CFB specifically.
+  // Confirmed live: an "FOOTBALL 11W-0L" row sitting next to (not
+  // folded into) the real CFB and NFL rows.
+  const sportBreak={};settled.forEach(p=>{const s=window._normSport(p)||'?';if(!sportBreak[s])sportBreak[s]={w:0,l:0};if(p.outcome==='win')sportBreak[s].w++;else sportBreak[s].l++;});
 
   let h=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
     <div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${pC(acc||0)}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">WIN RATE</div></div>
