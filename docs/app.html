@@ -195,6 +195,32 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   html .sb2{font-size:10px!important;padding:5px 8px!important}
   html .sp{padding:7px 10px!important;font-size:10px!important}
   html .mb{flex:0 0 54px;font-size:9px!important;min-height:56px!important}.mbi{font-size:17px!important}
+  /* LAST LOCK/SETTLE header status -- see renderAutomationStatus's own
+     comment. Font alone (15px, sized for desktop's much wider hdr-r
+     column) was overflowing the header's compact mobile height and
+     wrapping across multiple lines; the JS-side date-stripping shortens
+     the string, this keeps each line from wrapping mid-string on top
+     of that. */
+  html #hdr-automation-status{font-size:9px!important;gap:2px!important}
+  html #hdr-automation-status div{white-space:nowrap}
+  /* Adaptive tab's "Performance Snapshot" row (renderAdaptiveLearning) --
+     4 cards each with a 27px hero number, fine at desktop widths but on
+     a ~375px phone each card's actual width (~85px in a straight 4-up
+     row) is narrower than the number itself, so the text overflowed its
+     own card and visually bled into the next one. 2-up instead of 4-up
+     gives each card enough width to hold its number without shrinking
+     the font (which would undercut the point of a hero stat). */
+  html .pfs-row>div{flex:1 1 45%!important}
+  /* Real bug, found auditing mobile: every sport's adjustable spread/O-U
+     line input (17 occurrences -- NHL/NBA/CFB/NFL/soccer game cards)
+     hardcodes width:44px or 48px at font-size:16px, sized for a line
+     like "5.5" (3 chars). A real line with a sign and 2 digits before
+     the decimal ("-36.5", 5 chars) doesn't fit that width -- confirmed
+     live: the "5" was clipped enough to be misread as "!". Widening +
+     shrinking the font on mobile only (desktop already has enough room)
+     fixes every one of these inputs at once instead of editing each of
+     the 17 inline styles individually. */
+  html input[type="number"]{min-width:58px!important;font-size:14px!important}
   /* ── Tables ── */
   html .sa{overflow-x:hidden}
   html .dt{display:block;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -12302,14 +12328,14 @@ function renderAdaptiveLearning(){
   const allW=all.filter(p=>p.outcome==='win').length;const allAcc=all.length?allW/all.length:null;
   html+=`<div class="card" style="margin-bottom:12px;padding:12px">
     <div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin-bottom:10px">// PERFORMANCE SNAPSHOT</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">
+    <div class="pfs-row" style="display:flex;gap:6px;flex-wrap:wrap">
       ${[['L10 TREND',l10acc,L10.length],['L30 WINDOW',l30acc,L30.length],['ALL TIME',allAcc,all.length]].map(([lbl,acc,n])=>`<div style="flex:1;min-width:70px;background:rgba(10,0,24,.8);border:1px solid rgba(77,121,255,.2);border-radius:3px;padding:9px;text-align:center">
-        <div style="font-family:var(--orb);font-size:27px;font-weight:700;color:${acc!==null?accColor(acc):'var(--t3)'}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div>
+        <div class="pfsv" style="font-family:var(--orb);font-size:27px;font-weight:700;color:${acc!==null?accColor(acc):'var(--t3)'}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:2px">${lbl}</div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3)">${n} bets</div>
       </div>`).join('')}
       <div style="flex:1;min-width:70px;background:rgba(10,0,24,.8);border:1px solid rgba(77,121,255,.2);border-radius:3px;padding:9px;text-align:center">
-        <div style="font-family:var(--orb);font-size:27px;font-weight:700;color:var(--vc)">${(state.evThreshold||2).toFixed(1)}%</div>
+        <div class="pfsv" style="font-family:var(--orb);font-size:27px;font-weight:700;color:var(--vc)">${(state.evThreshold||2).toFixed(1)}%</div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:2px">EV THRESH</div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3)">auto-tuned</div>
       </div>
@@ -13708,6 +13734,17 @@ function renderHomePage(){
 (function(){
   const STALE_HOURS={lastLock:26,lastSettle:8};
   const LABEL={lastLock:'LAST LOCK',lastSettle:'LAST SETTLE'};
+  // Real bug, found auditing mobile: this always rendered the full
+  // "LAST LOCK: 2026-09-10 11:55 AM MT" string at a fixed 15px, which
+  // wraps across 2-3 lines in the header's narrow right-hand grid
+  // column on a real phone width -- the header's own mobile CSS locks
+  // its height to a compact ~38px (see #hdr's own comment), so the
+  // wrapped text overflowed that and visually collided with the
+  // CLAIRVOYANCE logo and the tab row below it. The calendar date is
+  // redundant on mobile anyway (the header's own clock row already
+  // shows today's date), so dropping it there shortens the string
+  // enough to fit on one short line at a smaller size instead.
+  const LABEL_MOBILE={lastLock:'LOCK',lastSettle:'SETTLE'};
   function _escHdr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   async function renderAutomationStatus(){
     const el=document.getElementById('hdr-automation-status');
@@ -13718,9 +13755,10 @@ function renderHomePage(){
       if(r.ok)status=await r.json();
     }catch(e){}
     if(!status){el.innerHTML='';return;}
+    const isMobile=window.matchMedia('(max-width:768px)').matches;
     const rows=['lastLock','lastSettle'].map(kind=>{
       const s=status[kind];
-      const label=LABEL[kind];
+      const label=isMobile?LABEL_MOBILE[kind]:LABEL[kind];
       if(!s)return `<div style="color:#666">${label}: NO DATA</div>`;
       const ageHrs=(Date.now()-new Date(s.tsUTC).getTime())/3600000;
       const stale=ageHrs>STALE_HOURS[kind];
@@ -13728,7 +13766,11 @@ function renderHomePage(){
       const color=failed?'#ff1a1a':stale?'#ff9000':'#00e644';
       const icon=failed?'✗':stale?'⚠':'✓';
       const staleNote=(stale&&!failed)?` (${ageHrs<48?Math.round(ageHrs)+'h ago':Math.round(ageHrs/24)+'d ago'})`:'';
-      return `<div title="${_escHdr(s.detail||'')}" style="color:${color}">${icon} ${label}: ${_escHdr(s.tsMT||'?')}${staleNote}</div>`;
+      // tsMT is always "YYYY-MM-DD H:MM AM/PM MT" (see auto_lock_settle.py's
+      // own strftime) -- stripping the leading date is safe and
+      // deterministic, not a guess at the string's shape.
+      const ts=isMobile?String(s.tsMT||'?').replace(/^\d{4}-\d{2}-\d{2}\s+/,''):(s.tsMT||'?');
+      return `<div title="${_escHdr(s.detail||'')}" style="color:${color}">${icon} ${label}: ${_escHdr(ts)}${staleNote}</div>`;
     });
     el.innerHTML=rows.join('');
   }
