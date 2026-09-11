@@ -6229,6 +6229,22 @@ function _footballLiveStatus(g,sportKey){
     return null;
   }catch(e){return null;}
 }
+// Explicit request, 2026-09-10: only feed the automated locking pipeline
+// games where BOTH teams are in one of these 9 conferences -- after a
+// real Saturday (Sep 5) locked 127 CFB picks across ~65 games (nearly
+// the entire day's real slate), driven largely by power-vs-FCS/small-
+// conference cupcake blowouts clearing the qualifying bar just as easily
+// as a real toss-up game. Matches the app's own existing "these are the
+// conferences" list (see the CFB games page's own conference filter
+// dropdown) -- deliberately excludes Conference USA/Sun Belt/FCS, not
+// just FCS alone. Checked against _CFB_DATA.teamConf (the canonical
+// team->conference map built from cfb_teams.json), not the game's own
+// .conferences array, since a team missing from teamConf entirely (an
+// FCS opponent) is exactly the case this needs to catch. Scoped to the
+// automated capture only -- a manual lock from the game card itself is
+// a deliberate human choice and stays unaffected.
+const _CFB_MAJOR_CONFS=new Set(['ACC','American','Big 12','Big Ten','FBS Independents','MAC','Mountain West','Pac-12','SEC']);
+function _cfbBothMajorConf(cfbData,hA,awA){return!!(cfbData&&cfbData.teamConf&&_CFB_MAJOR_CONFS.has(cfbData.teamConf[hA])&&_CFB_MAJOR_CONFS.has(cfbData.teamConf[awA]));}
 function _cfbGameCard(g){
   const D=_CFB_DATA;
   const ens=cfbEns(g.home,g.away,g.overUnder,g);
@@ -6292,7 +6308,7 @@ function _cfbGameCard(g){
     {label:`UNDER ${ouL.toFixed(1)}`,prob:underP,dec:1.909,ml:'-110',side:'under'},
   ].map(m=>({...m,evVal:ev(m.prob,m.dec)}));
   const nm=_evalMkts(rawMkts);
-  _autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`);
+  if(_cfbBothMajorConf(D,g.home,g.away))_autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`);
   const _mktGrade=side=>{const m=nm.mkts.find(x=>x.side===side);const lbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN];const col=m.tierN===3?'var(--gc)':m.tierN===2?'var(--nc)':m.tierN===1?'var(--ic)':'var(--t3)';return{m,lbl,col};};
   const mlGrade=hP>=aP?_mktGrade('mlFav'):_mktGrade('mlDog');
   const sprdGrade=favCoverP>=dogCoverP?_mktGrade('sprdFav'):_mktGrade('sprdDog');
