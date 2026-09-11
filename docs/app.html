@@ -13476,7 +13476,16 @@ function renderHomePage(){
     // untouched; hiding a legacy pending bet in a retired sport from the
     // action queue would just make it a permanently stuck ghost bet.
     const keptBets=allBets.filter(p=>_broadSportOf(_normSport(p))!==null);
-    const keptSettled=keptBets.filter(p=>p.outcome==='win'||p.outcome==='loss');
+    // Real bug, found and fixed: "SETTLED" only ever counted win/loss,
+    // excluding push -- a push is a real, resolved (no longer pending)
+    // outcome, just neither a win nor a loss. With any push in the ledger
+    // (confirmed live: exactly 1), "N LOCKED · M SETTLED" a few lines
+    // down never added up against the separately-shown pending count
+    // (M + pending != N), reading as broken math. keptSettled is only
+    // ever used for this one display, never a win-rate calc, so widening
+    // it to "not pending" (the same definition every other settled/
+    // pending split in the app already uses) is a safe, non-cosmetic fix.
+    const keptSettled=keptBets.filter(p=>p.outcome!=='pending');
     const nowD=getMSTNow();
     const wk7ts=now-7*86400000;
     const firstOfMonth=mstFirstOfMonth(nowD);
