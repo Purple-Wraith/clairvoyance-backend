@@ -165,14 +165,6 @@ PRODUCT_LABEL: dict[str, str] = {
 }
 # OPTIMAL=2, PREMIUM=3 in _evalMkts()'s own tierN scale.
 QUALIFYING_TIERS = {2, 3}
-# CFB gets a stricter bar than every other sport -- explicit request,
-# 2026-09-10, after a real Saturday (Sep 5) locked 127 CFB picks across
-# ~65 games, close to the entire real slate. September CFB is blowout-
-# heavy (power programs vs FCS/small-conference cupcakes), and those
-# lopsided games clear PREMIUM/OPTIMAL just as easily as a real close
-# game -- PREMIUM-only cuts the marginal OPTIMAL-tier games that make up
-# a large share of that volume without touching every other sport's bar.
-CFB_QUALIFYING_TIERS = {3}
 TIER_LABEL = {0: "SKIP", 1: "LEAN", 2: "OPTIMAL", 3: "PREMIUM"}
 
 
@@ -1057,7 +1049,6 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
         sport = gl.get("sport")
         if not _wanted(sport):
             continue
-        is_cfb = sport == "CFB"
         game_qualifying: list[dict] = []
         for m in gl.get("markets") or []:
             tier_n = m.get("tierN")
@@ -1069,17 +1060,8 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
             # can fail the EV/tier bar (the price is too short to be a
             # good-value bet) while still being a very likely winner, and
             # that's worth surfacing even though it's not a normal pick.
-            # Skipped for CFB specifically: a heavy favorite in a lopsided
-            # cupcake game is exactly the "marginal EV, high certainty"
-            # shape this exception exists to surface, and closing it is
-            # part of the same explicit volume-reduction request that
-            # tightened CFB's tier bar to PREMIUM-only (see
-            # CFB_QUALIFYING_TIERS' own comment) -- leaving it open would
-            # undercut that by letting the same blowout MLs back in a
-            # different way.
-            is_high_hit = _market_type(m.get("side")) == "ML" and prob >= _HIGH_HIT_P and not is_cfb
-            qualifying_tiers = CFB_QUALIFYING_TIERS if is_cfb else QUALIFYING_TIERS
-            if tier_n in qualifying_tiers or is_high_hit:
+            is_high_hit = _market_type(m.get("side")) == "ML" and prob >= _HIGH_HIT_P
+            if tier_n in QUALIFYING_TIERS or is_high_hit:
                 game_qualifying.append({
                     "kind": "GAME", "sport": sport, "hA": gl.get("hA"), "awA": gl.get("awA"),
                     "side": m.get("side"), "label": m.get("label"), "prob": m.get("prob"),
