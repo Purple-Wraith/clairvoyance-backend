@@ -10214,7 +10214,6 @@ function renderOverall(){
   const settledByDate=settled.slice().sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
   const wins=settled.filter(p=>p.outcome==='win').length;
   const losses=settled.filter(p=>p.outcome==='loss').length;
-  const pushes=settled.filter(p=>p.outcome==='push').length;
   const acc=settled.length?wins/settled.length:null;
   const atUnits=settled.reduce((a,p)=>{if(p.outcome==='win')return a+(parseFloat(p.decOdds)||2)-1;if(p.outcome==='loss')return a-1;return a;},0);
   const totalWagered=settled.reduce((s,p)=>s+(p.wager||100),0);
@@ -10741,7 +10740,7 @@ function renderOverall(){
   let h=`
   <div class="g4" style="gap:8px;margin-bottom:14px">
     <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${accColor(acc)}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">WIN %</div></div>
-    <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:26px;font-weight:700">${wins}W-${losses}L${pushes?'-'+pushes+'P':''}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">RECORD</div></div>
+    <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:26px;font-weight:700">${wins}W-${losses}L</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">RECORD</div></div>
     <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${unitColor(atUnits)}">${atUnits>=0?'+':''}${atUnits.toFixed(1)}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">UNITS</div></div>
     <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${curStreakType==='win'?'var(--nc)':'var(--hc)'}">${curStreak>0?curStreak+(curStreakType==='win'?'W':'L'):'--'}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">STREAK</div></div>
   </div>`;
