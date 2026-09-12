@@ -1,4 +1,4 @@
-name: Landing Page Performance Refresh
+name: Landing Page Performance Refresh (manual)
 
 # docs/engine_performance.json, docs/engine_performance_subscriber.json,
 # and docs/sport_performance.json (the ONLY data source
@@ -13,6 +13,21 @@ name: Landing Page Performance Refresh
 # directly against the explicit "update every few hours" ask this exists
 # to satisfy.
 #
+# STANDALONE SCHEDULE REMOVED 2026-09-12: this used to carry its own
+# hourly cron (9am-9pm MT, 13 nominal runs/day), but a real audit of 12
+# days of run history found it only actually fired ~4-5x/day, with an
+# identical ~12-14hr overnight dead zone every single day -- GitHub
+# Actions silently drops most ticks of a frequent standalone cron once a
+# repo already runs this many other scheduled workflows, rather than
+# queuing or delaying them. The JSON refresh (same generate_social_cards.py
+# --json-only call, see below) now instead rides along as an extra step
+# on every real invocation of auto-lock-settle.yml, which already fires
+# ~10x/day with actual overnight coverage -- far more reliable than this
+# workflow's own schedule ever was, at zero added scheduled-workflow
+# contention. This file is kept ONLY for an on-demand manual refresh
+# (workflow_dispatch) -- e.g. to force an immediate update without
+# waiting for auto-lock-settle.yml's next real run.
+#
 # engine_performance_subscriber.json (added 2026-09-03): same periods as
 # engine_performance.json, but filtered to only the 5 real paid-product
 # sports (nfl/cfb/nba/nhl/soccer -- was 6 with mlb until it was retired
@@ -23,26 +38,12 @@ name: Landing Page Performance Refresh
 # unfiltered ledger) stays published too, just unused by that section
 # currently.
 #
-# Runs generate_social_cards.py --json-only (added alongside this
-# workflow): reuses the exact same browser-launch + Supabase-load +
-# snapshot logic the full daily run already uses, but stops right after
-# writing the JSON files -- no card/video generation, no email, no
-# --force date-gate concerns. A fast, cheap, non-Playwright-heavy-in-the-
-# sense-that-matters job (~15s of real work) safe to run several times a
-# day without the queue-starvation risk documented on the heavier daily
-# jobs in this repo.
+# Runs generate_social_cards.py --json-only: reuses the exact same
+# browser-launch + Supabase-load + snapshot logic the full daily run
+# already uses, but stops right after writing the JSON files -- no
+# card/video generation, no email, no --force date-gate concerns.
 
 on:
-  schedule:
-    # Hourly, 9am-9pm MT (13 runs/day) -- explicit request to tighten
-    # from the original every-3-hours. Same active-betting-day window as
-    # before, just finer-grained. 9am MT = 15:00 UTC (MDT), hence the UTC
-    # hour ranges below (15-23 covers 9am-5pm MT same calendar day, 0-3
-    # covers 6pm-9pm MT which is already past midnight UTC); drifts ~1hr
-    # earlier MT once MST returns in November, same as every other
-    # fixed-UTC cron in this repo. :37 rather than :00 to avoid landing
-    # on the same minute as other scheduled workflows in this repo.
-    - cron: '37 15-23,0-3 * * *'
   workflow_dispatch: {}
 
 permissions:
