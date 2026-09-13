@@ -13132,7 +13132,13 @@ async function autoSettlePropsESPN(targetDate){
         for(const statBlock of teamData.statistics||[]){
           const blockName=(statBlock.name||statBlock.displayName||'').toLowerCase();
           if(!blockName.includes(cat))continue;
-          const names=statBlock.names||[];
+          // Real bug, found via audit: NFL's ESPN boxscore category blocks
+          // have no `names` field at all (unlike NBA/NHL/MLB, which really
+          // do) -- the stat abbreviations live under `labels` instead.
+          // Reading `.names` here was always [] for every NFL prop, so
+          // idx was always -1 and every NFL prop sat pending forever
+          // regardless of how many times the settle date got revisited.
+          const names=statBlock.labels||[];
           const idx=names.findIndex(n=>(n||'').toUpperCase()==='TD');
           if(idx<0)continue;
           for(const ath of statBlock.athletes||[]){
@@ -13151,7 +13157,8 @@ async function autoSettlePropsESPN(targetDate){
     for(const statBlock of teamData.statistics||[]){
       const blockName=(statBlock.name||statBlock.displayName||'').toLowerCase();
       if(!blockName.includes(match.category))continue;
-      const names=statBlock.names||[];
+      // Same `labels` vs `names` gap as the Anytime TD lookup above.
+      const names=statBlock.labels||[];
       const idx=names.findIndex(n=>(n||'').toUpperCase()===match.statLabel);
       if(idx<0)continue;
       for(const ath of statBlock.athletes||[]){
