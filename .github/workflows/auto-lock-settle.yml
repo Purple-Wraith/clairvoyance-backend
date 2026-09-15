@@ -216,14 +216,17 @@ jobs:
           python3 scripts/auto_lock_settle.py ${{ steps.flags.outputs.step_flags }} ${{ steps.flags.outputs.live_flag }}
 
       - name: Commit ledger backup + landing performance JSON
-        # docs/picks.json (revived 2026-09-15, dead since 06-10 -- a real
-        # GitHub-hosted backup of the Supabase ledger, independent of
-        # Supabase itself, read by app.html's loadPicksFromGitHub() as a
-        # fallback when Supabase is unreachable) and the 3 landing-perf
-        # files (engine_performance.json, engine_performance_subscriber
-        # .json, sport_performance.json -- the only files
-        # clairvoyanceengine.info's Live Track Record / Sport Performance
-        # sections read) are now written directly by
+        # docs/picks_backup.json (revived 2026-09-15 as a rename of the
+        # dead-since-06-10 docs/picks.json -- named distinctly so it's
+        # never confused with that separate, older owner-token GitHub-
+        # sync file) is a real, current GitHub-hosted backup of the
+        # Supabase ledger, independent of Supabase itself, read by
+        # app.html's loadPicksFromBackupJSON() as a fallback when
+        # Supabase is unreachable. The 3 landing-perf files
+        # (engine_performance.json, engine_performance_subscriber.json,
+        # sport_performance.json -- the only files clairvoyanceengine
+        # .info's Live Track Record / Sport Performance sections read)
+        # ride along in the same commit. Both are written directly by
         # scripts/auto_lock_settle.py's own already-open page in the step
         # above (see write_ledger_backup/write_landing_performance), NOT
         # by a second independent browser+Supabase pull the way the
@@ -239,7 +242,7 @@ jobs:
         # inheriting it.
         if: ${{ !cancelled() }}
         run: |
-          git add docs/picks.json docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
+          git add docs/picks_backup.json docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
           if git diff --cached --quiet; then
             echo "No change"
           else

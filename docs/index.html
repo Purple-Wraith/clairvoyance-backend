@@ -4095,14 +4095,15 @@ async function syncPicksFromSupabase(){
 }
 // Read-only fallback for when Supabase itself is unreachable (see the
 // catch in syncPicksFromSupabase above) -- fetches the same-origin
-// static backup (no auth, no token, works for every visitor, unlike
-// loadPicksFromGitHub()'s authenticated-API path which only runs for
-// whichever device has the owner's own GitHub token configured) and
-// feeds it through the exact same merge logic a real Supabase pull
-// uses, so a device recovering from this fallback converges identically
-// to one that pulled from Supabase directly.
+// static backup (docs/picks_backup.json, kept fresh by auto-lock-
+// settle.yml -- named distinctly from the separate, older picks.json
+// used by loadPicksFromGitHub()'s owner-token sync feature below, so
+// the two are never confused) with no auth, no token, works for every
+// visitor, and feeds it through the exact same merge logic a real
+// Supabase pull uses, so a device recovering from this fallback
+// converges identically to one that pulled from Supabase directly.
 async function loadPicksFromBackupJSON(){
-  const r=await fetch('picks.json?t='+Date.now());
+  const r=await fetch('picks_backup.json?t='+Date.now());
   if(!r.ok)throw new Error('backup fetch HTTP '+r.status);
   const content=await r.json();
   if(!Array.isArray(content)||!content.length)return;

@@ -425,16 +425,21 @@ def load_bet_ledger(page) -> int:
 
 
 def write_ledger_backup(page) -> int:
-    """Revives docs/picks.json (dead since 2026-06-10, 240 stale rows) as
-    a real, current backup of the Supabase ledger -- independent of
-    Supabase itself, so a future outage like the 2026-09-13 egress-quota
-    lockout doesn't leave the app with zero fallback data source. Reuses
-    the ledger load_bet_ledger() already pulled into this same page's
-    getP() a moment ago -- no second Supabase round trip. Committed by
-    the workflow right after this call; loadPicksFromGitHub() in
-    app.html already knows how to read this exact flat-array shape."""
+    """Revives the old, dead docs/picks.json (dead since 2026-06-10, 240
+    stale rows) as docs/picks_backup.json -- a real, current backup of
+    the Supabase ledger, independent of Supabase itself, so a future
+    outage like the 2026-09-13 egress-quota lockout doesn't leave the
+    app with zero fallback data source. Named distinctly from picks.json
+    (still the separate, older owner-token GitHub-sync file -- untouched
+    here) so the two are never confused: this one specifically means
+    "read-only Supabase fallback," not "the owner's personal sync
+    target." Reuses the ledger load_bet_ledger() already pulled into
+    this same page's getP() a moment ago -- no second Supabase round
+    trip. Committed by the workflow right after this call;
+    loadPicksFromBackupJSON() in app.html reads this exact flat-array
+    shape."""
     preds = page.evaluate("() => getP()")
-    (ROOT / "docs" / "picks.json").write_text(json.dumps(preds, indent=2))
+    (ROOT / "docs" / "picks_backup.json").write_text(json.dumps(preds, indent=2))
     return len(preds) if isinstance(preds, list) else 0
 
 
@@ -2324,7 +2329,7 @@ def main() -> None:
 
         try:
             backed_up = write_ledger_backup(page)
-            log(f"Wrote docs/picks.json backup ({backed_up} bets)")
+            log(f"Wrote docs/picks_backup.json ({backed_up} bets)")
         except Exception as exc:
             log(f"WARNING: ledger backup write failed: {exc}")
         try:
