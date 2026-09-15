@@ -21404,6 +21404,36 @@ function _renderSocMatchCard(g,leagueKey){
   var _edgePP=(_bm.prob-_implied)*100;
   var _kellyPct=(_kelly(_bm.prob,_bm.side==='home'?ml2d(hML):_bm.side==='draw'?ml2d(dML):_bm.side==='away'?ml2d(aML):1.909)*100).toFixed(1);
   var leagueName=(_LEAGUE_CFG[leagueKey]&&_LEAGUE_CFG[leagueKey].name)||leagueKey.toUpperCase();
+  // "Why this pick" factor breakdown -- explicit request, 2026-09-16, to
+  // surface the same per-factor data now persisted on locked picks (see
+  // _socExpectedGoals/_autoLockCapture) directly in the reasoning text a
+  // user actually reads before locking, not just in the raw stored
+  // record. Only lists a factor when it moved that side's projection by
+  // more than ~3% -- a flat 1.00-1.02 multiplier isn't "why" anything,
+  // it's noise. home/away picks read their own side; draw/over/under
+  // depend on BOTH teams' combined projection, so those show whichever
+  // side(s) actually moved.
+  var _socFactorLbl={style:'Style',power:'Power Rank',advanced:'Advanced',fbref:'Fbref',form:'Form',standings:'Standings',h2h:'H2H'};
+  function _socNotableFactors(sideKey){
+    return Object.keys(_socFactorLbl).map(function(k){
+      var v=_eg.factors&&_eg.factors[k]&&_eg.factors[k][sideKey];
+      if(v==null)return null;
+      var pct=(v-1)*100;
+      if(Math.abs(pct)<3)return null;
+      return{label:_socFactorLbl[k],pct:pct};
+    }).filter(Boolean).sort(function(a,b){return Math.abs(b.pct)-Math.abs(a.pct);});
+  }
+  function _socFactorSummary(side){
+    var items;
+    if(side==='home')items=_socNotableFactors('home').map(function(f){return f.label+' '+(f.pct>=0?'+':'')+f.pct.toFixed(0)+'%';});
+    else if(side==='away')items=_socNotableFactors('away').map(function(f){return f.label+' '+(f.pct>=0?'+':'')+f.pct.toFixed(0)+'%';});
+    else{
+      var h=_socNotableFactors('home').map(function(f){return f.label+' (H) '+(f.pct>=0?'+':'')+f.pct.toFixed(0)+'%';});
+      var a=_socNotableFactors('away').map(function(f){return f.label+' (A) '+(f.pct>=0?'+':'')+f.pct.toFixed(0)+'%';});
+      items=h.concat(a);
+    }
+    return items.length?' Factors moving this pick: '+items.join(', ')+'.':' No individual factor moved this pick more than ~3% — mostly base xG.';
+  }
   var explanation=topT===0?
     'No qualifying edge. xG basis: '+g.home+' '+hxg.toFixed(2)+' / '+g.away+' '+axg.toFixed(2)+'. 3-way: Home '+(hP*100).toFixed(0)+'% / Draw '+(dP*100).toFixed(0)+'% / Away '+(aP*100).toFixed(0)+'%. O/U '+ouL+': over '+(ouP*100).toFixed(0)+'%. Skip.':
     'Best market: <strong>'+_bm.label+'</strong> · '+topLabel+' · '+_bp+'% · EV +'+_be+'% · edge +'+_edgePP.toFixed(1)+'pp. '+
@@ -21415,7 +21445,8 @@ function _renderSocMatchCard(g,leagueKey){
     _bm.side==='away'?g.away+' road xG edge underpriced.':
     _bm.side==='over'?'Combined xG '+mc.avgT.toFixed(2)+' supports goals above the line.':
     'Combined xG '+mc.avgT.toFixed(2)+' supports a tighter, lower-scoring line.')+
-    ' Kelly '+_kellyPct+'%. '+topLabel+' · '+_mkts.size+'-unit play'+_mkts.secStr+'.';
+    ' Kelly '+_kellyPct+'%. '+topLabel+' · '+_mkts.size+'-unit play'+_mkts.secStr+'.'+
+    _socFactorSummary(_bm.side);
   var isLive=g.status==='in',isFinal=g.status==='post';
   var scoreHtml='';
   if(isLive){scoreHtml='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="font-family:var(--orb);font-size:27px;font-weight:900;color:#ffdd00">'+(g.hScore||0)+'</span><span style="font-family:var(--mono);font-size:15px;color:#ffdd00;background:rgba(255,221,0,.12);padding:2px 7px;border-radius:2px;border:1px solid rgba(255,221,0,.4);animation:pulse 1.5s infinite">● LIVE '+(g.clock||'')+'</span><span style="font-family:var(--orb);font-size:27px;font-weight:900;color:#ffdd00">'+(g.aScore||0)+'</span></div>';}
