@@ -13678,6 +13678,12 @@ function renderHomePage(){
     // it to "not pending" (the same definition every other settled/
     // pending split in the app already uses) is a safe, non-cosmetic fix.
     const keptSettled=keptBets.filter(p=>p.outcome!=='pending');
+    // Chronological (not ledger-sync-order) settled history, for the
+    // League Performance sparklines below -- same "date, then lockedAt
+    // as a same-day tiebreaker" sort already used everywhere else a
+    // "most recent N" window is needed, since getP() returns Supabase
+    // sync order (by id string), not time.
+    const keptSettledByDate=keptSettled.slice().sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
     const nowD=getMSTNow();
     const wk7ts=now-7*86400000;
     const firstOfMonth=mstFirstOfMonth(nowD);
@@ -13732,9 +13738,21 @@ function renderHomePage(){
       if(!lb.length)return null;
       const w=lb.filter(p=>p.outcome==='win').length,l=lb.filter(p=>p.outcome==='loss').length;
       const u=lb.reduce((a,p)=>{if(p.outcome==='win')return a+(parseFloat(p.decOdds)||2)-1;if(p.outcome==='loss')return a-1;return a;},0);
-      return{lbl:lm.lbl,w,l,n:lb.length,acc:lb.length?w/lb.length:null,units:u};
+      // Trend sparkline -- explicit request, 2026-09-16: reuses the exact
+      // "last 10 results as dots" pattern from this same page's own
+      // Recent Form card above, but per-league and always this league's
+      // true chronological last 10 (keptSettledByDate, ALL history) --
+      // deliberately independent of whichever TODAY/THIS MONTH/etc period
+      // toggle is currently selected for the W-L/%/units numbers next to
+      // it, since a trend showing only 2-3 dots on a "TODAY" view would
+      // be closer to noise than a signal.
+      const last10=keptSettledByDate.filter(p=>lm.codes.some(c=>p._spUC===c)).slice(-10);
+      return{lbl:lm.lbl,w,l,n:lb.length,acc:lb.length?w/lb.length:null,units:u,last10};
     }).filter(Boolean).sort((a,b)=>b.n-a.n);
-    const leagueRow=d=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-family:var(--mono);font-size:14px;color:var(--t)">${d.lbl}</span><div style="display:flex;gap:8px;align-items:center"><span style="font-family:var(--mono);font-size:14px;color:var(--nc)">${d.w}W-${d.l}L</span><span style="font-family:var(--mono);font-size:14px;font-weight:700;color:${pCol(d.acc)}">${d.acc!==null?(d.acc*100).toFixed(0)+'%':'--'}</span><span style="font-family:var(--mono);font-size:14px;color:${uCol(d.units)}">${d.units>=0?'+':''}${d.units.toFixed(1)}u</span></div></div>`;
+    const leagueRow=d=>{
+      const dots=d.last10.map(p=>{const c=p.outcome==='win'?'#00f0ff':'#ff2090';return`<span title="${(p.date||'').replace(/"/g,"'")}" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${c};margin-left:2px"></span>`;}).join('');
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-family:var(--mono);font-size:14px;color:var(--t)">${d.lbl}</span><div style="display:flex;gap:8px;align-items:center"><span style="white-space:nowrap">${dots}</span><span style="font-family:var(--mono);font-size:14px;color:var(--nc)">${d.w}W-${d.l}L</span><span style="font-family:var(--mono);font-size:14px;font-weight:700;color:${pCol(d.acc)}">${d.acc!==null?(d.acc*100).toFixed(0)+'%':'--'}</span><span style="font-family:var(--mono);font-size:14px;color:${uCol(d.units)}">${d.units>=0?'+':''}${d.units.toFixed(1)}u</span></div></div>`;
+    };
     const lgPerfToggle=`<div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
       <button class="btn btn-sm ${lgPerfPeriod==='today'?'act btn-p':'btn-o'}" style="font-size:14px" onclick="window._homeLgPerfPeriod='today';renderHomePage()">TODAY</button>
       <button class="btn btn-sm ${lgPerfPeriod==='yesterday'?'act btn-p':'btn-o'}" style="font-size:14px" onclick="window._homeLgPerfPeriod='yesterday';renderHomePage()">YESTERDAY</button>
