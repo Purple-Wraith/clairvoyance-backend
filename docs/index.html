@@ -3954,11 +3954,26 @@ let _lastSupabasePullTs=0;
 // limit and same fix documented there. Throws (rather than silently
 // returning) on any failure so the caller can tell "really nothing to
 // merge" apart from "the fetch itself failed" and fall back accordingly.
-async function _fetchSupabaseBetRows(){
+//
+// sinceDays (real fix, 2026-09-15, direct cause of the 2026-09-13
+// egress-quota lockout): every call here used to fetch the COMPLETE
+// bets table -- unavoidable for a real full sync, but this same
+// unfiltered pull also ran on a 90s timer AND before every single local
+// write (_doSupabaseSync's "pull first" step), for as long as any tab
+// stayed open. A ~3,200+-row table pulled every 90 seconds is the
+// dominant cost that actually blew through the free-tier egress quota
+// (previous cycle: 16.83GB, over 3x the 5GB cap). Passing sinceDays
+// scopes those frequent calls to `date=gte.<cutoff>` server-side --
+// plenty for "did another device change something recently," since
+// anything older is either already-settled-and-unchanging locally or
+// would be caught on the next full sync anyway (page load, manual SYNC
+// button). Omit sinceDays (or pass null) for a real complete pull.
+async function _fetchSupabaseBetRows(sinceDays){
   const rows=[];
   let offset=0;const pageSize=1000;
+  const dateFilter=sinceDays?'&date=gte.'+new Date(Date.now()-sinceDays*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'}):'';
   while(true){
-    const r=await fetch(SUPABASE_URL+'/rest/v1/bets?select=id,raw,outcome,settled_at,locked_at&order=id',{
+    const r=await fetch(SUPABASE_URL+'/rest/v1/bets?select=id,raw,outcome,settled_at,locked_at&order=id'+dateFilter,{
       headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,
         'Range':offset+'-'+(offset+pageSize-1)},
     });
@@ -4065,7 +4080,13 @@ function _mergeRemoteBetRows(rows){
   // for a long time rather than only self-healing on next full reload.
   try{_dedupeStalePendingPicks();}catch(e){}
 }
-async function syncPicksFromSupabase(){
+// full=true forces a complete pull (init, manual SYNC button -- both
+// infrequent, and both places where missing an old change would be most
+// noticeable). Every other caller (the 90s interval, the pre-write
+// reconcile in _doSupabaseSync) omits it and gets the 45-day-scoped
+// pull instead -- see _fetchSupabaseBetRows' own comment for why that's
+// safe and why it was necessary.
+async function syncPicksFromSupabase(full){
   try{
     const now=Date.now();
     // Cheap guard against back-to-back calls (boot + a manual refresh
@@ -4074,7 +4095,7 @@ async function syncPicksFromSupabase(){
     _lastSupabasePullTs=now;
     let rows;
     try{
-      rows=await _fetchSupabaseBetRows();
+      rows=await _fetchSupabaseBetRows(full?null:45);
     }catch(e){
       // Real incident, 2026-09-13: Supabase's own egress quota got
       // exceeded and the project was restricted account-wide (HTTP 402
@@ -8851,8 +8872,9 @@ async function doUpdate(){
   const st=document.getElementById('upd-st');if(st){st.textContent='SYNCING…';st.style.color='var(--vc)';}
   toast('// SYNCING ALL SPORTS…');
   // Pull any picks locked/settled on another device since this one last
-  // loaded — cheap, safe regardless of which branch below runs.
-  try{await syncPicksFromSupabase();}catch(e){}
+  // loaded — cheap, safe regardless of which branch below runs. full=true:
+  // an explicit manual sync should never miss an old cross-device change.
+  try{await syncPicksFromSupabase(true);}catch(e){}
   if(API_ONLINE()){
     await api('POST','/admin/pipeline');
     await new Promise(r=>setTimeout(r,2000));
@@ -19171,7 +19193,7 @@ document.addEventListener('DOMContentLoaded',()=>{(async()=>{
       Promise.race([loadPicksFromGitHub(),new Promise(r=>setTimeout(r,4000))]),
       Promise.race([idbRecoverDailyLog(),new Promise(r=>setTimeout(r,2000))]),
       Promise.race([syncPicksFromBackend(),new Promise(r=>setTimeout(r,5000))]),
-      Promise.race([syncPicksFromSupabase(),new Promise(r=>setTimeout(r,5000))]),
+      Promise.race([syncPicksFromSupabase(true),new Promise(r=>setTimeout(r,5000))]),
     ]);
   }catch(e){console.error('parallelSync',e);}
   try{_migrateMlbNhlMislabel();}catch(e){console.error('migrateMlbNhl',e);}
