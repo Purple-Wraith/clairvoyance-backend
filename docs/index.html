@@ -10855,6 +10855,51 @@ function renderOverall(){
     <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${curStreakType==='win'?'var(--nc)':'var(--hc)'}">${curStreak>0?curStreak+(curStreakType==='win'?'W':'L'):'--'}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">STREAK</div></div>
   </div>`;
 
+  // Model Calibration — explicit request, 2026-09-16: is the model's own
+  // stated confidence honest? This is the exact ad-hoc check run by hand
+  // during the 2026-09-15 soccer audit (bucket every settled bet by its
+  // predicted winProb at lock time, compare against the REAL win rate in
+  // that bucket) -- made permanent so a real drift shows up here on its
+  // own instead of needing another one-off investigation to notice it.
+  // Buckets with zero settled bets are omitted rather than padded with a
+  // misleading "--", and the whole card is skipped below 6 buckets'
+  // worth of real data (matches the same "don't force a result out of
+  // too little data" principle applied during that audit).
+  const _calBuckets=[
+    {lo:0,hi:0.55,lbl:'<55%'},{lo:0.55,hi:0.60,lbl:'55-60%'},
+    {lo:0.60,hi:0.65,lbl:'60-65%'},{lo:0.65,hi:0.70,lbl:'65-70%'},
+    {lo:0.70,hi:0.75,lbl:'70-75%'},{lo:0.75,hi:1.01,lbl:'75%+'},
+  ];
+  const calRows=_calBuckets.map(b=>{
+    const bets=settled.filter(p=>p.winProb!=null&&p.winProb>=b.lo&&p.winProb<b.hi);
+    if(!bets.length)return null;
+    const w=bets.filter(p=>p.outcome==='win').length;
+    const actual=w/bets.length;
+    const predicted=bets.reduce((a,p)=>a+p.winProb,0)/bets.length;
+    return{lbl:b.lbl,n:bets.length,actual,predicted};
+  }).filter(Boolean);
+  if(calRows.length){
+    h+=`<div class="card" style="margin-bottom:12px;padding:10px">
+      <div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--t3);margin-bottom:2px">// MODEL CALIBRATION — PREDICTED VS ACTUAL</div>
+      <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:10px">Is the model's own confidence honest? Bucketed by predicted win probability at lock time.</div>
+      ${calRows.map(r=>{
+        const delta=r.actual-r.predicted;
+        const dColor=delta>=-0.02?'var(--nc)':delta>=-0.08?'var(--gc)':'var(--hc)';
+        return`<div style="margin-bottom:9px">
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:14px;color:var(--t2);margin-bottom:3px">
+            <span>${r.lbl} <span style="color:var(--t3)">(n=${r.n})</span></span>
+            <span>PRED ${(r.predicted*100).toFixed(1)}% · ACTUAL <span style="color:${dColor};font-weight:700">${(r.actual*100).toFixed(1)}%</span></span>
+          </div>
+          <div style="position:relative;height:7px;background:rgba(255,255,255,.08);border-radius:2px">
+            <div style="position:absolute;left:0;top:0;height:100%;width:${Math.min(100,r.predicted*100)}%;background:rgba(255,255,255,.28);border-radius:2px"></div>
+            <div style="position:absolute;left:0;top:0;height:100%;width:${Math.min(100,r.actual*100)}%;background:${dColor};border-radius:2px;opacity:.9"></div>
+          </div>
+        </div>`;
+      }).join('')}
+      <div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:4px">Light bar = predicted · colored bar = actual. Cyan = well-calibrated, gold = mildly overconfident, pink = notably overconfident.</div>
+    </div>`;
+  }
+
   // Recent Form — enhanced (last 25, last 10 W/L)
   if(recentForm.length){
     const rfColor=rfW/recentForm.length>=0.60?'var(--nc)':rfW/recentForm.length>=0.50?'var(--vc)':'var(--hc)';
@@ -14661,9 +14706,28 @@ function renderNFLModelProps(filter){
   el.innerHTML=top5Html+rows.map((r,i)=>_nflPropCardHtml(r,i,'lockNFLModelProp')).join('');
   window._nflModelPropsCurrent=rows;
 }
+// Category tag (TD / receptions / yardage) -- explicit request, 2026-09-16:
+// a long list of prop rows all read the same at a glance, and the
+// 2026-09-15 audit found the real locked mix skews heavily toward TD/
+// receptions markets over yardage. A small icon+color per category makes
+// that mix visually scannable instead of needing to read every line, and
+// doubles as a soft, ambient signal if one category starts dominating a
+// day's list. Matches on the category LABEL text (works for both this
+// function's r.cat and renderNFLPropsTracker's full betOn string) rather
+// than r.grp, since grp lumps receiving yards and receptions into one
+// 'rec' bucket -- the user's own 3-way split (TD/yardage/receptions)
+// needs the actual label text to tell those two apart.
+function _nflPropCatTag(text){
+  const t=(text||'').toUpperCase();
+  if(t.includes('TD'))return{icon:'🎯',color:'var(--gc)'};
+  if(t.includes('RECEPTION'))return{icon:'🤲',color:'var(--ic)'};
+  if(t.includes('YARD'))return{icon:'📏',color:'var(--pc)'};
+  return{icon:'●',color:'var(--t3)'};
+}
 function _nflPropCardHtml(r,i,lockFn){
   const gc=_NFL_PROP_GRADE_COLOR[r.grade]||'var(--t3)';
   const dirColor=r.pick==='OVER'?'var(--nc)':'var(--hc)';
+  const catTag=_nflPropCatTag(r.cat);
   return`<div class="card" style="margin-bottom:9px;border-left:3px solid ${gc}">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px">
         <div>
@@ -14672,7 +14736,7 @@ function _nflPropCardHtml(r,i,lockFn){
         </div>
         <span style="font-family:var(--mono);font-size:16px;padding:2px 5px;border:1px solid ${gc};color:${gc};border-radius:2px">${r.grade}</span>
       </div>
-      <div style="font-family:var(--mono);font-size:22px;color:${dirColor};margin-bottom:3px">${r.pick==='OVER'?'▲ OVER':'▼ UNDER'} ${r.line} ${r.cat} <span style="color:var(--t2);font-size:18px">· ${r.conf??r.likelihood}% LIKELIHOOD</span></div>
+      <div style="font-family:var(--mono);font-size:22px;color:${dirColor};margin-bottom:3px">${r.pick==='OVER'?'▲ OVER':'▼ UNDER'} ${r.line} <span style="color:${catTag.color}">${catTag.icon} ${r.cat}</span> <span style="color:var(--t2);font-size:18px">· ${r.conf??r.likelihood}% LIKELIHOOD</span></div>
       ${_recPropLineHTML(r.line,_findMarketProp('nfl',r.player,r.cat),r.cat)}
       <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:5px">Adjustor: ${r.adjustor>=0?'+':''}${r.adjustor} vs season avg · ${r.games} games sampled</div>
       <div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:6px">${r.reasoning}</div>
@@ -14750,8 +14814,8 @@ function renderNFLPropsTracker(){
   const locked=LOCKED_PROPS.filter(p=>_normSport(p)==='NFL');
   if(!locked.length){el.innerHTML='<div class="empty">NO LOCKED NFL PROPS</div>';return;}
   const oc_map={win:'var(--nc)',loss:'var(--hc)',pending:'var(--gc)'};
-  el.innerHTML=locked.map(p=>{const oc=oc_map[p.outcome]||'var(--gc)';
-    return`<div class="card" style="margin-bottom:6px;border-left:2px solid ${oc}"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-family:var(--orb);font-size:19px;font-weight:700">${p.player}</div><div style="font-family:var(--mono);font-size:17px;color:var(--t2)">${p.betOn}</div></div><span style="font-family:var(--mono);font-size:16px;padding:2px 5px;border:1px solid ${oc};color:${oc};border-radius:2px">${(p.outcome||'pending').toUpperCase()}</span></div></div>`;
+  el.innerHTML=locked.map(p=>{const oc=oc_map[p.outcome]||'var(--gc)';const catTag=_nflPropCatTag(p.betOn);
+    return`<div class="card" style="margin-bottom:6px;border-left:2px solid ${oc}"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-family:var(--orb);font-size:19px;font-weight:700">${p.player}</div><div style="font-family:var(--mono);font-size:17px;color:var(--t2)"><span style="color:${catTag.color}">${catTag.icon}</span> ${p.betOn}</div></div><span style="font-family:var(--mono);font-size:16px;padding:2px 5px;border:1px solid ${oc};color:${oc};border-radius:2px">${(p.outcome||'pending').toUpperCase()}</span></div></div>`;
   }).join('');
 }
 
