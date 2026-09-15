@@ -79,16 +79,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          pip install -q playwright requests
-          for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
       - name: Determine live flag from trigger
+        # Moved ahead of Set up Python / Install dependencies (2026-09-15,
+        # explicit request to cut Actions waste): 3 of these 4 scheduled
+        # slots are catch-up checks that skip the real lock pass whenever
+        # today's first slot already succeeded (the common case) -- but
+        # they used to pay for a full Playwright+Chromium install first
+        # regardless, just to then immediately skip the one step that
+        # needed it. This step is pure bash (reads a marker file already
+        # in the checkout), so it can run before either heavy step and
+        # gate both of them -- a no-op catch-up now costs one fast git-
+        # native check, not a full runner + browser install.
         id: flags
         run: |
           # Scheduled runs now honor LIVE_MODE directly, same as
@@ -121,6 +122,17 @@ jobs:
             fi
           fi
 
+      - name: Set up Python
+        if: ${{ steps.flags.outputs.should_run == '1' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        if: ${{ steps.flags.outputs.should_run == '1' }}
+        run: |
+          pip install -q playwright requests
+          for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
       - name: Run soccer-only auto-lock
         if: ${{ steps.flags.outputs.should_run == '1' }}
         env:
