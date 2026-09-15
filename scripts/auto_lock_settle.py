@@ -1142,6 +1142,13 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
                     # regroup by matchup without needing a second pass over
                     # gameLegs.
                     "mcSummary": gl.get("mcSummary"), "best": gl.get("best"),
+                    # Soccer only (see _autoLockCapture/_socExpectedGoals in
+                    # app.html) -- per-factor xG multipliers for this
+                    # matchup, threaded through lock_game_leg's extraMeta so
+                    # a real per-factor backtest becomes possible once
+                    # enough settled picks carry it. None for every other
+                    # sport, which never passes this.
+                    "socFactors": gl.get("socFactors"),
                 })
         if len(game_qualifying) > 1:
             game_qualifying = _dedupe_opposite_sides(game_qualifying)
@@ -1254,9 +1261,10 @@ def lock_game_leg(page, q: dict, date_override: str | None = None) -> str:
     # 'under_X'/'fav'/'dog' etc, see _market_type) at the point this leg
     # was qualified -- reuse that instead of re-parsing q["label"] text.
     bet_type_override = _market_type(q.get("side"))
+    sock_factors = q.get("socFactors")
     return page.evaluate(
         """
-        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride }) => {
+        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors }) => {
           // Real gap, found auditing the locks-email "X of Y legs actually
           // locked" line: this used to return a single 'dup-or-failed' for
           // BOTH "this exact leg was already locked by an earlier pass
@@ -1299,12 +1307,13 @@ def lock_game_leg(page, q: dict, date_override: str | None = None) -> str:
                       marketDup;
           if (dup) return 'already-locked';
           const before = getP().length;
-          await lockPick(hA, awA, type, betOn, prob, ml != null ? ml : '-110', dec || 1.91, dateKey, 'manual', betTypeOverride);
+          const extraMeta = socFactors ? { socFactors } : null;
+          await lockPick(hA, awA, type, betOn, prob, ml != null ? ml : '-110', dec || 1.91, dateKey, 'manual', betTypeOverride, extraMeta);
           const after = getP().length;
           return after > before ? 'locked' : 'failed';
         }
         """,
-        {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "prob": q["prob"], "ml": ml, "dec": dec, "dateOverride": date_override, "betTypeOverride": bet_type_override},
+        {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "prob": q["prob"], "ml": ml, "dec": dec, "dateOverride": date_override, "betTypeOverride": bet_type_override, "socFactors": sock_factors},
     )
 
 

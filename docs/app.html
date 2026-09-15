@@ -3186,11 +3186,17 @@ window._autoLockLegs=window._autoLockLegs||[];
 // straight through to the daily locks email so a pick isn't just a bare
 // "TEAM -3.5", it shows the real model output that produced it, same
 // transparency the live UI already gives a human looking at the card.
-function _autoLockCapture(sport,hA,awA,nm,mcSummary){
+function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors){
   try{
     var entry={sport,hA,awA,mcSummary:mcSummary||null,
       best:nm.best?{label:nm.best.label,side:nm.best.side,tierN:nm.tierN}:null,
-      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:m.dec,ml:m.ml,tierN:m.tierN}))};
+      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:m.dec,ml:m.ml,tierN:m.tierN})),
+      // Optional -- only soccer's capture call currently passes this (see
+      // _renderSocMatchCard). Threaded through build_qualifying/
+      // lock_game_leg into lockPick's extraMeta so it lands on the
+      // locked bet's own raw JSON, enabling a real per-factor backtest
+      // once enough settled picks carry it.
+      socFactors:socFactors||null};
     // Replace, don't append, if this exact matchup was already captured --
     // some cards genuinely re-render the same game later in the same page
     // load (e.g. soccer's renderLeagueMatches() re-renders once Opta stats
@@ -4253,7 +4259,7 @@ function _findSameMarketLock(preds,dateKey,hA,awA,betType){
   return preds.find(x=>x.date===dateKey&&x.betType===betType&&
     ((x.hA===hA&&x.awA===awA)||(x.hA===awA&&x.awA===hA)));
 }
-async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride){
+async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,extraMeta){
   // source: 'queue' when locked via the Pick Queue's automated review-and-
   // confirm flow, 'manual' (the default) for every other lock path in the
   // app. Lets the Tier Calibration report eventually answer "is the
@@ -4353,7 +4359,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride){
       const preds=getP();const localId=`api_${res.id}`;
       if(!preds.find(x=>x.id===localId)){
         _removeWipedIds([localId]); // see _removeWipedIds' own comment
-        preds.push({id:localId,_backendId:res.id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:100,outcome:'pending',lockedAt:Date.now(),source:_lockSource});
+        preds.push({id:localId,_backendId:res.id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:100,outcome:'pending',lockedAt:Date.now(),source:_lockSource,...(extraMeta||{})});
       }
       saveP(preds);
       const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
@@ -4381,7 +4387,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride){
   // with an explicit "already locked" toast instead.
   if(_dup){toast(`// ALREADY LOCKED: ${_dup.betOn} ${_dup.ml} (${_dup.outcome==='pending'?'still pending':_dup.outcome.toUpperCase()})`);return;}
   _removeWipedIds([id]); // see _removeWipedIds' own comment -- a deliberate new lock must never be silently swallowed by an old wipe of this same id
-  preds.push({id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:0,outcome:'pending',lockedAt:Date.now(),hScore:null,aScore:null,source:_lockSource});saveP(preds);
+  preds.push({id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:0,outcome:'pending',lockedAt:Date.now(),hScore:null,aScore:null,source:_lockSource,...(extraMeta||{})});saveP(preds);
   const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
   if(!log[dateKey].locked.includes(betOn))log[dateKey].locked.push(betOn);
   const rec=log[dateKey].recs.find(r=>r.ha===hA&&r.awa===awA&&r.lb===betOn);if(rec)rec.locked=true;
@@ -20920,31 +20926,53 @@ function _socExpectedGoals(homeXG,awayXG,leagueKey,homeName,awayName){
   let hxg=homeXG?((homeXG.hxg||homeXG.xg)+((awayXG&&awayXG.axga)??(homeXG.hxg||homeXG.xg)))/2:1.35;
   let axg=awayXG?((awayXG.axg||awayXG.xg)+((homeXG&&homeXG.hxga)??(awayXG.axg||awayXG.xg)))/2:1.15;
   const baseHxg=hxg, baseAxg=axg;
+  // Per-factor multipliers, captured alongside the combined hxg/axg this
+  // function already returned -- explicit request, 2026-09-15: the 5
+  // factors added 2026-08-23 (plus the 2 pre-existing ones) were never
+  // backtestable against real settled results because nothing persisted
+  // which factors actually moved a given historical pick's needle. Real
+  // per-side values here (1 = no effect that pick), threaded through
+  // lockPick's new optional extraMeta param onto the locked bet record's
+  // own raw JSON -- no new Supabase column needed, it just rides along
+  // in the same blob every other field already lives in.
+  const factors={style:{home:1,away:1},power:{home:1,away:1},advanced:{home:1,away:1},fbref:{home:1,away:1},form:{home:1,away:1},standings:{home:1,away:1},h2h:{home:1,away:1}};
   if(_OPTA_LEAGUES.indexOf(leagueKey)>=0&&homeName&&awayName&&window.__CV_OPTA&&window.__CV_OPTA[leagueKey]){
-    hxg*=_optaStyleFactor(homeName,leagueKey);
-    axg*=_optaStyleFactor(awayName,leagueKey);
-    hxg*=_optaAdvancedFactor(homeName,leagueKey);
-    axg*=_optaAdvancedFactor(awayName,leagueKey);
+    factors.style.home=_optaStyleFactor(homeName,leagueKey);
+    factors.style.away=_optaStyleFactor(awayName,leagueKey);
+    hxg*=factors.style.home;
+    axg*=factors.style.away;
+    factors.advanced.home=_optaAdvancedFactor(homeName,leagueKey);
+    factors.advanced.away=_optaAdvancedFactor(awayName,leagueKey);
+    hxg*=factors.advanced.home;
+    axg*=factors.advanced.away;
   }
   if(_POWER_RANK_LEAGUES.indexOf(leagueKey)>=0&&homeName&&awayName){
     var _pf=_optaPowerRankFactors(homeName,awayName,leagueKey);
+    factors.power.home=_pf.home;factors.power.away=_pf.away;
     hxg*=_pf.home;
     axg*=_pf.away;
   }
   if(homeName&&awayName){
-    hxg*=_fbrefFieldsFactor(homeName,leagueKey);
-    axg*=_fbrefFieldsFactor(awayName,leagueKey);
-    hxg*=_socFormFactor(homeName,leagueKey);
-    axg*=_socFormFactor(awayName,leagueKey);
-    hxg*=_socStandingsFactor(homeName,leagueKey);
-    axg*=_socStandingsFactor(awayName,leagueKey);
+    factors.fbref.home=_fbrefFieldsFactor(homeName,leagueKey);
+    factors.fbref.away=_fbrefFieldsFactor(awayName,leagueKey);
+    hxg*=factors.fbref.home;
+    axg*=factors.fbref.away;
+    factors.form.home=_socFormFactor(homeName,leagueKey);
+    factors.form.away=_socFormFactor(awayName,leagueKey);
+    hxg*=factors.form.home;
+    axg*=factors.form.away;
+    factors.standings.home=_socStandingsFactor(homeName,leagueKey);
+    factors.standings.away=_socStandingsFactor(awayName,leagueKey);
+    hxg*=factors.standings.home;
+    axg*=factors.standings.away;
     var _h2h=_socH2HFactor(homeName,awayName,leagueKey);
+    factors.h2h.home=_h2h.home;factors.h2h.away=_h2h.away;
     hxg*=_h2h.home;
     axg*=_h2h.away;
   }
   hxg=Math.max(baseHxg*0.65,Math.min(baseHxg*1.35,hxg));
   axg=Math.max(baseAxg*0.65,Math.min(baseAxg*1.35,axg));
-  return{hxg,axg};
+  return{hxg,axg,factors};
 }
 // Exact P(total goals > line) for a Poisson(hxg+axg) total-goals
 // distribution — the sum of two independent Poisson processes is itself
@@ -21305,7 +21333,7 @@ function _renderSocMatchCard(g,leagueKey){
     {label:'OVER '+ouL,prob:ouP,evVal:ev(ouP,1.909),side:'over'},
     {label:'UNDER '+ouL,prob:unP,evVal:ev(unP,1.909),side:'under'},
   ]);
-  _autoLockCapture('SOC_'+leagueKey.toUpperCase(),g.home,g.away,_mkts,'xG PROJ: '+g.home+' '+hxg.toFixed(2)+' – '+g.away+' '+axg.toFixed(2));
+  _autoLockCapture('SOC_'+leagueKey.toUpperCase(),g.home,g.away,_mkts,'xG PROJ: '+g.home+' '+hxg.toFixed(2)+' – '+g.away+' '+axg.toFixed(2),_eg.factors);
   var topT=_mkts.tierN,topLabel=_mkts.lbl,topCol=_mkts.col;
   var _bm=_mkts.best,_bp=Math.round(_bm.prob*100),_be=(_bm.evVal*100).toFixed(1);
   var _implied=1/ml2d(_bm.side==='home'?hML:_bm.side==='draw'?dML:_bm.side==='away'?aML:1.909);
