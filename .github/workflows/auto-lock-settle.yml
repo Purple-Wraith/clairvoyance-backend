@@ -21,89 +21,56 @@ name: Auto Lock + Settle
 
 on:
   schedule:
-    # Main lock: 3 dedicated attempts -- per explicit request, multiple
-    # lock runs each morning, each one independently verifying picks
-    # locked correctly (see verify_todays_locks in auto_lock_settle.py).
-    # Locking itself is idempotent (lockPick() dedupes), so all 3 running
-    # is safe; per explicit request the subscriber email now waits until
-    # the LAST of the 3 -- passed --final-lock-check below -- rather than
-    # firing after just the first success, so it reflects everything all
-    # 3 attempts together managed to lock. The first two are silent
-    # unless something's actually wrong, in which case they're what
-    # catches and fixes it before the email goes out, not after.
+    # Cut from 12 scheduled fires/day to 5 (2026-09-15), explicit request
+    # to reduce Supabase egress after the 2026-09-13 quota lockout --
+    # every one of these fires pulls the full bet ledger once (see
+    # load_bet_ledger in auto_lock_settle.py), so fire count directly
+    # drives usage. Previously: 3 dedicated lock attempts + digest +
+    # adaptive + 7 settle passes. Now: 1 lock attempt (combines what used
+    # to be 2 separate crons' behavior -- lock AND the final-lock-check
+    # email -- into this single fire) + digest + adaptive + 2 settle
+    # passes. Trades away the old redundant-lock-attempt safety margin
+    # (see the retained comment below on why that redundancy existed)
+    # and 5 of 7 settle passes -- accepted tradeoff for roughly half the
+    # daily Supabase reads this workflow accounts for. The 9am-12pm MT
+    # catch-up safety net below still works: the 16:20 UTC settle pass
+    # kept below still falls inside that window and still recovers a
+    # dropped lock fire, same as before.
     #
     # Real audit, 2026-09-03: confirmed live via real run history that
-    # this schedule doesn't reliably land near its nominal times. On the
-    # day this was checked, all 3 nominal 13:00/13:15/13:35 UTC slots
-    # fired ~4 hours late AND compressed into an 8-minute real window
-    # instead of their intended 35-minute spread -- the first two ended
-    # up locking nearly everything just minutes before the third (the
-    # one that emails) ran, which is what produced a real "1 of 15 legs
-    # actually locked" report even though the day's picks were all
-    # really there (see auto_lock_settle.py's LockResult, added the same
-    # audit, which fixes the misleading COUNT regardless of this timing
-    # issue). Checking a broader 5-day sample afterward found the
-    # pattern isn't a single fixable contention window the way pick-of-
-    # day-social-daily.yml's was -- more like inconsistent GitHub-side
-    # trigger delay/drop across the whole day, which a schedule change
-    # alone can't fully solve. What IS real and fixable: soccer-lock-
-    # early.yml runs 4 of its own Playwright-heavy attempts immediately
-    # before this, at 12:00/12:15/12:30/12:45 UTC -- 7 heavy jobs packed
-    # into a 95-minute window is a real, concrete contention risk (the
-    # same class of queue-starvation already documented in social-cards-
-    # daily.yml's own history). Shifted 5 minutes later for more buffer
-    # after soccer's last attempt, and re-spread from 35 to 60 minutes
-    # total (30 min between each instead of 15-20) so a shared delay is
-    # less likely to compress all 3 as tightly as the 8-minute case
-    # found here -- a real, modest mitigation, not a guaranteed fix for
-    # GitHub's own scheduling reliability, which is outside this repo's
-    # control. The self-healing catch-up logic below (and the locked-
-    # count fix in auto_lock_settle.py) is what actually keeps real
-    # locks correct regardless of how this schedule lands on any given
-    # day. Like every other MT time in this file, these are fixed UTC
-    # crons -- GitHub Actions doesn't shift for DST, so real landing
-    # times drift ~1hr earlier MT once MST returns in November.
+    # this schedule doesn't reliably land near its nominal times --
+    # GitHub Actions can (and does, under load) silently drop or delay a
+    # scheduled trigger. The self-healing catch-up logic below (and the
+    # locked-count fix in auto_lock_settle.py) is what actually keeps
+    # real locks correct regardless of how this schedule lands on any
+    # given day, not the raw number of scheduled attempts. Like every
+    # other MT time in this file, these are fixed UTC crons -- GitHub
+    # Actions doesn't shift for DST, so real landing times drift ~1hr
+    # earlier MT once MST returns in November.
     - cron: '5 13 * * *'
-    - cron: '35 13 * * *'
-    - cron: '5 14 * * *'
     # Daily settlement digest: yesterday's results ONLY, once/day, after
-    # the 3 lock checks above -- per explicit request (picks locked 7/28
+    # the lock check above -- per explicit request (picks locked 7/28
     # get their results emailed the morning of 7/29, not mixed into a
     # same-day or multi-date dump). 8:15 MT = 14:15 UTC.
     - cron: '15 14 * * *'
     # Daily adaptive recalibration: 8:20 MT = 14:20 UTC, right after the
     # digest above so it reflects yesterday's now-fully-settled results.
-    # Runs after TODAY's own 3 lock checks (7:00-7:35am MT) have already
-    # happened, by design -- this commits the freshly-learned weights for
+    # Runs after TODAY's own lock check (7:05am MT) has already happened,
+    # by design -- this commits the freshly-learned weights for
     # TOMORROW's lock to pick up, not a same-day effect. See
     # run_adaptive_recalibration/docs/adaptive_weights.json: the durable
     # fix for adaptiveTick() previously only ever writing to browser
     # localStorage, invisible to the automated headless lock pipeline.
     - cron: '20 14 * * *'
-    # Settle: 7x daily -- 2 daytime (10am/3pm MT) plus 5 evening/
-    # overnight (6:20pm/8:20pm/11:20pm/1:20am/4:20am MT) -- per explicit
-    # request, extra evening/night coverage specifically so late-
-    # finishing games (West Coast night games routinely end past
-    # midnight MT) are as likely as possible to already be settled by
-    # the time the NEXT morning's 8:15am digest runs, rather than
-    # showing up as unresolved in that email. Offset :20 past the hour,
-    # staggered off scheduled-refresh.yml's own cron times (0 15/21/5) to
-    # avoid the same runner-contention pattern that caused the queue-
-    # starvation failures fixed earlier this session. These keep bets
-    # accurate throughout the day but never email -- see the 14:15 UTC
-    # digest above for the one daily email. Only the 16:20 UTC (10:20am
-    # MT) slot falls inside the lock catch-up window below (9am-12pm MT,
-    # strictly bounded so a catch-up lock can never land in the afternoon
-    # or evening per explicit request) -- the other settle-only slots
-    # never attempt a lock catch-up, only a same-day failure alert if
-    # lock still hasn't run by then.
+    # Settle: 2x daily -- 10:20am MT (also the one slot that falls inside
+    # the lock catch-up window below, 9am-12pm MT, strictly bounded so a
+    # catch-up lock can never land in the afternoon or evening per
+    # explicit request) and 1:20am MT (catches West Coast night games,
+    # which routinely end past midnight MT, before the next morning's
+    # 8:15am digest). These keep bets accurate but never email -- see the
+    # 14:15 UTC digest above for the one daily email.
     - cron: '20 16 * * *'
-    - cron: '20 21 * * *'
-    - cron: '20 0 * * *'
-    - cron: '20 2 * * *'
-    - cron: '20 5 * * *'
     - cron: '20 7 * * *'
-    - cron: '20 10 * * *'
   workflow_dispatch:
     inputs:
       live:
@@ -172,15 +139,11 @@ jobs:
           elif [ "${{ github.event.schedule }}" = "20 14 * * *" ]; then
             echo "step_flags=--adaptive-recalibration" >> "$GITHUB_OUTPUT"
             echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "5 13 * * *" ] || [ "${{ github.event.schedule }}" = "35 13 * * *" ]; then
-            # First two of the 3 main lock checks -- lock + verify, no
-            # email yet (see --final-lock-check on the 3rd below).
-            echo "step_flags=--lock" >> "$GITHUB_OUTPUT"
-            echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "5 14 * * *" ]; then
-            # 3rd and final main lock check -- this is the one that
-            # actually emails subscribers, after the first two already
-            # had their chance to lock anything qualifying.
+          elif [ "${{ github.event.schedule }}" = "5 13 * * *" ]; then
+            # The single daily lock check (cut from 3 dedicated attempts
+            # to 1, 2026-09-15, to reduce Supabase egress) -- combines
+            # lock + the final-lock-check email in one fire, since
+            # there's no longer a "first two silent, third emails" split.
             echo "step_flags=--lock --final-lock-check" >> "$GITHUB_OUTPUT"
             echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
           else
@@ -248,56 +211,46 @@ jobs:
           SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
         run: |
           if [ -n "${{ steps.flags.outputs.catchup }}" ]; then
-            echo "::notice::None of today's 3 dedicated 7:00-7:35am MT lock checks fired -- running a catch-up lock+settle pass (this one emails, since it's the last realistic chance today)."
+            echo "::notice::Today's dedicated 7:05am MT lock check didn't fire -- running a catch-up lock+settle pass (this one emails, since it's the last realistic chance today)."
           fi
           python3 scripts/auto_lock_settle.py ${{ steps.flags.outputs.step_flags }} ${{ steps.flags.outputs.live_flag }}
 
-      - name: Refresh landing page performance JSON
-        # Folded in from landing-performance-refresh.yml (2026-09-12):
-        # that workflow's own dedicated hourly cron (9am-9pm MT, 13x/day)
-        # only ever actually fired ~4-5x/day in practice, with the same
-        # ~12-14hr overnight dead zone every single day (confirmed via
-        # 12 days of real run history) -- GitHub Actions silently drops
-        # most ticks of a frequent standalone cron when a repo already
-        # runs this many other scheduled workflows, rather than queuing
-        # or delaying them. Riding along on this job instead (already
-        # firing ~10x/day with real coverage overnight, see the cron
-        # comments above) gets docs/engine_performance.json,
-        # engine_performance_subscriber.json, and sport_performance.json
-        # -- the only files clairvoyanceengine.info's Live Track Record
-        # / Sport Performance sections read -- refreshed far more
-        # reliably than the standalone schedule ever managed, at zero
-        # extra scheduled-workflow contention. --json-only stops right
-        # after writing those 3 files (no card/video generation, no
-        # email), same lightweight ~15s path landing-performance-
-        # refresh.yml always used. Runs unconditionally, regardless of
-        # which step_flags branch fired above, so every single
-        # invocation of this workflow (lock, settle, digest, adaptive,
-        # catch-up, manual) also refreshes the landing snapshot. Uses
-        # !cancelled() rather than the default success()-gate so a real
-        # failure in the unrelated lock/settle step above (e.g. the
-        # Playwright-install flake documented elsewhere in this repo)
-        # doesn't also take out the landing refresh -- the whole point
-        # here is decoupling this from that job's reliability, not
+      - name: Commit ledger backup + landing performance JSON
+        # docs/picks.json (revived 2026-09-15, dead since 06-10 -- a real
+        # GitHub-hosted backup of the Supabase ledger, independent of
+        # Supabase itself, read by app.html's loadPicksFromGitHub() as a
+        # fallback when Supabase is unreachable) and the 3 landing-perf
+        # files (engine_performance.json, engine_performance_subscriber
+        # .json, sport_performance.json -- the only files
+        # clairvoyanceengine.info's Live Track Record / Sport Performance
+        # sections read) are now written directly by
+        # scripts/auto_lock_settle.py's own already-open page in the step
+        # above (see write_ledger_backup/write_landing_performance), NOT
+        # by a second independent browser+Supabase pull the way the
+        # landing-perf refresh used to run here (2026-09-12 to 09-15) --
+        # that doubled this workflow's real Supabase egress at exactly
+        # the frequency that contributed to the 2026-09-13 quota lockout.
+        # One page load, one ledger pull, both outputs. Uses !cancelled()
+        # rather than the default success()-gate so a real failure in the
+        # unrelated lock/settle step above (e.g. the Playwright-install
+        # flake documented elsewhere in this repo) doesn't also skip
+        # committing whatever these files WERE written before that
+        # failure -- decoupled from that step's reliability, not
         # inheriting it.
         if: ${{ !cancelled() }}
-        run: python3 scripts/generate_social_cards.py --json-only
-
-      - name: Commit landing performance JSON
-        if: ${{ !cancelled() }}
         run: |
-          git add docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
+          git add docs/picks.json docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
           if git diff --cached --quiet; then
             echo "No change"
           else
-            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "landing-perf: refresh $(TZ=America/Denver date +%H:%M) MT"
+            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: refresh ledger backup + landing perf $(TZ=America/Denver date +%H:%M) MT"
             if ! git push origin main; then
               git fetch origin main
               if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase origin/main; then
-                git push origin main || echo "::warning::landing-perf: push still failed after rebase, will retry next run"
+                git push origin main || echo "::warning::ledger backup/landing-perf: push still failed after rebase, will retry next run"
               else
                 git rebase --abort
-                echo "::warning::landing-perf: rebase conflict, skipped this refresh, will retry next run"
+                echo "::warning::ledger backup/landing-perf: rebase conflict, skipped this refresh, will retry next run"
               fi
             fi
           fi

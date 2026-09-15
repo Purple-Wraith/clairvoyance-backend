@@ -3950,45 +3950,36 @@ window.applyBetClassificationFix=applyBetClassificationFix;
 // reached the laptop. This closes that gap by reading the same `bets`
 // table back down and merging it into local state.
 let _lastSupabasePullTs=0;
-async function syncPicksFromSupabase(){
-  try{
-    const now=Date.now();
-    // Cheap guard against back-to-back calls (boot + a manual refresh
-    // button, say) hammering the table within the same few seconds.
-    if(now-_lastSupabasePullTs<3000)return;
-    _lastSupabasePullTs=now;
-    // Real bug, found and fixed: this used to be a single unpaginated
-    // fetch. PostgREST caps one response at 1000 rows (same limit
-    // documented and already worked around in scripts/auto_lock_settle.py's
-    // load_bet_ledger), and this table has ~2300+ real rows -- so every
-    // sync silently got an arbitrary ~1000-row SLICE of the table (no
-    // order= clause, so which rows come back isn't even stable call to
-    // call). A device could easily never see a specific bet's real
-    // settlement or _removed marker for a long time (or ever), purely by
-    // chance of which slice PostgREST happened to return -- confirmed live
-    // as the cause of stale/already-removed bets reappearing on some
-    // devices but not others, since each device's local cache reflects
-    // whatever arbitrary subset its last few pulls happened to see. Same
-    // paginated Range-header loop as load_bet_ledger, so every pull sees
-    // the complete, real table every time.
-    const rows=[];
-    {
-      let offset=0;const pageSize=1000;
-      while(true){
-        const r=await fetch(SUPABASE_URL+'/rest/v1/bets?select=id,raw,outcome,settled_at,locked_at&order=id',{
-          headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,
-            'Range':offset+'-'+(offset+pageSize-1)},
-        });
-        if(!r.ok){console.warn('[CV] Supabase pull failed:',r.status);return;}
-        const batch=await r.json();
-        if(!Array.isArray(batch))return;
-        rows.push(...batch);
-        if(batch.length<pageSize)break;
-        offset+=pageSize;
-      }
-    }
-    if(!rows.length)return;
-    const wiped=_getWipedIds();
+// Paginated Range-header loop shared by syncPicksFromSupabase() -- same
+// limit and same fix documented there. Throws (rather than silently
+// returning) on any failure so the caller can tell "really nothing to
+// merge" apart from "the fetch itself failed" and fall back accordingly.
+async function _fetchSupabaseBetRows(){
+  const rows=[];
+  let offset=0;const pageSize=1000;
+  while(true){
+    const r=await fetch(SUPABASE_URL+'/rest/v1/bets?select=id,raw,outcome,settled_at,locked_at&order=id',{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,
+        'Range':offset+'-'+(offset+pageSize-1)},
+    });
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const batch=await r.json();
+    if(!Array.isArray(batch))throw new Error('non-array response');
+    rows.push(...batch);
+    if(batch.length<pageSize)break;
+    offset+=pageSize;
+  }
+  return rows;
+}
+// Merge logic shared by syncPicksFromSupabase() and its GitHub-backup
+// fallback (loadPicksFromBackupJSON) -- both feed it the same row shape
+// ({id, raw, outcome, settled_at, locked_at}), so a Supabase outage
+// doesn't mean reimplementing (and re-debugging) tombstone handling,
+// the wipe-blocklist, or the "never regress a locally-settled result"
+// rule a second time.
+function _mergeRemoteBetRows(rows){
+  if(!rows.length)return;
+  const wiped=_getWipedIds();
     let local=getP();
     const byId=new Map(local.map(p=>[p.id,p]));
     // Semantic signature (date+teams+selection) index — a pending remote
@@ -4065,15 +4056,63 @@ async function syncPicksFromSupabase(){
       try{renderOverallHistory();}catch(e){}
       console.log(`[CV] Supabase pull: +${added} new, ${updated} settled, ${removed} removed from other device(s)`);
     }
-    // _dedupeStalePendingPicks() previously only ran once at boot — but
-    // this function runs repeatedly (90s interval, manual SYNC button),
-    // and each pull can in principle introduce a fresh stale-pending
-    // duplicate of an already-settled bet. Running the cleanup after
-    // every pull (not just once at boot) means a duplicate never
-    // survives longer than one sync cycle, on a device that stays open
-    // for a long time rather than only self-healing on next full reload.
-    try{_dedupeStalePendingPicks();}catch(e){}
+  // _dedupeStalePendingPicks() previously only ran once at boot — but
+  // this function runs repeatedly (90s interval, manual SYNC button),
+  // and each pull can in principle introduce a fresh stale-pending
+  // duplicate of an already-settled bet. Running the cleanup after
+  // every pull (not just once at boot) means a duplicate never
+  // survives longer than one sync cycle, on a device that stays open
+  // for a long time rather than only self-healing on next full reload.
+  try{_dedupeStalePendingPicks();}catch(e){}
+}
+async function syncPicksFromSupabase(){
+  try{
+    const now=Date.now();
+    // Cheap guard against back-to-back calls (boot + a manual refresh
+    // button, say) hammering the table within the same few seconds.
+    if(now-_lastSupabasePullTs<3000)return;
+    _lastSupabasePullTs=now;
+    let rows;
+    try{
+      rows=await _fetchSupabaseBetRows();
+    }catch(e){
+      // Real incident, 2026-09-13: Supabase's own egress quota got
+      // exceeded and the project was restricted account-wide (HTTP 402
+      // on every request) for over a day -- every device was left with
+      // no way to see any other device's locks/settlements, and no way
+      // to recover once a device's own local state fell behind. Falling
+      // back to the GitHub-hosted backup (loadPicksFromBackupJSON, kept
+      // fresh by auto-lock-settle.yml on every run -- see
+      // write_ledger_backup in auto_lock_settle.py) means a repeat of
+      // that outage degrades to "as fresh as the last automated run"
+      // instead of a full cross-device sync blackout.
+      console.warn('[CV] Supabase pull failed:',e.message,'— falling back to GitHub backup');
+      try{await loadPicksFromBackupJSON();}catch(e2){console.warn('[CV] GitHub backup fallback also failed:',e2.message);}
+      return;
+    }
+    _mergeRemoteBetRows(rows);
   }catch(e){console.warn('[CV] Supabase pull failed (offline?):',e.message);}
+}
+// Read-only fallback for when Supabase itself is unreachable (see the
+// catch in syncPicksFromSupabase above) -- fetches the same-origin
+// static backup (no auth, no token, works for every visitor, unlike
+// loadPicksFromGitHub()'s authenticated-API path which only runs for
+// whichever device has the owner's own GitHub token configured) and
+// feeds it through the exact same merge logic a real Supabase pull
+// uses, so a device recovering from this fallback converges identically
+// to one that pulled from Supabase directly.
+async function loadPicksFromBackupJSON(){
+  const r=await fetch('picks.json?t='+Date.now());
+  if(!r.ok)throw new Error('backup fetch HTTP '+r.status);
+  const content=await r.json();
+  if(!Array.isArray(content)||!content.length)return;
+  const rows=content.map(p=>({
+    id:p.id,raw:p,outcome:p.outcome,
+    settled_at:p.settledAt?new Date(p.settledAt).toISOString():null,
+    locked_at:p.lockedAt?new Date(p.lockedAt).toISOString():null,
+  }));
+  _mergeRemoteBetRows(rows);
+  console.log(`[CV] Loaded ${rows.length} bets from GitHub backup (Supabase unreachable)`);
 }
 async function syncPicksFromBackend(){
   if(!API_ONLINE())return;

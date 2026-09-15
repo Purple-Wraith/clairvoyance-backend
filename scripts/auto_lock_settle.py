@@ -65,6 +65,14 @@ from _gmail_email import send_email as _send_gmail  # noqa: E402
 from _gmail_email import EMAIL_WRAP_OPEN as _EMAIL_WRAP_OPEN, EMAIL_WRAP_CLOSE as _EMAIL_WRAP_CLOSE  # noqa: E402
 from _gmail_email import EMAIL_WRAP_CLOSE_DISCLOSED as _LOCKS_EMAIL_CLOSE  # noqa: E402
 from _subscribers import recipients_for, OWNER_EMAIL, EMAIL_BANNER_URL  # noqa: E402
+# Reused (not reimplemented) for the landing-perf JSON snapshot this
+# script now also writes on every run -- see the call site in main() for
+# why this replaced a second, fully independent browser+Supabase pull.
+from generate_social_cards import (  # noqa: E402
+    get_engine_performance as _get_engine_performance,
+    get_engine_performance_subscriber as _get_engine_performance_subscriber,
+    get_sport_performance as _get_sport_performance,
+)
 
 # _LOCKS_EMAIL_CLOSE (the disclaimer-bearing close, defined in
 # _gmail_email.py so _subscribers.py's receipt email can share the exact
@@ -414,6 +422,64 @@ def load_bet_ledger(page) -> int:
     if count is None or count < 0:
         raise RuntimeError("Failed to load bet ledger from Supabase in-page — check SUPABASE_URL/KEY")
     return count
+
+
+def write_ledger_backup(page) -> int:
+    """Revives docs/picks.json (dead since 2026-06-10, 240 stale rows) as
+    a real, current backup of the Supabase ledger -- independent of
+    Supabase itself, so a future outage like the 2026-09-13 egress-quota
+    lockout doesn't leave the app with zero fallback data source. Reuses
+    the ledger load_bet_ledger() already pulled into this same page's
+    getP() a moment ago -- no second Supabase round trip. Committed by
+    the workflow right after this call; loadPicksFromGitHub() in
+    app.html already knows how to read this exact flat-array shape."""
+    preds = page.evaluate("() => getP()")
+    (ROOT / "docs" / "picks.json").write_text(json.dumps(preds, indent=2))
+    return len(preds) if isinstance(preds, list) else 0
+
+
+def write_landing_performance(page) -> None:
+    """Same 3 JSON files landing-performance-refresh.yml used to produce
+    via its OWN fully separate browser launch + Supabase pull -- folded
+    in here (2026-09-15) to close a real self-inflicted regression: when
+    that refresh was first folded into this workflow as an extra step
+    (2026-09-12), it kept its own independent generate_social_cards.py
+    --json-only invocation, which doubled this workflow's real Supabase
+    egress (two full-ledger pulls per run instead of one) at exactly the
+    frequency that contributed to blowing through the account's egress
+    quota. Calling the same get_engine_performance*/get_sport_performance
+    functions directly against THIS run's already-loaded page removes
+    the second pull entirely -- one Supabase read per invocation, not
+    two, for the exact same 3 output files."""
+    now_mt = datetime.now(ZoneInfo("America/Denver"))
+    out_dir = ROOT / "docs"
+    try:
+        engine_perf = _get_engine_performance(page)
+        if engine_perf:
+            (out_dir / "engine_performance.json").write_text(json.dumps({
+                "generated_at": now_mt.strftime("%Y-%m-%d %H:%M MT"),
+                "periods": engine_perf,
+            }, indent=2))
+    except Exception as e:
+        print(f"WARNING: engine performance snapshot failed: {e}")
+    try:
+        engine_perf_sub = _get_engine_performance_subscriber(page)
+        if engine_perf_sub:
+            (out_dir / "engine_performance_subscriber.json").write_text(json.dumps({
+                "generated_at": now_mt.strftime("%Y-%m-%d %H:%M MT"),
+                "periods": engine_perf_sub,
+            }, indent=2))
+    except Exception as e:
+        print(f"WARNING: subscriber-scoped engine performance snapshot failed: {e}")
+    try:
+        sport_perf = _get_sport_performance(page)
+        if sport_perf:
+            (out_dir / "sport_performance.json").write_text(json.dumps({
+                "generated_at": now_mt.strftime("%Y-%m-%d %H:%M MT"),
+                **sport_perf,
+            }, indent=2))
+    except Exception as e:
+        print(f"WARNING: sport performance snapshot failed: {e}")
 
 
 def flush_to_supabase(page) -> None:
@@ -2255,6 +2321,16 @@ def main() -> None:
 
         bet_count = load_bet_ledger(page)
         log(f"Loaded {bet_count} real bets from Supabase into headless session")
+
+        try:
+            backed_up = write_ledger_backup(page)
+            log(f"Wrote docs/picks.json backup ({backed_up} bets)")
+        except Exception as exc:
+            log(f"WARNING: ledger backup write failed: {exc}")
+        try:
+            write_landing_performance(page)
+        except Exception as exc:
+            log(f"WARNING: landing performance snapshot failed: {exc}")
 
         if do_settle:
             # No email here by design -- intraday settle passes exist to
