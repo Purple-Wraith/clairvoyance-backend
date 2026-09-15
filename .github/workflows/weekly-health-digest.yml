@@ -1,0 +1,53 @@
+name: Weekly Health Digest
+
+# Explicit request, 2026-09-16, following the 2026-09-13 Supabase egress-
+# quota lockout: that outage ran for ~20 hours before anyone noticed, via
+# a manual check. This is a real, always-sent weekly summary -- distinct
+# from daily-health-check.yml's own "silent unless something's broken"
+# philosophy -- so a repeat gets caught within a week without needing to
+# ask a session to check. See scripts/weekly_health_digest.py's own
+# module docstring for the 4 sections (Supabase reachability, workflow
+# success rate, model calibration, stuck-pending anomalies).
+#
+# Lightweight by design: no Playwright/browser needed at all (the script
+# reads SUPABASE_URL/SUPABASE_KEY as plain text out of docs/app.html and
+# talks to the REST API directly with `requests`), so "Install
+# dependencies" here is a single fast pip install, not the usual
+# Chromium download every other Supabase-touching workflow in this repo
+# pays for.
+
+on:
+  schedule:
+    # Monday 9:00am MT = 15:00 UTC (MDT). Once/week by design -- a digest,
+    # not an alert. Like every other MT time in this repo, this is a
+    # fixed UTC cron -- GitHub Actions doesn't shift for DST, so the real
+    # landing time drifts ~1hr earlier MT once MST returns in November.
+    - cron: '0 15 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  weekly-health-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -q requests
+
+      - name: Run weekly health digest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
+          LOCKS_EMAIL_TO: ${{ secrets.LOCKS_EMAIL_TO }}
+        run: python3 scripts/weekly_health_digest.py
