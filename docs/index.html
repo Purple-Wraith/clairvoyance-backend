@@ -3579,14 +3579,27 @@ function _spreadLockDir(favN,dogN,hA,awA,date,baseP,baseSprd,inputId,dir,sport){
   // slot here instead of the literal string 'SPREAD'.
   lockPick(hA,awA,sport||'SPREAD',label,sp,'-115',1.87,date||today(),undefined,'SPREAD');
 }
-function _ahLockDir(hc,ac,date,favN,dogN,baseFavP,baseAH,inputId,dir){
+// Real bug, found and fixed, 2026-09-16: this function existed but had
+// zero call sites anywhere in the app -- dead code, presumably left over
+// from a card that got refactored away before ever shipping a real UI
+// for it. Reviving it for the new league match-card goal-spread feature:
+// added the lockType param (matching _ouLockDir's own pattern, so a
+// Bundesliga spread pick doesn't get misclassified the same way every
+// club-league ML/OU used to before that fix), dropped the 'AH ' label
+// prefix (no other spread bet in this app uses a market-type prefix --
+// matching plain 'TeamName -1.5' keeps autoSettleSoccer's new spread
+// parser and every other sport's own spread convention consistent), and
+// added the explicit 'SPREAD' betTypeOverride (the old version passed
+// none, which would have silently defaulted to betType 'ML' via
+// _betTypeNorm the same way the CFB/soccer/WNBA lock_game_leg bug did).
+function _ahLockDir(hc,ac,date,favN,dogN,baseFavP,baseAH,inputId,dir,lockType){
   var inp=document.getElementById(inputId);
   var ns=inp?parseFloat(inp.value):parseFloat(baseAH);
   if(isNaN(ns))ns=parseFloat(baseAH);
   var delta=Math.abs(ns)-Math.abs(parseFloat(baseAH));
   var p=dir==='FAV'?Math.max(.15,Math.min(.85,baseFavP-delta*0.045)):Math.max(.15,Math.min(.85,(1-baseFavP)+delta*0.045));
-  var label=dir==='FAV'?favN+' '+ns.toFixed(1):dogN+' +'+(Math.abs(ns)).toFixed(1);
-  lockPick(hc,ac,'SOC','AH '+label,p,'-110',1.909,date||today());
+  var label=dir==='FAV'?favN+' -'+(Math.abs(ns)).toFixed(1):dogN+' +'+(Math.abs(ns)).toFixed(1);
+  lockPick(hc,ac,lockType||'SOC',label,p,'-110',1.909,date||today(),undefined,'SPREAD');
 }
 function _syncAHLabels(id){var el=document.getElementById(id);if(!el)return;var nv=Math.round((parseFloat(el.value)||0)*2)/2;var fl=document.getElementById('fav_'+id);var dl=document.getElementById('dog_'+id);if(fl)fl.textContent=nv.toFixed(1);if(dl)dl.textContent='+'+Math.abs(nv).toFixed(1);}
 function _spreadParlayDir(favN,dogN,hA,awA,date,baseP,baseSprd,inputId,dir,sport){
@@ -6780,6 +6793,17 @@ async function autoSettleSoccer(targetDate){
           // abbreviation directly (not p.hA/p.awA, whose own naming
           // convention varies by bet -- already resolved via sameGame).
           const betOn=p.betOn||'';
+          // Goal spread (Asian Handicap) -- explicit request, 2026-09-16,
+          // added alongside the new league match-card spread feature.
+          // betOn format is always "TeamName -1.5"/"TeamName +1.5" (see
+          // _ahLockDir) -- checked LAST in the chain below (after team-
+          // win/DRAW/OU all fail to match), so a real ML pick's plain
+          // "TeamName Win"/"TeamName ML" text can never be misread as a
+          // spread. Without this, every spread pick locked from the new
+          // feature would sit pending forever -- the exact "locked but
+          // can never settle" class of bug found and fixed earlier this
+          // session for NFL props.
+          const spreadMatch=/^(.+?)\s+([+-]\d+\.?\d*)$/.exec(betOn);
           // Same suffix/alias tolerance as sameGame above, so e.g.
           // betOn:"Atlanta United Win" still resolves against ESPN's
           // "Atlanta United FC" instead of only ever matching an exact
@@ -6796,6 +6820,12 @@ async function autoSettleSoccer(targetDate){
             const line=parseFloat(ouMatch[2]),total=hs+as;
             const over=ouMatch[1].toUpperCase()==='OVER';
             outcome=total===line?'push':(over?total>line:total<line)?'win':'loss';
+          }
+          else if(spreadMatch&&!isNaN(parseFloat(spreadMatch[2]))){
+            const teamKey=_socMatchKey(spreadMatch[1].trim());
+            const lineVal=parseFloat(spreadMatch[2]);
+            if(teamKey===_socMatchKey(hn)||teamKey===_socMatchKey(hAbbr))outcome=(hs-as)+lineVal>0?'win':'loss';
+            else if(teamKey===_socMatchKey(an)||teamKey===_socMatchKey(aAbbr))outcome=(as-hs)+lineVal>0?'win':'loss';
           }
           if(outcome){p.outcome=outcome;p.settledAt=Date.now();p.hScore=hs;p.aScore=as;changed=true;
             toast(`✓ AUTO-SETTLED: ${p.betOn} ${outcome.toUpperCase()}`,outcome==='win'?'#00e644':outcome==='loss'?'#ff1a1a':'#ff9000');
@@ -14719,10 +14749,10 @@ function renderNFLModelProps(filter){
 // needs the actual label text to tell those two apart.
 function _nflPropCatTag(text){
   const t=(text||'').toUpperCase();
-  if(t.includes('TD'))return{icon:'🎯',color:'var(--gc)'};
-  if(t.includes('RECEPTION'))return{icon:'🤲',color:'var(--ic)'};
-  if(t.includes('YARD'))return{icon:'📏',color:'var(--pc)'};
-  return{icon:'●',color:'var(--t3)'};
+  if(t.includes('TD'))return{label:'TD',color:'var(--gc)'};
+  if(t.includes('RECEPTION'))return{label:'REC',color:'var(--ic)'};
+  if(t.includes('YARD'))return{label:'YDS',color:'var(--pc)'};
+  return{label:'',color:'var(--t3)'};
 }
 function _nflPropCardHtml(r,i,lockFn){
   const gc=_NFL_PROP_GRADE_COLOR[r.grade]||'var(--t3)';
@@ -14736,7 +14766,7 @@ function _nflPropCardHtml(r,i,lockFn){
         </div>
         <span style="font-family:var(--mono);font-size:16px;padding:2px 5px;border:1px solid ${gc};color:${gc};border-radius:2px">${r.grade}</span>
       </div>
-      <div style="font-family:var(--mono);font-size:22px;color:${dirColor};margin-bottom:3px">${r.pick==='OVER'?'▲ OVER':'▼ UNDER'} ${r.line} <span style="color:${catTag.color}">${catTag.icon} ${r.cat}</span> <span style="color:var(--t2);font-size:18px">· ${r.conf??r.likelihood}% LIKELIHOOD</span></div>
+      <div style="font-family:var(--mono);font-size:22px;color:${dirColor};margin-bottom:3px">${r.pick==='OVER'?'▲ OVER':'▼ UNDER'} ${r.line} ${catTag.label?`<span style="font-size:13px;padding:1px 4px;border:1px solid ${catTag.color};color:${catTag.color};border-radius:2px;vertical-align:middle">${catTag.label}</span> `:''}${r.cat} <span style="color:var(--t2);font-size:18px">· ${r.conf??r.likelihood}% LIKELIHOOD</span></div>
       ${_recPropLineHTML(r.line,_findMarketProp('nfl',r.player,r.cat),r.cat)}
       <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:5px">Adjustor: ${r.adjustor>=0?'+':''}${r.adjustor} vs season avg · ${r.games} games sampled</div>
       <div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:6px">${r.reasoning}</div>
@@ -14815,7 +14845,7 @@ function renderNFLPropsTracker(){
   if(!locked.length){el.innerHTML='<div class="empty">NO LOCKED NFL PROPS</div>';return;}
   const oc_map={win:'var(--nc)',loss:'var(--hc)',pending:'var(--gc)'};
   el.innerHTML=locked.map(p=>{const oc=oc_map[p.outcome]||'var(--gc)';const catTag=_nflPropCatTag(p.betOn);
-    return`<div class="card" style="margin-bottom:6px;border-left:2px solid ${oc}"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-family:var(--orb);font-size:19px;font-weight:700">${p.player}</div><div style="font-family:var(--mono);font-size:17px;color:var(--t2)"><span style="color:${catTag.color}">${catTag.icon}</span> ${p.betOn}</div></div><span style="font-family:var(--mono);font-size:16px;padding:2px 5px;border:1px solid ${oc};color:${oc};border-radius:2px">${(p.outcome||'pending').toUpperCase()}</span></div></div>`;
+    return`<div class="card" style="margin-bottom:6px;border-left:2px solid ${oc}"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-family:var(--orb);font-size:19px;font-weight:700">${p.player}</div><div style="font-family:var(--mono);font-size:17px;color:var(--t2)">${catTag.label?`<span style="font-size:12px;padding:1px 4px;border:1px solid ${catTag.color};color:${catTag.color};border-radius:2px;vertical-align:middle">${catTag.label}</span> `:''}${p.betOn}</div></div><span style="font-family:var(--mono);font-size:16px;padding:2px 5px;border:1px solid ${oc};color:${oc};border-radius:2px">${(p.outcome||'pending').toUpperCase()}</span></div></div>`;
   }).join('');
 }
 
@@ -21152,6 +21182,42 @@ function _soccerMC(hxg,axg,n){
   return{hWin:hW/n,draw:draw/n,aWin:aW/n,avgH:hG/n,avgA:aG/n,avgT:(hG+aG)/n,over25:over25/n,over35:over35/n,btts:btts/n,hxg,axg,n};
 }
 
+// Goal-spread (Asian Handicap) probability -- explicit request, 2026-09-16:
+// league match cards only ever offered ML/O-U, no spread. Exact analytic
+// computation (same philosophy as _poissonOverProb replacing an MC
+// shortcut for O/U) rather than another Monte Carlo pass: home and away
+// goals are independent Poisson(hxg)/Poisson(axg), so P(margin = h-a = k)
+// is a direct convolution of their two PMFs. maxGoals=15 captures
+// effectively all real probability mass for realistic soccer xG values
+// (P(15+ goals) from either side is astronomically small), computed
+// directly rather than truncated at a smaller bound to avoid any real
+// accuracy loss for a genuinely lopsided projection.
+function _socPoissonPmf(lam,k){let p=Math.exp(-lam);for(let i=1;i<=k;i++)p*=lam/i;return p;}
+function _socMarginDist(hxg,axg){
+  const maxG=15;
+  const hP=[],aP=[];
+  for(let k=0;k<=maxG;k++){hP[k]=_socPoissonPmf(hxg,k);aP[k]=_socPoissonPmf(axg,k);}
+  const dist={};
+  for(let h=0;h<=maxG;h++)for(let a=0;a<=maxG;a++){
+    const m=h-a;
+    dist[m]=(dist[m]||0)+hP[h]*aP[a];
+  }
+  return dist;
+}
+// P(home covers homeLine) -- homeLine negative means home favored (e.g.
+// -1.5: home must win by 2+ to cover, margin > 1.5). Positive homeLine
+// means home is the underdog getting points (covers unless they lose by
+// MORE than the line). Away's cover probability for the same match is
+// always 1-this (lines are always X.5, so no push is possible), matching
+// how UNDER is already derived as 1-ouP a few lines below in
+// _renderSocMatchCard rather than computed independently.
+function _socSpreadProb(hxg,axg,homeLine){
+  const dist=_socMarginDist(hxg,axg);
+  let p=0;
+  Object.keys(dist).forEach(function(m){if(parseFloat(m)>-homeLine)p+=dist[m];});
+  return Math.max(0,Math.min(1,p));
+}
+
 function _socTier(p){
   if(p>=0.67)return{g:'PREMIUM',c:'var(--gc)'};
   if(p>=0.62)return{g:'OPTIMAL',c:'var(--nc)'};
@@ -21390,12 +21456,35 @@ function _renderSocMatchCard(g,leagueKey){
   var ouCol=gCol(ouTier),unCol=gCol(unTier);
   var ouLabel=ouTier===3?'PREMIUM':ouTier===2?'OPTIMAL':ouTier===1?'LEAN':'SKIP';
   var unLabel=unTier===3?'PREMIUM':unTier===2?'OPTIMAL':unTier===1?'LEAN':'SKIP';
+  // Goal spread (Asian Handicap) -- explicit request, 2026-09-16: league
+  // match cards only ever had ML/O-U, no spread. Default line derived
+  // from the model's OWN projected margin (mc.avgH-mc.avgA), same
+  // "match's own projection, not an arbitrary constant" philosophy the
+  // O/U line above already uses, rather than guessing a fixed -1.0/-1.5
+  // that would over- or under-shoot a genuinely lopsided or tight
+  // matchup. _socSpreadProb is exact (Poisson convolution, see its own
+  // comment), not another MC pass. ahAbsLine falls back to 0.5 for a
+  // dead-even 0.0 margin projection (a real line can never be a whole
+  // number with no juice-side ambiguity).
+  var ahMargin=mc.avgH-mc.avgA;
+  var ahAbsLine=parseFloat(_forceHalfLine(Math.abs(ahMargin)||0.5));
+  var ahHomeLine=ahMargin>=0?-ahAbsLine:ahAbsLine;
+  var ahHomeCoverP=_socSpreadProb(hxg,axg,ahHomeLine);
+  var ahHomeIsFav=ahHomeLine<0;
+  var ahFavName=ahHomeIsFav?g.home:g.away,ahDogName=ahHomeIsFav?g.away:g.home;
+  var ahFavP=ahHomeIsFav?ahHomeCoverP:(1-ahHomeCoverP);
+  var ahDogP=1-ahFavP;
+  var ahId='ahinp_lg_'+leagueKey+'_'+(g.hAbbr||g.home)+'_'+(g.aAbbr||g.away);
+  var ahFavTier=tier(ahFavP,ev(ahFavP,1.909)),ahDogTier=tier(ahDogP,ev(ahDogP,1.909));
+  var ahFavCol=gCol(ahFavTier),ahDogCol=gCol(ahDogTier);
   var _mkts=_evalMkts([
     {label:g.home+' Win',prob:hP,evVal:ev(hP,ml2d(hML)),side:'home'},
     {label:'Draw',prob:dP,evVal:ev(dP,ml2d(dML)),side:'draw'},
     {label:g.away+' Win',prob:aP,evVal:ev(aP,ml2d(aML)),side:'away'},
     {label:'OVER '+ouL,prob:ouP,evVal:ev(ouP,1.909),side:'over'},
     {label:'UNDER '+ouL,prob:unP,evVal:ev(unP,1.909),side:'under'},
+    {label:ahFavName+' -'+ahAbsLine.toFixed(1),prob:ahFavP,evVal:ev(ahFavP,1.909),side:'ahFav'},
+    {label:ahDogName+' +'+ahAbsLine.toFixed(1),prob:ahDogP,evVal:ev(ahDogP,1.909),side:'ahDog'},
   ]);
   _autoLockCapture('SOC_'+leagueKey.toUpperCase(),g.home,g.away,_mkts,'xG PROJ: '+g.home+' '+hxg.toFixed(2)+' – '+g.away+' '+axg.toFixed(2),_eg.factors);
   var topT=_mkts.tierN,topLabel=_mkts.lbl,topCol=_mkts.col;
@@ -21539,6 +21628,21 @@ function _renderSocMatchCard(g,leagueKey){
     +'<div style="display:flex;gap:3px">'
     +'<button onclick="event.stopPropagation();_ouLockDir(\''+hc+'\',\''+ac+'\',\''+dateStr+'\','+ouP.toFixed(3)+',\''+ouL+'\',\''+ouId+'\',\'OVER\',\''+_lockType+'\')" style="font-size:13px;padding:2px 5px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVR</button>'
     +'<button onclick="event.stopPropagation();_ouLockDir(\''+hc+'\',\''+ac+'\',\''+dateStr+'\','+ouP.toFixed(3)+',\''+ouL+'\',\''+ouId+'\',\'UNDER\',\''+_lockType+'\')" style="font-size:13px;padding:2px 5px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UND</button>'
+    +'</div></div>'
+    // Goal spread (Asian Handicap) box -- explicit request, 2026-09-16.
+    // Same layout/pattern as the O/U box directly above (adjustable
+    // input + two lock buttons), reusing the revived _ahLockDir. Line
+    // is always shown/edited as the FAVORITE's absolute value (matching
+    // the fav/dog label convention below it) -- the dog's line is
+    // always the same magnitude with a flipped sign, never edited
+    // independently, same convention _spreadLockDir's FAV/DOG pair
+    // already uses for every other sport's spread box.
+    +'<div style="flex:2;background:rgba(187,255,0,.05);border:1px solid rgba(187,255,0,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px">'
+    +'<div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">GOAL SPREAD</div>'
+    +'<div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV(\''+ahId+'\',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>'+'<input type="number" step="0.5" value="'+ahAbsLine.toFixed(1)+'" id="'+ahId+'" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center">'+'<button onclick="event.stopPropagation();_adjV(\''+ahId+'\',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div>'
+    +'<div style="display:flex;gap:2px;width:100%">'
+    +'<button onclick="event.stopPropagation();_ahLockDir(\''+hc+'\',\''+ac+'\',\''+dateStr+'\',\''+ahFavName+'\',\''+ahDogName+'\','+ahFavP.toFixed(3)+',\''+ahAbsLine.toFixed(1)+'\',\''+ahId+'\',\'FAV\',\''+_lockType+'\')" style="flex:1;font-size:12px;padding:2px 3px;background:rgba(187,255,0,.1);border:1px solid rgba(187,255,0,.4);color:var(--vc);border-radius:2px;cursor:pointer;text-align:center">'+ahFavName+' -'+ahAbsLine.toFixed(1)+'</button>'
+    +'<button onclick="event.stopPropagation();_ahLockDir(\''+hc+'\',\''+ac+'\',\''+dateStr+'\',\''+ahFavName+'\',\''+ahDogName+'\','+ahFavP.toFixed(3)+',\''+ahAbsLine.toFixed(1)+'\',\''+ahId+'\',\'DOG\',\''+_lockType+'\')" style="flex:1;font-size:12px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center">'+ahDogName+' +'+ahAbsLine.toFixed(1)+'</button>'
     +'</div></div>'
     +'</div>'
     +'<div style="padding:8px 10px;background:rgba(255,200,0,.04);border-top:1px solid rgba(255,200,0,.1)">'
