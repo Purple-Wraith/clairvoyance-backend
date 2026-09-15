@@ -14693,7 +14693,19 @@ function _nflLockModelPropFrom(list,idx){
   // selection screen itself already showed the correct grade (via the
   // same r.conf fix); only the persisted lock record was still wrong.
   const conf=(r.conf??r.likelihood)/100;
-  const dec=1/Math.max(0.01,conf);
+  // Real bug, found auditing units tracking: this used to be a pure
+  // no-vig fair-odds inverse (1/conf) -- e.g. a 93%-confident pick
+  // stored at 1.07 decimal odds, meaning a real win paid out ~0.07u
+  // instead of anything resembling what a real sportsbook actually
+  // pays on a player prop. No real book ever offers a true fair price;
+  // every one holds a margin. Applying a standard -110/-110-equivalent
+  // markup (4.5% total vig on a two-way market, split evenly per side)
+  // before inverting means locked NFL props' recorded units at least
+  // reflect a realistic market price instead of a mathematically ideal
+  // one that never actually exists.
+  const STANDARD_VIG=0.045;
+  const vigConf=Math.min(0.99,Math.max(0.01,conf)+STANDARD_VIG/2);
+  const dec=1/vigConf;
   // Real bug, found auditing lock/settle: no dedup at all (Date.now()-
   // based id, always unique) -- same real duplicate-lock risk as
   // lockProp()/lockNHLProp(), fixed the same way.
