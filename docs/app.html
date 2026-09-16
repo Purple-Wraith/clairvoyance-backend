@@ -315,33 +315,46 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   /* ── Blanket inline font-size cap ──────────────────────────────
      The vast majority of this app's text (pending-bet cards, sub-tab
      headers, dropdown menus, history/"recents" rows, remove buttons,
-     etc.) is set via one-off inline style="font-size:Npx!important" in render
+     etc.) is set via one-off inline style="font-size:Npx" in render
      functions, not shared classes — so the class-based rules above
      never touch most of the app's actual text. Rather than editing
      thousands of individual call sites, cap every common inline size
      directly via attribute selector so nothing on mobile renders
-     larger than the home page's own time-frame record text (14px).
-     input/select/textarea excluded — they need to stay >=16px or iOS
-     auto-zooms on focus (see the tag-selector rule above). ── */
-  [style*="font-size:37px!important"]:not(input):not(select):not(textarea),
-  [style*="font-size:35px!important"]:not(input):not(select):not(textarea),
-  [style*="font-size:32px!important"]:not(input):not(select):not(textarea){font-size:13px!important}
-  [style*="font-size:30px!important"]:not(input):not(select):not(textarea),
-  [style*="font-size:27px!important"]:not(input):not(select):not(textarea),
-  [style*="font-size:26px!important"]:not(input):not(select):not(textarea),
-  [style*="font-size:25px!important"]:not(input):not(select):not(textarea){font-size:12px!important}
-  [style*="font-size:24px!important"]:not(input):not(select):not(textarea),
-  [style*="font-size:23px!important"]:not(input):not(select):not(textarea),
-  [style*="font-size:22px!important"]:not(input):not(select):not(textarea){font-size:11px!important}
-  [style*="font-size:20px!important"]:not(input):not(select):not(textarea),
-  [style*="font-size:19px!important"]:not(input):not(select):not(textarea),
-  [style*="font-size:18px!important"]:not(input):not(select):not(textarea){font-size:10px!important}
-  [style*="font-size:17px!important"]:not(input):not(select):not(textarea),
-  [style*="font-size:16px!important"]:not(input):not(select):not(textarea),
-  [style*="font-size:15px!important"]:not(input):not(select):not(textarea){font-size:9px!important}
-  [style*="font-size:14px!important"]:not(input):not(select):not(textarea),
-  [style*="font-size:13px!important"]:not(input):not(select):not(textarea),
-  [style*="font-size:12px!important"]:not(input):not(select):not(textarea){font-size:8px!important}
+     larger than needed. input/select/textarea excluded — they need to
+     stay >=16px or iOS auto-zooms on focus (see the tag-selector rule
+     above).
+     Real gap, found auditing mobile 2026-09-16: this only ever matched
+     the "...px!important" form. A direct count across the file shows
+     hundreds to low-thousands of PLAIN (no !important) inline
+     font-size declarations per common size (e.g. 408× font-size:15px,
+     403× :16px, 351× :14px, 346× :17px, plus the whole 18-37px range)
+     that were never touched by this cap at all -- including the home
+     page's own win% record numbers (a plain font-size:17px/24px with
+     no !important), which is exactly why those still rendered at full
+     desktop size on a phone despite this comment's own claim. Every
+     tier below now matches BOTH forms and is capped one notch smaller
+     than before (down to a floor of 8px -- any smaller risks real
+     illegibility) for the additional "tighter fit" pass requested
+     2026-09-16. ── */
+  [style*="font-size:37px"]:not(input):not(select):not(textarea),
+  [style*="font-size:35px"]:not(input):not(select):not(textarea),
+  [style*="font-size:32px"]:not(input):not(select):not(textarea){font-size:12px!important}
+  [style*="font-size:30px"]:not(input):not(select):not(textarea),
+  [style*="font-size:27px"]:not(input):not(select):not(textarea),
+  [style*="font-size:26px"]:not(input):not(select):not(textarea),
+  [style*="font-size:25px"]:not(input):not(select):not(textarea){font-size:11px!important}
+  [style*="font-size:24px"]:not(input):not(select):not(textarea),
+  [style*="font-size:23px"]:not(input):not(select):not(textarea),
+  [style*="font-size:22px"]:not(input):not(select):not(textarea){font-size:10px!important}
+  [style*="font-size:20px"]:not(input):not(select):not(textarea),
+  [style*="font-size:19px"]:not(input):not(select):not(textarea),
+  [style*="font-size:18px"]:not(input):not(select):not(textarea){font-size:9px!important}
+  [style*="font-size:17px"]:not(input):not(select):not(textarea),
+  [style*="font-size:16px"]:not(input):not(select):not(textarea),
+  [style*="font-size:15px"]:not(input):not(select):not(textarea){font-size:8px!important}
+  [style*="font-size:14px"]:not(input):not(select):not(textarea),
+  [style*="font-size:13px"]:not(input):not(select):not(textarea),
+  [style*="font-size:12px"]:not(input):not(select):not(textarea){font-size:8px!important}
   /* ── Dropdown nav menus (league pickers) — same fix, class-based ── */
   .nav-drop-fixed button,.nav-drop button{font-size:10px!important;padding:6px 10px!important}
   html .pill{font-size:9px!important}
