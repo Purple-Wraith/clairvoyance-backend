@@ -5065,7 +5065,14 @@ function nhlMC(hA,awA,n=25000){
   const ouLine=TONIGHT.find(g=>(g.h===hA&&g.a===awA)||(g.h===awA&&g.a===hA))?.ou||5.5;
   let hw=0,aw2=0,ot=0,hT=0,aT=0,rT=0,ov=0,rl15h=0,rl15a=0;
   for(let i=0;i<n;i++){const hg=pois(hLam),ag=pois(aLam);hT+=hg;aT+=ag;rT+=hg+ag;if(hg+ag>ouLine)ov++;if(hg>ag){hw++;if(hg-ag>=2)rl15h++;}else if(ag>hg){aw2++;if(ag-hg>=2)rl15a++;}else{ot++;hw+=.5;aw2+=.5;}}
-  return{hwP:hw/n,awP:aw2/n,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:ov/n,underP:1-ov/n,otP:ot/n,ouLine,rl15:rl15h/n,rlN:rl15a/n};
+  // Special-teams (hStAdj/aStAdj) and shot-quality (hSqAdj/aSqAdj) multipliers
+  // already drive hLam/aLam above but were never surfaced anywhere in the
+  // reasoning text -- a real signal the model uses but the reader never sees.
+  // Expressed as the multiplier-percentage-point edge between the two teams
+  // (same "pp" scale nhlEns's own hvM already reads as), reusable by any
+  // card that wants to name these signals instead of hiding them inside hLam.
+  const stEdge=(hStAdj-aStAdj)*100,sqEdge=(hSqAdj-aSqAdj)*100;
+  return{hwP:hw/n,awP:aw2/n,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:ov/n,underP:1-ov/n,otP:ot/n,ouLine,rl15:rl15h/n,rlN:rl15a/n,stEdge,sqEdge};
 }
 function nhlEns(hA,awA){
   const h=NHL[hA],aw=NHL[awA];if(!h||!aw)return{p:.5};
@@ -7971,7 +7978,9 @@ function _nhlUpcomingCard(g,dayIdx){
   _autoLockCapture('NHL',g.home,g.away,nm,mc?`MC PROJ: ${g.away} ${mc.avgA.toFixed(1)} – ${g.home} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null);
   const favGsax=hP>=.5?(h.gsax||0):(aw.gsax||0),dogGsax=hP>=.5?(aw.gsax||0):(h.gsax||0);
   const gsaxStr=`GSAx: ${favGsax>=0?'+':''}${favGsax.toFixed(1)} vs ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)}`;
-  const ensStr=`MC ${(ens.mc*100).toFixed(0)}% / xGF ${(ens.xgf*100).toFixed(0)}% / hv ${(ens.hvM>=0?'+':'')+(ens.hvM*100).toFixed(1)}pp`;
+  const stStr=mc?.stEdge!=null?` / ST ${(mc.stEdge>=0?'+':'')+mc.stEdge.toFixed(1)}pp`:'';
+  const sqStr=mc?.sqEdge!=null?` / SQ ${(mc.sqEdge>=0?'+':'')+mc.sqEdge.toFixed(1)}pp`:'';
+  const ensStr=`MC ${(ens.mc*100).toFixed(0)}% / xGF ${(ens.xgf*100).toFixed(0)}% / hv ${(ens.hvM>=0?'+':'')+(ens.hvM*100).toFixed(1)}pp${stStr}${sqStr}`;
   let explanation='';
   if(topTier===0){
     explanation=`No qualifying edge (best ${bm.label} ${bp}%). Skip or monitor line movement before puck drop.`;
@@ -8715,18 +8724,30 @@ function _liigaMatchCard(g){
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_liigaBlendedRates(h),aR=_liigaBlendedRates(aw);
-  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}).`;
+  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). G/M-derived line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
   const bayStr=`Record: ${g.homeName} ${h.w}-${h.l}${h.wo?'-'+h.wo+'OTW':''}${h.lo?'-'+h.lo+'OTL':''} vs ${g.awayName} ${aw.w}-${aw.l}${aw.wo?'-'+aw.wo+'OTW':''}${aw.lo?'-'+aw.lo+'OTL':''}.`;
+  const capStr=`No goaltending/possession data available for this league yet -- model is scoring-rate + record only.`;
+  const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
   let explanation;
   if(topTier===0){
-    explanation=`No qualifying edge. ${ratesStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)}. Skip.`;
+    explanation=`No qualifying edge (best ${bm.label} ${bp}%). ${ratesStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). Skip or monitor line movement.`;
   }else{
-    explanation=`${ratesStr} ${bayStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). `
-      +(bm.side==='mlFav'?`${g.homeName}'s scoring edge unpriced by a flat moneyline.`:
-        bm.side==='mlDog'?`${g.awayName} road value the record alone doesn't capture.`:
-        bm.side==='over'?`Combined scoring rate supports goals above the line.`:
-        `Combined scoring rate supports a tighter, lower-scoring line.`)
-      +` No goaltending/possession data available for this league yet -- model is scoring-rate + record only. Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian ${(ens.bay*100).toFixed(0)}%. ${nm.size}-unit play${nm.secStr}.`;
+    const mcProjStr=`MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line).`;
+    // Real bug fixed here: this branching used to only recognize
+    // mlFav/mlDog/over, so a puck-line (sprdFav/sprdDog) best market fell
+    // through to the generic O/U "tighter, lower-scoring line" wording --
+    // describing a margin bet with total-goals language. Every side _evalMkts
+    // can actually return (mlFav/mlDog/sprdFav/sprdDog/over/under) now gets
+    // its own real-number sentence, same parity NHL's own per-side branching
+    // already has.
+    let sideStr;
+    if(bm.side==='mlFav')sideStr=`${g.homeName}'s scoring edge unpriced by a flat moneyline.`;
+    else if(bm.side==='mlDog')sideStr=`${g.awayName} road value the record alone doesn't capture.`;
+    else if(bm.side==='sprdFav')sideStr=`${favTeam} -1.5 covers in ${(plFavP*100).toFixed(1)}% of the model's exact scoring distribution (dog covers ${(plDogP*100).toFixed(1)}%).`;
+    else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's exact scoring distribution (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
+    else if(bm.side==='over')sideStr=`Combined scoring rate supports goals above the ${ouL} line.`;
+    else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
+    explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
   }
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
@@ -8766,6 +8787,7 @@ function _liigaMatchCard(g){
         <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span>
         <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
       </div>
+      ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
       <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
@@ -8964,18 +8986,23 @@ function _shlMatchCard(g){
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_shlBlendedRates(h),aR=_shlBlendedRates(aw);
-  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}).`;
+  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). G/M-derived line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
   const bayStr=`Record: ${g.homeName} ${h.w}-${h.l}${h.wo?'-'+h.wo+'OTW':''}${h.lo?'-'+h.lo+'OTL':''} vs ${g.awayName} ${aw.w}-${aw.l}${aw.wo?'-'+aw.wo+'OTW':''}${aw.lo?'-'+aw.lo+'OTL':''}.`;
+  const capStr=`No goaltending/possession data available for this league yet -- model is scoring-rate + record only.`;
+  const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
   let explanation;
   if(topTier===0){
-    explanation=`No qualifying edge. ${ratesStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)}. Skip.`;
+    explanation=`No qualifying edge (best ${bm.label} ${bp}%). ${ratesStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). Skip or monitor line movement.`;
   }else{
-    explanation=`${ratesStr} ${bayStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). `
-      +(bm.side==='mlFav'?`${g.homeName}'s scoring edge unpriced by a flat moneyline.`:
-        bm.side==='mlDog'?`${g.awayName} road value the record alone doesn't capture.`:
-        bm.side==='over'?`Combined scoring rate supports goals above the line.`:
-        `Combined scoring rate supports a tighter, lower-scoring line.`)
-      +` No goaltending/possession data available for this league yet -- model is scoring-rate + record only. Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian ${(ens.bay*100).toFixed(0)}%. ${nm.size}-unit play${nm.secStr}.`;
+    const mcProjStr=`MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line).`;
+    let sideStr;
+    if(bm.side==='mlFav')sideStr=`${g.homeName}'s scoring edge unpriced by a flat moneyline.`;
+    else if(bm.side==='mlDog')sideStr=`${g.awayName} road value the record alone doesn't capture.`;
+    else if(bm.side==='sprdFav')sideStr=`${favTeam} -1.5 covers in ${(plFavP*100).toFixed(1)}% of the model's exact scoring distribution (dog covers ${(plDogP*100).toFixed(1)}%).`;
+    else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's exact scoring distribution (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
+    else if(bm.side==='over')sideStr=`Combined scoring rate supports goals above the ${ouL} line.`;
+    else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
+    explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
   }
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
@@ -9015,6 +9042,7 @@ function _shlMatchCard(g){
         <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span>
         <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
       </div>
+      ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
       <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
