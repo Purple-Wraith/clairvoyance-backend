@@ -4121,10 +4121,17 @@ function _mergeRemoteBetRows(rows){
 }
 // full=true forces a complete pull (init, manual SYNC button -- both
 // infrequent, and both places where missing an old change would be most
-// noticeable). Every other caller (the 90s interval, the pre-write
-// reconcile in _doSupabaseSync) omits it and gets the 45-day-scoped
-// pull instead -- see _fetchSupabaseBetRows' own comment for why that's
-// safe and why it was necessary.
+// noticeable). Every other caller (the background pull timer, the pre-
+// write reconcile in _doSupabaseSync) omits it and gets the scoped pull
+// instead -- see _fetchSupabaseBetRows' own comment for why that's safe
+// and why it was necessary. Window narrowed 45->10 days 2026-09-16
+// (explicit request to cut Supabase egress further) -- the account is
+// personal/single-user (confirmed: only the owner ever opens this app),
+// so the realistic case this window exists for is "I locked/settled
+// something a few days ago on another device," not a month-and-a-half-
+// old change; a real cross-device gap wider than 10 days is vanishingly
+// rare and, even then, self-heals on the next full=true pull (page
+// reload or manual SYNC).
 async function syncPicksFromSupabase(full){
   try{
     const now=Date.now();
@@ -4134,7 +4141,7 @@ async function syncPicksFromSupabase(full){
     _lastSupabasePullTs=now;
     let rows;
     try{
-      rows=await _fetchSupabaseBetRows(full?null:45);
+      rows=await _fetchSupabaseBetRows(full?null:10);
     }catch(e){
       // Real incident, 2026-09-13: Supabase's own egress quota got
       // exceeded and the project was restricted account-wide (HTTP 402
@@ -13914,9 +13921,33 @@ function renderHomePage(){
   // running for hours.
   if(!window._homeRefTimer)window._homeRefTimer=setInterval(()=>{try{renderHomePage();}catch(e){}},60000);
   // Cross-device sync: pull picks locked/settled on another device (phone
-  // vs laptop, say) every 90s while this tab is open, so both stay current
-  // without needing a manual SYNC click or full page reload.
-  if(!window._supabasePullTimer)window._supabasePullTimer=setInterval(()=>{try{syncPicksFromSupabase();}catch(e){}},90000);
+  // vs laptop, say), or by the automated GitHub Actions pipeline, so an
+  // open tab stays current without needing a manual SYNC click or full
+  // page reload.
+  //
+  // Widened 90s -> 3hr and paused while the tab is hidden, 2026-09-16 --
+  // explicit request after confirming this is a single-owner account
+  // (nobody else opens this app) that's "often left open for long
+  // stretches." A 90s poll that keeps firing while the tab sits
+  // backgrounded/minimized for hours is pure egress with zero one-person
+  // freshness benefit -- nobody is watching the screen update every 90
+  // seconds. The visibilitychange listener below does the real work:
+  // the moment the tab is actually looked at again (foregrounded), it
+  // fires an immediate catch-up pull regardless of how long the 3hr
+  // interval has left to run, so real freshness-on-demand is unaffected
+  // -- only the "polling into the void while nobody's looking" waste is
+  // cut. syncPicksFromSupabase's own 3s debounce (see its own comment)
+  // already protects against this firing twice in quick succession if
+  // the interval and a visibility-triggered pull land close together.
+  if(!window._supabasePullTimer){
+    window._supabasePullTimer=setInterval(()=>{
+      if(document.hidden)return;
+      try{syncPicksFromSupabase();}catch(e){}
+    },3*60*60*1000);
+    document.addEventListener('visibilitychange',()=>{
+      if(!document.hidden){try{syncPicksFromSupabase();}catch(e){}}
+    });
+  }
 }
 
 // ── Header dual-timezone clock ────────────────────────────────────────────────
