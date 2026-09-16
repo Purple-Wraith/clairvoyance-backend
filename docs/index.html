@@ -5224,12 +5224,12 @@ function renderNHLTonight(){
         const _nhlCtx=`xGF: ${_favXGF}% vs ${_dogXGF}% | GF/60: ${_favGF60} vs ${_dogGF60} | Zone%: ${_favZone} vs ${_dogZone} | Spd: ${_favSpd} vs ${_dogSpd} mph | ${_gsaxStr} | GSAx gap: ${_gaxDiff}`;
         const _nhlProj=`Projected: ${_projH1}–${_projA1} (O/U ${gh.ou}: ${(_mc1?.overP*100||50).toFixed(0)}% over, OT ${_otPct1}%)`;
         const _nhlEns=`${_ensStr1} (${_sigStr1})`;
-        if(_bm1.side==='mlFav')explanation=`Best market: <strong>${favTeam} ML</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Goalies: ${_favGoalie} GSAx +${favGsax.toFixed(1)} vs ${_dogGoalie} GSAx ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)} — ${parseFloat(_gaxDiff)>3?'decisive':'meaningful'} advantage. ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
-        else if(_bm1.side==='mlDog')explanation=`Best market: <strong>${dogTeam} ML</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Underdog value: ${_dogGoalie} GSAx ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)} capable of stealing game despite xGF deficit. Dog xGF ${_dogXGF}% / Zone ${_dogZone}% signal competitive game. ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
-        else if(_bm1.side==='plFav'){const _pl1FavMC=(mc?.rl15!=null?mc.rl15:plP),_pl1DogMC=(mc?.rlN!=null?mc.rlN:(1-plP));explanation=`Best market: <strong>${favTeam} -1.5</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Fav covers -1.5 in ${(_pl1FavMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl1FavMC*100).toFixed(1)}% fav / ${(_pl1DogMC*100).toFixed(1)}% dog (10k sims). xGF ${_favXGF}% vs ${_dogXGF}% + GF/60 ${_favGF60}. ${_favGoalie} GSAx +${favGsax.toFixed(1)}. ${_nhlCtx}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;}
-        else if(_bm1.side==='plDog'){const _pl1DogMC=(mc?.rlN!=null?mc.rlN:(1-plP)),_pl1FavMC=(mc?.rl15!=null?mc.rl15:plP);explanation=`Best market: <strong>${dogTeam} +1.5</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Dog covers +1.5 in ${(_pl1DogMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl1FavMC*100).toFixed(1)}% fav / ${(_pl1DogMC*100).toFixed(1)}% dog (10k sims). ${_dogGoalie} GSAx ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)} limits damage. Dog Zone% ${_dogZone} / GF60 ${_dogGF60}. ${_nhlCtx}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;}
-        else if(_bm1.side==='over')explanation=`Best market: <strong>OVER ${gh.ou}</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Totals play: combined GF/60 ${(parseFloat(_favGF60)+parseFloat(_dogGF60)).toFixed(2)} projects ${(parseFloat(_projH1)+parseFloat(_projA1)).toFixed(1)} goals vs ${gh.ou} line. Pace/speed: ${_favSpd} vs ${_dogSpd} mph (open game). ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
-        else explanation=`Best market: <strong>UNDER ${gh.ou}</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Low-scoring game: combined ERA ${_gsaxStr} + tight zone entry data projects under the number. GF/60: ${_favGF60} vs ${_dogGF60} — both rotations defensively sound. ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
+        if(_bm1.side==='mlFav')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} ML</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Goalies: ${_favGoalie} GSAx +${favGsax.toFixed(1)} vs ${_dogGoalie} GSAx ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)} — ${parseFloat(_gaxDiff)>3?'decisive':'meaningful'} advantage. ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
+        else if(_bm1.side==='mlDog')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} ML</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Underdog value: ${_dogGoalie} GSAx ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)} capable of stealing game despite xGF deficit. Dog xGF ${_dogXGF}% / Zone ${_dogZone}% signal competitive game. ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
+        else if(_bm1.side==='plFav'){const _pl1FavMC=(mc?.rl15!=null?mc.rl15:plP),_pl1DogMC=(mc?.rlN!=null?mc.rlN:(1-plP));explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} -1.5</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Fav covers -1.5 in ${(_pl1FavMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl1FavMC*100).toFixed(1)}% fav / ${(_pl1DogMC*100).toFixed(1)}% dog (10k sims). xGF ${_favXGF}% vs ${_dogXGF}% + GF/60 ${_favGF60}. ${_favGoalie} GSAx +${favGsax.toFixed(1)}. ${_nhlCtx}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;}
+        else if(_bm1.side==='plDog'){const _pl1DogMC=(mc?.rlN!=null?mc.rlN:(1-plP)),_pl1FavMC=(mc?.rl15!=null?mc.rl15:plP);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} +1.5</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Dog covers +1.5 in ${(_pl1DogMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl1FavMC*100).toFixed(1)}% fav / ${(_pl1DogMC*100).toFixed(1)}% dog (10k sims). ${_dogGoalie} GSAx ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)} limits damage. Dog Zone% ${_dogZone} / GF60 ${_dogGF60}. ${_nhlCtx}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;}
+        else if(_bm1.side==='over')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${gh.ou}</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Totals play: combined GF/60 ${(parseFloat(_favGF60)+parseFloat(_dogGF60)).toFixed(2)} projects ${(parseFloat(_projH1)+parseFloat(_projA1)).toFixed(1)} goals vs ${gh.ou} line. Pace/speed: ${_favSpd} vs ${_dogSpd} mph (open game). ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
+        else explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${gh.ou}</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Low-scoring game: combined ERA ${_gsaxStr} + tight zone entry data projects under the number. GF/60: ${_favGF60} vs ${_dogGF60} — both rotations defensively sound. ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
       }
       html+=`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)"><div class="gch"><div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${gh.a}</span><span style="color:var(--t3);font-size:15px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${gh.h}</span></div><div class="gsp">GOALIES: ${aw.g1} vs ${h.g1}</div><div class="gsp">${gh.ctx?'G'+gh.gn+' · '+gh.ctx+' · ':''}<span style="color:var(--vc)">O/U ${gh.ou}</span></div></div><div style="text-align:right"><div class="np mono" style="font-size:19px">${statusDot}${statusTxt}</div></div></div><div class="brow"><div class="${hCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.h}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)})"><div class="cht">ML ${gh.h}</div><div class="cho">${hML}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div><div class="${aCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.a}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)})"><div class="cht">ML ${gh.a}</div><div class="cho">${aML}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div><div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="-1.5" id="sprd_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','FAV','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.h:gh.a}</div><div id="fav_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">-1.5</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','DOG','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.a:gh.h}</div><div id="dog_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">+1.5</div></button></div></div><div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${gh.ou}" id="ouinp_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button></div></div></div><div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span><span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span></div>${_mcProjBarHTML(mc,gh.ou||5.5,gh.h,gh.a,{dec:2})}<div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div><div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm1.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div></div><div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px"><span class="mono" style="font-size:16px;color:var(--t3)">MC:${(ens.mc*100).toFixed(0)}% xGF:${(ens.xgf*100).toFixed(0)}% ELO:${(ens.elo*100).toFixed(0)}% · PROJ ${mc?mc.avgH.toFixed(1)+'-'+mc.avgA.toFixed(1):'—'} · OT ${mc?(mc.otP*100).toFixed(0):0}%</span></div></div>`;
     }
@@ -5275,12 +5275,12 @@ function renderNHLTonight(){
     const _bm2=_nm2.best,evPct=(_bm2.evVal*100).toFixed(1),_bp2=(_bm2.prob*100).toFixed(1);
     let explanation='';
     if(topTier===0){explanation=`Model finds no qualifying edge (best prob ${(favP*100).toFixed(1)}%). Series pressure creates inefficiency — skip or watch live line movement before ${g.time}.`;}
-    else if(_bm2.side==='mlFav'){explanation=`Best market: <strong>${favTeam} ML</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%) — top-tier edge against current market pricing. Goaltending heavily favors ${favTeam} (${_g2gsax}). ${_ensStr2} all align. ${_nm2.size}-unit play${_nm2.secStr}.`;}
-    else if(_bm2.side==='mlDog'){explanation=`Best market: <strong>${dogTeam} ML</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%) — value on the underdog. ${_g2gsax} supports a closer game than the line suggests. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
-    else if(_bm2.side==='plFav'){const _pl2FavMC=(mc?.rl15!=null?mc.rl15:plP),_pl2DogMC=(mc?.rlN!=null?mc.rlN:(1-plP));explanation=`Best market: <strong>${favTeam} -1.5</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%). Fav covers -1.5 in ${(_pl2FavMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl2FavMC*100).toFixed(1)}% fav / ${(_pl2DogMC*100).toFixed(1)}% dog (10k sims). ${_g2gsax} signals dominant ${favTeam} performance. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
-    else if(_bm2.side==='plDog'){const _pl2DogMC=(mc?.rlN!=null?mc.rlN:(1-plP)),_pl2FavMC=(mc?.rl15!=null?mc.rl15:plP);explanation=`Best market: <strong>${dogTeam} +1.5</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%). Dog covers +1.5 in ${(_pl2DogMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl2FavMC*100).toFixed(1)}% fav / ${(_pl2DogMC*100).toFixed(1)}% dog (10k sims). ${_g2gsax} suggests ${dogTeam} can keep this within a goal. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
-    else if(_bm2.side==='over'){const _mc2T=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong>OVER ${g.ou||5.5}</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%). MC projects ${_mc2T} goals vs ${g.ou||5.5} line (${(mc?.overP*100||50).toFixed(0)}% over in 10k sims). ${_g2gsax}. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
-    else{const _mc2T=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong>UNDER ${g.ou||5.5}</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%). MC projects ${_mc2T} goals vs ${g.ou||5.5} line (${((1-(mc?.overP||.5))*100).toFixed(0)}% under in 10k sims). ${_g2gsax} tight goaltending duel. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
+    else if(_bm2.side==='mlFav'){explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} ML</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%) — top-tier edge against current market pricing. Goaltending heavily favors ${favTeam} (${_g2gsax}). ${_ensStr2} all align. ${_nm2.size}-unit play${_nm2.secStr}.`;}
+    else if(_bm2.side==='mlDog'){explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} ML</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%) — value on the underdog. ${_g2gsax} supports a closer game than the line suggests. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
+    else if(_bm2.side==='plFav'){const _pl2FavMC=(mc?.rl15!=null?mc.rl15:plP),_pl2DogMC=(mc?.rlN!=null?mc.rlN:(1-plP));explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} -1.5</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%). Fav covers -1.5 in ${(_pl2FavMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl2FavMC*100).toFixed(1)}% fav / ${(_pl2DogMC*100).toFixed(1)}% dog (10k sims). ${_g2gsax} signals dominant ${favTeam} performance. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
+    else if(_bm2.side==='plDog'){const _pl2DogMC=(mc?.rlN!=null?mc.rlN:(1-plP)),_pl2FavMC=(mc?.rl15!=null?mc.rl15:plP);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} +1.5</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%). Dog covers +1.5 in ${(_pl2DogMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl2FavMC*100).toFixed(1)}% fav / ${(_pl2DogMC*100).toFixed(1)}% dog (10k sims). ${_g2gsax} suggests ${dogTeam} can keep this within a goal. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
+    else if(_bm2.side==='over'){const _mc2T=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${g.ou||5.5}</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%). MC projects ${_mc2T} goals vs ${g.ou||5.5} line (${(mc?.overP*100||50).toFixed(0)}% over in 10k sims). ${_g2gsax}. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
+    else{const _mc2T=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${g.ou||5.5}</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%). MC projects ${_mc2T} goals vs ${g.ou||5.5} line (${((1-(mc?.overP||.5))*100).toFixed(0)}% under in 10k sims). ${_g2gsax} tight goaltending duel. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
     html+=`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)">
   <div class="gch">
     <div>
@@ -6488,9 +6488,11 @@ function _cfbGameCard(g){
           <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${ouNote}</div>
         </div>`;
       })()}
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-        <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${nm.col};color:${nm.col};border-radius:2px">${nm.lbl}</span>
-        <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">BEST MARKET: <strong style="color:var(--t2)">${nm.best.label}</strong> · ${(nm.best.prob*100).toFixed(1)}% · EV ${nm.best.evVal>=0?'+':''}${(nm.best.evVal*100).toFixed(1)}%</span>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 9px;background:${nm.tierN===3?'rgba(255,221,0,.12)':nm.tierN===2?'rgba(0,240,255,.12)':nm.tierN===1?'rgba(102,144,255,.1)':'rgba(150,130,180,.06)'};border:1px solid ${nm.col};border-radius:3px;box-shadow:0 0 10px ${nm.tierN===3?'rgba(255,221,0,.3)':nm.tierN===2?'rgba(0,240,255,.3)':nm.tierN===1?'rgba(102,144,255,.25)':'transparent'};flex-wrap:wrap">
+        <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${nm.col};color:${nm.col};border-radius:2px;flex-shrink:0">${nm.lbl}</span>
+        <span style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">BEST MARKET</span>
+        <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:${nm.col}">${nm.best.label}</span>
+        <span style="font-family:var(--mono);font-size:14px;color:var(--t2)">${(nm.best.prob*100).toFixed(1)}% · EV ${nm.best.evVal>=0?'+':''}${(nm.best.evVal*100).toFixed(1)}%</span>
       </div>
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">ENSEMBLE: MC ${(ens.mc*100).toFixed(0)}% / BAY ${(ens.bay*100).toFixed(0)}% / ELO ${(ens.elo*100).toFixed(0)}% win prob (weighted MC/BAY/ELO ${(100-ens.eloWeight*100).toFixed(0)}%/ELO ${(ens.eloWeight*100).toFixed(0)}% blend applied — see MODEL tab to adjust)</div>
@@ -7092,7 +7094,13 @@ function nflSubTab2(tab){
 }
 function _nflPopulateWeekFilter(){
   const D=_NFL_DATA;const sel=document.getElementById('nfl2-filter-week');if(!D||!sel)return;
-  const weeks=Object.keys(D.weeks);
+  // Preseason weeks (nfl_schedule.json's own "Preseason Week 1-3" keys,
+  // seasonType:1) excluded -- explicit request, 2026-09-16, same
+  // seasonType!==1 exclusion the auto-lock pipeline and the Model Props
+  // dropdown (_nflPopulateModelPropsGameFilter) already apply. Checked via
+  // the week's own games rather than the label text, since a schedule
+  // relabeling wouldn't silently defeat this the way a name-based check would.
+  const weeks=Object.keys(D.weeks).filter(w=>!(D.weeks[w]||[]).some(g=>g.seasonType===1));
   if(sel.options.length===weeks.length)return;
   sel.innerHTML=weeks.map(w=>`<option value="${w}">${w.toUpperCase()}</option>`).join('');
   // Default to the first week that still has an unplayed game, not
@@ -7146,13 +7154,27 @@ function _nflGameCard2(g){
   const hS=D.standings[g.home]||{},aS=D.standings[g.away]||{};
   const injH=(D.injuriesByTeam[g.home]||[]).filter(i=>i.status&&i.status.toLowerCase()!=='active');
   const injA=(D.injuriesByTeam[g.away]||[]).filter(i=>i.status&&i.status.toLowerCase()!=='active');
-  const reasoning=`FPI-equivalent here is each team's own point differential: ${g.home} ${hS.differential!=null?(hS.differential>=0?'+':'')+hS.differential:'—'} (${hS.wins??'—'}-${hS.losses??'—'}), ${g.away} ${aS.differential!=null?(aS.differential>=0?'+':'')+aS.differential:'—'} (${aS.wins??'—'}-${aS.losses??'—'}). `
+  const injTxt=(injH.length?`${g.home} injury notes: ${injH.slice(0,2).map(i=>i.player+' ('+i.status+(i.injury?', '+i.injury:'')+')').join('; ')}. `:'')
+    +(injA.length?`${g.away} injury notes: ${injA.slice(0,2).map(i=>i.player+' ('+i.status+(i.injury?', '+i.injury:'')+')').join('; ')}. `:'');
+  // Three separate ML/SPREAD/O-U reasoning paragraphs, same structure CFB's
+  // own game cards already use (_cfbPickReasoning/mlReasoning/sprdReasoning/
+  // ouReasoning) -- explicit request, 2026-09-16: NFL previously collapsed
+  // everything (differential, HFA, weather, injuries, MC proj) into one
+  // undifferentiated paragraph regardless of which market a reader actually
+  // cared about grading. _mktGrade mirrors CFB's own helper exactly, reading
+  // the same nm.mkts array this function already builds above.
+  const _mktGrade=side=>{const m=nm.mkts.find(x=>x.side===side);const lbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN];const col=m.tierN===3?'var(--gc)':m.tierN===2?'var(--nc)':m.tierN===1?'var(--ic)':'var(--t3)';return{m,lbl,col};};
+  const mlGrade=hP>=aP?_mktGrade('mlFav'):_mktGrade('mlDog');
+  const sprdGrade=favCoverP>=dogCoverP?_mktGrade('sprdFav'):_mktGrade('sprdDog');
+  const ouGrade=overP>=underP?_mktGrade('over'):_mktGrade('under');
+  const diffTxt=`Point differential: ${g.home} ${hS.differential!=null?(hS.differential>=0?'+':'')+hS.differential:'—'} (${hS.wins??'—'}-${hS.losses??'—'}), ${g.away} ${aS.differential!=null?(aS.differential>=0?'+':'')+aS.differential:'—'} (${aS.wins??'—'}-${aS.losses??'—'}). `
     +(g.neutralSite?`Neutral site — no home-field adjustment applied. `:`${g.home} is home, getting the model's ${_nflHFA()}-point default home-field edge. `)
-    +(mc.hasDiff?'':'One team has no standings-based differential yet, so this projection falls back to the market spread instead. ')
+    +(mc.hasDiff?'':'One team has no standings-based differential yet, so this projection falls back to the market spread instead. ');
+  const mlReasoning=`<span style="color:${mlGrade.col}">${mlGrade.m.label} · ${mlGrade.lbl} · ${(mlGrade.m.prob*100).toFixed(1)}% · EV +${(mlGrade.m.evVal*100).toFixed(1)}%</span><br>${diffTxt}${injTxt}`;
+  const sprdReasoning=`<span style="color:${sprdGrade.col}">${sprdGrade.m.label} · ${sprdGrade.lbl} · ${(sprdGrade.m.prob*100).toFixed(1)}% · EV +${(sprdGrade.m.evVal*100).toFixed(1)}%</span><br>MC-projected margin ${(spreadFav===g.home?mc.avgH-mc.avgA:mc.avgA-mc.avgH)>=0?'+':''}${(spreadFav===g.home?mc.avgH-mc.avgA:mc.avgA-mc.avgH).toFixed(1)} for ${spreadFav} vs the ${baseSpread.toFixed(1)}-pt line. ${diffTxt}${injTxt}`;
+  const ouReasoning=`<span style="color:${ouGrade.col}">${ouGrade.m.label} · ${ouGrade.lbl} · ${(ouGrade.m.prob*100).toFixed(1)}% · EV +${(ouGrade.m.evVal*100).toFixed(1)}%</span><br>`
     +(mc.wx?`Real forecast at ${g.venue||g.city||'the venue'}: ${mc.wx.temp}°F, ${mc.wx.wind}mph wind${mc.wx.snow>0?`, ${mc.wx.snow}"/hr snow`:''} — folded into the total as a ${mc.wxImpact.totalAdj>=0?'+':''}${mc.wxImpact.totalAdj}-pt adjustment. `:g.indoor?`${g.venue||'This venue'} is indoors — no weather factor applies. `:'No forecast loaded yet for this venue (too far out, or location unresolved) — total is weather-neutral for now. ')
-    +(injH.length?`${g.home} injury notes: ${injH.slice(0,2).map(i=>i.player+' ('+i.status+(i.injury?', '+i.injury:'')+')').join('; ')}. `:'')
-    +(injA.length?`${g.away} injury notes: ${injA.slice(0,2).map(i=>i.player+' ('+i.status+(i.injury?', '+i.injury:'')+')').join('; ')}. `:'')
-    +`MC sim (${mc.n.toLocaleString()} runs): proj ${g.away} ${mc.avgA} – ${g.home} ${mc.avgH} (${mc.avgTotal} total).`;
+    +`MC sim (${mc.n.toLocaleString()} runs): proj ${g.away} ${mc.avgA} – ${g.home} ${mc.avgH} (${mc.avgTotal} total) vs the ${ouL.toFixed(1)} line.`;
   return`<div class="gc" style="border-left:2px solid rgba(0,120,255,.4)">
     <div class="gch">
       <div>
@@ -7191,12 +7213,18 @@ function _nflGameCard2(g){
     </div>
     <div style="padding:8px 10px;background:rgba(0,120,255,.04);border-top:1px solid rgba(0,120,255,.1)">
       ${_mcProjBarHTML({avgH:mc.avgH,avgA:mc.avgA,avgT:mc.avgTotal,overP:overP},ouL.toFixed(1),g.home,g.away,{n:mc.n,dec:1})}
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-        <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${nm.col};color:${nm.col};border-radius:2px">${nm.lbl}</span>
-        <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">BEST MARKET: <strong style="color:var(--t2)">${nm.best.label}</strong> · ${(nm.best.prob*100).toFixed(1)}% · EV ${nm.best.evVal>=0?'+':''}${(nm.best.evVal*100).toFixed(1)}%</span>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 9px;background:${nm.tierN===3?'rgba(255,221,0,.12)':nm.tierN===2?'rgba(0,240,255,.12)':nm.tierN===1?'rgba(102,144,255,.1)':'rgba(150,130,180,.06)'};border:1px solid ${nm.col};border-radius:3px;box-shadow:0 0 10px ${nm.tierN===3?'rgba(255,221,0,.3)':nm.tierN===2?'rgba(0,240,255,.3)':nm.tierN===1?'rgba(102,144,255,.25)':'transparent'};flex-wrap:wrap">
+        <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${nm.col};color:${nm.col};border-radius:2px;flex-shrink:0">${nm.lbl}</span>
+        <span style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">BEST MARKET</span>
+        <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:${nm.col}">${nm.best.label}</span>
+        <span style="font-family:var(--mono);font-size:14px;color:var(--t2)">${(nm.best.prob*100).toFixed(1)}% · EV ${nm.best.evVal>=0?'+':''}${(nm.best.evVal*100).toFixed(1)}%</span>
       </div>
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
-      <div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${reasoning}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">MONEYLINE REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${mlReasoning}</div></div>
+        <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">SPREAD REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${sprdReasoning}</div></div>
+        <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">O/U REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${ouReasoning}</div></div>
+      </div>
     </div>
   </div>`;
 }
@@ -7626,12 +7654,12 @@ function _nhlGameCard(espnEv){
       else{
         const _bp3=(_bm3.prob*100).toFixed(1),_ep3=(_bm3.evVal*100).toFixed(1);
         const _sn=seriesNote?' in '+seriesNote:'';
-        if(_bm3.side==='mlFav')explanation=`Best market: <strong>${_nhlFav3} ML</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn} — shot quality, xGF, and GSAx all strongly favor ${_nhlFav3}. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;
-        else if(_bm3.side==='mlDog')explanation=`Best market: <strong>${_nhlDog3} ML</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn} — model finds underdog value. Series context supports a closer game than the odds imply. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;
-        else if(_bm3.side==='plFav'){const _mcPl=nhlEns(hn,an)?.mcD;const _pl3FavMC=(_mcPl?.rl15!=null?_mcPl.rl15:plP),_pl3DogMC=(_mcPl?.rlN!=null?_mcPl.rlN:(1-plP));explanation=`Best market: <strong>${_nhlFav3} -1.5</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. Fav covers -1.5 in ${(_pl3FavMC*100).toFixed(1)}% of 10k sims (proj ${(_mcPl?.avgH||0).toFixed(1)}–${(_mcPl?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl3FavMC*100).toFixed(1)}% fav / ${(_pl3DogMC*100).toFixed(1)}% dog (10k sims). Dominant structural edge supports multi-goal margin. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
-        else if(_bm3.side==='plDog'){const _mcPl=nhlEns(hn,an)?.mcD;const _pl3DogMC=(_mcPl?.rlN!=null?_mcPl.rlN:(1-plP)),_pl3FavMC=(_mcPl?.rl15!=null?_mcPl.rl15:plP);explanation=`Best market: <strong>${_nhlDog3} +1.5</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. Dog covers +1.5 in ${(_pl3DogMC*100).toFixed(1)}% of 10k sims (proj ${(_mcPl?.avgH||0).toFixed(1)}–${(_mcPl?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl3FavMC*100).toFixed(1)}% fav / ${(_pl3DogMC*100).toFixed(1)}% dog (10k sims). ${_nhlDog3} can stay within a goal. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
-        else if(_bm3.side==='over'){const _mc3=nhlEns(hn,an)?.mcD;const _mc3T=_mc3?(_mc3.avgH+_mc3.avgA).toFixed(1):'—';explanation=`Best market: <strong>OVER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_mc3?((_mc3.overP||.5)*100).toFixed(0):50)}% over in 10k sims). ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
-        else{const _mc3=nhlEns(hn,an)?.mcD;const _mc3T=_mc3?(_mc3.avgH+_mc3.avgA).toFixed(1):'—';explanation=`Best market: <strong>UNDER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_mc3?((1-(_mc3.overP||.5))*100).toFixed(0):50)}% under in 10k sims). ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        if(_bm3.side==='mlFav')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFav3} ML</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn} — shot quality, xGF, and GSAx all strongly favor ${_nhlFav3}. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;
+        else if(_bm3.side==='mlDog')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDog3} ML</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn} — model finds underdog value. Series context supports a closer game than the odds imply. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;
+        else if(_bm3.side==='plFav'){const _mcPl=nhlEns(hn,an)?.mcD;const _pl3FavMC=(_mcPl?.rl15!=null?_mcPl.rl15:plP),_pl3DogMC=(_mcPl?.rlN!=null?_mcPl.rlN:(1-plP));explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFav3} -1.5</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. Fav covers -1.5 in ${(_pl3FavMC*100).toFixed(1)}% of 10k sims (proj ${(_mcPl?.avgH||0).toFixed(1)}–${(_mcPl?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl3FavMC*100).toFixed(1)}% fav / ${(_pl3DogMC*100).toFixed(1)}% dog (10k sims). Dominant structural edge supports multi-goal margin. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        else if(_bm3.side==='plDog'){const _mcPl=nhlEns(hn,an)?.mcD;const _pl3DogMC=(_mcPl?.rlN!=null?_mcPl.rlN:(1-plP)),_pl3FavMC=(_mcPl?.rl15!=null?_mcPl.rl15:plP);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDog3} +1.5</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. Dog covers +1.5 in ${(_pl3DogMC*100).toFixed(1)}% of 10k sims (proj ${(_mcPl?.avgH||0).toFixed(1)}–${(_mcPl?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl3FavMC*100).toFixed(1)}% fav / ${(_pl3DogMC*100).toFixed(1)}% dog (10k sims). ${_nhlDog3} can stay within a goal. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        else if(_bm3.side==='over'){const _mc3=nhlEns(hn,an)?.mcD;const _mc3T=_mc3?(_mc3.avgH+_mc3.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_mc3?((_mc3.overP||.5)*100).toFixed(0):50)}% over in 10k sims). ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        else{const _mc3=nhlEns(hn,an)?.mcD;const _mc3T=_mc3?(_mc3.avgH+_mc3.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_mc3?((1-(_mc3.overP||.5))*100).toFixed(0):50)}% under in 10k sims). ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
       }
       return`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)">
   <div class="gch">
@@ -7779,12 +7807,12 @@ function renderNHLGamesOffline(){
     if(topTier===0){explanation=`Model finds no qualifying edge (best prob ${(_nhlFavPOff*100).toFixed(1)}%). Skip or monitor line movement before ${g.time}.`;}
     else{
       const _bpOff=(_bmOff.prob*100).toFixed(1);
-      if(_bmOff.side==='mlFav')explanation=`Best market: <strong>${_nhlFavOff} ML</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%) — material market inefficiency. ${_g3gsax} is the primary driver. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;
-      else if(_bmOff.side==='mlDog')explanation=`Best market: <strong>${_nhlDogOff} ML</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%) — underdog value. ${_g3gsax} supports a closer game. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;
-      else if(_bmOff.side==='plFav'){const _plOFavMC=(mc?.rl15!=null?mc.rl15:plP),_plODogMC=(mc?.rlN!=null?mc.rlN:(1-plP));explanation=`Best market: <strong>${_nhlFavOff} -1.5</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%). Fav covers -1.5 in ${(_plOFavMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_plOFavMC*100).toFixed(1)}% fav / ${(_plODogMC*100).toFixed(1)}% dog (10k sims). ${_g3gsax} signals dominant ${_nhlFavOff} performance. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
-      else if(_bmOff.side==='plDog'){const _plODogMC=(mc?.rlN!=null?mc.rlN:(1-plP)),_plOFavMC=(mc?.rl15!=null?mc.rl15:plP);explanation=`Best market: <strong>${_nhlDogOff} +1.5</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%). Dog covers +1.5 in ${(_plODogMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_plOFavMC*100).toFixed(1)}% fav / ${(_plODogMC*100).toFixed(1)}% dog (10k sims). ${_g3gsax} suggests a tight game. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
-      else if(_bmOff.side==='over'){const _mcOffT=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong>OVER ${_ouLOff}</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%). MC projects ${_mcOffT} goals vs ${_ouLOff} line (${(mc?(mc.overP||.5)*100:50).toFixed(0)}% over in 10k sims). ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
-      else{const _mcOffT=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong>UNDER ${_ouLOff}</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%). MC projects ${_mcOffT} goals vs ${_ouLOff} line (${(mc?(1-(mc.overP||.5))*100:50).toFixed(0)}% under in 10k sims). ${_g3gsax}. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
+      if(_bmOff.side==='mlFav')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFavOff} ML</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%) — material market inefficiency. ${_g3gsax} is the primary driver. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;
+      else if(_bmOff.side==='mlDog')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDogOff} ML</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%) — underdog value. ${_g3gsax} supports a closer game. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;
+      else if(_bmOff.side==='plFav'){const _plOFavMC=(mc?.rl15!=null?mc.rl15:plP),_plODogMC=(mc?.rlN!=null?mc.rlN:(1-plP));explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFavOff} -1.5</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%). Fav covers -1.5 in ${(_plOFavMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_plOFavMC*100).toFixed(1)}% fav / ${(_plODogMC*100).toFixed(1)}% dog (10k sims). ${_g3gsax} signals dominant ${_nhlFavOff} performance. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
+      else if(_bmOff.side==='plDog'){const _plODogMC=(mc?.rlN!=null?mc.rlN:(1-plP)),_plOFavMC=(mc?.rl15!=null?mc.rl15:plP);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDogOff} +1.5</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%). Dog covers +1.5 in ${(_plODogMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_plOFavMC*100).toFixed(1)}% fav / ${(_plODogMC*100).toFixed(1)}% dog (10k sims). ${_g3gsax} suggests a tight game. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
+      else if(_bmOff.side==='over'){const _mcOffT=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${_ouLOff}</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%). MC projects ${_mcOffT} goals vs ${_ouLOff} line (${(mc?(mc.overP||.5)*100:50).toFixed(0)}% over in 10k sims). ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
+      else{const _mcOffT=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${_ouLOff}</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%). MC projects ${_mcOffT} goals vs ${_ouLOff} line (${(mc?(1-(mc.overP||.5))*100:50).toFixed(0)}% under in 10k sims). ${_g3gsax}. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
     }
     html+=`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)">
   <div class="gch">
@@ -7895,21 +7923,21 @@ function _nhlUpcomingCard(g,dayIdx){
   if(topTier===0){
     explanation=`No qualifying edge (best ${bm.label} ${bp}%). Skip or monitor line movement before puck drop.`;
   }else if(bm.side==='mlFav'){
-    explanation=`Best market: <strong>${favTeam} ML</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). ${gsaxStr} favors ${favTeam}. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
+    explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} ML</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). ${gsaxStr} favors ${favTeam}. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
   }else if(bm.side==='mlDog'){
-    explanation=`Best market: <strong>${dogTeam} ML</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%) — underdog value. ${gsaxStr} signals a closer game than the market price implies. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
+    explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} ML</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%) — underdog value. ${gsaxStr} signals a closer game than the market price implies. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
   }else if(bm.side==='plFav'){
     const favMC=mc?.rl15??plP,dogMC=mc?.rlN??plDogP;
-    explanation=`Best market: <strong>${favTeam} -1.5</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). Fav covers -1.5 in ${(favMC*100).toFixed(1)}% of sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(favMC*100).toFixed(1)}% fav / ${(dogMC*100).toFixed(1)}% dog. ${gsaxStr}. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
+    explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} -1.5</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). Fav covers -1.5 in ${(favMC*100).toFixed(1)}% of sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(favMC*100).toFixed(1)}% fav / ${(dogMC*100).toFixed(1)}% dog. ${gsaxStr}. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
   }else if(bm.side==='plDog'){
     const favMC=mc?.rl15??plP,dogMC=mc?.rlN??plDogP;
-    explanation=`Best market: <strong>${dogTeam} +1.5</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). Dog covers +1.5 in ${(dogMC*100).toFixed(1)}% of sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(favMC*100).toFixed(1)}% fav / ${(dogMC*100).toFixed(1)}% dog. ${gsaxStr} keeps this within a goal. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
+    explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} +1.5</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). Dog covers +1.5 in ${(dogMC*100).toFixed(1)}% of sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(favMC*100).toFixed(1)}% fav / ${(dogMC*100).toFixed(1)}% dog. ${gsaxStr} keeps this within a goal. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
   }else if(bm.side==='over'){
     const projT=mc?(mc.avgH+mc.avgA).toFixed(1):'—';
-    explanation=`Best market: <strong>OVER ${ouLine}</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). MC projects ${projT} goals vs the ${ouLine} line (${((mc?.overP??.5)*100).toFixed(0)}% over in sims). ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
+    explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${ouLine}</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). MC projects ${projT} goals vs the ${ouLine} line (${((mc?.overP??.5)*100).toFixed(0)}% over in sims). ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
   }else{
     const projT=mc?(mc.avgH+mc.avgA).toFixed(1):'—';
-    explanation=`Best market: <strong>UNDER ${ouLine}</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). MC projects ${projT} goals vs the ${ouLine} line (${((1-(mc?.overP??.5))*100).toFixed(0)}% under in sims). ${gsaxStr} points to tighter defense/goaltending. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
+    explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${ouLine}</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). MC projects ${projT} goals vs the ${ouLine} line (${((1-(mc?.overP??.5))*100).toFixed(0)}% under in sims). ${gsaxStr} points to tighter defense/goaltending. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
   }
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
@@ -9462,12 +9490,12 @@ function _nbaGameCard(espnEv){
         else{
           const _bpNBA=(_bmNBA.prob*100).toFixed(1);
           const _sizeNBA=_nmNBA.size+'-unit play';
-          if(_bmNBA.side==='mlFav')explanation=`Best market: <strong>${_nbaFav} ML</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`${_nbaCtxLine}. `+`${_nbaProjLine}. Pace avg ${(parseFloat(_hPace)+parseFloat(_aPace)/2).toFixed(1)} — ${parseFloat(_hPace)>100?'up-tempo':parseFloat(_hPace)<97?'half-court':'normal pace'} game. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
-          else if(_bmNBA.side==='mlDog')explanation=`Best market: <strong>${_nbaDog} ML</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Underdog value: ${_dogNbaN} net ${_dogNet} / DRtg ${_dogDrtg} / eFG ${_dogEFG}% — metrics don't justify the line. ${_nbaCtxLine}. ${_nbaProjLine}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
-          else if(_bmNBA.side==='sprdFav'){const _nbaFavCoverPct=(sprdP*100).toFixed(1),_nbaDogCoverPct=((1-sprdP)*100).toFixed(1);explanation=`Best market: <strong>${_nbaFav} -ATS (${sprdLbl})</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Fav covers -${Math.abs(espnSprdNum)} in ${_nbaFavCoverPct}% of simulations. ${_projSprdDisp}-pt proj margin vs ${espnSprdNum} line (+${(parseFloat(_projSprdDisp)-Math.abs(espnSprdNum)).toFixed(1)} value). MC cover rate: ${_nbaFavCoverPct}% fav / ${_nbaDogCoverPct}% dog. ${_nbaCtxLine}. eFG ${_favEFG}% vs opp-allowed ${_favOppEFG}%. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;}
-          else if(_bmNBA.side==='sprdDog'){const _nbaFavCoverPct=(sprdP*100).toFixed(1),_nbaDogCoverPct=((1-sprdP)*100).toFixed(1);explanation=`Best market: <strong>${_nbaDog} +ATS (${sprdLbl})</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Dog covers +${Math.abs(espnSprdNum)} in ${_nbaDogCoverPct}% of simulations. ${_projSprdDisp}-pt proj margin vs ${espnSprdNum} line — fav falls short by ${(Math.abs(espnSprdNum)-Math.abs(parseFloat(_projSprdDisp))).toFixed(1)} pts. MC cover rate: ${_nbaFavCoverPct}% fav / ${_nbaDogCoverPct}% dog. ${_nbaCtxLine}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;}
-          else if(_bmNBA.side==='over')explanation=`Best market: <strong>OVER ${ouL}</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Totals play: projected combined ${(parseFloat(_projHScr)+parseFloat(_projAScr)).toFixed(1)} vs ${ouL} line. Pace: ${_hPace}/${_aPace} (avg ${((parseFloat(_hPace)+parseFloat(_aPace))/2).toFixed(1)} pos/game). eFG: ${_hEFG}%/${_aEFG}% — above-average efficiency both sides. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
-          else explanation=`Best market: <strong>UNDER ${ouL}</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Under play: projected ${(parseFloat(_projHScr)+parseFloat(_projAScr)).toFixed(1)} combined vs ${ouL} line. DRtg: ${_hDrtg}/${_aDrtg} — elite defensive resistance limiting efficient scoring. TOV%: ${_hTOV}/${_aTOV}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
+          if(_bmNBA.side==='mlFav')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaFav} ML</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`${_nbaCtxLine}. `+`${_nbaProjLine}. Pace avg ${(parseFloat(_hPace)+parseFloat(_aPace)/2).toFixed(1)} — ${parseFloat(_hPace)>100?'up-tempo':parseFloat(_hPace)<97?'half-court':'normal pace'} game. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
+          else if(_bmNBA.side==='mlDog')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaDog} ML</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Underdog value: ${_dogNbaN} net ${_dogNet} / DRtg ${_dogDrtg} / eFG ${_dogEFG}% — metrics don't justify the line. ${_nbaCtxLine}. ${_nbaProjLine}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
+          else if(_bmNBA.side==='sprdFav'){const _nbaFavCoverPct=(sprdP*100).toFixed(1),_nbaDogCoverPct=((1-sprdP)*100).toFixed(1);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaFav} -ATS (${sprdLbl})</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Fav covers -${Math.abs(espnSprdNum)} in ${_nbaFavCoverPct}% of simulations. ${_projSprdDisp}-pt proj margin vs ${espnSprdNum} line (+${(parseFloat(_projSprdDisp)-Math.abs(espnSprdNum)).toFixed(1)} value). MC cover rate: ${_nbaFavCoverPct}% fav / ${_nbaDogCoverPct}% dog. ${_nbaCtxLine}. eFG ${_favEFG}% vs opp-allowed ${_favOppEFG}%. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;}
+          else if(_bmNBA.side==='sprdDog'){const _nbaFavCoverPct=(sprdP*100).toFixed(1),_nbaDogCoverPct=((1-sprdP)*100).toFixed(1);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaDog} +ATS (${sprdLbl})</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Dog covers +${Math.abs(espnSprdNum)} in ${_nbaDogCoverPct}% of simulations. ${_projSprdDisp}-pt proj margin vs ${espnSprdNum} line — fav falls short by ${(Math.abs(espnSprdNum)-Math.abs(parseFloat(_projSprdDisp))).toFixed(1)} pts. MC cover rate: ${_nbaFavCoverPct}% fav / ${_nbaDogCoverPct}% dog. ${_nbaCtxLine}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;}
+          else if(_bmNBA.side==='over')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${ouL}</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Totals play: projected combined ${(parseFloat(_projHScr)+parseFloat(_projAScr)).toFixed(1)} vs ${ouL} line. Pace: ${_hPace}/${_aPace} (avg ${((parseFloat(_hPace)+parseFloat(_aPace))/2).toFixed(1)} pos/game). eFG: ${_hEFG}%/${_aEFG}% — above-average efficiency both sides. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
+          else explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${ouL}</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Under play: projected ${(parseFloat(_projHScr)+parseFloat(_projAScr)).toFixed(1)} combined vs ${ouL} line. DRtg: ${_hDrtg}/${_aDrtg} — elite defensive resistance limiting efficient scoring. TOV%: ${_hTOV}/${_aTOV}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
         }
       }else if(live){explanation=`IN PROGRESS — ${an} ${as2} · ${hn} ${hs} · Q${c.status?.period||'?'} ${c.status?.displayClock||''}. Live model suspended during game.`;}
       else{explanation=`FINAL — ${as2>hs?an:hn} WIN · ${Math.max(as2,hs)}-${Math.min(as2,hs)}.`;}
@@ -10711,7 +10739,7 @@ function renderOverall(){
   const rfL=recentForm.filter(p=>p.outcome==='loss').length;
   const last10=recentForm.slice(-10);
   const formDots=recentForm.map(p=>{
-    const c=p.outcome==='win'?'#00f0ff':p.outcome==='push'?'#ffdd00':'#ff2090';
+    const c=p.outcome==='win'?'#00e644':p.outcome==='push'?'#ffdd00':'#ff2090';
     const tip=`${p.sport||''} ${p.date||''} | ${p.betOn||''} ${p.ml||''} | ${p.outcome?.toUpperCase()||''}`;
     return`<span class="form-dot" data-tip="${tip.replace(/"/g,"'")}" style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${c};box-shadow:0 0 6px ${c}88;flex-shrink:0;cursor:pointer" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2000)"></span>`;
   }).join('');
@@ -10934,7 +10962,7 @@ function renderOverall(){
   if(recentForm.length){
     const rfColor=rfW/recentForm.length>=0.60?'var(--nc)':rfW/recentForm.length>=0.50?'var(--vc)':'var(--hc)';
     const rfUnits=recentForm.reduce((a,p)=>p.outcome==='win'?a+(parseFloat(p.decOdds)||2)-1:p.outcome==='loss'?a-1:a,0);
-    const last10dots=last10.map(p=>{const c=p.outcome==='win'?'#00f0ff':p.outcome==='push'?'#ffdd00':'#ff2090';const lbl=p.outcome==='win'?'W':p.outcome==='push'?'P':'L';const tip=`${p.sport||''} ${p.date||''} | ${p.betOn||''} | ${p.outcome?.toUpperCase()||''}`;return `<span title="${tip.replace(/"/g,"'")}" style="font-family:var(--mono);font-size:15px;font-weight:700;color:${c};background:${c}18;border:1px solid ${c}44;border-radius:3px;padding:2px 6px;cursor:default">${lbl}</span>`;}).join('<span style="color:var(--t3);margin:0 1px">·</span>');
+    const last10dots=last10.map(p=>{const c=p.outcome==='win'?'#00e644':p.outcome==='push'?'#ffdd00':'#ff2090';const lbl=p.outcome==='win'?'W':p.outcome==='push'?'P':'L';const tip=`${p.sport||''} ${p.date||''} | ${p.betOn||''} | ${p.outcome?.toUpperCase()||''}`;return `<span title="${tip.replace(/"/g,"'")}" style="font-family:var(--mono);font-size:15px;font-weight:700;color:${c};background:${c}18;border:1px solid ${c}44;border-radius:3px;padding:2px 6px;cursor:default">${lbl}</span>`;}).join('<span style="color:var(--t3);margin:0 1px">·</span>');
     const rfStreakArr=[...recentForm].reverse();let rfStreak=0,rfSType='';for(const b of rfStreakArr){if(!rfSType)rfSType=b.outcome;if(b.outcome===rfSType)rfStreak++;else break;}
     h+=`<div class="card" style="margin-bottom:12px;padding:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -10950,7 +10978,7 @@ function renderOverall(){
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:1px;margin-bottom:6px">LAST 10</div>
         <div style="display:flex;flex-direction:column;gap:3px">${[...last10].reverse().map(p=>{
           const isW=p.outcome==='win',isPush=p.outcome==='push';
-          const c=isW?'#00f0ff':isPush?'#ffdd00':'#ff2090';
+          const c=isW?'#00e644':isPush?'#ffdd00':'#ff2090';
           const lbl=isW?'W':isPush?'P':'L';
           const bet=(p.betOn||'—').replace(/"/g,"'");
           const dt=p.date||'';
@@ -13750,7 +13778,7 @@ function renderHomePage(){
       return{lbl:lm.lbl,w,l,n:lb.length,acc:lb.length?w/lb.length:null,units:u,last10};
     }).filter(Boolean).sort((a,b)=>b.n-a.n);
     const leagueRow=d=>{
-      const dots=d.last10.map(p=>{const c=p.outcome==='win'?'#00f0ff':'#ff2090';return`<span title="${(p.date||'').replace(/"/g,"'")}" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${c};margin-left:2px"></span>`;}).join('');
+      const dots=d.last10.map(p=>{const c=p.outcome==='win'?'#00e644':'#ff2090';return`<span title="${(p.date||'').replace(/"/g,"'")}" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${c};margin-left:2px"></span>`;}).join('');
       return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-family:var(--mono);font-size:14px;color:var(--t)">${d.lbl}</span><div style="display:flex;gap:8px;align-items:center"><span style="white-space:nowrap">${dots}</span><span style="font-family:var(--mono);font-size:14px;color:var(--nc)">${d.w}W-${d.l}L</span><span style="font-family:var(--mono);font-size:14px;font-weight:700;color:${pCol(d.acc)}">${d.acc!==null?(d.acc*100).toFixed(0)+'%':'--'}</span><span style="font-family:var(--mono);font-size:14px;color:${uCol(d.units)}">${d.units>=0?'+':''}${d.units.toFixed(1)}u</span></div></div>`;
     };
     const lgPerfToggle=`<div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
@@ -14702,6 +14730,34 @@ function _nflPopulateModelPropsGameFilter(){
   sel.innerHTML=html;
   if(cur)sel.value=cur;
 }
+// Top 10 moves across the WHOLE week -- explicit request, 2026-09-16: the
+// existing "Top 5" highlight (below) only ever covers whichever single game
+// is selected in the dropdown, so seeing the week's best plays overall meant
+// clicking through every game one at a time. Reuses _nflModelPropsForGame
+// per game in the current/soonest week (same week-selection logic
+// _nflPopulateWeekFilter already uses) and pools every row before grading,
+// so a game with a thin slate doesn't crowd out a better pick elsewhere.
+// Cached on window._nflTop10Cache keyed by week label -- each game's MC sim
+// is real work (10k runs + a player-stat sim), and renderNFLModelProps can
+// re-run on every category-filter click, so recomputing across every game
+// in the week on each click would be wasteful for a number that only
+// actually changes when the schedule/stats refresh.
+function _nflTop10ThisWeek(){
+  const D=_NFL_DATA;if(!D)return[];
+  const weeks=Object.keys(D.weeks||{}).filter(w=>!(D.weeks[w]||[]).some(g=>g.seasonType===1));
+  if(!weeks.length)return[];
+  const wk=weeks.find(w=>(D.weeks[w]||[]).some(g=>g.state!=='post'))||weeks[weeks.length-1];
+  if(window._nflTop10Cache&&window._nflTop10Cache.week===wk&&window._nflTop10Cache.gameCount===Object.keys(D.playerStats||{}).length)return window._nflTop10Cache.top10;
+  const games=(D.weeks[wk]||[]).filter(g=>g.seasonType!==1&&g.state!=='post');
+  let allRows=[];
+  games.forEach(g=>{try{allRows=allRows.concat(_nflModelPropsForGame(g));}catch(e){}});
+  const top10=allRows.filter(r=>r.grade==='PREMIUM'||r.grade==='OPTIMAL')
+    .sort((a,b)=>(b.conf??b.likelihood)-(a.conf??a.likelihood))
+    .slice(0,10);
+  window._nflTop10Cache={week:wk,gameCount:Object.keys(D.playerStats||{}).length,top10,wkLabel:wk};
+  return top10;
+}
+function lockNFLModelPropTop10(idx){_nflLockModelPropFrom(window._nflModelPropsTop10Week,idx);}
 function renderNFLModelProps(filter){
   window._nflModelPropFilter=filter||'all';
   const el=document.getElementById('nfl-model-props');if(!el)return;
@@ -14715,10 +14771,24 @@ function renderNFLModelProps(filter){
   const sel=document.getElementById('nfl-model-props-game');
   const gid=sel?.value;
   if(!D||!Object.keys(D.playerStats||{}).length){el.innerHTML='<div class="empty">NO PLAYER STATS LOADED YET</div>';return;}
-  if(!gid){el.innerHTML='<div class="empty">SELECT A GAME ABOVE TO SEE MODEL PROPS</div>';return;}
+  // Top 10 this week — shown regardless of the per-game selection below
+  // (including the "select a game" empty state), so the week's best plays
+  // are visible before clicking into any single matchup.
+  let top10Html='';
+  try{
+    const top10Week=_nflTop10ThisWeek();
+    window._nflModelPropsTop10Week=top10Week;
+    if(top10Week.length){
+      top10Html=`<div style="background:rgba(255,221,0,.05);border:1px solid rgba(255,221,0,.3);border-radius:3px;padding:10px 12px;margin-bottom:14px">
+        <div style="font-family:var(--mono);font-size:15px;color:var(--gc);letter-spacing:2px;margin-bottom:8px">// TOP ${top10Week.length} MOVES — ${(window._nflTop10Cache?.wkLabel||'THIS WEEK').toUpperCase()}</div>
+        ${top10Week.map((r,i)=>_nflPropCardHtml(r,i,'lockNFLModelPropTop10')).join('')}
+      </div>`;
+    }
+  }catch(e){}
+  if(!gid){el.innerHTML=top10Html+'<div class="empty">SELECT A GAME ABOVE TO SEE MODEL PROPS</div>';return;}
   let g=null;
   Object.values(D.weeks||{}).forEach(list=>(list||[]).forEach(x=>{if(x.id===gid)g=x;}));
-  if(!g){el.innerHTML='<div class="empty">GAME NOT FOUND</div>';return;}
+  if(!g){el.innerHTML=top10Html+'<div class="empty">GAME NOT FOUND</div>';return;}
   let allRows=_nflModelPropsForGame(g);
   // Best picks first: grade tier (PREMIUM > OPTIMAL > LEAN > SKIP) beats
   // raw confidence -- a PREMIUM row at 68% likelihood should still sort
@@ -14750,8 +14820,8 @@ function renderNFLModelProps(filter){
     ${top5.map((r,i)=>_nflPropCardHtml(r,i,'lockNFLModelPropTop')).join('')}
   </div>`:'';
   let rows=filter&&filter!=='all'?allRows.filter(r=>r.grp===filter):allRows;
-  if(!rows.length){el.innerHTML=top5Html+'<div class="empty">NO MODEL PROPS FOR THIS GAME/FILTER — LIKELY MISSING SEASON STATS FOR THESE PLAYERS YET</div>';window._nflModelPropsCurrent=[];return;}
-  el.innerHTML=top5Html+rows.map((r,i)=>_nflPropCardHtml(r,i,'lockNFLModelProp')).join('');
+  if(!rows.length){el.innerHTML=top10Html+top5Html+'<div class="empty">NO MODEL PROPS FOR THIS GAME/FILTER — LIKELY MISSING SEASON STATS FOR THESE PLAYERS YET</div>';window._nflModelPropsCurrent=[];return;}
+  el.innerHTML=top10Html+top5Html+rows.map((r,i)=>_nflPropCardHtml(r,i,'lockNFLModelProp')).join('');
   window._nflModelPropsCurrent=rows;
 }
 // Category tag (TD / receptions / yardage) -- explicit request, 2026-09-16:
@@ -21543,15 +21613,18 @@ function _renderSocMatchCard(g,leagueKey){
   }
   var explanation=topT===0?
     'No qualifying edge. xG basis: '+g.home+' '+hxg.toFixed(2)+' / '+g.away+' '+axg.toFixed(2)+'. 3-way: Home '+(hP*100).toFixed(0)+'% / Draw '+(dP*100).toFixed(0)+'% / Away '+(aP*100).toFixed(0)+'%. O/U '+ouL+': over '+(ouP*100).toFixed(0)+'%. Skip.':
-    'Best market: <strong>'+_bm.label+'</strong> · '+topLabel+' · '+_bp+'% · EV +'+_be+'% · edge +'+_edgePP.toFixed(1)+'pp. '+
+    'Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">'+_bm.label+'</strong> · '+topLabel+' · '+_bp+'% · EV +'+_be+'% · edge +'+_edgePP.toFixed(1)+'pp. '+
     'xG basis: '+g.home+' '+hxg.toFixed(2)+' xG/G vs '+g.away+' '+axg.toFixed(2)+' xG/G. '+
     '3-way: Home '+(hP*100).toFixed(0)+'% / Draw '+(dP*100).toFixed(0)+'% / Away '+(aP*100).toFixed(0)+'%. '+
     'MC proj: '+mc.avgH.toFixed(2)+' – '+mc.avgA.toFixed(2)+' ('+mc.avgT.toFixed(2)+' total vs '+ouL+' line, BTTS '+(mc.btts*100).toFixed(0)+'%). '+
+    'Goal spread: '+ahFavName+' -'+ahAbsLine.toFixed(1)+' covers '+(ahFavP*100).toFixed(0)+'%, '+ahDogName+' +'+ahAbsLine.toFixed(1)+' covers '+(ahDogP*100).toFixed(0)+'% (proj margin '+(ahMargin>=0?'+':'')+ahMargin.toFixed(2)+'). '+
     (_bm.side==='home'?g.home+' xG edge unpriced by market.':
     _bm.side==='draw'?'Balanced xG gap supports draw value.':
     _bm.side==='away'?g.away+' road xG edge underpriced.':
     _bm.side==='over'?'Combined xG '+mc.avgT.toFixed(2)+' supports goals above the line.':
-    'Combined xG '+mc.avgT.toFixed(2)+' supports a tighter, lower-scoring line.')+
+    _bm.side==='under'?'Combined xG '+mc.avgT.toFixed(2)+' supports a tighter, lower-scoring line.':
+    _bm.side==='ahFav'?ahFavName+'\'s projected margin comfortably clears -'+ahAbsLine.toFixed(1)+'.':
+    ahDogName+' priced to survive within '+ahAbsLine.toFixed(1)+' even if outscored.')+
     ' Kelly '+_kellyPct+'%. '+topLabel+' · '+_mkts.size+'-unit play'+_mkts.secStr+'.'+
     _socFactorSummary(_bm.side);
   var isLive=g.status==='in',isFinal=g.status==='post';
