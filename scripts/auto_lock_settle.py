@@ -814,7 +814,14 @@ def gather_legs(page) -> dict:
                 Object.values(sched.weeks || {}).forEach(week => (week || []).forEach(g => {
                   const d = new Date(g.date);
                   const localIso = isNaN(d) ? (g.date || '').slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
-                  if (localIso !== todayIso || g.state === 'post') return;
+                  // seasonType 1 = preseason (nfl_schedule.json's own "Preseason
+                  // Week N" entries) -- real bug, found 2026-09-15: this had no
+                  // exclusion at all, unlike _nflPopulateModelPropsGameFilter's
+                  // manual-UI dropdown (g.seasonType!==1) elsewhere in app.html.
+                  // A preseason game landing on todayIso got auto-locked exactly
+                  // like a real regular-season one, contaminating win-rate/record
+                  // stats with a game the model was never meant to grade.
+                  if (localIso !== todayIso || g.state === 'post' || g.seasonType === 1) return;
                   try { _nflGameCard2(g); } catch (e) {}
                 }));
               }
@@ -924,7 +931,11 @@ def gather_legs(page) -> dict:
               Object.values(_NFL_DATA.weeks || {}).forEach(list => (list || []).forEach(g => {
                 const d = new Date(g.date);
                 const localIso = isNaN(d) ? (g.date || '').slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
-                if (localIso === todayIso && g.state !== 'post') games.push(g);
+                // seasonType 1 = preseason -- same exclusion as the NFL game-leg
+                // warmup above (real contamination found 2026-09-15: a preseason
+                // Josh Allen prop got auto-locked and sat stuck-pending forever
+                // since it isn't a real graded game).
+                if (localIso === todayIso && g.state !== 'post' && g.seasonType !== 1) games.push(g);
               }));
               let generated = 0;
               // stat: pp.cat -- _nflBuildPropRow/_nflBuildAnytimeTDRow (app.html)
