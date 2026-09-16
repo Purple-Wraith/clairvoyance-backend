@@ -92,7 +92,7 @@ LOCKS_EMAIL_TO = os.environ.get("LOCKS_EMAIL_TO", "") or os.environ.get("SOCIAL_
 # Human-readable section headers for the email, keyed by the same sport
 # tags SPORT_TO_LOCKPICK_TYPE/_autoLockCapture use.
 SPORT_DISPLAY_NAME = {
-    "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
+    "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB", "LIIGA": "Liiga",
     "SOC_BL": "Bundesliga", "SOC_LIGA": "La Liga", "SOC_MLS": "MLS", "SOC_PL": "Premier League",
     "SOC_ITA": "Serie A", "SOC_CL": "Champions League",
 }
@@ -115,7 +115,7 @@ LEDGER_LEAGUE_DISPLAY_NAME = {
 # lockPick's own type='PL' means NHL puck line) to the exact `type` string
 # lockPick() itself expects to resolve the correct sportTag.
 SPORT_TO_LOCKPICK_TYPE = {
-    "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
+    "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB", "LIIGA": "LIIGA",
     "SOC_BL": "BUND", "SOC_LIGA": "LIGA", "SOC_MLS": "MLS", "SOC_PL": "PL_SOC",
     "SOC_ITA": "SERIEA", "SOC_CL": "CL",
 }
@@ -128,20 +128,28 @@ EURO_SOCCER_SPORTS = frozenset({"SOC_CL", "SOC_PL", "SOC_LIGA", "SOC_BL", "SOC_I
 
 # The 5 paid products (confirmed structure, see _subscribers.py) -- each
 # maps to the exact sport tags gather_legs()/_autoLockCapture use. Soccer
-# bundles all 6 leagues (5 European + MLS) as one purchase. Hockey is
-# NHL-only.
-# Explicit decision 2026-09-03: KHL, SHL, LIIGA, and College Hockey
-# (NCAAH) are real, live engine features kept running for PERSONAL USE
-# ONLY -- never sold, and explicitly routed to the owner-only "other" pass
-# (see run_lock_segmented below) rather than bundled into any paid
-# product, even though SHL/LIIGA/NCAAH have no real game cards wired up
-# yet. KHL/SHL/LIIGA were removed from hockey's sport set (down to NHL
-# only); NCAAH was never added to any product's set. Their pick
-# generation/lock/settle logic elsewhere in this file (and app.html) is
-# untouched -- this mapping only controls what ships to paying
-# subscribers, not what the engine runs. User plans to build SHL/LIIGA/
-# NCAAH out for real later -- when that happens, this is the mapping to
-# revisit for making them paid.
+# bundles all 6 leagues (5 European + MLS) as one purchase.
+#
+# Hockey product promoted from NHL-only to NHL+Liiga, 2026-09-16 --
+# explicit request, now that Liiga has a real engine (Flashscore-sourced
+# schedule/standings/G-per-match, an exact-Poisson MC model, and full
+# ML/spread/O-U game cards -- see fetch_liiga.py and docs/app.html's
+# liigaMC/liigaEns/_liigaMatchCard). This is exactly the "when that
+# happens, revisit this mapping" moment the 2026-09-03 decision below
+# called out in advance. SHL and NCAAH (College Hockey) join the same
+# way once each gets its own real engine -- the user's stated direction
+# is "hockey" as a product should mean NHL+Liiga+SHL+NCAAH going forward,
+# not NHL alone; add each sport tag here as it's actually built, not
+# before (KHL is deliberately never included -- see below).
+#
+# Explicit decision 2026-09-03 (superseded above for Liiga specifically):
+# KHL, SHL, LIIGA, and College Hockey (NCAAH) were real, live engine
+# features kept running for PERSONAL USE ONLY -- never sold, routed to
+# the owner-only "other" pass instead of any paid product, back when none
+# of them had real game cards wired up yet. KHL stays excluded
+# permanently (its own manual lock/settle buttons in the app UI still
+# work for personal use) -- there's no stated plan to build it out or
+# sell it, unlike SHL/LIIGA/NCAAH.
 # Explicit decision 2026-09-08: tennis, MLB, WNBA, CBB, and World Cup
 # were all retired from the engine entirely -- removed from app.html and
 # this pipeline, not merely kept off paid products. "mlb" was dropped
@@ -151,22 +159,15 @@ PRODUCT_SPORTS: dict[str, frozenset[str]] = {
     "nfl": frozenset({"NFL"}),
     "cfb": frozenset({"CFB"}),
     "nba": frozenset({"NBA"}),
-    "hockey": frozenset({"NHL"}),
+    "hockey": frozenset({"NHL", "LIIGA"}),
     "soccer": EURO_SOCCER_SPORTS | frozenset({"SOC_MLS"}),
 }
-# Explicit request, 2026-09-03 (revised same day): auto-lock for
-# nfl/cfb/nba/nhl/soccer goes to a paying subscriber's inbox;
-# SHL, LIIGA, and NCAAH (College Hockey) also auto-lock now, but route to
-# the owner-only "other" email instead -- personal use, never sold. Only
-# KHL is excluded from the automated pipeline entirely (its own manual
-# lock/settle buttons in the app UI still work for personal use -- this
-# only scopes run_lock_segmented's automated pass). SHL/LIIGA/NCAAH have
-# no real _autoLockCapture calls yet, so they're a no-op today, but the
-# allow-list is already correct for when that changes. (Tennis, MLB,
-# WNBA, CBB, and World Cup were all fully retired 2026-09-08 -- none of
-# them have any pick generation left anywhere in this pipeline, so none
-# belong in this allow-list at all anymore.)
-OTHER_ALLOWED_SPORTS: frozenset[str] = frozenset({"SHL", "LIIGA", "NCAAH"})
+# SHL and NCAAH (College Hockey) stay owner-only/personal-use until each
+# has a real engine built the way Liiga now does (Liiga removed from this
+# set 2026-09-16 -- it's a paid PRODUCT_SPORTS member now, not an "other"
+# personal-use sport, and a sport must never sit in both). KHL is
+# permanently owner-only -- see PRODUCT_SPORTS' own comment above.
+OTHER_ALLOWED_SPORTS: frozenset[str] = frozenset({"SHL", "NCAAH"})
 PRODUCT_LABEL: dict[str, str] = {
     "nfl": "NFL", "cfb": "CFB", "nba": "NBA",
     "hockey": "HOCKEY", "soccer": "SOCCER",
@@ -825,6 +826,28 @@ def gather_legs(page) -> dict:
                   try { _nflGameCard2(g); } catch (e) {}
                 }));
               }
+            }
+          } catch (e) {}
+          // Liiga -- added 2026-09-16 alongside the hockey product's
+          // promotion to include it (see auto_lock_settle.py's own
+          // PRODUCT_SPORTS comment). _liigaMatchCard reads docs/
+          // liiga_schedule.json (via loadLiigaScheduleData(), same
+          // fetch-if-not-cached pattern _nhlUpcomingCard's schedule
+          // already uses) and calls _autoLockCapture('LIIGA', ...)
+          // itself -- mirrors the NFL/CFB game-leg warmup immediately
+          // above exactly: today's local-date games only, skip anything
+          // already final.
+          try {
+            if (typeof _liigaMatchCard === 'function' && typeof loadLiigaScheduleData === 'function') {
+              const liigaData = await loadLiigaScheduleData();
+              const todayIso = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
+              (liigaData.games || []).forEach(g => {
+                if (!g.date) return;
+                const d = new Date(g.date);
+                const localIso = isNaN(d) ? g.date.slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
+                if (localIso !== todayIso || g.state === 'post') return;
+                try { _liigaMatchCard(g); } catch (e) {}
+              });
             }
           } catch (e) {}
           const warmups = [];
