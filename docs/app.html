@@ -8013,6 +8013,7 @@ function _nhlUpcomingCard(g,dayIdx){
 function _nhlPopulateScheduleDayFilter(games){
   const sel=document.getElementById('nhl-filter-day');if(!sel)return;
   const cur=sel.value;
+  const todayIso=today();
   const datesSet=new Set();
   games.forEach(g=>{
     if(!g.date)return;
@@ -8020,17 +8021,24 @@ function _nhlPopulateScheduleDayFilter(games){
     if(isNaN(d))return;
     datesSet.add(d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'}));
   });
-  const dates=[...datesSet].sort();
-  if(sel.options.length===dates.length&&cur)return;
-  const todayIso=today();
+  // Once a date has passed, it drops off the list entirely -- explicit
+  // request, 2026-09-16, same "don't make someone scroll through history
+  // to find an upcoming game" convention CFB's own week dropdown already
+  // follows (it drops a fully-completed week). Kept simple/date-based
+  // (>= today) rather than CFB's "every game in it is final" rule, since
+  // NHL's unit here is a single calendar day, not a multi-game week --
+  // today itself stays all day even once its games go final, exactly
+  // like CFB keeps a week with a still-upcoming game in it.
+  const dates=[...datesSet].filter(d=>d>=todayIso).sort();
+  if(sel.options.length===dates.length&&cur&&dates.includes(cur))return;
   sel.innerHTML=dates.map(iso=>{
     const disp=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
     return`<option value="${iso}">${iso===todayIso?'TODAY · ':''}${disp.toUpperCase()}</option>`;
   }).join('');
-  // Default to today if it has games, else the next upcoming date, else
-  // fall back to the most recent past date (end of a fully-completed
-  // season/file) rather than leaving the select on nothing.
-  const target=cur&&dates.includes(cur)?cur:(dates.includes(todayIso)?todayIso:(dates.find(d=>d>todayIso)||dates[dates.length-1]));
+  // Default to today if it has games, else whatever the earliest
+  // remaining (future) date is -- dates is already today-or-later only,
+  // so its first entry is exactly that.
+  const target=cur&&dates.includes(cur)?cur:(dates.includes(todayIso)?todayIso:dates[0]);
   if(target)sel.value=target;
 }
 async function renderNHLUpcoming(){
