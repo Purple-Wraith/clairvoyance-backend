@@ -456,36 +456,30 @@ def get_engine_performance(page) -> dict | None:
 
 def get_engine_performance_subscriber(page) -> dict | None:
     """Same Today/Yesterday/Rolling 7D/This Month/Last Month/All Time
-    hCalc() logic as get_engine_performance() above, but pre-filtered to
-    ONLY the 5 real paid-product sports (nfl, cfb, nba, hockey=NHL,
-    soccer's 6 leagues -- see PRODUCT_SPORTS in auto_lock_settle.py)
-    before computing each period. Explicit request, 2026-09-03: the
-    landing page's public "Live Track Record" section should reflect
-    performance for what's actually sold, not the full ledger (which
-    also includes personal-use-only WNBA/tennis/etc picks per this
-    session's PRODUCT_SPORTS/OTHER_ALLOWED_SPORTS work) -- unlike that
-    other JSON, this one is landing-page-only and never read by the home
-    page's own Engine Performance boxes, so filtering it doesn't affect
-    the personal dashboard at all. MLB was dropped 2026-09-08 when it was
-    retired from the engine entirely (6 paid products became 5) -- CBB
-    and World Cup, retired the same day, were never in this set to begin
-    with (never paid products).
+    hCalc() logic as get_engine_performance() above, pre-filtered to match
+    the home page's own "// ENGINE PERFORMANCE" card (docs/app.html
+    renderHomePage's keptBets) EXACTLY, via the same
+    window._broadSportOf(window._normSport(p))!==null predicate that card
+    already uses, instead of a separately-maintained sport-code list.
 
-    Sport-tag codes below are the REAL ledger's own p.sport values (not
-    the auto-lock backend's internal SOC_* naming) -- copied from the
-    same leagueMap get_sport_performance() below already uses and has
-    verified correct against real data, so 'FB' (an NFL synonym some
-    older bets use) and the individual soccer league codes (PL/LIGA/
-    BUND/MLS/SERIEA/CL) are included deliberately, matching that
-    precedent exactly rather than re-deriving it."""
+    Previously filtered to a hand-maintained SUBSCRIBER_CODES set (the 5
+    paid products: nfl/cfb/nba/nhl/soccer's 6 leagues) that deliberately
+    excluded the personal-use hockey leagues (KHL/SHL/LIIGA/College
+    Hockey) renderHomePage's keptBets DOES include -- explicit request,
+    2026-09-16: the two pages' ALL TIME (and every other period) numbers
+    were confirmed live to disagree by exactly that gap (674-305 on the
+    home page vs 627-253 published here), and the user wants
+    clairvoyanceengine.info to always match the home page exactly, not
+    stay narrower. Reusing the home page's own predicate (rather than
+    updating SUBSCRIBER_CODES to add the missing codes by hand) means the
+    two can never silently drift apart again the way they just did --
+    whatever renderHomePage's keptBets counts, this now counts too, since
+    it calls the exact same functions rather than a second copy of the
+    same logic."""
     return page.evaluate(
         """
         async () => {
-          const SUBSCRIBER_CODES = new Set([
-            'NFL','FB','CFB','NHL','NBA',
-            'PL','LIGA','BUND','MLS','SERIEA','CL',
-          ]);
-          const allBets = getP().filter(p => p.sport && SUBSCRIBER_CODES.has(p.sport.toUpperCase()));
+          const allBets = getP().filter(p => window._broadSportOf(window._normSport(p)) !== null);
           const now = Date.now();
           const yd = yesterday();
           const nowD = getMSTNow();
