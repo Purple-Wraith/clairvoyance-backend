@@ -5887,8 +5887,16 @@ function _cfbPopulateWeekFilter(){
   const weeks=Object.keys(D.weeks||{});
   // Weeks 1-15 in order, then Bowls last, matching how the schedule was
   // fetched (see fetch_cfb.py's WEEK_LABELS/POSTSEASON_LABEL).
-  const ordered=weeks.filter(w=>w!=='Bowls').sort((a,b)=>parseInt(a.replace('Week ',''))-parseInt(b.replace('Week ','')));
+  let ordered=weeks.filter(w=>w!=='Bowls').sort((a,b)=>parseInt(a.replace('Week ',''))-parseInt(b.replace('Week ','')));
   if(weeks.includes('Bowls'))ordered.push('Bowls');
+  // Fully-completed weeks (every game at state 'post') drop off entirely
+  // -- explicit request, 2026-09-16, matching NFL's own Games-tab week
+  // dropdown and NHL's schedule day picker, so this doesn't make someone
+  // scroll past a season's worth of already-final weeks to find what's
+  // actually upcoming. Keep at least one week (the last) even if every
+  // week somehow reads as final, so the select is never left empty.
+  const upcoming=ordered.filter(w=>!(D.weeks[w]||[]).every(g=>g.state==='post'));
+  if(upcoming.length)ordered=upcoming;
   sel.innerHTML=ordered.map(w=>`<option value="${w}">${w.toUpperCase()}</option>`).join('');
   // Default to whichever week is closest to today, not always Week 1 —
   // more useful once the season is actually underway.
@@ -7126,7 +7134,15 @@ function _nflPopulateWeekFilter(){
   // dropdown (_nflPopulateModelPropsGameFilter) already apply. Checked via
   // the week's own games rather than the label text, since a schedule
   // relabeling wouldn't silently defeat this the way a name-based check would.
-  const weeks=Object.keys(D.weeks).filter(w=>!(D.weeks[w]||[]).some(g=>g.seasonType===1));
+  // Fully-completed weeks (every game at state 'post') also drop off
+  // entirely -- explicit request, 2026-09-16, to match the same
+  // convention already used by this same tab's Model Props dropdown
+  // (_nflPopulateModelPropsGameFilter) and NHL's schedule day picker, so
+  // someone opening this tab mid-season isn't scrolling past a pile of
+  // already-final weeks to find what's actually upcoming.
+  const weeks=Object.keys(D.weeks)
+    .filter(w=>!(D.weeks[w]||[]).some(g=>g.seasonType===1))
+    .filter(w=>!(D.weeks[w]||[]).every(g=>g.state==='post'));
   if(sel.options.length===weeks.length)return;
   sel.innerHTML=weeks.map(w=>`<option value="${w}">${w.toUpperCase()}</option>`).join('');
   // Default to the first week that still has an unplayed game, not
