@@ -738,14 +738,17 @@ body{line-height:1.5}
   <nav class="snav">
     <button class="sb2 act" onclick="setSub('hk','nhl')">NHL</button>
     <button class="sb2" onclick="setSub('hk','ncaah')">COLLEGE HOCKEY</button>
-    <button class="sb2" onclick="setSub('hk','khl')">KHL</button>
+    <!-- KHL removed from this menu, 2026-09-16, same reasoning as the quick-nav
+         dropdown's own KHL removal (2026-09-03, see navd-hk below): no fetch
+         pipeline/product for it. Tab itself still exists (setSub('hk','khl'))
+         and shows its "no live feed yet" placeholder if reached another way. -->
     <button class="sb2" onclick="setSub('hk','shl')">SHL</button>
     <button class="sb2" onclick="setSub('hk','liiga')">LIIGA</button>
     <button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px">↻ SYNC</button>
   </nav>
   <div id="hk-nhl" class="subp act" style="overflow:hidden">
     <nav class="inav" id="nhl-in">
-      <button class="nb" onclick="T('nhl','games')">MATCHES</button>
+      <button class="nb" onclick="T('nhl','games')">GAMES</button>
       <button class="nb" onclick="T('nhl','props')">PROPS</button>
       <button class="nb" onclick="T('nhl','model')">MODEL</button>
       <button class="nb" onclick="T('nhl','config')">CONFIG</button>
@@ -921,7 +924,7 @@ body{line-height:1.5}
       </div>
     </div>
     <nav id="mn2" style="display:none">
-      <button class="mb" onclick="T('nhl','games')"><span class="mbi"></span>MATCHES</button>
+      <button class="mb" onclick="T('nhl','games')"><span class="mbi"></span>GAMES</button>
       <button class="mb" onclick="T('nhl','props')"><span class="mbi"></span>PROPS</button>
       <button class="mb" onclick="T('nhl','model')"><span class="mbi"></span>MODEL</button>
       <button class="mb" onclick="T('nhl','config')"><span class="mbi"></span>CONFIG</button>
@@ -953,7 +956,7 @@ body{line-height:1.5}
   </div>
   <div id="hk-shl" class="subp">
     <nav class="inav" id="shl-in">
-      <button class="nb act" onclick="T('shl','matches')">MATCHES</button>
+      <button class="nb act" onclick="T('shl','matches')">GAMES</button>
       <button class="nb" onclick="T('shl','model')">MODEL</button>
       <button class="nb" onclick="T('shl','config')">CONFIG</button>
     </nav>
@@ -974,7 +977,7 @@ body{line-height:1.5}
   </div>
   <div id="hk-liiga" class="subp">
     <nav class="inav" id="liiga-in">
-      <button class="nb act" onclick="T('liiga','matches')">MATCHES</button>
+      <button class="nb act" onclick="T('liiga','matches')">GAMES</button>
       <button class="nb" onclick="T('liiga','model')">MODEL</button>
       <button class="nb" onclick="T('liiga','config')">CONFIG</button>
     </nav>
@@ -8067,7 +8070,7 @@ function _nhlPopulateScheduleDayFilter(games){
   if(sel.options.length===dates.length&&cur&&dates.includes(cur))return;
   sel.innerHTML=dates.map(iso=>{
     const disp=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
-    return`<option value="${iso}">${iso===todayIso?'TODAY · ':''}${disp.toUpperCase()}</option>`;
+    return`<option value="${iso}">${iso===todayIso?'GAMES · ':''}${disp.toUpperCase()}</option>`;
   }).join('');
   // Default to today if it has games, else whatever the earliest
   // remaining (future) date is -- dates is already today-or-later only,
