@@ -875,9 +875,41 @@ def gather_legs(page) -> dict:
             warmups.push(renderGenericWeek('cfb-week-list', 'football/college-football', 'CFB').catch(() => {}));
             warmups.push(renderGenericWeek('nfl-week-list', 'football/nfl', 'NFL').catch(() => {}));
           }
-          if (typeof renderLeagueMatches === 'function') {
-            ['bl', 'liga', 'mls', 'pl', 'ita', 'cl'].forEach(k => warmups.push(renderLeagueMatches(k).catch(() => {})));
-          }
+          // 6 soccer leagues -- explicit request, 2026-09-16: their MATCHES
+          // tab got the same full-season day-picker every other sport's
+          // schedule browser already has (renderLeagueMatches now fetches
+          // the whole season and defaults its dropdown to today, or the
+          // EARLIEST UPCOMING date if today has no games -- see
+          // _socPopulateDayFilter's own comment). Calling
+          // renderLeagueMatches(k) directly here would auto-lock-capture
+          // whatever day the dropdown happens to default to, which is only
+          // "today" some of the time now. Mirrors the Liiga/SHL blocks
+          // immediately above instead: fetch the full schedule, filter to
+          // today's local date ourselves, and call _renderSocMatchCard(g,
+          // key) directly per game -- the same card function
+          // renderLeagueMatches uses internally, which already calls
+          // _autoLockCapture('SOC_'+key.toUpperCase(), ...) on its own, so
+          // this needs no extra capture wiring, just the right game list.
+          try {
+            if (typeof _renderSocMatchCard === 'function' && typeof _fetchLeagueScoreboard === 'function') {
+              const todayIso = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
+              const soccerKeys = ['bl', 'liga', 'mls', 'pl', 'ita', 'cl'];
+              for (const k of soccerKeys) {
+                try {
+                  const games = (k === 'mls' && typeof _fetchMLSScheduleReal === 'function')
+                    ? (await _fetchMLSScheduleReal()) || (await _fetchLeagueScoreboard(k))
+                    : await _fetchLeagueScoreboard(k);
+                  (games || []).forEach(g => {
+                    if (!g.home || !g.away || g.status === 'post') return;
+                    const d = new Date(g.date);
+                    const localIso = isNaN(d) ? (g.date || '').slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
+                    if (localIso !== todayIso) return;
+                    try { _renderSocMatchCard(g, k); } catch (e) {}
+                  });
+                } catch (e) {}
+              }
+            }
+          } catch (e) {}
           await Promise.allSettled(warmups);
           // Card renders above are synchronous once their data warmup
           // resolves, but give any trailing async chip/radar work a moment

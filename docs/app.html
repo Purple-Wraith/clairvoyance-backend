@@ -1022,14 +1022,16 @@ body{line-height:1.5}
   </nav>
   <div class="sa" id="cl-sa">
     <div id="cl-tab-standings" class="tab"><div id="cl-standings-list" style="padding:4px 0"><div class="loading"><span class="spi"></span> LOADING STANDINGS…</div></div></div>
-    <div id="cl-tab-matches" class="tab act"><div id="cl-matches-list" style="padding:4px 0">
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center">
-        <div style="font-family:var(--orb);font-size:27px;font-weight:900;letter-spacing:4px;background:linear-gradient(135deg,var(--vc),var(--pc));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:14px">CHAMPIONS LEAGUE SEASON COMPLETED</div>
-        <div style="font-family:var(--mono);font-size:16px;letter-spacing:3px;color:var(--t3);margin-bottom:12px">FINALS CONCLUDED · CHAMPIONS CROWNED</div>
-        <div style="font-family:var(--mono);font-size:17px;color:var(--t3);max-width:320px;line-height:1.7">Champions League Matches module returns with the 2026–27 season opener. Game picks, ensemble model, EV grades, and live odds refresh every matchday throughout the season.</div>
-        <div style="margin-top:20px;font-family:var(--orb);font-size:16px;letter-spacing:3px;color:var(--vc)">RETURNING · AUGUST 2026</div>
+    <div id="cl-tab-matches" class="tab act">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="cl-filter-day" onchange="renderLeagueMatches('cl')" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(0,51,160,.4);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
+          <button class="btn btn-o btn-sm" onclick="renderLeagueMatches('cl')">↻</button>
+        </div>
       </div>
-    </div></div>    <div id="cl-tab-model" class="tab">
+      <div id="cl-matches-list" style="padding:4px 0"><div class="loading"><span class="spi"></span></div></div>
+    </div>    <div id="cl-tab-model" class="tab">
       <div class="sh"><span class="i"></span> CHAMPIONS LEAGUE MODEL ARCHITECTURE</div>
       <div class="g3" style="margin-bottom:12px">
         <div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">25K sims. xG differential + possession + home advantage. FBref calibration.</div></div>
@@ -1077,14 +1079,16 @@ body{line-height:1.5}
     <button class="nb" onclick="T('pl','config');renderSoccerLeagueConfig('pl')">CONFIG</button>
   </nav>
   <div class="sa" id="pl-sa">
-    <div id="pl-tab-matches" class="tab act"><div id="pl-matches-list" style="padding:4px 0">
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center">
-        <div style="font-family:var(--orb);font-size:27px;font-weight:900;letter-spacing:4px;background:linear-gradient(135deg,var(--vc),var(--pc));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:14px">PREMIER LEAGUE SEASON COMPLETED</div>
-        <div style="font-family:var(--mono);font-size:16px;letter-spacing:3px;color:var(--t3);margin-bottom:12px">FINALS CONCLUDED · CHAMPIONS CROWNED</div>
-        <div style="font-family:var(--mono);font-size:17px;color:var(--t3);max-width:320px;line-height:1.7">Premier League Matches module returns with the 2026–27 season opener. Game picks, ensemble model, EV grades, and live odds refresh every matchday throughout the season.</div>
-        <div style="margin-top:20px;font-family:var(--orb);font-size:16px;letter-spacing:3px;color:var(--vc)">RETURNING · AUGUST 2026</div>
+    <div id="pl-tab-matches" class="tab act">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="pl-filter-day" onchange="renderLeagueMatches('pl')" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(91,155,213,.4);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
+          <button class="btn btn-o btn-sm" onclick="renderLeagueMatches('pl')">↻</button>
+        </div>
       </div>
-    </div></div>    <div id="pl-tab-model" class="tab">
+      <div id="pl-matches-list" style="padding:4px 0"><div class="loading"><span class="spi"></span></div></div>
+    </div>    <div id="pl-tab-model" class="tab">
       <div class="sh"><span class="i"></span> PREMIER LEAGUE MODEL ARCHITECTURE</div>
       <div class="g3" style="margin-bottom:12px">
         <div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">25K sims. xG differential + possession + home advantage. FBref calibration.</div></div>
@@ -1132,14 +1136,16 @@ body{line-height:1.5}
     <button class="nb" onclick="T('liga','config');renderSoccerLeagueConfig('liga')">CONFIG</button>
   </nav>
   <div class="sa" id="liga-sa">
-    <div id="liga-tab-matches" class="tab act"><div id="liga-matches-list" style="padding:4px 0">
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center">
-        <div style="font-family:var(--orb);font-size:27px;font-weight:900;letter-spacing:4px;background:linear-gradient(135deg,var(--vc),var(--pc));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:14px">LA LIGA SEASON COMPLETED</div>
-        <div style="font-family:var(--mono);font-size:16px;letter-spacing:3px;color:var(--t3);margin-bottom:12px">FINALS CONCLUDED · CHAMPIONS CROWNED</div>
-        <div style="font-family:var(--mono);font-size:17px;color:var(--t3);max-width:320px;line-height:1.7">La Liga Matches module returns with the 2026–27 season opener. Game picks, ensemble model, EV grades, and live odds refresh every matchday throughout the season.</div>
-        <div style="margin-top:20px;font-family:var(--orb);font-size:16px;letter-spacing:3px;color:var(--vc)">RETURNING · AUGUST 2026</div>
+    <div id="liga-tab-matches" class="tab act">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="liga-filter-day" onchange="renderLeagueMatches('liga')" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(255,68,0,.4);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
+          <button class="btn btn-o btn-sm" onclick="renderLeagueMatches('liga')">↻</button>
+        </div>
       </div>
-    </div></div>    <div id="liga-tab-model" class="tab">
+      <div id="liga-matches-list" style="padding:4px 0"><div class="loading"><span class="spi"></span></div></div>
+    </div>    <div id="liga-tab-model" class="tab">
       <div class="sh"><span class="i"></span> LA LIGA MODEL ARCHITECTURE</div>
       <div class="g3" style="margin-bottom:12px">
         <div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">25K sims. xG differential + possession + home advantage. FBref calibration.</div></div>
@@ -1187,14 +1193,16 @@ body{line-height:1.5}
     <button class="nb" onclick="T('bl','config');renderSoccerLeagueConfig('bl')">CONFIG</button>
   </nav>
   <div class="sa" id="bl-sa">
-    <div id="bl-tab-matches" class="tab act"><div id="bl-matches-list" style="padding:4px 0">
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center">
-        <div style="font-family:var(--orb);font-size:27px;font-weight:900;letter-spacing:4px;background:linear-gradient(135deg,var(--vc),var(--pc));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:14px">BUNDESLIGA SEASON COMPLETED</div>
-        <div style="font-family:var(--mono);font-size:16px;letter-spacing:3px;color:var(--t3);margin-bottom:12px">FINALS CONCLUDED · CHAMPIONS CROWNED</div>
-        <div style="font-family:var(--mono);font-size:17px;color:var(--t3);max-width:320px;line-height:1.7">Bundesliga Matches module returns with the 2026–27 season opener. Game picks, ensemble model, EV grades, and live odds refresh every matchday throughout the season.</div>
-        <div style="margin-top:20px;font-family:var(--orb);font-size:16px;letter-spacing:3px;color:var(--vc)">RETURNING · AUGUST 2026</div>
+    <div id="bl-tab-matches" class="tab act">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="bl-filter-day" onchange="renderLeagueMatches('bl')" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(224,0,0,.4);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
+          <button class="btn btn-o btn-sm" onclick="renderLeagueMatches('bl')">↻</button>
+        </div>
       </div>
-    </div></div>    <div id="bl-tab-model" class="tab">
+      <div id="bl-matches-list" style="padding:4px 0"><div class="loading"><span class="spi"></span></div></div>
+    </div>    <div id="bl-tab-model" class="tab">
       <div class="sh"><span class="i"></span> BUNDESLIGA MODEL ARCHITECTURE</div>
       <div class="g3" style="margin-bottom:12px">
         <div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">25K sims. xG differential + possession + home advantage. FBref calibration.</div></div>
@@ -1242,7 +1250,16 @@ body{line-height:1.5}
     <button class="nb" onclick="T('mls','config');renderSoccerLeagueConfig('mls')">CONFIG</button>
   </nav>
   <div class="sa" id="mls-sa">
-    <div id="mls-tab-matches" class="tab act"><div id="mls-matches-list" style="padding:4px 0"><div class="loading"><span class="spi"></span> LOADING…</div></div></div>    <div id="mls-tab-model" class="tab">
+    <div id="mls-tab-matches" class="tab act">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="mls-filter-day" onchange="renderLeagueMatches('mls')" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(0,193,75,.4);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
+          <button class="btn btn-o btn-sm" onclick="renderLeagueMatches('mls')">↻</button>
+        </div>
+      </div>
+      <div id="mls-matches-list" style="padding:4px 0"><div class="loading"><span class="spi"></span></div></div>
+    </div>    <div id="mls-tab-model" class="tab">
       <div class="sh"><span class="i"></span> MLS MODEL ARCHITECTURE</div>
       <div class="g3" style="margin-bottom:12px">
         <div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">25K sims. xG differential + possession + home advantage. FBref calibration.</div></div>
@@ -1289,7 +1306,16 @@ body{line-height:1.5}
     <button class="nb" onclick="T('ita','config');renderSoccerLeagueConfig('ita')">CONFIG</button>
   </nav>
   <div class="sa" id="ita-sa">
-    <div id="ita-tab-matches" class="tab act"><div id="ita-matches-list" style="padding:4px 0"><div class="loading"><span class="spi"></span> LOADING…</div></div></div>    <div id="ita-tab-model" class="tab">
+    <div id="ita-tab-matches" class="tab act">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="ita-filter-day" onchange="renderLeagueMatches('ita')" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(0,143,215,.4);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
+          <button class="btn btn-o btn-sm" onclick="renderLeagueMatches('ita')">↻</button>
+        </div>
+      </div>
+      <div id="ita-matches-list" style="padding:4px 0"><div class="loading"><span class="spi"></span></div></div>
+    </div>    <div id="ita-tab-model" class="tab">
       <div class="sh"><span class="i"></span> SERIE A MODEL ARCHITECTURE</div>
       <div class="g3" style="margin-bottom:12px">
         <div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">25K sims. xG differential + possession + home advantage. FBref calibration.</div></div>
@@ -22008,65 +22034,98 @@ async function _fetchLeagueScoreboard(leagueKey){
   if(_leagueScoreCache[leagueKey]&&now-(_leagueScoreCacheTs[leagueKey]||0)<_LEAGUE_TTL)return _leagueScoreCache[leagueKey];
   var cfg=_LEAGUE_CFG[leagueKey];if(!cfg)return[];
   try{
-    var ctrl=new AbortController();setTimeout(function(){ctrl.abort();},10000);
-    // Restricted to today's date only — a 3-week rolling window meant this
-    // could return dozens of fixtures at once, each getting a fresh 25k-
-    // iteration Monte Carlo simulation synchronously on render, which was a
-    // real source of multi-second main-thread blocking ("page
-    // unresponsive"). Same convention as MLS's schedule fetch: only the
-    // current day's matches load.
-    // Real bug, found and fixed: this used to build the dates= param from
-    // raw new Date().getFullYear()/getMonth()/getDate() -- the browser's
-    // own local calendar date, NOT explicitly Denver-local. Every other
-    // date-scoped fetch in the app (MLS/MLB/CFB schedules, lockPick's own
-    // date stamp) goes through today()/todayESPN(), which are pinned to
-    // America/Denver regardless of what timezone the process running the
-    // browser is actually in -- confirmed live: MLS's schedule fetch uses
-    // exactly this pattern and locks correctly every day, while this
-    // function (the other 5 leagues: CL/PL/La Liga/Bundesliga/Serie A)
-    // didn't, and was the one auto-lock consistently missed picks for.
-    var r=await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/'+cfg.espn+'/scoreboard?dates='+todayESPN()+'&limit=50',{signal:ctrl.signal});
-    var d=await r.json();
-    var games=[];
-    (d.events||[]).forEach(function(ev){
-      var comp=ev.competitions&&ev.competitions[0];if(!comp)return;
-      var home=null,away=null;
-      (comp.competitors||[]).forEach(function(c){if(c.homeAway==='home')home=c;else away=c;});
-      if(!home||!away)return;
-      var status=comp.status&&comp.status.type&&comp.status.type.state;
-      var clock=comp.status&&comp.status.displayClock;
-      var hScore=parseInt(home.score)||0,aScore=parseInt(away.score)||0;
-      var odds=comp.odds&&comp.odds[0];
-      // Soccer's 3-way market doesn't live at odds.homeTeamOdds/
-      // awayTeamOdds the way 2-way sports' does -- those are null for
-      // every soccer fixture (confirmed against the live API). The real
-      // moneylines are nested at odds.moneyline.{home,away,draw}.close.odds
-      // as American-odds strings (e.g. "+280"), with the draw price only
-      // existing at all here since draws are a real 3rd outcome soccer
-      // needs and 2-way sports don't have. Every downstream EV/edge/Kelly
-      // calc in _renderSocMatchCard was reading the always-null
-      // homeTeamOdds/awayTeamOdds path and silently falling through to
-      // g.hML/g.aML being undefined, which meant "market edge" there was
-      // actually being computed against the model's own probability
-      // converted back to a moneyline -- tautologically ~0, not a real
-      // market comparison, for every soccer match card until this fix.
-      var _mlBlock=odds&&odds.moneyline;
-      var _parseAmML=function(v){var n=parseInt(v,10);return isNaN(n)?null:n;};
-      var hML2=odds&&odds.homeTeamOdds&&odds.homeTeamOdds.moneyLine;
-      var aML2=odds&&odds.awayTeamOdds&&odds.awayTeamOdds.moneyLine;
-      if(hML2==null&&_mlBlock&&_mlBlock.home)hML2=_parseAmML(_mlBlock.home.close&&_mlBlock.home.close.odds||_mlBlock.home.open&&_mlBlock.home.open.odds);
-      if(aML2==null&&_mlBlock&&_mlBlock.away)aML2=_parseAmML(_mlBlock.away.close&&_mlBlock.away.close.odds||_mlBlock.away.open&&_mlBlock.away.open.odds);
-      var dML2=odds&&odds.drawOdds&&odds.drawOdds.moneyLine;
-      if(dML2==null&&_mlBlock&&_mlBlock.draw)dML2=_parseAmML(_mlBlock.draw.close&&_mlBlock.draw.close.odds||_mlBlock.draw.open&&_mlBlock.draw.open.odds);
-      games.push({
-        id:ev.id,home:home.team&&home.team.displayName,away:away.team&&away.team.displayName,
-        hAbbr:home.team&&home.team.abbreviation,aAbbr:away.team&&away.team.abbreviation,
-        hScore,aScore,status:status||'pre',clock:clock||'',date:ev.date,
-        ou:odds&&odds.overUnder,hML:hML2,aML:aML2,dML:dML2,venue:comp.venue&&comp.venue.fullName
+    // Full-season fetch -- explicit request, 2026-09-16, to give these 6
+    // leagues the same day-picker-dropdown browsing every other sport in
+    // this app already has (NFL/CFB/NHL/LIIGA/SHL). Used to be pinned to
+    // exactly today's date (dates=todayESPN()) because a 3-WEEK ROLLING
+    // WINDOW previously loaded here could return dozens of fixtures at
+    // once, each getting a fresh 25k-iteration Monte Carlo sim
+    // synchronously on render -- real multi-second main-thread blocking.
+    // That regime doesn't apply here: _SOC_MC_N's own comment already
+    // establishes "a single league-day's worth of fixtures at 25k is not
+    // in that regime" -- the blocking case was specifically many fixtures
+    // rendered in ONE pass, and renderLeagueMatches (below) still only
+    // ever renders ONE selected day's games at a time, exactly like NHL/
+    // CFB/LIIGA's own schedule browsers. What changes here is only the
+    // SIZE of the cached dataset the day-picker can choose from, not how
+    // many games get simulated per render.
+    // ESPN's soccer scoreboard rejects a dates= range (YYYYMMDD-YYYYMMDD
+    // returns HTTP 400, confirmed live) and a bare year (dates=YYYY)
+    // returns that whole calendar year's schedule in one call (confirmed
+    // live: 300-500+ real events per league, real odds attached to
+    // fixtures a month out). A European season spans two calendar years
+    // (Aug-May), so both the current and next year are fetched and
+    // merged/deduped by event id; MLS's season sits inside one calendar
+    // year, so its second fetch just returns nothing extra, harmlessly.
+    var yr=parseInt(todayESPN().slice(0,4),10);
+    var ctrl=new AbortController();setTimeout(function(){ctrl.abort();},15000);
+    var urls=[yr,yr+1].map(function(y){return'https://site.api.espn.com/apis/site/v2/sports/soccer/'+cfg.espn+'/scoreboard?dates='+y+'&limit=1000';});
+    var resps=await Promise.all(urls.map(function(u){return fetch(u,{signal:ctrl.signal}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}));
+    var seenIds={},games=[];
+    resps.forEach(function(d){
+      if(!d)return;
+      (d.events||[]).forEach(function(ev){
+        if(seenIds[ev.id])return;seenIds[ev.id]=true;
+        var comp=ev.competitions&&ev.competitions[0];if(!comp)return;
+        var home=null,away=null;
+        (comp.competitors||[]).forEach(function(c){if(c.homeAway==='home')home=c;else away=c;});
+        if(!home||!away)return;
+        var status=comp.status&&comp.status.type&&comp.status.type.state;
+        var clock=comp.status&&comp.status.displayClock;
+        var hScore=parseInt(home.score)||0,aScore=parseInt(away.score)||0;
+        var odds=comp.odds&&comp.odds[0];
+        // Soccer's 3-way market doesn't live at odds.homeTeamOdds/
+        // awayTeamOdds the way 2-way sports' does -- those are null for
+        // every soccer fixture (confirmed against the live API). The real
+        // moneylines are nested at odds.moneyline.{home,away,draw}.close.odds
+        // as American-odds strings (e.g. "+280"), with the draw price only
+        // existing at all here since draws are a real 3rd outcome soccer
+        // needs and 2-way sports don't have. Every downstream EV/edge/Kelly
+        // calc in _renderSocMatchCard was reading the always-null
+        // homeTeamOdds/awayTeamOdds path and silently falling through to
+        // g.hML/g.aML being undefined, which meant "market edge" there was
+        // actually being computed against the model's own probability
+        // converted back to a moneyline -- tautologically ~0, not a real
+        // market comparison, for every soccer match card until this fix.
+        var _mlBlock=odds&&odds.moneyline;
+        var _parseAmML=function(v){var n=parseInt(v,10);return isNaN(n)?null:n;};
+        var hML2=odds&&odds.homeTeamOdds&&odds.homeTeamOdds.moneyLine;
+        var aML2=odds&&odds.awayTeamOdds&&odds.awayTeamOdds.moneyLine;
+        if(hML2==null&&_mlBlock&&_mlBlock.home)hML2=_parseAmML(_mlBlock.home.close&&_mlBlock.home.close.odds||_mlBlock.home.open&&_mlBlock.home.open.odds);
+        if(aML2==null&&_mlBlock&&_mlBlock.away)aML2=_parseAmML(_mlBlock.away.close&&_mlBlock.away.close.odds||_mlBlock.away.open&&_mlBlock.away.open.odds);
+        var dML2=odds&&odds.drawOdds&&odds.drawOdds.moneyLine;
+        if(dML2==null&&_mlBlock&&_mlBlock.draw)dML2=_parseAmML(_mlBlock.draw.close&&_mlBlock.draw.close.odds||_mlBlock.draw.open&&_mlBlock.draw.open.odds);
+        games.push({
+          id:ev.id,home:home.team&&home.team.displayName,away:away.team&&away.team.displayName,
+          hAbbr:home.team&&home.team.abbreviation,aAbbr:away.team&&away.team.abbreviation,
+          hScore,aScore,status:status||'pre',clock:clock||'',date:ev.date,
+          ou:odds&&odds.overUnder,hML:hML2,aML:aML2,dML:dML2,venue:comp.venue&&comp.venue.fullName
+        });
       });
     });
+    // Emergency fallback: if the live fetch above came back completely
+    // empty (ESPN's real, confirmed CORS/throttle failure -- see
+    // loadSoccerScheduleSnapshot's own comment), fall back to today's games
+    // from the daily server-side snapshot rather than showing an empty
+    // day-picker. Only ever supplies TODAY's games (that's all the
+    // snapshot ever has), so this can't power browsing other days, but it
+    // keeps the automated pipeline / today's view working through exactly
+    // the failure mode this snapshot was originally built for.
+    if(!games.length&&window.__CV_SOC_SCHED_SNAPSHOT&&window.__CV_SOC_SCHED_SNAPSHOT.leagues&&window.__CV_SOC_SCHED_SNAPSHOT.leagues[leagueKey]){
+      games=window.__CV_SOC_SCHED_SNAPSHOT.leagues[leagueKey]||[];
+      console.warn('[CV] League scoreboard live fetch empty, using today-only snapshot fallback:',leagueKey);
+    }
     games.sort(function(a,b){return new Date(a.date)-new Date(b.date);});
-    _leagueScoreCache[leagueKey]=games;_leagueScoreCacheTs[leagueKey]=now;return games;
+    // Only cache a non-empty result. Same "empty array is truthy in JS"
+    // bug class already found and fixed elsewhere in this app (see
+    // _epGatherMoonLegs' own comment on window.ESPN_GAMES) -- caching a
+    // transient-failure [] here for the full 5-minute _LEAGUE_TTL would
+    // lock this league's day-picker to "NO SCHEDULE DATA" for 5 real
+    // minutes even once the network recovers, which matters more now that
+    // this is 2 merged network calls (more surface area for a one-off
+    // timeout/hiccup) instead of the old single same-day request.
+    if(games.length){_leagueScoreCache[leagueKey]=games;_leagueScoreCacheTs[leagueKey]=now;}
+    return games;
   }catch(e){console.warn('[CV] League scoreboard err:',leagueKey,e);return[];}
 }
 
@@ -22135,22 +22194,26 @@ function loadSoccerStandingsSnapshot(){
     .catch(function(e){console.warn('[CV] Soccer standings snapshot load failed:',e.message);return null;});
   return _socStandSnapLoading;
 }
-// Pre-seeds _leagueScoreCache from the daily server-side snapshot (docs/
-// soccer_schedule.json, written by scripts/scrape_soccer_schedule.py) so
-// _fetchLeagueScoreboard() has real data immediately at boot instead of
-// depending on a live client-side ESPN fetch -- confirmed by direct
+// Loads the daily server-side TODAY-ONLY snapshot (docs/soccer_schedule.json,
+// written by scripts/scrape_soccer_schedule.py) as an emergency fallback for
+// _fetchLeagueScoreboard()'s live ESPN fetch -- confirmed by direct
 // reproduction (headless browser hitting the live page) that that fetch
 // intermittently fails with a CORS error under what looks like ESPN's own
 // request-volume throttling (the exact same endpoint returns a normal 200
 // with a permissive CORS header for a plain server-to-server request
-// seconds later). See scrape_soccer_schedule.py's module docstring for
-// the full story -- this was the real cause of soccer-lock-early.yml
-// occasionally gathering "0 games" on a real matchday. Only seeds when
-// the snapshot's own date matches today (a stale snapshot -- e.g. this
-// morning's refresh workflow failed -- would show yesterday's fixtures as
-// today's, worse than no seed at all) and only leagues
-// _fetchLeagueScoreboard() hasn't already cached. Live fetch still
-// naturally supersedes it once _LEAGUE_TTL passes.
+// seconds later). See scrape_soccer_schedule.py's module docstring for the
+// full story -- this was the real cause of soccer-lock-early.yml
+// occasionally gathering "0 games" on a real matchday.
+// Used to pre-seed _leagueScoreCache directly at boot, before the
+// full-season day-picker (2026-09-16) existed -- that actively broke the
+// day-picker: this snapshot is TODAY ONLY, and an empty array is truthy in
+// JS, so a league with zero matches today (completely normal review any
+// day) got permanently cached as "[]" for the full _LEAGUE_TTL, blocking
+// _fetchLeagueScoreboard's own full-season fetch from ever running and
+// hiding every other real upcoming date from the dropdown. Now just stores
+// the parsed snapshot on window.__CV_SOC_SCHED_SNAPSHOT; _fetchLeagueScoreboard
+// itself decides whether to fall back to it (only when its own live
+// full-season fetch comes back empty), same resilience with no blocking.
 var _socSchedSnapLoading=null;
 function loadSoccerScheduleSnapshot(){
   if(_socSchedSnapLoading)return _socSchedSnapLoading;
@@ -22162,14 +22225,10 @@ function loadSoccerScheduleSnapshot(){
       // d.date is written as todayESPN()-format (YYYYMMDD, Denver-local) by
       // the Python generator, so compare against the same helper here
       // instead of a raw new Date() format -- otherwise a fresh snapshot
-      // could get wrongly treated as stale (or a stale one wrongly seeded)
+      // could get wrongly treated as stale (or a stale one wrongly used)
       // whenever the browser process's local date differs from Denver's.
-      if(d.date!==todayESPN()){console.warn('[CV] Soccer schedule snapshot stale, skipping seed:',d.date);return d;}
-      var now=Date.now();
-      Object.keys(d.leagues).forEach(function(lk){
-        if(_leagueScoreCache[lk])return;
-        _leagueScoreCache[lk]=d.leagues[lk]||[];_leagueScoreCacheTs[lk]=now;
-      });
+      if(d.date!==todayESPN()){console.warn('[CV] Soccer schedule snapshot stale, skipping:',d.date);return d;}
+      window.__CV_SOC_SCHED_SNAPSHOT=d;
       return d;
     })
     .catch(function(e){console.warn('[CV] Soccer schedule snapshot load failed:',e.message);return null;});
@@ -22491,26 +22550,18 @@ async function _fetchMLSScheduleReal(){
       };
     });
     games.sort(function(a,b){return new Date(a.date)-new Date(b.date);});
-    // mls_schedule.json is the whole-season fixture list, so without this
-    // MLS keeps showing every already-played matchday forever — unlike the
-    // other 4 leagues, which go through _fetchLeagueScoreboard's bounded
-    // "past/next 3 weeks" window and naturally age out old fixtures. MLS
-    // is restricted to strictly today's matches only (not a rolling
-    // window) — a completed match still shows for the rest of that same
-    // day, but disappears the moment the calendar date changes.
-    // Kickoff timestamps are UTC; today() always resolves in America/Denver.
-    // Naively slicing the first 10 chars of a UTC ISO string compares a UTC
-    // calendar date against a Mountain-time one — an evening MLS kickoff
-    // (e.g. 8pm Mountain, already past midnight UTC) would silently fall on
-    // the "wrong" side of that comparison and vanish from today's list (or
-    // appear a day early/late). Convert each kickoff into Denver's own
-    // calendar date before comparing, same as the lock-date fix above.
-    var todayIso=typeof today==='function'?today():new Date().toISOString().slice(0,10);
-    games=games.filter(function(g){
-      var gd=new Date(g.date);
-      var gIso=isNaN(gd)?(g.date||'').slice(0,10):gd.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
-      return gIso===todayIso;
-    });
+    // mls_schedule.json is already the whole-season fixture list -- return
+    // it as-is now (explicit request, 2026-09-16) so the day-picker added
+    // to renderLeagueMatches/_socPopulateDayFilter can browse any real
+    // matchday, same as NHL/CFB/LIIGA/SHL's own full-season schedule
+    // browsers. This used to hard-filter down to exactly today's local
+    // date right here (MLS was "restricted to strictly today's matches
+    // only, not a rolling window" per this comment's old wording) --
+    // dropping PAST dates is now the day-picker's own job
+    // (_socPopulateDayFilter's `>= todayIso` filter), matching every other
+    // sport's convention: a date drops off the list once it's fully
+    // passed, rather than this fetch throwing every non-today date away
+    // before the UI ever gets a chance to offer it.
     _mlsScheduleCache=games;_mlsScheduleCacheTs=now;return games;
   }catch(e){console.warn('[CV] MLS real schedule offline, falling back to ESPN:',e.message);return null;}
 }
@@ -22532,44 +22583,73 @@ async function renderLeagueMatches(key){
       if(stillEl&&window['_'+key+'Games'])renderLeagueMatches(key);
     });
   }
-  el.innerHTML='<div class="loading"><span class="spi"></span> LOADING '+(_LEAGUE_CFG[key]&&_LEAGUE_CFG[key].name||key.toUpperCase())+' MATCHES…</div>';
+  el.innerHTML='<div class="loading"><span class="spi"></span> LOADING '+(_LEAGUE_CFG[key]&&_LEAGUE_CFG[key].name||key.toUpperCase())+' SCHEDULE…</div>';
   var games=key==='mls'?await _fetchMLSScheduleReal():null;
   if(!games)games=await _fetchLeagueScoreboard(key);
   if(!games.length){
-    el.innerHTML='<div style="font-family:var(--orb);font-size:19px;color:var(--t3);text-align:center;padding:30px">NO '+(_LEAGUE_CFG[key]&&_LEAGUE_CFG[key].name||key.toUpperCase())+' MATCHES TODAY<br><span style="font-size:15px;color:var(--t3)">CHECK BACK ON MATCH DAYS</span></div>';
+    el.innerHTML='<div style="font-family:var(--orb);font-size:19px;color:var(--t3);text-align:center;padding:30px">NO '+(_LEAGUE_CFG[key]&&_LEAGUE_CFG[key].name||key.toUpperCase())+' SCHEDULE DATA<br><span style="font-size:15px;color:var(--t3)">CHECK BACK LATER</span></div>';
     return;
   }
   window['_'+key+'Games']=games;
-  // Every league (not just MLS) is now restricted to today's matches only
-  // by its own fetch (_fetchMLSScheduleReal / _fetchLeagueScoreboard), so
-  // there's never more than one date bucket here and no need for the old
-  // multi-week filter bar — that 3-week window could load dozens of
-  // fixtures at once, each running a fresh 25k-iteration simulation
-  // synchronously, which was a real source of main-thread blocking.
-  var byDate={};
-  games.forEach(function(g){
-    // Same UTC-vs-Denver bug already fixed for the fetch filter and the
-    // lock date: g.date is a UTC kickoff timestamp, and naively slicing its
-    // first 10 chars reads the UTC calendar date — an evening kickoff
-    // (already past midnight UTC) would group under tomorrow's date header
-    // instead of today's, even though the game is genuinely today locally.
+  // Day-picker over the full schedule -- explicit request, 2026-09-16, to
+  // match the NFL/CFB/NHL/LIIGA/SHL browsing pattern (pick any real
+  // matchday, past dates drop off the list once they're fully done) instead
+  // of always being locked to today only. Both fetches above now return the
+  // WHOLE season (see their own comments), so this only ever renders the
+  // ONE selected day's fixtures -- same "one day's worth of games at 25k
+  // sims is fine, many WEEKS at once was the real problem" reasoning
+  // _fetchLeagueScoreboard's own comment already establishes.
+  _socPopulateDayFilter(key,games);
+  var sel=document.getElementById(key+'-filter-day');
+  var iso=sel?sel.value:null;
+  if(!iso){el.innerHTML='<div class="empty">NO UPCOMING SCHEDULE DATA</div>';return;}
+  var dayGames=games.filter(function(g){
+    // Same UTC-vs-Denver bug already fixed for the old today-only fetch
+    // filter and the lock date: g.date is a UTC kickoff timestamp, and
+    // naively slicing its first 10 chars reads the UTC calendar date — an
+    // evening kickoff (already past midnight UTC) would land on the
+    // "wrong" side of this comparison, even though the game is genuinely
+    // this local day.
+    if(!g.date)return false;
     var gd=new Date(g.date);
-    var iso=isNaN(gd)?(g.date||'').slice(0,10):gd.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
-    if(!iso)return;
-    if(!byDate[iso])byDate[iso]=[];byDate[iso].push(g);
-  });
-  var dates=Object.keys(byDate).sort();
+    var gIso=isNaN(gd)?(g.date||'').slice(0,10):gd.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+    return gIso===iso;
+  }).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
   var todayIso=today();
-  var html='<div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:8px;letter-spacing:1px">'+games.length+' MATCH'+(games.length===1?'':'ES')+' TODAY · '+(_LEAGUE_CFG[key]&&_LEAGUE_CFG[key].name)+'</div>';
-  if(!dates.length)html+='<div class="empty">NO MATCHES ON THIS DATE</div>';
-  dates.forEach(function(d){
-    var isTod=d===todayIso;
-    html+='<div style="font-family:var(--mono);font-size:16px;color:'+(isTod?'var(--hc)':'var(--nc)')+';letter-spacing:2px;padding:10px 4px 6px;border-top:1px solid rgba(255,255,255,.08)">'+new Date(d+'T00:00:00').toLocaleDateString([],{weekday:'long',month:'short',day:'numeric'}).toUpperCase()+(isTod?' · TODAY':'')+'</div>';
-    byDate[d].forEach(function(g){html+=_renderSocMatchCard(g,key);});
-  });
+  var dispDate=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'long',month:'short',day:'numeric',year:'numeric'});
+  var label=iso===todayIso?('TODAY · '+dispDate):dispDate;
+  var html='<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--nc);margin:0 0 8px;border-bottom:1px solid rgba(255,255,255,.15);padding-bottom:4px">// '+label+' — '+dayGames.length+' MATCH'+(dayGames.length===1?'':'ES')+' · '+(_LEAGUE_CFG[key]&&_LEAGUE_CFG[key].name)+'</div>';
+  html+=dayGames.length?dayGames.map(function(g){return _renderSocMatchCard(g,key);}).join(''):'<div class="empty" style="padding:14px">NO MATCHES SCHEDULED</div>';
   el.innerHTML=html;
 }
 window.renderLeagueMatches=renderLeagueMatches;
+// Day-picker populate — same convention as _nhlPopulateScheduleDayFilter/
+// _liigaPopulateDayFilter/_shlPopulateDayFilter: one <option> per real
+// match date (America/Denver-local), dropped once it's fully in the past,
+// defaulting to today if it has games or else the earliest upcoming date.
+// Shared across all 6 soccer leagues (parameterized by key) rather than
+// six near-identical copies, since the underlying game-object shape and
+// date field are identical for all of them.
+function _socPopulateDayFilter(key,games){
+  var sel=document.getElementById(key+'-filter-day');if(!sel)return;
+  var cur=sel.value;
+  var todayIso=today();
+  var datesSet={};
+  games.forEach(function(g){
+    if(!g.date)return;
+    var d=new Date(g.date);
+    if(isNaN(d))return;
+    datesSet[d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'})]=true;
+  });
+  var dates=Object.keys(datesSet).filter(function(d){return d>=todayIso;}).sort();
+  if(sel.options.length===dates.length&&cur&&dates.indexOf(cur)>=0)return;
+  sel.innerHTML=dates.map(function(iso){
+    var disp=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    return'<option value="'+iso+'">'+(iso===todayIso?'TODAY · ':'')+disp.toUpperCase()+'</option>';
+  }).join('');
+  var target=(cur&&dates.indexOf(cur)>=0)?cur:(dates.indexOf(todayIso)>=0?todayIso:dates[0]);
+  if(target)sel.value=target;
+}
 
 async function renderLeagueStandings(key){
   var el=document.getElementById(key+'-standings-list');if(!el)return;
@@ -23929,10 +24009,20 @@ function _epGatherESPNCacheLegs(sportTag,cacheKey){
 function _epGatherSoccerLegLegs(leagueKey,sportTag){
   var legs=[];
   if(typeof _socXG!=='function'||typeof _soccerMC!=='function')return legs;
+  // window['_'+leagueKey+'Games'] now holds the WHOLE season (see
+  // renderLeagueMatches/_fetchLeagueScoreboard's own comments, 2026-09-16) --
+  // this leg gatherer wants today's slate only, same as every other sport's
+  // own leg gatherer already restricts itself to. Without this, the parlay/
+  // moon-pool builder would surface legs for the entire remaining season the
+  // moment a soccer tab had ever been opened once.
   var games=window['_'+leagueKey+'Games']||[];
+  var todayIso=typeof today==='function'?today():new Date().toISOString().slice(0,10);
   var _grade=function(p){return p>=0.67?'PREMIUM':p>=0.62?'OPTIMAL':p>=0.55?'LEAN':'SKIP';};
   games.forEach(function(g){
     if(!g.home||!g.away||g.status==='post')return;
+    var gd=g.date?new Date(g.date):null;
+    var gIso=gd&&!isNaN(gd)?gd.toLocaleDateString('sv-SE',{timeZone:'America/Denver'}):(g.date||'').slice(0,10);
+    if(gIso!==todayIso)return;
     try{
       var hXG=_socXG(g.home,leagueKey),aXG=_socXG(g.away,leagueKey);
       var eg=_socExpectedGoals(hXG,aXG,leagueKey,g.home,g.away);
