@@ -16676,6 +16676,51 @@ function patchNHLStandings(standings){
     NHL[abbr].w=s.w;NHL[abbr].l=s.l;NHL[abbr].otl=s.otl;NHL[abbr].pts=s.pts;
   }
 }
+// Backfills NHL[abbr].gsax/.hdsv for every real team from MONEYPUCK.goalies
+// -- explicit request, 2026-09-16: goalieComposite() (the model's
+// goaltending term inside nhlMC) calls its primary input "gsax" but that
+// field only ever existed on 4 hand-curated static teams (last season's
+// playoff final four); the other 28 silently defaulted to 0 weight on
+// it. The live-fetch path that was SUPPOSED to backfill this
+// (patchLiveNHLSnapshot's snap.goalies branch) depends on a backend API
+// this now-static deployment doesn't run, so it never fired. This reads
+// the goalie data the client already receives from the real MoneyPuck
+// scrape (fetch_moneypuck() -> docs/data.json's mp field, no backend API
+// needed) instead.
+// One row per goalie per situation -- 'all' is the full-strength-plus-
+// special-teams combined view goalieComposite's tuning (gsax/(sv-.91)/
+// (hdsv-.90)) was written against, so that's the one read here, not a
+// per-situation split. Picks each team's highest-games-played 'all' row
+// as its current starter -- a simple, real signal (who's actually been
+// playing) rather than trying to blend a backup goalie's smaller sample
+// into the same number.
+function _nhlApplyGoalieStats(){
+  const allSit=(MONEYPUCK.goalies||[]).filter(g=>g.situation==='all');
+  const starterByTeam={};
+  allSit.forEach(g=>{
+    if(!starterByTeam[g.team]||(g.gp||0)>(starterByTeam[g.team].gp||0))starterByTeam[g.team]=g;
+  });
+  Object.entries(starterByTeam).forEach(([abbr,g])=>{
+    if(!NHL[abbr])return;
+    // Real shots-faced is the guard: a starter with real games played
+    // always has real shots against, so shots===0 means this row is the
+    // still-broken column-name fallback (see _mp_load_goalies' own
+    // comment on the 2026-09-16 bug), not real "this goalie faced zero
+    // shots" data. Skip rather than overwrite the 4 legacy static
+    // teams' own real hand-typed values with a degenerate zero for
+    // however many scrape cycles it takes the corrected column names to
+    // actually be confirmed right.
+    if(!g.shots)return;
+    // gsaa (goals saved above average) is MoneyPuck's own name for the
+    // same real-world stat this app calls gsax everywhere else -- not a
+    // different metric, just aliased to the field name goalieComposite/
+    // nhlEns already read before this fix existed.
+    if(g.gsaa!=null)NHL[abbr].gsax=g.gsaa;
+    if(g.hdSavePct!=null)NHL[abbr].hdsv=g.hdSavePct;
+    if(g.savePct!=null&&NHL[abbr].sv==null)NHL[abbr].sv=g.savePct;
+    NHL[abbr]._liveGoalieStarter=g.name;
+  });
+}
 function patchMoneyPuck(goalies,teams){
   MONEYPUCK.goalies=goalies||[];
   MONEYPUCK.teams=teams||{};
@@ -16684,6 +16729,7 @@ function patchMoneyPuck(goalies,teams){
   // call again even if applyNHLEdgeData() already ran once without this
   // data available yet.
   try{if(typeof _nhlDeriveHV==='function')_nhlDeriveHV();}catch(e){}
+  try{_nhlApplyGoalieStats();}catch(e){}
   try{const el=document.getElementById('mp-content');if(el&&el.closest('.tab.act'))renderMoneyPuck();}catch(e){}
 }
 

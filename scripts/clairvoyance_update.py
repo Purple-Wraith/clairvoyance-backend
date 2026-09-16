@@ -1317,26 +1317,67 @@ def _mp_load_teams(year: int) -> dict:
 
 def _mp_load_goalies(year: int) -> dict:
     """Keyed by (name, situation) -- MoneyPuck's goalies.csv has one row
-    per goalie per situation (all/5v5/4v5/...), same as teams.csv."""
+    per goalie per situation (all/5v5/4v5/...), same as teams.csv.
+
+    Real bug, found 2026-09-16 auditing why every NHL team but 4 (a
+    hand-curated static fallback) had zero real goaltending signal in
+    the model: this used to look up columns (savePct, goalsAboveAverage,
+    highDangerSavePct, shotsOnGoalAgainst, goalsAgainst, xGoalsAgainst --
+    all copy-pasted from _mp_load_teams' own camelCase convention) that
+    don't exist on MoneyPuck's real goalies.csv at all. row.get(...) on a
+    missing column returns None, and every field here was wrapped in
+    `or 0`/`or 0.0`, so the lookup failing was silent -- confirmed live,
+    every one of 490 real goalie rows had gsaa/savePct/hdSavePct/shots/
+    ga/xga sitting at exactly 0.0 despite games_played (the one field
+    that WAS spelled correctly) coming through with real values. Only
+    the hand-typed static 4-team table was ever contributing real
+    goaltending data to nhlEns()'s composite as a result.
+
+    MoneyPuck's goalies.csv doesn't publish save%/GSAx as columns at
+    all -- those are derived stats -- it publishes the raw counting
+    fields (shots faced, goals allowed, expected goals against, and the
+    same breakdown per danger zone) that save%/GSAx are computed from
+    elsewhere on their own site. Deriving them here from those raw
+    fields instead of a nonexistent pre-computed column:
+      gsaa (goals saved above average, i.e. GSAx) = xGoals - goals
+      savePct = (shots - goals) / shots
+      xSavePct = (shots - xGoals) / shots
+      {hd,md,ld}SavePct = (zoneShots - zoneGoals) / zoneShots per danger tier
+    Best-effort against MoneyPuck's documented raw schema -- not yet
+    verified against a live CSV pull (network to moneypuck.com is
+    blocked from the environment this fix was written in); the next
+    real scheduled run of this script is the first real check that
+    these are the correct raw column names."""
     rows = fetch_csv_rows(f"{MP_BASE}/{year}/regular/goalies.csv")
     out: dict = {}
+    def _safe_div(num: float, den: float) -> float:
+        return num / den if den else 0.0
     for row in rows:
         name = row.get("name","")
         situation = row.get("situation","all")
         if not name: continue
         try:
+            shots = float(row.get("ongoal") or 0)
+            goals = float(row.get("goals") or 0)
+            xga = float(row.get("xGoals") or 0)
+            hdShots = float(row.get("highDangerShots") or 0)
+            hdGoals = float(row.get("highDangerGoals") or 0)
+            mdShots = float(row.get("mediumDangerShots") or 0)
+            mdGoals = float(row.get("mediumDangerGoals") or 0)
+            ldShots = float(row.get("lowDangerShots") or 0)
+            ldGoals = float(row.get("lowDangerGoals") or 0)
             out[(name, situation)] = {
                 "team":      row.get("team",""),
                 "gp":        int(row.get("games_played") or 0),
-                "gsaa":      float(row.get("goalsAboveAverage") or 0),
-                "savePct":   float(row.get("savePct") or 0),
-                "xSavePct":  float(row.get("xSavePct") or 0),
-                "hdSavePct": float(row.get("highDangerSavePct") or 0),
-                "mdSavePct": float(row.get("mediumDangerSavePct") or 0),
-                "ldSavePct": float(row.get("lowDangerSavePct") or 0),
-                "shots":     int(row.get("shotsOnGoalAgainst") or 0),
-                "ga":        float(row.get("goalsAgainst") or 0),
-                "xga":       float(row.get("xGoalsAgainst") or 0),
+                "gsaa":      xga - goals,
+                "savePct":   _safe_div(shots - goals, shots),
+                "xSavePct":  _safe_div(shots - xga, shots),
+                "hdSavePct": _safe_div(hdShots - hdGoals, hdShots),
+                "mdSavePct": _safe_div(mdShots - mdGoals, mdShots),
+                "ldSavePct": _safe_div(ldShots - ldGoals, ldShots),
+                "shots":     int(shots),
+                "ga":        goals,
+                "xga":       xga,
             }
         except (ValueError, TypeError):
             pass
