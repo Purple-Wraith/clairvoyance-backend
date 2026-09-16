@@ -1,0 +1,54 @@
+name: Liiga Schedule + Standings Refresh
+
+# New league, explicit request 2026-09-16 (SHL to follow the same
+# pattern once its own sources are confirmed). Liiga has no ESPN
+# coverage -- confirmed live, hockey/fin.1 returns a plain 400 -- so
+# this scrapes Flashscore instead, the sources the user supplied
+# directly (see fetch_liiga.py's own module docstring for the exact
+# URLs and the team-identity/name-resolution design).
+#
+# Kept as its OWN workflow rather than folded into
+# daily-schedules-refresh.yml (which only runs `pip install requests`,
+# no browser) -- Flashscore is a JS-rendered SPA, confirmed live that a
+# plain request returns an empty shell with zero real match markup, so
+# this needs Playwright the same way cfb-rankings-weekly.yml's own ESPN-
+# WAF workaround does. Bundling a Chromium download into every run of
+# the lightweight daily-schedules workflow would slow down every other
+# script in it for a dependency only this one needs.
+
+on:
+  schedule:
+    # 6:10 AM MT = 12:10 UTC (MDT) / 13:10 UTC (MST) -- once daily,
+    # ahead of the morning lock passes; Liiga plays close to daily but a
+    # single morning refresh is enough to keep the upcoming-fixtures
+    # window and standings current for the day's locks.
+    - cron: '10 12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-liiga:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -q playwright
+          for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
+      - name: Refresh Liiga schedule/standings and push
+        env:
+          TZ: America/Denver
+        run: |
+          git config user.name  "Clairvoyance Bot"
+          git config user.email "bot@clairvoyance"
+          python3 scripts/fetch_liiga.py --push
