@@ -932,7 +932,7 @@ body{line-height:1.5}
   </div>
   <div id="hk-ncaah" class="subp">
     <nav class="inav" id="ncaah-in">
-      <button class="nb act" onclick="T('ncaah','matches');renderGenericWeek('ncaah-matches-list','hockey/mens-college-hockey','NCAAH')">MATCHES</button>
+      <button class="nb act" onclick="T('ncaah','matches');renderGenericWeek('ncaah-matches-list','hockey/mens-college-hockey','NCAAH')">GAMES</button>
       <button class="nb" onclick="T('ncaah','model')">MODEL</button>
       <button class="nb" onclick="T('ncaah','config')">CONFIG</button>
     </nav>
@@ -26222,14 +26222,32 @@ function saveParlayToTracker(legs,sport){
       <button onclick="SS('hk');T('nhl','config');hideAllND()">Config</button>
     </div>
   </div>
-  <button onclick="SS('hk');setSub('hk','ncaah');hideAllND()">College Hockey</button>
+  <div class="ndl"><button onclick="SS('hk');setSub('hk','ncaah');hideAllND()">College Hockey</button>
+    <div class="ndl-sub">
+      <button onclick="SS('hk');setSub('hk','ncaah');hideAllND()">Games</button>
+      <button onclick="SS('hk');setSub('hk','ncaah');T('ncaah','model');hideAllND()">Model</button>
+      <button onclick="SS('hk');setSub('hk','ncaah');T('ncaah','config');hideAllND()">Config</button>
+    </div>
+  </div>
   <!-- KHL removed from the Hockey dropdown, 2026-09-03: removed from the
        backend entirely (no fetch pipeline, no product) -- the tab itself
        still exists (setSub('hk','khl')) and shows its existing "no live
        feed yet" placeholder if reached another way, only this quick-nav
        entry was removed. -->
-  <button onclick="SS('hk');setSub('hk','shl');hideAllND()">SHL</button>
-  <button onclick="SS('hk');setSub('hk','liiga');hideAllND()">LIIGA</button>
+  <div class="ndl"><button onclick="SS('hk');setSub('hk','shl');hideAllND()">SHL</button>
+    <div class="ndl-sub">
+      <button onclick="SS('hk');setSub('hk','shl');hideAllND()">Games</button>
+      <button onclick="SS('hk');setSub('hk','shl');T('shl','model');hideAllND()">Model</button>
+      <button onclick="SS('hk');setSub('hk','shl');T('shl','config');hideAllND()">Config</button>
+    </div>
+  </div>
+  <div class="ndl"><button onclick="SS('hk');setSub('hk','liiga');hideAllND()">LIIGA</button>
+    <div class="ndl-sub">
+      <button onclick="SS('hk');setSub('hk','liiga');hideAllND()">Games</button>
+      <button onclick="SS('hk');setSub('hk','liiga');T('liiga','model');hideAllND()">Model</button>
+      <button onclick="SS('hk');setSub('hk','liiga');T('liiga','config');hideAllND()">Config</button>
+    </div>
+  </div>
 </div>
 <div id="navd-soc" class="nav-drop-fixed" onmouseenter="cancelHideND()" onmouseleave="startHideND()">
   <div class="ndl"><button onclick="SS('soc');setSub('soc','bl');T('bl','matches');renderLeagueMatches('bl');hideAllND()">Bundesliga</button>
