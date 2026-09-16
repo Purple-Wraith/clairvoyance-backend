@@ -1,0 +1,45 @@
+name: SHL Schedule + Standings Refresh
+
+# New league, explicit request 2026-09-16, same session/pattern as Liiga
+# (see liiga-schedule-refresh.yml's own comment for the full rationale:
+# no ESPN coverage, needs Playwright since Flashscore is a JS-rendered
+# SPA, kept as its own workflow rather than folded into the lightweight
+# `pip install requests`-only daily-schedules-refresh.yml).
+
+on:
+  schedule:
+    # 6:15 AM MT = 12:15 UTC (MDT) / 13:15 UTC (MST) -- 5 minutes after
+    # Liiga's own refresh, same reasoning cfb/nfl schedule refreshes stay
+    # staggered a few minutes apart elsewhere in this repo: avoids two
+    # Playwright-heavy jobs landing on the exact same minute and racing
+    # for a runner.
+    - cron: '15 12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-shl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -q playwright
+          for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
+      - name: Refresh SHL schedule/standings and push
+        env:
+          TZ: America/Denver
+        run: |
+          git config user.name  "Clairvoyance Bot"
+          git config user.email "bot@clairvoyance"
+          python3 scripts/fetch_shl.py --push

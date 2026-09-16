@@ -92,7 +92,7 @@ LOCKS_EMAIL_TO = os.environ.get("LOCKS_EMAIL_TO", "") or os.environ.get("SOCIAL_
 # Human-readable section headers for the email, keyed by the same sport
 # tags SPORT_TO_LOCKPICK_TYPE/_autoLockCapture use.
 SPORT_DISPLAY_NAME = {
-    "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB", "LIIGA": "Liiga",
+    "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB", "LIIGA": "Liiga", "SHL": "SHL",
     "SOC_BL": "Bundesliga", "SOC_LIGA": "La Liga", "SOC_MLS": "MLS", "SOC_PL": "Premier League",
     "SOC_ITA": "Serie A", "SOC_CL": "Champions League",
 }
@@ -115,7 +115,7 @@ LEDGER_LEAGUE_DISPLAY_NAME = {
 # lockPick's own type='PL' means NHL puck line) to the exact `type` string
 # lockPick() itself expects to resolve the correct sportTag.
 SPORT_TO_LOCKPICK_TYPE = {
-    "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB", "LIIGA": "LIIGA",
+    "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB", "LIIGA": "LIIGA", "SHL": "SHL",
     "SOC_BL": "BUND", "SOC_LIGA": "LIGA", "SOC_MLS": "MLS", "SOC_PL": "PL_SOC",
     "SOC_ITA": "SERIEA", "SOC_CL": "CL",
 }
@@ -130,23 +130,24 @@ EURO_SOCCER_SPORTS = frozenset({"SOC_CL", "SOC_PL", "SOC_LIGA", "SOC_BL", "SOC_I
 # maps to the exact sport tags gather_legs()/_autoLockCapture use. Soccer
 # bundles all 6 leagues (5 European + MLS) as one purchase.
 #
-# Hockey product promoted from NHL-only to NHL+Liiga, 2026-09-16 --
-# explicit request, now that Liiga has a real engine (Flashscore-sourced
-# schedule/standings/G-per-match, an exact-Poisson MC model, and full
-# ML/spread/O-U game cards -- see fetch_liiga.py and docs/app.html's
-# liigaMC/liigaEns/_liigaMatchCard). This is exactly the "when that
-# happens, revisit this mapping" moment the 2026-09-03 decision below
-# called out in advance. SHL and NCAAH (College Hockey) join the same
-# way once each gets its own real engine -- the user's stated direction
-# is "hockey" as a product should mean NHL+Liiga+SHL+NCAAH going forward,
-# not NHL alone; add each sport tag here as it's actually built, not
-# before (KHL is deliberately never included -- see below).
+# Hockey product promoted from NHL-only to NHL+Liiga+SHL, 2026-09-16 --
+# explicit request, now that both Liiga and SHL have real engines
+# (Flashscore-sourced schedule/standings/G-per-match, an exact-Poisson MC
+# model, and full ML/spread/O-U game cards -- see fetch_liiga.py/
+# fetch_shl.py and docs/app.html's liigaMC/shlMC + their Ens/MatchCard
+# equivalents). This is exactly the "when that happens, revisit this
+# mapping" moment the 2026-09-03 decision below called out in advance.
+# NCAAH (College Hockey) joins the same way once it gets its own real
+# engine -- the user's stated direction is "hockey" as a product should
+# mean NHL+Liiga+SHL+NCAAH going forward, not NHL alone; add each sport
+# tag here as it's actually built, not before (KHL is deliberately never
+# included -- see below).
 #
-# Explicit decision 2026-09-03 (superseded above for Liiga specifically):
-# KHL, SHL, LIIGA, and College Hockey (NCAAH) were real, live engine
-# features kept running for PERSONAL USE ONLY -- never sold, routed to
-# the owner-only "other" pass instead of any paid product, back when none
-# of them had real game cards wired up yet. KHL stays excluded
+# Explicit decision 2026-09-03 (superseded above for Liiga/SHL
+# specifically): KHL, SHL, LIIGA, and College Hockey (NCAAH) were real,
+# live engine features kept running for PERSONAL USE ONLY -- never sold,
+# routed to the owner-only "other" pass instead of any paid product, back
+# when none of them had real game cards wired up yet. KHL stays excluded
 # permanently (its own manual lock/settle buttons in the app UI still
 # work for personal use) -- there's no stated plan to build it out or
 # sell it, unlike SHL/LIIGA/NCAAH.
@@ -159,15 +160,15 @@ PRODUCT_SPORTS: dict[str, frozenset[str]] = {
     "nfl": frozenset({"NFL"}),
     "cfb": frozenset({"CFB"}),
     "nba": frozenset({"NBA"}),
-    "hockey": frozenset({"NHL", "LIIGA"}),
+    "hockey": frozenset({"NHL", "LIIGA", "SHL"}),
     "soccer": EURO_SOCCER_SPORTS | frozenset({"SOC_MLS"}),
 }
-# SHL and NCAAH (College Hockey) stay owner-only/personal-use until each
-# has a real engine built the way Liiga now does (Liiga removed from this
-# set 2026-09-16 -- it's a paid PRODUCT_SPORTS member now, not an "other"
-# personal-use sport, and a sport must never sit in both). KHL is
-# permanently owner-only -- see PRODUCT_SPORTS' own comment above.
-OTHER_ALLOWED_SPORTS: frozenset[str] = frozenset({"SHL", "NCAAH"})
+# NCAAH (College Hockey) stays owner-only/personal-use until it has a
+# real engine built the way Liiga/SHL now do (SHL removed from this set
+# 2026-09-16, joining Liiga -- both are paid PRODUCT_SPORTS members now,
+# not "other" personal-use sports, and a sport must never sit in both).
+# KHL is permanently owner-only -- see PRODUCT_SPORTS' own comment above.
+OTHER_ALLOWED_SPORTS: frozenset[str] = frozenset({"NCAAH"})
 PRODUCT_LABEL: dict[str, str] = {
     "nfl": "NFL", "cfb": "CFB", "nba": "NBA",
     "hockey": "HOCKEY", "soccer": "SOCCER",
@@ -847,6 +848,23 @@ def gather_legs(page) -> dict:
                 const localIso = isNaN(d) ? g.date.slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
                 if (localIso !== todayIso || g.state === 'post') return;
                 try { _liigaMatchCard(g); } catch (e) {}
+              });
+            }
+          } catch (e) {}
+          // SHL -- same treatment as Liiga immediately above (added the
+          // same day, same hockey-product promotion), reading docs/
+          // shl_schedule.json via loadShlScheduleData() and calling
+          // _autoLockCapture('SHL', ...) itself from inside _shlMatchCard.
+          try {
+            if (typeof _shlMatchCard === 'function' && typeof loadShlScheduleData === 'function') {
+              const shlData = await loadShlScheduleData();
+              const todayIso = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
+              (shlData.games || []).forEach(g => {
+                if (!g.date) return;
+                const d = new Date(g.date);
+                const localIso = isNaN(d) ? g.date.slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
+                if (localIso !== todayIso || g.state === 'post') return;
+                try { _shlMatchCard(g); } catch (e) {}
               });
             }
           } catch (e) {}

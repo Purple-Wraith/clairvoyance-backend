@@ -958,7 +958,16 @@ body{line-height:1.5}
       <button class="nb" onclick="T('shl','config')">CONFIG</button>
     </nav>
     <div class="sa" id="shl-sa">
-      <div id="shl-tab-matches" class="tab act"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center"><div style="font-family:var(--orb);font-size:27px;font-weight:900;letter-spacing:4px;background:linear-gradient(135deg,var(--vc),var(--ic));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:14px">SHL MATCHES</div><div style="font-family:var(--mono);font-size:15px;letter-spacing:3px;color:var(--t3);margin-bottom:12px">Season starts September 10, 2026</div><div style="font-family:var(--mono);font-size:17px;color:var(--t3);max-width:340px;line-height:1.7">No live schedule/odds feed for SHL yet — ESPN does not carry this league. Matches populate here once a data source connects.</div></div></div>
+      <div id="shl-tab-matches" class="tab act">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+          <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="shl-filter-day" onchange="renderShlMatches()" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(255,205,0,.25);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
+            <button class="btn btn-o btn-sm" onclick="renderShlMatches()">↻</button>
+          </div>
+        </div>
+        <div id="shl-matches-list"><div class="loading"><span class="spi"></span></div></div>
+      </div>
       <div id="shl-tab-model" class="tab"><div class="sh"><span class="p"></span> MODEL ARCHITECTURE</div><div class="g3" style="margin-bottom:12px"><div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Poisson 5K sims once team-level scoring data connects for this league.</div></div><div class="card cp"><div class="ct">BAYESIAN</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Beta-binomial posterior, updated per result.</div></div><div class="card cn"><div class="ct">ELO + MOV</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">K=20. Margin-of-victory multiplier, home-ice adjustment.</div></div></div><div class="sh"><span class="p"></span> WEIGHTS</div><div class="card" style="margin-bottom:10px"><div class="rr"><span class="rrl">MONTE CARLO</span><span class="rrv" id="shl-mc-v">50%</span></div><input type="range" id="shl-w-mc" min="10" max="70" value="50" oninput="document.getElementById('shl-mc-v').textContent=this.value+'%'"><div class="dv"></div><div class="rr"><span class="rrl">BAYESIAN</span><span class="rrv" id="shl-bay-v">20%</span></div><input type="range" id="shl-w-bay" min="5" max="50" value="20" oninput="document.getElementById('shl-bay-v').textContent=this.value+'%'"><div class="dv"></div><div class="rr"><span class="rrl">ELO</span><span class="rrv" id="shl-elo-v">30%</span></div><input type="range" id="shl-w-elo" min="5" max="50" value="30" oninput="document.getElementById('shl-elo-v').textContent=this.value+'%'"><button class="btn btn-p btn-sm" style="margin-top:7px" onclick="applyHockeyWeights('shl')">APPLY</button></div><div id="shl-model-weights"></div></div>
       <div id="shl-tab-config" class="tab"><div class="sh"><span class="i"></span> SHL ENGINE CONFIG</div><div class="sg"><div class="sgt">// MODEL WEIGHTS</div><div class="rr"><span class="rrl">MONTE CARLO</span><span class="rrv" id="shl-cw-mc-v">50%</span></div><input type="range" id="shl-cw-mc" min="10" max="70" value="50" oninput="document.getElementById('shl-cw-mc-v').textContent=this.value+'%';applyHockeyWeights('shl')"><div class="dv"></div><div class="rr"><span class="rrl">BAYESIAN</span><span class="rrv" id="shl-cw-bay-v">20%</span></div><input type="range" id="shl-cw-bay" min="5" max="50" value="20" oninput="document.getElementById('shl-cw-bay-v').textContent=this.value+'%';applyHockeyWeights('shl')"><div class="dv"></div><div class="rr"><span class="rrl">ELO</span><span class="rrv" id="shl-cw-elo-v">30%</span></div><input type="range" id="shl-cw-elo" min="5" max="50" value="30" oninput="document.getElementById('shl-cw-elo-v').textContent=this.value+'%';applyHockeyWeights('shl')"><button class="btn btn-p btn-sm" style="margin-top:10px" onclick="applyHockeyWeights('shl')">SAVE</button></div></div>
     </div>
@@ -8783,6 +8792,255 @@ async function renderLiigaMatches(){
 }
 
 
+// ═══ SHL (Swedish Hockey League) ════════════════════════════════════
+// New league, 2026-09-16, per explicit sources (Flashscore -- see
+// fetch_shl.py's own module docstring). No ESPN coverage exists for
+// this league (same reasoning already confirmed for Liiga) and
+// Flashscore doesn't track possession/xG or goaltending analytics the
+// way NHL's MoneyPuck/NHL-Edge sources do -- this model is intentionally
+// simpler than nhlMC as a result: real goals-for/against rates (blended
+// current+prior season) run through an exact Poisson simulation, the
+// same "team's own scoring rate averaged with the opponent's allowed
+// rate" approach _soccerMC (and Liiga's own shlMC) already use for a
+// league in the same no-advanced-stats position.
+let _SHL_DATA=null;
+function loadShlScheduleData(){
+  if(_SHL_DATA)return Promise.resolve(_SHL_DATA);
+  return fetch('shl_schedule.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{
+    _SHL_DATA=d||{teams:{},games:[]};
+    return _SHL_DATA;
+  });
+}
+// Season-progress-weighted blend: early season leans on last year's full
+// ~60-game sample (a team's real identity doesn't reset to a coin flip
+// on opening night), current season takes over smoothly as its own real
+// sample grows. Scaled by actual games played rather than a flat ratio
+// (MoneyPuck's fixed 75/25 blend for NHL doesn't have this integration's
+// cold-start problem -- that blend's "current season" file already had
+// real games in it from day one of this project; Liiga's starts at
+// literally zero the moment this integration goes live -- same cold-
+// start situation Liiga's own identical blend already solves).
+function _shlBlendedRates(team){
+  if(!team)return{gf:2.8,ga:2.8,gm:5.5,gp:0};
+  const CAP=20; // full current-season weight once a team has 20 real games
+  const curGp=team.gp||0;
+  const curW=Math.min(1,curGp/CAP);
+  const curGfPg=curGp?team.gf/curGp:null,curGaPg=curGp?team.ga/curGp:null;
+  const prev=team.prevSeason;
+  const prevGfPg=(prev&&prev.gp)?prev.gf/prev.gp:null,prevGaPg=(prev&&prev.gp)?prev.ga/prev.gp:null;
+  const gf=(curGfPg!=null&&prevGfPg!=null)?curGfPg*curW+prevGfPg*(1-curW):(curGfPg??prevGfPg??2.8);
+  const ga=(curGaPg!=null&&prevGaPg!=null)?curGaPg*curW+prevGaPg*(1-curW):(curGaPg??prevGaPg??2.8);
+  // G/M (real, Flashscore-reported average combined goals in this team's
+  // own games -- see fetch_shl.py's fetch_gm_rates) is a genuine second
+  // scoring-environment signal, not just re-derivable as gf+ga: a team's
+  // own GF/GA rates are relative to ITS games specifically, but two teams
+  // with similar individual GF/GA can still have played very different
+  // schedules (one facing mostly high-event opponents, one mostly low-
+  // event) -- G/M captures that directly instead of assuming it away.
+  // Same signal, same fetch_shl.py source, as Liiga's own _shlBlendedRates.
+  const gm=(team.gm!=null&&prev?.gm!=null)?team.gm*curW+prev.gm*(1-curW):(team.gm??prev?.gm??(gf+ga));
+  return{gf,ga,gm,gp:curGp};
+}
+function shlMC(homeId,awayId){
+  const D=_SHL_DATA;if(!D)return null;
+  const h=D.teams[homeId],aw=D.teams[awayId];
+  if(!h||!aw)return null;
+  const hR=_shlBlendedRates(h),aR=_shlBlendedRates(aw);
+  const hfa=.055; // same magnitude nhlMC's own home-ice constant
+  const hLam=Math.max(.4,((hR.gf+aR.ga)/2)*(1+hfa));
+  const aLam=Math.max(.4,((aR.gf+hR.ga)/2)*(1-hfa*.5));
+  // Exact analytic (Poisson convolution), not another Monte Carlo pass --
+  // same "exact, not simulated" preference _socMarginDist/_socSpreadProb
+  // already established for soccer goal spreads, directly reusable here
+  // since goals-for-a-hockey-game are modeled the same independent-
+  // Poisson way. The sum of two independent Poissons is itself Poisson
+  // (totLam=hLam+aLam), so the O/U line's cover probability is exact too,
+  // not approximated from a margin distribution.
+  const dist=_socMarginDist(hLam,aLam);
+  let hwP=0,awP=0,otP=0;
+  Object.keys(dist).forEach(m=>{const mm=parseFloat(m);if(mm>0)hwP+=dist[m];else if(mm<0)awP+=dist[m];else otP+=dist[m];});
+  // OT/shootout resolution: split the regulation-tie probability 50/50 --
+  // no real shootout-skill signal exists for this league (or NHL's own
+  // model, which makes the same simplifying assumption for a tied sim).
+  hwP+=otP/2;awP+=otP/2;
+  // Real, data-derived O/U line instead of a flat constant -- same
+  // "the match's own projection, not an arbitrary number" philosophy
+  // soccer's _ouDefaultLine already uses, driven here by each team's own
+  // real Flashscore-reported G/M (see _shlBlendedRates) rather than
+  // this model's own hLam+aLam so a team that plays in unusually high-
+  // or low-event games (independent of its own GF/GA) still shows up in
+  // the line the card actually offers.
+  const ouLine=parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
+  const totLam=hLam+aLam;
+  let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
+  const overP=1-cdf;
+  const rl15=_socSpreadProb(hLam,aLam,-1.5); // P(home covers -1.5)
+  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rlN:1-rl15};
+}
+function shlEns(homeId,awayId){
+  const mc=shlMC(homeId,awayId);
+  if(!mc)return{p:.5};
+  const D=_SHL_DATA;
+  const h=D.teams[homeId],aw=D.teams[awayId];
+  // Bayesian log5 (Bill James): each team's own isolated win rate against
+  // a weak Beta(1,1) prior (so a 2-game sample doesn't read as near-
+  // certain), combined via log5 into a head-to-head probability -- a
+  // real, self-contained second signal that doesn't need a persistent
+  // Elo ratings store (which this v1 doesn't build).
+  const bayP=team=>{
+    if(!team)return .5;
+    const gp=team.gp||0,w=team.w||0;
+    return(w+1)/(gp+2); // Beta(1,1) posterior mean
+  };
+  const hBay=bayP(h),aBay=bayP(aw);
+  const denom=hBay*(1-aBay)+aBay*(1-hBay);
+  const log5=denom?(hBay*(1-aBay))/denom:.5;
+  const w=HOCKEY_ENS.shl||{mc:.7,bay:.2,elo:.1};
+  // No independent Elo signal yet -- would need a persistent,
+  // incrementally-updated ratings store this v1 doesn't build. Whatever
+  // share the CONFIG tab's Elo slider is set to folds into the Bayesian
+  // term instead of silently vanishing, so the 3 sliders still sum to a
+  // real probability rather than one of them being a no-op.
+  const bayShare=(w.bay||0)+(w.elo||0);
+  const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
+  return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0};
+}
+function _shlPopulateDayFilter(games){
+  const sel=document.getElementById('shl-filter-day');if(!sel)return;
+  const cur=sel.value;
+  const todayIso=today();
+  const datesSet=new Set();
+  games.forEach(g=>{
+    if(!g.date)return;
+    const d=new Date(g.date);
+    if(isNaN(d))return;
+    datesSet.add(d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'}));
+  });
+  // Same "once it's passed, it drops off" convention as NHL/NFL/CFB's own
+  // schedule dropdowns -- games already final for a date still show if
+  // there's also an upcoming game that day (a real SHL back-to-back
+  // slate), but a fully past date disappears rather than piling up.
+  const dates=[...datesSet].filter(d=>d>=todayIso).sort();
+  if(sel.options.length===dates.length&&cur&&dates.includes(cur))return;
+  sel.innerHTML=dates.map(iso=>{
+    const disp=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    return`<option value="${iso}">${iso===todayIso?'TODAY · ':''}${disp.toUpperCase()}</option>`;
+  }).join('');
+  const target=cur&&dates.includes(cur)?cur:(dates.includes(todayIso)?todayIso:dates[0]);
+  if(target)sel.value=target;
+}
+function _shlMatchCard(g){
+  const D=_SHL_DATA;
+  const h=D.teams[g.home],aw=D.teams[g.away];
+  if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${g.awayName} @ ${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
+  const ens=shlEns(g.home,g.away),mc=ens.mcD;
+  const hP=ens.p,aP=1-hP;
+  const hML=p2ml(hP),aML=p2ml(aP);
+  const hD=ml2d(hML),aD=ml2d(aML);
+  const hEV=ev(hP,hD),aEV=ev(aP,aD);
+  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+  const ouL=mc.ouLine,ouP=mc.overP,unP=1-ouP,ouD=1.91;
+  const ouEV=ev(ouP,ouD),unEV=ev(unP,ouD);
+  // Puck line -- exact analytic cover probability (mc.rl15/rlN, see
+  // shlMC's own comment) same ±1.5 convention every other hockey card
+  // in this app already uses. Favorite/dog assigned by which side the
+  // blended ensemble actually favors, not just raw home/away, matching
+  // NHL's own favTeam/dogTeam pattern.
+  const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
+  const plFavP=hP>=aP?mc.rl15:mc.rlN,plDogP=1-plFavP;
+  const plD=1.87;
+  const nm=_evalMkts([
+    {label:`${g.homeName} ML`,prob:hP,evVal:hEV,dec:hD,side:'mlFav'},
+    {label:`${g.awayName} ML`,prob:aP,evVal:aEV,dec:aD,side:'mlDog'},
+    {label:`${favTeam} -1.5`,prob:plFavP,evVal:ev(plFavP,plD),dec:plD,side:'sprdFav'},
+    {label:`${dogTeam} +1.5`,prob:plDogP,evVal:ev(plDogP,plD),dec:plD,side:'sprdDog'},
+    {label:`OVER ${ouL}`,prob:ouP,evVal:ouEV,dec:ouD,side:'over'},
+    {label:`UNDER ${ouL}`,prob:unP,evVal:unEV,dec:ouD,side:'under'},
+  ]);
+  _autoLockCapture('SHL',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
+  const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
+  const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
+  const hR=_shlBlendedRates(h),aR=_shlBlendedRates(aw);
+  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}).`;
+  const bayStr=`Record: ${g.homeName} ${h.w}-${h.l}${h.wo?'-'+h.wo+'OTW':''}${h.lo?'-'+h.lo+'OTL':''} vs ${g.awayName} ${aw.w}-${aw.l}${aw.wo?'-'+aw.wo+'OTW':''}${aw.lo?'-'+aw.lo+'OTL':''}.`;
+  let explanation;
+  if(topTier===0){
+    explanation=`No qualifying edge. ${ratesStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)}. Skip.`;
+  }else{
+    explanation=`${ratesStr} ${bayStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). `
+      +(bm.side==='mlFav'?`${g.homeName}'s scoring edge unpriced by a flat moneyline.`:
+        bm.side==='mlDog'?`${g.awayName} road value the record alone doesn't capture.`:
+        bm.side==='over'?`Combined scoring rate supports goals above the line.`:
+        `Combined scoring rate supports a tighter, lower-scoring line.`)
+      +` No goaltending/possession data available for this league yet -- model is scoring-rate + record only. Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian ${(ens.bay*100).toFixed(0)}%. ${nm.size}-unit play${nm.secStr}.`;
+  }
+  const dt=g.date?new Date(g.date):null;
+  const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
+  const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
+  const dateStr=dt&&!isNaN(dt)?dt.toLocaleDateString('sv-SE',{timeZone:'America/Denver'}):today();
+  return`<div class="gc" style="border-left:2px solid rgba(255,205,0,.4);margin-bottom:8px">
+    <div class="gch">
+      <div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.homeName}</span></div><div class="gsp">SHL</div></div>
+      <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div></div>
+    </div>
+    <div class="brow">
+      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','SHL','${g.homeName}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
+      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','SHL','${g.awayName}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(aML)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+      <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div>
+        <div style="display:flex;align-items:center;gap:2px">
+          <button onclick="event.stopPropagation();_adjV('sprd_shl_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
+          <input type="number" step="0.5" value="-1.5" id="sprd_shl_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)">
+          <button onclick="event.stopPropagation();_adjV('sprd_shl_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
+        </div>
+        <div style="display:flex;gap:2px;width:100%">
+          <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_shl_${g.id}','FAV','SHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${favTeam}</div><div id="fav_sprd_shl_${g.id}" style="font-size:11px;opacity:.85">-1.5</div></button>
+          <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_shl_${g.id}','DOG','SHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${dogTeam}</div><div id="dog_sprd_shl_${g.id}" style="font-size:11px;opacity:.85">+1.5</div></button>
+        </div>
+      </div>
+      <div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px">
+        <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U (MODEL)</div>
+        <div style="font-family:var(--mono);font-size:16px;color:var(--t)">${ouL}</div>
+        <div style="display:flex;gap:3px">
+          <button onclick="event.stopPropagation();lockPick('${g.homeName}','${g.awayName}','SHL','OVER ${ouL}',${ouP.toFixed(3)},'-110',${ouD.toFixed(3)},'${dateStr}',undefined,'OU')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button>
+          <button onclick="event.stopPropagation();lockPick('${g.homeName}','${g.awayName}','SHL','UNDER ${ouL}',${unP.toFixed(3)},'-110',${ouD.toFixed(3)},'${dateStr}',undefined,'OU')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button>
+        </div>
+      </div>
+    </div>
+    <div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span>
+        <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
+      </div>
+      ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
+      <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
+    </div>
+  </div>`;
+}
+async function renderShlMatches(){
+  const el=document.getElementById('shl-matches-list');if(!el)return;
+  el.innerHTML='<div class="loading"><span class="spi"></span></div>';
+  const data=await loadShlScheduleData();
+  const games=data?.games||[];
+  if(!games.length){el.innerHTML='<div class="empty">SCHEDULE NOT LOADED YET — TRY SYNC</div>';return;}
+  _shlPopulateDayFilter(games);
+  const sel=document.getElementById('shl-filter-day');
+  const iso=sel?.value;
+  if(!iso){el.innerHTML='<div class="empty">NO SCHEDULE DATA</div>';return;}
+  const dayGames=games.filter(g=>{
+    if(!g.date)return false;
+    const mtDate=new Date(g.date).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+    return mtDate===iso;
+  }).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const dispDate=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  const label=iso===today()?`TODAY · ${dispDate}`:dispDate;
+  let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--ic);margin:0 0 8px;border-bottom:1px solid rgba(102,144,255,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
+  html+=dayGames.length?dayGames.map(g=>_shlMatchCard(g)).join(''):'<div class="empty" style="padding:14px">NO GAMES SCHEDULED</div>';
+  el.innerHTML=html;
+}
+
+
 // ── Form dot tooltip ──
 let _dotTipEl=null;
 function showDotTip(el){
@@ -15376,11 +15634,11 @@ function T(sport,tabId){const D=window.__CV_DATA||{};
     try{if(tabId==='matches')renderLeagueMatches(sport);else if(tabId==='standings')renderLeagueStandings(sport);else if(tabId==='props')renderLeagueProps(sport);}catch(e){}
   }
   else if(['ncaah','khl','shl','liiga'].includes(sport)){
-    // LIIGA is the one league in this group with a real data source
-    // (Flashscore, see fetch_liiga.py) as of 2026-09-16 -- KHL/SHL/NCAAH
-    // still have no schedule/stats feed, so 'matches' stays a no-op for
-    // them rather than pointing at a render function with nothing to draw.
-    try{if(tabId==='model')renderHockeyLeagueModel(sport);else if(tabId==='config')renderHockeyLeagueConfig(sport);else if(tabId==='matches'&&sport==='liiga')renderLiigaMatches();}catch(e){}
+    // LIIGA and SHL both have real data sources (Flashscore, see
+    // fetch_liiga.py/fetch_shl.py) as of 2026-09-16 -- KHL/NCAAH still
+    // have no schedule/stats feed, so 'matches' stays a no-op for them
+    // rather than pointing at a render function with nothing to draw.
+    try{if(tabId==='model')renderHockeyLeagueModel(sport);else if(tabId==='config')renderHockeyLeagueConfig(sport);else if(tabId==='matches'&&sport==='liiga')renderLiigaMatches();else if(tabId==='matches'&&sport==='shl')renderShlMatches();}catch(e){}
   }
   if(sport==='fut'){renderFuturesPanes(tabId);}
   if(sport==='ovr'){if(tabId==='dash')renderOverall();if(tabId==='history')renderOverallHistory();if(tabId==='adaptive')renderAdaptiveLearning();if(tabId==='sync')renderCrossDeviceSync();if(tabId==='ops')renderEngineOps();if(tabId==='trackrecord')renderTrackRecord();}
