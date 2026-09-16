@@ -51,6 +51,14 @@ CURRENT_STANDINGS_URL = f"{BASE}/liiga/standings/C8KZXayI/standings/overall/"
 PRIOR_STANDINGS_URL = f"{BASE}/liiga-2025-2026/standings/"
 FIXTURES_URL = f"{BASE}/liiga/fixtures/"
 RESULTS_URL = f"{BASE}/liiga/results/"
+# G/M (goals per match a team is involved in, both sides combined) is the
+# same real number on every Over/Under threshold page for a given season
+# -- only the O/U hit-COUNTS at that specific line change -- so one page
+# per season is enough to pull it. Current-season page uses the 6.5 line
+# the user supplied directly; prior-season uses 5.5 (the middle of the
+# three prior-season links given, and hockey's own most standard total).
+CURRENT_OU_URL = f"{BASE}/liiga/standings/C8KZXayI/over_under/overall/6.5/"
+PRIOR_OU_URL = f"{BASE}/liiga-2025-2026/standings/SCI7qRwB/over_under/overall/5.5/"
 
 TEAM_ID_RE = re.compile(r"/team/([a-z0-9-]+)/([A-Za-z0-9]+)/?")
 MATCH_HREF_RE = re.compile(
@@ -107,6 +115,48 @@ def _parse_standings_table(page) -> dict:
             "name": name, "gp": gp, "w": w, "wo": wo, "lo": lo, "l": l,
             "gf": gf, "ga": ga, "pts": pts,
         }
+    return out
+
+
+def fetch_gm_rates(page, url: str) -> dict:
+    """Returns {teamId: goalsPerMatch} from an Over/Under standings page --
+    same row layout as the main standings table (team link -> team ID),
+    but G/M (average combined goals in a team's own games) sits in the
+    last plain .table__cell--value cell, after the over/under counts and
+    the raw goals-for:against score. Real per-team scoring-environment
+    signal, not derivable from GF/GA alone (a team can have modest GF/GA
+    rates individually but still play in unusually high- or low-scoring
+    games depending on its opponents' own scoring)."""
+    log(f"Over/Under (G/M source): {url}")
+    page.goto(url, wait_until="networkidle", timeout=30000)
+    try:
+        page.wait_for_selector(".table__cell--value", timeout=10000)
+    except Exception:
+        pass
+    page.wait_for_timeout(1000)
+    out: dict = {}
+    rows = page.query_selector_all("[class*='ui-table__row']")
+    for row in rows:
+        link = row.query_selector(".table__cell--participant a")
+        if not link:
+            continue
+        m = TEAM_ID_RE.search(link.get_attribute("href") or "")
+        if not m:
+            continue
+        team_id = m.group(2)
+        # MP, O, U are all `.table__cell--value` too (with their own extra
+        # modifier classes) -- excluding those plus the score cell leaves
+        # exactly [MP, G/M] in DOM order.
+        plain = row.query_selector_all(
+            ".table__cell--value:not(.table__cell--over):not(.table__cell--under):not(.table__cell--score)"
+        )
+        if len(plain) < 2:
+            continue
+        try:
+            out[team_id] = float(plain[1].inner_text().strip())
+        except ValueError:
+            continue
+    log(f"  {len(out)} teams' G/M parsed")
     return out
 
 
@@ -249,6 +299,8 @@ def run() -> dict:
 
         current_teams = fetch_standings(page, CURRENT_STANDINGS_URL)
         prior_teams = fetch_standings(page, PRIOR_STANDINGS_URL)
+        current_gm = fetch_gm_rates(page, CURRENT_OU_URL)
+        prior_gm = fetch_gm_rates(page, PRIOR_OU_URL)
 
         # Liiga's season starts in September -- season_start_year is simply
         # today's year if we're already past July, else last year (covers
@@ -264,7 +316,10 @@ def run() -> dict:
 
     teams = {}
     for team_id, cur in current_teams.items():
-        teams[team_id] = {**cur, "prevSeason": prior_teams.get(team_id)}
+        prev = prior_teams.get(team_id)
+        if prev is not None and team_id in prior_gm:
+            prev = {**prev, "gm": prior_gm[team_id]}
+        teams[team_id] = {**cur, "gm": current_gm.get(team_id), "prevSeason": prev}
     # Prior-season-only teams (relegated/renamed) aren't playable this
     # season -- intentionally excluded from `teams`, matching MoneyPuck's
     # own "blend degrades to prior season until the current one has real

@@ -8564,7 +8564,7 @@ function loadLiigaScheduleData(){
 // real games in it from day one of this project; Liiga's starts at
 // literally zero the moment this integration goes live).
 function _liigaBlendedRates(team){
-  if(!team)return{gf:2.8,ga:2.8,gp:0};
+  if(!team)return{gf:2.8,ga:2.8,gm:5.5,gp:0};
   const CAP=20; // full current-season weight once a team has 20 real games
   const curGp=team.gp||0;
   const curW=Math.min(1,curGp/CAP);
@@ -8573,10 +8573,17 @@ function _liigaBlendedRates(team){
   const prevGfPg=(prev&&prev.gp)?prev.gf/prev.gp:null,prevGaPg=(prev&&prev.gp)?prev.ga/prev.gp:null;
   const gf=(curGfPg!=null&&prevGfPg!=null)?curGfPg*curW+prevGfPg*(1-curW):(curGfPg??prevGfPg??2.8);
   const ga=(curGaPg!=null&&prevGaPg!=null)?curGaPg*curW+prevGaPg*(1-curW):(curGaPg??prevGaPg??2.8);
-  return{gf,ga,gp:curGp};
+  // G/M (real, Flashscore-reported average combined goals in this team's
+  // own games -- see fetch_liiga.py's fetch_gm_rates) is a genuine second
+  // scoring-environment signal, not just re-derivable as gf+ga: a team's
+  // own GF/GA rates are relative to ITS games specifically, but two teams
+  // with similar individual GF/GA can still have played very different
+  // schedules (one facing mostly high-event opponents, one mostly low-
+  // event) -- G/M captures that directly instead of assuming it away.
+  const gm=(team.gm!=null&&prev?.gm!=null)?team.gm*curW+prev.gm*(1-curW):(team.gm??prev?.gm??(gf+ga));
+  return{gf,ga,gm,gp:curGp};
 }
-function liigaMC(homeId,awayId,n){
-  n=n||10000;
+function liigaMC(homeId,awayId){
   const D=_LIIGA_DATA;if(!D)return null;
   const h=D.teams[homeId],aw=D.teams[awayId];
   if(!h||!aw)return null;
@@ -8584,15 +8591,33 @@ function liigaMC(homeId,awayId,n){
   const hfa=.055; // same magnitude nhlMC's own home-ice constant
   const hLam=Math.max(.4,((hR.gf+aR.ga)/2)*(1+hfa));
   const aLam=Math.max(.4,((aR.gf+hR.ga)/2)*(1-hfa*.5));
-  let hw=0,aw2=0,ot=0,hT=0,aT=0,rT=0,ov=0;
-  const ouLine=5.5;
-  for(let i=0;i<n;i++){
-    const hg=pois(hLam),ag=pois(aLam);
-    hT+=hg;aT+=ag;rT+=hg+ag;
-    if(hg+ag>ouLine)ov++;
-    if(hg>ag)hw++;else if(ag>hg)aw2++;else{ot++;hw+=.5;aw2+=.5;}
-  }
-  return{hwP:hw/n,awP:aw2/n,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:ov/n,otP:ot/n,ouLine,n};
+  // Exact analytic (Poisson convolution), not another Monte Carlo pass --
+  // same "exact, not simulated" preference _socMarginDist/_socSpreadProb
+  // already established for soccer goal spreads, directly reusable here
+  // since goals-for-a-hockey-game are modeled the same independent-
+  // Poisson way. The sum of two independent Poissons is itself Poisson
+  // (totLam=hLam+aLam), so the O/U line's cover probability is exact too,
+  // not approximated from a margin distribution.
+  const dist=_socMarginDist(hLam,aLam);
+  let hwP=0,awP=0,otP=0;
+  Object.keys(dist).forEach(m=>{const mm=parseFloat(m);if(mm>0)hwP+=dist[m];else if(mm<0)awP+=dist[m];else otP+=dist[m];});
+  // OT/shootout resolution: split the regulation-tie probability 50/50 --
+  // no real shootout-skill signal exists for this league (or NHL's own
+  // model, which makes the same simplifying assumption for a tied sim).
+  hwP+=otP/2;awP+=otP/2;
+  // Real, data-derived O/U line instead of a flat constant -- same
+  // "the match's own projection, not an arbitrary number" philosophy
+  // soccer's _ouDefaultLine already uses, driven here by each team's own
+  // real Flashscore-reported G/M (see _liigaBlendedRates) rather than
+  // this model's own hLam+aLam so a team that plays in unusually high-
+  // or low-event games (independent of its own GF/GA) still shows up in
+  // the line the card actually offers.
+  const ouLine=parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
+  const totLam=hLam+aLam;
+  let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
+  const overP=1-cdf;
+  const rl15=_socSpreadProb(hLam,aLam,-1.5); // P(home covers -1.5)
+  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rlN:1-rl15};
 }
 function liigaEns(homeId,awayId){
   const mc=liigaMC(homeId,awayId);
@@ -8658,9 +8683,19 @@ function _liigaMatchCard(g){
   const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
   const ouL=mc.ouLine,ouP=mc.overP,unP=1-ouP,ouD=1.91;
   const ouEV=ev(ouP,ouD),unEV=ev(unP,ouD);
+  // Puck line -- exact analytic cover probability (mc.rl15/rlN, see
+  // liigaMC's own comment) same ±1.5 convention every other hockey card
+  // in this app already uses. Favorite/dog assigned by which side the
+  // blended ensemble actually favors, not just raw home/away, matching
+  // NHL's own favTeam/dogTeam pattern.
+  const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
+  const plFavP=hP>=aP?mc.rl15:mc.rlN,plDogP=1-plFavP;
+  const plD=1.87;
   const nm=_evalMkts([
     {label:`${g.homeName} ML`,prob:hP,evVal:hEV,dec:hD,side:'mlFav'},
     {label:`${g.awayName} ML`,prob:aP,evVal:aEV,dec:aD,side:'mlDog'},
+    {label:`${favTeam} -1.5`,prob:plFavP,evVal:ev(plFavP,plD),dec:plD,side:'sprdFav'},
+    {label:`${dogTeam} +1.5`,prob:plDogP,evVal:ev(plDogP,plD),dec:plD,side:'sprdDog'},
     {label:`OVER ${ouL}`,prob:ouP,evVal:ouEV,dec:ouD,side:'over'},
     {label:`UNDER ${ouL}`,prob:unP,evVal:unEV,dec:ouD,side:'under'},
   ]);
@@ -8693,12 +8728,24 @@ function _liigaMatchCard(g){
     <div class="brow">
       <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','LIIGA','${g.homeName}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
       <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','LIIGA','${g.awayName}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(aML)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+      <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div>
+        <div style="display:flex;align-items:center;gap:2px">
+          <button onclick="event.stopPropagation();_adjV('sprd_liiga_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
+          <input type="number" step="0.5" value="-1.5" id="sprd_liiga_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)">
+          <button onclick="event.stopPropagation();_adjV('sprd_liiga_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
+        </div>
+        <div style="display:flex;gap:2px;width:100%">
+          <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_liiga_${g.id}','FAV','LIIGA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${favTeam}</div><div id="fav_sprd_liiga_${g.id}" style="font-size:11px;opacity:.85">-1.5</div></button>
+          <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_liiga_${g.id}','DOG','LIIGA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${dogTeam}</div><div id="dog_sprd_liiga_${g.id}" style="font-size:11px;opacity:.85">+1.5</div></button>
+        </div>
+      </div>
       <div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U (MODEL)</div>
         <div style="font-family:var(--mono);font-size:16px;color:var(--t)">${ouL}</div>
         <div style="display:flex;gap:3px">
-          <button onclick="event.stopPropagation();lockPick('${g.homeName}','${g.awayName}','LIIGA','OVER ${ouL}',${ouP.toFixed(3)},'-110',${ouD.toFixed(3)},'${dateStr}')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button>
-          <button onclick="event.stopPropagation();lockPick('${g.homeName}','${g.awayName}','LIIGA','UNDER ${ouL}',${unP.toFixed(3)},'-110',${ouD.toFixed(3)},'${dateStr}')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button>
+          <button onclick="event.stopPropagation();lockPick('${g.homeName}','${g.awayName}','LIIGA','OVER ${ouL}',${ouP.toFixed(3)},'-110',${ouD.toFixed(3)},'${dateStr}',undefined,'OU')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button>
+          <button onclick="event.stopPropagation();lockPick('${g.homeName}','${g.awayName}','LIIGA','UNDER ${ouL}',${unP.toFixed(3)},'-110',${ouD.toFixed(3)},'${dateStr}',undefined,'OU')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button>
         </div>
       </div>
     </div>
