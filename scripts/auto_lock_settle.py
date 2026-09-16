@@ -890,8 +890,27 @@ def gather_legs(page) -> dict:
           // renderLeagueMatches uses internally, which already calls
           // _autoLockCapture('SOC_'+key.toUpperCase(), ...) on its own, so
           // this needs no extra capture wiring, just the right game list.
+          // Real gap, found auditing this exact block, 2026-09-16:
+          // _fetchLeagueScoreboard's own live call goes straight to
+          // site.api.espn.com -- the exact cross-origin host this whole
+          // function's own top comment already documents ESPN blocking
+          // fetch() from an automated/headless context for (confirmed in a
+          // real GitHub Actions run). That means the 5 European leagues
+          // below (MLS is unaffected -- its schedule is the same-origin
+          // mls_schedule.json) likely got ZERO real games here on every
+          // single automated run, silently, for as long as this warmup has
+          // existed -- there's no visible symptom, gather_legs() just
+          // quietly returns no soccer legs for those leagues. Awaiting
+          // loadSoccerScheduleSnapshot() first guarantees docs/app.html's
+          // own emergency fallback (window.__CV_SOC_SCHED_SNAPSHOT, loaded
+          // from the same-origin, always-reachable soccer_schedule.json --
+          // see that function's own comment) is populated before
+          // _fetchLeagueScoreboard runs, so when its live ESPN call
+          // predictably fails here, it falls back to that snapshot's real
+          // today-only games instead of silently returning [].
           try {
             if (typeof _renderSocMatchCard === 'function' && typeof _fetchLeagueScoreboard === 'function') {
+              if (typeof loadSoccerScheduleSnapshot === 'function') { try { await loadSoccerScheduleSnapshot(); } catch (e) {} }
               const todayIso = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
               const soccerKeys = ['bl', 'liga', 'mls', 'pl', 'ita', 'cl'];
               for (const k of soccerKeys) {
