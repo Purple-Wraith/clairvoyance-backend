@@ -48,27 +48,34 @@ on:
     # Actions doesn't shift for DST, so real landing times drift ~1hr
     # earlier MT once MST returns in November.
     - cron: '5 13 * * *'
-    # Daily settlement digest: yesterday's results ONLY, once/day, after
-    # the lock check above -- per explicit request (picks locked 7/28
-    # get their results emailed the morning of 7/29, not mixed into a
-    # same-day or multi-date dump). 8:15 MT = 14:15 UTC.
-    - cron: '15 14 * * *'
-    # Daily adaptive recalibration: 8:20 MT = 14:20 UTC, right after the
-    # digest above so it reflects yesterday's now-fully-settled results.
-    # Runs after TODAY's own lock check (7:05am MT) has already happened,
-    # by design -- this commits the freshly-learned weights for
-    # TOMORROW's lock to pick up, not a same-day effect. See
+    # Daily settlement digest + adaptive recalibration, combined into ONE
+    # fire (2026-09-16, explicit request to curb Supabase egress further --
+    # each of the 5 daily fires pulls the full bet ledger at least once, so
+    # cutting a fire cuts a full pull). These used to be two separate cron
+    # slots 5 minutes apart (14:15 and 14:20 UTC), each launching its own
+    # browser + its own load_bet_ledger() pull, even though recalibration
+    # has no real dependency on the digest step itself (digest only reads
+    # and emails; it commits nothing recalibration needs) -- both just
+    # needed to run sometime after TODAY's settled-bet history was final,
+    # which the 10:20am/1:20am settle passes below already guarantee
+    # regardless of exact timing. One page load, one ledger pull, both
+    # steps -- same pattern already used for the ledger-backup/landing-
+    # perf write in the "Run auto-lock / auto-settle" step. 8:15 MT =
+    # 14:15 UTC. Yesterday's results ONLY for the digest (picks locked
+    # 7/28 get their results emailed the morning of 7/29, not mixed into a
+    # same-day or multi-date dump); recalibration commits freshly-learned
+    # weights for TOMORROW's lock to pick up, not a same-day effect. See
     # run_adaptive_recalibration/docs/adaptive_weights.json: the durable
     # fix for adaptiveTick() previously only ever writing to browser
     # localStorage, invisible to the automated headless lock pipeline.
-    - cron: '20 14 * * *'
+    - cron: '15 14 * * *'
     # Settle: 2x daily -- 10:20am MT (also the one slot that falls inside
     # the lock catch-up window below, 9am-12pm MT, strictly bounded so a
     # catch-up lock can never land in the afternoon or evening per
     # explicit request) and 1:20am MT (catches West Coast night games,
     # which routinely end past midnight MT, before the next morning's
     # 8:15am digest). These keep bets accurate but never email -- see the
-    # 14:15 UTC digest above for the one daily email.
+    # 14:15 UTC digest+recalibration above for the one daily email.
     - cron: '20 16 * * *'
     - cron: '20 7 * * *'
   workflow_dispatch:
@@ -134,10 +141,9 @@ jobs:
             esac
             echo "live_flag=${{ inputs.live == true && '--live' || '' }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event.schedule }}" = "15 14 * * *" ]; then
-            echo "step_flags=--daily-digest" >> "$GITHUB_OUTPUT"
-            echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "20 14 * * *" ]; then
-            echo "step_flags=--adaptive-recalibration" >> "$GITHUB_OUTPUT"
+            # Combined 2026-09-16 (see the cron comment above) -- one
+            # browser + one ledger pull instead of two separate fires.
+            echo "step_flags=--daily-digest --adaptive-recalibration" >> "$GITHUB_OUTPUT"
             echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event.schedule }}" = "5 13 * * *" ]; then
             # The single daily lock check (cut from 3 dedicated attempts
@@ -260,11 +266,23 @@ jobs:
 
       - name: Record successful lock date
         # Only after a run that actually included a LIVE lock pass (the
-        # dedicated 14:30 UTC slot, workflow_dispatch with lock/both, or
-        # today's catch-up above) -- a dry-run, settle-only, or digest-only
-        # run must never mark today as locked, or a later real catch-up
-        # would wrongly skip itself.
-        if: ${{ steps.flags.outputs.live_flag == '--live' && steps.flags.outputs.step_flags != '--settle' && steps.flags.outputs.step_flags != '--daily-digest' && steps.flags.outputs.step_flags != '--adaptive-recalibration' }}
+        # dedicated 13:05 UTC slot, workflow_dispatch with lock/both, or
+        # today's catch-up above) -- a dry-run, settle-only, or digest/
+        # recalibration-only run must never mark today as locked, or a
+        # later real catch-up would wrongly skip itself.
+        #
+        # Real bug, caught while combining the digest+recalibration fires
+        # into one (2026-09-16): this used to be a denylist of exact
+        # step_flags strings ('--settle', '--daily-digest',
+        # '--adaptive-recalibration') -- the moment those two got combined
+        # into a single '--daily-digest --adaptive-recalibration' string,
+        # neither exact match applied, so this condition would have
+        # evaluated true and wrongly recorded a lock for a run that never
+        # locked anything, causing a real missed lock later that day to
+        # silently skip its own catch-up. Switched to a positive allowlist
+        # (does step_flags actually contain --lock) so it can't silently
+        # break again the next time step_flags' possible values change.
+        if: ${{ steps.flags.outputs.live_flag == '--live' && contains(steps.flags.outputs.step_flags, '--lock') }}
         run: |
           # Real failure, found via audit: this used to be a plain
           # `commit && pull --rebase && push` with no fallback -- three
