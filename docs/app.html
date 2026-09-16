@@ -759,9 +759,12 @@ body{line-height:1.5}
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:7px 10px;background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.07);border-radius:3px;margin-bottom:10px;font-family:var(--mono);font-size:15px"><span style="color:var(--t3);letter-spacing:1px;font-size:14px">KEY:</span><span style="color:var(--gc)">PREMIUM</span><span style="color:var(--t3)">≥67% + EV&gt;5%</span><span style="color:var(--nc)">&nbsp;// OPTIMAL</span><span style="color:var(--t3)">≥62% + EV&gt;3%</span><span style="color:var(--ic)">&nbsp;// LEAN</span><span style="color:var(--t3)">55-62%</span><span style="color:var(--hc)">&nbsp;// SKIP</span><span style="color:var(--t3)">&lt;55%</span></div>
         <div id="nhl-tn" style="margin-bottom:14px"></div>
         <div id="nhl-games"><div class="loading"><span class="spi"></span></div></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px">
-          <div class="sh" style="margin:0"><span class="i"></span> NEXT 3 DAYS · LEAGUE-WIDE</div>
-          <button class="btn btn-o btn-sm" onclick="renderNHLUpcoming()">↻</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 8px">
+          <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="nhl-filter-day" onchange="renderNHLUpcoming()" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(0,240,255,.25);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
+            <button class="btn btn-o btn-sm" onclick="renderNHLUpcoming()">↻</button>
+          </div>
         </div>
         <div id="nhl-upcoming"><div class="loading"><span class="spi"></span></div></div>
       </div>
@@ -7889,13 +7892,6 @@ function loadNHLScheduleData(){
     return _NHL_SCHEDULE_DATA;
   });
 }
-// Pure calendar-day arithmetic off today()'s own MT date string (not a
-// real-time +24h offset, which would drift across the MT/UTC boundary)
-// -- "n days from now" as a plain YYYY-MM-DD.
-function _nhlDatePlus(n){
-  const[y,m,d]=today().split('-').map(Number);
-  return new Date(Date.UTC(y,m-1,d+n)).toISOString().slice(0,10);
-}
 // Full treatment -- adjustable puck line + O/U (same _adjV/_spreadLockDir/
 // _ouLockDir shared helpers every other sport's game card already uses),
 // ENGINE REASONING + best-market callout + MARKET SCAN (same _evalMkts
@@ -8007,26 +8003,55 @@ function _nhlUpcomingCard(g,dayIdx){
     </div>
   </div>`;
 }
+// Every distinct game date across the full season (not just the next 3
+// days) -- explicit request, 2026-09-16, to browse the whole
+// docs/nhl_schedule.json the same way CFB's own week dropdown browses
+// its full-season file, rather than only ever seeing today+2 days out.
+// One <option> per real game date (MT-local, matching every other date
+// grouping in this app), not per week -- NHL plays close to daily, so
+// "week" isn't a natural unit the way it is for football.
+function _nhlPopulateScheduleDayFilter(games){
+  const sel=document.getElementById('nhl-filter-day');if(!sel)return;
+  const cur=sel.value;
+  const datesSet=new Set();
+  games.forEach(g=>{
+    if(!g.date)return;
+    const d=new Date(g.date);
+    if(isNaN(d))return;
+    datesSet.add(d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'}));
+  });
+  const dates=[...datesSet].sort();
+  if(sel.options.length===dates.length&&cur)return;
+  const todayIso=today();
+  sel.innerHTML=dates.map(iso=>{
+    const disp=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    return`<option value="${iso}">${iso===todayIso?'TODAY · ':''}${disp.toUpperCase()}</option>`;
+  }).join('');
+  // Default to today if it has games, else the next upcoming date, else
+  // fall back to the most recent past date (end of a fully-completed
+  // season/file) rather than leaving the select on nothing.
+  const target=cur&&dates.includes(cur)?cur:(dates.includes(todayIso)?todayIso:(dates.find(d=>d>todayIso)||dates[dates.length-1]));
+  if(target)sel.value=target;
+}
 async function renderNHLUpcoming(){
   const el=document.getElementById('nhl-upcoming');if(!el)return;
   el.innerHTML='<div class="loading"><span class="spi"></span></div>';
   const data=await loadNHLScheduleData();
   const games=data?.games||[];
   if(!games.length){el.innerHTML='<div class="empty">SCHEDULE NOT LOADED YET</div>';return;}
-  const days=[0,1,2].map(n=>_nhlDatePlus(n));
-  const dayLabels=['TODAY','TOMORROW',null];
-  let html='';
-  days.forEach((iso,i)=>{
-    const dayGames=games.filter(g=>{
-      if(!g.date)return false;
-      const mtDate=new Date(g.date).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
-      return mtDate===iso;
-    });
-    const dispDate=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric'});
-    const label=dayLabels[i]?`${dayLabels[i]} · ${dispDate}`:dispDate;
-    html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--nc);margin:${i?'16px':'0'} 0 8px;border-bottom:1px solid rgba(0,240,255,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
-    html+=dayGames.length?dayGames.map(g=>_nhlUpcomingCard(g,i)).join(''):'<div class="empty" style="padding:14px">NO GAMES SCHEDULED</div>';
-  });
+  _nhlPopulateScheduleDayFilter(games);
+  const sel=document.getElementById('nhl-filter-day');
+  const iso=sel?.value;
+  if(!iso){el.innerHTML='<div class="empty">NO SCHEDULE DATA</div>';return;}
+  const dayGames=games.filter(g=>{
+    if(!g.date)return false;
+    const mtDate=new Date(g.date).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+    return mtDate===iso;
+  }).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const dispDate=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  const label=iso===today()?`TODAY · ${dispDate}`:dispDate;
+  let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--nc);margin:0 0 8px;border-bottom:1px solid rgba(0,240,255,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
+  html+=dayGames.length?dayGames.map((g,i)=>_nhlUpcomingCard(g,i)).join(''):'<div class="empty" style="padding:14px">NO GAMES SCHEDULED</div>';
   el.innerHTML=html;
 }
 function lockH(hA,awA,type,betOn,p,ml,d){lockPick(hA,awA,type,betOn,p,ml,d,today());}
