@@ -551,6 +551,23 @@ def run_settle(page, live: bool, only_dates: list[str] | None = None) -> list[di
             try { if (typeof autoSettleSoccer === 'function') await autoSettleSoccer(targetDate); r.soccer = 'ok'; } catch (e) { r.soccer = 'err:' + e.message; }
             try { if (typeof autoSettleNFL2 === 'function') await autoSettleNFL2(targetDate); r.nfl = 'ok'; } catch (e) { r.nfl = 'err:' + e.message; }
             try { if (typeof autoSettlePropsESPN === 'function') await autoSettlePropsESPN(targetDate); r.props = 'ok'; } catch (e) { r.props = 'err:' + e.message; }
+            // Real gap, found and fixed 2026-09-16: LIIGA/SHL had no
+            // settlement path at all (this loop never called them),
+            // meaning a locked pick for either league sat pending forever
+            // unless someone manually hit WIN/LOSS. autoSettleLiiga/
+            // autoSettleShl read the same docs/liiga_schedule.json/
+            // shl_schedule.json Flashscore results the schedule browser
+            // already uses (same-origin, no ESPN coverage exists for
+            // these leagues at all). autoSettleNCAAH settles the same
+            // live-ESPN-scoreboard way autoSettleCFB does -- NCAAH's own
+            // schedule already comes from ESPN, not Flashscore -- though
+            // note its game card (_genericGameCard) has no lock button
+            // yet, so there is nothing for this to actually grade until a
+            // real NCAAH pick-locking path exists; wired in now so
+            // settlement is ready the moment that changes.
+            try { if (typeof autoSettleLiiga === 'function') await autoSettleLiiga(targetDate); r.liiga = 'ok'; } catch (e) { r.liiga = 'err:' + e.message; }
+            try { if (typeof autoSettleShl === 'function') await autoSettleShl(targetDate); r.shl = 'ok'; } catch (e) { r.shl = 'err:' + e.message; }
+            try { if (typeof autoSettleNCAAH === 'function') await autoSettleNCAAH(targetDate); r.ncaah = 'ok'; } catch (e) { r.ncaah = 'err:' + e.message; }
             results.perDate[targetDate] = r;
           }
           return results;

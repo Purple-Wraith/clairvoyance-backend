@@ -6807,6 +6807,115 @@ function startCFBSettle(){
   _cfbSettleIv=setInterval(autoSettleCFB,60000);
 }
 
+// LIIGA/SHL had NO automated settlement path at all until now -- locked
+// picks for these leagues sat pending forever unless someone manually hit
+// the WIN/LOSS buttons (real gap, found auditing the hockey product
+// promotion, 2026-09-16: run_settle() in auto_lock_settle.py only ever
+// called autoSettleNBA/NHL/CFB/Soccer/NFL2/PropsESPN -- none of which are
+// reachable for a league with no ESPN coverage at all). Same
+// fetch-real-results-and-match pattern as autoSettleCFB, except the real
+// results source is docs/liiga_schedule.json/shl_schedule.json (written
+// by fetch_liiga.py/fetch_shl.py's Flashscore scrape, same-origin, no
+// live cross-origin call needed) instead of ESPN's scoreboard --
+// state:'post' + homeScore/awayScore are the exact fields those scripts'
+// own results-merge already writes (confirmed live against the real
+// files: e.g. Jukurit 4 @ Hameenlinna 1, state:'post'). No draw/push
+// possibility for a hockey moneyline (OT/SO always breaks a tie), so the
+// ML branch is a plain higher-score-wins check, simpler than soccer's own
+// 3-way version.
+async function _autoSettleFlashscoreHockey(targetDate,loadFn,sportTag){
+  targetDate=targetDate||today();
+  try{
+    const data=await loadFn();
+    const games=(data&&data.games)||[];
+    const preds=getP();let changed=false;
+    for(const g of games){
+      if(g.state!=='post'||g.homeScore==null||g.awayScore==null)continue;
+      const gd=new Date(g.date);
+      const localIso=isNaN(gd)?(g.date||'').slice(0,10):gd.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+      if(localIso!==targetDate)continue;
+      const hn=g.homeName,an=g.awayName,hs=g.homeScore,as=g.awayScore;
+      for(const p of preds){
+        if(p.outcome!=='pending'||_normSport(p)!==sportTag)continue;
+        if(p.date!==targetDate)continue;
+        const sameGame=(p.hA===hn&&p.awA===an)||(p.hA===an&&p.awA===hn);
+        if(!sameGame)continue;
+        let outcome=null;
+        const cls=_classifyBetOn(p.betOn);
+        if(cls.type==='OU'){
+          const total=hs+as;
+          outcome=total===cls.line?'push':(cls.over?total>cls.line:total<cls.line)?'win':'loss';
+        }else if(cls.type==='SPREAD'&&(cls.team===hn||cls.team===an)){
+          const favIsHome=cls.team===hn;
+          const diff=favIsHome?(hs-as):(as-hs);
+          const covered=diff+cls.line;
+          outcome=covered>0?'win':covered<0?'loss':'push';
+        }else{
+          if(p.betOn===hn)outcome=hs>as?'win':'loss';
+          else if(p.betOn===an)outcome=as>hs?'win':'loss';
+        }
+        if(outcome){p.outcome=outcome;p.settledAt=Date.now();p.hScore=hs;p.aScore=as;changed=true;
+          toast(`✓ AUTO-SETTLED: ${p.betOn} ${outcome.toUpperCase()}`,outcome==='win'?'#00e644':outcome==='loss'?'#ff1a1a':'#ff9000');
+          try{notifySettlement(p.betOn,outcome);}catch(e){}
+          try{window.showBetPopup({type:'settle',betOn:p.betOn,sport:'HOCKEY',league:sportTag,outcome,score:`${an} ${as} – ${hn} ${hs}`});}catch(ex){}
+        }
+      }
+    }
+    if(changed){saveP(preds);updHdr();}
+  }catch(e){console.warn(sportTag+' settle:',e);}
+}
+async function autoSettleLiiga(targetDate){return _autoSettleFlashscoreHockey(targetDate,loadLiigaScheduleData,'LIIGA');}
+async function autoSettleShl(targetDate){return _autoSettleFlashscoreHockey(targetDate,loadShlScheduleData,'SHL');}
+
+// NCAAH (College Hockey) has no Flashscore integration -- its schedule
+// already comes from ESPN (hockey/mens-college-hockey, via
+// renderGenericWeek), so it settles the same live-ESPN-scoreboard way
+// autoSettleCFB does rather than needing a JSON-snapshot fallback.
+async function autoSettleNCAAH(targetDate){
+  targetDate=targetDate||today();
+  try{
+    const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/hockey/mens-college-hockey/scoreboard?limit=300&dates='+targetDate.replace(/-/g,''));
+    if(!r.ok)return;
+    const d=await r.json();
+    const preds=getP();let changed=false;
+    for(const ev of(d.events||[])){
+      const comp=(ev.competitions||[{}])[0];
+      if(comp.status?.type?.state!=='post')continue;
+      if(_espnEventDenverDate(ev,comp)!==targetDate)continue;
+      const home=comp.competitors?.find(c=>c.homeAway==='home');
+      const away=comp.competitors?.find(c=>c.homeAway==='away');
+      const hn=home?.team?.abbreviation,an=away?.team?.abbreviation;
+      const hs=parseInt(home?.score||0),as=parseInt(away?.score||0);
+      for(const p of preds){
+        if(p.outcome!=='pending'||_normSport(p)!=='NCAAH')continue;
+        if(p.date!==targetDate)continue;
+        const sameGame=(p.hA===hn&&p.awA===an)||(p.hA===an&&p.awA===hn);
+        if(!sameGame)continue;
+        let outcome=null;
+        const cls=_classifyBetOn(p.betOn);
+        if(cls.type==='OU'){
+          const total=hs+as;
+          outcome=total===cls.line?'push':(cls.over?total>cls.line:total<cls.line)?'win':'loss';
+        }else if(cls.type==='SPREAD'&&(cls.team===hn||cls.team===an)){
+          const favIsHome=cls.team===hn;
+          const diff=favIsHome?(hs-as):(as-hs);
+          const covered=diff+cls.line;
+          outcome=covered>0?'win':covered<0?'loss':'push';
+        }else{
+          if(p.betOn===hn||p.betOn===hn+' ML')outcome=hs>as?'win':'loss';
+          else if(p.betOn===an||p.betOn===an+' ML')outcome=as>hs?'win':'loss';
+        }
+        if(outcome){p.outcome=outcome;p.settledAt=Date.now();p.hScore=hs;p.aScore=as;changed=true;
+          toast(`✓ AUTO-SETTLED: ${p.betOn} ${outcome.toUpperCase()}`,outcome==='win'?'#00e644':outcome==='loss'?'#ff1a1a':'#ff9000');
+          try{notifySettlement(p.betOn,outcome);}catch(e){}
+          try{window.showBetPopup({type:'settle',betOn:p.betOn,sport:'HOCKEY',league:'NCAAH',outcome,score:`${an} ${as} – ${hn} ${hs}`});}catch(ex){}
+        }
+      }
+    }
+    if(changed){saveP(preds);updHdr();}
+  }catch(e){console.warn('NCAAH settle:',e);}
+}
+
 // No auto-settle existed for any of the 6 club soccer leagues until now --
 // every soccer pick had to be settled manually. Same fetch-real-scores-and-
 // match pattern as autoSettleCFB, extended for soccer's 3-way outcome
