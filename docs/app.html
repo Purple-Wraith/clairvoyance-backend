@@ -759,11 +759,14 @@ body{line-height:1.5}
 <div id="sp-hk" class="spane">
   <nav class="snav">
     <button class="sb2 act" onclick="setSub('hk','nhl')">NHL</button>
-    <button class="sb2" onclick="setSub('hk','ncaah')">COLLEGE HOCKEY</button>
     <!-- KHL removed from this menu, 2026-09-16, same reasoning as the quick-nav
          dropdown's own KHL removal (2026-09-03, see navd-hk below): no fetch
          pipeline/product for it. Tab itself still exists (setSub('hk','khl'))
-         and shows its "no live feed yet" placeholder if reached another way. -->
+         and shows its "no live feed yet" placeholder if reached another way.
+         College Hockey (NCAAH) removed the same way, 2026-09-16, explicit
+         request -- "not building out college hockey." Its tab/pane and
+         real ESPN-sourced data are untouched, just unreachable from this
+         menu (still reachable via setSub('hk','ncaah') if ever needed). -->
     <button class="sb2" onclick="setSub('hk','shl')">SHL</button>
     <button class="sb2" onclick="setSub('hk','liiga')">LIIGA</button>
     <button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px">↻ SYNC</button>
@@ -26595,18 +26598,14 @@ function saveParlayToTracker(legs,sport){
       <button onclick="SS('hk');T('nhl','config');hideAllND()">Config</button>
     </div>
   </div>
-  <div class="ndl"><button onclick="SS('hk');setSub('hk','ncaah');hideAllND()">College Hockey</button>
-    <div class="ndl-sub">
-      <button onclick="SS('hk');setSub('hk','ncaah');hideAllND()">Games</button>
-      <button onclick="SS('hk');setSub('hk','ncaah');T('ncaah','model');hideAllND()">Model</button>
-      <button onclick="SS('hk');setSub('hk','ncaah');T('ncaah','config');hideAllND()">Config</button>
-    </div>
-  </div>
   <!-- KHL removed from the Hockey dropdown, 2026-09-03: removed from the
        backend entirely (no fetch pipeline, no product) -- the tab itself
        still exists (setSub('hk','khl')) and shows its existing "no live
        feed yet" placeholder if reached another way, only this quick-nav
-       entry was removed. -->
+       entry was removed. College Hockey (NCAAH) removed the same way,
+       2026-09-16, explicit request -- "not building out college hockey."
+       Its tab/pane and real ESPN-sourced data are untouched, just
+       unreachable from this dropdown. -->
   <div class="ndl"><button onclick="SS('hk');setSub('hk','shl');hideAllND()">SHL</button>
     <div class="ndl-sub">
       <button onclick="SS('hk');setSub('hk','shl');hideAllND()">Games</button>
