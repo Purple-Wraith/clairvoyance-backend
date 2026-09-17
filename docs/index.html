@@ -377,6 +377,14 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
      coverage — see #mn rule below. Reclaim the space it used to
      reserve at the bottom of every tab. ── */
   html .tab{padding:10px 8px 14px!important}
+  /* ── Overall tab's "RECENT FORM" strip (renderOverall) — up to 25
+     14px dots at a 5px gap need ~470px of row width, more than a phone
+     has, so it wrapped to 2 rows. Shrinking the dot and its gap fits
+     the full 25-dot history on one row (25*9 + 24*3 = 297px, comfortably
+     under even a 360px-wide phone) instead of losing the at-a-glance
+     "read the whole streak in one line" point of the strip. ── */
+  html .rf-dots{gap:3px!important}
+  html .form-dot{width:9px!important;height:9px!important}
 }
 @media(max-width:480px){
   /* ── Extra-narrow phones (SE, older Android) ── */
@@ -11736,7 +11744,7 @@ function renderOverall(){
           <button onclick="renderOverall()" style="background:none;border:1px solid rgba(255,255,255,.15);color:var(--t3);font-family:var(--mono);font-size:14px;padding:1px 6px;border-radius:2px;cursor:pointer" title="Refresh">↻</button>
         </div>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">${formDots}</div>
+      <div class="rf-dots" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">${formDots}</div>
       ${last10.length?`<div style="padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:1px;margin-bottom:6px">LAST 10</div>
         <div style="display:flex;flex-direction:column;gap:3px">${[...last10].reverse().map(p=>{
@@ -14541,7 +14549,15 @@ function renderHomePage(){
       return{lbl:lm.lbl,w,l,n:lb.length,acc:lb.length?w/lb.length:null,units:u,last10};
     }).filter(Boolean).sort((a,b)=>b.n-a.n);
     const leagueRow=d=>{
-      const dots=d.last10.map(p=>{const c=p.outcome==='win'?'#00e644':'#ff2090';return`<span title="${(p.date||'').replace(/"/g,"'")}" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${c};margin-left:2px"></span>`;}).join('');
+      // Real bug, found 2026-09-16: an inline-block span defaults to
+      // vertical-align:baseline, which puts the BOTTOM of each 6px dot on
+      // the text baseline instead of centering it against the row's 14px
+      // text -- every dot sat visibly low, reading as "off center" and
+      // making the row of dots look crooked/not level with the label and
+      // numbers beside it. vertical-align:middle centers each dot against
+      // the line the way the row's own align-items:center already centers
+      // its flex children.
+      const dots=d.last10.map(p=>{const c=p.outcome==='win'?'#00e644':'#ff2090';return`<span title="${(p.date||'').replace(/"/g,"'")}" style="display:inline-block;vertical-align:middle;width:6px;height:6px;border-radius:50%;background:${c};margin-left:2px"></span>`;}).join('');
       return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-family:var(--mono);font-size:14px;color:var(--t)">${d.lbl}</span><div style="display:flex;gap:8px;align-items:center"><span style="white-space:nowrap">${dots}</span><span style="font-family:var(--mono);font-size:14px;color:var(--nc)">${d.w}W-${d.l}L</span><span style="font-family:var(--mono);font-size:14px;font-weight:700;color:${pCol(d.acc)}">${d.acc!==null?(d.acc*100).toFixed(0)+'%':'--'}</span><span style="font-family:var(--mono);font-size:14px;color:${uCol(d.units)}">${d.units>=0?'+':''}${d.units.toFixed(1)}u</span></div></div>`;
     };
     const lgPerfToggle=`<div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
