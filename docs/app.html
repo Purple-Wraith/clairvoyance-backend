@@ -1610,7 +1610,6 @@ body{line-height:1.5}
     <button class="mb" onclick="T('ovr','history')"><span class="mbi"></span>BETS</button>
     <button class="mb" onclick="T('ovr','adaptive')"><span class="mbi"></span>ADAPTIVE</button>
     <button class="mb" onclick="T('ovr','sync')"><span class="mbi"></span>SYNC</button>
-    <button class="mb" onclick="T('ovr','trackrecord')"><span class="mbi"></span>RECORD</button>
   </nav>
 </div>
 <!-- NEWS -->
@@ -11871,14 +11870,26 @@ function renderOverall(){
     </div>`;
   }
 
-  // Engine Consistency
-  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--mc);margin:12px 0 6px">ENGINE CONSISTENCY</div>
+  // Engine Health -- merges the previously separate "Engine Consistency"
+  // (streak grid) and "Engine Agreement Index" (confidence-tier accuracy)
+  // cards into one, explicit request 2026-09-16: both were thin,
+  // single-purpose sections sitting back to back with no real reason to
+  // be 2 separate cards instead of one "how healthy is the engine right
+  // now" card. Streaks first (the more immediate, glanceable signal),
+  // then confidence-tier accuracy underneath a divider.
+  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--mc);margin:12px 0 6px">ENGINE HEALTH</div>
   <div class="card" style="margin-bottom:14px;padding:10px">
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center">
+    <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:8px">STREAKS</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div><div style="font-family:var(--orb);font-size:23px;font-weight:700;color:${curStreakType==='win'?'var(--nc)':'var(--hc)'}">${curStreak>0?curStreak+(curStreakType==='win'?'W':'L'):'--'}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">CURRENT STREAK</div></div>
       <div><div style="font-family:var(--orb);font-size:23px;font-weight:700;color:var(--nc)">${maxWin}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">LONGEST WIN STREAK</div></div>
       <div><div style="font-family:var(--orb);font-size:23px;font-weight:700;color:var(--hc)">${maxLoss}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">LONGEST LOSS STREAK</div></div>
     </div>
+    <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:8px">ACCURACY BY MODEL CONFIDENCE TIER</div>
+    ${agreeRow('HIGH CONFIDENCE (65%+)',highConf,'var(--nc)')}
+    ${agreeRow('MID CONFIDENCE (55-65%)',midConf,'var(--vc)')}
+    ${agreeRow('LOW CONFIDENCE (&lt;55%)',lowConf,'var(--hc)')}
+    <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:8px;line-height:1.6">TOTAL WITH CONFIDENCE SCORE: ${withProb.length} PICKS · ${withProb.length<settled.length?`${settled.length-withProb.length} WITHOUT SCORE (legacy)`:'ALL SCORED'}</div>
   </div>`;
 
   // Model Calibration (expanded)
@@ -11968,16 +11979,6 @@ function renderOverall(){
         <strong style="color:var(--ic)">WHAT TO EXPECT GOING FORWARD:</strong> Picks whose raw model probability falls in a boosted band will show a slightly higher adjusted confidence score, making it easier for them to reach PREMIUM or OPTIMAL tier. Picks in reduced bands will need a higher raw probability to qualify. This self-corrects over time — as the engine's actual win rates converge to expected, adjustments decay back to zero. You don't need to change anything; recalibration runs automatically each time you open the Overall tab.
       </div>
     </div>`:''}
-  </div>`;
-
-  // Engine Agreement Index
-  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--vc);margin:12px 0 6px">ENGINE AGREEMENT INDEX</div>
-  <div class="card" style="margin-bottom:14px;padding:10px">
-    <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:8px">ACCURACY BY MODEL CONFIDENCE TIER</div>
-    ${agreeRow('HIGH CONFIDENCE (65%+)',highConf,'var(--nc)')}
-    ${agreeRow('MID CONFIDENCE (55-65%)',midConf,'var(--vc)')}
-    ${agreeRow('LOW CONFIDENCE (&lt;55%)',lowConf,'var(--hc)')}
-    <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:8px;line-height:1.6">TOTAL WITH CONFIDENCE SCORE: ${withProb.length} PICKS · ${withProb.length<settled.length?`${settled.length-withProb.length} WITHOUT SCORE (legacy)`:'ALL SCORED'}</div>
   </div>`;
 
   // Insights
@@ -13551,22 +13552,25 @@ function renderAdaptiveLearning(){
 // its own league sub-tab row since it's 6 leagues + World Cup.
 const _OPS_SPORT_TABS=[
   {k:'NBA',label:'NBA',color:'var(--pc)'},
-  {k:'NFL',label:'NFL',color:'var(--hc)'},
-  // Real gap, found auditing Engine Ops: CFB has been a fully active
-  // sport all session (its own lockCFBGame/autoSettleCFB, real
+  // NFL/CFB grouped under one FOOTBALL tab with their own league
+  // sub-row, explicit request 2026-09-16 -- same shape HOCKEY/SOCCER
+  // already use below, instead of 2 separate top-level tabs. (CFB itself
+  // was a real gap fixed earlier this session: it's been a fully active
+  // sport all along -- its own lockCFBGame/autoSettleCFB, real
   // conference/FPI/Elo data via loadCFBData, its own manual weight
-  // slider at applyCFBWeights) but had zero manual ops controls here --
-  // no tab, no props/stats/schedule buttons, unlike every other active
-  // sport. MLB staying absent is intentional (explicitly retired from
-  // the engine's real scope, 2026-09-09 -- see Dashboard's own comment),
-  // not an oversight; CFB's absence was.
-  {k:'CFB',label:'CFB',color:'var(--gc)'},
+  // slider at applyCFBWeights -- but had zero manual ops controls here.
+  // MLB staying absent everywhere in Engine Ops is intentional --
+  // explicitly retired from the engine's real scope, 2026-09-09.)
+  {k:'FOOTBALL',label:'FOOTBALL',color:'var(--hc)'},
   // NHL/SHL/LIIGA grouped under one HOCKEY tab with their own league
   // sub-row, explicit request 2026-09-16 -- same "one sport tab, a
   // league sub-row underneath" shape SOCCER already uses below, instead
   // of 3 separate top-level tabs.
   {k:'HOCKEY',label:'HOCKEY',color:'var(--ic)'},
   {k:'SOCCER',label:'SOCCER',color:'var(--nc)'},
+];
+const _OPS_FOOTBALL_LEAGUES=[
+  {k:'NFL',label:'NFL'},{k:'CFB',label:'CFB'},
 ];
 const _OPS_HOCKEY_LEAGUES=[
   {k:'NHL',label:'NHL'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},
@@ -13576,8 +13580,9 @@ const _OPS_SOCCER_LEAGUES=[
   {k:'MLS',label:'MLS'},{k:'PL',label:'PREMIER LG'},{k:'SERIEA',label:'SERIE A'},
 ];
 // Sport keys that show a league sub-row instead of running ops directly
-// off the top-level tab -- SOCCER always did; HOCKEY joins it 2026-09-16.
-const _OPS_GROUPED_SPORTS={SOCCER:{leagues:_OPS_SOCCER_LEAGUES,defaultLeague:'BUND'},HOCKEY:{leagues:_OPS_HOCKEY_LEAGUES,defaultLeague:'NHL'}};
+// off the top-level tab -- SOCCER always did; HOCKEY/FOOTBALL join it
+// 2026-09-16.
+const _OPS_GROUPED_SPORTS={SOCCER:{leagues:_OPS_SOCCER_LEAGUES,defaultLeague:'BUND'},HOCKEY:{leagues:_OPS_HOCKEY_LEAGUES,defaultLeague:'NHL'},FOOTBALL:{leagues:_OPS_FOOTBALL_LEAGUES,defaultLeague:'NFL'}};
 function _opsSetTab(sport){
   window._opsActiveSport=sport;
   const grp=_OPS_GROUPED_SPORTS[sport];
@@ -26546,7 +26551,11 @@ function saveParlayToTracker(legs,sport){
   <button onclick="SS('ovr');T('ovr','adaptive');hideAllND()">Adaptive</button>
   <button onclick="SS('ovr');T('ovr','sync');hideAllND()">Sync</button>
   <button onclick="SS('ovr');T('ovr','ops');hideAllND()">Engine Ops</button>
-  <button onclick="SS('ovr');T('ovr','trackrecord');hideAllND()">Track Record</button>
+  <!-- Track Record removed from this dropdown, 2026-09-16, same treatment
+       as the Overall sub-nav's own button removal: renderTrackRecord()
+       and the 3 PNG export functions stay fully intact (the daily
+       social-cards email calls them directly via headless browser,
+       bypassing all navigation), only this quick-nav entry point is gone. -->
 </div>
 <div id="navd-nba" class="nav-drop-fixed" onmouseenter="cancelHideND()" onmouseleave="startHideND()">
   <div class="ndl"><button onclick="SS('nba');hideAllND()">NBA</button>
