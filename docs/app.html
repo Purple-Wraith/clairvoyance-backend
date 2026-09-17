@@ -379,12 +379,15 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   html .tab{padding:10px 8px 14px!important}
   /* ── Overall tab's "RECENT FORM" strip (renderOverall) — up to 25
      14px dots at a 5px gap need ~470px of row width, more than a phone
-     has, so it wrapped to 2 rows. Shrinking the dot and its gap fits
-     the full 25-dot history on one row (25*9 + 24*3 = 297px, comfortably
-     under even a 360px-wide phone) instead of losing the at-a-glance
-     "read the whole streak in one line" point of the strip. ── */
-  html .rf-dots{gap:3px!important}
-  html .form-dot{width:9px!important;height:9px!important}
+     has, so it wrapped to 2 rows. First pass shrank to 9px/3px gap
+     (297px) -- still wrapped on a real device narrower than the 375px
+     test width this was checked against (a 320-360px phone only has
+     roughly 280-300px of usable width once the tab/card padding is
+     subtracted, leaving 297px no real margin at all). Shrunk further
+     with real headroom: 25*6 + 24*2 = 198px, comfortably under even a
+     ~250px worst case. ── */
+  html .rf-dots{gap:2px!important}
+  html .form-dot{width:6px!important;height:6px!important}
 }
 @media(max-width:480px){
   /* ── Extra-narrow phones (SE, older Android) ── */
@@ -12589,7 +12592,21 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   };
   const _matchFilter=(p,filter)=>{
     if(!filter||filter==='ALL')return true;
-    const ps=_normSport(p.sport);
+    // Real bug, found 2026-09-16: this used to run the pick through the
+    // local _normSport(p.sport) above -- a plain string uppercaser with
+    // no idea that a pick's real league can live on p.league instead of
+    // p.sport. Every NFL/CFB pick stored as sport:'FOOTBALL' (the broad
+    // tag) + league:'NFL'/'CFB' normalized to the literal string
+    // 'FOOTBALL' here, which matches neither the 'NFL' filter, the 'CFB'
+    // filter, nor even the FOOTBALL group's own ['NFL','CFB','FB'] list --
+    // confirmed live: the NFL filter showed only 10 bets while Home
+    // page's Period Performance card (which already used the canonical
+    // window._normSport(p) below) correctly found 99 for the same real
+    // data. Every other classification in this same function (sport
+    // badges, sportColor lookups, the broad-sport eligibility filter a
+    // few lines up) already calls window._normSport(p) -- this was the
+    // one place still using the older, league-blind local version.
+    const ps=window._normSport(p);
     // Is filter a sport group?
     const leagues=_LEAGUE_MAP[filter];
     if(leagues)return leagues.some(l=>ps===l||ps===_normSport(l));
