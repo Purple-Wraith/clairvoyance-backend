@@ -8177,7 +8177,20 @@ function _nhlUpcomingCard(g,dayIdx){
   return`<div class="gc" style="border-left:2px solid rgba(0,240,255,.4);margin-bottom:8px">
     <div class="gch">
       <div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.away}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.home}</span></div><div class="gsp">${g.venue||''}</div></div>
-      <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div></div>
+      <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('nhlu_${uid}')">COMPARE</button></div>
+    </div>
+    <div id="radar_nhlu_${uid}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
+        <span style="color:#00f0ff">■ ${g.home}</span><span style="color:#f000ff">■ ${g.away}</span>
+      </div>
+      ${(()=>{try{
+        return _radarTabPanelHTML('nhlu_'+uid,[
+          {label:'MATCHUP',svg:_matchupRadarSVG(['Offense','Defense','Goaltending','Special teams','Speed/zone','xG share'],_nhlRadarAxisValues(h,aw),_nhlRadarAxisValues(aw,h),'nhlu_'+uid+'_m')},
+          {label:'OFFENSE',svg:_matchupRadarSVG(['GF/60','PP%','Corsi F%','HD chances%','xGF%','Finishing'],_nhlOffenseRadarValues(h,g.home),_nhlOffenseRadarValues(aw,g.away),'nhlu_'+uid+'_o')},
+          {label:'DEFENSE',svg:_matchupRadarSVG(['GA/60','PK%','Save%','HD save%','GAA','GSAx'],_nhlDefenseRadarValues(h),_nhlDefenseRadarValues(aw),'nhlu_'+uid+'_d')},
+        ]);
+      }catch(e){return'';}})()}
+      <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real input this app already has for this team (GF/60, PP%/PK%, Corsi, high-danger chances, save%, GSAx, Edge speed/zone) normalized 0-100. Missing data defaults to the 50 midpoint.</div>
     </div>
     <div class="brow">
       <div class="${hCS.c} chip" style="flex:1" onclick="lockH('${g.home}','${g.away}','ML','${g.home}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)})"><div class="cht">ML ${g.home}</div><div class="cho">${hML>0?'+':''}${hML}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
@@ -8887,6 +8900,25 @@ function _liigaPopulateDayFilter(games){
   const target=cur&&dates.includes(cur)?cur:(dates.includes(todayIso)?todayIso:dates[0]);
   if(target)sel.value=target;
 }
+// Shared by Liiga and SHL COMPARE panels -- same team-object shape
+// ({gp,pts,gf,ga,gm,prevSeason}), same blended-rate approach (see
+// _liigaBlendedRates/_shlBlendedRates), no possession/goaltending/
+// special-teams data for either league, so this stays a single
+// MATCHUP-only radar (no OFFENSE/DEFENSE tab split) using only real
+// numbers this app already has: blended scoring/allowing rate, points
+// percentage (pts earned out of max possible -- standard hockey
+// metric, not derived/fabricated), and pace (real Flashscore G/M).
+function _hkBasicRadarValues(team,rates){
+  const clamp=(v,lo,hi)=>v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));
+  const gp=team?.gp||0;
+  const ptsPct=(gp&&team.pts!=null)?(team.pts/(gp*2))*100:null;
+  return[
+    clamp(rates.gf,2.0,4.0),
+    100-clamp(rates.ga,2.0,4.0),
+    clamp(ptsPct,30,70),
+    clamp(rates.gm,4.5,7.0),
+  ];
+}
 function _liigaMatchCard(g){
   const D=_LIIGA_DATA;
   const h=D.teams[g.home],aw=D.teams[g.away];
@@ -8951,7 +8983,16 @@ function _liigaMatchCard(g){
   return`<div class="gc" style="border-left:2px solid rgba(102,144,255,.4);margin-bottom:8px">
     <div class="gch">
       <div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.homeName}</span></div><div class="gsp">LIIGA</div></div>
-      <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div></div>
+      <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('liiga_${g.id}')">COMPARE</button></div>
+    </div>
+    <div id="radar_liiga_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
+        <span style="color:#00f0ff">■ ${g.homeName}</span><span style="color:#f000ff">■ ${g.awayName}</span>
+      </div>
+      ${(()=>{try{
+        return _matchupRadarSVG(['Scoring rate','Defense','Points %','Pace (G/M)'],_hkBasicRadarValues(h,hR),_hkBasicRadarValues(aw,aR),'liiga_'+g.id+'_m');
+      }catch(e){return'';}})()}
+      <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Only 4 axes -- blended GF/GA rate, points %, and pace (G/M) are what this engine has real per-team numbers for in LIIGA. No possession/goaltending/special-teams data for this league yet.</div>
     </div>
     <div class="brow">
       <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','LIIGA','${g.homeName}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
@@ -9206,7 +9247,16 @@ function _shlMatchCard(g){
   return`<div class="gc" style="border-left:2px solid rgba(255,205,0,.4);margin-bottom:8px">
     <div class="gch">
       <div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.homeName}</span></div><div class="gsp">SHL</div></div>
-      <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div></div>
+      <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('shl_${g.id}')">COMPARE</button></div>
+    </div>
+    <div id="radar_shl_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
+        <span style="color:#00f0ff">■ ${g.homeName}</span><span style="color:#f000ff">■ ${g.awayName}</span>
+      </div>
+      ${(()=>{try{
+        return _matchupRadarSVG(['Scoring rate','Defense','Points %','Pace (G/M)'],_hkBasicRadarValues(h,hR),_hkBasicRadarValues(aw,aR),'shl_'+g.id+'_m');
+      }catch(e){return'';}})()}
+      <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Only 4 axes -- blended GF/GA rate, points %, and pace (G/M) are what this engine has real per-team numbers for in SHL. No possession/goaltending/special-teams data for this league yet.</div>
     </div>
     <div class="brow">
       <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','SHL','${g.homeName}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
