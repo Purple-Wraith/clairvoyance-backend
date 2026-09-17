@@ -97,14 +97,17 @@ jobs:
         run: |
           HOUR_MT=$(date +%H)
           TODAY_MT=$(date +%Y-%m-%d)
-          # Soccer window: 6:00-7:45am MT, ahead of the earliest 7:00am
-          # EPL kickoffs (matches soccer-lock-early.yml's own 6:00-6:45
-          # catch-up range, plus one extra tick of headroom).
+          # European window: 6:00-7:45am MT, ahead of the earliest 7:00am
+          # EPL kickoffs and 7:15am SHL kickoffs (matches european-lock-
+          # early.yml's own 6:00-6:45 catch-up range, plus one extra tick
+          # of headroom). Covers both products this workflow now locks
+          # (soccer + SHL/Liiga, merged 2026-09-17) -- one shared marker
+          # file, one dispatch.
           if [ "$HOUR_MT" = "06" ] || [ "$HOUR_MT" = "07" ]; then
             LAST_SOCCER=$(cat data/last_soccer_lock_date.txt 2>/dev/null || echo "")
             if [ "$LAST_SOCCER" != "$TODAY_MT" ]; then
-              echo "::notice::Watchdog: soccer lock not recorded for $TODAY_MT yet at ${HOUR_MT}:xx MT -- dispatching Soccer Auto Lock (Early)."
-              gh workflow run "Soccer Auto Lock (Early)" -f live=true || echo "::warning::Watchdog dispatch failed (non-fatal, will retry next tick)"
+              echo "::notice::Watchdog: European early lock not recorded for $TODAY_MT yet at ${HOUR_MT}:xx MT -- dispatching European Lock (Early)."
+              gh workflow run "European Lock (Early)" -f live=true || echo "::warning::Watchdog dispatch failed (non-fatal, will retry next tick)"
             fi
           fi
           # CFB window: 9:00-10:45am MT, ahead of the earliest confirmed

@@ -97,7 +97,7 @@ MONITORED = [
 # last fallback slot (11:40am MT nominal) with headroom for GitHub's own
 # documented scheduling delay.
 LOCK_MARKERS = [
-    (ROOT / "data" / "last_soccer_lock_date.txt", "Soccer Early Lock", 8),
+    (ROOT / "data" / "last_soccer_lock_date.txt", "European Early Lock (Soccer + SHL/Liiga)", 8),
     (ROOT / "data" / "last_cfb_lock_date.txt", "CFB Early Lock", 11),
     (ROOT / "data" / "last_pick_of_day_date.txt", "Pick-of-Day Social Email", 13),
 ]

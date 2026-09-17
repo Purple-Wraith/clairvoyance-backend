@@ -61,7 +61,7 @@ ALERT_TO = os.environ.get("SOCIAL_CARD_EMAIL_TO", "") or os.environ.get("LOCKS_E
 # key workflow" instead of drifting into two different opinions.
 MONITORED = [
     ("auto-lock-settle.yml", "Main Auto-Lock + Settle"),
-    ("soccer-lock-early.yml", "Soccer Early Lock"),
+    ("european-lock-early.yml", "European Early Lock (Soccer + SHL/Liiga)"),
     ("cfb-lock-early.yml", "CFB Early Lock"),
     ("cfb-lock-evening.yml", "CFB Evening Lock"),
     ("soccer-lock-evening.yml", "Soccer Evening Lock"),

@@ -125,6 +125,15 @@ SPORT_TO_LOCKPICK_TYPE = {
 # early.yml itself now gathers both (see PRODUCT_SPORTS["soccer"] below),
 # it just labels which of the two a given qualifying leg belongs to.
 EURO_SOCCER_SPORTS = frozenset({"SOC_CL", "SOC_PL", "SOC_LIGA", "SOC_BL", "SOC_ITA"})
+# The 2 hockey leagues with a real early-kickoff problem -- SHL games as
+# early as 7:15 AM MT, Liiga around 9:30 AM MT (confirmed real schedule
+# data, 2026-09-17). NHL deliberately excluded: it never plays this
+# early, so it keeps its own slot in the main run instead of joining
+# this set. Folded into the same early-morning pass as the 5 European
+# soccer leagues (run_euro_early_lock) rather than getting its own
+# separate workflow -- one browser session, one gather_legs() pull for
+# both products, each still gets its own separately-addressed email.
+EARLY_HOCKEY_SPORTS = frozenset({"SHL", "LIIGA"})
 
 # The 5 paid products (confirmed structure, see _subscribers.py) -- each
 # maps to the exact sport tags gather_legs()/_autoLockCapture use. Soccer
@@ -2073,6 +2082,79 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
     return result.new
 
 
+def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
+    """Combined early-morning lock pass, 2026-09-17: soccer's full
+    6-league product (CL/PL/La Liga/Bundesliga/Serie A/MLS) AND the 2
+    early-kickoff hockey leagues (SHL/Liiga -- see EARLY_HOCKEY_SPORTS'
+    own comment on why NHL stays out). ONE gather_legs() pull covers
+    both -- merged purely to save a second full browser+Playwright run
+    at a second scheduled time, not to blend the two products'
+    subscriber-facing content: each still gets its own qualifying-legs
+    list, its own lock pass, and its own separately-addressed email to
+    its own real subscriber list, exactly as if run as two separate
+    single-product passes (see run_lock, which this mirrors per-product).
+
+    Replaces the old soccer-only early pass -- see european-lock-
+    early.yml (renamed from soccer-lock-early.yml). The main run's own
+    hockey product loop (run_lock_segmented) excludes SHL/Liiga from ITS
+    email now that this pass covers them (still locks all 3 hockey
+    leagues there as a safety net, same convention already used for
+    soccer/CFB's own dedicated early passes)."""
+    log("=== AUTO-LOCK (PREMIUM/OPTIMAL) — EUROPEAN EARLY (SOCCER + SHL/LIIGA) ===")
+    result = gather_legs(page)
+    log(f"Gathered {len(result.get('gameLegs') or [])} games' worth of markets, "
+        f"{len(result.get('propLegs') or [])} prop legs total")
+    prop_diag = result.get("propDiag") or {}
+    if prop_diag:
+        log("  prop generation: " + ", ".join(f"{sp}={detail}" for sp, detail in prop_diag.items()))
+
+    total_locked = 0
+    for label, only_sports, product in (
+        ("SOCCER", PRODUCT_SPORTS["soccer"], "soccer"),
+        ("SHL/LIIGA", EARLY_HOCKEY_SPORTS, "hockey"),
+    ):
+        qualifying = build_qualifying(result, only_sports=only_sports)
+        to = recipients_for(product)
+        log(f"{len(qualifying)} qualifying PREMIUM/OPTIMAL legs found ({label.lower()} only) "
+            f"-> {len(to)} recipient(s)")
+        for q in qualifying:
+            if q["kind"] == "GAME":
+                log(f"  [{q['sport']}] {q['label']} ({TIER_LABEL.get(q['tierN'], '?')})")
+            else:
+                leg = q["leg"]
+                direction = "UNDER" if leg.get("over") is False else "OVER"
+                log(f"  [{q['sport']} PROP] {leg.get('player')} {direction} {leg.get('line')} "
+                    f"{leg.get('stat')} ({leg.get('grade')})")
+
+        if not live:
+            log(f"[DRY RUN] Would lock {len(qualifying)} {label} legs above (pass --live to write)")
+            if send_email:
+                send_locks_email(qualifying, live=False, label=label, to=to)
+            continue
+
+        if not qualifying:
+            if send_email:
+                send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to)
+            continue
+
+        result_lock = _lock_qualifying_legs(page, qualifying)
+        total_locked += result_lock.new
+        log(f"[{label}] {result_lock.new} new, {result_lock.already_locked} already locked, "
+            f"{result_lock.failed} failed -- {result_lock.confirmed}/{len(qualifying)} confirmed locked")
+        if send_email and result_lock.new == 0 and qualifying:
+            log(f"Locks email ({label}) skipped -- all {len(qualifying)} qualifying leg(s) "
+                f"were already locked by an earlier pass today, nothing new to report")
+        elif send_email:
+            send_locks_email(qualifying, live=True, locked_count=result_lock.confirmed, label=label, to=to)
+        else:
+            log(f"Locks email ({label}) skipped -- already sent today")
+
+    if live and total_locked > 0:
+        flush_to_supabase(page)
+        log(f"Flushed {total_locked} total locks to Supabase")
+    return total_locked
+
+
 def run_soccer_evening_lock(page, live: bool, send_email: bool = True, to: list[str] | None = None) -> int:
     """Evening-prior lock for the 5 European soccer leagues (CL/PL/La
     Liga/Bundesliga/Serie A) -- runs the NIGHT BEFORE those leagues'
@@ -2223,7 +2305,14 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
     top-level filter lands in exactly one of these passes. send_email=False
     for a redundant same-morning retry (see run_lock's own docstring) --
     still locks and verifies, just skips re-sending every product's
-    email."""
+    email.
+
+    Hockey, 2026-09-17: SHL/Liiga (EARLY_HOCKEY_SPORTS) are excluded from
+    THIS run's own hockey email -- they now get a real, earlier-timed
+    email from run_euro_early_lock instead. This run still locks them as
+    a safety net (same convention soccer/CFB's own early passes already
+    use), it just never re-emails them; the hockey email here covers NHL
+    only."""
     log("=== AUTO-LOCK (PREMIUM/OPTIMAL) — ALL PRODUCTS ===")
     result = gather_legs(page)
     log(f"Gathered {len(result.get('gameLegs') or [])} games' worth of markets, "
@@ -2246,6 +2335,21 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
         qualifying = [q for q in all_qualifying if q["sport"] in sports]
         label = PRODUCT_LABEL[product]
         recipients = recipients_for(product)
+        # Hockey-only, 2026-09-17: SHL/Liiga now get their own dedicated
+        # early pass (run_euro_early_lock, merged into the soccer early-
+        # lock workflow -- see EARLY_HOCKEY_SPORTS' own comment on why
+        # NHL stays out of it) with a real email timed ahead of their
+        # ~7:15 AM MT kickoffs. This run still locks BOTH subsets below
+        # (idempotent safety net, same convention soccer/CFB's own early
+        # passes already established), but only ever emails the NHL
+        # subset from here -- otherwise SHL/Liiga picks would show up in
+        # two separate emails the same day.
+        if product == "hockey":
+            email_qualifying = [q for q in qualifying if q["sport"] not in EARLY_HOCKEY_SPORTS]
+            safety_net_qualifying = [q for q in qualifying if q["sport"] in EARLY_HOCKEY_SPORTS]
+        else:
+            email_qualifying = qualifying
+            safety_net_qualifying = []
         log(f"[{product}] {len(qualifying)} qualifying legs -> {len(recipients)} recipient(s)")
         # Explicit request: NBA and NHL are both off-season right now
         # (confirmed live -- 2026-09-10's real run qualified 0 legs for
@@ -2255,23 +2359,32 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
         # existing (not a hardcoded date), so this resumes itself
         # automatically the moment either league's real season actually
         # starts producing real picks -- no separate code change needed
-        # once that happens.
-        season_inactive = product in ("nba", "hockey") and not qualifying
+        # once that happens. Hockey checks email_qualifying (NHL only)
+        # specifically, not the whole product's qualifying -- SHL/Liiga
+        # being in-season shouldn't mask a real NHL off-season gap in
+        # THIS run's own (NHL-only) email.
+        season_inactive = product in ("nba", "hockey") and not email_qualifying
         if not live:
             if send_email and not season_inactive:
-                send_locks_email(qualifying, live=False, label=label, to=recipients)
+                send_locks_email(email_qualifying, live=False, label=label, to=recipients)
             elif send_email:
                 log(f"Locks email ({label}) skipped -- season inactive, nothing qualifying yet")
             continue
-        result = _lock_qualifying_legs(page, qualifying) if qualifying else LockResult(0, 0, 0)
+        result = _lock_qualifying_legs(page, email_qualifying) if email_qualifying else LockResult(0, 0, 0)
         total_locked += result.new
+        if safety_net_qualifying:
+            early_result = _lock_qualifying_legs(page, safety_net_qualifying)
+            total_locked += early_result.new
+            log(f"[{product}] SHL/Liiga safety-net: {early_result.new} new, "
+                f"{early_result.already_locked} already locked, {early_result.failed} failed -- "
+                f"{early_result.confirmed}/{len(safety_net_qualifying)} confirmed locked")
         log(f"[{product}] {result.new} new, {result.already_locked} already locked, "
-            f"{result.failed} failed -- {result.confirmed}/{len(qualifying)} confirmed locked")
+            f"{result.failed} failed -- {result.confirmed}/{len(email_qualifying)} confirmed locked")
         # Real bug, found via audit -- but NOT fixed the way run_lock's
         # own version of this guard is: soccer and CFB both have their
         # own dedicated early/evening pass with a BETTER-timed, more
-        # specific email (soccer-lock-early.yml, cfb-lock-early.yml, and
-        # now an evening-prior lock for both), so this run's own
+        # specific email (european-lock-early.yml, cfb-lock-early.yml,
+        # and now an evening-prior lock for both), so this run's own
         # per-product email for those two is now always redundant with
         # it -- not just on days a locked==0 coincidence would catch.
         # This exclusion is unconditional, not "skip when nothing new",
@@ -2300,7 +2413,7 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
             # (this one, the one that actually emails) reporting almost
             # nothing NEW even though the day's picks were all really
             # there. result.confirmed answers the real question.
-            send_locks_email(qualifying, live=True, locked_count=result.confirmed, label=label, to=recipients)
+            send_locks_email(email_qualifying, live=True, locked_count=result.confirmed, label=label, to=recipients)
         else:
             log(f"Locks email ({label}) skipped -- already sent today ({result.new} locked this pass)")
 
@@ -2360,6 +2473,14 @@ def main() -> None:
                           "Bundesliga/Serie A/MLS) -- the resulting email splits legs into an "
                           "EUROPEAN section and a NORTH AMERICA (MLS) section. For the "
                           "early-morning pass timed ahead of European kickoffs.")
+    ap.add_argument("--only-euro-early", action="store_true",
+                     help="Lock step only: the combined European early-morning pass -- all 6 "
+                          "soccer leagues (see --only-soccer) PLUS SHL/Liiga hockey (real "
+                          "kickoffs as early as 7:15 AM MT). One shared gather_legs() pull, but "
+                          "each product still gets its own separately-addressed email to its own "
+                          "real subscriber list -- see run_euro_early_lock. Replaces the old "
+                          "soccer-only early pass (european-lock-early.yml, renamed from "
+                          "soccer-lock-early.yml 2026-09-17).")
     ap.add_argument("--only-cfb", action="store_true",
                      help="Lock step only: restrict to CFB. For the early-morning pass timed "
                           "ahead of the earliest college football kickoffs (10 AM MT+).")
@@ -2406,8 +2527,10 @@ def main() -> None:
     do_lock, do_settle = (args.lock, args.settle) if (args.lock or args.settle) else (True, True)
     if args.daily_digest or args.adaptive_recalibration or args.top_picks_digest:
         do_lock = do_settle = False
-    if sum([args.only_soccer, args.only_cfb, args.only_soccer_tomorrow, args.only_cfb_tomorrow]) > 1:
-        raise SystemExit("--only-soccer, --only-cfb, --only-soccer-tomorrow, and --only-cfb-tomorrow are mutually exclusive")
+    if sum([args.only_soccer, args.only_cfb, args.only_soccer_tomorrow, args.only_cfb_tomorrow,
+            args.only_euro_early]) > 1:
+        raise SystemExit("--only-soccer, --only-cfb, --only-soccer-tomorrow, --only-cfb-tomorrow, "
+                          "and --only-euro-early are mutually exclusive")
     only_sports = PRODUCT_SPORTS["soccer"] if args.only_soccer else frozenset({"CFB"}) if args.only_cfb else None
     label = "SOCCER" if args.only_soccer else "CFB" if args.only_cfb else ""
     # Early passes route to that product's real (owner + paying
@@ -2532,6 +2655,25 @@ def main() -> None:
                     log(f"CFB evening-prior lock step failed: {exc}")
                     if args.live:
                         write_automation_status("lastCfbEveningLock", False, f"error: {exc}")
+                    raise
+            elif args.only_euro_early:
+                # Combined early pass -- soccer (6 leagues) + SHL/Liiga,
+                # one gather_legs() pull, two separately-addressed
+                # emails. See run_euro_early_lock's own docstring.
+                try:
+                    locked_this_pass = run_euro_early_lock(page, args.live, send_email=True)
+                    verified_count = verify_todays_locks(page) if args.live else None
+                    if args.live:
+                        write_failed = locked_this_pass > 0 and not verified_count
+                        write_automation_status(
+                            "lastLock", not write_failed,
+                            f"EURO EARLY lock pass completed, {locked_this_pass} locked this pass, "
+                            f"{verified_count} pick(s) verified for {today_mt}"
+                            + (" -- WRITE MAY HAVE SILENTLY FAILED" if write_failed else ""))
+                except Exception as exc:
+                    log(f"EURO EARLY lock step failed: {exc}")
+                    if args.live:
+                        write_automation_status("lastLock", False, f"EURO EARLY error: {exc}")
                     raise
             elif only_sports is None:
                 # Main (all-sports) lock: per explicit request, 3 scheduled

@@ -1,34 +1,55 @@
-name: Soccer Auto Lock (Early)
+name: European Lock (Early)
 
-# Dedicated early-morning lock+email pass for all 6 soccer leagues --
-# Champions League, Premier League, La Liga, Bundesliga, Serie A, AND MLS.
-# One combined "soccer" product email, with legs grouped into an EUROPE
-# section and a NORTH AMERICA (MLS) section (see build_locks_email_html's
-# soccer_split) so the two regions stay visually distinct in a single
-# email rather than reading as six same-weight league sections.
+# Dedicated early-morning lock+email pass for every league with an
+# early-kickoff problem: all 6 soccer leagues (Champions League, Premier
+# League, La Liga, Bundesliga, Serie A, MLS) AND, as of 2026-09-17, SHL
+# and Liiga hockey. Renamed from soccer-lock-early.yml when the SHL/
+# Liiga gap was found: SHL games kick off as early as 7:15 AM MT, Liiga
+# around 9:30 AM MT (confirmed real schedule data) -- auto-lock-
+# settle.yml's single daily hockey slot (7:05 AM MT, no catch-up before
+# 9 AM) leaves SHL essentially no margin, and none at all if that slot
+# is ever dropped or delayed the way this repo's own run history shows
+# GitHub Actions scheduled triggers sometimes are. Rather than standing
+# up a brand new dedicated hockey-early workflow (another set of
+# scheduled fires, right after cutting auto-lock-settle.yml's own count
+# down for Supabase egress), SHL/Liiga were folded into this existing
+# early pass instead: their earliest kickoff (7:15 AM) already sits
+# comfortably behind this workflow's 6:00 AM slot, the same buffer
+# soccer's own earliest kickoff already relies on.
 #
-# MLS used to be deliberately excluded here (kicks off at normal US
-# evening times, has none of the early-kickoff problem this exists for)
-# and was left to the main 10:15 AM MT lock run instead -- split across
-# two emails. Folded back in on request so a soccer subscriber gets one
-# email covering the whole product. auto_lock_settle.py's lockPick() calls
-# are idempotent (a leg already locked here just reports "dup-or-failed"
-# when the main run's own full pass reaches it later), so MLS being
-# covered by both this run and the main run is harmless, not a double-lock
-# risk -- this run just gets first crack at whatever's already on the
-# board by 6:20 AM MT.
+# One shared gather_legs() pull covers both products (run_euro_early_
+# lock in auto_lock_settle.py) -- merged purely to save a second full
+# browser+Playwright run at a second scheduled time, not to blend the
+# two products' subscriber-facing content: soccer and hockey each still
+# get their own qualifying-legs list, their own lock pass, and their
+# own separately-addressed email to their own real subscriber list,
+# exactly as if run as two separate single-product passes. A soccer-
+# only subscriber never sees a hockey email and vice versa.
 #
-# auto-lock-settle.yml's main run is too late for the 5 European leagues:
-# confirmed real kickoff times as early as 7:00 AM MT (EPL), 9:00 AM MT
-# (La Liga), 10:30 AM MT (Serie A) on a normal matchday. Once live, the
-# main run would find those games already in progress or finished.
+# MLS is included in the soccer side (kicks off at normal US evening
+# times, has none of the early-kickoff problem this exists for) so a
+# soccer subscriber gets one combined product email rather than a split
+# across two runs. auto_lock_settle.py's lockPick() calls are idempotent
+# (a leg already locked here just reports "dup-or-failed" when the main
+# run's own full pass reaches it later), so MLS/NHL being covered by
+# both this run and the main run is harmless, not a double-lock risk --
+# the main run's own hockey email is filtered to NHL only now so SHL/
+# Liiga picks don't show up in two emails the same day (see
+# run_lock_segmented's own comment on EARLY_HOCKEY_SPORTS).
 #
-# This costs little real accuracy for soccer specifically: the pipeline's
-# own soccer data (Opta stats run 5:00 AM MT, standings 6:00 AM MT --
-# see daily-schedules-refresh.yml) is already about as fresh as it will
-# get before a 7:00 AM kickoff regardless of what time this fires, so
-# moving the lock earlier doesn't mean locking on staler data than the
-# 10:15 AM run would have used anyway.
+# auto-lock-settle.yml's main run is too late for the 5 European soccer
+# leagues: confirmed real kickoff times as early as 7:00 AM MT (EPL),
+# 9:00 AM MT (La Liga), 10:30 AM MT (Serie A) on a normal matchday, and
+# too late for SHL (7:15 AM MT). Once live, the main run would find
+# those games already in progress or finished.
+#
+# This costs little real accuracy for soccer specifically: the
+# pipeline's own soccer data (Opta stats run 5:00 AM MT, standings 6:00
+# AM MT -- see daily-schedules-refresh.yml) is already about as fresh
+# as it will get before a 7:00 AM kickoff regardless of what time this
+# fires. SHL/Liiga's own data (Flashscore-sourced schedule/standings)
+# has no comparable pre-dawn refresh step yet, so this is exactly as
+# fresh as the main run would have used anyway.
 #
 # Same safety convention as auto-lock-settle.yml: dry-run by default,
 # reads the same LIVE_MODE repo variable (Settings -> Secrets and
@@ -39,12 +60,13 @@ on:
   schedule:
     # 6:00 AM MT = 12:00 UTC (MDT) / 13:00 UTC (MST) -- per explicit
     # request, shifted from 6:20 to exactly 6:00 for a full hour ahead of
-    # the earliest 7:00 AM MT kickoffs. Trade-off worth knowing: this now
-    # lands right AT (not after) the 6:00 AM standings refresh in
-    # daily-schedules-refresh.yml, so on a slow refresh this could
-    # occasionally lock on standings data that's a few minutes stale --
-    # not a correctness bug, just marginally less fresh than the old
-    # 6:20 timing guaranteed.
+    # the earliest 7:00 AM MT soccer kickoffs (also a comfortable 1hr15m
+    # ahead of SHL's earliest 7:15 AM MT kickoffs). Trade-off worth
+    # knowing: this now lands right AT (not after) the 6:00 AM standings
+    # refresh in daily-schedules-refresh.yml, so on a slow refresh this
+    # could occasionally lock on standings data that's a few minutes
+    # stale -- not a correctness bug, just marginally less fresh than
+    # the old 6:20 timing guaranteed.
     - cron: '0 12 * * *'
     # 3 catch-up slots, 15 min apart -- same self-healing pattern already
     # proven on the main lock workflow and CFB's early lock. Confirmed
@@ -53,10 +75,11 @@ on:
     # League match that day had already kicked off or finished -- the
     # whole point of running this early. With no catch-up at all before
     # this, a dropped/delayed 6:00 slot meant the 5 European leagues
-    # simply never got a real pre-kickoff lock pass that day. Each catch-
-    # up only actually runs if today's real lock hasn't already
-    # succeeded (see the should_run check below), and all 4 slots land
-    # before the earliest confirmed 7:00am kickoffs.
+    # simply never got a real pre-kickoff lock pass that day (and now,
+    # SHL specifically would already be live too). Each catch-up only
+    # actually runs if today's real lock hasn't already succeeded (see
+    # the should_run check below), and all 4 slots land before the
+    # earliest confirmed 7:00am kickoffs.
     - cron: '15 12 * * *'
     - cron: '30 12 * * *'
     - cron: '45 12 * * *'
@@ -72,7 +95,7 @@ permissions:
   contents: write
 
 jobs:
-  soccer-lock-early:
+  european-lock-early:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -108,6 +131,10 @@ jobs:
             # today's real lock hasn't already succeeded -- same pattern
             # as cfb-lock-early.yml, so adding/removing catch-up slots
             # never needs a matching change here, just the schedule list.
+            # Marker filename kept as last_soccer_lock_date.txt (predates
+            # this merge) rather than renamed -- it now gates BOTH
+            # products' catch-up slots together, since they share one
+            # gather_legs() pull and one scheduled run.
             if [ "${{ github.event.schedule }}" != "0 12 * * *" ]; then
               TODAY_MT=$(TZ=America/Denver date +%Y-%m-%d)
               LAST_SOCCER_LOCK=$(cat data/last_soccer_lock_date.txt 2>/dev/null || echo "")
@@ -115,7 +142,7 @@ jobs:
                 echo "should_run=0" >> "$GITHUB_OUTPUT"
               else
                 echo "should_run=1" >> "$GITHUB_OUTPUT"
-                echo "::notice::Soccer early lock hasn't recorded success yet today -- running this catch-up slot (schedule=${{ github.event.schedule }})."
+                echo "::notice::European early lock hasn't recorded success yet today -- running this catch-up slot (schedule=${{ github.event.schedule }})."
               fi
             else
               echo "should_run=1" >> "$GITHUB_OUTPUT"
@@ -133,7 +160,7 @@ jobs:
         run: |
           pip install -q playwright requests
           for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
-      - name: Run soccer-only auto-lock
+      - name: Run European early auto-lock (soccer + SHL/Liiga)
         if: ${{ steps.flags.outputs.should_run == '1' }}
         env:
           TZ: America/Denver
@@ -141,9 +168,9 @@ jobs:
           LOCKS_EMAIL_TO: ${{ secrets.LOCKS_EMAIL_TO }}
           SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
         run: |
-          python3 scripts/auto_lock_settle.py --lock --only-soccer ${{ steps.flags.outputs.live_flag }}
+          python3 scripts/auto_lock_settle.py --lock --only-euro-early ${{ steps.flags.outputs.live_flag }}
 
-      - name: Record successful soccer lock date
+      - name: Record successful European early lock date
         # Only after a run that actually included a LIVE lock pass -- a
         # dry-run must never mark today as locked, or the catch-up slots
         # would wrongly skip themselves.
@@ -153,7 +180,7 @@ jobs:
           echo "$TODAY_MT" > data/last_soccer_lock_date.txt
           git add data/last_soccer_lock_date.txt
           if ! git diff --cached --quiet; then
-            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: record soccer early lock for $TODAY_MT"
+            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: record European early lock for $TODAY_MT"
             if ! git push origin main; then
               git fetch origin main
               if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase origin/main; then
