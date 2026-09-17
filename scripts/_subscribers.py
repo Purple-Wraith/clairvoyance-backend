@@ -20,15 +20,27 @@ The account owner's own address is always included for every product
 regardless of subscriber list state, so the personal daily reference
 this was originally built for keeps working with zero paying subscribers.
 
-5 paid products (confirmed structure, 2026-09-08): nfl, cfb, nba,
-hockey (NHL only), soccer (all 6 leagues bundled -- the 5 European
-leagues + MLS -- as one purchase, not sold separately). Explicit
-decision 2026-09-03: tennis (ATP/WTA), WNBA, KHL, SHL, and LIIGA are
-real, live engine features kept for personal use only -- never sold to
-subscribers, so "tennis" and "wnba" were removed from PRODUCTS entirely
-and KHL/SHL/LIIGA were dropped from the hockey product's sport set (see
-PRODUCT_SPORTS in auto_lock_settle.py). Their qualifying legs route to
-the owner-only "other" locks email instead of a subscriber email.
+5 paid products: nfl, cfb, nba, hockey, soccer (all 6 leagues bundled --
+the 5 European leagues + MLS -- as one purchase, not sold separately).
+
+Explicit decision 2026-09-03: tennis (ATP/WTA), WNBA, KHL, SHL, and
+LIIGA were real, live engine features kept for personal use only --
+never sold to subscribers at the time, so "tennis" and "wnba" were
+removed from PRODUCTS entirely and KHL/SHL/LIIGA were kept off the
+hockey product's sport set. Their qualifying legs routed to the
+owner-only "other" locks email instead of a subscriber email.
+
+Superseded for Liiga/SHL specifically, 2026-09-16: once both leagues had
+real engines (Flashscore-sourced schedule/standings, an exact-Poisson MC
+model, full ML/spread/O-U game cards -- see PRODUCT_SPORTS' own comment
+in auto_lock_settle.py), the user's explicit direction was that "hockey"
+as a product should mean NHL+Liiga+SHL(+NCAAH once it gets a real engine)
+going forward, not NHL alone. The hockey product now bundles all three,
+same "recipients_for('hockey') doesn't know or care which specific
+sports are in the bundle" mechanism as every other product here -- KHL
+remains permanently excluded (no stated plan to sell it) and NCAAH stays
+owner-only until it has its own real engine.
+
 Explicit decision 2026-09-08: MLB, CBB, and World Cup were removed from
 the engine entirely (accuracy/scope reasons), dropping "mlb" from
 PRODUCTS too -- 6 products became 5.

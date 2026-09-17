@@ -2207,14 +2207,16 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
     """Main (unscoped) lock run -- ONE gather_legs() call (the expensive
     part: real browser + live data warmups), then split into a separate
     qualifying-legs list + a separately-addressed email for each of the 5
-    paid sport products (see _subscribers.py), plus one more pass for
-    OTHER_ALLOWED_SPORTS (SHL/LIIGA/NCAAH -- personal-use, never
-    sold) sent to the owner only. Anything outside covered_sports |
-    OTHER_ALLOWED_SPORTS (KHL -- explicit 2026-09-03 decision; tennis,
-    MLB, WNBA, CBB, and World Cup are all fully retired, so they no
-    longer generate any legs here at all) is dropped entirely before
-    either pass, never auto-locked by this automated run at all -- KHL's
-    own manual lock/settle buttons in the app UI are untouched, this only
+    paid sport products (see _subscribers.py; "hockey" bundles NHL+Liiga+
+    SHL as of 2026-09-16 -- see PRODUCT_SPORTS' own comment), plus one
+    more pass for OTHER_ALLOWED_SPORTS (NCAAH only, as of that same
+    promotion -- personal-use, never sold) sent to the owner only.
+    Anything outside covered_sports | OTHER_ALLOWED_SPORTS (KHL --
+    explicit 2026-09-03 decision, permanently excluded; tennis, MLB,
+    WNBA, CBB, and World Cup are all fully retired, so they no longer
+    generate any legs here at all) is dropped entirely before either
+    pass, never auto-locked by this automated run at all -- KHL's own
+    manual lock/settle buttons in the app UI are untouched, this only
     scopes automation. A subscriber to
     one product only ever sees that product's email; nothing IN SCOPE is
     ever silently dropped -- every qualifying leg that survives the
@@ -2302,15 +2304,18 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
         else:
             log(f"Locks email ({label}) skipped -- already sent today ({result.new} locked this pass)")
 
-    # Explicit request: stop emailing the OTHER (SHL/LIIGA/NCAAH,
-    # owner-only) digest entirely -- it's been empty every single real
-    # run (0 qualifying legs), since none of those three leagues have
-    # any real _autoLockCapture calls wired up yet (see PRODUCT_SPORTS'
-    # own comment). Locking itself is untouched below -- if any of the
-    # three ever does start producing real qualifying legs, they'll
-    # still auto-lock as a safety net, just without a report email.
+    # Explicit request, 2026-09-03: stop emailing the OTHER (owner-only)
+    # digest entirely -- it's been empty every single real run back when
+    # this covered SHL/LIIGA/NCAAH (none of the three had any real
+    # _autoLockCapture calls wired up yet). SHL and LIIGA were later
+    # promoted into PRODUCT_SPORTS["hockey"] (2026-09-16, see that dict's
+    # own comment) once they got real engines -- OTHER_ALLOWED_SPORTS is
+    # NCAAH only now, so this pass (and its email skip) only applies to
+    # NCAAH. Locking itself is untouched below -- if NCAAH ever does start
+    # producing real qualifying legs, it'll still auto-lock as a safety
+    # net, just without a report email.
     other_qualifying = [q for q in all_qualifying if q["sport"] in OTHER_ALLOWED_SPORTS]
-    log(f"[other] {len(other_qualifying)} qualifying legs (SHL/LIIGA/NCAAH, personal-use, no longer emailed)")
+    log(f"[other] {len(other_qualifying)} qualifying legs (NCAAH, personal-use, no longer emailed)")
     if live:
         result = _lock_qualifying_legs(page, other_qualifying) if other_qualifying else LockResult(0, 0, 0)
         total_locked += result.new
