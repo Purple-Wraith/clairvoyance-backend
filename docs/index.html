@@ -8432,6 +8432,25 @@ function igWP(hs,as,inn,top,prior){const outs=(inn-1)*3+(top?0:1.5);const done=M
 function removePick(id){
   const preds=getP();const i=preds.findIndex(p=>p.id===id);if(i<0)return;
   if(typeof window.confirm==='function'&&!confirm('Remove this bet?'))return;
+  // Real UX bug, found 2026-09-16: every render*() call below rebuilds its
+  // container's innerHTML from scratch, and at least one (renderOverallHistory,
+  // the All Bets list) re-inserts/removes a whole "PENDING BETS" section
+  // above the main list via insertBefore/remove -- a real layout height
+  // change above the fold, not just a same-size content swap. That's
+  // enough to make the browser's own scroll-anchoring jump the list back
+  // toward the top, so removing one pick partway down a long list threw
+  // the user back to the top and made cleaning up several picks in a row
+  // require re-scrolling to the same spot every single time.
+  // The page itself doesn't scroll here -- confirmed live, document
+  // .documentElement.scrollHeight===clientHeight -- each tab's own .sa
+  // container (e.g. #ovr-sa) is the actual overflow-y:auto scroller.
+  // Multiple .sa elements can exist in the DOM at once (one per top-level
+  // tab) with only the active one visibly scrolled, so this just snapshots
+  // scrollTop for every .sa that's actually scrolled (>0) rather than
+  // needing to know which specific tab is open, and restores each after
+  // every render below has settled.
+  const _saScrolls=[...document.querySelectorAll('.sa')].map(el=>[el,el.scrollTop]).filter(([,t])=>t>0);
+  const _scrollY=window.scrollY;
   preds.splice(i,1);saveP(preds);
   _addWipedIds([id]);
   if(API_ONLINE())api('DELETE',`/picks/${id}`).catch(()=>{});
@@ -8446,9 +8465,15 @@ function removePick(id){
   try{renderNBAHistory();}catch(e){}
   try{renderOverall();}catch(e){}
   try{renderOverallHistory();}catch(e){}
-  
+
   try{renderHomePage();}catch(e){}
   try{updHdr();}catch(e){}
+  const _restoreScroll=()=>{
+    window.scrollTo(0,_scrollY);
+    _saScrolls.forEach(([el,t])=>{el.scrollTop=t;});
+  };
+  _restoreScroll();
+  requestAnimationFrame(_restoreScroll);
   toast('// BET REMOVED');
 }
 
@@ -12537,7 +12562,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
         <div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;align-items:center">
           <button class="btn btn-n btn-sm" onclick="recR('${p.id}','win');setTimeout(()=>{renderOverallHistory();try{renderHomeLockedBets();}catch(e){}try{updHdr();}catch(e){}},400)">✓ WIN</button>
           <button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss');setTimeout(()=>{renderOverallHistory();try{renderHomeLockedBets();}catch(e){}try{updHdr();}catch(e){}},400)">✗ LOSS</button>
-          <button class="btn btn-sm" style="color:var(--t3);border-color:var(--t3);font-size:15px;padding:2px 7px" onclick="removePick('${p.id}');setTimeout(renderOverallHistory,400)">✕ REMOVE</button>
+          <button class="btn btn-sm" style="color:var(--t3);border-color:var(--t3);font-size:15px;padding:2px 7px" onclick="removePick('${p.id}')">✕ REMOVE</button>
         </div>
       </div>`;
     }).join('');
@@ -12726,7 +12751,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
       <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
         ${p.outcome==='pending'?`<button class="btn btn-n btn-sm" onclick="recR('${p.id}','win');renderOverallHistory()">WIN</button>
         <button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss');renderOverallHistory()">LOSS</button>`:''}
-        <button class="btn btn-sm" style="color:rgba(220,190,255,.35);border-color:rgba(220,190,255,.2);font-size:14px;padding:2px 7px" onclick="removePick('${p.id}');renderOverallHistory()" title="Remove this bet from record">× REMOVE</button>
+        <button class="btn btn-sm" style="color:rgba(220,190,255,.35);border-color:rgba(220,190,255,.2);font-size:14px;padding:2px 7px" onclick="removePick('${p.id}')" title="Remove this bet from record">× REMOVE</button>
       </div>
     </div>`;
   };
