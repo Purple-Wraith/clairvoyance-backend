@@ -379,15 +379,13 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   html .tab{padding:10px 8px 14px!important}
   /* ── Overall tab's "RECENT FORM" strip (renderOverall) — up to 25
      14px dots at a 5px gap need ~470px of row width, more than a phone
-     has, so it wrapped to 2 rows. First pass shrank to 9px/3px gap
-     (297px) -- still wrapped on a real device narrower than the 375px
-     test width this was checked against (a 320-360px phone only has
-     roughly 280-300px of usable width once the tab/card padding is
-     subtracted, leaving 297px no real margin at all). Shrunk further
-     with real headroom: 25*6 + 24*2 = 198px, comfortably under even a
-     ~250px worst case. ── */
+     has, so it wrapped to 2 rows. Went 9px/3px (297px, still wrapped on
+     a real device) then 6px/2px (198px, fit but read too small/cramped
+     per explicit feedback) -- settled at 7px/2px (25*7 + 24*2 = 223px),
+     comfortably under a ~280px-usable-width phone with real margin left,
+     while reading noticeably bigger than the 6px pass. ── */
   html .rf-dots{gap:2px!important}
-  html .form-dot{width:6px!important;height:6px!important}
+  html .form-dot{width:7px!important;height:7px!important}
 }
 @media(max-width:480px){
   /* ── Extra-narrow phones (SE, older Android) ── */
@@ -1503,7 +1501,14 @@ body{line-height:1.5}
     <button class="nb" onclick="T('ovr','adaptive')">ADAPTIVE</button>
     <button class="nb" onclick="T('ovr','sync')">SYNC</button>
     <button class="nb" onclick="T('ovr','ops');renderEngineOps()">ENGINE OPS</button>
-    <button class="nb" onclick="T('ovr','trackrecord')">TRACK RECORD</button>
+    <!-- TRACK RECORD nav entry removed from Overall's sub-nav, explicit
+         request, 2026-09-16 -- the tab pane, renderTrackRecord(), and the
+         3 PNG export functions (_genCombinedTrackGraphic/_genSportPerfGraphic/
+         _genLeaguePerfGraphic) are all intentionally left fully intact:
+         scripts/generate_social_cards.py (the daily social-cards email)
+         calls these directly via a headless browser's page.evaluate(),
+         never through this nav button, so removing only the button here
+         cannot affect that pipeline. -->
   </nav>
   <div class="sa" id="ovr-sa">
     <div id="ovr-tab-dash" class="tab act">
@@ -12603,7 +12608,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   const _LEAGUE_MAP={
     BASKETBALL:['NBA'],
     FOOTBALL:  ['NFL','CFB','FB'],
-    HOCKEY:    ['NHL','NCAAH','COLLEGE HOCKEY','KHL','SHL','LIIGA'],
+    HOCKEY:    ['NHL','SHL','LIIGA'],
     SOCCER:    ['PL','LIGA','BL','BUND','CL','SERIEA','MLS'],
   };
   // Normalize sport tags in bets to canonical league codes for matching
@@ -12650,7 +12655,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   const _sportDefs=[
     {key:'BASKETBALL',label:'BASKETBALL',color:'var(--pc)', leagues:[{key:'NBA',label:'NBA'}]},
     {key:'FOOTBALL',  label:'FOOTBALL',  color:'var(--hc)', leagues:[{key:'NFL',label:'NFL'},{key:'CFB',label:'CFB'}]},
-    {key:'HOCKEY',    label:'HOCKEY',    color:'var(--ic)', leagues:[{key:'NHL',label:'NHL'},{key:'NCAAH',label:'COLLEGE'},{key:'SHL',label:'SHL'},{key:'LIIGA',label:'LIIGA'},{key:'KHL',label:'KHL'}]},
+    {key:'HOCKEY',    label:'HOCKEY',    color:'var(--ic)', leagues:[{key:'NHL',label:'NHL'},{key:'SHL',label:'SHL'},{key:'LIIGA',label:'LIIGA'}]},
     {key:'SOCCER',    label:'SOCCER',    color:'var(--nc)', leagues:[{key:'BUND',label:'BUNDESLIGA'},{key:'CL',label:'CHAMPIONS LEAGUE'},{key:'LIGA',label:'LA LIGA'},{key:'MLS',label:'MLS'},{key:'PL',label:'PREMIER'},{key:'SERIEA',label:'SERIE A'}]},
   ];
   // Determine active sport group (for sub-row display)
@@ -13571,6 +13576,11 @@ const _OPS_SPORT_TABS=[
   // the engine's real scope, 2026-09-09 -- see Dashboard's own comment),
   // not an oversight; CFB's absence was.
   {k:'CFB',label:'CFB',color:'var(--gc)'},
+  // Same gap, found 2026-09-16: SHL/LIIGA have been fully active leagues
+  // (real Flashscore schedule data, lockPick integration, and now their
+  // own autoSettleLiiga/autoSettleShl) with zero Engine Ops presence.
+  {k:'SHL',label:'SHL',color:'var(--ic)'},
+  {k:'LIIGA',label:'LIIGA',color:'var(--ic)'},
   {k:'SOCCER',label:'SOCCER',color:'var(--nc)'},
 ];
 const _OPS_SOCCER_LEAGUES=[
@@ -13619,7 +13629,7 @@ function renderEngineOps(){
   // CFB has no props feature anywhere in the app (no lock/render path for
   // it), same real gap as NFL/every soccer league -- added here rather
   // than silently rendering a props button that does nothing.
-  const NO_PROPS=new Set(['NFL','CFB','BUND','CL','LIGA','MLS','PL','SERIEA']);
+  const NO_PROPS=new Set(['NFL','CFB','SHL','LIIGA','BUND','CL','LIGA','MLS','PL','SERIEA']);
   // Real bug, found and fixed: NFL used to be the one sport permanently
   // excluded from STAT REINTEGRATION with a hardcoded "model not active"
   // message -- accurate when NFL's season hadn't started, false and
@@ -13654,7 +13664,8 @@ function renderEngineOps(){
     NO_SCHED.has(code)
       ?`<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">${label} — no schedule source wired yet.</div>`
       :`<div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:10px">Verify and reload today\'s ${label} schedule.</div>
-    ${btnRow(btn(label.toUpperCase()+' SCHEDULE',`opsRunSched('${code}',this)`,'btn-p'))}`);
+    ${btnRow(btn(label.toUpperCase()+' SCHEDULE',`opsRunSched('${code}',this)`,'btn-p'))}
+    ${(code==='SHL'||code==='LIIGA')?`<div style="margin-top:8px">${btn('AUTO-SETTLE '+label.toUpperCase()+' PICKS',`(${code==='LIIGA'?'autoSettleLiiga':'autoSettleShl'})().then(()=>{renderOverallHistory();toast('// '+'${label}'.toUpperCase()+' SETTLE CHECK COMPLETE');})`,'btn-o')}</div>`:''}`);
 
   const runAll=`<div class="card" style="margin-bottom:10px;padding:10px;display:flex;gap:6px;flex-wrap:wrap">
     ${btn('↻ RUN ALL PROPS (EVERY SPORT)',"opsRunProps('ALL',this)",'btn-n')}
@@ -13714,6 +13725,8 @@ function renderEngineOps(){
       {lbl:'NBA',ens:NBA_ENS,col:'var(--pc)'},
       {lbl:'NFL',ens:window.NFL_ENS,col:'var(--hc)'},
       {lbl:'CFB',ens:window.CFB_ENS,col:'var(--gc)'},
+      {lbl:'SHL',ens:HOCKEY_ENS.shl||{mc:.7,bay:.2,elo:.1},col:'var(--ic)'},
+      {lbl:'LIIGA',ens:HOCKEY_ENS.liiga||{mc:.7,bay:.2,elo:.1},col:'var(--ic)'},
     ].map(_weightRow).join('')}
     <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px;margin:10px 0 4px">SOCCER — POISSON/xG MODEL (not MC/Bayesian/ELO — same model shared across all 6 leagues)</div>
     <div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">
@@ -13777,7 +13790,7 @@ async function opsRunStats(sport,btn){
   const orig=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='⏳...';}
   const sectionId='ops-stats';
-  const sports=sport==='ALL'?['NBA','NHL','NFL','CFB','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
+  const sports=sport==='ALL'?['NBA','NHL','NFL','CFB','SHL','LIIGA','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
   const _CLUB_LEAGUES_ST={BUND:'bl',CL:'cl',LIGA:'liga',PL:'pl',SERIEA:'ita',MLS:'mls'};
   _opsLog(sectionId,`▶ STAT UPDATE — ${sport}`);
   for(const s of sports){
@@ -13798,6 +13811,13 @@ async function opsRunStats(sport,btn){
       // _OPS_SPORT_TABS' own comment) despite real, re-fetchable data
       // via loadCFBData()/_CFB_DATA.
       else if(s==='CFB'){window._CFB_DATA=null;await loadCFBData();if(window._cfbActiveTab==='games')typeof renderCFBGames==='function'&&renderCFBGames();_opsLog(sectionId,`  · ${s}: ✓ stats refreshed (${Object.keys((_CFB_DATA&&_CFB_DATA.stats)||{}).length} teams)`);}
+      // SHL/LIIGA -- same gap as CFB above, closed the same session
+      // (2026-09-16). Team blended rates and schedule live in the same
+      // JSON file (liiga_schedule.json/shl_schedule.json), so "stats" and
+      // "schedule" both re-fetch it -- same one-file-covers-both shape
+      // NFL/CFB's own loadNFLData()/loadCFBData() already have.
+      else if(s==='SHL'){_SHL_DATA=null;const d=await loadShlScheduleData();if(window._opsActiveSport==='SHL')typeof renderShlMatches==='function'&&renderShlMatches();_opsLog(sectionId,`  · ${s}: ✓ stats refreshed (${Object.keys((d&&d.teams)||{}).length} teams)`);}
+      else if(s==='LIIGA'){_LIIGA_DATA=null;const d=await loadLiigaScheduleData();if(window._opsActiveSport==='LIIGA')typeof renderLiigaMatches==='function'&&renderLiigaMatches();_opsLog(sectionId,`  · ${s}: ✓ stats refreshed (${Object.keys((d&&d.teams)||{}).length} teams)`);}
       else if(s==='WC'){typeof renderWCMatches==='function'&&renderWCMatches();typeof renderWCProps==='function'&&renderWCProps();_opsLog(sectionId,`  · ${s}: ✓ WC schedule + props refreshed`);}
       else if(_CLUB_LEAGUES_ST[s]){
         const lk=_CLUB_LEAGUES_ST[s];
@@ -13815,7 +13835,7 @@ async function opsRunSched(sport,btn){
   const orig=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='⏳...';}
   const sectionId='ops-sched';
-  const sports=sport==='ALL'?['NBA','NHL','NFL','CFB','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
+  const sports=sport==='ALL'?['NBA','NHL','NFL','CFB','SHL','LIIGA','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
   _opsLog(sectionId,`▶ SCHEDULE REFRESH — ${sport}`);
   const _CLUB_LEAGUES={BUND:'bl',CL:'cl',LIGA:'liga',PL:'pl',SERIEA:'ita'};
   for(const s of sports){
@@ -13829,6 +13849,8 @@ async function opsRunSched(sport,btn){
       // props/game-line work has been running on real Week 1 games.
       else if(s==='NFL'){window._NFL_DATA=null;await loadNFLData();if(window._nflActiveTab==='games')typeof renderNFLGames2==='function'&&renderNFLGames2();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${Object.keys((_NFL_DATA&&_NFL_DATA.weeks)||{}).length} week(s) loaded)`);}
       else if(s==='CFB'){window._CFB_DATA=null;await loadCFBData();if(window._cfbActiveTab==='games')typeof renderCFBGames==='function'&&renderCFBGames();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${Object.keys((_CFB_DATA&&_CFB_DATA.weeks)||{}).length} week(s) loaded)`);}
+      else if(s==='SHL'){_SHL_DATA=null;const d=await loadShlScheduleData();if(window._opsActiveSport==='SHL')typeof renderShlMatches==='function'&&renderShlMatches();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${((d&&d.games)||[]).length} game(s) loaded)`);}
+      else if(s==='LIIGA'){_LIIGA_DATA=null;const d=await loadLiigaScheduleData();if(window._opsActiveSport==='LIIGA')typeof renderLiigaMatches==='function'&&renderLiigaMatches();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${((d&&d.games)||[]).length} game(s) loaded)`);}
       else if(s==='WC'){renderWCMatches&&renderWCMatches();_opsLog(sectionId,'  · WC: ✓ World Cup matches refreshed');}
       else if(s==='MLS'){await _fetchMLSScheduleReal();typeof renderLeagueMatches==='function'&&renderLeagueMatches('mls');_opsLog(sectionId,'  · MLS: ✓ schedule refreshed');}
       else if(_CLUB_LEAGUES[s]){
@@ -25151,7 +25173,7 @@ var SIM_ESPN_TEAM_PATHS={
 var SIM_SPORT_LEAGUES={
   basketball:[{v:'nba',l:'NBA'}],
   football:[{v:'cfb',l:'CFB'},{v:'nfl',l:'NFL'}],
-  hockey:[{v:'nhl',l:'NHL'},{v:'ncaah',l:'COLLEGE HOCKEY'},{v:'khl',l:'KHL'},{v:'shl',l:'SHL'},{v:'liiga',l:'LIIGA'}],
+  hockey:[{v:'nhl',l:'NHL'},{v:'shl',l:'SHL'},{v:'liiga',l:'LIIGA'}],
   soccer:[{v:'bl',l:'BUNDESLIGA'},{v:'liga',l:'LA LIGA'},{v:'mls',l:'MLS'},{v:'pl',l:'PREMIER LEAGUE'},{v:'seriea',l:'SERIE A'},{v:'cl',l:'CHAMPIONS LEAGUE'}]
 };
 var _simTeamCache={};
@@ -25209,6 +25231,28 @@ function simUpdateTeams() {
     hSel.innerHTML='<option>Loading…</option>';aSel.innerHTML='<option>Loading…</option>';
     _simFetchTeams(sport).then(function(teams){
       if(_simEffectiveSport()!==sport)return; // sport/league changed again before this resolved
+      if(!teams.length)teams=SIM_FB[sport]||SIM_FB.nba;
+      teams=teams.slice().sort();
+      var opts=teams.map(function(t){return '<option value="'+t+'">'+t+'</option>';}).join('');
+      hSel.innerHTML=opts;aSel.innerHTML=opts;
+      if(teams.length>1)aSel.selectedIndex=1;
+    });
+    return;
+  }
+  // LIIGA/SHL have no ESPN coverage (see SIM_ESPN_TEAM_PATHS' own comment)
+  // but DO have a real live full-roster source now (docs/liiga_schedule.json/
+  // shl_schedule.json, same data the real Hockey tab's match cards use) --
+  // real bug, found 2026-09-16: this used to fall straight through to
+  // SIM_FB.liiga/.shl, a hand-typed 8-team list from before either league
+  // had a real data source, silently hiding 9 of 17 real Liiga teams and 6
+  // of 14 real SHL teams from the simulator's own dropdown (the real Hockey
+  // tab itself was never affected -- it already reads the full live roster
+  // directly, this was purely a Simulator-side gap).
+  if(sport==='liiga'||sport==='shl'){
+    hSel.innerHTML='<option>Loading…</option>';aSel.innerHTML='<option>Loading…</option>';
+    (sport==='liiga'?loadLiigaScheduleData():loadShlScheduleData()).then(function(data){
+      if(_simEffectiveSport()!==sport)return;
+      var teams=Object.values((data&&data.teams)||{}).map(function(t){return t.name;}).filter(Boolean);
       if(!teams.length)teams=SIM_FB[sport]||SIM_FB.nba;
       teams=teams.slice().sort();
       var opts=teams.map(function(t){return '<option value="'+t+'">'+t+'</option>';}).join('');
@@ -25325,6 +25369,27 @@ function _simRun(sport,home,away,N,flags){
     // audit note) — rather than fake precision with a made-up formula,
     // this stays an honest neutral 50/50 baseline until a real model
     // exists for these 3 sports.
+    // LIIGA/SHL -- real bug, found 2026-09-16 alongside the team-list gap:
+    // this had no branch at all for either league, so every simulated
+    // matchup silently used the flat 50/50 baseline regardless of real
+    // team strength AND (see SP table below) baseball's own scoring
+    // distribution, since SP had no liiga/shl entry either. liigaEns/
+    // shlEns take team IDs, not the display names this dropdown uses, so
+    // resolve name->id from the same cached _LIIGA_DATA/_SHL_DATA the
+    // team-list fetch above already populates (loadLiigaScheduleData/
+    // loadShlScheduleData resolve instantly once cached, same pattern
+    // nhlEns's own by-abbreviation lookup already relies on).
+    if((sport==='liiga'||sport==='shl')&&typeof liigaEns==='function'&&typeof shlEns==='function'){
+      var _hkD=sport==='liiga'?_LIIGA_DATA:_SHL_DATA;
+      if(_hkD&&_hkD.teams){
+        var _hkFindId=function(name){var id=null;Object.keys(_hkD.teams).forEach(function(k){if(_hkD.teams[k].name===name)id=k;});return id;};
+        var _hHkId=_hkFindId(home),_aHkId=_hkFindId(away);
+        if(_hHkId&&_aHkId){
+          var _hkE=(sport==='liiga'?liigaEns:shlEns)(_hHkId,_aHkId);
+          if(_hkE&&_hkE.p)baseHP=_hkE.p;
+        }
+      }
+    }
   }catch(e){}
   var adjHP=baseHP;
   if(flags.home)adjHP=Math.min(.88,adjHP*1.035);
@@ -25340,7 +25405,17 @@ function _simRun(sport,home,away,N,flags){
     cbb:{muH:74,muA:70,sdH:9,sdA:9,ou:144},
     mls:{muH:1.5,muA:1.2,sdH:.85,sdA:.8,ou:2.5},cl:{muH:1.6,muA:1.3,sdH:.9,sdA:.85,ou:2.5},
     pl:{muH:1.6,muA:1.3,sdH:.9,sdA:.85,ou:2.5},liga:{muH:1.5,muA:1.2,sdH:.85,sdA:.8,ou:2.5},
-    bl:{muH:1.7,muA:1.4,sdH:.9,sdA:.85,ou:2.75}};
+    bl:{muH:1.7,muA:1.4,sdH:.9,sdA:.85,ou:2.75},
+    // liiga/shl -- real bug, found 2026-09-16: no entry here meant these
+    // fell back to SP.mlb (baseball's own 4.5/4.2-run scoring
+    // distribution) for every simulated Finnish/Swedish hockey matchup.
+    // Reuses NHL's own mu/sd shape (a real, similar-scoring-environment
+    // hockey league) rather than the league-specific G/M-derived line the
+    // real Hockey tab computes per matchup -- this generic simulator has
+    // no per-matchup context to derive that from, same "close enough for
+    // a what-if sandbox, not a substitute for the real per-league engine"
+    // honesty the soccer/CFB entries above already accept.
+    liiga:{muH:2.8,muA:2.6,sdH:1.15,sdA:1.1,ou:5.5},shl:{muH:2.8,muA:2.6,sdH:1.15,sdA:1.1,ou:5.5}};
   var sp=SP[sport]||SP.mlb;
   var hWins=0,aWins=0,hSc=[],aSc=[],tots=[],marg=[];
   for(var i=0;i<N;i++){
@@ -25349,7 +25424,7 @@ function _simRun(sport,home,away,N,flags){
     var z2=Math.sqrt(-2*Math.log(u1))*Math.sin(2*Math.PI*u2);
     var hAdj=adjHP>.5?(adjHP-.5)*sp.muH*.3:0,aAdj=adjHP<.5?(.5-adjHP)*sp.muA*.3:0;
     var hs=Math.max(0,sp.muH+hAdj+z1*sp.sdH),as2=Math.max(0,sp.muA+aAdj+z2*sp.sdA);
-    var _intScoreSports=['mlb','nhl','nfl','cfb','cbb','mls','cl','pl','liga','bl','wc'];
+    var _intScoreSports=['mlb','nhl','nfl','cfb','cbb','mls','cl','pl','liga','bl','wc','liiga','shl'];
     if(_intScoreSports.indexOf(sport)>=0){hs=Math.round(hs);as2=Math.round(as2);}
     else{hs=Math.round(hs*10)/10;as2=Math.round(as2*10)/10;}
     hSc.push(hs);aSc.push(as2);tots.push(hs+as2);marg.push(hs-as2);
