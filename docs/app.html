@@ -11720,51 +11720,6 @@ function renderOverall(){
     <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${curStreakType==='win'?'var(--nc)':'var(--hc)'}">${curStreak>0?curStreak+(curStreakType==='win'?'W':'L'):'--'}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">STREAK</div></div>
   </div>`;
 
-  // Model Calibration — explicit request, 2026-09-16: is the model's own
-  // stated confidence honest? This is the exact ad-hoc check run by hand
-  // during the 2026-09-15 soccer audit (bucket every settled bet by its
-  // predicted winProb at lock time, compare against the REAL win rate in
-  // that bucket) -- made permanent so a real drift shows up here on its
-  // own instead of needing another one-off investigation to notice it.
-  // Buckets with zero settled bets are omitted rather than padded with a
-  // misleading "--", and the whole card is skipped below 6 buckets'
-  // worth of real data (matches the same "don't force a result out of
-  // too little data" principle applied during that audit).
-  const _calBuckets=[
-    {lo:0,hi:0.55,lbl:'<55%'},{lo:0.55,hi:0.60,lbl:'55-60%'},
-    {lo:0.60,hi:0.65,lbl:'60-65%'},{lo:0.65,hi:0.70,lbl:'65-70%'},
-    {lo:0.70,hi:0.75,lbl:'70-75%'},{lo:0.75,hi:1.01,lbl:'75%+'},
-  ];
-  const calRows=_calBuckets.map(b=>{
-    const bets=settled.filter(p=>p.winProb!=null&&p.winProb>=b.lo&&p.winProb<b.hi);
-    if(!bets.length)return null;
-    const w=bets.filter(p=>p.outcome==='win').length;
-    const actual=w/bets.length;
-    const predicted=bets.reduce((a,p)=>a+p.winProb,0)/bets.length;
-    return{lbl:b.lbl,n:bets.length,actual,predicted};
-  }).filter(Boolean);
-  if(calRows.length){
-    h+=`<div class="card" style="margin-bottom:12px;padding:10px">
-      <div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--t3);margin-bottom:2px">// MODEL CALIBRATION — PREDICTED VS ACTUAL</div>
-      <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:10px">Is the model's own confidence honest? Bucketed by predicted win probability at lock time.</div>
-      ${calRows.map(r=>{
-        const delta=r.actual-r.predicted;
-        const dColor=delta>=-0.02?'var(--nc)':delta>=-0.08?'var(--gc)':'var(--hc)';
-        return`<div style="margin-bottom:9px">
-          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:14px;color:var(--t2);margin-bottom:3px">
-            <span>${r.lbl} <span style="color:var(--t3)">(n=${r.n})</span></span>
-            <span>PRED ${(r.predicted*100).toFixed(1)}% · ACTUAL <span style="color:${dColor};font-weight:700">${(r.actual*100).toFixed(1)}%</span></span>
-          </div>
-          <div style="position:relative;height:7px;background:rgba(255,255,255,.08);border-radius:2px">
-            <div style="position:absolute;left:0;top:0;height:100%;width:${Math.min(100,r.predicted*100)}%;background:rgba(255,255,255,.28);border-radius:2px"></div>
-            <div style="position:absolute;left:0;top:0;height:100%;width:${Math.min(100,r.actual*100)}%;background:${dColor};border-radius:2px;opacity:.9"></div>
-          </div>
-        </div>`;
-      }).join('')}
-      <div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:4px">Light bar = predicted · colored bar = actual. Cyan = well-calibrated, gold = mildly overconfident, pink = notably overconfident.</div>
-    </div>`;
-  }
-
   // Recent Form — enhanced (last 25, last 10 W/L)
   if(recentForm.length){
     const rfColor=rfW/recentForm.length>=0.60?'var(--nc)':rfW/recentForm.length>=0.50?'var(--vc)':'var(--hc)';
@@ -11931,6 +11886,33 @@ function renderOverall(){
   const avgCalDev=calDevAll.length?calDevAll.reduce((a,v)=>a+v,0)/calDevAll.length:null;
   const calStatusSummary=avgCalDev===null?'AWAITING DATA':avgCalDev<0.04?'WELL CALIBRATED':avgCalDev<0.08?'MINOR DRIFT':'RECALIBRATING';
   const calSummaryCol=avgCalDev===null?'var(--t3)':avgCalDev<0.04?'var(--nc)':avgCalDev<0.08?'var(--vc)':'var(--hc)';
+  // Compact predicted-vs-actual summary strip -- explicit request,
+  // 2026-09-16: this used to be a whole separate "MODEL CALIBRATION —
+  // PREDICTED VS ACTUAL" card above this one, computing its own slightly
+  // different bucket set (<55%/55-60%/etc, vs this card's 50-55%/55-60%/
+  // etc) from the same settled-bet data -- real duplication, just two
+  // levels of detail on the identical question ("is the model's stated
+  // confidence honest?"). Folded into one card: this strip reads directly
+  // from `cal` (the exact array the detailed per-band cards below already
+  // use), so there's a single source of truth instead of two computations
+  // that could quietly drift out of sync with each other.
+  const calSummaryStrip=cal.length?`<div style="margin-bottom:12px">
+    ${cal.map(b=>{
+      const delta=(b.act??0)-b.exp;
+      const dColor=delta>=-0.02?'var(--nc)':delta>=-0.08?'var(--gc)':'var(--hc)';
+      return`<div style="margin-bottom:7px">
+        <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:14px;color:var(--t2);margin-bottom:2px">
+          <span>${b.lbl} <span style="color:var(--t3)">(n=${b.n})</span></span>
+          <span>EXP ${(b.exp*100).toFixed(1)}% · ACTUAL <span style="color:${dColor};font-weight:700">${b.act!==null?(b.act*100).toFixed(1)+'%':'--'}</span></span>
+        </div>
+        <div style="position:relative;height:6px;background:rgba(255,255,255,.08);border-radius:2px">
+          <div style="position:absolute;left:0;top:0;height:100%;width:${Math.min(100,b.exp*100)}%;background:rgba(255,255,255,.28);border-radius:2px"></div>
+          <div style="position:absolute;left:0;top:0;height:100%;width:${Math.min(100,(b.act??0)*100)}%;background:${dColor};border-radius:2px;opacity:.9"></div>
+        </div>
+      </div>`;
+    }).join('')}
+    <div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:2px">Light bar = expected · colored bar = actual. Cyan = well-calibrated, gold = mildly overconfident, pink = notably overconfident.</div>
+  </div>`:'';
   h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--ic);margin:12px 0 6px">MODEL CALIBRATION</div>
   <div class="card" style="margin-bottom:14px;padding:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
@@ -11945,6 +11927,7 @@ function renderOverall(){
         <button id="calib-btn" class="btn btn-p btn-sm" style="margin-top:8px" onclick="triggerInstantCalibration()">CALIBRATE NOW</button>
       </div>
     </div>
+    ${calSummaryStrip}
     ${_brierScore!==null?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
       <div style="background:rgba(0,0,0,.3);border:1px solid rgba(0,200,255,.15);border-radius:4px;padding:10px;text-align:center">
         <div style="font-family:var(--orb);font-size:22px;font-weight:700;color:${_brierScore<0.15?'var(--nc)':_brierScore<0.22?'var(--vc)':'var(--hc)'}">${_brierScore.toFixed(4)}</div>
