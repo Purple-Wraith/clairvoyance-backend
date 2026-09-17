@@ -161,18 +161,27 @@ def check_cfb_early() -> str | None:
                        ["=== AUTO-LOCK (PREMIUM/OPTIMAL) — CFB ===", "Locks email (CFB)"])
 
 
-def check_soccer_early() -> str | None:
-    runs = _recent_runs("Soccer Auto Lock (Early)", limit=20)
+def check_euro_early() -> str | None:
+    """Renamed from check_soccer_early 2026-09-17 when soccer-lock-
+    early.yml was merged with SHL/Liiga into european-lock-early.yml
+    (see run_euro_early_lock in auto_lock_settle.py) -- checks the SAME
+    workflow by its new name, and now verifies BOTH products' own
+    "Locks email (...)" line landed in the log (send_locks_email logs
+    that unconditionally whenever recipients exist, even for 0
+    qualifying legs, so requiring both is safe on a real off-day for
+    either product, not just a lucky coincidence)."""
+    runs = _recent_runs("European Lock (Early)", limit=20)
     todays = [r for r in runs if r["event"] == "schedule" and r["createdAt"].startswith(_today_utc())]
     if not todays:
-        return "Soccer Early Lock: no schedule-triggered run found today"
-    run, problem = _find_invocation_run(todays, "Soccer Early Lock")
+        return "European Early Lock: no schedule-triggered run found today"
+    run, problem = _find_invocation_run(todays, "European Early Lock")
     if problem:
         return problem
     if not run:
         return None
-    return _check_run(run, "Soccer Early Lock",
-                       ["=== AUTO-LOCK (PREMIUM/OPTIMAL) — SOCCER ===", "Locks email (SOCCER)"])
+    return _check_run(run, "European Early Lock",
+                       ["=== AUTO-LOCK (PREMIUM/OPTIMAL) — EUROPEAN EARLY (SOCCER + SHL/LIIGA) ===",
+                        "Locks email (SOCCER)", "Locks email (SHL/LIIGA)"])
 
 
 def check_main_lock() -> str | None:
@@ -219,7 +228,7 @@ def check_main_lock() -> str | None:
 
 
 def main() -> None:
-    checks = [check_main_lock, check_cfb_early, check_soccer_early]
+    checks = [check_main_lock, check_cfb_early, check_euro_early]
     problems = []
     for check in checks:
         try:

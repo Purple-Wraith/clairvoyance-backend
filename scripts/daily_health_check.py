@@ -54,7 +54,7 @@ ALERT_TO = os.environ.get("SOCIAL_CARD_EMAIL_TO", "") or os.environ.get("LOCKS_E
 # date anyway" -- both look the same to the marker file.
 MONITORED = [
     ("auto-lock-settle.yml", "Main Auto-Lock (all 8 products)", 26),
-    ("soccer-lock-early.yml", "Soccer Early Lock", 26),
+    ("european-lock-early.yml", "European Early Lock (Soccer + SHL/Liiga)", 26),
     ("cfb-lock-early.yml", "CFB Early Lock", 26),
     ("send-expiry-reminders.yml", "Expiry Reminders", 26),
     ("social-cards-daily.yml", "Social Cards Daily", 26),
