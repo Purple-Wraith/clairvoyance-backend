@@ -780,14 +780,18 @@ body{line-height:1.5}
     </nav>
     <div class="sa" id="nhl-sa">
       <div id="nhl-tab-games" class="tab">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div class="sh" style="margin:0"><span class="i"></span> TODAY'S GAMES <span id="nhl-games-date" style="font-family:var(--mono);font-size:18px;color:var(--t3);font-weight:400;margin-left:8px"></span></div>
-          <button class="btn btn-o btn-sm" onclick="renderNHLTonight()">↻</button>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:7px 10px;background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.07);border-radius:3px;margin-bottom:10px;font-family:var(--mono);font-size:15px"><span style="color:var(--t3);letter-spacing:1px;font-size:14px">KEY:</span><span style="color:var(--gc)">PREMIUM</span><span style="color:var(--t3)">≥67% + EV&gt;5%</span><span style="color:var(--nc)">&nbsp;// OPTIMAL</span><span style="color:var(--t3)">≥62% + EV&gt;3%</span><span style="color:var(--ic)">&nbsp;// LEAN</span><span style="color:var(--t3)">55-62%</span><span style="color:var(--hc)">&nbsp;// SKIP</span><span style="color:var(--t3)">&lt;55%</span></div>
-        <div id="nhl-tn" style="margin-bottom:14px"></div>
-        <div id="nhl-games"><div class="loading"><span class="spi"></span></div></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 8px">
+        <!-- Explicit request, 2026-09-16: match LIIGA/SHL's own single-
+             section GAMES layout exactly -- drop the separate "TODAY'S
+             GAMES" live-ESPN section (its own header, the PREMIUM/OPTIMAL/
+             LEAN/SKIP key legend, and the #nhl-tn/#nhl-games containers
+             it rendered into) that used to sit above the schedule
+             day-picker, duplicating what the day-picker already covers
+             for today by default. #nhl-games-date/#nhl-tn/#nhl-games no
+             longer exist in the DOM; renderNHLTonight()/renderNHLGames()
+             (still called from T()'s NHL dispatch) simply no-op via their
+             own existing `if(!el)return;` guard rather than needing every
+             call site hunted down and removed too. -->
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
           <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
           <div style="display:flex;gap:8px;align-items:center">
             <select id="nhl-filter-day" onchange="renderNHLUpcoming()" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(0,240,255,.25);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
@@ -26592,7 +26596,7 @@ function saveParlayToTracker(legs,sport){
 <div id="navd-hk" class="nav-drop-fixed" onmouseenter="cancelHideND()" onmouseleave="startHideND()">
   <div class="ndl"><button onclick="SS('hk');hideAllND()">NHL</button>
     <div class="ndl-sub">
-      <button onclick="SS('hk');T('nhl','games');hideAllND()">Today</button>
+      <button onclick="SS('hk');T('nhl','games');hideAllND()">Games</button>
       <button onclick="SS('hk');T('nhl','props');hideAllND()">Props</button>
       <button onclick="SS('hk');T('nhl','model');hideAllND()">Model</button>
       <button onclick="SS('hk');T('nhl','config');hideAllND()">Config</button>
