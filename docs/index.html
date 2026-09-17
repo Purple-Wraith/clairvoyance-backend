@@ -13568,7 +13568,6 @@ function renderAdaptiveLearning(){
 // its own league sub-tab row since it's 6 leagues + World Cup.
 const _OPS_SPORT_TABS=[
   {k:'NBA',label:'NBA',color:'var(--pc)'},
-  {k:'NHL',label:'NHL',color:'var(--ic)'},
   {k:'NFL',label:'NFL',color:'var(--hc)'},
   // Real gap, found auditing Engine Ops: CFB has been a fully active
   // sport all session (its own lockCFBGame/autoSettleCFB, real
@@ -13579,21 +13578,28 @@ const _OPS_SPORT_TABS=[
   // the engine's real scope, 2026-09-09 -- see Dashboard's own comment),
   // not an oversight; CFB's absence was.
   {k:'CFB',label:'CFB',color:'var(--gc)'},
-  // Same gap, found 2026-09-16: SHL/LIIGA have been fully active leagues
-  // (real Flashscore schedule data, lockPick integration, and now their
-  // own autoSettleLiiga/autoSettleShl) with zero Engine Ops presence.
-  {k:'SHL',label:'SHL',color:'var(--ic)'},
-  {k:'LIIGA',label:'LIIGA',color:'var(--ic)'},
+  // NHL/SHL/LIIGA grouped under one HOCKEY tab with their own league
+  // sub-row, explicit request 2026-09-16 -- same "one sport tab, a
+  // league sub-row underneath" shape SOCCER already uses below, instead
+  // of 3 separate top-level tabs.
+  {k:'HOCKEY',label:'HOCKEY',color:'var(--ic)'},
   {k:'SOCCER',label:'SOCCER',color:'var(--nc)'},
+];
+const _OPS_HOCKEY_LEAGUES=[
+  {k:'NHL',label:'NHL'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},
 ];
 const _OPS_SOCCER_LEAGUES=[
   {k:'BUND',label:'BUNDESLIGA'},{k:'CL',label:'CHAMPIONS LG'},{k:'LIGA',label:'LA LIGA'},
   {k:'MLS',label:'MLS'},{k:'PL',label:'PREMIER LG'},{k:'SERIEA',label:'SERIE A'},
 ];
+// Sport keys that show a league sub-row instead of running ops directly
+// off the top-level tab -- SOCCER always did; HOCKEY joins it 2026-09-16.
+const _OPS_GROUPED_SPORTS={SOCCER:{leagues:_OPS_SOCCER_LEAGUES,defaultLeague:'BUND'},HOCKEY:{leagues:_OPS_HOCKEY_LEAGUES,defaultLeague:'NHL'}};
 function _opsSetTab(sport){
   window._opsActiveSport=sport;
-  if(sport!=='SOCCER')window._opsActiveLeague=null;
-  else if(!window._opsActiveLeague)window._opsActiveLeague='BUND';
+  const grp=_OPS_GROUPED_SPORTS[sport];
+  if(!grp)window._opsActiveLeague=null;
+  else if(!window._opsActiveLeague||!grp.leagues.some(l=>l.k===window._opsActiveLeague))window._opsActiveLeague=grp.defaultLeague;
   renderEngineOps();
 }
 function _opsSetLeague(lk){window._opsActiveLeague=lk;renderEngineOps();}
@@ -13602,10 +13608,12 @@ function renderEngineOps(){
   const el=document.getElementById('ovr-ops-content');if(!el)return;
   const opsLog=JSON.parse(localStorage.getItem('ops_log')||'[]');
   const activeSport=window._opsActiveSport||'NBA';
-  const activeLeague=window._opsActiveLeague||'BUND';
-  // Effective code passed to opsRunProps/Stats/Sched — soccer uses the
-  // selected club league's own code instead of the generic sport key.
-  const code=activeSport==='SOCCER'?activeLeague:activeSport;
+  const activeGroup=_OPS_GROUPED_SPORTS[activeSport];
+  const activeLeague=window._opsActiveLeague||(activeGroup&&activeGroup.defaultLeague)||'BUND';
+  // Effective code passed to opsRunProps/Stats/Sched — a grouped sport
+  // (soccer, hockey) uses the selected league's own code instead of the
+  // generic sport key.
+  const code=activeGroup?activeLeague:activeSport;
 
   const sec=(title,color,id,body)=>`
     <div class="card" style="margin-bottom:10px;padding:0;overflow:hidden;border-top:2px solid ${color}">
@@ -13625,8 +13633,8 @@ function renderEngineOps(){
   const tabBar=`<div class="card" style="margin-bottom:10px;padding:8px;display:flex;gap:5px;flex-wrap:wrap">
     ${_OPS_SPORT_TABS.map(t=>`<button class="btn btn-sm" style="border:1px solid ${activeSport===t.k?t.color:'rgba(255,255,255,.18)'};color:${activeSport===t.k?t.color:'rgba(255,255,255,.55)'};background:${activeSport===t.k?'rgba(0,0,0,.3)':'transparent'}" onclick="_opsSetTab('${t.k}')">${t.label}</button>`).join('')}
   </div>` +
-  (activeSport==='SOCCER'?`<div class="card" style="margin-bottom:10px;padding:6px 8px;display:flex;gap:4px;flex-wrap:wrap;background:rgba(4,0,12,.5)">
-    ${_OPS_SOCCER_LEAGUES.map(l=>`<button class="btn btn-sm" style="border:1px solid ${activeLeague===l.k?'var(--nc)':'rgba(255,255,255,.14)'};color:${activeLeague===l.k?'var(--nc)':'rgba(255,255,255,.5)'};background:transparent;font-size:14px;padding:2px 8px" onclick="_opsSetLeague('${l.k}')">${l.label}</button>`).join('')}
+  (activeGroup?`<div class="card" style="margin-bottom:10px;padding:6px 8px;display:flex;gap:4px;flex-wrap:wrap;background:rgba(4,0,12,.5)">
+    ${activeGroup.leagues.map(l=>`<button class="btn btn-sm" style="border:1px solid ${activeLeague===l.k?'var(--nc)':'rgba(255,255,255,.14)'};color:${activeLeague===l.k?'var(--nc)':'rgba(255,255,255,.5)'};background:transparent;font-size:14px;padding:2px 8px" onclick="_opsSetLeague('${l.k}')">${l.label}</button>`).join('')}
   </div>`:'');
 
   // CFB has no props feature anywhere in the app (no lock/render path for
@@ -13643,7 +13651,7 @@ function renderEngineOps(){
   // -- it just never had a manual refresh button wired to it.
   const NO_STATS=new Set();
   const NO_SCHED=new Set();
-  const label=activeSport==='SOCCER'?(_OPS_SOCCER_LEAGUES.find(l=>l.k===activeLeague)||{}).label:(_OPS_SPORT_TABS.find(t=>t.k===activeSport)||{}).label;
+  const label=activeGroup?(activeGroup.leagues.find(l=>l.k===activeLeague)||{}).label:(_OPS_SPORT_TABS.find(t=>t.k===activeSport)||{}).label;
 
   // ── PROP REFRESH ──────────────────────────────────────────────────────────
   const propSection=sec('PLAYER PROP REFRESH','var(--nc)','ops-props',
@@ -13819,8 +13827,8 @@ async function opsRunStats(sport,btn){
       // JSON file (liiga_schedule.json/shl_schedule.json), so "stats" and
       // "schedule" both re-fetch it -- same one-file-covers-both shape
       // NFL/CFB's own loadNFLData()/loadCFBData() already have.
-      else if(s==='SHL'){_SHL_DATA=null;const d=await loadShlScheduleData();if(window._opsActiveSport==='SHL')typeof renderShlMatches==='function'&&renderShlMatches();_opsLog(sectionId,`  · ${s}: ✓ stats refreshed (${Object.keys((d&&d.teams)||{}).length} teams)`);}
-      else if(s==='LIIGA'){_LIIGA_DATA=null;const d=await loadLiigaScheduleData();if(window._opsActiveSport==='LIIGA')typeof renderLiigaMatches==='function'&&renderLiigaMatches();_opsLog(sectionId,`  · ${s}: ✓ stats refreshed (${Object.keys((d&&d.teams)||{}).length} teams)`);}
+      else if(s==='SHL'){_SHL_DATA=null;const d=await loadShlScheduleData();if(window._opsActiveLeague==='SHL')typeof renderShlMatches==='function'&&renderShlMatches();_opsLog(sectionId,`  · ${s}: ✓ stats refreshed (${Object.keys((d&&d.teams)||{}).length} teams)`);}
+      else if(s==='LIIGA'){_LIIGA_DATA=null;const d=await loadLiigaScheduleData();if(window._opsActiveLeague==='LIIGA')typeof renderLiigaMatches==='function'&&renderLiigaMatches();_opsLog(sectionId,`  · ${s}: ✓ stats refreshed (${Object.keys((d&&d.teams)||{}).length} teams)`);}
       else if(s==='WC'){typeof renderWCMatches==='function'&&renderWCMatches();typeof renderWCProps==='function'&&renderWCProps();_opsLog(sectionId,`  · ${s}: ✓ WC schedule + props refreshed`);}
       else if(_CLUB_LEAGUES_ST[s]){
         const lk=_CLUB_LEAGUES_ST[s];
@@ -13852,8 +13860,8 @@ async function opsRunSched(sport,btn){
       // props/game-line work has been running on real Week 1 games.
       else if(s==='NFL'){window._NFL_DATA=null;await loadNFLData();if(window._nflActiveTab==='games')typeof renderNFLGames2==='function'&&renderNFLGames2();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${Object.keys((_NFL_DATA&&_NFL_DATA.weeks)||{}).length} week(s) loaded)`);}
       else if(s==='CFB'){window._CFB_DATA=null;await loadCFBData();if(window._cfbActiveTab==='games')typeof renderCFBGames==='function'&&renderCFBGames();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${Object.keys((_CFB_DATA&&_CFB_DATA.weeks)||{}).length} week(s) loaded)`);}
-      else if(s==='SHL'){_SHL_DATA=null;const d=await loadShlScheduleData();if(window._opsActiveSport==='SHL')typeof renderShlMatches==='function'&&renderShlMatches();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${((d&&d.games)||[]).length} game(s) loaded)`);}
-      else if(s==='LIIGA'){_LIIGA_DATA=null;const d=await loadLiigaScheduleData();if(window._opsActiveSport==='LIIGA')typeof renderLiigaMatches==='function'&&renderLiigaMatches();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${((d&&d.games)||[]).length} game(s) loaded)`);}
+      else if(s==='SHL'){_SHL_DATA=null;const d=await loadShlScheduleData();if(window._opsActiveLeague==='SHL')typeof renderShlMatches==='function'&&renderShlMatches();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${((d&&d.games)||[]).length} game(s) loaded)`);}
+      else if(s==='LIIGA'){_LIIGA_DATA=null;const d=await loadLiigaScheduleData();if(window._opsActiveLeague==='LIIGA')typeof renderLiigaMatches==='function'&&renderLiigaMatches();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${((d&&d.games)||[]).length} game(s) loaded)`);}
       else if(s==='WC'){renderWCMatches&&renderWCMatches();_opsLog(sectionId,'  · WC: ✓ World Cup matches refreshed');}
       else if(s==='MLS'){await _fetchMLSScheduleReal();typeof renderLeagueMatches==='function'&&renderLeagueMatches('mls');_opsLog(sectionId,'  · MLS: ✓ schedule refreshed');}
       else if(_CLUB_LEAGUES[s]){
