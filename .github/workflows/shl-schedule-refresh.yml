@@ -14,6 +14,16 @@ on:
     # Playwright-heavy jobs landing on the exact same minute and racing
     # for a runner.
     - cron: '15 12 * * *'
+    # 2:05 PM MT = 20:05 UTC (MDT) -- second daily refresh, added
+    # 2026-09-17, same real gap as Liiga's own second refresh (see that
+    # workflow's comment for the full finding): fetch_shl.py's scraper
+    # also only recognizes "pre"/"post", no in-progress state, and SHL's
+    # own earliest kickoffs (as early as 7:15 AM MT, some as late as
+    # 11:00 AM MT) mean the single 6:15 AM refresh is always pre-game.
+    # 2:05 PM MT sits comfortably after even an 11:00 AM MT kickoff's
+    # game finishes, 5 minutes after Liiga's own afternoon refresh for
+    # the same runner-contention reason as the morning stagger above.
+    - cron: '5 20 * * *'
   workflow_dispatch:
 
 permissions:
