@@ -42,14 +42,16 @@ on:
     - cron: '50 12 * * *'
     - cron: '7 13 * * *'
     - cron: '50 13 * * *'
-    # PM slate: 22:00 UTC (~4:00pm MT) primary + 22:30/23:00 UTC
-    # (~4:30/5:00pm MT) fallbacks -- after the main lock's picks for the
-    # day (including afternoon/evening NFL, NBA, NHL, CFB) are locked,
-    # but before most of that afternoon/evening slate has actually
-    # kicked off.
-    - cron: '0 22 * * *'
-    - cron: '30 22 * * *'
-    - cron: '0 23 * * *'
+    # PM slate: shifted 2 hours earlier, 2026-09-18 (explicit request) --
+    # 20:00 UTC (~2:00pm MT) primary + 20:30/21:00 UTC (~2:30/3:00pm MT)
+    # fallbacks. Still safely after the main lock's picks for the day
+    # (including afternoon/evening NFL, NBA, NHL, CFB) are locked -- the
+    # main run's own catch-up window closes by noon MT -- but now catches
+    # more of the early-afternoon slate (CFB/NFL games kicking off
+    # around 11am-1pm MT) before it starts too, not just the evening one.
+    - cron: '0 20 * * *'
+    - cron: '30 20 * * *'
+    - cron: '0 21 * * *'
   workflow_dispatch:
     inputs:
       slot:

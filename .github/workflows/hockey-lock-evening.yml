@@ -1,0 +1,158 @@
+name: SHL/Liiga Auto Lock (Evening — Tomorrow's Slate)
+
+# Evening-prior lock for SHL/Liiga combined. Runs the NIGHT BEFORE
+# gameday and locks TOMORROW's games, instead of waiting for
+# european-lock-early.yml's own same-morning 6:00 AM MT pass (+catch-ups
+# through 6:45 AM).
+#
+# Why this exists: explicit request, 2026-09-18, after pick-of-day-
+# social-daily.yml's own AM slate had to move from 10:40am MT all the
+# way to 6:50am MT specifically because SHL's real kickoffs (as early as
+# 7:15 AM MT) left almost no margin for the same-morning early lock --
+# any GitHub Actions delay (documented, real, recurring elsewhere in
+# this repo) could push that pass past kickoff entirely. Locking the
+# evening before trades that thin morning margin for 8+ hours, using
+# the same real model inputs (blended GF/GA rates, standings) the
+# same-morning pass already relies on -- no signal lost, and a genuine
+# extra safety net if the morning pass and all its catch-ups get
+# dropped. NHL deliberately excluded -- it never plays this early, same
+# reasoning as EARLY_HOCKEY_SPORTS (auto_lock_settle.py).
+#
+# Runs every day -- both leagues play close to daily, not just certain
+# days of the week.
+#
+# Costs no real signal: uses the same real model inputs (blended GF/GA
+# rates, standings) the same-morning pass already relies on. No new
+# data-feed workflow needed either -- docs/liiga_schedule.json/
+# shl_schedule.json each already cover several weeks ahead and are
+# refreshed twice daily by their own existing workflows.
+#
+# european-lock-early.yml's own same-morning pass is left completely
+# unchanged and keeps running as gameday's safety net -- every leg
+# locked here is stamped with the GAME's real date (tomorrow), so
+# anything this pass locks tonight dedupes cleanly against that
+# same-morning pass (identical lockPick() id -- see
+# run_hockey_evening_lock's own docstring in auto_lock_settle.py).
+#
+# Scheduled interleaved with soccer-lock-evening.yml (04:00/04:20/
+# 04:40/05:00 UTC) and cfb-lock-evening.yml (04:30/04:50/05:10/05:30
+# UTC) to avoid landing on the exact same cron minute as either
+# (the runner-queue-starvation pattern documented elsewhere in this
+# repo's workflows).
+#
+# Same safety convention as every other lock workflow: dry-run by
+# default, reads the same LIVE_MODE repo variable. Since this is
+# brand-new, never-run-in-production code, consider reviewing a few
+# nights of dry-run output before trusting LIVE_MODE=true here the same
+# as the proven same-morning pass.
+
+on:
+  schedule:
+    # 10:15 PM MT = 04:15 UTC (MDT). Like every other MT time in this
+    # repo, this is a fixed UTC cron -- GitHub Actions doesn't shift for
+    # DST, so the real landing time drifts ~1hr earlier MT once MST
+    # returns in November.
+    - cron: '15 4 * * *'
+    # 3 catch-up slots, 30 min apart -- same self-healing pattern proven
+    # on every other evening lock workflow in this repo. All 4 slots
+    # land well before SHL's earliest ~7:15 AM MT kickoff the NEXT day
+    # (9+ hours of margin even on the last slot).
+    - cron: '45 4 * * *'
+    - cron: '15 5 * * *'
+    - cron: '45 5 * * *'
+  workflow_dispatch:
+    inputs:
+      live:
+        description: 'Actually write to Supabase (unchecked = dry-run, logs only)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  hockey-lock-evening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine live flag from trigger
+        # Moved ahead of Set up Python / Install dependencies, same
+        # reasoning as every other evening-lock workflow: 3 of these 4
+        # scheduled slots are catch-up checks that skip the real lock
+        # pass whenever tonight's first slot already succeeded (the
+        # common case) -- this step is pure bash (reads a marker file
+        # already in the checkout), so it can gate both heavy steps
+        # before paying for a runner + browser install.
+        id: flags
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "live_flag=${{ inputs.live == true && '--live' || '' }}" >> "$GITHUB_OUTPUT"
+            echo "should_run=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
+            # The first slot (10:15 PM) always runs unconditionally;
+            # every other cron entry above is a catch-up that only runs
+            # if tonight's evening lock hasn't already succeeded -- same
+            # pattern as cfb-lock-evening.yml/soccer-lock-evening.yml.
+            # Marker is dated by TONIGHT's date (the run date), not
+            # tomorrow's game date.
+            if [ "${{ github.event.schedule }}" != "15 4 * * *" ]; then
+              TODAY_MT=$(TZ=America/Denver date +%Y-%m-%d)
+              LAST_RUN=$(cat data/last_hockey_evening_lock_date.txt 2>/dev/null || echo "")
+              if [ "$LAST_RUN" = "$TODAY_MT" ]; then
+                echo "should_run=0" >> "$GITHUB_OUTPUT"
+              else
+                echo "should_run=1" >> "$GITHUB_OUTPUT"
+                echo "::notice::SHL/Liiga evening lock hasn't recorded success yet tonight -- running this catch-up slot (schedule=${{ github.event.schedule }})."
+              fi
+            else
+              echo "should_run=1" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Set up Python
+        if: ${{ steps.flags.outputs.should_run == '1' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        if: ${{ steps.flags.outputs.should_run == '1' }}
+        run: |
+          pip install -q playwright requests
+          for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
+      - name: Run SHL/Liiga evening-prior auto-lock
+        if: ${{ steps.flags.outputs.should_run == '1' }}
+        env:
+          TZ: America/Denver
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          LOCKS_EMAIL_TO: ${{ secrets.LOCKS_EMAIL_TO }}
+          SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
+        run: |
+          python3 scripts/auto_lock_settle.py --lock --only-hockey-tomorrow ${{ steps.flags.outputs.live_flag }}
+
+      - name: Record successful evening lock date
+        # Only after a run that actually included a LIVE lock pass -- a
+        # dry-run must never mark tonight as done, or the catch-up slots
+        # would wrongly skip themselves.
+        if: ${{ steps.flags.outputs.should_run == '1' && steps.flags.outputs.live_flag == '--live' }}
+        run: |
+          TODAY_MT=$(TZ=America/Denver date +%Y-%m-%d)
+          echo "$TODAY_MT" > data/last_hockey_evening_lock_date.txt
+          git add data/last_hockey_evening_lock_date.txt
+          if ! git diff --cached --quiet; then
+            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: record SHL/Liiga evening lock for $TODAY_MT"
+            if ! git push origin main; then
+              git fetch origin main
+              if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase origin/main; then
+                git push origin main || echo "::warning::record lock: push still failed after rebase, will retry next run"
+              else
+                git rebase --abort
+                echo "::warning::record lock: rebase conflict, skipped this marker write, will retry next run"
+              fi
+            fi
+          fi

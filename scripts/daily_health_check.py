@@ -74,6 +74,9 @@ MONITORED = [
     # meaningfully same-night, which this pass didn't add.
     ("cfb-lock-evening.yml", "CFB Evening Lock (Tomorrow's Slate)", 26),
     ("soccer-lock-evening.yml", "Soccer Evening Lock (Tomorrow's Slate)", 26),
+    # Added 2026-09-18 alongside the new SHL/Liiga evening-prior lock --
+    # same backup-signal treatment as its CFB/soccer siblings above.
+    ("hockey-lock-evening.yml", "SHL/Liiga Evening Lock (Tomorrow's Slate)", 26),
 ]
 
 # (marker file, human label, cutoff hour in MT past which today's date
@@ -109,14 +112,22 @@ MONITORED = [
 # filter excludes it as started -- see pick-of-day-social-daily.yml's
 # own schedule comment). Cutoff 10 (10am MT) sits comfortably after the
 # AM slate's own new last fallback (7:50am MT nominal) with headroom
-# for GitHub's own documented scheduling delay. PM cutoff 18 (6pm MT)
-# is unchanged, sitting after the PM slate's own last fallback (5:00pm
-# MT nominal).
+# for GitHub's own documented scheduling delay.
+#
+# PM cutoff moved 18 -> 16 (6pm -> 4pm MT), same day, when the PM
+# slate's own schedule shifted 2 hours earlier to 2:00/2:30/3:00pm MT --
+# sits after that slate's new last fallback (3:00pm MT nominal) with the
+# same headroom. NOTE, not yet fixed: this script's own two scheduled
+# runs (daily-health-check.yml, ~11:15am and ~2:33pm MT) both fire
+# BEFORE 4pm MT, so this specific marker can't actually be evaluated by
+# either of them same-day -- only a later manual/triggered run of this
+# script would see it. A third daily-health-check.yml pass after 4pm MT
+# would close that gap; not added here since it wasn't asked for.
 LOCK_MARKERS = [
     (ROOT / "data" / "last_soccer_lock_date.txt", "European Early Lock (Soccer + SHL/Liiga)", 8),
     (ROOT / "data" / "last_cfb_lock_date.txt", "CFB Early Lock", 11),
     (ROOT / "data" / "last_pick_of_day_am_date.txt", "Pick-of-Day Social Email (AM slate)", 10),
-    (ROOT / "data" / "last_pick_of_day_pm_date.txt", "Pick-of-Day Social Email (PM slate)", 18),
+    (ROOT / "data" / "last_pick_of_day_pm_date.txt", "Pick-of-Day Social Email (PM slate)", 16),
 ]
 
 

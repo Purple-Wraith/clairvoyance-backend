@@ -65,6 +65,7 @@ MONITORED = [
     ("cfb-lock-early.yml", "CFB Early Lock"),
     ("cfb-lock-evening.yml", "CFB Evening Lock"),
     ("soccer-lock-evening.yml", "Soccer Evening Lock"),
+    ("hockey-lock-evening.yml", "SHL/Liiga Evening Lock"),
     ("send-expiry-reminders.yml", "Expiry Reminders"),
     ("social-cards-daily.yml", "Social Cards Daily"),
     ("pick-of-day-social-daily.yml", "Pick-of-Day Social"),

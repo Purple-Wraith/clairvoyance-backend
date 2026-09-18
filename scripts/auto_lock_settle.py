@@ -1190,6 +1190,53 @@ def gather_cfb_legs_for_date(page, target_date_iso: str) -> dict:
     )
 
 
+def gather_hockey_evening_legs_for_date(page, target_date_iso: str) -> dict:
+    """Evening-prior-lock version for SHL/Liiga combined, same rationale
+    as gather_cfb_legs_for_date above -- no new data-feed workflow
+    needed: docs/liiga_schedule.json/shl_schedule.json each already
+    cover several weeks ahead (refreshed twice daily, liiga-schedule-
+    refresh.yml/shl-schedule-refresh.yml), so this just targets
+    tomorrow's date against data that's already there.
+
+    _liigaMatchCard(g)/_shlMatchCard(g) have no "today" dependency of
+    their own -- confirmed by reading them directly: their date stamp
+    comes from g.date itself (a today()-fallback only fires if g.date
+    fails to parse, which never happens for a real game). Fires the
+    same _autoLockCapture() hook every sport's card renderer uses.
+    Unlike CFB's always-resident static table, _LIIGA_DATA/_SHL_DATA are
+    loaded lazily -- loadLiigaScheduleData()/loadShlScheduleData() are
+    awaited here first since both match-card functions read team rates
+    from them."""
+    return page.evaluate(
+        """
+        async (targetDateIso) => {
+          window._autoLockLegs = [];
+          try {
+            const liigaData = await loadLiigaScheduleData();
+            (liigaData && liigaData.games || []).forEach(g => {
+              const d = new Date(g.date);
+              const localIso = isNaN(d) ? (g.date || '').slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
+              if (localIso !== targetDateIso || g.state === 'post') return;
+              try { _liigaMatchCard(g); } catch (e) {}
+            });
+          } catch (e) { console.warn('[CV evening-lock Liiga] error:', e.message); }
+          try {
+            const shlData = await loadShlScheduleData();
+            (shlData && shlData.games || []).forEach(g => {
+              const d = new Date(g.date);
+              const localIso = isNaN(d) ? (g.date || '').slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
+              if (localIso !== targetDateIso || g.state === 'post') return;
+              try { _shlMatchCard(g); } catch (e) {}
+            });
+          } catch (e) { console.warn('[CV evening-lock SHL] error:', e.message); }
+          await new Promise(r => setTimeout(r, 300));
+          return { gameLegs: window._autoLockLegs || [], propLegs: [] };
+        }
+        """,
+        target_date_iso,
+    )
+
+
 def _dedupe_opposite_sides(game_qualifying: list[dict]) -> list[dict]:
     """Drops the weaker leg of any pair that's really just the two opposite
     sides of ONE market on the same game -- real bug, found via a live
@@ -2285,6 +2332,69 @@ def run_cfb_evening_lock(page, live: bool, send_email: bool = True, to: list[str
     return result.new
 
 
+def run_hockey_evening_lock(page, live: bool, send_email: bool = True, to: list[str] | None = None) -> int:
+    """Evening-prior lock for SHL/Liiga combined -- runs the NIGHT
+    BEFORE gameday, not that morning. Same rationale as CFB/soccer's own
+    evening-prior passes: european-lock-early.yml's own same-morning
+    slot (6:00 AM MT, +catch-ups through 6:45 AM) already covers these
+    two leagues well ahead of SHL's real ~7:15 AM MT kickoffs, but
+    locking the night before trades even that margin for a much larger
+    one, using the same real model inputs (blended GF/GA rates,
+    standings) the same-morning pass already relies on -- no signal
+    lost, and a genuine extra safety net if that morning pass and all
+    its catch-ups get dropped (documented, real GitHub Actions risk,
+    same class of incident cfb-lock-evening.yml/soccer-lock-evening.yml
+    already exist to guard against). NHL deliberately excluded -- it
+    never plays this early, see EARLY_HOCKEY_SPORTS' own comment.
+
+    Every leg locked here is stamped with the GAME's real date
+    (tomorrow), not today() -- see lock_game_leg's docstring on why
+    that's required for this to dedupe correctly against european-lock-
+    early.yml's own same-morning pass, which is left completely
+    unchanged and still runs as tomorrow's safety net. Data comes from
+    docs/liiga_schedule.json/shl_schedule.json, already refreshed twice
+    daily each -- no new data-feed workflow needed, see
+    gather_hockey_evening_legs_for_date's own docstring."""
+    tomorrow_iso = (datetime.now(ZoneInfo("America/Denver")) + timedelta(days=1)).strftime("%Y-%m-%d")
+    log(f"=== AUTO-LOCK (PREMIUM/OPTIMAL) — SHL/LIIGA, EVENING-PRIOR FOR {tomorrow_iso} ===")
+    result = gather_hockey_evening_legs_for_date(page, tomorrow_iso)
+    qualifying = build_qualifying(result, only_sports=EARLY_HOCKEY_SPORTS)
+    log(f"Gathered {len(result.get('gameLegs') or [])} games' worth of markets for {tomorrow_iso}")
+    log(f"{len(qualifying)} qualifying PREMIUM/OPTIMAL legs found (SHL/Liiga evening-prior only)")
+
+    for q in qualifying:
+        log(f"  [{q['sport']}] {q['label']} ({TIER_LABEL.get(q['tierN'], '?')})")
+
+    label = "SHL/LIIGA — TOMORROW'S SLATE"
+    if not live:
+        log(f"[DRY RUN] Would lock {len(qualifying)} legs above for {tomorrow_iso} (pass --live to write)")
+        if send_email:
+            send_locks_email(qualifying, live=False, label=label, to=to, date_str=tomorrow_iso)
+        return 0
+
+    if not qualifying:
+        if send_email:
+            send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to, date_str=tomorrow_iso)
+        else:
+            log("Locks email (SHL/Liiga evening-prior) skipped -- already sent tonight")
+        return 0
+
+    result = _lock_qualifying_legs(page, qualifying, date_override=tomorrow_iso)
+    log(f"Locked {result.new} new, {result.already_locked} already locked, {result.failed} failed -- "
+        f"{result.confirmed}/{len(qualifying)} qualifying legs confirmed locked for {tomorrow_iso}")
+    if result.new > 0:
+        flush_to_supabase(page)
+        log("Flushed locks to Supabase")
+    if send_email and result.new == 0 and qualifying:
+        log(f"Locks email (SHL/Liiga evening-prior) skipped -- all {len(qualifying)} qualifying "
+            f"leg(s) were already locked earlier tonight, nothing new to report")
+    elif send_email:
+        send_locks_email(qualifying, live=True, locked_count=result.confirmed, label=label, to=to, date_str=tomorrow_iso)
+    else:
+        log("Locks email (SHL/Liiga evening-prior) skipped -- already sent tonight")
+    return result.new
+
+
 def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
     """Main (unscoped) lock run -- ONE gather_legs() call (the expensive
     part: real browser + live data warmups), then split into a separate
@@ -2497,6 +2607,14 @@ def main() -> None:
                           "(already refreshed twice daily, no separate scrape needed) and stamps "
                           "every locked pick with the game's real (tomorrow's) date. See "
                           "run_cfb_evening_lock's own docstring / cfb-lock-evening.yml.")
+    ap.add_argument("--only-hockey-tomorrow", action="store_true",
+                     help="Lock step only: evening-prior lock for SHL/Liiga combined, run the "
+                          "NIGHT BEFORE gameday instead of that morning. Reads "
+                          "docs/liiga_schedule.json/shl_schedule.json (already refreshed twice "
+                          "daily each, no separate scrape needed) and stamps every locked pick "
+                          "with the game's real (tomorrow's) date. NHL deliberately excluded -- "
+                          "it never plays this early, same reasoning as EARLY_HOCKEY_SPORTS. See "
+                          "run_hockey_evening_lock's own docstring / hockey-lock-evening.yml.")
     ap.add_argument("--top-picks-digest", action="store_true",
                      help="Sends the owner-only Top Picks Digest (top 4 per league + top 7 overall "
                           "for the day, ranked by model win probability, with parlay math) to "
@@ -2528,9 +2646,9 @@ def main() -> None:
     if args.daily_digest or args.adaptive_recalibration or args.top_picks_digest:
         do_lock = do_settle = False
     if sum([args.only_soccer, args.only_cfb, args.only_soccer_tomorrow, args.only_cfb_tomorrow,
-            args.only_euro_early]) > 1:
+            args.only_euro_early, args.only_hockey_tomorrow]) > 1:
         raise SystemExit("--only-soccer, --only-cfb, --only-soccer-tomorrow, --only-cfb-tomorrow, "
-                          "and --only-euro-early are mutually exclusive")
+                          "--only-euro-early, and --only-hockey-tomorrow are mutually exclusive")
     only_sports = PRODUCT_SPORTS["soccer"] if args.only_soccer else frozenset({"CFB"}) if args.only_cfb else None
     label = "SOCCER" if args.only_soccer else "CFB" if args.only_cfb else ""
     # Early passes route to that product's real (owner + paying
@@ -2655,6 +2773,25 @@ def main() -> None:
                     log(f"CFB evening-prior lock step failed: {exc}")
                     if args.live:
                         write_automation_status("lastCfbEveningLock", False, f"error: {exc}")
+                    raise
+            elif args.only_hockey_tomorrow:
+                # Evening-prior pass for SHL/Liiga combined -- same shape
+                # as the soccer/CFB branches above. Runs every day (both
+                # leagues play close to daily); NHL excluded, it never
+                # needs this.
+                tomorrow_mt = (datetime.now(ZoneInfo("America/Denver")) + timedelta(days=1)).strftime("%Y-%m-%d")
+                try:
+                    locked_this_pass = run_hockey_evening_lock(page, args.live, send_email=True,
+                                                                 to=recipients_for("hockey"))
+                    verified_count = verify_locks_for_date(page, tomorrow_mt) if args.live else None
+                    if args.live:
+                        ok = not (locked_this_pass > 0 and (verified_count or 0) == 0)
+                        detail = f"evening-prior lock pass completed, {verified_count} pick(s) verified for {tomorrow_mt}"
+                        write_automation_status("lastHockeyEveningLock", ok, detail)
+                except Exception as exc:
+                    log(f"SHL/Liiga evening-prior lock step failed: {exc}")
+                    if args.live:
+                        write_automation_status("lastHockeyEveningLock", False, f"error: {exc}")
                     raise
             elif args.only_euro_early:
                 # Combined early pass -- soccer (6 leagues) + SHL/Liiga,
