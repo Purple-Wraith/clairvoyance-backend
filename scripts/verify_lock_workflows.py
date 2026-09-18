@@ -32,6 +32,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _gmail_email import send_email  # noqa: E402
@@ -46,8 +47,28 @@ def _gh(*args: str) -> str:
     return result.stdout
 
 
-def _today_utc() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+# Real false alarm, found 2026-09-17: this used to be a raw UTC calendar-
+# date string match (createdAt.startswith(_today_utc())). Every real lock
+# workflow this file checks fires on its own America/Denver-based morning
+# schedule (same "today" every other script in this pipeline uses --
+# auto_lock_settle.py's own today_mt is always ZoneInfo("America/Denver")),
+# all comfortably BEFORE this script's own ~20:30 UTC (~2:30pm MT) daily
+# run -- so a UTC-date match happens to work when this only ever runs on
+# its own schedule. It breaks the moment anyone (a manual re-check, a
+# workflow_dispatch test) runs this after ~6pm MT: at that point the UTC
+# calendar date has already rolled to tomorrow, so a same-MT-day run that
+# genuinely happened hours earlier no longer starts with "today's" UTC
+# date string, producing a real false "no run found today" alert --
+# confirmed live, a 9:58pm MT manual dispatch flagged all 3 workflows as
+# missing despite each having multiple real successful runs that same MT
+# day. Comparing the run's own createdAt (converted to MT) against
+# today's MT date instead matches how "today" is defined everywhere else
+# in this pipeline, and is correct regardless of what time this script
+# itself happens to run.
+def _is_today_mt(created_at_iso: str) -> bool:
+    mt = ZoneInfo("America/Denver")
+    created_mt = datetime.fromisoformat(created_at_iso.replace("Z", "+00:00")).astimezone(mt)
+    return created_mt.date() == datetime.now(mt).date()
 
 
 def _recent_runs(workflow: str, limit: int = 8) -> list[dict]:
@@ -149,7 +170,7 @@ def _find_invocation_run(todays: list[dict], label: str) -> tuple[dict | None, s
 
 def check_cfb_early() -> str | None:
     runs = _recent_runs("CFB Auto Lock (Early)", limit=20)
-    todays = [r for r in runs if r["event"] == "schedule" and r["createdAt"].startswith(_today_utc())]
+    todays = [r for r in runs if r["event"] == "schedule" and _is_today_mt(r["createdAt"])]
     if not todays:
         return "CFB Early Lock: no schedule-triggered run found today"
     run, problem = _find_invocation_run(todays, "CFB Early Lock")
@@ -171,7 +192,7 @@ def check_euro_early() -> str | None:
     qualifying legs, so requiring both is safe on a real off-day for
     either product, not just a lucky coincidence)."""
     runs = _recent_runs("European Lock (Early)", limit=20)
-    todays = [r for r in runs if r["event"] == "schedule" and r["createdAt"].startswith(_today_utc())]
+    todays = [r for r in runs if r["event"] == "schedule" and _is_today_mt(r["createdAt"])]
     if not todays:
         return "European Early Lock: no schedule-triggered run found today"
     run, problem = _find_invocation_run(todays, "European Early Lock")
@@ -198,7 +219,7 @@ def check_main_lock() -> str | None:
     a lock that genuinely happened earlier that same day. Bumped well
     past any realistic single day's run count."""
     runs = _recent_runs("Auto Lock + Settle", limit=40)
-    todays = [r for r in runs if r["event"] == "schedule" and r["createdAt"].startswith(_today_utc())]
+    todays = [r for r in runs if r["event"] == "schedule" and _is_today_mt(r["createdAt"])]
     if not todays:
         return "Main Lock: no schedule-triggered run found today at all"
 
