@@ -2,39 +2,44 @@ name: Daily Pick-of-Day Social Posts
 
 on:
   schedule:
-    # Real audit, 2026-09-03: the previous 18:23 UTC (~12:23pm MT) primary
-    # trigger was placed in what its own comment called "the genuinely
-    # open 17:00-21:00 UTC gap" -- true when this job was set up, no
-    # longer true. top-picks-digest.yml has since grown two triggers
-    # right in that window (17:00 and 18:00 UTC), plus
-    # daily-health-check.yml (17:15), verify-lock-workflows.yml (17:30),
-    # and landing-performance-refresh.yml's hourly :37 run -- recreating
-    # exactly the contention this job was designed to dodge. Confirmed
-    # against real run history: on 4 of the last 4 real days
-    # (2026-08-30/31, 09-01/02), the 18:23 UTC primary never actually
-    # produced the day's email -- it silently landed on the SECOND
-    # fallback slot instead (then ~21:23 UTC, delivering ~3-5pm MT), and
-    # on 09-02 even that didn't land in time, needing a manual dispatch
-    # at 10:46am MT to go out at all. Moved to 16:40 UTC (~10:40am MT) --
-    # safely after both the real data refresh (scheduled-refresh.yml,
-    # 15:00 UTC) and CFB's own last catch-up lock (cfb-lock-early.yml,
-    # 16:00 UTC), so the day's picks are genuinely complete, while
-    # landing in one of the actually-quiet hours by the same real cron
-    # census (only cfb-lock-early's 16:00 and auto-lock-settle's 16:20
-    # nearby) -- earlier in the day than before, not later.
+    # TWO separate daily emails, 2026-09-17 (explicit request, after a
+    # single-run design was tried and reconsidered): one AM slate, one
+    # PM slate, each independently selecting its own top 3 from whatever
+    # is currently locked and not yet started (generate_pick_of_day_
+    # social.py's kickoff-time filter -- see its module comment). A
+    # single daily run structurally favored whichever sports lock
+    # earliest (soccer/SHL/Liiga/CFB) and disregarded NFL/NBA/NHL, which
+    # often aren't even locked yet by mid-morning; two runs instead give
+    # both groups a real, timely shot without waiting on each other.
+    # generate_pick_of_day_social.py also tracks which matchups it's
+    # already featured today (data/pick_of_day_featured_today.json) so
+    # the PM run can't re-post the exact same pick the AM run already
+    # sent.
+    #
+    # AM slate: 16:40 UTC (~10:40am MT) primary + 17:10/17:40 UTC
+    # (~11:10/11:40am MT) fallbacks -- unchanged from this job's original
+    # timing, already well-tuned (safely after the real data refresh and
+    # CFB's own last catch-up lock, so the morning's picks are genuinely
+    # complete).
     - cron: '40 16 * * *'
-    # Real bug, found and fixed: a single daily cron trigger has no
-    # recovery if GitHub silently drops it -- documented GitHub Actions
-    # behavior under high load (this repo runs 25+ scheduled workflows),
-    # confirmed live multiple times (see above). Two more fallback times,
-    # each a no-op if data/last_pick_of_day_date.txt already shows
-    # today's date (see the "Skip if already sent" step below) -- kept
-    # CLOSE to the primary (30-60min out) rather than hours later, so a
-    # dropped primary still lands same late-morning window instead of
-    # sliding all the way to evening.
     - cron: '10 17 * * *'
     - cron: '40 17 * * *'
-  workflow_dispatch: {}
+    # PM slate: 22:00 UTC (~4:00pm MT) primary + 22:30/23:00 UTC
+    # (~4:30/5:00pm MT) fallbacks -- after the main lock's picks for the
+    # day (including afternoon/evening NFL, NBA, NHL, CFB) are locked,
+    # but before most of that afternoon/evening slate has actually
+    # kicked off.
+    - cron: '0 22 * * *'
+    - cron: '30 22 * * *'
+    - cron: '0 23 * * *'
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: 'Which slate to run for a manual dispatch (schedule triggers infer this from the hour automatically)'
+        required: false
+        type: choice
+        options: ['am', 'pm']
+        default: 'am'
 
 permissions:
   contents: write
@@ -48,13 +53,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Skip if already sent today
+      - name: Determine slate + skip if already sent today
         id: gate
         run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SLOT="${{ inputs.slot }}"
+          else
+            case "${{ github.event.schedule }}" in
+              "40 16 * * *"|"10 17 * * *"|"40 17 * * *") SLOT="am" ;;
+              *) SLOT="pm" ;;
+            esac
+          fi
+          echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
+          MARKER="data/last_pick_of_day_${SLOT}_date.txt"
+          echo "marker=$MARKER" >> "$GITHUB_OUTPUT"
           TODAY_MT=$(TZ=America/Denver date +%Y-%m-%d)
-          LAST=$(cat data/last_pick_of_day_date.txt 2>/dev/null || echo "")
+          LAST=$(cat "$MARKER" 2>/dev/null || echo "")
           if [ "$LAST" = "$TODAY_MT" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
-            echo "already sent today ($TODAY_MT) -- this is a fallback slot, skipping"
+            echo "already sent today's $SLOT slate ($TODAY_MT) -- this is a fallback slot, skipping"
             echo "skip=1" >> "$GITHUB_OUTPUT"
           else
             echo "skip=" >> "$GITHUB_OUTPUT"
@@ -77,16 +93,18 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
         run: |
-          python3 scripts/generate_pick_of_day_social.py
+          python3 scripts/generate_pick_of_day_social.py --slot ${{ steps.gate.outputs.slot }}
 
       - name: Record successful send
         if: ${{ !steps.gate.outputs.skip && success() }}
         run: |
           TODAY_MT=$(TZ=America/Denver date +%Y-%m-%d)
-          echo "$TODAY_MT" > data/last_pick_of_day_date.txt
-          git add data/last_pick_of_day_date.txt
+          MARKER="${{ steps.gate.outputs.marker }}"
+          echo "$TODAY_MT" > "$MARKER"
+          git add "$MARKER"
+          [ -f data/pick_of_day_featured_today.json ] && git add data/pick_of_day_featured_today.json
           if ! git diff --cached --quiet; then
-            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: record pick-of-day send for $TODAY_MT"
+            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: record pick-of-day ${{ steps.gate.outputs.slot }} send for $TODAY_MT"
             if ! git push origin main; then
               git fetch origin main
               if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase origin/main; then

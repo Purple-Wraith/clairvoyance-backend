@@ -57,6 +57,41 @@ def _mt_now() -> datetime:
     return datetime.now(timezone.utc).astimezone(_MT)
 
 
+# Two separate daily emails, 2026-09-17 -- an AM slate and a PM slate (see
+# pick-of-day-social-daily.yml's own schedule comment for why: a single
+# daily run structurally favored whichever sports lock earliest and
+# disregarded NFL/NBA/NHL, which often aren't locked yet by mid-morning).
+# Both slates independently call select_top_picks() against whatever's
+# CURRENTLY locked and not yet started -- without this file, a matchup
+# still genuinely upcoming at both run times (an evening game locked
+# early enough to also qualify for the AM slate) could get selected and
+# posted twice. Tracks {date, keys} where each key is
+# "sport|matchup|pick" for every candidate actually emailed today;
+# reset automatically the first time a new date shows up.
+_FEATURED_TODAY_PATH = ROOT / "data" / "pick_of_day_featured_today.json"
+
+
+def _featured_today_keys(today_str: str) -> set[str]:
+    try:
+        data = json.loads(_FEATURED_TODAY_PATH.read_text())
+    except Exception:
+        return set()
+    if data.get("date") != today_str:
+        return set()
+    return set(data.get("keys") or [])
+
+
+def _record_featured_today(today_str: str, new_keys: list[str]) -> None:
+    existing = _featured_today_keys(today_str)
+    existing.update(new_keys)
+    _FEATURED_TODAY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _FEATURED_TODAY_PATH.write_text(json.dumps({"date": today_str, "keys": sorted(existing)}, indent=2))
+
+
+def _candidate_key(c: dict) -> str:
+    return f"{c['sport']}|{c['matchup']}|{c['pick']}"
+
+
 # Real bug, found 2026-09-17: qualifying legs never carry a kickoff time at
 # all (_autoLockCapture's own entry shape has no date field, confirmed by
 # reading it in docs/app.html), so this script had no way to tell "already
@@ -167,7 +202,7 @@ def _candidate_from_prop(q: dict) -> dict:
     }
 
 
-def select_top_picks(qualifying: list[dict], n: int = 3) -> list[dict]:
+def select_top_picks(qualifying: list[dict], n: int = 3, exclude_keys: set[str] | None = None) -> list[dict]:
     """PREMIUM before OPTIMAL, then EV descending within a tier. Missing EV
     (every prop, per this file's module docstring) sorts to the bottom of
     its tier rather than the top, so an EV-bearing game leg always outranks
@@ -176,7 +211,11 @@ def select_top_picks(qualifying: list[dict], n: int = 3) -> list[dict]:
     Candidates whose real kickoff has already passed by generation time are
     excluded before ranking, not just skipped when picked -- see the
     _kickoff_time block above for why this exists. A candidate this can't
-    resolve a kickoff time for (kickoff is None) is kept, not dropped."""
+    resolve a kickoff time for (kickoff is None) is kept, not dropped.
+
+    exclude_keys: candidates already featured in an earlier slate today
+    (see _candidate_key/_featured_today_keys) -- lets the AM and PM slates
+    run independently without either one re-posting the other's pick."""
     now = datetime.now(timezone.utc)
     candidates = [
         _candidate_from_game(q) if q["kind"] == "GAME" else _candidate_from_prop(q)
@@ -186,6 +225,11 @@ def select_top_picks(qualifying: list[dict], n: int = 3) -> list[dict]:
     skipped = len(candidates) - len(live_candidates)
     if skipped:
         log(f"Top picks: excluded {skipped} candidate(s) whose game already started")
+    if exclude_keys:
+        before = len(live_candidates)
+        live_candidates = [c for c in live_candidates if _candidate_key(c) not in exclude_keys]
+        if before != len(live_candidates):
+            log(f"Top picks: excluded {before - len(live_candidates)} candidate(s) already featured in an earlier slate today")
     live_candidates.sort(key=lambda c: (-c["rank_tier"], -(c["ev"] if c["ev"] is not None else -999)))
     return live_candidates[:n]
 
@@ -205,11 +249,19 @@ def build_pick_caption(c: dict, date_str: str) -> str:
     )
 
 
-def send_pick_posts(picks_with_captions: list[dict], out_dir: Path, date_str: str) -> None:
+_SLOT_LABEL = {"am": "Morning Slate", "pm": "Afternoon & Evening Slate"}
+
+
+def send_pick_posts(picks_with_captions: list[dict], out_dir: Path, date_str: str, slot: str | None = None) -> None:
     """One email, three clearly-labeled sections (not three separate
     emails) -- easier to review and post from in one pass. Each section's
     video + still are both attached; the caption is inline, ready to
-    copy-paste."""
+    copy-paste.
+
+    slot ('am'/'pm'/None): labeled in the subject line so two same-day
+    emails (see the AM/PM slate split, module comment above) are
+    distinguishable at a glance in an inbox instead of both reading
+    identically."""
     if not SOCIAL_CARD_EMAIL_TO:
         log("No recipient set (SOCIAL_CARD_EMAIL_TO) — skipping send")
         return
@@ -226,14 +278,16 @@ def send_pick_posts(picks_with_captions: list[dict], out_dir: Path, date_str: st
             f'<div style="background:#14001f;border-radius:6px;padding:12px 16px;color:#eee;'
             f'font-family:monospace;font-size:13px;white-space:pre-wrap">{caption_html}</div>'
         )
+    slot_label = _SLOT_LABEL.get(slot or "", "")
+    slot_suffix = f" — {slot_label}" if slot_label else ""
     body_html = (
         _EMAIL_WRAP_OPEN +
-        f"<p>Top {len(picks_with_captions)} picks for {date_str} — one post each, ranked "
+        f"<p>Top {len(picks_with_captions)} picks for {date_str}{slot_suffix} — one post each, ranked "
         "PREMIUM before OPTIMAL, then by EV.</p>" +
         "".join(sections) +
         _EMAIL_WRAP_CLOSE
     )
-    subject = f"Clairvoyance — Top {len(picks_with_captions)} Picks Social Posts for {date_str}"
+    subject = f"Clairvoyance — Top {len(picks_with_captions)} Picks Social Posts for {date_str}{slot_suffix}"
     ok, msg = _send_gmail(subject, SOCIAL_CARD_EMAIL_TO, body_html, attachments=all_attachments)
     if not ok:
         raise RuntimeError(f"Gmail send failed for '{subject}': {msg}")
@@ -245,6 +299,10 @@ def main() -> None:
     ap.add_argument("--no-email", action="store_true", help="generate video/stills only, skip sending")
     ap.add_argument("--out-dir", default="/tmp/cv_pick_of_day_social")
     ap.add_argument("--app-url", default=APP_URL)
+    ap.add_argument("--slot", choices=["am", "pm"], default=None,
+                     help="Which daily slate this run is (see pick-of-day-social-daily.yml) -- "
+                          "labels the email subject and gates dedup against the OTHER slate's "
+                          "already-featured picks today. Omit for a one-off/manual run with no dedup.")
     ap.add_argument("--top-n", type=int, default=3)
     args = ap.parse_args()
 
@@ -252,7 +310,9 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     now_mt = _mt_now()
     date_str = now_mt.strftime("%B %-d, %Y")
-    date_tag = now_mt.strftime("%Y%m%d")
+    today_str = now_mt.strftime("%Y-%m-%d")
+    date_tag = now_mt.strftime("%Y%m%d") + (f"-{args.slot}" if args.slot else "")
+    already_featured = _featured_today_keys(today_str) if args.slot else set()
 
     from playwright.sync_api import sync_playwright
     with sync_playwright() as pw:
@@ -276,9 +336,9 @@ def main() -> None:
         log("No qualifying legs today — nothing to post.")
         return
 
-    top_picks = select_top_picks(qualifying, n=args.top_n)
+    top_picks = select_top_picks(qualifying, n=args.top_n, exclude_keys=already_featured)
     if not top_picks:
-        log("No pre-kickoff candidates remain after excluding already-started games — nothing to post.")
+        log("No pre-kickoff candidates remain after excluding already-started/already-featured games — nothing to post.")
         return
     log(f"Selected top {len(top_picks)}: " +
         "; ".join(f"{c['grade']} {c['matchup']} — {c['pick']}" for c in top_picks))
@@ -301,7 +361,9 @@ def main() -> None:
         })
 
     if not args.no_email:
-        send_pick_posts(picks_with_captions, out_dir, date_str)
+        send_pick_posts(picks_with_captions, out_dir, date_str, slot=args.slot)
+        if args.slot:
+            _record_featured_today(today_str, [_candidate_key(c) for c in top_picks])
 
 
 if __name__ == "__main__":

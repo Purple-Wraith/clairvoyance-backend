@@ -83,7 +83,7 @@ MONITORED = [
 # cutoffs here sit right after those, so a real miss is caught the same
 # morning, not up to a day later.
 #
-# last_pick_of_day_date.txt added after a real rigorous audit
+# last_pick_of_day_{am,pm}_date.txt added after a real rigorous audit
 # (2026-09-03) found this exact gap: MONITORED's check_workflow() below
 # only checks "did a run happen recently and succeed" -- a run that hits
 # the workflow's own "already sent" skip gate ALSO reports success, so a
@@ -93,13 +93,22 @@ MONITORED = [
 # eventually caught it. This marker check is the same date-specific
 # ground truth the soccer/CFB checks already use -- it catches "still
 # missing" AND "took until a very late fallback," not just "never ran at
-# all." Cutoff 13 (1pm MT) sits after pick-of-day-social-daily.yml's own
-# last fallback slot (11:40am MT nominal) with headroom for GitHub's own
-# documented scheduling delay.
+# all."
+#
+# Split into two markers, 2026-09-17, when pick-of-day-social-daily.yml
+# itself split into an AM slate and a PM slate (a single daily run
+# structurally favored whichever sports lock earliest and disregarded
+# NFL/NBA/NHL -- see that workflow's own schedule comment) -- each slate
+# writes its own marker file now, so a dropped AM run can't be masked by
+# a healthy PM run or vice versa. Cutoff 13 (1pm MT) sits after the AM
+# slate's own last fallback (11:40am MT nominal); cutoff 18 (6pm MT)
+# sits after the PM slate's own last fallback (5:00pm MT nominal); both
+# with headroom for GitHub's own documented scheduling delay.
 LOCK_MARKERS = [
     (ROOT / "data" / "last_soccer_lock_date.txt", "European Early Lock (Soccer + SHL/Liiga)", 8),
     (ROOT / "data" / "last_cfb_lock_date.txt", "CFB Early Lock", 11),
-    (ROOT / "data" / "last_pick_of_day_date.txt", "Pick-of-Day Social Email", 13),
+    (ROOT / "data" / "last_pick_of_day_am_date.txt", "Pick-of-Day Social Email (AM slate)", 13),
+    (ROOT / "data" / "last_pick_of_day_pm_date.txt", "Pick-of-Day Social Email (PM slate)", 18),
 ]
 
 
