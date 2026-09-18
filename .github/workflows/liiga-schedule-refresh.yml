@@ -23,7 +23,7 @@ on:
     # single morning refresh is enough to keep the upcoming-fixtures
     # window and standings current for the day's locks.
     - cron: '10 12 * * *'
-    # 2:00 PM MT = 20:00 UTC (MDT) -- second daily refresh, added
+    # 3:00 PM MT = 21:00 UTC (MDT) -- second daily refresh, added
     # 2026-09-17 after a real gap: this scraper's fetch_fixtures()/
     # fetch_results() only recognize "pre" (upcoming) and "post" (final,
     # both scores present) -- no in-progress state at all. Liiga's
@@ -34,12 +34,12 @@ on:
     # page, not yet on results) or the schedule file was simply stale
     # from that morning. Confirmed live: a full day of real games (2026-
     # 09-17) never got auto-settled, requiring manual settlement.
-    # 2:00 PM MT sits comfortably after even a late-morning kickoff's
+    # 3:00 PM MT sits comfortably after even a late-morning kickoff's
     # game has finished, so the results page has real final scores by
     # the time the file is re-scraped -- letting the next settle pass
     # (same evening or the following 1:20 AM MT run) find genuinely
     # final data instead of a stale morning snapshot.
-    - cron: '0 20 * * *'
+    - cron: '0 21 * * *'
   workflow_dispatch:
 
 permissions:
