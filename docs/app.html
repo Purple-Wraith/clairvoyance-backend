@@ -11173,7 +11173,7 @@ function renderHistoryForSport(sport,summId,listId){
             const oLabel=p.outcome==='pending'?'PENDING':p.outcome.toUpperCase();
             return`<div class="ar">
               <div class="ab ${p.outcome==='win'?'ab-w':p.outcome==='loss'?'ab-l':p.outcome==='push'?'ab-p':'ab-s'}">${p.outcome==='win'?'✓':p.outcome==='loss'?'✗':p.outcome==='push'?'=':'⏳'}</div>
-              <div style="flex:1;min-width:0"><div style="font-family:var(--orb);font-size:22px;font-weight:700">${_gameTitle(p.hA,p.awA,p.sport)}</div><div style="font-family:var(--mono);font-size:18px;color:var(--t2)">${p.betType||''} · ${_expandBetOn(p.betOn||'',p.sport)} · ${p.ml||''}</div>${p.outcome!=='pending'&&p.hScore!=null?`<div style="font-family:var(--mono);font-size:17px;color:var(--gc);margin-top:2px">FINAL: ${_teamName(p.hA,p.sport)} ${p.hScore} – ${p.aScore} ${_teamName(p.awA,p.sport)}</div>`:''}</div>
+              <div style="flex:1;min-width:0"><div style="font-family:var(--orb);font-size:22px;font-weight:700">${_gameTitle(p.hA,p.awA,p.sport)}</div><div style="font-family:var(--mono);font-size:18px;color:var(--t2)">${p.betType||''} · ${_expandBetOn(p.betOn||'',p.sport)} · ${p.ml||''}${p.outcome==='pending'&&p.date?' · '+p.date:''}</div>${p.outcome!=='pending'&&p.hScore!=null?`<div style="font-family:var(--mono);font-size:17px;color:var(--gc);margin-top:2px">FINAL: ${_teamName(p.hA,p.sport)} ${p.hScore} – ${p.aScore} ${_teamName(p.awA,p.sport)}</div>`:''}</div>
               <div style="text-align:right;flex-shrink:0">
                 <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:${oColor}">${oLabel}</div>
                 ${p.outcome==='pending'?`<div style="display:flex;gap:3px;margin-top:4px"><button class="btn btn-o btn-sm" style="color:var(--nc);border-color:var(--nc)" onclick="recR('${p.id}','win')">W</button><button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss')">L</button><button class="btn btn-sm" style="font-size:16px;color:var(--t3);border-color:var(--t3);padding:2px 6px" onclick="removePick('${p.id}')">X</button></div>`:''}
@@ -12780,6 +12780,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
           <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap">
             ${_sportBadgeHtml(window._normSport(p),()=>sc)}
             <span style="font-family:var(--mono);font-size:15px;color:var(--t2)">${parlayHeader||mu}</span>
+            ${p.outcome==='pending'&&p.date?`<span style="font-family:var(--mono);font-size:14px;color:var(--t3)">${p.date}</span>`:''}
           </div>
           <div style="margin-bottom:2px">${legHtml}</div>
           <div style="font-family:var(--mono);font-size:14px;color:var(--t3)">${p.betType||''}${p.ml?' · '+p.ml:''}${p.winProb?' · '+(p.winProb*100).toFixed(0)+'%':''}</div>
