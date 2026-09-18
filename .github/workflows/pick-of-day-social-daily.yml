@@ -16,14 +16,32 @@ on:
     # the PM run can't re-post the exact same pick the AM run already
     # sent.
     #
-    # AM slate: 16:40 UTC (~10:40am MT) primary + 17:10/17:40 UTC
-    # (~11:10/11:40am MT) fallbacks -- unchanged from this job's original
-    # timing, already well-tuned (safely after the real data refresh and
-    # CFB's own last catch-up lock, so the morning's picks are genuinely
-    # complete).
-    - cron: '40 16 * * *'
-    - cron: '10 17 * * *'
-    - cron: '40 17 * * *'
+    # AM slate moved to 12:50/13:07/13:50 UTC (~6:50/7:07/7:50am MT),
+    # 2026-09-18: the original 10:40am MT timing was already too late for
+    # SHL specifically (real kickoffs as early as 7:15am MT) and often
+    # LIIGA too (~9:30am MT) -- both would already be excluded by
+    # generate_pick_of_day_social.py's own kickoff-time filter as
+    # "already started" by 10:40am, even though real CFB/soccer/SHL/Liiga
+    # locks for the day already exist well before then: CFB/soccer's
+    # evening-prior locks (cfb-lock-evening.yml/soccer-lock-evening.yml,
+    # ~10-10:30pm MT the night before) are already sitting in the data,
+    # CFB/NFL's own schedule/odds refresh completes by 5:55am MT
+    # (daily-schedules-refresh.yml), and european-lock-early.yml's own
+    # 6:00am MT run (+catch-ups through 6:45am) covers soccer/SHL/Liiga
+    # same-morning. 6:50am MT sits right after all of that, comfortably
+    # before SHL's 7:15am kickoff.
+    #
+    # Catch-up 1 (13:07 UTC/~7:07am MT) still lands before that same
+    # 7:15am SHL kickoff -- offset 2 minutes from auto-lock-settle.yml's
+    # own 13:05 UTC main-lock slot so the two Playwright-heavy jobs don't
+    # land on the exact same minute and compete for a runner. Catch-up 2
+    # (13:50 UTC/~7:50am MT) is a true last-resort: by then SHL may
+    # already be excluded as started if both earlier slots were dropped,
+    # but Liiga/CFB/soccer are all still comfortably pre-kickoff, so a
+    # late AM email still beats no AM email that day.
+    - cron: '50 12 * * *'
+    - cron: '7 13 * * *'
+    - cron: '50 13 * * *'
     # PM slate: 22:00 UTC (~4:00pm MT) primary + 22:30/23:00 UTC
     # (~4:30/5:00pm MT) fallbacks -- after the main lock's picks for the
     # day (including afternoon/evening NFL, NBA, NHL, CFB) are locked,
@@ -60,7 +78,7 @@ jobs:
             SLOT="${{ inputs.slot }}"
           else
             case "${{ github.event.schedule }}" in
-              "40 16 * * *"|"10 17 * * *"|"40 17 * * *") SLOT="am" ;;
+              "50 12 * * *"|"7 13 * * *"|"50 13 * * *") SLOT="am" ;;
               *) SLOT="pm" ;;
             esac
           fi

@@ -100,14 +100,22 @@ MONITORED = [
 # structurally favored whichever sports lock earliest and disregarded
 # NFL/NBA/NHL -- see that workflow's own schedule comment) -- each slate
 # writes its own marker file now, so a dropped AM run can't be masked by
-# a healthy PM run or vice versa. Cutoff 13 (1pm MT) sits after the AM
-# slate's own last fallback (11:40am MT nominal); cutoff 18 (6pm MT)
-# sits after the PM slate's own last fallback (5:00pm MT nominal); both
-# with headroom for GitHub's own documented scheduling delay.
+# a healthy PM run or vice versa.
+#
+# AM cutoff moved 13 -> 10 (1pm -> 10am MT), 2026-09-18, when the AM
+# slate's own schedule moved from 10:40/11:10/11:40am MT to
+# 6:50/7:07/7:50am MT (SHL's real ~7:15am MT kickoffs meant the old
+# timing was already too late to catch it before the kickoff-time
+# filter excludes it as started -- see pick-of-day-social-daily.yml's
+# own schedule comment). Cutoff 10 (10am MT) sits comfortably after the
+# AM slate's own new last fallback (7:50am MT nominal) with headroom
+# for GitHub's own documented scheduling delay. PM cutoff 18 (6pm MT)
+# is unchanged, sitting after the PM slate's own last fallback (5:00pm
+# MT nominal).
 LOCK_MARKERS = [
     (ROOT / "data" / "last_soccer_lock_date.txt", "European Early Lock (Soccer + SHL/Liiga)", 8),
     (ROOT / "data" / "last_cfb_lock_date.txt", "CFB Early Lock", 11),
-    (ROOT / "data" / "last_pick_of_day_am_date.txt", "Pick-of-Day Social Email (AM slate)", 13),
+    (ROOT / "data" / "last_pick_of_day_am_date.txt", "Pick-of-Day Social Email (AM slate)", 10),
     (ROOT / "data" / "last_pick_of_day_pm_date.txt", "Pick-of-Day Social Email (PM slate)", 18),
 ]
 
