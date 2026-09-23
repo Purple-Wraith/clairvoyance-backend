@@ -52,7 +52,14 @@ import requests
 ROOT = Path(__file__).parent.parent
 OUT = ROOT / "docs" / "soccer_schedule.json"
 OUT_TOMORROW = ROOT / "docs" / "soccer_schedule_tomorrow.json"
-EURO_LEAGUE_KEYS = ("cl", "pl", "liga", "bl", "ita")
+# "bl" (Bundesliga) removed 2026-09-23 -- retired from the evening-prior
+# lock pipeline (see EURO_SOCCER_SPORTS' own comment in
+# auto_lock_settle.py), so scraping tomorrow's Bundesliga schedule here
+# would just be wasted work nothing downstream reads anymore. Left in
+# ESPN_SOCCER_LEAGUES below (the regular daily, not tomorrow-specific,
+# schedule scrape) since that file may still be read for general/
+# historical display purposes.
+EURO_LEAGUE_KEYS = ("cl", "pl", "liga", "ita")
 
 # Deliberate standalone copy of scrape_soccer_standings.py's
 # ESPN_SOCCER_LEAGUES (no import dependency between the two scripts, same

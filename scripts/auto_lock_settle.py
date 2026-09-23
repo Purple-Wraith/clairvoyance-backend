@@ -119,12 +119,19 @@ SPORT_TO_LOCKPICK_TYPE = {
     "SOC_BL": "BUND", "SOC_LIGA": "LIGA", "SOC_MLS": "MLS", "SOC_PL": "PL_SOC",
     "SOC_ITA": "SERIEA", "SOC_CL": "CL",
 }
-# The 5 European leagues, kept separate from SOC_MLS as its own constant
+# The European leagues, kept separate from SOC_MLS as its own constant
 # purely so build_locks_email_html can split the combined soccer email into
 # an "EUROPEAN" section and a "NORTH AMERICA (MLS)" section -- soccer-lock-
 # early.yml itself now gathers both (see PRODUCT_SPORTS["soccer"] below),
 # it just labels which of the two a given qualifying leg belongs to.
-EURO_SOCCER_SPORTS = frozenset({"SOC_CL", "SOC_PL", "SOC_LIGA", "SOC_BL", "SOC_ITA"})
+# SOC_BL (Bundesliga) removed 2026-09-23, explicit request following a
+# real settled-bet audit: the only negative-ROI soccer league (-2.6%
+# all-time, worsening to -21.8% ROI over its last 20 bets), concentrated
+# in a genuinely broken O/U signal (47.6% win / -1.9u) that soccer's
+# shared model has no per-league calibration lever to fix. Retired the
+# same way MLB/WNBA/tennis/World Cup were -- removed from the active
+# pipeline and product, real settled-bet history untouched.
+EURO_SOCCER_SPORTS = frozenset({"SOC_CL", "SOC_PL", "SOC_LIGA", "SOC_ITA"})
 # The 4 PAID-PRODUCT hockey leagues with a real early-kickoff problem --
 # SHL games as early as 7:15 AM MT, Liiga around 9:30 AM MT (confirmed
 # real schedule data, 2026-09-17); NLA/Extraliga on the same Central
@@ -963,7 +970,9 @@ def gather_legs(page) -> dict:
             if (typeof _renderSocMatchCard === 'function' && typeof _fetchLeagueScoreboard === 'function') {
               if (typeof loadSoccerScheduleSnapshot === 'function') { try { await loadSoccerScheduleSnapshot(); } catch (e) {} }
               const todayIso = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
-              const soccerKeys = ['bl', 'liga', 'mls', 'pl', 'ita', 'cl'];
+              // 'bl' (Bundesliga) removed 2026-09-23 -- retired, see
+              // EURO_SOCCER_SPORTS' own comment for the full rationale.
+              const soccerKeys = ['liga', 'mls', 'pl', 'ita', 'cl'];
               for (const k of soccerKeys) {
                 try {
                   const games = (k === 'mls' && typeof _fetchMLSScheduleReal === 'function')
@@ -1106,12 +1115,13 @@ def gather_legs(page) -> dict:
     )
 
 
-# Evening-prior-lock leagues: the 5 European leagues named for this
-# feature (CL/PL/La Liga/Bundesliga/Serie A) -- MLS deliberately excluded,
-# it kicks off at normal US evening times and never had the early-kickoff
-# problem this exists for. Local key -> _autoLockCapture's sport tag
-# (SOC_<KEY>, matching docs/app.html's leagueKey.toUpperCase() convention).
-EURO_LEAGUE_KEY_TO_SPORT = {"cl": "SOC_CL", "pl": "SOC_PL", "liga": "SOC_LIGA", "bl": "SOC_BL", "ita": "SOC_ITA"}
+# Evening-prior-lock leagues: the European leagues named for this feature
+# (CL/PL/La Liga/Serie A -- Bundesliga retired 2026-09-23, see
+# EURO_SOCCER_SPORTS' own comment) -- MLS deliberately excluded, it kicks
+# off at normal US evening times and never had the early-kickoff problem
+# this exists for. Local key -> _autoLockCapture's sport tag (SOC_<KEY>,
+# matching docs/app.html's leagueKey.toUpperCase() convention).
+EURO_LEAGUE_KEY_TO_SPORT = {"cl": "SOC_CL", "pl": "SOC_PL", "liga": "SOC_LIGA", "ita": "SOC_ITA"}
 
 
 def gather_soccer_legs_for_date(page, target_date_iso: str) -> dict:
@@ -2165,8 +2175,9 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
 
 
 def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
-    """Combined early-morning lock pass, 2026-09-17: soccer's full
-    6-league product (CL/PL/La Liga/Bundesliga/Serie A/MLS) AND the 2
+    """Combined early-morning lock pass, 2026-09-17: soccer's
+    5-league product (CL/PL/La Liga/Serie A/MLS -- Bundesliga retired
+    2026-09-23) AND the 2
     early-kickoff hockey leagues (SHL/Liiga -- see EARLY_HOCKEY_SPORTS'
     own comment on why NHL stays out). ONE gather_legs() pull covers
     both -- merged purely to save a second full browser+Playwright run
@@ -2238,8 +2249,8 @@ def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
 
 
 def run_soccer_evening_lock(page, live: bool, send_email: bool = True, to: list[str] | None = None) -> int:
-    """Evening-prior lock for the 5 European soccer leagues (CL/PL/La
-    Liga/Bundesliga/Serie A) -- runs the NIGHT BEFORE those leagues'
+    """Evening-prior lock for the European soccer leagues (CL/PL/La
+    Liga/Serie A -- Bundesliga retired 2026-09-23) -- runs the NIGHT BEFORE those leagues'
     matchday, not that morning. See soccer-lock-evening.yml's own
     docstring for the full rationale; short version: real kickoffs as
     early as 7:00 AM MT (EPL) leave soccer-lock-early.yml's 6:00 AM MT
@@ -2621,12 +2632,12 @@ def main() -> None:
                           "product (soccer/CFB) passes, which always email immediately -- each is "
                           "its own dedicated once-daily run, not part of this multi-check flow.")
     ap.add_argument("--only-soccer", action="store_true",
-                     help="Lock step only: restrict to all 6 soccer leagues (CL/PL/La Liga/"
-                          "Bundesliga/Serie A/MLS) -- the resulting email splits legs into an "
+                     help="Lock step only: restrict to all 5 soccer leagues (CL/PL/La Liga/"
+                          "Serie A/MLS -- Bundesliga retired 2026-09-23) -- the resulting email splits legs into an "
                           "EUROPEAN section and a NORTH AMERICA (MLS) section. For the "
                           "early-morning pass timed ahead of European kickoffs.")
     ap.add_argument("--only-euro-early", action="store_true",
-                     help="Lock step only: the combined European early-morning pass -- all 6 "
+                     help="Lock step only: the combined European early-morning pass -- all 5 "
                           "soccer leagues (see --only-soccer) PLUS SHL/Liiga/NLA/Extraliga hockey "
                           "(real kickoffs as early as 7:15 AM MT). One shared gather_legs() pull, but "
                           "each product still gets its own separately-addressed email to its own "
@@ -2637,8 +2648,8 @@ def main() -> None:
                      help="Lock step only: restrict to CFB. For the early-morning pass timed "
                           "ahead of the earliest college football kickoffs (10 AM MT+).")
     ap.add_argument("--only-soccer-tomorrow", action="store_true",
-                     help="Lock step only: evening-prior lock for the 5 European soccer leagues "
-                          "(CL/PL/La Liga/Bundesliga/Serie A -- no MLS), run the NIGHT BEFORE "
+                     help="Lock step only: evening-prior lock for the European soccer leagues "
+                          "(CL/PL/La Liga/Serie A -- no MLS, Bundesliga retired 2026-09-23), run the NIGHT BEFORE "
                           "their matchday instead of that morning. Reads "
                           "docs/soccer_schedule_tomorrow.json (scraped separately) and stamps "
                           "every locked pick with the game's real (tomorrow's) date. See "

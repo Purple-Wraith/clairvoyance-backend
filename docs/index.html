@@ -1073,10 +1073,23 @@ body{line-height:1.5}
 </div>
 <div id="sp-soc" class="spane">
   <nav class="snav">
-    <button class="sb2 act" onclick="setSub('soc','bl')">BUNDESLIGA</button>
+    <!-- Bundesliga removed entirely from the UI 2026-09-23, explicit
+         request following a real settled-bet audit: only negative-ROI
+         soccer league (-2.6% all-time, worsening to -21.8% ROI over its
+         last 20 bets), concentrated in a genuinely broken O/U signal
+         (47.6% win / -1.9u) that soccer's shared model has no per-league
+         calibration lever to fix (sportCalibrate only touches moneyline,
+         and it's one constant blended across all 6 leagues anyway).
+         Same "no sub-tab, no nav-dropdown entry" treatment as World
+         Cup's own removal above -- settled bet history/ledger entries
+         are untouched, so Sport Performance / League Performance
+         win-loss/units stats for the real Bundesliga bets already
+         locked stay accurate; only the interactive Bundesliga pages and
+         all NEW locking are gone. Premier League takes over as the
+         default active soccer tab. -->
+    <button class="sb2 act" onclick="setSub('soc','pl')">PREMIER LEAGUE</button>
     <button class="sb2" onclick="setSub('soc','liga')">LA LIGA</button>
     <button class="sb2" onclick="setSub('soc','mls')">MLS</button>
-    <button class="sb2" onclick="setSub('soc','pl')">PREMIER LEAGUE</button>
     <button class="sb2" onclick="setSub('soc','ita')">SERIE A</button>
     <button class="sb2" onclick="setSub('soc','cl')">CHAMPIONS LEAGUE</button>
     <button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px">↻ SYNC</button>
@@ -1146,7 +1159,7 @@ body{line-height:1.5}
   </div>
 </div>
 <!-- PREMIER LEAGUE -->
-<div id="soc-pl" class="subp">
+<div id="soc-pl" class="subp act">
   <nav class="inav" id="pl-in">
     <button class="nb act" onclick="T('pl','matches');renderLeagueMatches('pl')">MATCHES</button>
     <button class="nb" onclick="T('pl','model');renderSoccerLeagueModel('pl')">MODEL</button>
@@ -1256,63 +1269,6 @@ body{line-height:1.5}
         <button class="btn btn-p btn-sm" style="margin-top:10px" onclick="applySoccerWeights('liga')">SAVE</button>
       </div>
       <div id="liga-model-weights-b"></div>
-    </div>
-  </div>
-</div>
-<!-- BUNDESLIGA -->
-<div id="soc-bl" class="subp act">
-  <nav class="inav" id="bl-in">
-    <button class="nb act" onclick="T('bl','matches');renderLeagueMatches('bl')">MATCHES</button>
-    <button class="nb" onclick="T('bl','model');renderSoccerLeagueModel('bl')">MODEL</button>
-    <button class="nb" onclick="T('bl','config');renderSoccerLeagueConfig('bl')">CONFIG</button>
-  </nav>
-  <div class="sa" id="bl-sa">
-    <div id="bl-tab-matches" class="tab act">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-        <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <select id="bl-filter-day" onchange="renderLeagueMatches('bl')" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(224,0,0,.4);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
-          <button class="btn btn-o btn-sm" onclick="renderLeagueMatches('bl')">↻</button>
-        </div>
-      </div>
-      <div id="bl-matches-list" style="padding:4px 0"><div class="loading"><span class="spi"></span></div></div>
-    </div>    <div id="bl-tab-model" class="tab">
-      <div class="sh"><span class="i"></span> BUNDESLIGA MODEL ARCHITECTURE</div>
-      <div class="g3" style="margin-bottom:12px">
-        <div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">25K sims. xG differential + possession + home advantage. FBref calibration.</div></div>
-        <div class="card cp"><div class="ct">POISSON GOALS</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Bivariate Poisson scoreline model. Attack/defense strength ratings.</div></div>
-        <div class="card cn"><div class="ct">FORM + xG</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Rolling xG/xGA, shot quality, progressive passes. FBref advanced stats.</div></div>
-      </div>
-      <div class="sh"><span class="i"></span> MODEL FACTORS</div>
-      <div class="g3" style="margin-bottom:12px;gap:8px">
-        <div class="card ci" style="padding:10px"><div style="font-family:var(--mono);font-size:17px;letter-spacing:1px;color:var(--ic);margin-bottom:4px">xG DIFFERENTIAL</div><div style="font-family:var(--mono);font-size:16px;color:var(--t2)">Expected goals for minus against. Weight: HIGH</div><div style="height:3px;background:rgba(0,200,255,.15);border-radius:1px;margin-top:6px"><div style="height:100%;width:85%;background:var(--ic);border-radius:1px"></div></div></div>
-        <div class="card cp" style="padding:10px"><div style="font-family:var(--mono);font-size:17px;letter-spacing:1px;color:var(--pc);margin-bottom:4px">POSSESSION %</div><div style="font-family:var(--mono);font-size:16px;color:var(--t2)">Ball control share, style indicator. Weight: MED</div><div style="height:3px;background:rgba(240,0,255,.15);border-radius:1px;margin-top:6px"><div style="height:100%;width:60%;background:var(--pc);border-radius:1px"></div></div></div>
-        <div class="card cn" style="padding:10px"><div style="font-family:var(--mono);font-size:17px;letter-spacing:1px;color:var(--nc);margin-bottom:4px">HOME ADVANTAGE</div><div style="font-family:var(--mono);font-size:16px;color:var(--t2)">Venue-adjusted goal expectancy boost. Weight: MED</div><div style="height:3px;background:rgba(0,255,136,.15);border-radius:1px;margin-top:6px"><div style="height:100%;width:55%;background:var(--nc);border-radius:1px"></div></div></div>
-        <div class="card cm" style="padding:10px"><div style="font-family:var(--mono);font-size:17px;letter-spacing:1px;color:var(--mc);margin-bottom:4px">SHOT CONVERSION</div><div style="font-family:var(--mono);font-size:16px;color:var(--t2)">Goals per shot on target rate. Weight: MED</div><div style="height:3px;background:rgba(255,170,0,.15);border-radius:1px;margin-top:6px"><div style="height:100%;width:50%;background:var(--mc);border-radius:1px"></div></div></div>
-        <div class="card cp" style="padding:10px"><div style="font-family:var(--mono);font-size:17px;letter-spacing:1px;color:var(--pc);margin-bottom:4px">PROGRESSIVE PASSES</div><div style="font-family:var(--mono);font-size:16px;color:var(--t2)">Ball progression toward goal. Weight: LOW</div><div style="height:3px;background:rgba(240,0,255,.15);border-radius:1px;margin-top:6px"><div style="height:100%;width:35%;background:var(--pc);border-radius:1px"></div></div></div>
-        <div class="card ci" style="padding:10px"><div style="font-family:var(--mono);font-size:17px;letter-spacing:1px;color:var(--ic);margin-bottom:4px">RECENT FORM</div><div style="font-family:var(--mono);font-size:16px;color:var(--t2)">Recent goal differential vs season average. Weight: LOW</div><div style="height:3px;background:rgba(0,200,255,.15);border-radius:1px;margin-top:6px"><div style="height:100%;width:30%;background:var(--ic);border-radius:1px"></div></div></div>
-      </div>
-      <div id="bl-model-weights"></div>
-    </div>
-    <div id="bl-tab-config" class="tab">
-      <div class="sh"><span class="i"></span> BUNDESLIGA ENGINE CONFIG</div>
-      <div class="sg">
-        <div class="sgt">// MODEL WEIGHTS</div>
-        <div class="rr"><span class="rrl">MONTE CARLO</span><span class="rrv" id="bl-mc-v">50%</span></div><input type="range" id="bl-w-mc" min="10" max="70" value="50" oninput="document.getElementById('bl-mc-v').textContent=this.value+'%';applySoccerWeights('bl')">
-        <div class="dv"></div>
-        <div class="rr"><span class="rrl">POISSON</span><span class="rrv" id="bl-poi-v">30%</span></div><input type="range" id="bl-w-poi" min="5" max="50" value="30" oninput="document.getElementById('bl-poi-v').textContent=this.value+'%';applySoccerWeights('bl')">
-        <div class="dv"></div>
-        <div class="rr"><span class="rrl">FORM/xG</span><span class="rrv" id="bl-form-v">20%</span></div><input type="range" id="bl-w-form" min="5" max="50" value="20" oninput="document.getElementById('bl-form-v').textContent=this.value+'%';applySoccerWeights('bl')">
-        <button class="btn btn-p btn-sm" style="margin-top:10px" onclick="applySoccerWeights('bl')">APPLY</button>
-      </div>
-      <div class="sg">
-        <div class="sgt">// PICK THRESHOLDS</div>
-        <div class="rr"><span class="rrl">MIN EV %</span><span class="rrv" id="bl-ev-v">2%</span></div><input type="range" id="bl-ev-thresh" min="0" max="10" value="2" step="0.5" oninput="document.getElementById('bl-ev-v').textContent=this.value+'%'">
-        <div class="dv"></div>
-        <div class="rr"><span class="rrl">MIN WIN PROB</span><span class="rrv" id="bl-minp-v">55%</span></div><input type="range" id="bl-min-p" min="50" max="75" value="55" oninput="document.getElementById('bl-minp-v').textContent=this.value+'%'">
-        <button class="btn btn-p btn-sm" style="margin-top:10px" onclick="applySoccerWeights('bl')">SAVE</button>
-      </div>
-      <div id="bl-model-weights-b"></div>
     </div>
   </div>
 </div>
@@ -14380,14 +14336,18 @@ const _OPS_HOCKEY_LEAGUES=[
   {k:'NHL',label:'NHL'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},
   {k:'NLA',label:'NLA'},{k:'EXTRALIGA',label:'EXTRALIGA'},
 ];
+// Bundesliga removed 2026-09-23 -- retired (see the soccer sub-nav's own
+// comment for the full rationale). Confirmed live, zero pending
+// Bundesliga bets existed at removal time, so no manual settle action
+// was ever orphaned by dropping it from here.
 const _OPS_SOCCER_LEAGUES=[
-  {k:'BUND',label:'BUNDESLIGA'},{k:'CL',label:'CHAMPIONS LG'},{k:'LIGA',label:'LA LIGA'},
+  {k:'CL',label:'CHAMPIONS LG'},{k:'LIGA',label:'LA LIGA'},
   {k:'MLS',label:'MLS'},{k:'PL',label:'PREMIER LG'},{k:'SERIEA',label:'SERIE A'},
 ];
 // Sport keys that show a league sub-row instead of running ops directly
 // off the top-level tab -- SOCCER always did; HOCKEY/FOOTBALL join it
 // 2026-09-16.
-const _OPS_GROUPED_SPORTS={SOCCER:{leagues:_OPS_SOCCER_LEAGUES,defaultLeague:'BUND'},HOCKEY:{leagues:_OPS_HOCKEY_LEAGUES,defaultLeague:'NHL'},FOOTBALL:{leagues:_OPS_FOOTBALL_LEAGUES,defaultLeague:'NFL'}};
+const _OPS_GROUPED_SPORTS={SOCCER:{leagues:_OPS_SOCCER_LEAGUES,defaultLeague:'PL'},HOCKEY:{leagues:_OPS_HOCKEY_LEAGUES,defaultLeague:'NHL'},FOOTBALL:{leagues:_OPS_FOOTBALL_LEAGUES,defaultLeague:'NFL'}};
 function _opsSetTab(sport){
   window._opsActiveSport=sport;
   const grp=_OPS_GROUPED_SPORTS[sport];
@@ -14402,7 +14362,7 @@ function renderEngineOps(){
   const opsLog=JSON.parse(localStorage.getItem('ops_log')||'[]');
   const activeSport=window._opsActiveSport||'NBA';
   const activeGroup=_OPS_GROUPED_SPORTS[activeSport];
-  const activeLeague=window._opsActiveLeague||(activeGroup&&activeGroup.defaultLeague)||'BUND';
+  const activeLeague=window._opsActiveLeague||(activeGroup&&activeGroup.defaultLeague)||'PL';
   // Effective code passed to opsRunProps/Stats/Sched — a grouped sport
   // (soccer, hockey) uses the selected league's own code instead of the
   // generic sport key.
@@ -27485,13 +27445,9 @@ function saveParlayToTracker(legs,sport){
   </div>
 </div>
 <div id="navd-soc" class="nav-drop-fixed" onmouseenter="cancelHideND()" onmouseleave="startHideND()">
-  <div class="ndl"><button onclick="SS('soc');setSub('soc','bl');T('bl','matches');renderLeagueMatches('bl');hideAllND()">Bundesliga</button>
-    <div class="ndl-sub">
-      <button onclick="SS('soc');setSub('soc','bl');T('bl','matches');renderLeagueMatches('bl');hideAllND()">Matches</button>
-      <button onclick="SS('soc');setSub('soc','bl');T('bl','model');renderSoccerLeagueModel('bl');hideAllND()">Model</button>
-      <button onclick="SS('soc');setSub('soc','bl');T('bl','config');renderSoccerLeagueConfig('bl');hideAllND()">Config</button>
-    </div>
-  </div>
+  <!-- Bundesliga quick-nav entry removed 2026-09-23 alongside the rest
+       of its UI -- see the soccer sub-nav's own comment for the full
+       rationale. -->
   <div class="ndl"><button onclick="SS('soc');setSub('soc','liga');T('liga','matches');renderLeagueMatches('liga');hideAllND()">La Liga</button>
     <div class="ndl-sub">
       <button onclick="SS('soc');setSub('soc','liga');T('liga','matches');renderLeagueMatches('liga');hideAllND()">Matches</button>

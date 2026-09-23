@@ -974,17 +974,21 @@ def build_covers_caption() -> dict[str, str]:
     # and Extraliga joined SHL/Liiga in PRODUCT_SPORTS["hockey"] (explicit
     # request -- "integrate nla and extra liga into the paid subscriber
     # section for hockey"), taking the hockey product from NHL+Liiga+SHL
-    # (3 leagues) to NHL+Liiga+SHL+NLA+Extraliga (5 leagues) -- so the
-    # real total is 14 leagues across the same 5 sports, not 10.
+    # (3 leagues) to NHL+Liiga+SHL+NLA+Extraliga (5 leagues) -- 14 leagues
+    # total. Updated again same day: Bundesliga retired (real settled-bet
+    # audit found it the only negative-ROI soccer league, worsening not
+    # stabilizing -- see EURO_SOCCER_SPORTS' own comment in
+    # auto_lock_settle.py), dropping soccer's active bundle from 6 leagues
+    # to 5 -- real total is 13 leagues across the same 5 sports.
     ig = (
         "One engine. Every sport that matters.\n\nThis is Clairvoyance.\n\n"
-        "14 leagues across 5 sports, every pick graded, every result tracked publicly — model outputs, not gut feelings.\n\n"
+        "13 leagues across 5 sports, every pick graded, every result tracked publicly — model outputs, not gut feelings.\n\n"
         "Follow for daily signals, subscribe for exclusive graded picks, and intelligence briefs.\n\n"
         "clairvoyanceengine.info\nIG @clairvoyanceengine\nX @clairvoyanceeng\n\n"
         "#foryou #sportsbetting #bettingtips #bettingpicks"
     )
     x = (
-        "One engine. Every sport that matters.\n\n14 leagues, 5 sports, every pick graded.\n\n"
+        "One engine. Every sport that matters.\n\n13 leagues, 5 sports, every pick graded.\n\n"
         "clairvoyanceengine.info\n\n#sportsbetting #bettingpicks"
     )
     return {"instagram": ig, "x": x}
