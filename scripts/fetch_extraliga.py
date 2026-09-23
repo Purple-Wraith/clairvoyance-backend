@@ -319,6 +319,32 @@ def run() -> dict:
         "teams": teams,
         "games": games,
     }
+    # Real incident, 2026-09-23: a transient scrape failure (Flashscore
+    # slow to hydrate the fixtures page, or a similar one-off network
+    # hiccup) returned 0 upcoming fixtures for both Liiga and SHL during
+    # a manual test run -- with no guard, that got written straight over
+    # a healthy previous file and committed, silently breaking the app's
+    # day-filter dropdown ("NO SCHEDULE DATA") in production for hours
+    # before a user caught it. A real end-of-regular-season gap would
+    # also hit 0 fixtures, but it's far safer to keep serving yesterday's
+    # real data (and fail the workflow loudly, which is what raising here
+    # does -- git_push in __main__ never runs) than to silently replace a
+    # working schedule with a broken one on every transient flake.
+    fixtures_count = sum(1 for g in games if g.get("state") == "pre")
+    if fixtures_count == 0 and OUT.exists():
+        try:
+            prev_games = json.loads(OUT.read_text()).get("games") or []
+            prev_fixtures = sum(1 for g in prev_games if g.get("state") == "pre")
+        except Exception:
+            prev_fixtures = 0
+        if prev_fixtures > 0:
+            raise RuntimeError(
+                f"Refusing to overwrite {OUT}: this run found 0 upcoming fixtures but the "
+                f"existing file has {prev_fixtures} -- almost certainly a transient scrape "
+                f"failure, not a real schedule gap. Keeping the existing file; will retry on "
+                f"the next scheduled run."
+            )
+
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(out, indent=2))
     log(f"Wrote {OUT} -- {len(teams)} teams, {len(games)} games")

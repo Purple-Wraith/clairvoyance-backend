@@ -12064,7 +12064,11 @@ function renderOverall(){
     return{lbl:tm.lbl,...calcPerf(tp)};
   });
 
-  // By league — order: NFL, CFB, NHL, College Hockey, SHL, LIIGA, KHL, NBA, Champions League, Premier, La Liga, Bundesliga, MLS, Serie A
+  // By league — order: NFL, CFB, NHL, College Hockey, SHL, LIIGA, NLA, EXTRALIGA, NBA, Champions League, Premier, La Liga, Bundesliga, MLS, Serie A
+  // KHL removed from this list 2026-09-23, explicit request -- it has no
+  // fetch pipeline/product (see the HOCKEY sub-nav's own comment on why
+  // it's not in that menu either) so `always:true` was forcing a
+  // permanently-empty row to render here for no real reason.
   const leagueMap=[
     {lbl:'NFL',           codes:['NFL','FB'],              always:true},
     {lbl:'CFB',           codes:['CFB'],                   always:true},
@@ -12074,7 +12078,6 @@ function renderOverall(){
     {lbl:'LIIGA',         codes:['LIIGA'],                 always:true},
     {lbl:'NLA',           codes:['NLA'],                   always:true},
     {lbl:'EXTRALIGA',     codes:['EXTRALIGA'],             always:true},
-    {lbl:'KHL',           codes:['KHL'],                   always:true},
     {lbl:'NBA',           codes:['NBA'],                   always:true},
     {lbl:'Champions League',codes:['CL','CH'],             always:true}, // CH kept as a legacy alias for picks locked before the CH->CL rename
     {lbl:'Premier League',codes:['PL'],                    always:true},
