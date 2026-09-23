@@ -8998,6 +8998,123 @@ function _hkFormFactor(teamId,allGames,seasonRates){
   if(delta==null)return 1;
   return 1+Math.max(-0.06,Math.min(0.06,delta*0.05));
 }
+// ═══ QuantHockey team stats (Liiga/SHL only) ═══════════════════════════
+// Explicit request, 2026-09-22/23: real shots/team-save%/special-teams
+// data for Liiga/SHL, filling exactly the gap _hkBasicRadarValues' own
+// comment below discloses ("no possession/goaltending/special-teams
+// data for either league"). NOT automatable -- confirmed live,
+// quanthockey.com sits behind an active Cloudflare bot challenge that
+// blocks a plain Playwright session the same way Flashscore never does
+// (see scripts/fetch_quanthockey.py's own docstring) -- so this is a
+// MANUAL import: the user periodically supplies a fresh docs/{league}_
+// quanthockey.json (via Claude fetching it through an interactive
+// browser session that isn't fingerprinted the same way), not a
+// scheduled workflow.
+//
+// Every consumer of this data MUST fail open, never fail closed: a
+// missing file, a stale file, or a team name that doesn't resolve all
+// fall back to the existing Flashscore-only behavior (_hkBasicRadarValues'
+// 4-axis MATCHUP-only radar) rather than erroring or showing a blank
+// panel. This data is COMPARE-panel enrichment only -- it is
+// deliberately NOT wired into liigaMC/shlMC's win-probability lambda
+// calculation, unlike the recency signal above, since folding a new
+// signal into the actual probability model without a real backtest
+// would be exactly the kind of unvalidated change the architecture-
+// delta audit warned against (see _hkFormFactor's own comment on why
+// that one reused an already-validated soccer constant instead of
+// inventing a new one -- this one has no equivalent precedent yet).
+//
+// CRITICAL, do not change without re-reading this: SETTLEMENT
+// (autoSettleLiiga/autoSettleShl) must NEVER read from this data --
+// QuantHockey's table has no schedule, no game states, no final
+// scores, only season-aggregate team totals, so it structurally cannot
+// resolve a real result even if someone tried to wire it in. Settlement
+// stays exclusively on _LIIGA_DATA/_SHL_DATA (Flashscore), which is
+// the only source with real per-game state/homeScore/awayScore.
+let _LIIGA_QH_DATA=null,_SHL_QH_DATA=null;
+function loadLiigaQuantHockeyData(){
+  if(_LIIGA_QH_DATA)return Promise.resolve(_LIIGA_QH_DATA);
+  return fetch('liiga_quanthockey.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{
+    _LIIGA_QH_DATA=d||null; // fail open -- null, never a fabricated shape
+    return _LIIGA_QH_DATA;
+  });
+}
+function loadShlQuantHockeyData(){
+  if(_SHL_QH_DATA)return Promise.resolve(_SHL_QH_DATA);
+  return fetch('shl_quanthockey.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{
+    _SHL_QH_DATA=d||null;
+    return _SHL_QH_DATA;
+  });
+}
+// QuantHockey names carry the city ("Jukurit Mikkeli"); this app's own
+// display names are shorter and inconsistent about it ("Jukurit",
+// "TPS Turku") -- plain substring matching (_socFuzzyFind's own
+// approach) misses real cases with a diacritic mismatch (Assat/Ässät,
+// Karpat/Kärpät) or swapped word order (Vaasan Sport/Sport Vaasa).
+// Confirmed live: this 2-pass matcher (diacritic-normalized substring,
+// then diacritic-normalized token overlap) resolves all 17 real Liiga
+// teams and all 14 real SHL teams correctly against the real data
+// pulled 2026-09-23 -- 100%, not a partial match rate accepted as
+// good enough.
+function _hkNormName(s){return(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();}
+function _hkFuzzyFindQH(appName,qhTeams){
+  if(!appName||!qhTeams)return null;
+  const k=_hkNormName(appName);
+  for(const t of qhTeams){
+    const ck=_hkNormName(t.name);
+    if(ck===k||k.indexOf(ck)>=0||ck.indexOf(k)>=0)return t;
+  }
+  const kTokens=k.split(/\s+/).filter(w=>w.length>=3);
+  const stripSuffix=w=>w.replace(/[ns]$/,''); // crude Finnish/Swedish genitive-ish variant (Vaasan -> Vaasa)
+  for(const t of qhTeams){
+    const cTokens=_hkNormName(t.name).split(/\s+/).filter(w=>w.length>=3);
+    if(kTokens.some(kw=>cTokens.some(cw=>stripSuffix(kw)===stripSuffix(cw)||kw.startsWith(cw)||cw.startsWith(kw))))return t;
+  }
+  return null;
+}
+function _hkQHStatsFor(appTeamName,qhData){
+  if(!qhData||!qhData.teams)return null;
+  return _hkFuzzyFindQH(appTeamName,Object.values(qhData.teams));
+}
+// Real observed ranges across the actual 2026-27 Liiga+SHL data pulled
+// 2026-09-23 (31 teams) -- early-season small samples push some of
+// these (ppPct/pkPct especially) toward the extremes more than a full-
+// season table would, same "small samples, real noise" caveat every
+// other early-season stat in this app already carries.
+function _hkOffenseRadarValuesQH(qh){
+  const clamp=(v,lo,hi)=>v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));
+  return[
+    clamp(qh.shotsPerGp,18,42),
+    clamp(qh.shPct,2,20),
+    clamp(qh.ppPct,0,100),
+    clamp(qh.gPerGp,0.5,7),
+  ];
+}
+function _hkDefenseRadarValuesQH(qh,seasonRates){
+  const clamp=(v,lo,hi)=>v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));
+  return[
+    100-clamp(seasonRates?.ga,2.0,4.0), // real Flashscore blended GA rate, same source _hkBasicRadarValues already uses
+    clamp(qh.svPct!=null?qh.svPct*100:null,80,100),
+    clamp(qh.pkPct,0,100),
+  ];
+}
+// Single entry point both _liigaMatchCard/_shlMatchCard call -- decides
+// (per-matchup, since one team might resolve QuantHockey data while an
+// opponent doesn't) between the richer 3-tab MATCHUP/OFFENSE/DEFENSE
+// radar and the existing MATCHUP-only fallback, so a partial/missing
+// import degrades gracefully instead of erroring or half-rendering.
+function _hkCompareRadarHTML(uid,homeName,awayName,league,hTeam,aTeam,hRates,aRates){
+  const qhData=league==='LIIGA'?_LIIGA_QH_DATA:_SHL_QH_DATA;
+  const hQH=_hkQHStatsFor(homeName,qhData),aQH=_hkQHStatsFor(awayName,qhData);
+  const matchupSvg=_matchupRadarSVG(['Scoring rate','Defense','Points %','Pace (G/M)'],_hkBasicRadarValues(hTeam,hRates),_hkBasicRadarValues(aTeam,aRates),uid+'_m');
+  if(!hQH||!aQH){
+    return matchupSvg+`<div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Only 4 axes -- blended GF/GA rate, points %, and pace (G/M) are what this engine has real per-team numbers for in ${league}. No possession/goaltending/special-teams data imported for this matchup yet.</div>`;
+  }
+  const offSvg=_matchupRadarSVG(['Shots/GP','SH%','PP%','Goals/GP'],_hkOffenseRadarValuesQH(hQH),_hkOffenseRadarValuesQH(aQH),uid+'_o');
+  const defSvg=_matchupRadarSVG(['GA/GP','SV%','PK%'],_hkDefenseRadarValuesQH(hQH,hRates),_hkDefenseRadarValuesQH(aQH,aRates),uid+'_d');
+  return _radarTabPanelHTML(uid,[{label:'MATCHUP',svg:matchupSvg},{label:'OFFENSE',svg:offSvg},{label:'DEFENSE',svg:defSvg}])
+    +`<div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">OFFENSE/DEFENSE from a manually-imported QuantHockey snapshot (${qhData.generated_at||'date unknown'}) -- refreshed periodically, not live.</div>`;
+}
 // Shared by Liiga and SHL COMPARE panels -- same team-object shape
 // ({gp,pts,gf,ga,gm,prevSeason}), same blended-rate approach (see
 // _liigaBlendedRates/_shlBlendedRates), no possession/goaltending/
@@ -9088,9 +9205,8 @@ function _liigaMatchCard(g){
         <span style="color:#00f0ff">■ ${g.homeName}</span><span style="color:#f000ff">■ ${g.awayName}</span>
       </div>
       ${(()=>{try{
-        return _matchupRadarSVG(['Scoring rate','Defense','Points %','Pace (G/M)'],_hkBasicRadarValues(h,hR),_hkBasicRadarValues(aw,aR),'liiga_'+g.id+'_m');
+        return _hkCompareRadarHTML('liiga_'+g.id,g.homeName,g.awayName,'LIIGA',h,aw,hR,aR);
       }catch(e){return'';}})()}
-      <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Only 4 axes -- blended GF/GA rate, points %, and pace (G/M) are what this engine has real per-team numbers for in LIIGA. No possession/goaltending/special-teams data for this league yet.</div>
     </div>
     <div class="brow">
       <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','LIIGA','${g.homeName}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
@@ -9136,6 +9252,11 @@ async function renderLiigaMatches(){
   const el=document.getElementById('liiga-matches-list');if(!el)return;
   el.innerHTML='<div class="loading"><span class="spi"></span></div>';
   const data=await loadLiigaScheduleData();
+  // Preload the manually-imported QuantHockey snapshot (if present)
+  // before the synchronous per-game card loop below runs -- fails open
+  // to null on a missing/unreachable file, see loadLiigaQuantHockeyData's
+  // own comment.
+  await loadLiigaQuantHockeyData();
   const games=data?.games||[];
   if(!games.length){el.innerHTML='<div class="empty">SCHEDULE NOT LOADED YET — TRY SYNC</div>';return;}
   _liigaPopulateDayFilter(games);
@@ -9359,9 +9480,8 @@ function _shlMatchCard(g){
         <span style="color:#00f0ff">■ ${g.homeName}</span><span style="color:#f000ff">■ ${g.awayName}</span>
       </div>
       ${(()=>{try{
-        return _matchupRadarSVG(['Scoring rate','Defense','Points %','Pace (G/M)'],_hkBasicRadarValues(h,hR),_hkBasicRadarValues(aw,aR),'shl_'+g.id+'_m');
+        return _hkCompareRadarHTML('shl_'+g.id,g.homeName,g.awayName,'SHL',h,aw,hR,aR);
       }catch(e){return'';}})()}
-      <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Only 4 axes -- blended GF/GA rate, points %, and pace (G/M) are what this engine has real per-team numbers for in SHL. No possession/goaltending/special-teams data for this league yet.</div>
     </div>
     <div class="brow">
       <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','SHL','${g.homeName}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
@@ -9407,6 +9527,11 @@ async function renderShlMatches(){
   const el=document.getElementById('shl-matches-list');if(!el)return;
   el.innerHTML='<div class="loading"><span class="spi"></span></div>';
   const data=await loadShlScheduleData();
+  // Preload the manually-imported QuantHockey snapshot (if present)
+  // before the synchronous per-game card loop below runs -- fails open
+  // to null on a missing/unreachable file, see loadShlQuantHockeyData's
+  // own comment.
+  await loadShlQuantHockeyData();
   const games=data?.games||[];
   if(!games.length){el.innerHTML='<div class="empty">SCHEDULE NOT LOADED YET — TRY SYNC</div>';return;}
   _shlPopulateDayFilter(games);
