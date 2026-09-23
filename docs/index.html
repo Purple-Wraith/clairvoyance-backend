@@ -1531,9 +1531,9 @@ body{line-height:1.5}
       <div class="sh"><span class="p"></span> CLAIRVOYANCE — OVERALL PERFORMANCE</div>
       <div style="background:rgba(10,0,24,.8);border:1px solid rgba(102,144,255,.3);border-radius:2px;padding:9px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2);line-height:1.8">ALL SPORTS · ALL BET TYPES · LOCKED PICKS ONLY<br>TYPES: ML · SPREAD · O/U · PROP</div>
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-        <button class="btn btn-n btn-sm" style="background:var(--pc);color:#fff" onclick="showSyncKeyModal()">SYNC KEY</button>
-        <button class="btn btn-o btn-sm" style="background:var(--pc);color:#fff" onclick="exportBetsClipboard()">EXPORT</button>
-        <button class="btn btn-o btn-sm" style="background:var(--pc);color:#fff" onclick="showImportModal()">IMPORT</button>
+        <button class="btn btn-n btn-sm" style="background:var(--pc);color:var(--nc)" onclick="showSyncKeyModal()">SYNC KEY</button>
+        <button class="btn btn-o btn-sm" style="background:var(--pc);color:var(--nc)" onclick="exportBetsClipboard()">EXPORT</button>
+        <button class="btn btn-o btn-sm" style="background:var(--pc);color:var(--nc)" onclick="showImportModal()">IMPORT</button>
       </div>
       <div id="ovr-dashboard"><div class="loading"><span class="spi"></span></div></div>
     </div>
@@ -1541,9 +1541,9 @@ body{line-height:1.5}
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
         <div class="sh" style="margin:0"><span class="p"></span> ALL BETS — ALL LEAGUES</div>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
-          <button class="btn btn-p btn-sm" onclick="renderOverallHistory()">↻</button>
-          <button class="btn btn-o btn-sm" onclick="exportBetsClipboard()">EXPORT</button>
-          <button class="btn btn-n btn-sm" onclick="showImportModal()">IMPORT</button>
+          <button class="btn btn-p btn-sm" style="background:var(--pc);color:var(--nc)" onclick="renderOverallHistory()">↻</button>
+          <button class="btn btn-o btn-sm" style="background:var(--pc);color:var(--nc)" onclick="exportBetsClipboard()">EXPORT</button>
+          <button class="btn btn-n btn-sm" style="background:var(--pc);color:var(--nc)" onclick="showImportModal()">IMPORT</button>
           <button class="btn btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="clearAllPending()">CLEAR PENDING</button>
         </div>
       </div>
@@ -3015,7 +3015,7 @@ function _sportBadgeHtml(sportTag,sc){
   // out directly.
   if(!d.sub)return`<span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${lblCol};color:${lblCol};border-radius:2px">${d.label}</span>`;
   return`<span style="display:inline-flex;align-items:center;gap:4px">`
-    +`<span style="font-family:var(--mono);font-size:11px;padding:1px 4px;border:1px solid rgba(240,0,255,.33);color:rgba(240,0,255,.6);border-radius:2px;letter-spacing:1px">${d.sub}</span>`
+    +`<span style="font-family:var(--mono);font-size:11px;padding:1px 4px;border:1px solid rgba(240,0,255,.6);color:#f000ff;text-shadow:0 0 6px rgba(240,0,255,.8);border-radius:2px;letter-spacing:1px">${d.sub}</span>`
     +`<span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${lblCol};color:${lblCol};border-radius:2px">${d.label}</span>`
     +`</span>`;
 }
@@ -12739,7 +12739,7 @@ function renderOverall(){
         <div style="font-family:var(--orb);font-size:19px;font-weight:700;color:${calSummaryCol}">${calStatusSummary}</div>
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">OVERALL STATUS</div>
         ${avgCalDev!==null?`<div style="font-family:var(--mono);font-size:14px;color:${calSummaryCol};margin-top:2px">AVG DEV ${(avgCalDev*100).toFixed(1)}%</div>`:''}
-        <button id="calib-btn" class="btn btn-p btn-sm" style="margin-top:8px;background:var(--pc);color:#fff" onclick="triggerInstantCalibration()">CALIBRATE NOW</button>
+        <button id="calib-btn" class="btn btn-p btn-sm" style="margin-top:8px;background:var(--pc);color:var(--nc)" onclick="triggerInstantCalibration()">CALIBRATE NOW</button>
       </div>
     </div>
     ${calSummaryStrip}
@@ -13369,7 +13369,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
       <div style="padding:9px 12px;background:rgba(0,240,255,.08);border-bottom:1px solid rgba(0,240,255,.2);display:flex;justify-content:space-between;align-items:center">
         <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:var(--pc);letter-spacing:2px">PENDING BETS — ${pendingAll.length}</span>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <button id="auto-settle-btn" class="btn btn-p btn-sm" onclick="autoSettleAll(this)" style="font-size:15px;padding:3px 10px">AUTO SETTLE ALL</button>
+          <button id="auto-settle-btn" class="btn btn-p btn-sm" onclick="autoSettleAll(this)" style="font-size:15px;padding:3px 10px;background:var(--pc);color:var(--nc)">AUTO SETTLE ALL</button>
           <button class="btn btn-sm" style="font-size:15px;padding:3px 10px;color:#ff2090;border-color:#ff2090;background:rgba(255,32,144,.08)" onclick="(function(){const d=document.getElementById('wipe-date-inp');if(d&&d.value)removePicksByDate(d.value);else toast('// ENTER A DATE FIRST');})()" title="Remove all bets for the entered date">WIPE DATE</button>
           <input id="wipe-date-inp" type="date" value="2026-06-10" style="font-family:var(--mono);font-size:15px;padding:3px 8px;background:rgba(0,0,0,.5);border:1px solid rgba(255,32,144,.3);color:rgba(220,190,255,.8);border-radius:2px;width:130px">
         </div>
@@ -13452,22 +13452,22 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   const _activeSportGroup=_sportDefs.find(sd=>sd.key===sf||(sd.leagues||[]).some(l=>l.key===sf));
   const _sportBtn=(sd)=>{
     const isActive=sf===sd.key||(_activeSportGroup&&_activeSportGroup.key===sd.key);
-    const c=isActive?sd.color:'rgba(255,255,255,.55)';
+    const c=isActive?'var(--pc)':'rgba(255,255,255,.55)';
     const bg=isActive?'rgba(240,0,255,.08)':'transparent';
-    const bc=isActive?sd.color:'rgba(255,255,255,.18)';
+    const bc=isActive?'var(--pc)':'rgba(255,255,255,.18)';
     return`<button class="btn btn-sm" style="border:1px solid ${bc};color:${c};background:${bg};font-size:16px;padding:3px 9px" onclick="renderOverallHistory('${sd.key}')">${sd.label}</button>`;
   };
   const _leagueBtn=(lk,ll,sc)=>{
     const isActive=sf===lk;
-    return`<button class="btn btn-sm" style="border:1px solid ${isActive?sc:'rgba(255,255,255,.14)'};color:${isActive?sc:'rgba(255,255,255,.55)'};background:${isActive?'rgba(0,0,0,.3)':'transparent'};font-size:15px;padding:2px 8px" onclick="renderOverallHistory('${lk}')">${ll}</button>`;
+    return`<button class="btn btn-sm" style="border:1px solid ${isActive?'var(--nc)':'rgba(255,255,255,.14)'};color:${isActive?'var(--nc)':'rgba(255,255,255,.55)'};background:${isActive?'rgba(0,0,0,.3)':'transparent'};font-size:15px;padding:2px 8px" onclick="renderOverallHistory('${lk}')">${ll}</button>`;
   };
-  let filterHtml=`<div style="font-family:var(--mono);font-size:15px;color:var(--t3);letter-spacing:1.5px;margin-bottom:5px">SPORT</div>
+  let filterHtml=`<div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:1.5px;margin-bottom:5px">SPORT</div>
   <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:${_activeSportGroup?'5':'10'}px">
     <button class="btn btn-sm" style="border:1px solid ${sf==='ALL'?'var(--pc)':'rgba(255,255,255,.18)'};color:${sf==='ALL'?'var(--pc)':'rgba(255,255,255,.55)'};background:${sf==='ALL'?'rgba(240,0,255,.08)':'transparent'};font-size:16px;padding:3px 9px" onclick="renderOverallHistory('ALL')">ALL</button>
     ${_sportDefs.map(_sportBtn).join('')}
   </div>
   ${_activeSportGroup&&_activeSportGroup.leagues.length>1?`<div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:10px;padding:4px 8px;background:rgba(10,0,24,.6);border-radius:2px;border:1px solid rgba(255,255,255,.08)">
-    <button class="btn btn-sm" style="border:1px solid ${sf===_activeSportGroup.key?_activeSportGroup.color:'rgba(255,255,255,.14)'};color:${sf===_activeSportGroup.key?_activeSportGroup.color:'rgba(255,255,255,.5)'};background:transparent;font-size:15px;padding:2px 8px" onclick="renderOverallHistory('${_activeSportGroup.key}')">ALL ${_activeSportGroup.label}</button>
+    <button class="btn btn-sm" style="border:1px solid ${sf===_activeSportGroup.key?'var(--nc)':'rgba(255,255,255,.14)'};color:${sf===_activeSportGroup.key?'var(--nc)':'rgba(255,255,255,.5)'};background:transparent;font-size:15px;padding:2px 8px" onclick="renderOverallHistory('${_activeSportGroup.key}')">ALL ${_activeSportGroup.label}</button>
     ${_activeSportGroup.leagues.map(l=>_leagueBtn(l.key,l.label,_activeSportGroup.color)).join('')}
   </div>`:'<div style="margin-bottom:10px"></div>'}
   `;
