@@ -8727,10 +8727,59 @@ function applySoccerWeights(league){
 }
 // ═══ MINOR HOCKEY LEAGUE MODEL/CONFIG (shared across ncaah/khl/shl/liiga) ══
 window.HOCKEY_ENS=window.HOCKEY_ENS||{};
+// Real gap, found 2026-09-22 (architecture-delta audit): "by league"
+// (Period Performance) and "by bet type" (BY BET TYPE breakdowns
+// elsewhere) both already exist app-wide, but never crossed -- there
+// was no "LIIGA ML win rate" vs "LIIGA O/U win rate" view, and no
+// breakdown by confidence tier (SKIP/LEAN/OPTIMAL/PREMIUM) at all,
+// since a locked pick's tier was never persisted -- only winProb/
+// decOdds/betType were. Reuses _gradeLabel() (already built for
+// exactly this: recomputing "what would today's grading rule call
+// this" retroactively from stored winProb/decOdds/betType, same
+// convention the Tier Calibration work established) rather than
+// inventing a second tier-recomputation path.
+function _hkPerfCrossTab(sportTag){
+  const settled=getP().filter(p=>window._normSport(p)===sportTag&&p.outcome!=='pending'&&p.outcome!=='push');
+  const BET_TYPES=['ML','SPREAD','OU'];
+  const TIERS=['LEAN','OPTIMAL','PREMIUM'];
+  const cross={};
+  BET_TYPES.forEach(bt=>{cross[bt]={};TIERS.forEach(t=>cross[bt][t]={w:0,l:0,u:0});});
+  settled.forEach(p=>{
+    const bt=(p.betType||'').toUpperCase();
+    if(!cross[bt])return; // PROP or other non-game bet types not part of this cross-tab
+    const grade=_gradeLabel(p);
+    if(!grade||grade==='SKIP')return; // a pick graded SKIP today was never a real signal at lock time either
+    const cell=cross[bt][grade];
+    const dec=parseFloat(p.decOdds)||(p.ml?ml2d(p.ml):2);
+    if(p.outcome==='win'){cell.w++;cell.u+=dec-1;}
+    else if(p.outcome==='loss'){cell.l++;cell.u-=1;}
+  });
+  return{cross,betTypes:BET_TYPES,tiers:TIERS};
+}
+function _hkPerfCrossTabHTML(sportTag){
+  const{cross,betTypes,tiers}=_hkPerfCrossTab(sportTag);
+  const anyData=betTypes.some(bt=>tiers.some(t=>cross[bt][t].w+cross[bt][t].l>0));
+  if(!anyData)return'';
+  const cellHTML=(bt,t)=>{
+    const c=cross[bt][t];
+    const n=c.w+c.l;
+    if(!n)return`<td style="text-align:center;color:var(--t3);opacity:.4">—</td>`;
+    const acc=c.w/n;
+    const col=acc>=.55?'var(--nc)':acc>=.45?'var(--vc)':'var(--hc)';
+    return`<td style="text-align:center;padding:3px 4px"><div style="color:${col};font-weight:700">${(acc*100).toFixed(0)}%</div><div style="font-size:11px;color:var(--t3)">${c.w}-${c.l} · ${c.u>=0?'+':''}${c.u.toFixed(1)}u</div></td>`;
+  };
+  return`<div style="margin-top:10px">
+    <div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px;margin-bottom:4px">PERFORMANCE BY MARKET & GRADE</div>
+    <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px">
+      <tr style="border-bottom:1px solid rgba(255,255,255,.08)"><th style="text-align:left;color:var(--t3);font-weight:400;padding:3px 4px">MARKET</th>${tiers.map(t=>`<th style="color:var(--t3);font-weight:400;padding:3px 4px">${t}</th>`).join('')}</tr>
+      ${betTypes.map(bt=>`<tr>${'<td style="color:var(--t2);padding:3px 4px">'+bt+'</td>'}${tiers.map(t=>cellHTML(bt,t)).join('')}</tr>`).join('')}
+    </table>
+  </div>`;
+}
 function renderHockeyLeagueModel(league){
   var ens=HOCKEY_ENS[league]||S.g('hk_ens_'+league)||{mc:.5,bay:.2,elo:.3};
   var el=document.getElementById(league+'-model-weights');
-  if(el)el.innerHTML=`<div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:8px">ACTIVE WEIGHTS — MC:${Math.round(ens.mc*100)}% · BAYESIAN:${Math.round(ens.bay*100)}% · ELO:${Math.round(ens.elo*100)}%</div>`;
+  if(el)el.innerHTML=`<div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:8px">ACTIVE WEIGHTS — MC:${Math.round(ens.mc*100)}% · BAYESIAN:${Math.round(ens.bay*100)}% · ELO:${Math.round(ens.elo*100)}%</div>${_hkPerfCrossTabHTML(league.toUpperCase())}`;
 }
 function renderHockeyLeagueConfig(league){
   var ens=HOCKEY_ENS[league]||S.g('hk_ens_'+league)||{mc:.5,bay:.2,elo:.3};
