@@ -108,6 +108,7 @@ LOCKS_EMAIL_TO = os.environ.get("LOCKS_EMAIL_TO", "") or os.environ.get("SOCIAL_
 # resurface anywhere, including a legacy email label lookup.
 SPORT_DISPLAY_NAME = {
     "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB", "LIIGA": "Liiga", "SHL": "SHL",
+    "NLA": "NLA", "EXTRALIGA": "Extraliga",
     "SOC_LIGA": "La Liga", "SOC_MLS": "MLS", "SOC_PL": "Premier League",
     "SOC_ITA": "Serie A", "SOC_CL": "Champions League",
 }
@@ -124,7 +125,8 @@ SPORT_DISPLAY_NAME = {
 # to the raw code if it's ever somehow hit.
 LEDGER_LEAGUE_DISPLAY_NAME = {
     "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
-    "KHL": "KHL", "SHL": "SHL", "LIIGA": "Liiga", "NCAAH": "College Hockey",
+    "KHL": "KHL", "SHL": "SHL", "LIIGA": "Liiga", "NLA": "NLA", "EXTRALIGA": "Extraliga",
+    "NCAAH": "College Hockey",
     "CL": "Champions League", "PL": "Premier League", "LIGA": "La Liga",
     "MLS": "MLS", "SERIEA": "Serie A",
 }
@@ -133,8 +135,24 @@ LEDGER_LEAGUE_DISPLAY_NAME = {
 # game leg (e.g. 'SOC_PL' for Premier League, to keep 'PL' unambiguous --
 # lockPick's own type='PL' means NHL puck line) to the exact `type` string
 # lockPick() itself expects to resolve the correct sportTag.
+# Real bug, found + fixed 2026-09-23 auditing NLA/Extraliga's real
+# production status: NLA and EXTRALIGA were never added here when they
+# were promoted into EARLY_HOCKEY_SPORTS/PRODUCT_SPORTS the same day --
+# confirmed live in that same day's actual hockey-lock-evening.yml run
+# log: gather_hockey_evening_legs_for_date() correctly found and
+# qualified real PREMIUM/OPTIMAL NLA/Extraliga picks for 2026-09-24
+# (EHC Kloten +1.5, Liberec +1.5, UNDER 5.5), but lock_game_leg() then
+# failed all 3 with "no lockPick type mapping for sport NLA"/
+# "...EXTRALIGA" -- every real qualifying NLA/Extraliga pick had been
+# silently dropped since promotion, 0 ever actually locked, while
+# LIIGA/SHL (present here since their own 2026-09-16 promotion) worked
+# the whole time. docs/app.html's own manual lock buttons already pass
+# 'NLA'/'EXTRALIGA' as lockPick()'s literal `type` argument (see
+# _nlaMatchCard/_extraligaMatchCard), so -- like LIIGA/SHL -- they map
+# to themselves, no translation needed.
 SPORT_TO_LOCKPICK_TYPE = {
     "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB", "LIIGA": "LIIGA", "SHL": "SHL",
+    "NLA": "NLA", "EXTRALIGA": "EXTRALIGA",
     "SOC_LIGA": "LIGA", "SOC_MLS": "MLS", "SOC_PL": "PL_SOC",
     "SOC_ITA": "SERIEA", "SOC_CL": "CL",
 }
