@@ -30,6 +30,7 @@ import re
 import subprocess
 import sys
 import time
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -148,9 +149,25 @@ def fetch_standings(page, url: str) -> dict:
 
 
 def _extract_match_row(row) -> dict | None:
-    """Returns bare IDs only -- see fetch_liiga.py's identical function
-    for why display names are deliberately NOT read from this row (a
-    real desync bug found and fixed there)."""
+    """CRITICAL FIX, 2026-09-22: Flashscore's match URL slug order does
+    NOT reliably encode home-first/away-second -- confirmed live on a
+    real SHL result where the href was
+    '/match/hockey/brynas-MZgKvenk/linkoping-8njZmM61/' but Linkoping was
+    the real home team (VENUE: Saab Arena, Linkoping's own rink; page
+    title 'Linkoping v Brynas') and Brynas the away team. The prior
+    version of this function trusted URL slug order for home/away
+    identity (a real desync bug had already been found and fixed for
+    display NAMES specifically, but the home/away IDENTITY itself was
+    never questioned) -- and since settlement grades a locked pick by
+    comparing its team name against homeScore/awayScore
+    (_autoSettleFlashscoreHockey in docs/app.html), a swapped home/away
+    identity silently flips which score belongs to which team, which can
+    grade a real win as a loss or vice versa. Fixed by reading the row's
+    own explicit, unambiguous DOM markers instead of ever trusting URL or
+    positional order: event__homeParticipant/event__awayParticipant for
+    team identity, event__score--home/event__score--away for score.
+    Confirmed live these markers exist on both fixture and result rows.
+    """
     link = row.query_selector("a.eventRowLink")
     if not link:
         return None
@@ -158,13 +175,41 @@ def _extract_match_row(row) -> dict | None:
     m = MATCH_HREF_RE.search(href)
     if not m:
         return None
-    home_slug, home_id, away_slug, away_id, match_id = m.groups()
+    slug_a, id_a, slug_b, id_b, match_id = m.groups()
+    home_name_el = row.query_selector(".event__homeParticipant .wcl-name_jjfMf") or row.query_selector(".event__homeParticipant")
+    away_name_el = row.query_selector(".event__awayParticipant .wcl-name_jjfMf") or row.query_selector(".event__awayParticipant")
+    home_name_txt = (home_name_el.inner_text() or "").strip() if home_name_el else ""
+
+    def _norm_key(s: str) -> str:
+        s = unicodedata.normalize("NFKD", s or "")
+        s = "".join(c for c in s if not unicodedata.combining(c))
+        return re.sub(r"[^a-z0-9]", "", s.lower())
+
+    def _matches(slug: str, name_txt: str) -> bool:
+        ns, nn = _norm_key(slug), _norm_key(name_txt)
+        return bool(ns and nn and (ns == nn or ns in nn or nn in ns))
+
+    if home_name_txt and _matches(slug_a, home_name_txt):
+        home_slug, home_id, away_slug, away_id = slug_a, id_a, slug_b, id_b
+    elif home_name_txt and _matches(slug_b, home_name_txt):
+        home_slug, home_id, away_slug, away_id = slug_b, id_b, slug_a, id_a
+    else:
+        # Couldn't confidently match the DOM's home-team text against
+        # either URL slug (unexpected markup change) -- fall back to the
+        # old URL-order assumption rather than dropping the game. This is
+        # a degraded path that should never normally trigger.
+        home_slug, home_id, away_slug, away_id = slug_a, id_a, slug_b, id_b
     date_el = row.query_selector(".wcl-dateContent_eEChT") or row.query_selector(
         "[class*='event__stageTime']"
     )
     date_txt = date_el.inner_text().strip() if date_el else ""
-    score_spans = row.query_selector_all("[class*='event__score']")
-    scores = [s.inner_text().strip() for s in score_spans if s.inner_text().strip().isdigit()]
+    home_score_el = row.query_selector(".event__score--home")
+    away_score_el = row.query_selector(".event__score--away")
+    scores: list[str] = []
+    if home_score_el and away_score_el:
+        hs, as_ = home_score_el.inner_text().strip(), away_score_el.inner_text().strip()
+        if hs.isdigit() and as_.isdigit():
+            scores = [hs, as_]
     return {
         "id": match_id, "home": home_id, "home_slug": home_slug,
         "away": away_id, "away_slug": away_slug, "dateTxt": date_txt,
