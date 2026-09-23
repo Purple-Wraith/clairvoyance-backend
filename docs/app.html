@@ -12548,11 +12548,9 @@ function renderOverall(){
     ${periodCard('YESTERDAY',ydPerf,'var(--ic)')}
     ${periodCard('ROLLING 7 DAYS',wk7Perf,'var(--nc)')}
   </div>
-  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
     ${periodCard('THIS MONTH',moPerf,'var(--pc)')}
     ${periodCard('LAST MONTH ('+moLbl+')',lastMoPerf,'var(--vc)')}
-  </div>
-  <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:14px">
     ${periodCard('ALL TIME',allTimePerf,'rgba(255,221,0,.9)')}
   </div>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
@@ -15471,8 +15469,8 @@ function renderHomePage(){
       ${perfCard('YESTERDAY',ry,'rgba(0,240,255,.8)')}
       ${perfCard('ROLLING 7D',r7,'rgba(187,255,0,.8)')}
       ${perfCard('THIS MONTH',rMo,'rgba(0,240,255,.7)',thisMonthLbl)}
-      <div style="grid-column:1/-1">${perfCard('LAST MONTH',rLMo,'rgba(240,0,255,.7)',lastMonthLbl)}</div>
-      <div style="grid-column:1/-1">${perfCard('ALL TIME',rAll,'rgba(255,221,0,.9)')}</div>
+      ${perfCard('LAST MONTH',rLMo,'rgba(240,0,255,.7)',lastMonthLbl)}
+      ${perfCard('ALL TIME',rAll,'rgba(255,221,0,.9)')}
     </div>
     ${leaguePerfHtml}`;
   }
