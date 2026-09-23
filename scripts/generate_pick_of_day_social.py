@@ -43,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from auto_lock_settle import (  # noqa: E402
     APP_URL, load_bet_ledger, gather_legs, build_qualifying,
     SPORT_DISPLAY_NAME, TIER_LABEL, _prop_matchup_key, log,
+    OTHER_ALLOWED_SPORTS,
 )
 from _gmail_email import send_email as _send_gmail  # noqa: E402
 from _gmail_email import EMAIL_WRAP_OPEN as _EMAIL_WRAP_OPEN, EMAIL_WRAP_CLOSE as _EMAIL_WRAP_CLOSE  # noqa: E402
@@ -329,6 +330,22 @@ def main() -> None:
         result = gather_legs(page)
         qualifying = build_qualifying(result)
         log(f"{len(qualifying)} qualifying PREMIUM/OPTIMAL(+HIGH HIT) legs found today")
+        # Real gap, found 2026-09-23 while building NLA/Extraliga: this
+        # scans build_qualifying(result) with no sport filter at all, so
+        # ANY sport with a real _autoLockCapture wired up is a candidate
+        # for this PUBLIC social post -- including personal-use-only
+        # leagues (OTHER_ALLOWED_SPORTS, e.g. NCAAH/NLA/EXTRALIGA) never
+        # meant to be sold or publicly promoted. This was a moot point
+        # before NLA/Extraliga existed (KHL/NCAAH had no real game cards
+        # to ever produce a qualifying leg here), but confirmed live this
+        # session that NLA/Extraliga DO produce real PREMIUM/OPTIMAL
+        # qualifying legs immediately. Excluded here rather than assuming
+        # a personal-use league can never rank in the top 3.
+        before_exclude = len(qualifying)
+        qualifying = [q for q in qualifying if q["sport"] not in OTHER_ALLOWED_SPORTS]
+        if before_exclude != len(qualifying):
+            log(f"  excluded {before_exclude - len(qualifying)} personal-use-only leg(s) "
+                f"({sorted(OTHER_ALLOWED_SPORTS)}) from public social candidates")
 
         browser.close()
 
