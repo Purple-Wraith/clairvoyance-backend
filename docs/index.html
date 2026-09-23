@@ -1531,9 +1531,9 @@ body{line-height:1.5}
       <div class="sh"><span class="p"></span> CLAIRVOYANCE — OVERALL PERFORMANCE</div>
       <div style="background:rgba(10,0,24,.8);border:1px solid rgba(102,144,255,.3);border-radius:2px;padding:9px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2);line-height:1.8">ALL SPORTS · ALL BET TYPES · LOCKED PICKS ONLY<br>TYPES: ML · SPREAD · O/U · PROP</div>
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-        <button class="btn btn-n btn-sm" onclick="showSyncKeyModal()">SYNC KEY</button>
-        <button class="btn btn-o btn-sm" onclick="exportBetsClipboard()">EXPORT</button>
-        <button class="btn btn-o btn-sm" onclick="showImportModal()">IMPORT</button>
+        <button class="btn btn-n btn-sm" style="background:var(--pc);color:#fff" onclick="showSyncKeyModal()">SYNC KEY</button>
+        <button class="btn btn-o btn-sm" style="background:var(--pc);color:#fff" onclick="exportBetsClipboard()">EXPORT</button>
+        <button class="btn btn-o btn-sm" style="background:var(--pc);color:#fff" onclick="showImportModal()">IMPORT</button>
       </div>
       <div id="ovr-dashboard"><div class="loading"><span class="spi"></span></div></div>
     </div>
@@ -11998,6 +11998,7 @@ function renderOverall(){
   const moPerf   = calcPerf(all.filter(p=>p.lockedAt&&p.lockedAt>=firstOfMonth.getTime()));
   const lastMoPerf=calcPerf(all.filter(p=>p.lockedAt&&p.lockedAt>=firstOfLastMonth.getTime()&&p.lockedAt<firstOfMonth.getTime()));
   const moLbl    = firstOfLastMonth.toLocaleDateString('en-US',{month:'short',year:'numeric'}).toUpperCase();
+  const curMoLbl = firstOfMonth.toLocaleDateString('en-US',{month:'short',year:'numeric'}).toUpperCase();
   const allTimePerf  = calcPerf(all);
 
   // ── Filter-by-month selector — lets the user pick any specific month
@@ -12558,7 +12559,7 @@ function renderOverall(){
     ${periodCard('ROLLING 7 DAYS',wk7Perf,'var(--nc)')}
   </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
-    ${periodCard('THIS MONTH',moPerf,'var(--pc)')}
+    ${periodCard('THIS MONTH ('+curMoLbl+')',moPerf,'var(--pc)')}
     ${periodCard('LAST MONTH ('+moLbl+')',lastMoPerf,'var(--vc)')}
     ${periodCard('ALL TIME',allTimePerf,'rgba(255,221,0,.9)')}
   </div>
@@ -12727,7 +12728,7 @@ function renderOverall(){
         <div style="font-family:var(--orb);font-size:19px;font-weight:700;color:${calSummaryCol}">${calStatusSummary}</div>
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">OVERALL STATUS</div>
         ${avgCalDev!==null?`<div style="font-family:var(--mono);font-size:14px;color:${calSummaryCol};margin-top:2px">AVG DEV ${(avgCalDev*100).toFixed(1)}%</div>`:''}
-        <button id="calib-btn" class="btn btn-p btn-sm" style="margin-top:8px" onclick="triggerInstantCalibration()">CALIBRATE NOW</button>
+        <button id="calib-btn" class="btn btn-p btn-sm" style="margin-top:8px;background:var(--pc);color:#fff" onclick="triggerInstantCalibration()">CALIBRATE NOW</button>
       </div>
     </div>
     ${calSummaryStrip}
@@ -15355,6 +15356,16 @@ function renderHomePage(){
     const firstOfLastMonth=mstFirstOfMonth(new Date(nowD.getFullYear(),nowD.getMonth()-1,1));
     const thisMonthLbl=nowD.toLocaleDateString('en-US',{month:'short',year:'numeric'}).toUpperCase();
     const lastMonthLbl=firstOfLastMonth.toLocaleDateString('en-US',{month:'short',year:'numeric'}).toUpperCase();
+    // Abbreviated month name for the Engine Performance cards' sublabel
+    // specifically, explicit request 2026-09-23 -- "Sept." (not the
+    // toLocaleDateString short-form "Sep") for September, every other
+    // month its standard 3-letter abbreviation + period. Kept separate
+    // from thisMonthLbl/lastMonthLbl above -- those also feed the //
+    // PERIOD PERFORMANCE — LEAGUE filter buttons just below, which keep
+    // their existing "SEP 2026"-style text, not part of this request.
+    const _monAbbr=['Jan.','Feb.','Mar.','Apr.','May','Jun.','Jul.','Aug.','Sept.','Oct.','Nov.','Dec.'];
+    const thisMonthAbbr=_monAbbr[nowD.getMonth()];
+    const lastMonthAbbr=_monAbbr[firstOfLastMonth.getMonth()];
 
     // Match Overall tab calcPerf exactly: filter pending inside, require truthy lockedAt for time filters
     const hCalc=bets=>{
@@ -15454,7 +15465,7 @@ function renderHomePage(){
       const pc='#00e644';
       const uc=perf.units>=0?'#00e644':'#ff1a1a';
       return`<div class="card perf-card" style="padding:11px 12px;border-top:2px solid var(--pc);min-width:0">
-        <div class="perf-card-hdr" style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc);margin-bottom:8px;white-space:nowrap">${lbl}${sublabel?'<span style="color:var(--pc);margin-left:4px">'+sublabel+'</span>':''}</div>
+        <div class="perf-card-hdr" style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc);margin-bottom:8px;white-space:nowrap">${lbl}${sublabel?'<span style="color:var(--pc);margin-left:4px">('+sublabel+')</span>':''}</div>
         ${hasData?`
         <div class="perf-card-row" style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
           <span class="perf-card-rec" style="font-family:var(--orb);font-size:24px;font-weight:900;color:var(--t1);white-space:nowrap">${perf.w}W<span style="color:var(--t3);font-size:18px">-</span>${perf.l}L</span>
@@ -15477,8 +15488,8 @@ function renderHomePage(){
       ${perfCard('TODAY',rtd,'rgba(255,32,0,.9)')}
       ${perfCard('YESTERDAY',ry,'rgba(0,240,255,.8)')}
       ${perfCard('ROLLING 7D',r7,'rgba(187,255,0,.8)')}
-      ${perfCard('THIS MONTH',rMo,'rgba(0,240,255,.7)',thisMonthLbl)}
-      ${perfCard('LAST MONTH',rLMo,'rgba(240,0,255,.7)',lastMonthLbl)}
+      ${perfCard('THIS MONTH',rMo,'rgba(0,240,255,.7)',thisMonthAbbr)}
+      ${perfCard('LAST MONTH',rLMo,'rgba(240,0,255,.7)',lastMonthAbbr)}
       ${perfCard('ALL TIME',rAll,'rgba(255,221,0,.9)')}
     </div>
     ${leaguePerfHtml}`;
