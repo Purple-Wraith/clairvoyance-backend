@@ -12405,6 +12405,16 @@ function renderOverall(){
   // ── HELPER RENDERERS ──────────────────────────────────────────────────────
   const accColor=a=>a===null?'var(--t3)':a>=.56?'var(--nc)':a>=.50?'var(--vc)':'var(--hc)';
   const unitColor=u=>u>=0?'var(--nc)':'var(--hc)';
+  // Green/red variants of the two above, matching the win-alert popup's
+  // own colors (#00e644/#ff1a1a) -- explicit request, 2026-09-23, for
+  // the hero row (WIN%/UNITS/STREAK), LAST N PERFORMANCE, and ALL-TIME
+  // PERFORMANCE TRACKER specifically. Kept separate from accColor/
+  // unitColor rather than changing them in place, since agreeRow's own
+  // "ACCURACY BY MODEL CONFIDENCE TIER" rows (ENGINE HEALTH) also read
+  // accColor and were never part of this request -- changing it in
+  // place would have silently recolored that section too.
+  const accColorG=a=>a===null?'var(--t3)':a>=.56?'#00e644':a>=.50?'var(--vc)':'var(--hc)';
+  const unitColorG=u=>u>=0?'#00e644':'var(--hc)';
 
   // Explicit request, 2026-09-23: uniform neon-magenta border/label
   // (was a different color per period card) instead of the `col` arg
@@ -12445,7 +12455,7 @@ function renderOverall(){
     const lsize=d.sub?'11px':'13px'; const lcol=d.sub?'var(--t3)':'var(--t)';
     if(d.n===0){if(d.always)return`<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05);${indent}"><span style="font-family:var(--mono);font-size:${lsize};color:${lcol}">${d.lbl}</span><span style="font-family:var(--mono);font-size:14px;color:rgba(150,130,180,.35)">0W-0L</span></div>`;if(d.sub)return'';return`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-family:var(--mono);font-size:16px;color:var(--t3)">${d.lbl}</span><span style="font-family:var(--mono);font-size:15px;color:rgba(150,130,180,.35)">NO BETS YET</span></div>`;}
     const hh=showHH&&d.highHitN>0?`<span style="font-family:var(--mono);font-size:11px;color:var(--gc)" title="Win rate among picks the model flagged 75%+ win probability at lock">HH ${(d.highHitAcc*100).toFixed(0)}%·${d.highHitN}</span>`:'';
-    return`<div style="display:flex;justify-content:space-between;align-items:center;padding:${d.sub?'3px 0':'5px 0'};border-bottom:1px solid rgba(255,255,255,.05);${indent}"><span style="font-family:var(--mono);font-size:${lsize};color:${lcol}">${d.lbl}</span><div style="display:flex;gap:8px;align-items:center">${hh}<span style="font-family:var(--mono);font-size:14px;color:var(--nc)">${d.w}W-${d.l}L</span><span style="font-family:var(--mono);font-size:11px;color:var(--nc);border:1px solid rgba(0,240,255,.35);padding:0 3px;border-radius:2px">${d.n}</span><span style="font-family:var(--mono);font-size:${lsize};font-weight:700;color:var(--nc)">${d.acc!==null?(d.acc*100).toFixed(0)+'%':'--'}</span><span style="font-family:var(--mono);font-size:14px;color:var(--nc)">${d.units>=0?'+':''}${d.units.toFixed(1)}u</span></div></div>`;
+    return`<div style="display:flex;justify-content:space-between;align-items:center;padding:${d.sub?'3px 0':'5px 0'};border-bottom:1px solid rgba(255,255,255,.05);${indent}"><span style="font-family:var(--mono);font-size:${lsize};color:${lcol}">${d.lbl}</span><div style="display:flex;gap:8px;align-items:center">${hh}<span style="font-family:var(--mono);font-size:14px"><span style="color:#00e644">${d.w}W</span>-<span style="color:#ff1a1a">${d.l}L</span></span><span style="font-family:var(--mono);font-size:11px;color:var(--nc);border:1px solid rgba(0,240,255,.35);padding:0 3px;border-radius:2px">${d.n}</span><span style="font-family:var(--mono);font-size:${lsize};font-weight:700;color:#00e644">${d.acc!==null?(d.acc*100).toFixed(0)+'%':'--'}</span><span style="font-family:var(--mono);font-size:14px;color:#00e644">${d.units>=0?'+':''}${d.units.toFixed(1)}u</span></div></div>`;
   };
 
   const calRow=(b)=>{
@@ -12498,10 +12508,10 @@ function renderOverall(){
   // ── RENDER ────────────────────────────────────────────────────────────────
   let h=`
   <div class="g4" style="gap:8px;margin-bottom:14px">
-    <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${accColor(acc)}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">WIN %</div></div>
+    <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${accColorG(acc)}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">WIN %</div></div>
     <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:26px;font-weight:700">${wins}W-${losses}L</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">RECORD</div></div>
-    <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${unitColor(atUnits)}">${atUnits>=0?'+':''}${atUnits.toFixed(1)}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">UNITS</div></div>
-    <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${curStreakType==='win'?'var(--nc)':'var(--hc)'}">${curStreak>0?curStreak+(curStreakType==='win'?'W':'L'):'--'}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">STREAK</div></div>
+    <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${unitColorG(atUnits)}">${atUnits>=0?'+':''}${atUnits.toFixed(1)}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">UNITS</div></div>
+    <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${curStreakType==='win'?'#00e644':'var(--hc)'}">${curStreak>0?curStreak+(curStreakType==='win'?'W':'L'):'--'}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">STREAK</div></div>
   </div>`;
 
   // Recent Form — enhanced (last 25, last 10 W/L)
@@ -12542,7 +12552,7 @@ function renderOverall(){
   }
 
   // Period Performance
-  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--nc);margin:12px 0 6px">PERIOD PERFORMANCE</div>
+  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin:12px 0 6px">PERIOD PERFORMANCE</div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">
     ${periodCard('TODAY',todPerf,'var(--gc)')}
     ${periodCard('YESTERDAY',ydPerf,'var(--ic)')}
@@ -12554,7 +12564,7 @@ function renderOverall(){
     ${periodCard('ALL TIME',allTimePerf,'rgba(255,221,0,.9)')}
   </div>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-    <span style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--t3)">FILTER BY MONTH:</span>
+    <span style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--pc)">FILTER BY MONTH:</span>
     <select id="ovr-month-select" onchange="window._ovrSelectedMonth=this.value;renderOverall()" style="background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);color:var(--t);font-family:var(--mono);font-size:15px;padding:4px 8px;border-radius:2px">
       ${_monthOpts.map(m=>`<option value="${m.key}"${m.key===_selMonth?' selected':''}>${m.lbl}</option>`).join('')}
     </select>
@@ -12562,7 +12572,7 @@ function renderOverall(){
   <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:14px">
     ${periodCard(selMoLbl,selMoPerf,'var(--pc)')}
   </div>
-  <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--t3);margin-bottom:8px">${selMoLbl} — BY SPORT / BET TYPE / LEAGUE</div>
+  <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc);margin-bottom:8px">${selMoLbl} — BY SPORT / BET TYPE / LEAGUE</div>
   <div class="ovr-sport-breakdown" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
     <div class="card" style="padding:10px">
       <div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">SPORT</div>
@@ -12595,18 +12605,18 @@ function renderOverall(){
   </div>`;
 
   // Last N
-  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--nc);margin:12px 0 6px">LAST N PERFORMANCE</div>
+  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin:12px 0 6px">LAST N PERFORMANCE</div>
   <div class="card" style="margin-bottom:14px;overflow-x:auto"><table class="dt" style="font-size:16px"><thead><tr><th>WINDOW</th><th>WIN%</th><th>RECORD</th><th>UNITS</th></tr></thead><tbody>
-  ${lastNData.map(d=>{const ac=d.acc;return`<tr><td style="color:var(--t3)">LAST ${d.n}</td><td style="color:${accColor(ac)};font-weight:700">${ac!==null?(ac*100).toFixed(0)+'%':'--'}</td><td>${d.w}W-${d.l}L</td><td style="color:${unitColor(d.units)}">${d.units>=0?'+':''}${d.units.toFixed(1)}u</td></tr>`;}).join('')}
+  ${lastNData.map(d=>{const ac=d.acc;return`<tr><td style="color:var(--t3)">LAST ${d.n}</td><td style="color:${accColorG(ac)};font-weight:700">${ac!==null?(ac*100).toFixed(0)+'%':'--'}</td><td><span style="color:#00e644">${d.w}W</span>-<span style="color:#ff1a1a">${d.l}L</span></td><td style="color:${unitColorG(d.units)}">${d.units>=0?'+':''}${d.units.toFixed(1)}u</td></tr>`;}).join('')}
   </tbody></table></div>`;
 
   // All Time
-  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--gc);margin:12px 0 6px">ALL-TIME PERFORMANCE TRACKER</div>
+  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin:12px 0 6px">ALL-TIME PERFORMANCE TRACKER</div>
   <div class="card" style="margin-bottom:14px;padding:10px">
     <div style="display:flex;justify-content:space-evenly;flex-wrap:wrap;gap:10px;text-align:center">
-      <div><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${accColor(acc)}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">WIN%</div></div>
-      <div><div style="font-family:var(--orb);font-size:26px;font-weight:700">${wins}W-${losses}L</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">RECORD</div></div>
-      <div><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${unitColor(atUnits)}">${atUnits>=0?'+':''}${atUnits.toFixed(1)}u</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">UNITS</div></div>
+      <div><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${accColorG(acc)}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">WIN%</div></div>
+      <div><div style="font-family:var(--orb);font-size:26px;font-weight:700"><span style="color:#00e644">${wins}W</span>-<span style="color:#ff1a1a">${losses}L</span></div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">RECORD</div></div>
+      <div><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${unitColorG(atUnits)}">${atUnits>=0?'+':''}${atUnits.toFixed(1)}u</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">UNITS</div></div>
       <div><div style="font-family:var(--orb);font-size:26px;font-weight:700">${settled.length}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">BETS</div></div>
       <div><div style="font-family:var(--orb);font-size:26px;font-weight:700">${pending.length}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">PENDING</div></div>
     </div>
@@ -12660,7 +12670,7 @@ function renderOverall(){
   // be 2 separate cards instead of one "how healthy is the engine right
   // now" card. Streaks first (the more immediate, glanceable signal),
   // then confidence-tier accuracy underneath a divider.
-  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--mc);margin:12px 0 6px">ENGINE HEALTH</div>
+  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin:12px 0 6px">ENGINE HEALTH</div>
   <div class="card" style="margin-bottom:14px;padding:10px">
     <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:8px">STREAKS</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06)">
