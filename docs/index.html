@@ -12516,7 +12516,6 @@ function renderOverall(){
 
   // Recent Form — enhanced (last 25, last 10 W/L)
   if(recentForm.length){
-    const rfColor=rfW/recentForm.length>=0.60?'var(--nc)':rfW/recentForm.length>=0.50?'var(--vc)':'var(--hc)';
     const rfUnits=recentForm.reduce((a,p)=>p.outcome==='win'?a+(parseFloat(p.decOdds)||2)-1:p.outcome==='loss'?a-1:a,0);
     const last10dots=last10.map(p=>{const c=p.outcome==='win'?'#00e644':p.outcome==='push'?'#ffdd00':'#ff2090';const lbl=p.outcome==='win'?'W':p.outcome==='push'?'P':'L';const tip=`${p.sport||''} ${p.date||''} | ${p.betOn||''} | ${p.outcome?.toUpperCase()||''}`;return `<span title="${tip.replace(/"/g,"'")}" style="font-family:var(--mono);font-size:15px;font-weight:700;color:${c};background:${c}18;border:1px solid ${c}44;border-radius:3px;padding:2px 6px;cursor:default">${lbl}</span>`;}).join('<span style="color:var(--t3);margin:0 1px">·</span>');
     const rfStreakArr=[...recentForm].reverse();let rfStreak=0,rfSType='';for(const b of rfStreakArr){if(!rfSType)rfSType=b.outcome;if(b.outcome===rfSType)rfStreak++;else break;}
@@ -12524,8 +12523,8 @@ function renderOverall(){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <span style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--t3)">RECENT FORM — LAST ${recentForm.length} SETTLED</span>
         <div style="display:flex;gap:10px;align-items:center">
-          <span style="font-family:var(--mono);font-size:15px;font-weight:700;color:${rfColor}">${rfW}W–${rfL}L</span>
-          <span style="font-family:var(--mono);font-size:15px;color:${rfUnits>=0?'var(--nc)':'var(--hc)'}">${rfUnits>=0?'+':''}${rfUnits.toFixed(1)}u</span>
+          <span style="font-family:var(--mono);font-size:15px;font-weight:700"><span style="color:#00e644">${rfW}W</span>–<span style="color:#ff1a1a">${rfL}L</span></span>
+          <span style="font-family:var(--mono);font-size:15px;color:${rfUnits>=0?'#00e644':'var(--hc)'}">${rfUnits>=0?'+':''}${rfUnits.toFixed(1)}u</span>
           <button onclick="renderOverall()" style="background:none;border:1px solid rgba(255,255,255,.15);color:var(--t3);font-family:var(--mono);font-size:14px;padding:1px 6px;border-radius:2px;cursor:pointer" title="Refresh">↻</button>
         </div>
       </div>
