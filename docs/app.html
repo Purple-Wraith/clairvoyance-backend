@@ -15427,11 +15427,11 @@ function renderHomePage(){
       return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-family:var(--mono);font-size:14px;color:var(--t)">${d.lbl}</span><div style="display:flex;gap:8px;align-items:center"><span style="white-space:nowrap">${dots}</span><span style="font-family:var(--mono);font-size:14px"><span style="color:#00e644">${d.w}W</span>-<span style="color:var(--hc)">${d.l}L</span></span><span style="font-family:var(--mono);font-size:14px;font-weight:700;color:${pCol(d.acc)}">${d.acc!==null?(d.acc*100).toFixed(0)+'%':'--'}</span><span style="font-family:var(--mono);font-size:14px;color:${uCol(d.units)}">${d.units>=0?'+':''}${d.units.toFixed(1)}u</span></div></div>`;
     };
     const lgPerfToggle=`<div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
-      <button class="btn btn-sm ${lgPerfPeriod==='today'?'act btn-p':'btn-o'}" style="font-size:14px" onclick="window._homeLgPerfPeriod='today';renderHomePage()">TODAY</button>
-      <button class="btn btn-sm ${lgPerfPeriod==='yesterday'?'act btn-p':'btn-o'}" style="font-size:14px" onclick="window._homeLgPerfPeriod='yesterday';renderHomePage()">YESTERDAY</button>
-      <button class="btn btn-sm ${lgPerfPeriod==='lastMonth'?'act btn-p':'btn-o'}" style="font-size:14px" onclick="window._homeLgPerfPeriod='lastMonth';renderHomePage()">${lastMonthLbl}</button>
-      <button class="btn btn-sm ${lgPerfPeriod==='month'?'act btn-p':'btn-o'}" style="font-size:14px" onclick="window._homeLgPerfPeriod='month';renderHomePage()">${thisMonthLbl}</button>
-      <button class="btn btn-sm ${lgPerfPeriod==='all'?'act btn-p':'btn-o'}" style="font-size:14px" onclick="window._homeLgPerfPeriod='all';renderHomePage()">ALL TIME</button>
+      <button class="btn btn-sm ${lgPerfPeriod==='today'?'act':''}" style="font-size:14px;background:var(--pc);color:#fff" onclick="window._homeLgPerfPeriod='today';renderHomePage()">TODAY</button>
+      <button class="btn btn-sm ${lgPerfPeriod==='yesterday'?'act':''}" style="font-size:14px;background:var(--pc);color:#fff" onclick="window._homeLgPerfPeriod='yesterday';renderHomePage()">YESTERDAY</button>
+      <button class="btn btn-sm ${lgPerfPeriod==='lastMonth'?'act':''}" style="font-size:14px;background:var(--pc);color:#fff" onclick="window._homeLgPerfPeriod='lastMonth';renderHomePage()">${lastMonthLbl}</button>
+      <button class="btn btn-sm ${lgPerfPeriod==='month'?'act':''}" style="font-size:14px;background:var(--pc);color:#fff" onclick="window._homeLgPerfPeriod='month';renderHomePage()">${thisMonthLbl}</button>
+      <button class="btn btn-sm ${lgPerfPeriod==='all'?'act':''}" style="font-size:14px;background:var(--pc);color:#fff" onclick="window._homeLgPerfPeriod='all';renderHomePage()">ALL TIME</button>
     </div>`;
     const leaguePerfHtml=`<div style="margin-top:14px">
       <div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// PERIOD PERFORMANCE — LEAGUE</div>
