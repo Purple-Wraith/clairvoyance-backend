@@ -76,7 +76,11 @@ MONITORED = [
     ("soccer-lock-evening.yml", "Soccer Evening Lock (Tomorrow's Slate)", 26),
     # Added 2026-09-18 alongside the new SHL/Liiga evening-prior lock --
     # same backup-signal treatment as its CFB/soccer siblings above.
-    ("hockey-lock-evening.yml", "SHL/Liiga Evening Lock (Tomorrow's Slate)", 26),
+    # Label updated 2026-09-23: same workflow/file, now also covers
+    # NLA/Extraliga's personal-use safety-net lock (see
+    # EARLY_HOCKEY_SPORTS_PERSONAL in auto_lock_settle.py) alongside the
+    # original paid SHL/Liiga product.
+    ("hockey-lock-evening.yml", "Hockey Evening Lock — SHL/Liiga/NLA/Extraliga (Tomorrow's Slate)", 26),
 ]
 
 # (marker file, human label, cutoff hour in MT past which today's date

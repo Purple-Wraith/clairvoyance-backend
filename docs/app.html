@@ -769,6 +769,8 @@ body{line-height:1.5}
          menu (still reachable via setSub('hk','ncaah') if ever needed). -->
     <button class="sb2" onclick="setSub('hk','shl')">SHL</button>
     <button class="sb2" onclick="setSub('hk','liiga')">LIIGA</button>
+    <button class="sb2" onclick="setSub('hk','nla')">NLA</button>
+    <button class="sb2" onclick="setSub('hk','extraliga')">EXTRALIGA</button>
     <button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px">↻ SYNC</button>
   </nav>
   <div id="hk-nhl" class="subp act" style="overflow:hidden">
@@ -1023,6 +1025,48 @@ body{line-height:1.5}
       </div>
       <div id="liiga-tab-model" class="tab"><div class="sh"><span class="p"></span> MODEL ARCHITECTURE</div><div class="g3" style="margin-bottom:12px"><div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Poisson 5K sims once team-level scoring data connects for this league.</div></div><div class="card cp"><div class="ct">BAYESIAN</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Beta-binomial posterior, updated per result.</div></div><div class="card cn"><div class="ct">ELO + MOV</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">K=20. Margin-of-victory multiplier, home-ice adjustment.</div></div></div><div class="sh"><span class="p"></span> WEIGHTS</div><div class="card" style="margin-bottom:10px"><div class="rr"><span class="rrl">MONTE CARLO</span><span class="rrv" id="liiga-mc-v">50%</span></div><input type="range" id="liiga-w-mc" min="10" max="70" value="50" oninput="document.getElementById('liiga-mc-v').textContent=this.value+'%'"><div class="dv"></div><div class="rr"><span class="rrl">BAYESIAN</span><span class="rrv" id="liiga-bay-v">20%</span></div><input type="range" id="liiga-w-bay" min="5" max="50" value="20" oninput="document.getElementById('liiga-bay-v').textContent=this.value+'%'"><div class="dv"></div><div class="rr"><span class="rrl">ELO</span><span class="rrv" id="liiga-elo-v">30%</span></div><input type="range" id="liiga-w-elo" min="5" max="50" value="30" oninput="document.getElementById('liiga-elo-v').textContent=this.value+'%'"><button class="btn btn-p btn-sm" style="margin-top:7px" onclick="applyHockeyWeights('liiga')">APPLY</button></div><div id="liiga-model-weights"></div></div>
       <div id="liiga-tab-config" class="tab"><div class="sh"><span class="i"></span> LIIGA ENGINE CONFIG</div><div class="sg"><div class="sgt">// MODEL WEIGHTS</div><div class="rr"><span class="rrl">MONTE CARLO</span><span class="rrv" id="liiga-cw-mc-v">50%</span></div><input type="range" id="liiga-cw-mc" min="10" max="70" value="50" oninput="document.getElementById('liiga-cw-mc-v').textContent=this.value+'%';applyHockeyWeights('liiga')"><div class="dv"></div><div class="rr"><span class="rrl">BAYESIAN</span><span class="rrv" id="liiga-cw-bay-v">20%</span></div><input type="range" id="liiga-cw-bay" min="5" max="50" value="20" oninput="document.getElementById('liiga-cw-bay-v').textContent=this.value+'%';applyHockeyWeights('liiga')"><div class="dv"></div><div class="rr"><span class="rrl">ELO</span><span class="rrv" id="liiga-cw-elo-v">30%</span></div><input type="range" id="liiga-cw-elo" min="5" max="50" value="30" oninput="document.getElementById('liiga-cw-elo-v').textContent=this.value+'%';applyHockeyWeights('liiga')"><button class="btn btn-p btn-sm" style="margin-top:10px" onclick="applyHockeyWeights('liiga')">SAVE</button></div></div>
+    </div>
+  </div>
+  <div id="hk-nla" class="subp">
+    <nav class="inav" id="nla-in">
+      <button class="nb act" onclick="T('nla','matches')">GAMES</button>
+      <button class="nb" onclick="T('nla','model')">MODEL</button>
+      <button class="nb" onclick="T('nla','config')">CONFIG</button>
+    </nav>
+    <div class="sa" id="nla-sa">
+      <div id="nla-tab-matches" class="tab act">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+          <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="nla-filter-day" onchange="renderNlaMatches()" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(255,0,60,.25);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
+            <button class="btn btn-o btn-sm" onclick="renderNlaMatches()">↻</button>
+          </div>
+        </div>
+        <div id="nla-matches-list"><div class="loading"><span class="spi"></span></div></div>
+      </div>
+      <div id="nla-tab-model" class="tab"><div class="sh"><span class="p"></span> MODEL ARCHITECTURE</div><div class="g3" style="margin-bottom:12px"><div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Poisson 5K sims once team-level scoring data connects for this league.</div></div><div class="card cp"><div class="ct">BAYESIAN</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Beta-binomial posterior, updated per result.</div></div><div class="card cn"><div class="ct">ELO + MOV</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">K=20. Margin-of-victory multiplier, home-ice adjustment.</div></div></div><div class="sh"><span class="p"></span> WEIGHTS</div><div class="card" style="margin-bottom:10px"><div class="rr"><span class="rrl">MONTE CARLO</span><span class="rrv" id="nla-mc-v">50%</span></div><input type="range" id="nla-w-mc" min="10" max="70" value="50" oninput="document.getElementById('nla-mc-v').textContent=this.value+'%'"><div class="dv"></div><div class="rr"><span class="rrl">BAYESIAN</span><span class="rrv" id="nla-bay-v">20%</span></div><input type="range" id="nla-w-bay" min="5" max="50" value="20" oninput="document.getElementById('nla-bay-v').textContent=this.value+'%'"><div class="dv"></div><div class="rr"><span class="rrl">ELO</span><span class="rrv" id="nla-elo-v">30%</span></div><input type="range" id="nla-w-elo" min="5" max="50" value="30" oninput="document.getElementById('nla-elo-v').textContent=this.value+'%'"><button class="btn btn-p btn-sm" style="margin-top:7px" onclick="applyHockeyWeights('nla')">APPLY</button></div><div id="nla-model-weights"></div></div>
+      <div id="nla-tab-config" class="tab"><div class="sh"><span class="i"></span> NLA ENGINE CONFIG</div><div class="sg"><div class="sgt">// MODEL WEIGHTS</div><div class="rr"><span class="rrl">MONTE CARLO</span><span class="rrv" id="nla-cw-mc-v">50%</span></div><input type="range" id="nla-cw-mc" min="10" max="70" value="50" oninput="document.getElementById('nla-cw-mc-v').textContent=this.value+'%';applyHockeyWeights('nla')"><div class="dv"></div><div class="rr"><span class="rrl">BAYESIAN</span><span class="rrv" id="nla-cw-bay-v">20%</span></div><input type="range" id="nla-cw-bay" min="5" max="50" value="20" oninput="document.getElementById('nla-cw-bay-v').textContent=this.value+'%';applyHockeyWeights('nla')"><div class="dv"></div><div class="rr"><span class="rrl">ELO</span><span class="rrv" id="nla-cw-elo-v">30%</span></div><input type="range" id="nla-cw-elo" min="5" max="50" value="30" oninput="document.getElementById('nla-cw-elo-v').textContent=this.value+'%';applyHockeyWeights('nla')"><button class="btn btn-p btn-sm" style="margin-top:10px" onclick="applyHockeyWeights('nla')">SAVE</button></div></div>
+    </div>
+  </div>
+  <div id="hk-extraliga" class="subp">
+    <nav class="inav" id="extraliga-in">
+      <button class="nb act" onclick="T('extraliga','matches')">GAMES</button>
+      <button class="nb" onclick="T('extraliga','model')">MODEL</button>
+      <button class="nb" onclick="T('extraliga','config')">CONFIG</button>
+    </nav>
+    <div class="sa" id="extraliga-sa">
+      <div id="extraliga-tab-matches" class="tab act">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+          <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="extraliga-filter-day" onchange="renderExtraligaMatches()" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(200,20,20,.25);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
+            <button class="btn btn-o btn-sm" onclick="renderExtraligaMatches()">↻</button>
+          </div>
+        </div>
+        <div id="extraliga-matches-list"><div class="loading"><span class="spi"></span></div></div>
+      </div>
+      <div id="extraliga-tab-model" class="tab"><div class="sh"><span class="p"></span> MODEL ARCHITECTURE</div><div class="g3" style="margin-bottom:12px"><div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Poisson 5K sims once team-level scoring data connects for this league.</div></div><div class="card cp"><div class="ct">BAYESIAN</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Beta-binomial posterior, updated per result.</div></div><div class="card cn"><div class="ct">ELO + MOV</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">K=20. Margin-of-victory multiplier, home-ice adjustment.</div></div></div><div class="sh"><span class="p"></span> WEIGHTS</div><div class="card" style="margin-bottom:10px"><div class="rr"><span class="rrl">MONTE CARLO</span><span class="rrv" id="extraliga-mc-v">50%</span></div><input type="range" id="extraliga-w-mc" min="10" max="70" value="50" oninput="document.getElementById('extraliga-mc-v').textContent=this.value+'%'"><div class="dv"></div><div class="rr"><span class="rrl">BAYESIAN</span><span class="rrv" id="extraliga-bay-v">20%</span></div><input type="range" id="extraliga-w-bay" min="5" max="50" value="20" oninput="document.getElementById('extraliga-bay-v').textContent=this.value+'%'"><div class="dv"></div><div class="rr"><span class="rrl">ELO</span><span class="rrv" id="extraliga-elo-v">30%</span></div><input type="range" id="extraliga-w-elo" min="5" max="50" value="30" oninput="document.getElementById('extraliga-elo-v').textContent=this.value+'%'"><button class="btn btn-p btn-sm" style="margin-top:7px" onclick="applyHockeyWeights('extraliga')">APPLY</button></div><div id="extraliga-model-weights"></div></div>
+      <div id="extraliga-tab-config" class="tab"><div class="sh"><span class="i"></span> EXTRALIGA ENGINE CONFIG</div><div class="sg"><div class="sgt">// MODEL WEIGHTS</div><div class="rr"><span class="rrl">MONTE CARLO</span><span class="rrv" id="extraliga-cw-mc-v">50%</span></div><input type="range" id="extraliga-cw-mc" min="10" max="70" value="50" oninput="document.getElementById('extraliga-cw-mc-v').textContent=this.value+'%';applyHockeyWeights('extraliga')"><div class="dv"></div><div class="rr"><span class="rrl">BAYESIAN</span><span class="rrv" id="extraliga-cw-bay-v">20%</span></div><input type="range" id="extraliga-cw-bay" min="5" max="50" value="20" oninput="document.getElementById('extraliga-cw-bay-v').textContent=this.value+'%';applyHockeyWeights('extraliga')"><div class="dv"></div><div class="rr"><span class="rrl">ELO</span><span class="rrv" id="extraliga-cw-elo-v">30%</span></div><input type="range" id="extraliga-cw-elo" min="5" max="50" value="30" oninput="document.getElementById('extraliga-cw-elo-v').textContent=this.value+'%';applyHockeyWeights('extraliga')"><button class="btn btn-p btn-sm" style="margin-top:10px" onclick="applyHockeyWeights('extraliga')">SAVE</button></div></div>
     </div>
   </div>
 </div>
@@ -4455,7 +4499,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   }
   // ── Derive league tag from sport ────────────────────────────────
   const _leagueMap={NBA:'NBA',NFL:'NFL',CFB:'CFB',NHL:'NHL',
-    KHL:'KHL',SHL:'SHL',LIIGA:'LIIGA',NCAAH:'NCAAH',CL:'CL',PL:'PL',LIGA:'LIGA',BUND:'BUND',MLS:'MLS',SERIEA:'SERIEA'};
+    KHL:'KHL',SHL:'SHL',LIIGA:'LIIGA',NLA:'NLA',EXTRALIGA:'EXTRALIGA',NCAAH:'NCAAH',CL:'CL',PL:'PL',LIGA:'LIGA',BUND:'BUND',MLS:'MLS',SERIEA:'SERIEA'};
   const leagueTag=_leagueMap[sportTag]||sportTag;
   const _betTypeNorm=betTypeOverride||(type==='PL'?'PL':type==='RL'?'RL':type==='OU'?'OU':type==='PROP'?'PROP':type==='SPREAD'?'SPREAD':'ML');
   const _apiDup=_findSameMarketLock(getP(),dateKey,hA,awA,_betTypeNorm);
@@ -6873,6 +6917,8 @@ async function _autoSettleFlashscoreHockey(targetDate,loadFn,sportTag){
 }
 async function autoSettleLiiga(targetDate){return _autoSettleFlashscoreHockey(targetDate,loadLiigaScheduleData,'LIIGA');}
 async function autoSettleShl(targetDate){return _autoSettleFlashscoreHockey(targetDate,loadShlScheduleData,'SHL');}
+async function autoSettleNla(targetDate){return _autoSettleFlashscoreHockey(targetDate,loadNlaScheduleData,'NLA');}
+async function autoSettleExtraliga(targetDate){return _autoSettleFlashscoreHockey(targetDate,loadExtraligaScheduleData,'EXTRALIGA');}
 
 // NCAAH (College Hockey) has no Flashscore integration -- its schedule
 // already comes from ESPN (hockey/mens-college-hockey, via
@@ -8939,6 +8985,176 @@ function _liigaPopulateDayFilter(games){
   const target=cur&&dates.includes(cur)?cur:(dates.includes(todayIso)?todayIso:dates[0]);
   if(target)sel.value=target;
 }
+// ═══ NLA (Swiss National League) ════════════════════════════════════
+// New league, 2026-09-22, explicit request (same session as Extraliga
+// below). Direct port of the LIIGA/SHL model above -- see fetch_nla.py's
+// own module docstring for the real Flashscore sources (URLs found live
+// via the interactive browser, not user-supplied this time). Same
+// reasoning applies for why this is a simpler Poisson-on-blended-rates
+// model rather than nhlMC's richer analytics stack: Flashscore doesn't
+// carry possession/xG/goaltending data for this league either.
+let _NLA_DATA=null;
+function loadNlaScheduleData(){
+  if(_NLA_DATA)return Promise.resolve(_NLA_DATA);
+  return fetch('nla_schedule.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{
+    _NLA_DATA=d||{teams:{},games:[]};
+    return _NLA_DATA;
+  });
+}
+function _nlaBlendedRates(team){
+  if(!team)return{gf:2.8,ga:2.8,gm:5.5,gp:0};
+  const CAP=20;
+  const curGp=team.gp||0;
+  const curW=Math.min(1,curGp/CAP);
+  const curGfPg=curGp?team.gf/curGp:null,curGaPg=curGp?team.ga/curGp:null;
+  const prev=team.prevSeason;
+  const prevGfPg=(prev&&prev.gp)?prev.gf/prev.gp:null,prevGaPg=(prev&&prev.gp)?prev.ga/prev.gp:null;
+  const gf=(curGfPg!=null&&prevGfPg!=null)?curGfPg*curW+prevGfPg*(1-curW):(curGfPg??prevGfPg??2.8);
+  const ga=(curGaPg!=null&&prevGaPg!=null)?curGaPg*curW+prevGaPg*(1-curW):(curGaPg??prevGaPg??2.8);
+  const gm=(team.gm!=null&&prev?.gm!=null)?team.gm*curW+prev.gm*(1-curW):(team.gm??prev?.gm??(gf+ga));
+  return{gf,ga,gm,gp:curGp};
+}
+function nlaMC(homeId,awayId){
+  const D=_NLA_DATA;if(!D)return null;
+  const h=D.teams[homeId],aw=D.teams[awayId];
+  if(!h||!aw)return null;
+  const hR=_nlaBlendedRates(h),aR=_nlaBlendedRates(aw);
+  const hForm=_hkFormFactor(homeId,D.games,hR),aForm=_hkFormFactor(awayId,D.games,aR);
+  const hfa=.055;
+  const hLam=Math.max(.4,((hR.gf*hForm+aR.ga)/2)*(1+hfa));
+  const aLam=Math.max(.4,((aR.gf*aForm+hR.ga)/2)*(1-hfa*.5));
+  const dist=_socMarginDist(hLam,aLam);
+  let hwP=0,awP=0,otP=0;
+  Object.keys(dist).forEach(m=>{const mm=parseFloat(m);if(mm>0)hwP+=dist[m];else if(mm<0)awP+=dist[m];else otP+=dist[m];});
+  hwP+=otP/2;awP+=otP/2;
+  const ouLine=parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
+  const totLam=hLam+aLam;
+  let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
+  const overP=1-cdf;
+  const rl15=_socSpreadProb(hLam,aLam,-1.5);
+  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rlN:1-rl15};
+}
+function nlaEns(homeId,awayId){
+  const mc=nlaMC(homeId,awayId);
+  if(!mc)return{p:.5};
+  const D=_NLA_DATA;
+  const h=D.teams[homeId],aw=D.teams[awayId];
+  const bayP=team=>{
+    if(!team)return .5;
+    const gp=team.gp||0,w=team.w||0;
+    return(w+1)/(gp+2);
+  };
+  const hBay=bayP(h),aBay=bayP(aw);
+  const denom=hBay*(1-aBay)+aBay*(1-hBay);
+  const log5=denom?(hBay*(1-aBay))/denom:.5;
+  const w=HOCKEY_ENS.nla||{mc:.7,bay:.2,elo:.1};
+  const bayShare=(w.bay||0)+(w.elo||0);
+  const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
+  return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0};
+}
+function _nlaPopulateDayFilter(games){
+  const sel=document.getElementById('nla-filter-day');if(!sel)return;
+  const cur=sel.value;
+  const todayIso=today();
+  const datesSet=new Set();
+  games.forEach(g=>{
+    if(!g.date)return;
+    const d=new Date(g.date);
+    if(isNaN(d))return;
+    datesSet.add(d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'}));
+  });
+  const dates=[...datesSet].filter(d=>d>=todayIso).sort();
+  if(sel.options.length===dates.length&&cur&&dates.includes(cur))return;
+  sel.innerHTML=dates.map(iso=>{
+    const disp=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    return`<option value="${iso}">${iso===todayIso?'TODAY · ':''}${disp.toUpperCase()}</option>`;
+  }).join('');
+  const target=cur&&dates.includes(cur)?cur:(dates.includes(todayIso)?todayIso:dates[0]);
+  if(target)sel.value=target;
+}
+// ═══ EXTRALIGA (Czech Extraliga) ════════════════════════════════════
+// New league, 2026-09-22, explicit request (same session as NLA above).
+// Direct port of the LIIGA/SHL/NLA model -- see fetch_extraliga.py's own
+// module docstring for the real Flashscore sources.
+let _EXTRALIGA_DATA=null;
+function loadExtraligaScheduleData(){
+  if(_EXTRALIGA_DATA)return Promise.resolve(_EXTRALIGA_DATA);
+  return fetch('extraliga_schedule.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{
+    _EXTRALIGA_DATA=d||{teams:{},games:[]};
+    return _EXTRALIGA_DATA;
+  });
+}
+function _extraligaBlendedRates(team){
+  if(!team)return{gf:2.8,ga:2.8,gm:5.5,gp:0};
+  const CAP=20;
+  const curGp=team.gp||0;
+  const curW=Math.min(1,curGp/CAP);
+  const curGfPg=curGp?team.gf/curGp:null,curGaPg=curGp?team.ga/curGp:null;
+  const prev=team.prevSeason;
+  const prevGfPg=(prev&&prev.gp)?prev.gf/prev.gp:null,prevGaPg=(prev&&prev.gp)?prev.ga/prev.gp:null;
+  const gf=(curGfPg!=null&&prevGfPg!=null)?curGfPg*curW+prevGfPg*(1-curW):(curGfPg??prevGfPg??2.8);
+  const ga=(curGaPg!=null&&prevGaPg!=null)?curGaPg*curW+prevGaPg*(1-curW):(curGaPg??prevGaPg??2.8);
+  const gm=(team.gm!=null&&prev?.gm!=null)?team.gm*curW+prev.gm*(1-curW):(team.gm??prev?.gm??(gf+ga));
+  return{gf,ga,gm,gp:curGp};
+}
+function extraligaMC(homeId,awayId){
+  const D=_EXTRALIGA_DATA;if(!D)return null;
+  const h=D.teams[homeId],aw=D.teams[awayId];
+  if(!h||!aw)return null;
+  const hR=_extraligaBlendedRates(h),aR=_extraligaBlendedRates(aw);
+  const hForm=_hkFormFactor(homeId,D.games,hR),aForm=_hkFormFactor(awayId,D.games,aR);
+  const hfa=.055;
+  const hLam=Math.max(.4,((hR.gf*hForm+aR.ga)/2)*(1+hfa));
+  const aLam=Math.max(.4,((aR.gf*aForm+hR.ga)/2)*(1-hfa*.5));
+  const dist=_socMarginDist(hLam,aLam);
+  let hwP=0,awP=0,otP=0;
+  Object.keys(dist).forEach(m=>{const mm=parseFloat(m);if(mm>0)hwP+=dist[m];else if(mm<0)awP+=dist[m];else otP+=dist[m];});
+  hwP+=otP/2;awP+=otP/2;
+  const ouLine=parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
+  const totLam=hLam+aLam;
+  let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
+  const overP=1-cdf;
+  const rl15=_socSpreadProb(hLam,aLam,-1.5);
+  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rlN:1-rl15};
+}
+function extraligaEns(homeId,awayId){
+  const mc=extraligaMC(homeId,awayId);
+  if(!mc)return{p:.5};
+  const D=_EXTRALIGA_DATA;
+  const h=D.teams[homeId],aw=D.teams[awayId];
+  const bayP=team=>{
+    if(!team)return .5;
+    const gp=team.gp||0,w=team.w||0;
+    return(w+1)/(gp+2);
+  };
+  const hBay=bayP(h),aBay=bayP(aw);
+  const denom=hBay*(1-aBay)+aBay*(1-hBay);
+  const log5=denom?(hBay*(1-aBay))/denom:.5;
+  const w=HOCKEY_ENS.extraliga||{mc:.7,bay:.2,elo:.1};
+  const bayShare=(w.bay||0)+(w.elo||0);
+  const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
+  return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0};
+}
+function _extraligaPopulateDayFilter(games){
+  const sel=document.getElementById('extraliga-filter-day');if(!sel)return;
+  const cur=sel.value;
+  const todayIso=today();
+  const datesSet=new Set();
+  games.forEach(g=>{
+    if(!g.date)return;
+    const d=new Date(g.date);
+    if(isNaN(d))return;
+    datesSet.add(d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'}));
+  });
+  const dates=[...datesSet].filter(d=>d>=todayIso).sort();
+  if(sel.options.length===dates.length&&cur&&dates.includes(cur))return;
+  sel.innerHTML=dates.map(iso=>{
+    const disp=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    return`<option value="${iso}">${iso===todayIso?'TODAY · ':''}${disp.toUpperCase()}</option>`;
+  }).join('');
+  const target=cur&&dates.includes(cur)?cur:(dates.includes(todayIso)?todayIso:dates[0]);
+  if(target)sel.value=target;
+}
 // Real gap, found 2026-09-22 (architecture-delta audit vs a hockey-
 // expansion spec): _liigaBlendedRates/_shlBlendedRates only ever blend
 // CURRENT-season vs PRIOR-season rates (a slow 20-game ramp, see their
@@ -9031,7 +9247,7 @@ function _hkFormFactor(teamId,allGames,seasonRates){
 // resolve a real result even if someone tried to wire it in. Settlement
 // stays exclusively on _LIIGA_DATA/_SHL_DATA (Flashscore), which is
 // the only source with real per-game state/homeScore/awayScore.
-let _LIIGA_QH_DATA=null,_SHL_QH_DATA=null;
+let _LIIGA_QH_DATA=null,_SHL_QH_DATA=null,_NLA_QH_DATA=null,_EXTRALIGA_QH_DATA=null;
 function loadLiigaQuantHockeyData(){
   if(_LIIGA_QH_DATA)return Promise.resolve(_LIIGA_QH_DATA);
   return fetch('liiga_quanthockey.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{
@@ -9046,6 +9262,24 @@ function loadShlQuantHockeyData(){
     return _SHL_QH_DATA;
   });
 }
+// NLA/Extraliga, added 2026-09-22 same session as the leagues themselves
+// -- same manual-import convention as Liiga/SHL above (see that block's
+// comment for the full rationale: Cloudflare-blocked source, fail-open
+// everywhere, COMPARE-panel enrichment only, never settlement).
+function loadNlaQuantHockeyData(){
+  if(_NLA_QH_DATA)return Promise.resolve(_NLA_QH_DATA);
+  return fetch('nla_quanthockey.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{
+    _NLA_QH_DATA=d||null;
+    return _NLA_QH_DATA;
+  });
+}
+function loadExtraligaQuantHockeyData(){
+  if(_EXTRALIGA_QH_DATA)return Promise.resolve(_EXTRALIGA_QH_DATA);
+  return fetch('extraliga_quanthockey.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{
+    _EXTRALIGA_QH_DATA=d||null;
+    return _EXTRALIGA_QH_DATA;
+  });
+}
 // QuantHockey names carry the city ("Jukurit Mikkeli"); this app's own
 // display names are shorter and inconsistent about it ("Jukurit",
 // "TPS Turku") -- plain substring matching (_socFuzzyFind's own
@@ -9057,12 +9291,22 @@ function loadShlQuantHockeyData(){
 // pulled 2026-09-23 -- 100%, not a partial match rate accepted as
 // good enough.
 function _hkNormName(s){return(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();}
+// Irreducible aliases -- real gap found 2026-09-23 with NLA: Flashscore's
+// short display name "Zurich" (the city) shares literally zero substring
+// overlap with QuantHockey's official club name "ZSC Lions" (no
+// diacritic/word-order fix can bridge these, unlike every other case
+// this matcher already handles). Kept as a small explicit table rather
+// than a smarter heuristic since these are one-off real-world naming
+// quirks, not a pattern -- add here if a future league hits the same wall.
+const _HK_NAME_ALIASES={zurich:'zsc lions'};
 function _hkFuzzyFindQH(appName,qhTeams){
   if(!appName||!qhTeams)return null;
   const k=_hkNormName(appName);
+  const aliased=_HK_NAME_ALIASES[k];
   for(const t of qhTeams){
     const ck=_hkNormName(t.name);
     if(ck===k||k.indexOf(ck)>=0||ck.indexOf(k)>=0)return t;
+    if(aliased&&ck.indexOf(aliased)>=0)return t;
   }
   const kTokens=k.split(/\s+/).filter(w=>w.length>=3);
   const stripSuffix=w=>w.replace(/[ns]$/,''); // crude Finnish/Swedish genitive-ish variant (Vaasan -> Vaasa)
@@ -9104,7 +9348,11 @@ function _hkDefenseRadarValuesQH(qh,seasonRates){
 // radar and the existing MATCHUP-only fallback, so a partial/missing
 // import degrades gracefully instead of erroring or half-rendering.
 function _hkCompareRadarHTML(uid,homeName,awayName,league,hTeam,aTeam,hRates,aRates){
-  const qhData=league==='LIIGA'?_LIIGA_QH_DATA:_SHL_QH_DATA;
+  // Lookup map, not a binary ternary -- refactored 2026-09-22 when NLA/
+  // Extraliga joined Liiga/SHL as QuantHockey-enriched leagues (a
+  // league==='LIIGA'?A:B ternary silently mis-routed every league past
+  // the first two to SHL's own data).
+  const qhData={LIIGA:_LIIGA_QH_DATA,SHL:_SHL_QH_DATA,NLA:_NLA_QH_DATA,EXTRALIGA:_EXTRALIGA_QH_DATA}[league]||null;
   const hQH=_hkQHStatsFor(homeName,qhData),aQH=_hkQHStatsFor(awayName,qhData);
   const matchupSvg=_matchupRadarSVG(['Scoring rate','Defense','Points %','Pace (G/M)'],_hkBasicRadarValues(hTeam,hRates),_hkBasicRadarValues(aTeam,aRates),uid+'_m');
   if(!hQH||!aQH){
@@ -9272,6 +9520,254 @@ async function renderLiigaMatches(){
   const label=iso===today()?`TODAY · ${dispDate}`:dispDate;
   let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--ic);margin:0 0 8px;border-bottom:1px solid rgba(102,144,255,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
   html+=dayGames.length?dayGames.map(g=>_liigaMatchCard(g)).join(''):'<div class="empty" style="padding:14px">NO GAMES SCHEDULED</div>';
+  el.innerHTML=html;
+}
+function _nlaMatchCard(g){
+  const D=_NLA_DATA;
+  const h=D.teams[g.home],aw=D.teams[g.away];
+  if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${g.awayName} @ ${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
+  const ens=nlaEns(g.home,g.away),mc=ens.mcD;
+  const hP=ens.p,aP=1-hP;
+  const hML=p2ml(hP),aML=p2ml(aP);
+  const hD=ml2d(hML),aD=ml2d(aML);
+  const hEV=ev(hP,hD),aEV=ev(aP,aD);
+  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+  const ouL=mc.ouLine,ouP=mc.overP,unP=1-ouP,ouD=1.91;
+  const ouEV=ev(ouP,ouD),unEV=ev(unP,ouD);
+  const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
+  const plFavP=hP>=aP?mc.rl15:mc.rlN,plDogP=1-plFavP;
+  const plD=1.87;
+  const nm=_evalMkts([
+    {label:`${g.homeName} ML`,prob:hP,evVal:hEV,dec:hD,side:'mlFav'},
+    {label:`${g.awayName} ML`,prob:aP,evVal:aEV,dec:aD,side:'mlDog'},
+    {label:`${favTeam} -1.5`,prob:plFavP,evVal:ev(plFavP,plD),dec:plD,side:'sprdFav'},
+    {label:`${dogTeam} +1.5`,prob:plDogP,evVal:ev(plDogP,plD),dec:plD,side:'sprdDog'},
+    {label:`OVER ${ouL}`,prob:ouP,evVal:ouEV,dec:ouD,side:'over'},
+    {label:`UNDER ${ouL}`,prob:unP,evVal:unEV,dec:ouD,side:'under'},
+  ]);
+  _autoLockCapture('NLA',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
+  const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
+  const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
+  const hR=_nlaBlendedRates(h),aR=_nlaBlendedRates(aw);
+  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). G/M-derived line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
+  const bayStr=`Record: ${g.homeName} ${h.w}-${h.l}${h.wo?'-'+h.wo+'OTW':''}${h.lo?'-'+h.lo+'OTL':''} vs ${g.awayName} ${aw.w}-${aw.l}${aw.wo?'-'+aw.wo+'OTW':''}${aw.lo?'-'+aw.lo+'OTL':''}.`;
+  const capStr=`No goaltending/possession data available for this league yet -- model is scoring-rate + record only.`;
+  const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
+  let explanation;
+  if(topTier===0){
+    explanation=`No qualifying edge (best ${bm.label} ${bp}%). ${ratesStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). Skip or monitor line movement.`;
+  }else{
+    const mcProjStr=`MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line).`;
+    let sideStr;
+    if(bm.side==='mlFav')sideStr=`${g.homeName}'s scoring edge unpriced by a flat moneyline.`;
+    else if(bm.side==='mlDog')sideStr=`${g.awayName} road value the record alone doesn't capture.`;
+    else if(bm.side==='sprdFav')sideStr=`${favTeam} -1.5 covers in ${(plFavP*100).toFixed(1)}% of the model's exact scoring distribution (dog covers ${(plDogP*100).toFixed(1)}%).`;
+    else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's exact scoring distribution (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
+    else if(bm.side==='over')sideStr=`Combined scoring rate supports goals above the ${ouL} line.`;
+    else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
+    explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
+  }
+  const dt=g.date?new Date(g.date):null;
+  const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
+  const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
+  const dateStr=dt&&!isNaN(dt)?dt.toLocaleDateString('sv-SE',{timeZone:'America/Denver'}):today();
+  return`<div class="gc" style="border-left:2px solid rgba(255,0,60,.4);margin-bottom:8px">
+    <div class="gch">
+      <div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.homeName}</span></div><div class="gsp">NLA</div></div>
+      <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('nla_${g.id}')">COMPARE</button></div>
+    </div>
+    <div id="radar_nla_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
+        <span style="color:#00f0ff">■ ${g.homeName}</span><span style="color:#f000ff">■ ${g.awayName}</span>
+      </div>
+      ${(()=>{try{
+        return _hkCompareRadarHTML('nla_'+g.id,g.homeName,g.awayName,'NLA',h,aw,hR,aR);
+      }catch(e){return'';}})()}
+    </div>
+    <div class="brow">
+      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','NLA','${g.homeName}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
+      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','NLA','${g.awayName}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(aML)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+      <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div>
+        <div style="display:flex;align-items:center;gap:2px">
+          <button onclick="event.stopPropagation();_adjV('sprd_nla_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
+          <input type="number" step="0.5" value="-1.5" id="sprd_nla_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)">
+          <button onclick="event.stopPropagation();_adjV('sprd_nla_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
+        </div>
+        <div style="display:flex;gap:2px;width:100%">
+          <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_nla_${g.id}','FAV','NLA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${favTeam}</div><div id="fav_sprd_nla_${g.id}" style="font-size:11px;opacity:.85">-1.5</div></button>
+          <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_nla_${g.id}','DOG','NLA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${dogTeam}</div><div id="dog_sprd_nla_${g.id}" style="font-size:11px;opacity:.85">+1.5</div></button>
+        </div>
+      </div>
+      <div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px">
+        <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div>
+        <div style="display:flex;align-items:center;gap:2px">
+          <button onclick="event.stopPropagation();_adjV('ouinp_nla_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
+          <input type="number" step="0.5" value="${ouL}" id="ouinp_nla_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center">
+          <button onclick="event.stopPropagation();_adjV('ouinp_nla_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
+        </div>
+        <div style="display:flex;gap:3px">
+          <button onclick="event.stopPropagation();_ouLockDir('${g.homeName}','${g.awayName}','${dateStr}',${ouP.toFixed(3)},'${ouL}','ouinp_nla_${g.id}','OVER','NLA')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button>
+          <button onclick="event.stopPropagation();_ouLockDir('${g.homeName}','${g.awayName}','${dateStr}',${ouP.toFixed(3)},'${ouL}','ouinp_nla_${g.id}','UNDER','NLA')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button>
+        </div>
+      </div>
+    </div>
+    <div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span>
+        <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
+      </div>
+      ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2})}
+      ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
+      <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
+    </div>
+  </div>`;
+}
+async function renderNlaMatches(){
+  const el=document.getElementById('nla-matches-list');if(!el)return;
+  el.innerHTML='<div class="loading"><span class="spi"></span></div>';
+  const data=await loadNlaScheduleData();
+  await loadNlaQuantHockeyData();
+  const games=data?.games||[];
+  if(!games.length){el.innerHTML='<div class="empty">SCHEDULE NOT LOADED YET — TRY SYNC</div>';return;}
+  _nlaPopulateDayFilter(games);
+  const sel=document.getElementById('nla-filter-day');
+  const iso=sel?.value;
+  if(!iso){el.innerHTML='<div class="empty">NO SCHEDULE DATA</div>';return;}
+  const dayGames=games.filter(g=>{
+    if(!g.date)return false;
+    const mtDate=new Date(g.date).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+    return mtDate===iso;
+  }).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const dispDate=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  const label=iso===today()?`TODAY · ${dispDate}`:dispDate;
+  let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--ic);margin:0 0 8px;border-bottom:1px solid rgba(255,0,60,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
+  html+=dayGames.length?dayGames.map(g=>_nlaMatchCard(g)).join(''):'<div class="empty" style="padding:14px">NO GAMES SCHEDULED</div>';
+  el.innerHTML=html;
+}
+function _extraligaMatchCard(g){
+  const D=_EXTRALIGA_DATA;
+  const h=D.teams[g.home],aw=D.teams[g.away];
+  if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${g.awayName} @ ${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
+  const ens=extraligaEns(g.home,g.away),mc=ens.mcD;
+  const hP=ens.p,aP=1-hP;
+  const hML=p2ml(hP),aML=p2ml(aP);
+  const hD=ml2d(hML),aD=ml2d(aML);
+  const hEV=ev(hP,hD),aEV=ev(aP,aD);
+  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+  const ouL=mc.ouLine,ouP=mc.overP,unP=1-ouP,ouD=1.91;
+  const ouEV=ev(ouP,ouD),unEV=ev(unP,ouD);
+  const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
+  const plFavP=hP>=aP?mc.rl15:mc.rlN,plDogP=1-plFavP;
+  const plD=1.87;
+  const nm=_evalMkts([
+    {label:`${g.homeName} ML`,prob:hP,evVal:hEV,dec:hD,side:'mlFav'},
+    {label:`${g.awayName} ML`,prob:aP,evVal:aEV,dec:aD,side:'mlDog'},
+    {label:`${favTeam} -1.5`,prob:plFavP,evVal:ev(plFavP,plD),dec:plD,side:'sprdFav'},
+    {label:`${dogTeam} +1.5`,prob:plDogP,evVal:ev(plDogP,plD),dec:plD,side:'sprdDog'},
+    {label:`OVER ${ouL}`,prob:ouP,evVal:ouEV,dec:ouD,side:'over'},
+    {label:`UNDER ${ouL}`,prob:unP,evVal:unEV,dec:ouD,side:'under'},
+  ]);
+  _autoLockCapture('EXTRALIGA',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
+  const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
+  const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
+  const hR=_extraligaBlendedRates(h),aR=_extraligaBlendedRates(aw);
+  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). G/M-derived line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
+  const bayStr=`Record: ${g.homeName} ${h.w}-${h.l}${h.wo?'-'+h.wo+'OTW':''}${h.lo?'-'+h.lo+'OTL':''} vs ${g.awayName} ${aw.w}-${aw.l}${aw.wo?'-'+aw.wo+'OTW':''}${aw.lo?'-'+aw.lo+'OTL':''}.`;
+  const capStr=`No goaltending/possession data available for this league yet -- model is scoring-rate + record only.`;
+  const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
+  let explanation;
+  if(topTier===0){
+    explanation=`No qualifying edge (best ${bm.label} ${bp}%). ${ratesStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). Skip or monitor line movement.`;
+  }else{
+    const mcProjStr=`MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line).`;
+    let sideStr;
+    if(bm.side==='mlFav')sideStr=`${g.homeName}'s scoring edge unpriced by a flat moneyline.`;
+    else if(bm.side==='mlDog')sideStr=`${g.awayName} road value the record alone doesn't capture.`;
+    else if(bm.side==='sprdFav')sideStr=`${favTeam} -1.5 covers in ${(plFavP*100).toFixed(1)}% of the model's exact scoring distribution (dog covers ${(plDogP*100).toFixed(1)}%).`;
+    else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's exact scoring distribution (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
+    else if(bm.side==='over')sideStr=`Combined scoring rate supports goals above the ${ouL} line.`;
+    else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
+    explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
+  }
+  const dt=g.date?new Date(g.date):null;
+  const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
+  const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
+  const dateStr=dt&&!isNaN(dt)?dt.toLocaleDateString('sv-SE',{timeZone:'America/Denver'}):today();
+  return`<div class="gc" style="border-left:2px solid rgba(200,20,20,.4);margin-bottom:8px">
+    <div class="gch">
+      <div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.homeName}</span></div><div class="gsp">EXTRALIGA</div></div>
+      <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('extraliga_${g.id}')">COMPARE</button></div>
+    </div>
+    <div id="radar_extraliga_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
+        <span style="color:#00f0ff">■ ${g.homeName}</span><span style="color:#f000ff">■ ${g.awayName}</span>
+      </div>
+      ${(()=>{try{
+        return _hkCompareRadarHTML('extraliga_'+g.id,g.homeName,g.awayName,'EXTRALIGA',h,aw,hR,aR);
+      }catch(e){return'';}})()}
+    </div>
+    <div class="brow">
+      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','EXTRALIGA','${g.homeName}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
+      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','EXTRALIGA','${g.awayName}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(aML)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+      <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div>
+        <div style="display:flex;align-items:center;gap:2px">
+          <button onclick="event.stopPropagation();_adjV('sprd_extraliga_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
+          <input type="number" step="0.5" value="-1.5" id="sprd_extraliga_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)">
+          <button onclick="event.stopPropagation();_adjV('sprd_extraliga_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
+        </div>
+        <div style="display:flex;gap:2px;width:100%">
+          <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_extraliga_${g.id}','FAV','EXTRALIGA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${favTeam}</div><div id="fav_sprd_extraliga_${g.id}" style="font-size:11px;opacity:.85">-1.5</div></button>
+          <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_extraliga_${g.id}','DOG','EXTRALIGA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${dogTeam}</div><div id="dog_sprd_extraliga_${g.id}" style="font-size:11px;opacity:.85">+1.5</div></button>
+        </div>
+      </div>
+      <div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px">
+        <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div>
+        <div style="display:flex;align-items:center;gap:2px">
+          <button onclick="event.stopPropagation();_adjV('ouinp_extraliga_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
+          <input type="number" step="0.5" value="${ouL}" id="ouinp_extraliga_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center">
+          <button onclick="event.stopPropagation();_adjV('ouinp_extraliga_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
+        </div>
+        <div style="display:flex;gap:3px">
+          <button onclick="event.stopPropagation();_ouLockDir('${g.homeName}','${g.awayName}','${dateStr}',${ouP.toFixed(3)},'${ouL}','ouinp_extraliga_${g.id}','OVER','EXTRALIGA')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button>
+          <button onclick="event.stopPropagation();_ouLockDir('${g.homeName}','${g.awayName}','${dateStr}',${ouP.toFixed(3)},'${ouL}','ouinp_extraliga_${g.id}','UNDER','EXTRALIGA')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button>
+        </div>
+      </div>
+    </div>
+    <div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span>
+        <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
+      </div>
+      ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2})}
+      ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
+      <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
+    </div>
+  </div>`;
+}
+async function renderExtraligaMatches(){
+  const el=document.getElementById('extraliga-matches-list');if(!el)return;
+  el.innerHTML='<div class="loading"><span class="spi"></span></div>';
+  const data=await loadExtraligaScheduleData();
+  await loadExtraligaQuantHockeyData();
+  const games=data?.games||[];
+  if(!games.length){el.innerHTML='<div class="empty">SCHEDULE NOT LOADED YET — TRY SYNC</div>';return;}
+  _extraligaPopulateDayFilter(games);
+  const sel=document.getElementById('extraliga-filter-day');
+  const iso=sel?.value;
+  if(!iso){el.innerHTML='<div class="empty">NO SCHEDULE DATA</div>';return;}
+  const dayGames=games.filter(g=>{
+    if(!g.date)return false;
+    const mtDate=new Date(g.date).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+    return mtDate===iso;
+  }).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const dispDate=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  const label=iso===today()?`TODAY · ${dispDate}`:dispDate;
+  let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--ic);margin:0 0 8px;border-bottom:1px solid rgba(200,20,20,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
+  html+=dayGames.length?dayGames.map(g=>_extraligaMatchCard(g)).join(''):'<div class="empty" style="padding:14px">NO GAMES SCHEDULED</div>';
   el.innerHTML=html;
 }
 
@@ -11547,7 +12043,7 @@ function renderOverall(){
   const sportMap=[
     {lbl:'BASKETBALL',  codes:['NBA']},
     {lbl:'FOOTBALL',    codes:['NFL','CFB','FB']},
-    {lbl:'HOCKEY',      codes:['NHL','NCAAH','KHL','SHL','LIIGA','COLLEGE HOCKEY']},
+    {lbl:'HOCKEY',      codes:['NHL','NCAAH','KHL','SHL','LIIGA','NLA','EXTRALIGA','COLLEGE HOCKEY']},
     {lbl:'SOCCER',      codes:['PL','LIGA','BUND','BL','MLS','SERIEA','CH','CL']},
   ];
   const bySport=sportMap.map(sm=>{
@@ -11576,6 +12072,8 @@ function renderOverall(){
     {lbl:'College Hockey',codes:['NCAAH','COLLEGE HOCKEY'],always:true},
     {lbl:'SHL',           codes:['SHL'],                   always:true},
     {lbl:'LIIGA',         codes:['LIIGA'],                 always:true},
+    {lbl:'NLA',           codes:['NLA'],                   always:true},
+    {lbl:'EXTRALIGA',     codes:['EXTRALIGA'],             always:true},
     {lbl:'KHL',           codes:['KHL'],                   always:true},
     {lbl:'NBA',           codes:['NBA'],                   always:true},
     {lbl:'Champions League',codes:['CL','CH'],             always:true}, // CH kept as a legacy alias for picks locked before the CH->CL rename
@@ -12310,7 +12808,7 @@ function renderOverallVisuals(){
   // league:'BUND' (BL was only ever a legacy alias), so a raw p.sport==='BL'
   // check never matched a single real settled Bundesliga bet, and SERIEA/CL
   // were missing from this list entirely (both are real _normSport outputs).
-  const sDataRaw=['MLB','NBA','WNBA','CBB','NFL','CFB','NHL','NCAAH','SHL','LIIGA','KHL','SOC','WC','PL','LIGA','BUND','MLS','SERIEA','CL'].map(s=>{const sp=settled.filter(p=>_normSport(p)===s);const w=sp.filter(p=>p.outcome==='win').length;return{s,n:sp.length,w,pct:sp.length?w/sp.length:null};});
+  const sDataRaw=['MLB','NBA','WNBA','CBB','NFL','CFB','NHL','NCAAH','SHL','LIIGA','NLA','EXTRALIGA','KHL','SOC','WC','PL','LIGA','BUND','MLS','SERIEA','CL'].map(s=>{const sp=settled.filter(p=>_normSport(p)===s);const w=sp.filter(p=>p.outcome==='win').length;return{s,n:sp.length,w,pct:sp.length?w/sp.length:null};});
   const tenSp=settled.filter(p=>_normSport(p)==='TEN');const tenW=tenSp.filter(p=>p.outcome==='win').length;
   const sData=[...sDataRaw,{s:'TENNIS',n:tenSp.length,w:tenW,pct:tenSp.length?tenW/tenSp.length:null}];
   const barW=260,barH=sData.length*22+10;
@@ -12883,7 +13381,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   const _LEAGUE_MAP={
     BASKETBALL:['NBA'],
     FOOTBALL:  ['NFL','CFB','FB'],
-    HOCKEY:    ['NHL','SHL','LIIGA'],
+    HOCKEY:    ['NHL','SHL','LIIGA','NLA','EXTRALIGA'],
     SOCCER:    ['PL','LIGA','BL','BUND','CL','SERIEA','MLS'],
   };
   // Normalize sport tags in bets to canonical league codes for matching
@@ -13214,7 +13712,7 @@ function renderOverallTrends(){
     </div>`;};
 
   // ── Recency streaks — all tracked sports ─────────────────────────────────
-  const trackedSports=['MLB','NHL','NBA','WNBA','CBB','NCAAB','NFL','CFB','KHL','SHL','LIIGA','SOC','WC','PL','LIGA','BL','BUND','CL','SERIEA','MLS'];
+  const trackedSports=['MLB','NHL','NBA','WNBA','CBB','NCAAB','NFL','CFB','KHL','SHL','LIIGA','NLA','EXTRALIGA','SOC','WC','PL','LIGA','BL','BUND','CL','SERIEA','MLS'];
   const sportStreaks={};
   for(const sp of trackedSports){
     const sb=all.filter(p=>window._normSport(p)===sp).slice(-10);
@@ -13700,7 +14198,7 @@ function renderAdaptiveLearning(){
   html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--vc);margin:12px 0 6px">// PERFORMANCE BY SPORT & LEAGUE</div>`;
   const sportGroups={
     BASKETBALL:{sports:['NBA'],color:'var(--pc)'},
-    HOCKEY:{sports:['NHL','KHL','SHL','LIIGA','NCAAH'],color:'var(--ic)'},
+    HOCKEY:{sports:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH'],color:'var(--ic)'},
     FOOTBALL:{sports:['NFL','CFB','FB'],color:'var(--hc)'},
     SOCCER:{sports:['PL','LIGA','BL','BUND','CL','SERIEA','MLS'],color:'var(--nc)'},
   };
@@ -13863,6 +14361,7 @@ const _OPS_FOOTBALL_LEAGUES=[
 ];
 const _OPS_HOCKEY_LEAGUES=[
   {k:'NHL',label:'NHL'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},
+  {k:'NLA',label:'NLA'},{k:'EXTRALIGA',label:'EXTRALIGA'},
 ];
 const _OPS_SOCCER_LEAGUES=[
   {k:'BUND',label:'BUNDESLIGA'},{k:'CL',label:'CHAMPIONS LG'},{k:'LIGA',label:'LA LIGA'},
@@ -13917,7 +14416,7 @@ function renderEngineOps(){
   // CFB has no props feature anywhere in the app (no lock/render path for
   // it), same real gap as NFL/every soccer league -- added here rather
   // than silently rendering a props button that does nothing.
-  const NO_PROPS=new Set(['NFL','CFB','SHL','LIIGA','BUND','CL','LIGA','MLS','PL','SERIEA']);
+  const NO_PROPS=new Set(['NFL','CFB','SHL','LIIGA','NLA','EXTRALIGA','BUND','CL','LIGA','MLS','PL','SERIEA']);
   // Real bug, found and fixed: NFL used to be the one sport permanently
   // excluded from STAT REINTEGRATION with a hardcoded "model not active"
   // message -- accurate when NFL's season hadn't started, false and
@@ -13953,7 +14452,7 @@ function renderEngineOps(){
       ?`<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">${label} — no schedule source wired yet.</div>`
       :`<div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:10px">Verify and reload today\'s ${label} schedule.</div>
     ${btnRow(btn(label.toUpperCase()+' SCHEDULE',`opsRunSched('${code}',this)`,'btn-p'))}
-    ${(code==='SHL'||code==='LIIGA')?`<div style="margin-top:8px">${btn('AUTO-SETTLE '+label.toUpperCase()+' PICKS',`(${code==='LIIGA'?'autoSettleLiiga':'autoSettleShl'})().then(()=>{renderOverallHistory();toast('// '+'${label}'.toUpperCase()+' SETTLE CHECK COMPLETE');})`,'btn-o')}</div>`:''}`);
+    ${(()=>{const _autoSettleFn={SHL:'autoSettleShl',LIIGA:'autoSettleLiiga',NLA:'autoSettleNla',EXTRALIGA:'autoSettleExtraliga'}[code];return _autoSettleFn?`<div style="margin-top:8px">${btn('AUTO-SETTLE '+label.toUpperCase()+' PICKS',`${_autoSettleFn}().then(()=>{renderOverallHistory();toast('// '+'${label}'.toUpperCase()+' SETTLE CHECK COMPLETE');})`,'btn-o')}</div>`:'';})()}`);
 
   const runAll=`<div class="card" style="margin-bottom:10px;padding:10px;display:flex;gap:6px;flex-wrap:wrap">
     ${btn('↻ RUN ALL PROPS (EVERY SPORT)',"opsRunProps('ALL',this)",'btn-n')}
@@ -14015,6 +14514,8 @@ function renderEngineOps(){
       {lbl:'CFB',ens:window.CFB_ENS,col:'var(--gc)'},
       {lbl:'SHL',ens:HOCKEY_ENS.shl||{mc:.7,bay:.2,elo:.1},col:'var(--ic)'},
       {lbl:'LIIGA',ens:HOCKEY_ENS.liiga||{mc:.7,bay:.2,elo:.1},col:'var(--ic)'},
+      {lbl:'NLA',ens:HOCKEY_ENS.nla||{mc:.7,bay:.2,elo:.1},col:'var(--ic)'},
+      {lbl:'EXTRALIGA',ens:HOCKEY_ENS.extraliga||{mc:.7,bay:.2,elo:.1},col:'var(--ic)'},
     ].map(_weightRow).join('')}
     <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px;margin:10px 0 4px">SOCCER — POISSON/xG MODEL (not MC/Bayesian/ELO — same model shared across all 6 leagues)</div>
     <div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">
@@ -14078,7 +14579,7 @@ async function opsRunStats(sport,btn){
   const orig=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='⏳...';}
   const sectionId='ops-stats';
-  const sports=sport==='ALL'?['NBA','NHL','NFL','CFB','SHL','LIIGA','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
+  const sports=sport==='ALL'?['NBA','NHL','NFL','CFB','SHL','LIIGA','NLA','EXTRALIGA','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
   const _CLUB_LEAGUES_ST={BUND:'bl',CL:'cl',LIGA:'liga',PL:'pl',SERIEA:'ita',MLS:'mls'};
   _opsLog(sectionId,`▶ STAT UPDATE — ${sport}`);
   for(const s of sports){
@@ -14106,6 +14607,8 @@ async function opsRunStats(sport,btn){
       // NFL/CFB's own loadNFLData()/loadCFBData() already have.
       else if(s==='SHL'){_SHL_DATA=null;const d=await loadShlScheduleData();if(window._opsActiveLeague==='SHL')typeof renderShlMatches==='function'&&renderShlMatches();_opsLog(sectionId,`  · ${s}: ✓ stats refreshed (${Object.keys((d&&d.teams)||{}).length} teams)`);}
       else if(s==='LIIGA'){_LIIGA_DATA=null;const d=await loadLiigaScheduleData();if(window._opsActiveLeague==='LIIGA')typeof renderLiigaMatches==='function'&&renderLiigaMatches();_opsLog(sectionId,`  · ${s}: ✓ stats refreshed (${Object.keys((d&&d.teams)||{}).length} teams)`);}
+      else if(s==='NLA'){_NLA_DATA=null;const d=await loadNlaScheduleData();if(window._opsActiveLeague==='NLA')typeof renderNlaMatches==='function'&&renderNlaMatches();_opsLog(sectionId,`  · ${s}: ✓ stats refreshed (${Object.keys((d&&d.teams)||{}).length} teams)`);}
+      else if(s==='EXTRALIGA'){_EXTRALIGA_DATA=null;const d=await loadExtraligaScheduleData();if(window._opsActiveLeague==='EXTRALIGA')typeof renderExtraligaMatches==='function'&&renderExtraligaMatches();_opsLog(sectionId,`  · ${s}: ✓ stats refreshed (${Object.keys((d&&d.teams)||{}).length} teams)`);}
       else if(s==='WC'){typeof renderWCMatches==='function'&&renderWCMatches();typeof renderWCProps==='function'&&renderWCProps();_opsLog(sectionId,`  · ${s}: ✓ WC schedule + props refreshed`);}
       else if(_CLUB_LEAGUES_ST[s]){
         const lk=_CLUB_LEAGUES_ST[s];
@@ -14123,7 +14626,7 @@ async function opsRunSched(sport,btn){
   const orig=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='⏳...';}
   const sectionId='ops-sched';
-  const sports=sport==='ALL'?['NBA','NHL','NFL','CFB','SHL','LIIGA','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
+  const sports=sport==='ALL'?['NBA','NHL','NFL','CFB','SHL','LIIGA','NLA','EXTRALIGA','BUND','CL','LIGA','MLS','PL','SERIEA']:[sport];
   _opsLog(sectionId,`▶ SCHEDULE REFRESH — ${sport}`);
   const _CLUB_LEAGUES={BUND:'bl',CL:'cl',LIGA:'liga',PL:'pl',SERIEA:'ita'};
   for(const s of sports){
@@ -14139,6 +14642,8 @@ async function opsRunSched(sport,btn){
       else if(s==='CFB'){window._CFB_DATA=null;await loadCFBData();if(window._cfbActiveTab==='games')typeof renderCFBGames==='function'&&renderCFBGames();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${Object.keys((_CFB_DATA&&_CFB_DATA.weeks)||{}).length} week(s) loaded)`);}
       else if(s==='SHL'){_SHL_DATA=null;const d=await loadShlScheduleData();if(window._opsActiveLeague==='SHL')typeof renderShlMatches==='function'&&renderShlMatches();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${((d&&d.games)||[]).length} game(s) loaded)`);}
       else if(s==='LIIGA'){_LIIGA_DATA=null;const d=await loadLiigaScheduleData();if(window._opsActiveLeague==='LIIGA')typeof renderLiigaMatches==='function'&&renderLiigaMatches();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${((d&&d.games)||[]).length} game(s) loaded)`);}
+      else if(s==='NLA'){_NLA_DATA=null;const d=await loadNlaScheduleData();if(window._opsActiveLeague==='NLA')typeof renderNlaMatches==='function'&&renderNlaMatches();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${((d&&d.games)||[]).length} game(s) loaded)`);}
+      else if(s==='EXTRALIGA'){_EXTRALIGA_DATA=null;const d=await loadExtraligaScheduleData();if(window._opsActiveLeague==='EXTRALIGA')typeof renderExtraligaMatches==='function'&&renderExtraligaMatches();_opsLog(sectionId,`  · ${s}: ✓ schedule refreshed (${((d&&d.games)||[]).length} game(s) loaded)`);}
       else if(s==='WC'){renderWCMatches&&renderWCMatches();_opsLog(sectionId,'  · WC: ✓ World Cup matches refreshed');}
       else if(s==='MLS'){await _fetchMLSScheduleReal();typeof renderLeagueMatches==='function'&&renderLeagueMatches('mls');_opsLog(sectionId,'  · MLS: ✓ schedule refreshed');}
       else if(_CLUB_LEAGUES[s]){
@@ -14866,7 +15371,7 @@ function renderHomePage(){
     const leagueMap=[
       {lbl:'NFL',codes:['NFL','FB']},{lbl:'CFB',codes:['CFB']},
       {lbl:'NHL',codes:['NHL']},{lbl:'College Hockey',codes:['NCAAH','COLLEGE HOCKEY']},
-      {lbl:'SHL',codes:['SHL']},{lbl:'LIIGA',codes:['LIIGA']},{lbl:'KHL',codes:['KHL']},
+      {lbl:'SHL',codes:['SHL']},{lbl:'LIIGA',codes:['LIIGA']},{lbl:'NLA',codes:['NLA']},{lbl:'EXTRALIGA',codes:['EXTRALIGA']},{lbl:'KHL',codes:['KHL']},
       {lbl:'NBA',codes:['NBA']},
       {lbl:'Champions League',codes:['CL','CH']},
       {lbl:'Premier League',codes:['PL']},{lbl:'La Liga',codes:['LIGA']},
@@ -15361,7 +15866,7 @@ function setSub(sport,sub){
     else if(sub==='bybet')try{renderAnalyticsByBet();}catch(e){}
   }
   if(sport==='hk'&&sub==='ncaah'){try{T('ncaah','matches');renderGenericWeek('ncaah-matches-list','hockey/mens-college-hockey','NCAAH');}catch(e){}}
-  if(sport==='hk'&&['khl','shl','liiga'].includes(sub)){try{T(sub,'matches');}catch(e){}}
+  if(sport==='hk'&&['khl','shl','liiga','nla','extraliga'].includes(sub)){try{T(sub,'matches');}catch(e){}}
   if(sport==='tracker'&&sub==='locked'){try{renderLockedTracker();}catch(e){}}
   if(sport==='tracker'&&sub==='parlay'){try{renderParlayTracker();}catch(e){}try{cvXParlayInit();}catch(e){}}
   // Auto-jump to TODAY tab when switching to a live sub-league
@@ -16093,8 +16598,8 @@ function renderNFLPropsTracker(){
 }
 
 function T(sport,tabId){const D=window.__CV_DATA||{};
-  const saMap={nhl:'nhl-sa',nba:'nba-sa',ovr:'ovr-sa',live:'live-sa',news:'news-sa',hk:'nhl-sa',pl:'pl-sa',liga:'liga-sa',bl:'bl-sa',mls:'mls-sa',cl:'cl-sa',ita:'ita-sa',ncaah:'ncaah-sa',khl:'khl-sa',shl:'shl-sa',liiga:'liiga-sa'};
-  const navMap={nhl:'nhl-in',nba:'nba-in',ovr:'ovr-in',live:'live-in',news:'news-in',hk:'nhl-in',ncaah:'ncaah-in',khl:'khl-in',shl:'shl-in',liiga:'liiga-in',cl:'cl-in',pl:'pl-in',liga:'liga-in',bl:'bl-in',mls:'mls-in',ita:'ita-in'};
+  const saMap={nhl:'nhl-sa',nba:'nba-sa',ovr:'ovr-sa',live:'live-sa',news:'news-sa',hk:'nhl-sa',pl:'pl-sa',liga:'liga-sa',bl:'bl-sa',mls:'mls-sa',cl:'cl-sa',ita:'ita-sa',ncaah:'ncaah-sa',khl:'khl-sa',shl:'shl-sa',liiga:'liiga-sa',nla:'nla-sa',extraliga:'extraliga-sa'};
+  const navMap={nhl:'nhl-in',nba:'nba-in',ovr:'ovr-in',live:'live-in',news:'news-in',hk:'nhl-in',ncaah:'ncaah-in',khl:'khl-in',shl:'shl-in',liiga:'liiga-in',cl:'cl-in',pl:'pl-in',liga:'liga-in',bl:'bl-in',mls:'mls-in',ita:'ita-in',nla:'nla-in',extraliga:'extraliga-in'};
   const saId=saMap[sport]||'nba-sa';
   const navId=navMap[sport]||'nba-in';
   const mnId=sport==='nhl'?'mn2':sport==='nba'?'mn3':sport==='ovr'?'mn4':sport==='live'?'mn7':'mn3';
@@ -16180,12 +16685,14 @@ function T(sport,tabId){const D=window.__CV_DATA||{};
   else if(sport==='pl'||sport==='liga'||sport==='bl'||sport==='mls'||sport==='cl'||sport==='ita'){
     try{if(tabId==='matches')renderLeagueMatches(sport);else if(tabId==='standings')renderLeagueStandings(sport);else if(tabId==='props')renderLeagueProps(sport);}catch(e){}
   }
-  else if(['ncaah','khl','shl','liiga'].includes(sport)){
-    // LIIGA and SHL both have real data sources (Flashscore, see
-    // fetch_liiga.py/fetch_shl.py) as of 2026-09-16 -- KHL/NCAAH still
-    // have no schedule/stats feed, so 'matches' stays a no-op for them
-    // rather than pointing at a render function with nothing to draw.
-    try{if(tabId==='model')renderHockeyLeagueModel(sport);else if(tabId==='config')renderHockeyLeagueConfig(sport);else if(tabId==='matches'&&sport==='liiga')renderLiigaMatches();else if(tabId==='matches'&&sport==='shl')renderShlMatches();}catch(e){}
+  else if(['ncaah','khl','shl','liiga','nla','extraliga'].includes(sport)){
+    // LIIGA, SHL, NLA and EXTRALIGA all have real data sources (Flashscore,
+    // see fetch_liiga.py/fetch_shl.py/fetch_nla.py/fetch_extraliga.py) --
+    // KHL/NCAAH still have no schedule/stats feed, so 'matches' stays a
+    // no-op for them rather than pointing at a render function with
+    // nothing to draw.
+    const _hkMatchesFn={liiga:renderLiigaMatches,shl:renderShlMatches,nla:renderNlaMatches,extraliga:renderExtraligaMatches}[sport];
+    try{if(tabId==='model')renderHockeyLeagueModel(sport);else if(tabId==='config')renderHockeyLeagueConfig(sport);else if(tabId==='matches'&&_hkMatchesFn)_hkMatchesFn();}catch(e){}
   }
   if(sport==='fut'){renderFuturesPanes(tabId);}
   if(sport==='ovr'){if(tabId==='dash')renderOverall();if(tabId==='history')renderOverallHistory();if(tabId==='adaptive')renderAdaptiveLearning();if(tabId==='sync')renderCrossDeviceSync();if(tabId==='ops')renderEngineOps();if(tabId==='trackrecord')renderTrackRecord();}
@@ -18434,7 +18941,7 @@ function _broadSportOf(tag){
   const t=(tag||'').toUpperCase().trim();
   if(t==='NBA')return'BASKETBALL';
   if(t==='NFL'||t==='CFB')return'FOOTBALL';
-  if(t==='NHL'||t==='KHL'||t==='SHL'||t==='LIIGA'||t==='NCAAH')return'HOCKEY';
+  if(t==='NHL'||t==='KHL'||t==='SHL'||t==='LIIGA'||t==='NLA'||t==='EXTRALIGA'||t==='NCAAH')return'HOCKEY';
   if(t==='PL'||t==='LIGA'||t==='BUND'||t==='BL'||t==='MLS'||t==='SERIEA'||t==='CL'||t==='CH')return'SOCCER';
   return null; // unrecognized/retired league — excluded from the sport-level card rather than guessed
 }
@@ -18467,6 +18974,8 @@ function _normSport(p){
   if(raw==='KHL')return'KHL';
   if(raw==='SHL')return'SHL';
   if(raw==='LIIGA')return'LIIGA';
+  if(raw==='NLA')return'NLA';
+  if(raw==='EXTRALIGA')return'EXTRALIGA';
   // Was returning 'NHL' -- silently merging every real NCAAH pick into
   // NHL's win/loss stats (inflating/diluting the real NHL record) while
   // leaving every "College Hockey" filter bucket permanently empty,
@@ -18787,7 +19296,7 @@ async function _genPerfGraphic(periodLabel,sublabel,perf,fh,fname){
 // standalone list so the filter <select>'s options can be rendered inline
 // in the template (see the note by cv-league-filter-sel) without needing
 // LDEFS itself hoisted out of its IIFE.
-const LEAGUE_FILTER_LABELS=['NFL','CFB','NHL','College Hockey','SHL','LIIGA','KHL','NBA','Champions League','Premier League','La Liga','Bundesliga','Serie A','MLS'];
+const LEAGUE_FILTER_LABELS=['NFL','CFB','NHL','College Hockey','SHL','LIIGA','NLA','EXTRALIGA','KHL','NBA','Champions League','Premier League','La Liga','Bundesliga','Serie A','MLS'];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TRACK RECORD PUBLIC VIEW
@@ -19143,6 +19652,8 @@ function renderTrackRecord(){
       {lbl:'College Hockey',codes:['NCAAH','COLLEGE HOCKEY']},
       {lbl:'SHL',          codes:['SHL']},
       {lbl:'LIIGA',        codes:['LIIGA']},
+      {lbl:'NLA',          codes:['NLA']},
+      {lbl:'EXTRALIGA',    codes:['EXTRALIGA']},
       {lbl:'KHL',          codes:['KHL']},
       {lbl:'NBA',          codes:['NBA']},
       {lbl:'Champions League',codes:['CH','CL']},
@@ -19283,6 +19794,8 @@ function renderTrackRecord(){
       {lbl:'College Hockey',codes:['NCAAH','COLLEGE HOCKEY']},
       {lbl:'SHL',          codes:['SHL']},
       {lbl:'LIIGA',        codes:['LIIGA']},
+      {lbl:'NLA',          codes:['NLA']},
+      {lbl:'EXTRALIGA',    codes:['EXTRALIGA']},
       {lbl:'KHL',          codes:['KHL']},
       {lbl:'NBA',          codes:['NBA']},
       {lbl:'WNBA',         codes:['WNBA']},
@@ -20132,7 +20645,7 @@ window._NF_SPORT_MAP={
   Baseball:['MLB'],
   Basketball:['NBA','WNBA','CBB'],
   Football:['NFL','CFB'],
-  Hockey:['NHL','CH','KHL','SHL','LIIGA'],
+  Hockey:['NHL','CH','KHL','SHL','LIIGA','NLA','EXTRALIGA'],
   Soccer:['SOCCER','BL','LIGA','MLS','PL','ITA','SERIEA','CL'],
   Tennis:['TENNIS','ATP','WTA']
 };
@@ -20159,6 +20672,7 @@ function newsFilterBar(tabId,col){
     {k:'NFL',label:'NFL'},{k:'CFB',label:'CFB'},
     {k:'NHL',label:'NHL'},{k:'CH',label:'C.HOCKEY'},
     {k:'KHL',label:'KHL'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},
+    {k:'NLA',label:'NLA'},{k:'EXTRALIGA',label:'EXTRALIGA'},
     {k:'BL',label:'BUNDESLIGA'},{k:'LIGA',label:'LA LIGA'},{k:'MLS',label:'MLS'},
     {k:'PL',label:'PREMIER LEAGUE'},{k:'ITA',label:'SERIE A'},{k:'CL',label:'CHAMPIONS LEAGUE'}
   ];
@@ -23567,9 +24081,9 @@ function renderBySportAnalytics(key){
   if(!key)key='all';
   // Sport group definitions — leagues is null for single-league sports (no sub-filter shown)
   const SPORT_DEFS={
-    all:      {label:'ALL SPORTS', codes:['NHL','NBA','NFL','CFB','FB','KHL','SHL','LIIGA','NCAAH','PL','LIGA','BL','BUND','CL','SERIEA','MLS'], color:'var(--nc)', leagues:null},
+    all:      {label:'ALL SPORTS', codes:['NHL','NBA','NFL','CFB','FB','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH','PL','LIGA','BL','BUND','CL','SERIEA','MLS'], color:'var(--nc)', leagues:null},
     basketball:{label:'BASKETBALL',codes:['NBA'],                          color:'var(--pc)', leagues:null},
-    hockey:   {label:'HOCKEY',     codes:['NHL','KHL','SHL','LIIGA','NCAAH','COLLEGE HOCKEY'], color:'var(--ic)', leagues:[{k:'NHL',label:'NHL'},{k:'NCAAH',label:'COLLEGE'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},{k:'KHL',label:'KHL'}]},
+    hockey:   {label:'HOCKEY',     codes:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH','COLLEGE HOCKEY'], color:'var(--ic)', leagues:[{k:'NHL',label:'NHL'},{k:'NCAAH',label:'COLLEGE'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},{k:'NLA',label:'NLA'},{k:'EXTRALIGA',label:'EXTRALIGA'},{k:'KHL',label:'KHL'}]},
     football: {label:'FOOTBALL',   codes:['NFL','CFB','FB'],               color:'var(--hc)', leagues:[{k:'NFL',label:'NFL'},{k:'CFB',label:'COLLEGE'}]},
     soccer:   {label:'SOCCER',     codes:['PL','LIGA','BL','BUND','CL','SERIEA','MLS'], color:'var(--gc)', leagues:[{k:'BUND',label:'BUNDESLIGA'},{k:'CL',label:'CHAMPIONS LG'},{k:'LIGA',label:'LA LIGA'},{k:'MLS',label:'MLS'},{k:'PL',label:'PREM LG'},{k:'SERIEA',label:'SERIE A'}]},
   };
@@ -23665,7 +24179,7 @@ function renderBySportAnalytics(key){
   if(activeSport==='all'){
     const topGroups=[
       {key:'basketball',label:'BASKETBALL',codes:['NBA'],color:'var(--pc)'},
-      {key:'hockey',label:'HOCKEY',codes:['NHL','KHL','SHL','LIIGA','NCAAH'],color:'var(--ic)'},
+      {key:'hockey',label:'HOCKEY',codes:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH'],color:'var(--ic)'},
       {key:'football',label:'FOOTBALL',codes:['NFL','CFB','FB'],color:'var(--hc)'},
       {key:'soccer',label:'SOCCER',codes:['PL','LIGA','BL','BUND','CL','SERIEA','MLS'],color:'var(--gc)'},
     ];
@@ -23688,9 +24202,9 @@ window.renderBySportAnalytics=renderBySportAnalytics;
 function renderByTeamAnalytics(key){
   if(!key)key='ALL';
   const SPORT_DEFS={
-    ALL:        {codes:['NHL','NBA','NFL','CFB','FB','KHL','SHL','LIIGA','NCAAH','PL','LIGA','BL','BUND','CL','SERIEA','MLS'], color:'var(--nc)', leagues:null},
+    ALL:        {codes:['NHL','NBA','NFL','CFB','FB','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH','PL','LIGA','BL','BUND','CL','SERIEA','MLS'], color:'var(--nc)', leagues:null},
     BASKETBALL: {codes:['NBA'],                                          color:'var(--pc)', leagues:null},
-    HOCKEY:     {codes:['NHL','KHL','SHL','LIIGA','NCAAH','COLLEGE HOCKEY'], color:'var(--ic)', leagues:[{k:'NHL',label:'NHL'},{k:'NCAAH',label:'COLLEGE'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},{k:'KHL',label:'KHL'}]},
+    HOCKEY:     {codes:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH','COLLEGE HOCKEY'], color:'var(--ic)', leagues:[{k:'NHL',label:'NHL'},{k:'NCAAH',label:'COLLEGE'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},{k:'NLA',label:'NLA'},{k:'EXTRALIGA',label:'EXTRALIGA'},{k:'KHL',label:'KHL'}]},
     FOOTBALL:   {codes:['NFL','CFB','FB'],                               color:'var(--hc)', leagues:[{k:'NFL',label:'NFL'},{k:'CFB',label:'CFB'}]},
     SOCCER:     {codes:['PL','LIGA','BL','BUND','CL','SERIEA','MLS'], color:'var(--nc)', leagues:[{k:'BUND',label:'BUNDESLIGA'},{k:'CL',label:'CHAMPIONS LG'},{k:'LIGA',label:'LA LIGA'},{k:'MLS',label:'MLS'},{k:'PL',label:'PREMIER'},{k:'SERIEA',label:'SERIE A'}]},
   };
@@ -23842,6 +24356,8 @@ const _BYLEAGUE_DEFS=[
   {k:'KHL',label:'KHL',sport:'HOCKEY',color:'var(--ic)'},
   {k:'SHL',label:'SHL',sport:'HOCKEY',color:'var(--ic)'},
   {k:'LIIGA',label:'LIIGA',sport:'HOCKEY',color:'var(--ic)'},
+  {k:'NLA',label:'NLA',sport:'HOCKEY',color:'var(--ic)'},
+  {k:'EXTRALIGA',label:'EXTRALIGA',sport:'HOCKEY',color:'var(--ic)'},
   {k:'NFL',label:'NFL',sport:'FOOTBALL',color:'var(--hc)'},
   {k:'CFB',label:'CFB',sport:'FOOTBALL',color:'var(--hc)'},
   {k:'BUND',label:'Bundesliga',sport:'SOCCER',color:'var(--nc)'},
@@ -23935,12 +24451,12 @@ function renderAnalyticsBetHistory(filter){
   // Sport group → league map
   const SPORT_GROUPS={
     BASKETBALL: {codes:['NBA'],                     color:'var(--pc)', leagues:[{k:'NBA',label:'NBA'}]},
-    HOCKEY:     {codes:['NHL','KHL','SHL','LIIGA','NCAAH'], color:'var(--ic)', leagues:[{k:'NHL',label:'NHL'},{k:'KHL',label:'KHL'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},{k:'NCAAH',label:'COLLEGE'}]},
+    HOCKEY:     {codes:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH'], color:'var(--ic)', leagues:[{k:'NHL',label:'NHL'},{k:'KHL',label:'KHL'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},{k:'NLA',label:'NLA'},{k:'EXTRALIGA',label:'EXTRALIGA'},{k:'NCAAH',label:'COLLEGE'}]},
     FOOTBALL:   {codes:['NFL','CFB','FB'],                 color:'var(--hc)', leagues:[{k:'NFL',label:'NFL'},{k:'CFB',label:'COLLEGE'}]},
     SOCCER:     {codes:['MLS','PL','LIGA','BUND','BL','CL','CH','SERIEA'], color:'var(--nc)', leagues:[{k:'MLS',label:'MLS'},{k:'PL',label:'Premier League'},{k:'LIGA',label:'La Liga'},{k:'BUND',label:'Bundesliga'},{k:'CL',label:'Champions League'},{k:'SERIEA',label:'Serie A'}]},
   };
   const OUTCOME_FILTERS=['ALL','WIN','LOSS','PROP'];
-  const LEAGUE_CODES=['NBA','NHL','KHL','SHL','LIIGA','NCAAH','NFL','CFB','FB','MLS','PL','LIGA','BUND','CL','SERIEA'];
+  const LEAGUE_CODES=['NBA','NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH','NFL','CFB','FB','MLS','PL','LIGA','BUND','CL','SERIEA'];
 
   // Resolve filter type
   let filterType='outcome'; // outcome | sport | league
@@ -25042,7 +25558,7 @@ function renderAnalyticsVisuals(viewFilter){
     const sData=grps.map(m=>{const sb=settled.filter(p=>m.c.some(c=>window._normSport(p)===c));const w=sb.filter(p=>p.outcome==='win').length;const u=sb.reduce((a,p)=>a+pnl(p),0);return{s:m.s,n:sb.length,pct:sb.length?w/sb.length:null,u};}).filter(d=>d.n>0);
     const bW2=300,bH2=sData.length*22+8;
     out+=vcrd('WIN RATE BY SPORT','var(--hc)',`<svg width="${bW2}" height="${bH2}">${sData.map((d,i)=>{const bw=Math.round((d.pct||0)*(bW2-100));const col=d.pct!==null?pC(d.pct):'rgba(255,255,255,.2)';return`<g transform="translate(0,${i*22})"><text x="34" y="15" font-family="Share Tech Mono" font-size="11" fill="rgba(200,180,255,.7)" text-anchor="end">${d.s}</text><rect x="38" y="4" width="${bw}" height="14" fill="${col}" opacity=".8" rx="2"/><text x="${38+bw+5}" y="15" font-family="Share Tech Mono" font-size="11" fill="${col}">${d.pct!==null?(d.pct*100).toFixed(0)+'%':'--'} (${d.n}b ${d.u>=0?'+':''}${d.u.toFixed(1)}u)</text></g>`;}).join('')}</svg>`);
-    const lgGrps=[{l:'BASEBALL',ls:['MLB'],col:'var(--vc)'},{l:'BASKETBALL',ls:['NBA','WNBA'],col:'var(--pc)'},{l:'HOCKEY',ls:['NHL','KHL','SHL','LIIGA'],col:'var(--ic)'},{l:'TENNIS',ls:['TEN'],col:'var(--mc)'},{l:'FOOTBALL',ls:['NFL','CFB','FB'],col:'var(--hc)'}];
+    const lgGrps=[{l:'BASEBALL',ls:['MLB'],col:'var(--vc)'},{l:'BASKETBALL',ls:['NBA','WNBA'],col:'var(--pc)'},{l:'HOCKEY',ls:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA'],col:'var(--ic)'},{l:'TENNIS',ls:['TEN'],col:'var(--mc)'},{l:'FOOTBALL',ls:['NFL','CFB','FB'],col:'var(--hc)'}];
     out+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--vc);margin:8px 0 5px">BY SPORT & LEAGUE</div>`;
     for(const g of lgGrps){const gb=settled.filter(p=>g.ls.some(l=>window._normSport(p)===l));if(!gb.length)continue;const gW=gb.filter(p=>p.outcome==='win').length;const gU=gb.reduce((a,p)=>a+pnl(p),0);const gA=gb.length?gW/gb.length:null;const lRows=g.ls.map(l=>{const lb=settled.filter(p=>window._normSport(p)===l);if(!lb.length)return'';const lw=lb.filter(p=>p.outcome==='win').length;const lu=lb.reduce((a,p)=>a+pnl(p),0);const la=lb.length?lw/lb.length:null;return`<div style="display:flex;justify-content:space-between;padding:3px 8px 3px 20px;border-top:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:15px"><span style="color:var(--t3)">${l}</span><span>${lw}W-${lb.length-lw}L</span><span style="color:${la!==null?pC(la):'var(--t3)'};font-weight:700">${la!==null?(la*100).toFixed(0)+'%':'--'}</span><span style="color:${lu>=0?'var(--nc)':'var(--hc)'}">${lu>=0?'+':''}${lu.toFixed(1)}u</span></div>`;}).filter(Boolean).join('');out+=`<div style="margin-bottom:5px;border:1px solid rgba(255,255,255,.07);border-radius:3px;overflow:hidden"><div style="display:flex;justify-content:space-between;padding:6px 10px;background:rgba(10,0,24,.7)"><span style="font-family:var(--mono);font-size:15px;color:${g.col}">${g.l}</span><div style="display:flex;gap:8px;font-family:var(--mono);font-size:15px"><span>${gW}W-${gb.length-gW}L</span><span style="color:${gA!==null?pC(gA):'var(--t3)'};font-weight:700">${gA!==null?(gA*100).toFixed(1)+'%':'--'}</span><span style="color:${gU>=0?'var(--nc)':'var(--hc)'}">${gU>=0?'+':''}${gU.toFixed(1)}u</span></div></div>${lRows}</div>`;}
   }
@@ -25359,6 +25875,8 @@ var CV_META = {
     KHL:       { label:'KHL',          sport:'hockey',     color:'#3399ff'   },
     SHL:       { label:'SHL',          sport:'hockey',     color:'var(--nc)' },
     LIIGA:     { label:'LIIGA',        sport:'hockey',     color:'var(--rc)' },
+    NLA:       { label:'NLA',          sport:'hockey',     color:'var(--rc)' },
+    EXTRALIGA: { label:'EXTRALIGA',    sport:'hockey',     color:'var(--rc)' },
     WORLD_CUP: { label:'WORLD CUP',    sport:'soccer',     color:'var(--gc)' },
     MLS:       { label:'MLS',          sport:'soccer',     color:'var(--nc)' },
     PL:        { label:'PREMIER LEAGUE', sport:'soccer',   color:'var(--nc)' },
@@ -25370,7 +25888,7 @@ var CV_META = {
   /* sport code → league (for picks stored with sport only) */
   sportToLeague: {
     NBA:'NBA',NFL:'NFL',CFB:'CFB',
-    NHL:'NHL',KHL:'KHL',SHL:'SHL',LIIGA:'LIIGA',CH:'CH',
+    NHL:'NHL',KHL:'KHL',SHL:'SHL',LIIGA:'LIIGA',NLA:'NLA',EXTRALIGA:'EXTRALIGA',CH:'CH',
     SOC:'WORLD_CUP',WORLDCUP:'WORLD_CUP',
     MLS:'MLS',PL:'PL',LIGA:'LIGA',BUND:'BUND',CL:'CL',SERIEA:'SERIEA'
   }
@@ -25461,7 +25979,7 @@ var SIM_ESPN_TEAM_PATHS={
 var SIM_SPORT_LEAGUES={
   basketball:[{v:'nba',l:'NBA'}],
   football:[{v:'cfb',l:'CFB'},{v:'nfl',l:'NFL'}],
-  hockey:[{v:'nhl',l:'NHL'},{v:'shl',l:'SHL'},{v:'liiga',l:'LIIGA'}],
+  hockey:[{v:'nhl',l:'NHL'},{v:'shl',l:'SHL'},{v:'liiga',l:'LIIGA'},{v:'nla',l:'NLA'},{v:'extraliga',l:'EXTRALIGA'}],
   soccer:[{v:'bl',l:'BUNDESLIGA'},{v:'liga',l:'LA LIGA'},{v:'mls',l:'MLS'},{v:'pl',l:'PREMIER LEAGUE'},{v:'seriea',l:'SERIE A'},{v:'cl',l:'CHAMPIONS LEAGUE'}]
 };
 var _simTeamCache={};
@@ -25536,9 +26054,10 @@ function simUpdateTeams() {
   // of 14 real SHL teams from the simulator's own dropdown (the real Hockey
   // tab itself was never affected -- it already reads the full live roster
   // directly, this was purely a Simulator-side gap).
-  if(sport==='liiga'||sport==='shl'){
+  if(sport==='liiga'||sport==='shl'||sport==='nla'||sport==='extraliga'){
     hSel.innerHTML='<option>Loading…</option>';aSel.innerHTML='<option>Loading…</option>';
-    (sport==='liiga'?loadLiigaScheduleData():loadShlScheduleData()).then(function(data){
+    var _hkLoadFn={liiga:loadLiigaScheduleData,shl:loadShlScheduleData,nla:loadNlaScheduleData,extraliga:loadExtraligaScheduleData}[sport];
+    _hkLoadFn().then(function(data){
       if(_simEffectiveSport()!==sport)return;
       var teams=Object.values((data&&data.teams)||{}).map(function(t){return t.name;}).filter(Boolean);
       if(!teams.length)teams=SIM_FB[sport]||SIM_FB.nba;
@@ -25667,13 +26186,14 @@ function _simRun(sport,home,away,N,flags){
     // team-list fetch above already populates (loadLiigaScheduleData/
     // loadShlScheduleData resolve instantly once cached, same pattern
     // nhlEns's own by-abbreviation lookup already relies on).
-    if((sport==='liiga'||sport==='shl')&&typeof liigaEns==='function'&&typeof shlEns==='function'){
-      var _hkD=sport==='liiga'?_LIIGA_DATA:_SHL_DATA;
+    var _hkEnsFn={liiga:typeof liigaEns==='function'?liigaEns:null,shl:typeof shlEns==='function'?shlEns:null,nla:typeof nlaEns==='function'?nlaEns:null,extraliga:typeof extraligaEns==='function'?extraligaEns:null}[sport];
+    if(_hkEnsFn){
+      var _hkD={liiga:_LIIGA_DATA,shl:_SHL_DATA,nla:_NLA_DATA,extraliga:_EXTRALIGA_DATA}[sport];
       if(_hkD&&_hkD.teams){
         var _hkFindId=function(name){var id=null;Object.keys(_hkD.teams).forEach(function(k){if(_hkD.teams[k].name===name)id=k;});return id;};
         var _hHkId=_hkFindId(home),_aHkId=_hkFindId(away);
         if(_hHkId&&_aHkId){
-          var _hkE=(sport==='liiga'?liigaEns:shlEns)(_hHkId,_aHkId);
+          var _hkE=_hkEnsFn(_hHkId,_aHkId);
           if(_hkE&&_hkE.p)baseHP=_hkE.p;
         }
       }
@@ -25703,7 +26223,8 @@ function _simRun(sport,home,away,N,flags){
     // no per-matchup context to derive that from, same "close enough for
     // a what-if sandbox, not a substitute for the real per-league engine"
     // honesty the soccer/CFB entries above already accept.
-    liiga:{muH:2.8,muA:2.6,sdH:1.15,sdA:1.1,ou:5.5},shl:{muH:2.8,muA:2.6,sdH:1.15,sdA:1.1,ou:5.5}};
+    liiga:{muH:2.8,muA:2.6,sdH:1.15,sdA:1.1,ou:5.5},shl:{muH:2.8,muA:2.6,sdH:1.15,sdA:1.1,ou:5.5},
+    nla:{muH:2.8,muA:2.6,sdH:1.15,sdA:1.1,ou:5.5},extraliga:{muH:2.8,muA:2.6,sdH:1.15,sdA:1.1,ou:5.5}};
   var sp=SP[sport]||SP.mlb;
   var hWins=0,aWins=0,hSc=[],aSc=[],tots=[],marg=[];
   for(var i=0;i<N;i++){
@@ -25712,7 +26233,7 @@ function _simRun(sport,home,away,N,flags){
     var z2=Math.sqrt(-2*Math.log(u1))*Math.sin(2*Math.PI*u2);
     var hAdj=adjHP>.5?(adjHP-.5)*sp.muH*.3:0,aAdj=adjHP<.5?(.5-adjHP)*sp.muA*.3:0;
     var hs=Math.max(0,sp.muH+hAdj+z1*sp.sdH),as2=Math.max(0,sp.muA+aAdj+z2*sp.sdA);
-    var _intScoreSports=['mlb','nhl','nfl','cfb','cbb','mls','cl','pl','liga','bl','wc','liiga','shl'];
+    var _intScoreSports=['mlb','nhl','nfl','cfb','cbb','mls','cl','pl','liga','bl','wc','liiga','shl','nla','extraliga'];
     if(_intScoreSports.indexOf(sport)>=0){hs=Math.round(hs);as2=Math.round(as2);}
     else{hs=Math.round(hs*10)/10;as2=Math.round(as2*10)/10;}
     hSc.push(hs);aSc.push(as2);tots.push(hs+as2);marg.push(hs-as2);
@@ -26907,6 +27428,20 @@ function saveParlayToTracker(legs,sport){
       <button onclick="SS('hk');setSub('hk','liiga');hideAllND()">Games</button>
       <button onclick="SS('hk');setSub('hk','liiga');T('liiga','model');hideAllND()">Model</button>
       <button onclick="SS('hk');setSub('hk','liiga');T('liiga','config');hideAllND()">Config</button>
+    </div>
+  </div>
+  <div class="ndl"><button onclick="SS('hk');setSub('hk','nla');hideAllND()">NLA</button>
+    <div class="ndl-sub">
+      <button onclick="SS('hk');setSub('hk','nla');hideAllND()">Games</button>
+      <button onclick="SS('hk');setSub('hk','nla');T('nla','model');hideAllND()">Model</button>
+      <button onclick="SS('hk');setSub('hk','nla');T('nla','config');hideAllND()">Config</button>
+    </div>
+  </div>
+  <div class="ndl"><button onclick="SS('hk');setSub('hk','extraliga');hideAllND()">EXTRALIGA</button>
+    <div class="ndl-sub">
+      <button onclick="SS('hk');setSub('hk','extraliga');hideAllND()">Games</button>
+      <button onclick="SS('hk');setSub('hk','extraliga');T('extraliga','model');hideAllND()">Model</button>
+      <button onclick="SS('hk');setSub('hk','extraliga');T('extraliga','config');hideAllND()">Config</button>
     </div>
   </div>
 </div>
