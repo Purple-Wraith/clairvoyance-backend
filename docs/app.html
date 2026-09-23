@@ -200,8 +200,13 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
      column) was overflowing the header's compact mobile height and
      wrapping across multiple lines; the JS-side date-stripping shortens
      the string, this keeps each line from wrapping mid-string on top
-     of that. */
-  html #hdr-automation-status{font-size:9px!important;gap:2px!important}
+     of that. Shrunk again 2026-09-23, explicit request -- even at 9px
+     this block's real width (confirmed live: ~109px, "✓ SETTLE: 06:46
+     AM MT" at 21 chars) was landing flush against the header's other
+     elements with zero margin, one long timestamp away from actually
+     overlapping. 7px + tighter letter-spacing gives it real breathing
+     room instead of exactly filling its column. */
+  html #hdr-automation-status{font-size:7px!important;gap:2px!important;letter-spacing:0!important}
   html #hdr-automation-status div{white-space:nowrap}
   /* Adaptive tab's "Performance Snapshot" row (renderAdaptiveLearning) --
      4 cards each with a 27px hero number, fine at desktop widths but on
