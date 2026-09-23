@@ -13479,8 +13479,8 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   const _now=Date.now();
   const _pickDate=p=>p.date||(p.lockedAt?new Date(p.lockedAt).toLocaleDateString('sv-SE',{timeZone:'America/Denver'}):'');
   const _pickTs=p=>p.lockedAt||new Date((_pickDate(p)||'2000-01-01')+'T12:00:00').getTime();
-  const pctCol=pct=>pct===null?'var(--t3)':pct>=.62?'var(--nc)':pct>=.50?'var(--vc)':'var(--hc)';
-  const uCol2=u=>u>=0?'var(--nc)':'var(--hc)';
+  const pctCol=pct=>pct===null?'var(--t3)':'#00e644';
+  const uCol2=u=>u>=0?'#00e644':'#ff1a1a';
   const perf=bets=>{const s=bets.filter(p=>p.outcome!=='pending');const w=s.filter(p=>p.outcome==='win').length;const l=s.filter(p=>p.outcome==='loss').length;const u=s.reduce((a,p)=>a+(p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1),0);return{w,l,n:s.length,pct:s.length?w/s.length:null,u};};
 
   // ── Parlay leg W/L parser ──────────────────────────────────────────────────
@@ -13570,7 +13570,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
           <span style="font-family:var(--mono);font-size:14px;color:rgba(220,190,255,.35)">${bets.length} bet${bets.length!==1?'s':''}${pending?' · '+pending+' pending':''}</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
-          <span style="font-family:var(--mono);font-size:15px;color:var(--nc)">${pr.w}W</span>
+          <span style="font-family:var(--mono);font-size:15px;color:#00e644">${pr.w}W</span>
           <span style="font-family:var(--mono);font-size:15px;color:var(--hc)">${pr.l}L</span>
           <span style="font-family:var(--mono);font-size:15px;font-weight:700;color:${pctCol(pr.pct)}">${pr.pct!==null?(pr.pct*100).toFixed(0)+'%':'--'}</span>
           <span style="font-family:var(--mono);font-size:14px;color:${uCol2(pr.u)}">${pr.u>=0?'+':''}${pr.u.toFixed(1)}u</span>
@@ -13597,7 +13597,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
           <span style="font-family:var(--mono);font-size:14px;color:rgba(220,190,255,.35)">${bets.length} bet${bets.length!==1?'s':''} · ${Object.keys(days).length} day${Object.keys(days).length!==1?'s':''}</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
-          <span style="font-family:var(--mono);font-size:15px;color:var(--nc)">${pr.w}W</span>
+          <span style="font-family:var(--mono);font-size:15px;color:#00e644">${pr.w}W</span>
           <span style="font-family:var(--mono);font-size:15px;color:var(--hc)">${pr.l}L</span>
           <span style="font-family:var(--mono);font-size:15px;font-weight:700;color:${pctCol(pr.pct)}">${pr.pct!==null?(pr.pct*100).toFixed(0)+'%':'--'}</span>
           <span style="font-family:var(--mono);font-size:14px;color:${uCol2(pr.u)}">${pr.u>=0?'+':''}${pr.u.toFixed(1)}u</span>
@@ -13622,7 +13622,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
           <span style="font-family:var(--mono);font-size:14px;color:rgba(220,190,255,.35)">${bets.length} bet${bets.length!==1?'s':''} · ${Object.keys(months).length} month${Object.keys(months).length!==1?'s':''}</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
-          <span style="font-family:var(--mono);font-size:15px;color:var(--nc)">${pr.w}W</span>
+          <span style="font-family:var(--mono);font-size:15px;color:#00e644">${pr.w}W</span>
           <span style="font-family:var(--mono);font-size:15px;color:var(--hc)">${pr.l}L</span>
           <span style="font-family:var(--mono);font-size:15px;font-weight:700;color:${pctCol(pr.pct)}">${pr.pct!==null?(pr.pct*100).toFixed(0)+'%':'--'}</span>
           <span style="font-family:var(--mono);font-size:14px;color:${uCol2(pr.u)}">${pr.u>=0?'+':''}${pr.u.toFixed(1)}u</span>
@@ -13678,7 +13678,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   const archHtml=Object.entries(_filteredYears).sort((a,b)=>b[0].localeCompare(a[0])).map(([yk,{bets,months}])=>yearFolder(yk,bets,months)).join('');
 
   const totPr=perf(all);
-  const summaryBar=totPr.n?`<div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:8px">${all.length} total · <span style="color:var(--nc)">${totPr.w}W</span> <span style="color:var(--hc)">${totPr.l}L</span> · <span style="color:${pctCol(totPr.pct)};font-weight:700">${totPr.pct!==null?(totPr.pct*100).toFixed(1)+'%':''}</span> · <span style="color:${uCol2(totPr.u)}">${totPr.u>=0?'+':''}${totPr.u.toFixed(1)}u</span></div>`:'';
+  const summaryBar=totPr.n?`<div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:8px">${all.length} total · <span style="color:#00e644">${totPr.w}W</span> <span style="color:var(--hc)">${totPr.l}L</span> · <span style="color:${pctCol(totPr.pct)};font-weight:700">${totPr.pct!==null?(totPr.pct*100).toFixed(1)+'%':''}</span> · <span style="color:${uCol2(totPr.u)}">${totPr.u>=0?'+':''}${totPr.u.toFixed(1)}u</span></div>`:'';
   el.innerHTML=filterHtml+summaryBar
     +(recentBets.length?`<div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px;margin-bottom:5px">// RECENT — ${recentBets.length} BETS</div>`+recentHtml:'')
     +(_allYears.length?`<div style="font-family:var(--mono);font-size:14px;color:var(--nc);letter-spacing:2px;margin:10px 0 6px">// HISTORY ARCHIVE — ${archivedBets.length} BETS</div>`+yearFilterHtml+archHtml:'')
@@ -15477,7 +15477,7 @@ function renderHomePage(){
 
     recEl.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
-      <span style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--nc)">// ENGINE PERFORMANCE</span>
+      <span style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc)">// ENGINE PERFORMANCE</span>
       <span style="font-family:var(--mono);font-size:15px;color:var(--nc)">${keptBets.length} LOCKED · ${keptSettled.length} SETTLED</span>
     </div>
     <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--t3);margin-bottom:10px">LIVE TRACK RECORD — UPDATES CONTINUOUSLY</div>
@@ -15502,7 +15502,7 @@ function renderHomePage(){
   if(pendEl){
     const allPending=pending.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||((a.lockedAt||0)-(b.lockedAt||0)));
     if(!allPending.length){
-      pendEl.innerHTML=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--t3);margin-bottom:8px">// PENDING PICKS</div>
+      pendEl.innerHTML=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// PENDING PICKS</div>
       <div class="empty" style="font-size:17px">NO PENDING PICKS</div>`;
     } else {
       const sc=s=>sportColor[s]||sportColor.default;
@@ -15522,14 +15522,14 @@ function renderHomePage(){
             <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:1px">${p.ml||''} · ${p.betType}${conf?' · '+conf:''}</div>
           </div>
           <div style="display:flex;gap:5px;flex-shrink:0">
-            <button class="btn btn-n btn-sm" onclick="recR('${p.id}','win');renderHomePage()" style="font-size:15px">✓ WIN</button>
+            <button class="btn btn-win btn-sm" onclick="recR('${p.id}','win');renderHomePage()" style="font-size:15px">✓ WIN</button>
             <button class="btn btn-o btn-sm" onclick="recR('${p.id}','loss');renderHomePage()" style="font-size:15px;color:var(--hc);border-color:var(--hc)">✗ LOSS</button>
             <button class="btn btn-sm" onclick="removePick('${p.id}');renderHomePage()" style="font-size:15px;color:var(--t3);border-color:var(--t3)">✕ REMOVE</button>
           </div>
         </div>`;
       }).join('');
       pendEl.innerHTML=`
-      <div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--nc);margin-bottom:8px">// PENDING PICKS — ${allPending.length} PENDING</div>
+      <div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// PENDING PICKS — ${allPending.length} PENDING</div>
       <div style="border:1px solid rgba(0,240,255,.2);border-radius:3px;overflow:hidden;background:rgba(4,0,12,.6)">
         ${rows}
       </div>`;
