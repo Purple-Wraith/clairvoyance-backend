@@ -99,7 +99,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 #sbar{flex:0 0 38px;background:rgba(6,0,15,.95);border-bottom:1px solid rgba(77,121,255,.2);display:flex;justify-content:space-evenly;overflow-x:auto;overflow-y:hidden;padding:0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 #sbar::-webkit-scrollbar{display:none}
 .sp{font-family:var(--orb);font-size:17px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t2);padding:5px 14px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;flex:0 1 auto}
-.sp.act{color:var(--ic);border-bottom-color:var(--ic);text-shadow:0 0 8px rgba(77,121,255,.7)}
+.sp.act{color:var(--pc);border-bottom-color:var(--pc);text-shadow:0 0 8px rgba(240,0,255,.7)}
 .spane{display:none;flex:1;flex-direction:column;overflow:hidden}.spane.act{display:flex}
 /* SUB/INNER NAV */
 .snav{flex:0 0 31px;background:rgba(2,0,8,.95);border-bottom:1px solid rgba(77,121,255,.15);display:flex;overflow-x:auto;overflow-y:hidden;padding:0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -554,9 +554,9 @@ body{line-height:1.5}
 .home-sbar{display:inline-block;width:3px;border-radius:1px 1px 0 0;animation:cvBarPulse var(--d,1s) ease-in-out infinite alternate}
 /* ── FIXED NAV DROPDOWNS ─── */
 .nav-drop-fixed{display:none;position:fixed;z-index:9000;background:rgba(3,0,12,.97);border:1px solid rgba(0,240,255,.22);border-top:none;border-radius:0 0 4px 4px;min-width:155px;box-shadow:0 8px 32px rgba(0,0,0,.75)}
-.nav-drop-fixed button{display:block;width:100%;padding:8px 14px;background:none;border:none;border-bottom:1px solid rgba(255,255,255,.05);color:rgba(190,165,255,.85);font-family:var(--mono);font-size:16px;letter-spacing:1.5px;text-align:left;cursor:pointer;white-space:nowrap;transition:background .12s,color .12s}
+.nav-drop-fixed button{display:block;width:100%;padding:8px 14px;background:none;border:none;border-bottom:1px solid rgba(255,255,255,.05);color:var(--nc);font-family:var(--mono);font-size:16px;letter-spacing:1.5px;text-align:left;cursor:pointer;white-space:nowrap;transition:background .12s,color .12s}
 .nav-drop-fixed button:last-child{border-bottom:none}
-.nav-drop-fixed button:hover{background:rgba(0,240,255,.07);color:var(--nc)}
+.nav-drop-fixed button:hover{background:rgba(0,240,255,.07);color:var(--nc);text-shadow:0 0 8px rgba(0,240,255,.8)}
 .nav-drop-fixed .ndl{position:relative}
 .nav-drop-fixed .ndl>button::after{content:' ▶';font-size:13px;opacity:.5}
 .nav-drop-fixed .ndl-sub{display:none;position:absolute;left:100%;top:-1px;background:rgba(3,0,12,.97);border:1px solid rgba(0,240,255,.2);border-radius:0 4px 4px 4px;min-width:130px;z-index:9001;box-shadow:4px 8px 24px rgba(0,0,0,.7)}
