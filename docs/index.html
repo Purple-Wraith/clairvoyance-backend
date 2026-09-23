@@ -1531,9 +1531,9 @@ body{line-height:1.5}
       <div class="sh"><span class="p"></span> CLAIRVOYANCE — OVERALL PERFORMANCE</div>
       <div style="background:rgba(10,0,24,.8);border:1px solid rgba(102,144,255,.3);border-radius:2px;padding:9px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2);line-height:1.8">ALL SPORTS · ALL BET TYPES · LOCKED PICKS ONLY<br>TYPES: ML · SPREAD · O/U · PROP</div>
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-        <button class="btn btn-n btn-sm" style="background:var(--pc);color:var(--nc)" onclick="showSyncKeyModal()">SYNC KEY</button>
-        <button class="btn btn-o btn-sm" style="background:var(--pc);color:var(--nc)" onclick="exportBetsClipboard()">EXPORT</button>
-        <button class="btn btn-o btn-sm" style="background:var(--pc);color:var(--nc)" onclick="showImportModal()">IMPORT</button>
+        <button class="btn btn-n btn-sm" style="background:var(--pc);color:#fff" onclick="showSyncKeyModal()">SYNC KEY</button>
+        <button class="btn btn-o btn-sm" style="background:var(--pc);color:#fff" onclick="exportBetsClipboard()">EXPORT</button>
+        <button class="btn btn-o btn-sm" style="background:var(--pc);color:#fff" onclick="showImportModal()">IMPORT</button>
       </div>
       <div id="ovr-dashboard"><div class="loading"><span class="spi"></span></div></div>
     </div>
@@ -1541,9 +1541,9 @@ body{line-height:1.5}
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
         <div class="sh" style="margin:0"><span class="p"></span> ALL BETS — ALL LEAGUES</div>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
-          <button class="btn btn-p btn-sm" style="background:var(--pc);color:var(--nc)" onclick="renderOverallHistory()">↻</button>
-          <button class="btn btn-o btn-sm" style="background:var(--pc);color:var(--nc)" onclick="exportBetsClipboard()">EXPORT</button>
-          <button class="btn btn-n btn-sm" style="background:var(--pc);color:var(--nc)" onclick="showImportModal()">IMPORT</button>
+          <button class="btn btn-p btn-sm" style="background:var(--pc);color:#fff" onclick="renderOverallHistory()">↻</button>
+          <button class="btn btn-o btn-sm" style="background:var(--pc);color:#fff" onclick="exportBetsClipboard()">EXPORT</button>
+          <button class="btn btn-n btn-sm" style="background:var(--pc);color:#fff" onclick="showImportModal()">IMPORT</button>
           <button class="btn btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="clearAllPending()">CLEAR PENDING</button>
         </div>
       </div>
@@ -12739,7 +12739,7 @@ function renderOverall(){
         <div style="font-family:var(--orb);font-size:19px;font-weight:700;color:${calSummaryCol}">${calStatusSummary}</div>
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">OVERALL STATUS</div>
         ${avgCalDev!==null?`<div style="font-family:var(--mono);font-size:14px;color:${calSummaryCol};margin-top:2px">AVG DEV ${(avgCalDev*100).toFixed(1)}%</div>`:''}
-        <button id="calib-btn" class="btn btn-p btn-sm" style="margin-top:8px;background:var(--pc);color:var(--nc)" onclick="triggerInstantCalibration()">CALIBRATE NOW</button>
+        <button id="calib-btn" class="btn btn-p btn-sm" style="margin-top:8px;background:var(--pc);color:#fff" onclick="triggerInstantCalibration()">CALIBRATE NOW</button>
       </div>
     </div>
     ${calSummaryStrip}
@@ -13369,7 +13369,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
       <div style="padding:9px 12px;background:rgba(0,240,255,.08);border-bottom:1px solid rgba(0,240,255,.2);display:flex;justify-content:space-between;align-items:center">
         <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:var(--pc);letter-spacing:2px">PENDING BETS — ${pendingAll.length}</span>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <button id="auto-settle-btn" class="btn btn-p btn-sm" onclick="autoSettleAll(this)" style="font-size:15px;padding:3px 10px;background:var(--pc);color:var(--nc)">AUTO SETTLE ALL</button>
+          <button id="auto-settle-btn" class="btn btn-p btn-sm" onclick="autoSettleAll(this)" style="font-size:15px;padding:3px 10px;background:var(--pc);color:#fff">AUTO SETTLE ALL</button>
           <button class="btn btn-sm" style="font-size:15px;padding:3px 10px;color:#ff2090;border-color:#ff2090;background:rgba(255,32,144,.08)" onclick="(function(){const d=document.getElementById('wipe-date-inp');if(d&&d.value)removePicksByDate(d.value);else toast('// ENTER A DATE FIRST');})()" title="Remove all bets for the entered date">WIPE DATE</button>
           <input id="wipe-date-inp" type="date" value="2026-06-10" style="font-family:var(--mono);font-size:15px;padding:3px 8px;background:rgba(0,0,0,.5);border:1px solid rgba(255,32,144,.3);color:rgba(220,190,255,.8);border-radius:2px;width:130px">
         </div>
