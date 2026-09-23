@@ -472,6 +472,7 @@ textarea.fi{resize:none;line-height:1.5}
 /* BUTTONS */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;font-family:var(--mono);letter-spacing:1.5px;text-transform:uppercase;border:none;cursor:pointer;border-radius:2px;-webkit-appearance:none;transition:all .15s;clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px));touch-action:manipulation;-webkit-tap-highlight-color:transparent}.btn:active{filter:brightness(1.25);transform:scale(.97)}
 .btn-n{background:linear-gradient(135deg,var(--nc),var(--ic));color:#000;padding:9px 16px;font-size:18px;font-weight:700}
+.btn-win{background:linear-gradient(135deg,#00e644,#00a832);color:#000;padding:9px 16px;font-size:18px;font-weight:700}
 .btn-p{background:linear-gradient(135deg,var(--pc),var(--ic));color:#fff;padding:9px 16px;font-size:18px;font-weight:700}
 .btn-h{background:var(--hc);color:#fff;padding:9px 14px;font-size:18px}.btn-g{background:linear-gradient(135deg,var(--gc),var(--g2));color:#000;padding:9px 14px;font-size:18px;font-weight:900}.btn-i{background:var(--ic);color:#000;padding:9px 14px;font-size:18px}.btn-o{background:transparent;border:1px solid var(--w2);color:var(--t2);padding:5px 10px;font-size:17px}.btn-o:active{border-color:var(--pc);color:var(--pc)}.btn-sm{padding:4px 9px;font-size:16px}.btn-fw{width:100%;display:flex}
 /* MISC */
@@ -12064,16 +12065,18 @@ function renderOverall(){
     return{lbl:tm.lbl,...calcPerf(tp)};
   });
 
-  // By league — order: NFL, CFB, NHL, College Hockey, SHL, LIIGA, NLA, EXTRALIGA, NBA, Champions League, Premier, La Liga, Bundesliga, MLS, Serie A
-  // KHL removed from this list 2026-09-23, explicit request -- it has no
-  // fetch pipeline/product (see the HOCKEY sub-nav's own comment on why
-  // it's not in that menu either) so `always:true` was forcing a
-  // permanently-empty row to render here for no real reason.
+  // By league — order: NFL, CFB, NHL, SHL, LIIGA, NLA, EXTRALIGA, NBA, Champions League, Premier, La Liga, Bundesliga, MLS, Serie A
+  // KHL and College Hockey (NCAAH) removed from this list 2026-09-23,
+  // explicit request -- neither has a real lock/fetch path that ever
+  // produces a settled bet (KHL has no fetch pipeline/product at all;
+  // NCAAH's own game card has no lock button yet -- see
+  // OTHER_ALLOWED_SPORTS' own comment in auto_lock_settle.py), so
+  // `always:true` was forcing a permanently-empty row to render here
+  // for both, for no real reason.
   const leagueMap=[
     {lbl:'NFL',           codes:['NFL','FB'],              always:true},
     {lbl:'CFB',           codes:['CFB'],                   always:true},
     {lbl:'NHL',           codes:['NHL'],                   always:true},
-    {lbl:'College Hockey',codes:['NCAAH','COLLEGE HOCKEY'],always:true},
     {lbl:'SHL',           codes:['SHL'],                   always:true},
     {lbl:'LIIGA',         codes:['LIIGA'],                 always:true},
     {lbl:'NLA',           codes:['NLA'],                   always:true},
@@ -13354,7 +13357,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
           <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:1px">${p.ml||''} · ${p.betType}</div>
         </div>
         <div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;align-items:center">
-          <button class="btn btn-n btn-sm" onclick="recR('${p.id}','win');setTimeout(()=>{renderOverallHistory();try{renderHomeLockedBets();}catch(e){}try{updHdr();}catch(e){}},400)">✓ WIN</button>
+          <button class="btn btn-win btn-sm" onclick="recR('${p.id}','win');setTimeout(()=>{renderOverallHistory();try{renderHomeLockedBets();}catch(e){}try{updHdr();}catch(e){}},400)">✓ WIN</button>
           <button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss');setTimeout(()=>{renderOverallHistory();try{renderHomeLockedBets();}catch(e){}try{updHdr();}catch(e){}},400)">✗ LOSS</button>
           <button class="btn btn-sm" style="color:var(--t3);border-color:var(--t3);font-size:15px;padding:2px 7px" onclick="removePick('${p.id}')">✕ REMOVE</button>
         </div>
@@ -13516,7 +13519,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
 
   // ── Bet card ───────────────────────────────────────────────────────────────
   const betCard=(p)=>{
-    const oColor=p.outcome==='win'?'var(--nc)':p.outcome==='loss'?'var(--hc)':p.outcome==='push'?'var(--vc)':'var(--pc)';
+    const oColor=p.outcome==='win'?'#00e644':p.outcome==='loss'?'var(--hc)':p.outcome==='push'?'var(--vc)':'var(--pc)';
     const st=p.outcome==='pending'?'PENDING':p.outcome==='push'?'PUSH':p.outcome?.toUpperCase()||'PENDING';
     const sc=sportColor[window._normSport(p)]||sportColor.default;
     const mu=_gameTitle(p.hA,p.awA,p.sport);
@@ -13544,7 +13547,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
         <span style="font-family:var(--mono);font-size:14px;padding:2px 7px;border:1px solid ${oColor};color:${oColor};border-radius:2px;white-space:nowrap;flex-shrink:0">${st}</span>
       </div>
       <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
-        ${p.outcome==='pending'?`<button class="btn btn-n btn-sm" onclick="recR('${p.id}','win');renderOverallHistory()">WIN</button>
+        ${p.outcome==='pending'?`<button class="btn btn-win btn-sm" onclick="recR('${p.id}','win');renderOverallHistory()">WIN</button>
         <button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss');renderOverallHistory()">LOSS</button>`:''}
         <button class="btn btn-sm" style="color:rgba(220,190,255,.35);border-color:rgba(220,190,255,.2);font-size:14px;padding:2px 7px" onclick="removePick('${p.id}')" title="Remove this bet from record">× REMOVE</button>
       </div>
