@@ -15325,8 +15325,8 @@ function renderHomePage(){
     const units=bets.reduce((a,p)=>p.outcome==='win'?a+(parseFloat(p.decOdds)||2)-1:p.outcome==='loss'?a-1:a,0);
     return{w,l,n:bets.length,pct:bets.length?w/bets.length:null,units};
   };
-  const pCol=p=>p===null?'var(--t3)':p>=.62?'var(--nc)':p>=.50?'var(--vc)':'var(--hc)';
-  const uCol=u=>u>=0?'var(--nc)':'var(--hc)';
+  const pCol=p=>p===null?'var(--t3)':'#00e644';
+  const uCol=u=>u>=0?'#00e644':'#ff1a1a';
   const sportColor={MLB:'var(--hc)',NHL:'var(--ic)',NBA:'var(--pc)',TEN:'var(--mc)',default:'var(--t3)'};
 
   // ── ENGINE PERFORMANCE ──────────────────────────────────────────────────────
@@ -15432,7 +15432,7 @@ function renderHomePage(){
       // the line the way the row's own align-items:center already centers
       // its flex children.
       const dots=d.last10.map(p=>{const c=p.outcome==='win'?'#00e644':'#ff2090';return`<span title="${(p.date||'').replace(/"/g,"'")}" style="display:inline-block;vertical-align:middle;width:6px;height:6px;border-radius:50%;background:${c};margin-left:2px"></span>`;}).join('');
-      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-family:var(--mono);font-size:14px;color:var(--t)">${d.lbl}</span><div style="display:flex;gap:8px;align-items:center"><span style="white-space:nowrap">${dots}</span><span style="font-family:var(--mono);font-size:14px;color:var(--nc)">${d.w}W-${d.l}L</span><span style="font-family:var(--mono);font-size:14px;font-weight:700;color:${pCol(d.acc)}">${d.acc!==null?(d.acc*100).toFixed(0)+'%':'--'}</span><span style="font-family:var(--mono);font-size:14px;color:${uCol(d.units)}">${d.units>=0?'+':''}${d.units.toFixed(1)}u</span></div></div>`;
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-family:var(--mono);font-size:14px;color:var(--t)">${d.lbl}</span><div style="display:flex;gap:8px;align-items:center"><span style="white-space:nowrap">${dots}</span><span style="font-family:var(--mono);font-size:14px"><span style="color:#00e644">${d.w}W</span>-<span style="color:var(--hc)">${d.l}L</span></span><span style="font-family:var(--mono);font-size:14px;font-weight:700;color:${pCol(d.acc)}">${d.acc!==null?(d.acc*100).toFixed(0)+'%':'--'}</span><span style="font-family:var(--mono);font-size:14px;color:${uCol(d.units)}">${d.units>=0?'+':''}${d.units.toFixed(1)}u</span></div></div>`;
     };
     const lgPerfToggle=`<div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
       <button class="btn btn-sm ${lgPerfPeriod==='today'?'act btn-p':'btn-o'}" style="font-size:14px" onclick="window._homeLgPerfPeriod='today';renderHomePage()">TODAY</button>
@@ -15442,7 +15442,7 @@ function renderHomePage(){
       <button class="btn btn-sm ${lgPerfPeriod==='all'?'act btn-p':'btn-o'}" style="font-size:14px" onclick="window._homeLgPerfPeriod='all';renderHomePage()">ALL TIME</button>
     </div>`;
     const leaguePerfHtml=`<div style="margin-top:14px">
-      <div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--nc);margin-bottom:8px">// PERIOD PERFORMANCE — LEAGUE</div>
+      <div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// PERIOD PERFORMANCE — LEAGUE</div>
       ${lgPerfToggle}
       <div class="card" style="padding:10px">${byLeagueHome.length?byLeagueHome.map(leagueRow).join(''):'<div style="font-family:var(--mono);font-size:15px;color:rgba(150,130,180,.35);padding:5px 0">NO BETS '+(lgPerfPeriod==='all'?'YET':lgPerfPeriod==='today'?'SETTLED TODAY':lgPerfPeriod==='yesterday'?'YESTERDAY':lgPerfPeriod==='lastMonth'?'LAST MONTH':'THIS MONTH')+'</div>'}</div>
     </div>`;
