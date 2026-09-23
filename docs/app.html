@@ -9518,7 +9518,7 @@ async function renderLiigaMatches(){
   }).sort((a,b)=>new Date(a.date)-new Date(b.date));
   const dispDate=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
   const label=iso===today()?`TODAY · ${dispDate}`:dispDate;
-  let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--ic);margin:0 0 8px;border-bottom:1px solid rgba(102,144,255,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
+  let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--nc);margin:0 0 8px;border-bottom:1px solid rgba(102,144,255,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
   html+=dayGames.length?dayGames.map(g=>_liigaMatchCard(g)).join(''):'<div class="empty" style="padding:14px">NO GAMES SCHEDULED</div>';
   el.innerHTML=html;
 }
@@ -9642,7 +9642,7 @@ async function renderNlaMatches(){
   }).sort((a,b)=>new Date(a.date)-new Date(b.date));
   const dispDate=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
   const label=iso===today()?`TODAY · ${dispDate}`:dispDate;
-  let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--ic);margin:0 0 8px;border-bottom:1px solid rgba(255,0,60,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
+  let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--nc);margin:0 0 8px;border-bottom:1px solid rgba(255,0,60,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
   html+=dayGames.length?dayGames.map(g=>_nlaMatchCard(g)).join(''):'<div class="empty" style="padding:14px">NO GAMES SCHEDULED</div>';
   el.innerHTML=html;
 }
@@ -9766,7 +9766,7 @@ async function renderExtraligaMatches(){
   }).sort((a,b)=>new Date(a.date)-new Date(b.date));
   const dispDate=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
   const label=iso===today()?`TODAY · ${dispDate}`:dispDate;
-  let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--ic);margin:0 0 8px;border-bottom:1px solid rgba(200,20,20,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
+  let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--nc);margin:0 0 8px;border-bottom:1px solid rgba(200,20,20,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
   html+=dayGames.length?dayGames.map(g=>_extraligaMatchCard(g)).join(''):'<div class="empty" style="padding:14px">NO GAMES SCHEDULED</div>';
   el.innerHTML=html;
 }
@@ -10041,7 +10041,7 @@ async function renderShlMatches(){
   }).sort((a,b)=>new Date(a.date)-new Date(b.date));
   const dispDate=new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});
   const label=iso===today()?`TODAY · ${dispDate}`:dispDate;
-  let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--ic);margin:0 0 8px;border-bottom:1px solid rgba(102,144,255,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
+  let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--nc);margin:0 0 8px;border-bottom:1px solid rgba(102,144,255,.15);padding-bottom:4px">// ${label} — ${dayGames.length} GAME${dayGames.length===1?'':'S'}</div>`;
   html+=dayGames.length?dayGames.map(g=>_shlMatchCard(g)).join(''):'<div class="empty" style="padding:14px">NO GAMES SCHEDULED</div>';
   el.innerHTML=html;
 }
@@ -12422,15 +12422,28 @@ function renderOverall(){
   const accColor=a=>a===null?'var(--t3)':a>=.56?'var(--nc)':a>=.50?'var(--vc)':'var(--hc)';
   const unitColor=u=>u>=0?'var(--nc)':'var(--hc)';
 
-  const periodCard=(lbl,perf,col)=>{const empty=perf.n===0;return`
-    <div class="card period-card" style="padding:10px;border-top:2px solid ${col}">
+  // Explicit request, 2026-09-23: uniform neon-magenta border/label
+  // (was a different color per period card) instead of the `col` arg
+  // each call site passed; win% flat neon-green (matching the WIN
+  // popup's own #00e644, not the acc-threshold-based accColor() used
+  // elsewhere on this same Adaptive tab) and units green/red by sign
+  // (#00e644/#ff1a1a, same popup pair) instead of the shared unitColor()
+  // -- both kept LOCAL to this function so the rest of the Adaptive
+  // tab's win%/units displays (agreeRow, calibration table, etc.) are
+  // untouched. LOCKED/SETTLED text promoted from --t3 (gray) to --nc
+  // (cyan).
+  const periodCard=(lbl,perf,col)=>{const empty=perf.n===0;
+    const winPct='#00e644';
+    const unitsCol=perf.units>=0?'#00e644':'#ff1a1a';
+    return`
+    <div class="card period-card" style="padding:10px;border-top:2px solid var(--pc)">
       <div class="period-card-hdr" style="display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:7px;flex-wrap:wrap">
-        <div class="period-card-lbl" style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:${col}">${lbl}</div>
-        <div class="period-card-locked" style="font-family:var(--mono);font-size:16px;color:var(--t3);white-space:nowrap">${perf.locked||0} LOCKED · ${perf.settledN||0} SETTLED</div>
+        <div class="period-card-lbl" style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--pc)">${lbl}</div>
+        <div class="period-card-locked" style="font-family:var(--mono);font-size:16px;color:var(--nc);white-space:nowrap">${perf.locked||0} LOCKED · ${perf.settledN||0} SETTLED</div>
       </div>
       <div class="period-card-stats" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
         <div style="text-align:center;min-width:44px">
-          <div class="period-card-val" style="font-family:var(--orb);font-size:24px;font-weight:700;color:${empty?'var(--t3)':accColor(perf.acc)}">${empty?'N/A':perf.acc!==null?(perf.acc*100).toFixed(0)+'%':'--'}</div>
+          <div class="period-card-val" style="font-family:var(--orb);font-size:24px;font-weight:700;color:${empty?'var(--t3)':winPct}">${empty?'N/A':perf.acc!==null?(perf.acc*100).toFixed(0)+'%':'--'}</div>
           <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">WIN%</div>
         </div>
         <div style="text-align:center;min-width:60px">
@@ -12438,7 +12451,7 @@ function renderOverall(){
           <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">RECORD</div>
         </div>
         <div style="text-align:center;min-width:44px">
-          <div class="period-card-val" style="font-family:var(--orb);font-size:24px;font-weight:700;color:${empty?'var(--t3)':unitColor(perf.units)}">${empty?'N/A':(perf.units>=0?'+':'')+perf.units.toFixed(1)}</div>
+          <div class="period-card-val" style="font-family:var(--orb);font-size:24px;font-weight:700;color:${empty?'var(--t3)':unitsCol}">${empty?'N/A':(perf.units>=0?'+':'')+perf.units.toFixed(1)}</div>
           <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">UNITS</div>
         </div>
       </div>
@@ -12541,7 +12554,7 @@ function renderOverall(){
           </div>`;
         }).join('')}</div>
       </div>`:''}
-      ${rfStreak>=3?`<div style="margin-top:8px;font-family:var(--mono);font-size:14px;color:${rfSType==='win'?'var(--nc)':'var(--hc)'};border-top:1px solid rgba(255,255,255,.06);padding-top:6px">▶ CURRENT ${rfStreak}-${rfSType==='win'?'W':'L'} STREAK IN RECENT ${recentForm.length}</div>`:''}
+      ${rfStreak>=3?`<div style="margin-top:8px;font-family:var(--mono);font-size:14px;color:${rfSType==='win'?'#00e644':'#ff1a1a'};border-top:1px solid rgba(255,255,255,.06);padding-top:6px">▶ CURRENT ${rfStreak}-${rfSType==='win'?'W':'L'} STREAK IN RECENT ${recentForm.length}</div>`:''}
     </div>`;
   }
 
@@ -15433,33 +15446,38 @@ function renderHomePage(){
       <div class="card" style="padding:10px">${byLeagueHome.length?byLeagueHome.map(leagueRow).join(''):'<div style="font-family:var(--mono);font-size:15px;color:rgba(150,130,180,.35);padding:5px 0">NO BETS '+(lgPerfPeriod==='all'?'YET':lgPerfPeriod==='today'?'SETTLED TODAY':lgPerfPeriod==='yesterday'?'YESTERDAY':lgPerfPeriod==='lastMonth'?'LAST MONTH':'THIS MONTH')+'</div>'}</div>
     </div>`;
 
+    // Explicit request, 2026-09-23: uniform neon-magenta border/label
+    // (was a different color per period card) instead of the topColor
+    // arg each call site passed; win% bar removed entirely; win% flat
+    // neon-green (#00e644, matching the WIN popup) instead of pCol()'s
+    // threshold-based cyan/lime/red, and units green/red by sign
+    // (#00e644/#ff1a1a, same popup pair) instead of uCol()'s cyan/pink --
+    // both kept LOCAL to this function so pCol/uCol's other user
+    // (leagueRow, the separate PERIOD PERFORMANCE — LEAGUE breakdown
+    // below) is untouched.
     const perfCard=(lbl,perf,topColor,sublabel)=>{
       const hasData=perf.n>0;
       const pct=perf.pct;
-      const pc=pCol(pct);
-      const uc=uCol(perf.units);
-      const barW=hasData?Math.round((pct||0)*100):0;
-      return`<div class="card perf-card" style="padding:11px 12px;border-top:2px solid ${topColor};min-width:0">
-        <div class="perf-card-hdr" style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:${topColor};margin-bottom:8px;white-space:nowrap">${lbl}${sublabel?'<span style="color:var(--t3);margin-left:4px">'+sublabel+'</span>':''}</div>
+      const pc='#00e644';
+      const uc=perf.units>=0?'#00e644':'#ff1a1a';
+      return`<div class="card perf-card" style="padding:11px 12px;border-top:2px solid var(--pc);min-width:0">
+        <div class="perf-card-hdr" style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc);margin-bottom:8px;white-space:nowrap">${lbl}${sublabel?'<span style="color:var(--t3);margin-left:4px">'+sublabel+'</span>':''}</div>
         ${hasData?`
         <div class="perf-card-row" style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
           <span class="perf-card-rec" style="font-family:var(--orb);font-size:24px;font-weight:900;color:var(--t1);white-space:nowrap">${perf.w}W<span style="color:var(--t3);font-size:18px">-</span>${perf.l}L</span>
-        </div>
-        <div style="height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin-bottom:6px">
-          <div style="width:${barW}%;height:100%;background:${pc};border-radius:2px"></div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-family:var(--mono);font-size:17px;font-weight:700;color:${pc}">${pct!==null?(pct*100).toFixed(1)+'%':'--'}</span>
           <span style="font-family:var(--mono);font-size:16px;font-weight:700;color:${uc}">${perf.units>=0?'+':''}${perf.units.toFixed(1)}u</span>
         </div>`
-        :`<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px"><span style="font-family:var(--orb);font-size:24px;font-weight:900;color:var(--t1)">0W<span style="color:var(--t3);font-size:18px">-</span>0L</span></div><div style="height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin-bottom:6px"></div><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--t3)">N/A%</span><span style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--t3)">N/A u</span></div>`}
+        :`<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px"><span style="font-family:var(--orb);font-size:24px;font-weight:900;color:var(--t1)">0W<span style="color:var(--t3);font-size:18px">-</span>0L</span></div><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--t3)">N/A%</span><span style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--t3)">N/A u</span></div>`}
       </div>`;
     };
 
     recEl.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
       <span style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--nc)">// ENGINE PERFORMANCE</span>
-      <span style="font-family:var(--mono);font-size:15px;color:var(--t3)">${keptBets.length} LOCKED · ${keptSettled.length} SETTLED</span>
+      <span style="font-family:var(--mono);font-size:15px;color:var(--nc)">${keptBets.length} LOCKED · ${keptSettled.length} SETTLED</span>
     </div>
     <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--t3);margin-bottom:10px">LIVE TRACK RECORD — UPDATES CONTINUOUSLY</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
