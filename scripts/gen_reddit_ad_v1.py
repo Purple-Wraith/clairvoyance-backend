@@ -105,9 +105,9 @@ def build_card(background_fn):
     cf = mono(19)
     dotted_row(draw, ['NFL', 'CFB', 'NBA', 'NHL'], vy + 8, cf, dot_w=30)
     vy += 28
-    dotted_row(draw, ['Bundesliga', 'Serie A', 'La Liga'], vy + 8, cf, dot_w=30)
+    dotted_row(draw, ['Serie A', 'La Liga', 'MLS'], vy + 8, cf, dot_w=30)
     vy += 28
-    dotted_row(draw, ['MLS', 'Premier League', 'Champions League'], vy + 8, cf, dot_w=30)
+    dotted_row(draw, ['Premier League', 'Champions League'], vy + 8, cf, dot_w=30)
     vy += 56
 
     # ── CTA box ─────────────────────────────────────────────────────

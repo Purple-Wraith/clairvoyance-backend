@@ -91,9 +91,13 @@ LOCKS_EMAIL_TO = os.environ.get("LOCKS_EMAIL_TO", "") or os.environ.get("SOCIAL_
 
 # Human-readable section headers for the email, keyed by the same sport
 # tags SPORT_TO_LOCKPICK_TYPE/_autoLockCapture use.
+# "SOC_BL": "Bundesliga" entry removed 2026-09-23, explicit follow-up
+# request after Bundesliga's retirement -- can never appear in a future
+# locks email anyway (SOC_BL can no longer qualify), removed so it can't
+# resurface anywhere, including a legacy email label lookup.
 SPORT_DISPLAY_NAME = {
     "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB", "LIIGA": "Liiga", "SHL": "SHL",
-    "SOC_BL": "Bundesliga", "SOC_LIGA": "La Liga", "SOC_MLS": "MLS", "SOC_PL": "Premier League",
+    "SOC_LIGA": "La Liga", "SOC_MLS": "MLS", "SOC_PL": "Premier League",
     "SOC_ITA": "Serie A", "SOC_CL": "Champions League",
 }
 
@@ -103,10 +107,14 @@ SPORT_DISPLAY_NAME = {
 # is keyed by _autoLockCapture's sport tag instead. The top-picks digest
 # groups by the stored `league` field (what's actually on a locked bet
 # row), so it needs this mapping, not SPORT_DISPLAY_NAME.
+# "BUND": "Bundesliga" entry removed 2026-09-23, same explicit follow-up
+# request -- zero pending Bundesliga bets existed at retirement time, so
+# this can't affect a real future digest; .get(lg, lg) below falls back
+# to the raw code if it's ever somehow hit.
 LEDGER_LEAGUE_DISPLAY_NAME = {
     "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
     "KHL": "KHL", "SHL": "SHL", "LIIGA": "Liiga", "NCAAH": "College Hockey",
-    "CL": "Champions League", "PL": "Premier League", "LIGA": "La Liga", "BUND": "Bundesliga",
+    "CL": "Champions League", "PL": "Premier League", "LIGA": "La Liga",
     "MLS": "MLS", "SERIEA": "Serie A",
 }
 
@@ -116,7 +124,7 @@ LEDGER_LEAGUE_DISPLAY_NAME = {
 # lockPick() itself expects to resolve the correct sportTag.
 SPORT_TO_LOCKPICK_TYPE = {
     "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB", "LIIGA": "LIIGA", "SHL": "SHL",
-    "SOC_BL": "BUND", "SOC_LIGA": "LIGA", "SOC_MLS": "MLS", "SOC_PL": "PL_SOC",
+    "SOC_LIGA": "LIGA", "SOC_MLS": "MLS", "SOC_PL": "PL_SOC",
     "SOC_ITA": "SERIEA", "SOC_CL": "CL",
 }
 # The European leagues, kept separate from SOC_MLS as its own constant

@@ -118,7 +118,7 @@ _SCHEDULE_FILES: dict[str, str] = {
     "LIIGA": "liiga_schedule.json", "SHL": "shl_schedule.json",
 }
 _SOCCER_LEAGUE_KEY = {
-    "SOC_CL": "cl", "SOC_PL": "pl", "SOC_LIGA": "liga", "SOC_BL": "bl",
+    "SOC_CL": "cl", "SOC_PL": "pl", "SOC_LIGA": "liga",
     "SOC_ITA": "ita", "SOC_MLS": "mls",
 }
 _schedule_cache: dict[str, list[dict]] = {}
