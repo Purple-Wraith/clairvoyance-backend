@@ -12775,10 +12775,10 @@ function renderOverall(){
 
   // Insights
   const insightIcons=['▸','▹','▶','◆','▷','◇','▴','▵'];
-  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--rc);margin:12px 0 6px">ENGINE INSIGHTS</div>
+  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin:12px 0 6px">ENGINE INSIGHTS</div>
   <div class="card" style="margin-bottom:14px;padding:12px">
     <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:10px;line-height:1.6">AUTO-GENERATED · UPDATES WITH EACH SETTLED BET · BASED ON ${settled.length} PICKS ACROSS ALL SPORTS</div>
-    ${insights.length?insights.map((ins,i)=>`<div style="padding:9px 12px;margin-bottom:7px;background:rgba(0,0,0,.3);border-radius:4px;border-left:3px solid rgba(${i===0?'0,200,255':i===1?'0,255,136':i===2?'240,0,255':i===3?'255,221,0':'102,144,255'},.5)">
+    ${insights.length?insights.map((ins,i)=>`<div style="padding:9px 12px;margin-bottom:7px;background:rgba(0,0,0,.3);border-radius:4px;border-left:3px solid rgba(${i%2===0?'240,0,255':'0,240,255'},.5)">
       <span style="font-family:var(--mono);font-size:14px;color:rgba(${i===0?'0,200,255':i===1?'0,255,136':i===2?'240,0,255':i===3?'255,221,0':'102,144,255'},.8);margin-right:6px">${insightIcons[i%insightIcons.length]}</span><span style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.6">${ins}</span>
     </div>`).join(''):'<div style="font-family:var(--mono);font-size:16px;color:var(--t3);padding:10px">Lock and settle more picks to generate automated engine insights across sport, bet type, calibration, streak, and ROI.</div>'}
   </div>`;
