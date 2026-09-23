@@ -12442,7 +12442,6 @@ function renderOverall(){
     <div class="card period-card" style="padding:10px;border-top:2px solid var(--pc)">
       <div class="period-card-hdr" style="display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:7px;flex-wrap:wrap">
         <div class="period-card-lbl" style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--pc)">${lbl}</div>
-        <div class="period-card-locked" style="font-family:var(--mono);font-size:16px;color:var(--nc);white-space:nowrap">${perf.locked||0} LOCKED · ${perf.settledN||0} SETTLED</div>
       </div>
       <div class="period-card-stats" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
         <div style="text-align:center;min-width:44px">
@@ -15464,7 +15463,7 @@ function renderHomePage(){
       const pc='#00e644';
       const uc=perf.units>=0?'#00e644':'#ff1a1a';
       return`<div class="card perf-card" style="padding:11px 12px;border-top:2px solid var(--pc);min-width:0">
-        <div class="perf-card-hdr" style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc);margin-bottom:8px;white-space:nowrap">${lbl}${sublabel?'<span style="color:var(--t3);margin-left:4px">'+sublabel+'</span>':''}</div>
+        <div class="perf-card-hdr" style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc);margin-bottom:8px;white-space:nowrap">${lbl}${sublabel?'<span style="color:var(--pc);margin-left:4px">'+sublabel+'</span>':''}</div>
         ${hasData?`
         <div class="perf-card-row" style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
           <span class="perf-card-rec" style="font-family:var(--orb);font-size:24px;font-weight:900;color:var(--t1);white-space:nowrap">${perf.w}W<span style="color:var(--t3);font-size:18px">-</span>${perf.l}L</span>
