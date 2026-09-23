@@ -970,16 +970,21 @@ def build_covers_caption() -> dict[str, str]:
     # count to 10 leagues across 5 sports (still 5 -- NFL/CFB/NBA/NHL/
     # soccer -- MLB's departure just means one fewer of the 5 has its own
     # dedicated league; soccer's bundle absorbed the difference in the
-    # league count, not the sport count).
+    # league count, not the sport count). Updated again 2026-09-23: NLA
+    # and Extraliga joined SHL/Liiga in PRODUCT_SPORTS["hockey"] (explicit
+    # request -- "integrate nla and extra liga into the paid subscriber
+    # section for hockey"), taking the hockey product from NHL+Liiga+SHL
+    # (3 leagues) to NHL+Liiga+SHL+NLA+Extraliga (5 leagues) -- so the
+    # real total is 14 leagues across the same 5 sports, not 10.
     ig = (
         "One engine. Every sport that matters.\n\nThis is Clairvoyance.\n\n"
-        "10 leagues across 5 sports, every pick graded, every result tracked publicly — model outputs, not gut feelings.\n\n"
+        "14 leagues across 5 sports, every pick graded, every result tracked publicly — model outputs, not gut feelings.\n\n"
         "Follow for daily signals, subscribe for exclusive graded picks, and intelligence briefs.\n\n"
         "clairvoyanceengine.info\nIG @clairvoyanceengine\nX @clairvoyanceeng\n\n"
         "#foryou #sportsbetting #bettingtips #bettingpicks"
     )
     x = (
-        "One engine. Every sport that matters.\n\n10 leagues, 5 sports, every pick graded.\n\n"
+        "One engine. Every sport that matters.\n\n14 leagues, 5 sports, every pick graded.\n\n"
         "clairvoyanceengine.info\n\n#sportsbetting #bettingpicks"
     )
     return {"instagram": ig, "x": x}

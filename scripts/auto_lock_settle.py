@@ -125,34 +125,30 @@ SPORT_TO_LOCKPICK_TYPE = {
 # early.yml itself now gathers both (see PRODUCT_SPORTS["soccer"] below),
 # it just labels which of the two a given qualifying leg belongs to.
 EURO_SOCCER_SPORTS = frozenset({"SOC_CL", "SOC_PL", "SOC_LIGA", "SOC_BL", "SOC_ITA"})
-# The 2 PAID-PRODUCT hockey leagues with a real early-kickoff problem --
+# The 4 PAID-PRODUCT hockey leagues with a real early-kickoff problem --
 # SHL games as early as 7:15 AM MT, Liiga around 9:30 AM MT (confirmed
-# real schedule data, 2026-09-17). NHL deliberately excluded: it never
-# plays this early, so it keeps its own slot in the main run instead of
-# joining this set. Folded into the same early-morning pass as the 5
-# European soccer leagues (run_euro_early_lock) rather than getting its
-# own separate workflow -- one browser session, one gather_legs() pull
-# for both products, each still gets its own separately-addressed email.
+# real schedule data, 2026-09-17); NLA/Extraliga on the same Central
+# European evening schedule, same real early-MT-morning kickoffs. NHL
+# deliberately excluded: it never plays this early, so it keeps its own
+# slot in the main run instead of joining this set. Folded into the same
+# early-morning pass as the 5 European soccer leagues (run_euro_early_lock)
+# rather than getting its own separate workflow -- one browser session,
+# one gather_legs() pull for both products, each still gets its own
+# separately-addressed email.
 # IMPORTANT: this set feeds recipients_for("hockey") -- the real paid
 # subscriber list -- in both run_euro_early_lock and
 # run_hockey_evening_lock. Do not add a new league here without a
-# deliberate product decision to start selling it; see
-# EARLY_HOCKEY_SPORTS_PERSONAL below for the "not sold yet" path new
-# hockey leagues start on (same precedent NCAAH/SHL/Liiga themselves
-# followed -- see OTHER_ALLOWED_SPORTS' own comment).
-EARLY_HOCKEY_SPORTS = frozenset({"SHL", "LIIGA"})
-# NLA (Swiss National League) and Extraliga (Czech), added 2026-09-23.
-# Same Central European evening schedule as Liiga/SHL -- same real
-# early-MT-morning kickoff problem -- so they need the same evening-
-# prior locking safety net (see run_hockey_evening_lock). Kept as a
-# SEPARATE set from EARLY_HOCKEY_SPORTS rather than merged into it: these
-# are brand new, unproven leagues that were never asked to be sold as
-# part of the paid "hockey" product, so they follow OTHER_ALLOWED_SPORTS'
-# established "real engine, personal-use-only, locked as a safety net,
-# never emailed to subscribers" convention until a deliberate future
-# decision promotes them (exactly the path SHL/Liiga/NCAAH themselves
-# took).
-EARLY_HOCKEY_SPORTS_PERSONAL = frozenset({"NLA", "EXTRALIGA"})
+# deliberate product decision to start selling it.
+#
+# NLA (Swiss National League) and Extraliga (Czech) promoted into this
+# set 2026-09-23, explicit request -- "integrate nla and extra liga into
+# the paid subscriber section for hockey and make sure they part of
+# early lock email for hockey like shl and liiga." They'd briefly sat in
+# a separate EARLY_HOCKEY_SPORTS_PERSONAL/OTHER_ALLOWED_SPORTS scope
+# (personal-use-only, following the precedent SHL/Liiga/NCAAH themselves
+# started on) for less than a day before this explicit promotion --
+# see PRODUCT_SPORTS' own comment for the full history.
+EARLY_HOCKEY_SPORTS = frozenset({"SHL", "LIIGA", "NLA", "EXTRALIGA"})
 
 # The 5 paid products (confirmed structure, see _subscribers.py) -- each
 # maps to the exact sport tags gather_legs()/_autoLockCapture use. Soccer
@@ -163,22 +159,23 @@ EARLY_HOCKEY_SPORTS_PERSONAL = frozenset({"NLA", "EXTRALIGA"})
 # (Flashscore-sourced schedule/standings/G-per-match, an exact-Poisson MC
 # model, and full ML/spread/O-U game cards -- see fetch_liiga.py/
 # fetch_shl.py and docs/app.html's liigaMC/shlMC + their Ens/MatchCard
-# equivalents). This is exactly the "when that happens, revisit this
-# mapping" moment the 2026-09-03 decision below called out in advance.
+# equivalents). Promoted again 2026-09-23 to add NLA/Extraliga the same
+# way, explicit request -- same real engines (fetch_nla.py/
+# fetch_extraliga.py, nlaMC/extraligaMC), same day they were built.
 # NCAAH (College Hockey) joins the same way once it gets its own real
 # engine -- the user's stated direction is "hockey" as a product should
-# mean NHL+Liiga+SHL+NCAAH going forward, not NHL alone; add each sport
-# tag here as it's actually built, not before (KHL is deliberately never
-# included -- see below).
+# mean NHL+Liiga+SHL+NLA+Extraliga+NCAAH going forward, not NHL alone;
+# add each sport tag here as it's actually built, not before (KHL is
+# deliberately never included -- see below).
 #
-# Explicit decision 2026-09-03 (superseded above for Liiga/SHL
-# specifically): KHL, SHL, LIIGA, and College Hockey (NCAAH) were real,
-# live engine features kept running for PERSONAL USE ONLY -- never sold,
-# routed to the owner-only "other" pass instead of any paid product, back
-# when none of them had real game cards wired up yet. KHL stays excluded
-# permanently (its own manual lock/settle buttons in the app UI still
-# work for personal use) -- there's no stated plan to build it out or
-# sell it, unlike SHL/LIIGA/NCAAH.
+# Explicit decision 2026-09-03 (superseded above for Liiga/SHL/NLA/
+# Extraliga specifically): KHL, SHL, LIIGA, and College Hockey (NCAAH)
+# were real, live engine features kept running for PERSONAL USE ONLY --
+# never sold, routed to the owner-only "other" pass instead of any paid
+# product, back when none of them had real game cards wired up yet. KHL
+# stays excluded permanently (its own manual lock/settle buttons in the
+# app UI still work for personal use) -- there's no stated plan to build
+# it out or sell it, unlike SHL/LIIGA/NLA/Extraliga/NCAAH.
 # Explicit decision 2026-09-08: tennis, MLB, WNBA, CBB, and World Cup
 # were all retired from the engine entirely -- removed from app.html and
 # this pipeline, not merely kept off paid products. "mlb" was dropped
@@ -188,18 +185,16 @@ PRODUCT_SPORTS: dict[str, frozenset[str]] = {
     "nfl": frozenset({"NFL"}),
     "cfb": frozenset({"CFB"}),
     "nba": frozenset({"NBA"}),
-    "hockey": frozenset({"NHL", "LIIGA", "SHL"}),
+    "hockey": frozenset({"NHL", "LIIGA", "SHL", "NLA", "EXTRALIGA"}),
     "soccer": EURO_SOCCER_SPORTS | frozenset({"SOC_MLS"}),
 }
 # NCAAH (College Hockey) stays owner-only/personal-use until it has a
-# real engine built the way Liiga/SHL now do (SHL removed from this set
-# 2026-09-16, joining Liiga -- both are paid PRODUCT_SPORTS members now,
-# not "other" personal-use sports, and a sport must never sit in both).
+# real engine built the way Liiga/SHL/NLA/Extraliga now do (SHL removed
+# from this set 2026-09-16, joining Liiga; NLA/Extraliga removed
+# 2026-09-23 -- all 4 are paid PRODUCT_SPORTS members now, not "other"
+# personal-use sports, and a sport must never sit in both).
 # KHL is permanently owner-only -- see PRODUCT_SPORTS' own comment above.
-# NLA/Extraliga (2026-09-23) join this same-day safety-net scope too --
-# see EARLY_HOCKEY_SPORTS_PERSONAL's own comment for why they're kept out
-# of PRODUCT_SPORTS["hockey"] for now.
-OTHER_ALLOWED_SPORTS: frozenset[str] = frozenset({"NCAAH"}) | EARLY_HOCKEY_SPORTS_PERSONAL
+OTHER_ALLOWED_SPORTS: frozenset[str] = frozenset({"NCAAH"})
 PRODUCT_LABEL: dict[str, str] = {
     "nfl": "NFL", "cfb": "CFB", "nba": "NBA",
     "hockey": "HOCKEY", "soccer": "SOCCER",
@@ -2198,7 +2193,7 @@ def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
     total_locked = 0
     for label, only_sports, product in (
         ("SOCCER", PRODUCT_SPORTS["soccer"], "soccer"),
-        ("SHL/LIIGA", EARLY_HOCKEY_SPORTS, "hockey"),
+        ("HOCKEY", EARLY_HOCKEY_SPORTS, "hockey"),
     ):
         qualifying = build_qualifying(result, only_sports=only_sports)
         to = recipients_for(product)
@@ -2373,13 +2368,13 @@ def run_cfb_evening_lock(page, live: bool, send_email: bool = True, to: list[str
 
 
 def run_hockey_evening_lock(page, live: bool, send_email: bool = True, to: list[str] | None = None) -> int:
-    """Evening-prior lock for SHL/Liiga combined -- runs the NIGHT
-    BEFORE gameday, not that morning. Same rationale as CFB/soccer's own
-    evening-prior passes: european-lock-early.yml's own same-morning
-    slot (6:00 AM MT, +catch-ups through 6:45 AM) already covers these
-    two leagues well ahead of SHL's real ~7:15 AM MT kickoffs, but
-    locking the night before trades even that margin for a much larger
-    one, using the same real model inputs (blended GF/GA rates,
+    """Evening-prior lock for SHL/Liiga/NLA/Extraliga combined -- runs
+    the NIGHT BEFORE gameday, not that morning. Same rationale as CFB/
+    soccer's own evening-prior passes: european-lock-early.yml's own
+    same-morning slot (6:00 AM MT, +catch-ups through 6:45 AM) already
+    covers these leagues well ahead of SHL's real ~7:15 AM MT kickoffs,
+    but locking the night before trades even that margin for a much
+    larger one, using the same real model inputs (blended GF/GA rates,
     standings) the same-morning pass already relies on -- no signal
     lost, and a genuine extra safety net if that morning pass and all
     its catch-ups get dropped (documented, real GitHub Actions risk,
@@ -2392,76 +2387,54 @@ def run_hockey_evening_lock(page, live: bool, send_email: bool = True, to: list[
     that's required for this to dedupe correctly against european-lock-
     early.yml's own same-morning pass, which is left completely
     unchanged and still runs as tomorrow's safety net. Data comes from
-    docs/liiga_schedule.json/shl_schedule.json, already refreshed twice
-    daily each -- no new data-feed workflow needed, see
+    docs/liiga_schedule.json/shl_schedule.json/nla_schedule.json/
+    extraliga_schedule.json, already refreshed twice daily each -- no
+    new data-feed workflow needed, see
     gather_hockey_evening_legs_for_date's own docstring.
 
-    NLA/Extraliga, added 2026-09-23: gather_hockey_evening_legs_for_date
-    now pulls all 4 leagues in one browser pass (cheap -- it's the same
-    page.evaluate call, just two more schedule-JSON fetches), but this
-    function still builds and emails the SHL/Liiga qualifying list
-    completely unchanged (`to` here is always recipients_for("hockey"),
-    the real paid subscriber list -- see EARLY_HOCKEY_SPORTS' own
-    comment on why NLA/Extraliga must never end up in that list). NLA/
-    Extraliga get a SEPARATE qualifying list (EARLY_HOCKEY_SPORTS_PERSONAL)
-    that's locked as a safety net but never emailed, same convention as
-    OTHER_ALLOWED_SPORTS/NCAAH -- see that constant's own comment."""
+    NLA/Extraliga promoted into this same paid-product pass 2026-09-23,
+    explicit request -- previously ran as a separate personal-use-only
+    pass for less than a day (see EARLY_HOCKEY_SPORTS' own comment for
+    the full history); now indistinguishable from SHL/Liiga here, same
+    `to` recipient list (recipients_for("hockey"))."""
     tomorrow_iso = (datetime.now(ZoneInfo("America/Denver")) + timedelta(days=1)).strftime("%Y-%m-%d")
-    log(f"=== AUTO-LOCK (PREMIUM/OPTIMAL) — SHL/LIIGA, EVENING-PRIOR FOR {tomorrow_iso} ===")
+    log(f"=== AUTO-LOCK (PREMIUM/OPTIMAL) — SHL/LIIGA/NLA/EXTRALIGA, EVENING-PRIOR FOR {tomorrow_iso} ===")
     result = gather_hockey_evening_legs_for_date(page, tomorrow_iso)
     qualifying = build_qualifying(result, only_sports=EARLY_HOCKEY_SPORTS)
     log(f"Gathered {len(result.get('gameLegs') or [])} games' worth of markets for {tomorrow_iso}")
-    log(f"{len(qualifying)} qualifying PREMIUM/OPTIMAL legs found (SHL/Liiga evening-prior only)")
+    log(f"{len(qualifying)} qualifying PREMIUM/OPTIMAL legs found (SHL/Liiga/NLA/Extraliga evening-prior only)")
 
     for q in qualifying:
         log(f"  [{q['sport']}] {q['label']} ({TIER_LABEL.get(q['tierN'], '?')})")
 
-    total_new = 0
-    label = "SHL/LIIGA — TOMORROW'S SLATE"
+    label = "HOCKEY — TOMORROW'S SLATE"
     if not live:
         log(f"[DRY RUN] Would lock {len(qualifying)} legs above for {tomorrow_iso} (pass --live to write)")
         if send_email:
             send_locks_email(qualifying, live=False, label=label, to=to, date_str=tomorrow_iso)
-    elif not qualifying:
+        return 0
+
+    if not qualifying:
         if send_email:
             send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to, date_str=tomorrow_iso)
         else:
-            log("Locks email (SHL/Liiga evening-prior) skipped -- already sent tonight")
+            log("Locks email (hockey evening-prior) skipped -- already sent tonight")
+        return 0
+
+    lock_result = _lock_qualifying_legs(page, qualifying, date_override=tomorrow_iso)
+    log(f"Locked {lock_result.new} new, {lock_result.already_locked} already locked, {lock_result.failed} failed -- "
+        f"{lock_result.confirmed}/{len(qualifying)} qualifying legs confirmed locked for {tomorrow_iso}")
+    if lock_result.new > 0:
+        flush_to_supabase(page)
+        log("Flushed locks to Supabase")
+    if send_email and lock_result.new == 0:
+        log(f"Locks email (hockey evening-prior) skipped -- all {len(qualifying)} qualifying "
+            f"leg(s) were already locked earlier tonight, nothing new to report")
+    elif send_email:
+        send_locks_email(qualifying, live=True, locked_count=lock_result.confirmed, label=label, to=to, date_str=tomorrow_iso)
     else:
-        lock_result = _lock_qualifying_legs(page, qualifying, date_override=tomorrow_iso)
-        total_new += lock_result.new
-        log(f"Locked {lock_result.new} new, {lock_result.already_locked} already locked, {lock_result.failed} failed -- "
-            f"{lock_result.confirmed}/{len(qualifying)} qualifying legs confirmed locked for {tomorrow_iso}")
-        if lock_result.new > 0:
-            flush_to_supabase(page)
-            log("Flushed locks to Supabase")
-        if send_email and lock_result.new == 0:
-            log(f"Locks email (SHL/Liiga evening-prior) skipped -- all {len(qualifying)} qualifying "
-                f"leg(s) were already locked earlier tonight, nothing new to report")
-        elif send_email:
-            send_locks_email(qualifying, live=True, locked_count=lock_result.confirmed, label=label, to=to, date_str=tomorrow_iso)
-        else:
-            log("Locks email (SHL/Liiga evening-prior) skipped -- already sent tonight")
-
-    # NLA/Extraliga -- personal-use safety-net lock, never emailed (see
-    # this function's own docstring + EARLY_HOCKEY_SPORTS_PERSONAL).
-    personal_qualifying = build_qualifying(result, only_sports=EARLY_HOCKEY_SPORTS_PERSONAL)
-    log(f"{len(personal_qualifying)} qualifying PREMIUM/OPTIMAL legs found (NLA/Extraliga evening-prior, personal-use, not emailed)")
-    for q in personal_qualifying:
-        log(f"  [{q['sport']}] {q['label']} ({TIER_LABEL.get(q['tierN'], '?')})")
-    if not live:
-        log(f"[DRY RUN] Would lock {len(personal_qualifying)} NLA/Extraliga legs above for {tomorrow_iso} (pass --live to write)")
-    elif personal_qualifying:
-        personal_lock_result = _lock_qualifying_legs(page, personal_qualifying, date_override=tomorrow_iso)
-        total_new += personal_lock_result.new
-        log(f"[NLA/Extraliga] {personal_lock_result.new} new, {personal_lock_result.already_locked} already locked, "
-            f"{personal_lock_result.failed} failed -- {personal_lock_result.confirmed}/{len(personal_qualifying)} "
-            f"confirmed locked for {tomorrow_iso}")
-        if personal_lock_result.new > 0:
-            flush_to_supabase(page)
-            log("Flushed locks to Supabase")
-
-    return total_new
+        log("Locks email (hockey evening-prior) skipped -- already sent tonight")
+    return lock_result.new
 
 
 def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
@@ -2554,7 +2527,7 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
         if safety_net_qualifying:
             early_result = _lock_qualifying_legs(page, safety_net_qualifying)
             total_locked += early_result.new
-            log(f"[{product}] SHL/Liiga safety-net: {early_result.new} new, "
+            log(f"[{product}] SHL/Liiga/NLA/Extraliga safety-net: {early_result.new} new, "
                 f"{early_result.already_locked} already locked, {early_result.failed} failed -- "
                 f"{early_result.confirmed}/{len(safety_net_qualifying)} confirmed locked")
         log(f"[{product}] {result.new} new, {result.already_locked} already locked, "
@@ -2654,8 +2627,8 @@ def main() -> None:
                           "early-morning pass timed ahead of European kickoffs.")
     ap.add_argument("--only-euro-early", action="store_true",
                      help="Lock step only: the combined European early-morning pass -- all 6 "
-                          "soccer leagues (see --only-soccer) PLUS SHL/Liiga hockey (real "
-                          "kickoffs as early as 7:15 AM MT). One shared gather_legs() pull, but "
+                          "soccer leagues (see --only-soccer) PLUS SHL/Liiga/NLA/Extraliga hockey "
+                          "(real kickoffs as early as 7:15 AM MT). One shared gather_legs() pull, but "
                           "each product still gets its own separately-addressed email to its own "
                           "real subscriber list -- see run_euro_early_lock. Replaces the old "
                           "soccer-only early pass (european-lock-early.yml, renamed from "
@@ -2677,12 +2650,13 @@ def main() -> None:
                           "every locked pick with the game's real (tomorrow's) date. See "
                           "run_cfb_evening_lock's own docstring / cfb-lock-evening.yml.")
     ap.add_argument("--only-hockey-tomorrow", action="store_true",
-                     help="Lock step only: evening-prior lock for SHL/Liiga combined, run the "
-                          "NIGHT BEFORE gameday instead of that morning. Reads "
-                          "docs/liiga_schedule.json/shl_schedule.json (already refreshed twice "
-                          "daily each, no separate scrape needed) and stamps every locked pick "
-                          "with the game's real (tomorrow's) date. NHL deliberately excluded -- "
-                          "it never plays this early, same reasoning as EARLY_HOCKEY_SPORTS. See "
+                     help="Lock step only: evening-prior lock for SHL/Liiga/NLA/Extraliga "
+                          "combined, run the NIGHT BEFORE gameday instead of that morning. Reads "
+                          "docs/liiga_schedule.json/shl_schedule.json/nla_schedule.json/"
+                          "extraliga_schedule.json (already refreshed twice daily each, no "
+                          "separate scrape needed) and stamps every locked pick with the game's "
+                          "real (tomorrow's) date. NHL deliberately excluded -- it never plays "
+                          "this early, same reasoning as EARLY_HOCKEY_SPORTS. See "
                           "run_hockey_evening_lock's own docstring / hockey-lock-evening.yml.")
     ap.add_argument("--top-picks-digest", action="store_true",
                      help="Sends the owner-only Top Picks Digest (top 4 per league + top 7 overall "
