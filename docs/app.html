@@ -4428,6 +4428,21 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   else if(type==='KHL')sportTag='KHL';
   else if(type==='SHL')sportTag='SHL';
   else if(type==='LIIGA')sportTag='LIIGA';
+  // Real bug, found + fixed 2026-09-23 auditing NLA/Extraliga's live
+  // production status: both leagues' promotion added them to _leagueMap
+  // just below (NLA:'NLA',EXTRALIGA:'EXTRALIGA') but never added the
+  // matching branch HERE -- the actual type->sportTag classification a
+  // league needs BEFORE _leagueMap ever runs. Without it, 'NLA'/
+  // 'EXTRALIGA' fell all the way through to the last-resort
+  // _classifyTeamsSport() guesser below, which has zero NLA/Extraliga
+  // team-abbreviation coverage and returns 'UNKNOWN' -- confirmed live:
+  // real picks (EHC Kloten/Biel, Mountfield HK/Liberec) locked
+  // successfully with a correct id but sport/league both stored as the
+  // literal string "UNKNOWN". Same shape as auto_lock_settle.py's
+  // SPORT_TO_LOCKPICK_TYPE gap (fixed same day) -- two different halves
+  // of the same missed promotion step.
+  else if(type==='NLA')sportTag='NLA';
+  else if(type==='EXTRALIGA')sportTag='EXTRALIGA';
   // CBB/NCAAH have no lock button wired up anywhere in the app yet, but
   // _classifyTeamsSport()'s fallback guesser (below) only knows WNBA/MLB/
   // NHL/NBA -- with zero real KHL/SHL/LIIGA/NCAAH/CBB team-abbreviation
