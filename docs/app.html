@@ -1575,7 +1575,7 @@ body{line-height:1.5}
     </div>
     <div id="ovr-tab-history" class="tab">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-        <div class="sh" style="margin:0"><span class="p"></span> ALL BETS — CROSS SPORT</div>
+        <div class="sh" style="margin:0"><span class="p"></span> ALL BETS — ALL LEAGUES</div>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
           <button class="btn btn-p btn-sm" onclick="renderOverallHistory()">↻</button>
           <button class="btn btn-o btn-sm" onclick="exportBetsClipboard()">EXPORT</button>
@@ -13367,9 +13367,8 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
     pendingSection.id='ovr-pending-section';
     pendingSection.innerHTML=`<div style="background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.3);border-radius:3px;margin-bottom:14px;overflow:hidden">
       <div style="padding:9px 12px;background:rgba(0,240,255,.08);border-bottom:1px solid rgba(0,240,255,.2);display:flex;justify-content:space-between;align-items:center">
-        <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:var(--nc);letter-spacing:2px">⏳ PENDING BETS — ${pendingAll.length}</span>
+        <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:var(--pc);letter-spacing:2px">PENDING BETS — ${pendingAll.length}</span>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-family:var(--mono);font-size:15px;color:var(--t3)">Settle with WIN / LOSS buttons</span>
           <button id="auto-settle-btn" class="btn btn-p btn-sm" onclick="autoSettleAll(this)" style="font-size:15px;padding:3px 10px">AUTO SETTLE ALL</button>
           <button class="btn btn-sm" style="font-size:15px;padding:3px 10px;color:#ff2090;border-color:#ff2090;background:rgba(255,32,144,.08)" onclick="(function(){const d=document.getElementById('wipe-date-inp');if(d&&d.value)removePicksByDate(d.value);else toast('// ENTER A DATE FIRST');})()" title="Remove all bets for the entered date">WIPE DATE</button>
           <input id="wipe-date-inp" type="date" value="2026-06-10" style="font-family:var(--mono);font-size:15px;padding:3px 8px;background:rgba(0,0,0,.5);border:1px solid rgba(255,32,144,.3);color:rgba(220,190,255,.8);border-radius:2px;width:130px">
