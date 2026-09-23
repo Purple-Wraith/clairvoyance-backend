@@ -8802,9 +8802,14 @@ function liigaMC(homeId,awayId){
   const h=D.teams[homeId],aw=D.teams[awayId];
   if(!h||!aw)return null;
   const hR=_liigaBlendedRates(h),aR=_liigaBlendedRates(aw);
+  // Real last-5-games recency signal, 2026-09-22 (see _hkFormFactor's
+  // own comment) -- each team's OWN scoring rate only, never its
+  // opponent's allowed-goals side, same convention soccer's
+  // _socFormFactor already established.
+  const hForm=_hkFormFactor(homeId,D.games,hR),aForm=_hkFormFactor(awayId,D.games,aR);
   const hfa=.055; // same magnitude nhlMC's own home-ice constant
-  const hLam=Math.max(.4,((hR.gf+aR.ga)/2)*(1+hfa));
-  const aLam=Math.max(.4,((aR.gf+hR.ga)/2)*(1-hfa*.5));
+  const hLam=Math.max(.4,((hR.gf*hForm+aR.ga)/2)*(1+hfa));
+  const aLam=Math.max(.4,((aR.gf*aForm+hR.ga)/2)*(1-hfa*.5));
   // Exact analytic (Poisson convolution), not another Monte Carlo pass --
   // same "exact, not simulated" preference _socMarginDist/_socSpreadProb
   // already established for soccer goal spreads, directly reusable here
@@ -8884,6 +8889,65 @@ function _liigaPopulateDayFilter(games){
   }).join('');
   const target=cur&&dates.includes(cur)?cur:(dates.includes(todayIso)?todayIso:dates[0]);
   if(target)sel.value=target;
+}
+// Real gap, found 2026-09-22 (architecture-delta audit vs a hockey-
+// expansion spec): _liigaBlendedRates/_shlBlendedRates only ever blend
+// CURRENT-season vs PRIOR-season rates (a slow 20-game ramp, see their
+// own CAP constant) -- there was no last-N-games recency signal at all
+// for hockey, unlike soccer's real _socFormFactorRaw/_socFormFactor
+// (last-N-games GF/GA vs season average, FBref-sourced). This ports
+// that exact same pattern to Liiga/SHL using data this app ALREADY
+// has: docs/liiga_schedule.json/shl_schedule.json's own `games` array
+// already carries every completed game's real final score for the
+// full season -- no new data source needed, just a rolling window over
+// what's already fetched twice daily.
+//
+// Shared by both leagues (same game-object shape: home/away/state/
+// homeScore/awayScore), same reasoning _hkBasicRadarValues below
+// already uses for sharing Liiga/SHL helpers.
+function _hkRecentRates(teamId,allGames,n){
+  n=n||5;
+  const played=(allGames||[]).filter(g=>g.state==='post'&&g.homeScore!=null&&g.awayScore!=null&&(g.home===teamId||g.away===teamId));
+  played.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const recent=played.slice(0,n);
+  // Same "don't let a tiny sample masquerade as a real signal" floor
+  // soccer's own _socFormFactorRaw uses (rf.games>=3) -- a team with
+  // only 1-2 games played this season has no meaningful "recent form"
+  // distinct from its season-to-date rate yet.
+  if(recent.length<3)return null;
+  let gf=0,ga=0;
+  recent.forEach(g=>{
+    if(g.home===teamId){gf+=g.homeScore;ga+=g.awayScore;}
+    else{gf+=g.awayScore;ga+=g.homeScore;}
+  });
+  return{games:recent.length,gf:gf/recent.length,ga:ga/recent.length};
+}
+// Same delta-vs-season-average shape as soccer's _socFormFactorRaw:
+// recent goal differential per game minus the team's own blended
+// (current+prior season) goal differential per game -- positive means
+// running hotter than its own established level lately, negative
+// colder. seasonRates is the SAME _liigaBlendedRates/_shlBlendedRates
+// object callers already compute for the main lambda calculation, not
+// a second lookup.
+function _hkFormFactorRaw(teamId,allGames,seasonRates){
+  const rf=_hkRecentRates(teamId,allGames);
+  if(!rf)return null;
+  const seasonGdPg=(seasonRates.gf||0)-(seasonRates.ga||0);
+  const recentGdPg=rf.gf-rf.ga;
+  return recentGdPg-seasonGdPg;
+}
+// Same scale (0.05) and cap (+/-6%) as soccer's own _socFormFactor --
+// reused rather than invented, since there's no hockey-specific
+// backtest yet to justify a different constant, and consistency with
+// an already-validated convention is a more defensible default than a
+// guessed one. Returns a multiplier (1 = no effect), applied to a
+// team's OWN scoring-rate input only -- never its opponent's allowed-
+// goals side -- matching exactly how _socFormFactor is applied to hxg/
+// axg independently in _socExpectedGoals.
+function _hkFormFactor(teamId,allGames,seasonRates){
+  const delta=_hkFormFactorRaw(teamId,allGames,seasonRates);
+  if(delta==null)return 1;
+  return 1+Math.max(-0.06,Math.min(0.06,delta*0.05));
 }
 // Shared by Liiga and SHL COMPARE panels -- same team-object shape
 // ({gp,pts,gf,ga,gm,prevSeason}), same blended-rate approach (see
@@ -9096,9 +9160,12 @@ function shlMC(homeId,awayId){
   const h=D.teams[homeId],aw=D.teams[awayId];
   if(!h||!aw)return null;
   const hR=_shlBlendedRates(h),aR=_shlBlendedRates(aw);
+  // Real last-5-games recency signal, 2026-09-22 -- see liigaMC's own
+  // identical comment and _hkFormFactor's definition.
+  const hForm=_hkFormFactor(homeId,D.games,hR),aForm=_hkFormFactor(awayId,D.games,aR);
   const hfa=.055; // same magnitude nhlMC's own home-ice constant
-  const hLam=Math.max(.4,((hR.gf+aR.ga)/2)*(1+hfa));
-  const aLam=Math.max(.4,((aR.gf+hR.ga)/2)*(1-hfa*.5));
+  const hLam=Math.max(.4,((hR.gf*hForm+aR.ga)/2)*(1+hfa));
+  const aLam=Math.max(.4,((aR.gf*aForm+hR.ga)/2)*(1-hfa*.5));
   // Exact analytic (Poisson convolution), not another Monte Carlo pass --
   // same "exact, not simulated" preference _socMarginDist/_socSpreadProb
   // already established for soccer goal spreads, directly reusable here
