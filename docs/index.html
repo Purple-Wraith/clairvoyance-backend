@@ -12459,14 +12459,14 @@ function renderOverall(){
   };
 
   const calRow=(b)=>{
-    const col=b.off<0.04?'var(--nc)':b.off<0.08?'var(--vc)':'var(--hc)';
+    const col=b.off<0.04?'#00e644':b.off<0.08?'var(--vc)':'var(--hc)';
     const bar=Math.min(b.act||0,1)*100;
     const expBar=b.exp*100;
     const status=b.off<0.04?'CALIBRATED':b.off<0.08?'SLIGHT DRIFT':'NEEDS RECALIBRATION';
     const drift=b.act!==null?(b.act>b.exp?'UNDERCONFIDENT — actual win rate exceeds model prediction. Probability boosted to match reality.':'OVERCONFIDENT — actual win rate below model prediction. Probability reduced to prevent grade inflation.'):'';
     const bandAdj=(_newAdj&&_newAdj[b.min])||0;
     const adjLabel=Math.abs(bandAdj)>0.005?(bandAdj>0?`BOOSTED +${(bandAdj*100).toFixed(1)}pp`:`REDUCED ${(bandAdj*100).toFixed(1)}pp`):'NO ADJ';
-    const adjColor=bandAdj>0.005?'var(--nc)':bandAdj<-0.005?'var(--hc)':'var(--t3)';
+    const adjColor=bandAdj>0.005?'#00e644':bandAdj<-0.005?'var(--hc)':'var(--t3)';
     const action=b.off<0.04?`Picks in this band are hitting at the expected rate. Calibration adjustment decaying toward zero.`:b.off<0.08?`Minor deviation of ${(b.off*100).toFixed(1)}%. Engine has applied a ${Math.abs(bandAdj*100).toFixed(1)}pp probability correction — monitor over next 10+ picks.`:`Deviation of ${(b.off*100).toFixed(1)}% detected. Active recalibration: picks in this band have their probability ${bandAdj>0?'boosted':'reduced'} by ${Math.abs(bandAdj*100).toFixed(1)}pp when graded.`;
     return`<div style="margin-bottom:14px;padding:10px;background:rgba(0,0,0,.25);border-radius:4px;border-left:3px solid ${col}">
       <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:15px;margin-bottom:6px;flex-wrap:wrap;gap:6px">
@@ -12500,7 +12500,7 @@ function renderOverall(){
       <span style="font-family:var(--mono);font-size:16px;color:var(--t3)">${lbl}</span>
       <div style="display:flex;gap:8px">
         <span style="font-family:var(--mono);font-size:15px;color:var(--t3)">${bets.length} BETS</span>
-        <span style="font-family:var(--mono);font-size:16px;font-weight:700;color:${a!==null?accColor(a):'var(--t3)'}">${a!==null?(a*100).toFixed(0)+'%':'--'}</span>
+        <span style="font-family:var(--mono);font-size:16px;font-weight:700;color:${a!==null?accColorG(a):'var(--t3)'}">${a!==null?(a*100).toFixed(0)+'%':'--'}</span>
       </div>
     </div>`;
   };
@@ -12605,7 +12605,7 @@ function renderOverall(){
 
   // Last N
   h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin:12px 0 6px">LAST N PERFORMANCE</div>
-  <div class="card" style="margin-bottom:14px;overflow-x:auto"><table class="dt" style="font-size:16px"><thead><tr><th>WINDOW</th><th>WIN%</th><th>RECORD</th><th>UNITS</th></tr></thead><tbody>
+  <div class="card" style="margin-bottom:14px;overflow-x:auto"><table class="dt" style="font-size:16px"><thead><tr><th style="color:#fff">WINDOW</th><th style="color:#fff">WIN%</th><th style="color:#fff">RECORD</th><th style="color:#fff">UNITS</th></tr></thead><tbody>
   ${lastNData.map(d=>{const ac=d.acc;return`<tr><td style="color:var(--t3)">LAST ${d.n}</td><td style="color:${accColorG(ac)};font-weight:700">${ac!==null?(ac*100).toFixed(0)+'%':'--'}</td><td><span style="color:#00e644">${d.w}W</span>-<span style="color:#ff1a1a">${d.l}L</span></td><td style="color:${unitColorG(d.units)}">${d.units>=0?'+':''}${d.units.toFixed(1)}u</td></tr>`;}).join('')}
   </tbody></table></div>`;
 
@@ -12616,8 +12616,8 @@ function renderOverall(){
       <div><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${accColorG(acc)}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">WIN%</div></div>
       <div><div style="font-family:var(--orb);font-size:26px;font-weight:700"><span style="color:#00e644">${wins}W</span>-<span style="color:#ff1a1a">${losses}L</span></div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">RECORD</div></div>
       <div><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${unitColorG(atUnits)}">${atUnits>=0?'+':''}${atUnits.toFixed(1)}u</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">UNITS</div></div>
-      <div><div style="font-family:var(--orb);font-size:26px;font-weight:700">${settled.length}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">BETS</div></div>
-      <div><div style="font-family:var(--orb);font-size:26px;font-weight:700">${pending.length}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">PENDING</div></div>
+      <div><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:var(--nc)">${settled.length}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">BETS</div></div>
+      <div><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:var(--nc)">${pending.length}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">PENDING</div></div>
     </div>
   </div>`;
 
@@ -12673,9 +12673,9 @@ function renderOverall(){
   <div class="card" style="margin-bottom:14px;padding:10px">
     <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:8px">STREAKS</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06)">
-      <div><div style="font-family:var(--orb);font-size:23px;font-weight:700;color:${curStreakType==='win'?'var(--nc)':'var(--hc)'}">${curStreak>0?curStreak+(curStreakType==='win'?'W':'L'):'--'}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">CURRENT STREAK</div></div>
-      <div><div style="font-family:var(--orb);font-size:23px;font-weight:700;color:var(--nc)">${maxWin}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">LONGEST WIN STREAK</div></div>
-      <div><div style="font-family:var(--orb);font-size:23px;font-weight:700;color:var(--hc)">${maxLoss}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">LONGEST LOSS STREAK</div></div>
+      <div><div style="font-family:var(--orb);font-size:23px;font-weight:700;color:${curStreakType==='win'?'#00e644':'var(--hc)'}">${curStreak>0?curStreak+(curStreakType==='win'?'W':'L'):'--'}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">CURRENT STREAK</div></div>
+      <div><div style="font-family:var(--orb);font-size:23px;font-weight:700;color:#00e644">${maxWin}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">LONGEST WIN STREAK</div></div>
+      <div><div style="font-family:var(--orb);font-size:23px;font-weight:700;color:#ff1a1a">${maxLoss}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">LONGEST LOSS STREAK</div></div>
     </div>
     <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:8px">ACCURACY BY MODEL CONFIDENCE TIER</div>
     ${agreeRow('HIGH CONFIDENCE (65%+)',highConf,'var(--nc)')}
@@ -12688,7 +12688,7 @@ function renderOverall(){
   const calDevAll=cal.map(b=>b.off).filter(v=>v!==null&&!isNaN(v));
   const avgCalDev=calDevAll.length?calDevAll.reduce((a,v)=>a+v,0)/calDevAll.length:null;
   const calStatusSummary=avgCalDev===null?'AWAITING DATA':avgCalDev<0.04?'WELL CALIBRATED':avgCalDev<0.08?'MINOR DRIFT':'RECALIBRATING';
-  const calSummaryCol=avgCalDev===null?'var(--t3)':avgCalDev<0.04?'var(--nc)':avgCalDev<0.08?'var(--vc)':'var(--hc)';
+  const calSummaryCol=avgCalDev===null?'var(--t3)':avgCalDev<0.04?'#00e644':avgCalDev<0.08?'var(--vc)':'var(--hc)';
   // Compact predicted-vs-actual summary strip -- explicit request,
   // 2026-09-16: this used to be a whole separate "MODEL CALIBRATION —
   // PREDICTED VS ACTUAL" card above this one, computing its own slightly
@@ -12702,7 +12702,7 @@ function renderOverall(){
   const calSummaryStrip=cal.length?`<div style="margin-bottom:12px">
     ${cal.map(b=>{
       const delta=(b.act??0)-b.exp;
-      const dColor=delta>=-0.02?'var(--nc)':delta>=-0.08?'var(--gc)':'var(--hc)';
+      const dColor=delta>=-0.02?'#00e644':delta>=-0.08?'var(--gc)':'var(--hc)';
       return`<div style="margin-bottom:7px">
         <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:14px;color:var(--t2);margin-bottom:2px">
           <span>${b.lbl} <span style="color:var(--t3)">(n=${b.n})</span></span>
@@ -12714,9 +12714,9 @@ function renderOverall(){
         </div>
       </div>`;
     }).join('')}
-    <div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:2px">Light bar = expected · colored bar = actual. Cyan = well-calibrated, gold = mildly overconfident, pink = notably overconfident.</div>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:2px">Light bar = expected · colored bar = actual. Green = well-calibrated, gold = mildly overconfident, pink = notably overconfident.</div>
   </div>`:'';
-  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--ic);margin:12px 0 6px">MODEL CALIBRATION</div>
+  h+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin:12px 0 6px">MODEL CALIBRATION</div>
   <div class="card" style="margin-bottom:14px;padding:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
       <div>
@@ -12733,12 +12733,12 @@ function renderOverall(){
     ${calSummaryStrip}
     ${_brierScore!==null?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
       <div style="background:rgba(0,0,0,.3);border:1px solid rgba(0,200,255,.15);border-radius:4px;padding:10px;text-align:center">
-        <div style="font-family:var(--orb);font-size:22px;font-weight:700;color:${_brierScore<0.15?'var(--nc)':_brierScore<0.22?'var(--vc)':'var(--hc)'}">${_brierScore.toFixed(4)}</div>
+        <div style="font-family:var(--orb);font-size:22px;font-weight:700;color:${_brierScore<0.15?'#00e644':_brierScore<0.22?'var(--vc)':'var(--hc)'}">${_brierScore.toFixed(4)}</div>
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">BRIER SCORE (n=${_scoredBets.length})</div>
         <div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:2px">0=perfect · 0.25=coin flip · lower is better</div>
       </div>
       <div style="background:rgba(0,0,0,.3);border:1px solid rgba(0,200,255,.15);border-radius:4px;padding:10px;text-align:center">
-        <div style="font-family:var(--orb);font-size:22px;font-weight:700;color:${_logLossScore<0.45?'var(--nc)':_logLossScore<0.65?'var(--vc)':'var(--hc)'}">${_logLossScore.toFixed(4)}</div>
+        <div style="font-family:var(--orb);font-size:22px;font-weight:700;color:${_logLossScore<0.45?'#00e644':_logLossScore<0.65?'var(--vc)':'var(--hc)'}">${_logLossScore.toFixed(4)}</div>
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">LOG-LOSS (n=${_scoredBets.length})</div>
         <div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:2px">punishes confident misses hardest · lower is better</div>
       </div>
@@ -12750,14 +12750,14 @@ function renderOverall(){
 
     ${_calLog.length?`
     <div style="margin-top:14px;border-top:1px solid rgba(0,200,255,.15);padding-top:12px">
-      <div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--ic);margin-bottom:8px">▸ RECALIBRATION LOG — LAST RUN ${_calLastRun}</div>
+      <div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--pc);margin-bottom:8px">▸ RECALIBRATION LOG — LAST RUN ${_calLastRun}</div>
       <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:8px;line-height:1.6">Adjustments are applied to all future pick probabilities in qualifying bands. Each adjustment is a partial Bayesian update (40% rate for n≥10, 20% for n≥5) toward observed win rates. Max cap: ±12 percentage points per band. Adjustments decay 10% per recalibration cycle when a band returns to calibrated.</div>
       <div style="display:grid;gap:6px">
         ${_calLog.map(r=>{
-          const adjCol=r.adj>0.02?'var(--nc)':r.adj<-0.02?'var(--hc)':'var(--t3)';
+          const adjCol=r.adj>0.02?'#00e644':r.adj<-0.02?'var(--hc)':'var(--t3)';
           const adjSign=r.adj>=0?'+':'';
           const dirLabel=r.dir==='decay'?'CALIBRATED → ADJ DECAYING':r.dir==='over'?'UNDERCONFIDENT → PROB BOOSTED':'OVERCONFIDENT → PROB REDUCED';
-          const dirCol=r.dir==='decay'?'var(--t3)':r.dir==='over'?'var(--nc)':'var(--hc)';
+          const dirCol=r.dir==='decay'?'var(--t3)':r.dir==='over'?'#00e644':'var(--hc)';
           return`<div style="background:rgba(0,0,0,.3);border:1px solid rgba(${r.adj>0?'0,200,255':r.dir==='decay'?'255,255,255':'255,32,144'},.15);border-radius:4px;padding:8px 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <span style="font-family:var(--mono);font-size:15px;color:var(--t2);font-weight:700;min-width:70px">${r.lbl}</span>
             <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">N=${r.n} · ACT ${(r.act*100).toFixed(0)}% vs EXP ${(r.exp*100).toFixed(0)}%</span>
