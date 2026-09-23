@@ -3000,12 +3000,23 @@ function _leagueDisplayLabel(sportTag){
   return{sub,label};
 }
 function _sportBadgeHtml(sportTag,sc){
+  // Explicit request, 2026-09-23: every badge's broad-sport sub-chip
+  // (SOCCER/HOCKEY/BASKETBALL/FOOTBALL) is now always neon magenta and
+  // its specific-league chip (NBA/NFL/PL/etc) always neon cyan --
+  // uniform across every sport/league instead of each one's own
+  // per-caller color map (sc, still accepted for signature
+  // compatibility with all 6 call sites, is no longer read for color).
   const d=_leagueDisplayLabel(sportTag);
-  const col=sc(sportTag);
-  if(!d.sub)return`<span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${col};color:${col};border-radius:2px">${d.label}</span>`;
+  const lblCol='var(--nc)';
+  // rgba() literals, not var(--pc) + a hex-alpha suffix -- CSS variables
+  // can't take an appended alpha suffix the way a literal hex color can
+  // (var(--pc)55 is not valid CSS), so the semi-transparent sub-chip
+  // needs var(--pc)'s own real value (#f000ff = rgb(240,0,255)) spelled
+  // out directly.
+  if(!d.sub)return`<span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${lblCol};color:${lblCol};border-radius:2px">${d.label}</span>`;
   return`<span style="display:inline-flex;align-items:center;gap:4px">`
-    +`<span style="font-family:var(--mono);font-size:11px;padding:1px 4px;border:1px solid ${col}55;color:${col}99;border-radius:2px;letter-spacing:1px">${d.sub}</span>`
-    +`<span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${col};color:${col};border-radius:2px">${d.label}</span>`
+    +`<span style="font-family:var(--mono);font-size:11px;padding:1px 4px;border:1px solid rgba(240,0,255,.33);color:rgba(240,0,255,.6);border-radius:2px;letter-spacing:1px">${d.sub}</span>`
+    +`<span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${lblCol};color:${lblCol};border-radius:2px">${d.label}</span>`
     +`</span>`;
 }
 // MLB-specific tier: tighter thresholds + ensemble convergence requirement
