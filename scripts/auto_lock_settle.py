@@ -15,15 +15,26 @@ functions -- then flushes everything back to Supabase via the app's own
 syncBetsToSupabase().
 
 Auto-lock scope: ML, spread, and O/U for every sport/league with a real
-proprietary model (NBA, NHL, NFL, CFB, and 6 soccer leagues).
+proprietary model (NBA, NHL, NFL, CFB, and 5 soccer leagues -- Bundesliga
+retired 2026-09-23).
 NCAAH only has a market-read-back model (no proprietary edge to
 grade), matching how the rest of the app already treats it -- ML only
 there via _epGatherESPNCacheLegs, not extended here. Player props covered
-for NBA/NHL/NFL (the three sports with real live prop engines built
-this session). Tennis engine retired 2026-09-08, and MLB/WNBA/CBB/World
-Cup retired 2026-09-08 (removed from app.html and this pipeline
-entirely, not merely kept off paid products) -- none are fetched,
-locked, or settled anywhere in this pipeline anymore.
+for NBA/NHL (both with real live prop engines built this session).
+NFL player props REMOVED from this pipeline 2026-09-23, explicit
+request following a real settled-bet audit: TD props specifically were
+badly overconfident (49.1% actual win vs 79.5% avg predicted, -21.7u on
+57 bets, the single largest drag on NFL's entire season-to-date ROI --
+receiving/passing props were fine, so this wasn't a prop-engine-wide
+problem), and the user's stated direction going forward is NFL game
+lines only -- "more dependable," not per-market tuning. NFL's real live
+prop engine (_nflModelPropsForGame, docs/app.html) is untouched and
+still browsable in-app for personal reference; it's just no longer fed
+into gather_legs()'s propLegs, so nothing it produces can ever qualify
+or lock automatically. Tennis engine retired 2026-09-08, and MLB/WNBA/
+CBB/World Cup retired 2026-09-08 (removed from app.html and this
+pipeline entirely, not merely kept off paid products) -- none are
+fetched, locked, or settled anywhere in this pipeline anymore.
 
 Grade capture for game markets: docs/app.html has a small _autoLockCapture()
 hook wired into every sport's real game-card render function, right after
@@ -1042,80 +1053,23 @@ def gather_legs(page) -> dict:
               propDiag.nhl = { games: games.length, stats: stats ? Object.keys(stats).length : 0, generated: generated.length };
             } else propDiag.nhl = { skipped: 'fn missing' };
           } catch (e) { propDiag.nhl = { error: e.message }; }
-          try {
-            // Real bug, found + fixed via a rigorous audit, 2026-09-03:
-            // this checked window._NFL_DATA, which is ALWAYS undefined --
-            // _NFL_DATA is declared `let _NFL_DATA=null` at the top level
-            // of app.html's classic (non-module) <script>, and a
-            // top-level `let`/`const` never becomes a `window` own-
-            // property the way `var` or a `function` declaration does.
-            // Confirmed live with a fresh headless Playwright session,
-            // matching this script's own real timing (goto + 40s wait):
-            // window._NFL_DATA stayed null while the bare `_NFL_DATA`
-            // identifier (same page.evaluate() global scope every
-            // classic <script> tag shares) was already fully populated
-            // (32 teams, 25 real schedule weeks). The `typeof
-            // _nflModelPropsForGame === 'function'` half of this check
-            // was always true (function declarations DO attach to
-            // window), so this branch's `else` -- mislabeled "fn
-            // missing" -- fired every single automated run regardless of
-            // real data readiness, silently skipping ALL NFL player prop
-            // generation for the entire lifetime of this feature. Fixed
-            // by referencing the bare `_NFL_DATA` identifier instead of
-            // `window._NFL_DATA` (this page.evaluate() callback runs in
-            // the exact same global scope app.html's own scripts do, so
-            // the bare identifier resolves correctly). NBA/WNBA/NHL's own
-            // readiness checks above were audited too and are NOT
-            // affected -- they read real `window._nbaTodayGames`/
-            // `window._wnbaGameData`/`window._nhlTodayGames` properties
-            // (explicit `window.x = ...` assignments elsewhere in
-            // app.html), not a `let`-scoped bare variable.
-            if (typeof _nflModelPropsForGame === 'function' && typeof _NFL_DATA !== 'undefined' && _NFL_DATA) {
-              // Real bug, found via audit: this iterated EVERY week in
-              // the entire season schedule with no date filter at all --
-              // unlike the CFB/NFL GAME-LEG warmup above, which already
-              // filters to todayIso. lockNFLModelProp stamps whatever it
-              // locks with today()'s date regardless of which game the
-              // leg's _nflGame actually belongs to, so a prop for a game
-              // 10 weeks out could get locked as if it were today's pick
-              // -- unsettleable (no real game today to check it against)
-              // and wrong. Was latent/low-impact before the real-roster
-              // fix (propDiag.nfl was near-empty regardless of this gap),
-              // fully exposed now that real player data flows through --
-              // 13,202 candidate rows across ~272 games in one real test
-              // run, instead of the ~50-100 a single day's slate produces.
-              // Filtered the exact same way the game-leg warmup already
-              // does: today's local date, exclude finished games.
-              const todayIso = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
-              const games = [];
-              Object.values(_NFL_DATA.weeks || {}).forEach(list => (list || []).forEach(g => {
-                const d = new Date(g.date);
-                const localIso = isNaN(d) ? (g.date || '').slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
-                // seasonType 1 = preseason -- same exclusion as the NFL game-leg
-                // warmup above (real contamination found 2026-09-15: a preseason
-                // Josh Allen prop got auto-locked and sat stuck-pending forever
-                // since it isn't a real graded game).
-                if (localIso === todayIso && g.state !== 'post' && g.seasonType !== 1) games.push(g);
-              }));
-              let generated = 0;
-              // stat: pp.cat -- _nflBuildPropRow/_nflBuildAnytimeTDRow (app.html)
-              // name the stat-category field 'cat' ("Rushing Yards", "Anytime
-              // TD", ...), but every other sport's prop generator
-              // (_generateNBAProps/_generateNHLPropsLive) names the same
-              // concept 'stat'. _leg_html below (the locks-email renderer,
-              // shared across every sport) only ever reads leg.stat -- real
-              // bug, found while checking why the NFL section of the
-              // subscriber email showed "Player OVER 42.5" with no category
-              // at all: leg.get("stat") was silently None for every NFL
-              // prop, and _esc(None) renders as an empty string, not an
-              // error, so it went unnoticed instead of throwing. Aliasing
-              // here (rather than renaming 'cat' throughout app.html, or
-              // teaching the Python side a second field name) keeps every
-              // existing consumer of pp.cat in app.html untouched.
-              games.forEach(g => { try { const p = _nflModelPropsForGame(g); p.forEach(pp => propLegs.push({ ...pp, stat: pp.cat, sportTag: 'NFL', _nflGame: g })); generated += p.length; } catch (e) {} });
-              propDiag.nfl = { games: games.length, generated };
-            } else propDiag.nfl = { skipped: 'nfl data not ready' };
-          } catch (e) { propDiag.nfl = { error: e.message }; }
+          // NFL player props REMOVED from generation entirely, 2026-09-23,
+          // explicit request after a real settled-bet audit found TD props
+          // specifically badly overconfident (49.1% actual vs 79.5% avg
+          // predicted, -21.7u on 57 bets -- the single largest drag on
+          // NFL's whole season-to-date ROI, while receiving/passing props
+          // were fine) -- the user's stated direction is NFL game lines
+          // only going forward, "more dependable" than per-market prop
+          // tuning. This used to call _nflModelPropsForGame(g) per today's
+          // game here (see git history for that block, including the
+          // real 2026-09-03 window._NFL_DATA scoping fix that first made
+          // NFL props actually generate) and push results into propLegs;
+          // now it's a no-op so nothing NFL-tagged can ever reach
+          // `qualifying` below. _nflModelPropsForGame itself and its
+          // in-app PROPS tab (docs/app.html) are untouched -- still
+          // real and browsable for personal reference, just never fed
+          // into this automated pipeline anymore.
+          propDiag.nfl = { skipped: 'NFL player props removed from auto-lock 2026-09-23, explicit request' };
 
           return { gameLegs, propLegs, propDiag };
         }
@@ -1411,45 +1365,19 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
                     break
             game_qualifying = picked
         qualifying.extend(game_qualifying)
-    # Props only exist for NBA/NHL/NFL -- neither early pass (soccer,
-    # CFB) needs or has any to filter, so props are simply included only on
-    # the unscoped (full) run.
+    # Props only exist for NBA/NHL now -- NFL player props removed from
+    # generation entirely 2026-09-23 (see gather_legs()'s own comment),
+    # so propLegs can never contain an NFL-tagged row here; the per-game
+    # NFL prop cap this block used to need (a single game could produce
+    # 90+ candidate rows once real rosters flowed in) is gone with it,
+    # not left behind as dead code. Neither early pass (soccer, CFB)
+    # needs or has any props to filter, so props are simply included
+    # only on the unscoped (full) run.
     if only_sports is None:
-        # NFL-specific cap, found necessary the day the real-roster fix
-        # landed: before that fix, propDiag.nfl was always near-empty (the
-        # old team-"leaders" data source never had more than a handful of
-        # players), so this loop's total NFL volume was naturally tiny.
-        # Once real rosters flowed in (9-15 skill players/team x up to 8
-        # categories each, including the new Anytime TD market), a single
-        # game can produce 90+ candidate prop rows -- with no per-game cap,
-        # every PREMIUM/OPTIMAL one of those would lock, which could mean
-        # dozens of correlated same-game prop picks a day. GAME legs
-        # already have an equivalent same-game correlated-market cap right
-        # above this block; props never did. Capped at the best 5 per game
-        # by grade then likelihood, mirroring that same philosophy.
-        NFL_PROPS_PER_GAME_CAP = 5
-        _grade_rank = {"PREMIUM": 0, "OPTIMAL": 1}
-        nfl_props_by_game: dict[str, list[dict]] = {}
         for p in result.get("propLegs") or []:
             if p.get("grade") not in ("PREMIUM", "OPTIMAL"):
                 continue
-            if p.get("sportTag") == "NFL":
-                game_id = (p.get("_nflGame") or {}).get("id") or f"{p.get('team')}_{p.get('opp')}"
-                nfl_props_by_game.setdefault(game_id, []).append(p)
-            else:
-                qualifying.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": p})
-        for game_id, props in nfl_props_by_game.items():
-            # Real bug, same shape as the app's own renderNFLModelProps top-5
-            # fix (docs/app.html): likelihood is always raw P(OVER), not
-            # confidence in the direction actually picked -- sorting by it
-            # ranked a genuinely 86%-confident UNDER pick (likelihood=14)
-            # near the bottom of this per-game cap instead of near the top.
-            # conf (confidence in the picked side) is what both the UI and
-            # this cap should rank by; falls back to likelihood only for a
-            # row from before that field existed.
-            props.sort(key=lambda p: (_grade_rank.get(p.get("grade"), 2), -(p.get("conf") if p.get("conf") is not None else (p.get("likelihood") or 0))))
-            for p in props[:NFL_PROPS_PER_GAME_CAP]:
-                qualifying.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": p})
+            qualifying.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": p})
     return qualifying
 
 
@@ -1584,37 +1512,11 @@ def lock_prop_leg(page, sport: str, leg: dict) -> str:
              "over": leg.get("over") is not False, "prob": leg.get("prob") or (leg.get("conf", 0) / 100),
              "ml": leg.get("ml"), "sport": sport, "opp": leg.get("opp") or ""},
         )
-    if sport == "NFL":
-        # Reuses the real lockNFLModelProp(idx) by staging the exact leg it
-        # expects into window._nflModelPropsCurrent, rather than
-        # duplicating its internal prop-object construction here.
-        return page.evaluate(
-            """
-            (leg) => {
-              const g = leg._nflGame;
-              // `...leg` already carries the real likelihood/conf straight
-              // from the JS engine's own row (see gather_legs' NFL block --
-              // propLegs.push({ ...pp, ... }) spreads the full row, conf
-              // included). This used to then overwrite likelihood with
-              // Math.round((leg.prob || 0.6) * 100) -- leg.prob was never
-              // actually set for NFL props (only likelihood/conf are), so
-              // that always evaluated to a flat, fake 60% -- harmless only
-              // because _nflLockModelPropFrom itself now prefers r.conf
-              // over r.likelihood (see its own comment), so the real value
-              // survived via conf regardless. Left in, that overwrite was a
-              // landmine: anything that ever reads likelihood directly
-              // instead of conf, or any refactor of the spread order,
-              // silently regresses to locking every NFL prop at a fake 60%.
-              const row = { ...leg, team: leg.team, opp: leg.opp, cat: leg.stat || leg.cat, pick: leg.over === false ? 'UNDER' : 'OVER', grade: leg.grade };
-              window._nflModelPropsCurrent = window._nflModelPropsCurrent || [];
-              window._nflModelPropsCurrent.push(row);
-              const before = getP().length;
-              lockNFLModelProp(window._nflModelPropsCurrent.length - 1);
-              return getP().length > before ? 'locked' : 'already-locked';
-            }
-            """,
-            leg,
-        )
+    # NFL branch removed 2026-09-23 alongside NFL player props leaving
+    # gather_legs() entirely (see its own comment) -- a leg tagged "NFL"
+    # can no longer reach this function at all, so lockNFLModelProp() is
+    # simply never called from this pipeline anymore. The real function
+    # and its in-app PROPS tab are untouched for personal/manual use.
     return "skip: unhandled prop sport"
 
 
@@ -2040,8 +1942,8 @@ def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | Non
     date_override: see lock_game_leg's own docstring -- only ever passed
     by the evening-prior soccer lock, which locks GAME legs for a date
     that isn't today() yet. Props never use this (there are none in the
-    evening-prior pass's qualifying list -- only NBA/NHL/NFL have
-    prop legs, none of which run on this path).
+    evening-prior pass's qualifying list -- only NBA/NHL have prop legs
+    now (NFL's removed 2026-09-23), none of which run on this path).
 
     Real gap, found and fixed in the same audit that added this type:
     'locked' vs 'already-locked' vs 'failed' used to collapse into a
