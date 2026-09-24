@@ -1576,8 +1576,8 @@ body{line-height:1.5}
     <div id="ovr-tab-sync" class="tab">
       <div class="sh"><span class="gc"></span> CROSS-DEVICE SYNC</div>
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-        <button class="btn btn-p" style="padding:10px 22px;font-size:16px;letter-spacing:2px" onclick="doUpdate()" id="sync-btn">↻ SYNC</button>
-        <button class="btn btn-p" style="padding:10px 22px;font-size:16px;letter-spacing:2px;background:linear-gradient(135deg,rgba(240,0,255,.12),rgba(77,121,255,.12));border-color:rgba(240,0,255,.4)" onclick="openTokenModal()" id="gh-hdr-btn">SYNC KEY</button>
+        <button class="btn btn-p" style="padding:10px 22px;font-size:16px;letter-spacing:2px;background:var(--pc);color:#fff" onclick="doUpdate()" id="sync-btn">↻ SYNC</button>
+        <button class="btn btn-p" style="padding:10px 22px;font-size:16px;letter-spacing:2px;background:var(--pc);color:#fff" onclick="openTokenModal()" id="gh-hdr-btn">SYNC KEY</button>
       </div>
       <div id="ovr-sync"><div class="loading"><span class="spi"></span></div></div>
     </div>
@@ -14701,7 +14701,11 @@ async function opsRunSched(sport,btn){
 
 function renderCrossDeviceSync(){
   const el=document.getElementById('ovr-sync');if(!el)return;
-  const preds=getP();
+  // Scoped to active-subscription sports/leagues so this database summary
+  // matches what's actually sold today, not retired sports (MLB/WNBA/
+  // tennis/CBB/World Cup/Bundesliga) still sitting in the raw pick history.
+  const PAID_LEVEL_SPORTS=new Set(['NFL','CFB','NBA','NHL','LIIGA','SHL','NLA','EXTRALIGA','PL','LIGA','MLS','SERIEA','CL']);
+  const preds=getP().filter(p=>PAID_LEVEL_SPORTS.has(window._normSport(p)));
   const wins=preds.filter(p=>p.outcome==='win').length;
   const losses=preds.filter(p=>p.outcome==='loss').length;
   const pending=preds.filter(p=>p.outcome==='pending').length;
@@ -14713,7 +14717,7 @@ function renderCrossDeviceSync(){
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
       ${[['PICKS',preds.length,'var(--nc)'],['WINS',wins,'var(--nc)'],['LOSSES',losses,'var(--hc)'],['PENDING',pending,'var(--pc)']].map(([l,v,c])=>`<div style="flex:1;min-width:60px;text-align:center;background:rgba(10,0,24,.8);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:8px"><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${c}">${v}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">${l}</div></div>`).join('')}
     </div>
-    <button class="btn btn-p btn-fw" style="padding:11px;margin-bottom:8px" onclick="genSyncCode();const el=document.getElementById('ovr-sync');if(el)renderCrossDeviceSync()">GENERATE + COPY SYNC CODE</button>
+    <button class="btn btn-p btn-fw" style="padding:11px;margin-bottom:8px;background:var(--pc);color:#fff" onclick="genSyncCode();const el=document.getElementById('ovr-sync');if(el)renderCrossDeviceSync()">GENERATE + COPY SYNC CODE</button>
     <div style="font-family:var(--mono);font-size:16px;color:var(--t3);margin-bottom:6px">IMPORT FROM ANOTHER DEVICE:</div>
     <div style="display:flex;gap:6px">
       <input id="sync-code-in" class="fi" placeholder="PASTE SYNC CODE HERE" style="flex:1;font-size:16px;padding:6px 8px"/>
