@@ -106,6 +106,14 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .snav::-webkit-scrollbar{display:none}
 .sb2{font-family:var(--mono);font-size:17px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);padding:4px 10px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s}
 .sb2.act{color:var(--pc);border-bottom-color:var(--pc)}
+/* CFB's (cfb-innav-*) and NFL's (nfl2-innav-*) own GAMES/PROPS/MODEL/
+   CONFIG sub-nav specifically -- explicit request, 2026-09-23 -- neon
+   cyan instead of the shared .sb2.act magenta every OTHER .sb2 button
+   (every league picker: NBA, PREMIER LEAGUE, SHL, etc) still uses.
+   Scoped by id prefix, not a shared class, so it can't leak onto those
+   other buttons; placed after .sb2.act so equal-specificity cascade
+   order alone decides it, no !important needed. */
+[id^="cfb-innav-"].act,[id^="nfl2-innav-"].act{color:var(--nc);border-bottom-color:var(--nc)}
 .subp{display:none;flex:1;flex-direction:column;overflow:hidden}.subp.act{display:flex}
 .inav{flex:0 0 35px;background:rgba(6,0,15,.95);border-bottom:1px solid rgba(77,121,255,.15);display:flex;overflow-x:auto;overflow-y:hidden;padding:0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .inav::-webkit-scrollbar{display:none}
@@ -777,7 +785,7 @@ body{line-height:1.5}
     <button class="sb2" onclick="setSub('hk','liiga')">LIIGA</button>
     <button class="sb2" onclick="setSub('hk','nla')">NLA</button>
     <button class="sb2" onclick="setSub('hk','extraliga')">EXTRALIGA</button>
-    <button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px;background:var(--pc);color:var(--nc)">↻ SYNC</button>
+    <button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px;background:var(--pc);color:#fff">↻ SYNC</button>
   </nav>
   <div id="hk-nhl" class="subp act" style="overflow:hidden">
     <nav class="inav" id="nhl-in">
@@ -1100,7 +1108,7 @@ body{line-height:1.5}
     <button class="sb2" onclick="setSub('soc','mls')">MLS</button>
     <button class="sb2" onclick="setSub('soc','ita')">SERIE A</button>
     <button class="sb2" onclick="setSub('soc','cl')">CHAMPIONS LEAGUE</button>
-    <button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px;background:var(--pc);color:var(--nc)">↻ SYNC</button>
+    <button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px;background:var(--pc);color:#fff">↻ SYNC</button>
   </nav>
   <!-- World Cup 2026 removed entirely from the UI (concluded Jul 19,
        fully archived per explicit request) — no sub-tab, no nav-dropdown
@@ -1395,7 +1403,7 @@ body{line-height:1.5}
 </div>
 </div>
 <div id="sp-nba" class="spane">
-  <nav class="snav"><button class="sb2 act" onclick="setSub('nba','nba')">NBA</button><button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px;background:var(--pc);color:var(--nc)">↻ SYNC</button></nav>
+  <nav class="snav"><button class="sb2 act" onclick="setSub('nba','nba')">NBA</button><button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px;background:var(--pc);color:#fff">↻ SYNC</button></nav>
   <div id="nba-nba" class="subp act" style="overflow:hidden">
     <nav class="inav" id="nba-in">
       <button class="nb act" onclick="T('nba','games')">MATCHES</button>
@@ -15529,7 +15537,7 @@ function renderHomePage(){
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
               ${_sportBadgeHtml(window._normSport(p),sc)}
               <span style="font-family:var(--mono);font-size:16px;color:var(--t2)">${mu}</span>
-              ${dateLbl?`<span style="font-family:var(--mono);font-size:13px;color:var(--t3);border:1px solid rgba(255,255,255,.15);padding:0 4px;border-radius:2px">${dateLbl}</span>`:''}
+              ${dateLbl?`<span style="font-family:var(--mono);font-size:13px;color:var(--nc);border:1px solid rgba(255,255,255,.15);padding:0 4px;border-radius:2px">${dateLbl}</span>`:''}
               ${_gradeChipHtml(p)}
             </div>
             <div style="font-family:var(--mono);font-size:17px;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_expandBetOn(p.betOn||'',p.sport)}</div>
