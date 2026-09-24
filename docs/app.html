@@ -98,7 +98,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
    them all, since overflow-x:auto still applies once content overflows. */
 #sbar{flex:0 0 38px;background:rgba(6,0,15,.95);border-bottom:1px solid rgba(77,121,255,.2);display:flex;justify-content:space-evenly;overflow-x:auto;overflow-y:hidden;padding:0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 #sbar::-webkit-scrollbar{display:none}
-.sp{font-family:var(--orb);font-size:17px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t2);padding:5px 14px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;flex:0 1 auto}
+.sp{font-family:var(--orb);font-size:17px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--pc);padding:5px 14px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;flex:0 1 auto}
 .sp.act{color:var(--pc);border-bottom-color:var(--pc);text-shadow:0 0 8px rgba(240,0,255,.7)}
 .spane{display:none;flex:1;flex-direction:column;overflow:hidden}.spane.act{display:flex}
 /* SUB/INNER NAV */
@@ -777,7 +777,7 @@ body{line-height:1.5}
     <button class="sb2" onclick="setSub('hk','liiga')">LIIGA</button>
     <button class="sb2" onclick="setSub('hk','nla')">NLA</button>
     <button class="sb2" onclick="setSub('hk','extraliga')">EXTRALIGA</button>
-    <button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px">↻ SYNC</button>
+    <button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px;background:var(--pc);color:var(--nc)">↻ SYNC</button>
   </nav>
   <div id="hk-nhl" class="subp act" style="overflow:hidden">
     <nav class="inav" id="nhl-in">
@@ -1100,7 +1100,7 @@ body{line-height:1.5}
     <button class="sb2" onclick="setSub('soc','mls')">MLS</button>
     <button class="sb2" onclick="setSub('soc','ita')">SERIE A</button>
     <button class="sb2" onclick="setSub('soc','cl')">CHAMPIONS LEAGUE</button>
-    <button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px">↻ SYNC</button>
+    <button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px;background:var(--pc);color:var(--nc)">↻ SYNC</button>
   </nav>
   <!-- World Cup 2026 removed entirely from the UI (concluded Jul 19,
        fully archived per explicit request) — no sub-tab, no nav-dropdown
@@ -1395,7 +1395,7 @@ body{line-height:1.5}
 </div>
 </div>
 <div id="sp-nba" class="spane">
-  <nav class="snav"><button class="sb2 act" onclick="setSub('nba','nba')">NBA</button><button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px">↻ SYNC</button></nav>
+  <nav class="snav"><button class="sb2 act" onclick="setSub('nba','nba')">NBA</button><button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px;background:var(--pc);color:var(--nc)">↻ SYNC</button></nav>
   <div id="nba-nba" class="subp act" style="overflow:hidden">
     <nav class="inav" id="nba-in">
       <button class="nb act" onclick="T('nba','games')">MATCHES</button>
@@ -16642,7 +16642,11 @@ function T(sport,tabId){const D=window.__CV_DATA||{};
   document.querySelectorAll(`#${saId} .tab`).forEach(t=>t.classList.remove('act'));
   document.querySelectorAll(`#${navId} .nb,#${mnId} .mb`).forEach(b=>b.classList.remove('act','ai','ap'));
   document.getElementById(`${sport}-tab-${tabId}`)?.classList.add('act');
-  const cls=(sport==='nhl'||sport==='nba')?'ai':'act';
+  // NBA/NHL used to get the 'ai' (blue) active-tab class here while every
+  // other sport's own GAMES/PROPS/MODEL/CONFIG sub-nav got the standard
+  // 'act' (cyan) -- explicit request, 2026-09-23, to make them consistent
+  // with every other sport instead of the one-off blue.
+  const cls='act';
   document.querySelectorAll(`#${navId} .nb,#${mnId} .mb`).forEach(b=>{if(b.getAttribute('onclick')?.includes(`'${tabId}'`))b.classList.add(cls);});
   if(sport==='nhl'){if(tabId==='picks')renderNHLPicks();if(tabId==='games'){renderNHLTonight();renderNHLGames();renderNHLUpcoming();};if(tabId==='goalies')renderGoaliesFromBackend();if(tabId==='props'){renderProps();renderNHLSCFProps();setTimeout(()=>renderNHLPropsLive(window._nhlPropFilter||'all'),50);}if(tabId==='edge')renderNHLEdge('team');if(tabId==='puck')renderMoneyPuck();if(tabId==='history')renderNHLHistory();if(tabId==='live'){
   startNHLLive();renderNHLLiveBets();
