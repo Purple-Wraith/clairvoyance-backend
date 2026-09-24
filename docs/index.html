@@ -12529,7 +12529,7 @@ function renderOverall(){
   let h=`
   <div class="g4" style="gap:8px;margin-bottom:14px">
     <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${accColorG(acc)}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">WIN %</div></div>
-    <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:26px;font-weight:700">${wins}W-${losses}L</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">RECORD</div></div>
+    <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:26px;font-weight:700"><span style="color:#00e644">${wins}W</span>-<span style="color:#ff1a1a">${losses}L</span></div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">RECORD</div></div>
     <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${unitColorG(atUnits)}">${atUnits>=0?'+':''}${atUnits.toFixed(1)}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">UNITS</div></div>
     <div class="card cp" style="text-align:center;padding:10px"><div style="font-family:var(--orb);font-size:30px;font-weight:700;color:${curStreakType==='win'?'#00e644':'var(--hc)'}">${curStreak>0?curStreak+(curStreakType==='win'?'W':'L'):'--'}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">STREAK</div></div>
   </div>`;
@@ -13358,7 +13358,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
             ${_sportBadgeHtml(window._normSport(p),()=>sc)}
             <span style="font-family:var(--mono);font-size:16px;color:var(--t2)">${mu}</span>
             ${_gradeChipHtml(p)}
-            <span style="font-family:var(--mono);font-size:15px;color:var(--t3)">${p.date||''}</span>
+            <span style="font-family:var(--mono);font-size:13px;color:var(--nc);border:1px solid rgba(255,255,255,.15);padding:0 4px;border-radius:2px">${p.date||''}</span>
           </div>
           <div style="font-family:var(--mono);font-size:17px;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_expandBetOn(p.betOn||p.betType,p.sport)}</div>
           <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:1px">${p.ml||''} · ${p.betType}</div>
@@ -14095,8 +14095,8 @@ function renderAdaptiveLearning(){
   const accColor=a=>a>=.62?'var(--nc)':a>=.52?'var(--vc)':'var(--hc)';
   const pCol=p=>p>=.62?'var(--nc)':p>=.52?'var(--vc)':'var(--hc)';
   let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:6px">
-    <span style="font-family:var(--mono);font-size:15px;color:var(--t3);letter-spacing:2px">// ADAPTIVE ENGINE · LAST CYCLE: ${ts}</span>
-    <button class="btn btn-p btn-sm" onclick="adaptiveTick();renderAdaptiveLearning();toast('// LEARNING CYCLE COMPLETE')">RUN CYCLE</button>
+    <span style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px">// ADAPTIVE ENGINE · LAST CYCLE: ${ts}</span>
+    <button class="btn btn-p btn-sm" style="background:var(--pc);color:#fff" onclick="adaptiveTick();renderAdaptiveLearning();toast('// LEARNING CYCLE COMPLETE')">RUN CYCLE</button>
   </div>`;
   if(state.status==='INSUFFICIENT_DATA'){el.innerHTML=html+`<div class="empty">${state.msg}</div>`;return;}
 
@@ -14119,12 +14119,12 @@ function renderAdaptiveLearning(){
     <div class="pfs-row" style="display:flex;gap:6px;flex-wrap:wrap">
       ${[['L10 TREND',l10acc,L10.length],['L30 WINDOW',l30acc,L30.length],['ALL TIME',allAcc,all.length]].map(([lbl,acc,n])=>`<div style="flex:1;min-width:70px;background:rgba(10,0,24,.8);border:1px solid rgba(77,121,255,.2);border-radius:3px;padding:9px;text-align:center">
         <div class="pfsv" style="font-family:var(--orb);font-size:27px;font-weight:700;color:${acc!==null?accColor(acc):'var(--t3)'}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div>
-        <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:2px">${lbl}</div>
+        <div style="font-family:var(--mono);font-size:14px;color:var(--pc);margin-top:2px">${lbl}</div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3)">${n} bets</div>
       </div>`).join('')}
       <div style="flex:1;min-width:70px;background:rgba(10,0,24,.8);border:1px solid rgba(77,121,255,.2);border-radius:3px;padding:9px;text-align:center">
         <div class="pfsv" style="font-family:var(--orb);font-size:27px;font-weight:700;color:var(--vc)">${(state.evThreshold||2).toFixed(1)}%</div>
-        <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:2px">EV THRESH</div>
+        <div style="font-family:var(--mono);font-size:14px;color:var(--pc);margin-top:2px">EV THRESH</div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3)">auto-tuned</div>
       </div>
     </div>
@@ -14139,10 +14139,10 @@ function renderAdaptiveLearning(){
     html+=`<div class="card" style="margin-bottom:12px;padding:12px;border-left:3px solid var(--pc)">
       <div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin-bottom:8px">// WHAT CHANGED THIS CYCLE</div>`;
     if(betsDelta>0)html+=`<div style="font-family:var(--mono);font-size:17px;color:var(--t2);margin-bottom:4px">+ ${betsDelta} new settled bet${betsDelta>1?'s':''} ingested into model</div>`;
-    if(Math.abs(accDelta)>=0.3)html+=`<div style="font-family:var(--mono);font-size:17px;color:${accDelta>0?'var(--nc)':'var(--hc)'};margin-bottom:4px">${accDelta>0?'▲ IMPROVED':'▼ DECLINED'}: 30-bet accuracy ${accDelta>0?'+':''}${accDelta.toFixed(1)}% → now ${(state.overallAcc*100).toFixed(1)}%</div>`;
+    if(Math.abs(accDelta)>=0.3)html+=`<div style="font-family:var(--mono);font-size:17px;color:${accDelta>0?'#00e644':'var(--hc)'};margin-bottom:4px">${accDelta>0?'▲ IMPROVED':'▼ DECLINED'}: 30-bet accuracy ${accDelta>0?'+':''}${accDelta.toFixed(1)}% → now ${(state.overallAcc*100).toFixed(1)}%</div>`;
     if(changes.length){
       html+=`<div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin:6px 0 3px">WEIGHT ADJUSTMENTS:</div>`;
-      html+=changes.map(c=>`<div style="font-family:var(--mono);font-size:16px;color:${c.delta>0?'var(--nc)':'var(--hc)'};margin-bottom:2px">${c.delta>0?'↑':'↓'} ${c.sport} ${c.key}: ${c.delta>0?'+':''}${c.delta.toFixed(1)}%</div>`).join('');
+      html+=changes.map(c=>`<div style="font-family:var(--mono);font-size:16px;color:${c.delta>0?'#00e644':'var(--hc)'};margin-bottom:2px">${c.delta>0?'↑':'↓'} ${c.sport} ${c.key}: ${c.delta>0?'+':''}${c.delta.toFixed(1)}%</div>`).join('');
     }
     if(!changes.length&&Math.abs(accDelta)<0.3&&betsDelta===0)html+=`<div style="font-family:var(--mono);font-size:16px;color:var(--t3)">No significant changes — model stable.</div>`;
     // Probability-band calibration adjustments — the correction layer
@@ -14159,7 +14159,7 @@ function renderAdaptiveLearning(){
       const _adjEntries=Object.entries(_adj).filter(([,v])=>Math.abs(v)>0.005);
       if(_adjEntries.length){
         html+=`<div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin:8px 0 3px">LIVE PROBABILITY CORRECTIONS (applied automatically to every new pick):</div>`;
-        html+=_adjEntries.map(([min,v])=>`<div style="font-family:var(--mono);font-size:16px;color:${v>0?'var(--nc)':'var(--hc)'};margin-bottom:2px">${v>0?'▲':'▼'} ${_bandLbls[min]||min+'%+'} band: ${v>0?'+':''}${(v*100).toFixed(1)}pp</div>`).join('');
+        html+=_adjEntries.map(([min,v])=>`<div style="font-family:var(--mono);font-size:16px;color:${v>0?'#00e644':'var(--hc)'};margin-bottom:2px">${v>0?'▲':'▼'} ${_bandLbls[min]||min+'%+'} band: ${v>0?'+':''}${(v*100).toFixed(1)}pp</div>`).join('');
       }
     }catch(e){}
     html+=`</div>`;
@@ -14169,7 +14169,7 @@ function renderAdaptiveLearning(){
   if((state.findings||[]).length){
     const fColor={strength:'var(--nc)',weakness:'var(--hc)',up:'var(--nc)',down:'var(--hc)',calibration:'var(--gc)',alert:'var(--mc)',insight:'var(--ic)'};
     const fLabel={strength:'STRENGTH',weakness:'WEAKNESS',up:'↑ WEIGHT UP',down:'↓ WEIGHT DOWN',calibration:'CALIBRATION',alert:'⚠ ALERT',insight:'INSIGHT'};
-    html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--nc);margin:12px 0 6px">// WHAT CLAIRVOYANCE HAS LEARNED</div>`;
+    html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin:12px 0 6px">// WHAT CLAIRVOYANCE HAS LEARNED</div>`;
     html+=state.findings.map(f=>`<div class="card" style="margin-bottom:6px;border-left:3px solid ${fColor[f.type]||'var(--t3)'};padding:8px 11px">
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:3px">
         <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${fColor[f.type]||'var(--t3)'};color:${fColor[f.type]||'var(--t3)'};border-radius:2px">${fLabel[f.type]||f.type.toUpperCase()}</span>
@@ -14201,15 +14201,30 @@ function renderAdaptiveLearning(){
   // 2-component (MC/BAY) ensemble with no Elo signal, so the ELO row is
   // only rendered when a sport's weights object actually has one --
   // unconditionally reading w.elo for NFL would render "ELO: NaN%".
-  html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--ic);margin:12px 0 6px">// AUTO-TUNED ENSEMBLE WEIGHTS</div>
+  // SHL/LIIGA/NLA/EXTRALIGA added 2026-09-23, explicit request -- these
+  // 4 leagues have a real, live MC/BAY/ELO ensemble (HOCKEY_ENS[league],
+  // the same object Engine Ops' own "ENSEMBLE WEIGHTS BY SPORT" panel
+  // already reads/adjusts), it just was never wired into THIS display,
+  // which only ever read state.weights -- the object adaptiveTick()
+  // populates for NHL/NBA/NFL/CFB alone. This shows their real current
+  // weights the same way, without changing adaptiveTick() itself to
+  // auto-tune them (a separate, bigger behavior change -- these 4 stay
+  // manually adjustable via Ops for now, this is a display-only fix).
+  // Soccer is deliberately not addable here at all -- it runs a
+  // Poisson/xG model, not an MC/BAY/ELO ensemble, so there's no weight
+  // triple to show in this card's own format.
+  const _hkEnsDefault={mc:.7,bay:.2,elo:.1};
+  const _ensembleCards=[
+    ...['NHL','NBA','NFL','CFB'].filter(s=>state.weights?.[s]).map(sport=>({sport,w:state.weights[sport],sp:Object.entries(state.sportPerf||{}).find(([s])=>s===sport)?.[1]})),
+    ...['SHL','LIIGA','NLA','EXTRALIGA'].map(sport=>({sport,w:(window.HOCKEY_ENS&&window.HOCKEY_ENS[sport.toLowerCase()])||_hkEnsDefault,sp:Object.entries(state.sportPerf||{}).find(([s])=>s===sport)?.[1]})),
+  ];
+  html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin:12px 0 6px">// AUTO-TUNED ENSEMBLE WEIGHTS</div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-bottom:12px">
-    ${['NHL','NBA','NFL','CFB'].filter(s=>state.weights?.[s]).map(sport=>{
-      const w=state.weights[sport];
-      const sp=Object.entries(state.sportPerf||{}).find(([s])=>s===sport)?.[1];
+    ${_ensembleCards.map(({sport,w,sp})=>{
       const rows=[['MC',w.mc,'var(--pc)'],['BAY',w.bay,'var(--ic)']];
       if(w.elo!=null)rows.push(['ELO',w.elo,'var(--nc)']);
       return`<div class="card" style="padding:10px">
-        <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:6px">${sport}${sp?' · '+(sp.acc*100).toFixed(0)+'%':''}</div>
+        <div style="font-family:var(--mono);font-size:15px;color:var(--pc);margin-bottom:6px">${sport}${sp?' · '+(sp.acc*100).toFixed(0)+'%':''}</div>
         ${rows.map(([l,v,c])=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
           <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">${l}</span>
           <div style="flex:1;height:3px;background:rgba(255,255,255,.08);border-radius:1px;margin:0 6px"><div style="width:${(v*100).toFixed(0)}%;height:100%;background:${c};border-radius:1px"></div></div>
@@ -14220,7 +14235,7 @@ function renderAdaptiveLearning(){
   </div>`;
 
   // ── BY SPORT + LEAGUE BREAKDOWN ───────────────────────────────────────────
-  html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--vc);margin:12px 0 6px">// PERFORMANCE BY SPORT & LEAGUE</div>`;
+  html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin:12px 0 6px">// PERFORMANCE BY SPORT & LEAGUE</div>`;
   const sportGroups={
     BASKETBALL:{sports:['NBA'],color:'var(--pc)'},
     HOCKEY:{sports:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH'],color:'var(--ic)'},
@@ -14236,15 +14251,16 @@ function renderAdaptiveLearning(){
     const units=bets.reduce((a,p)=>a+(p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1),0);
     // Per-league inside group
     const _lgLabel={PL:'PREMIER LEAGUE',LIGA:'LA LIGA',BL:'BUNDESLIGA',BUND:'BUNDESLIGA',CL:'CHAMPIONS LEAGUE',SERIEA:'SERIE A',MLS:'MLS',NHL:'NHL',NBA:'NBA',NFL:'NFL'};
-    const leagueRows=sports.map(s=>{const lb=bets.filter(p=>window._normSport(p)===s);if(!lb.length)return'';const lw=lb.filter(p=>p.outcome==='win').length;const lu=lb.reduce((a,p)=>a+(p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1),0);const lacc=lb.length?lw/lb.length:null;return`<div style="display:flex;justify-content:space-between;padding:3px 8px 3px 20px;border-top:1px solid rgba(255,255,255,.04)"><span style="font-family:var(--mono);font-size:15px;color:var(--t3)">${_lgLabel[s]||s}</span><span style="font-family:var(--mono);font-size:15px;color:var(--t2)">${lw}W-${lb.length-lw}L</span><span style="font-family:var(--mono);font-size:15px;font-weight:700;color:${pCol(lacc||0)}">${lacc!==null?(lacc*100).toFixed(0)+'%':'--'}</span><span style="font-family:var(--mono);font-size:14px;color:${lu>=0?'var(--nc)':'var(--hc)'}">${lu>=0?'+':''}${lu.toFixed(1)}u</span></div>`;}).filter(Boolean).join('');
+    const leagueRows=sports.map(s=>{const lb=bets.filter(p=>window._normSport(p)===s);if(!lb.length)return'';const lw=lb.filter(p=>p.outcome==='win').length;const ll=lb.length-lw;const lu=lb.reduce((a,p)=>a+(p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1),0);const lacc=lb.length?lw/lb.length:null;return`<div style="display:flex;justify-content:space-between;padding:3px 8px 3px 20px;border-top:1px solid rgba(255,255,255,.04)"><span style="font-family:var(--mono);font-size:15px;color:var(--t3)">${_lgLabel[s]||s}</span><span style="font-family:var(--mono);font-size:15px"><span style="color:#00e644">${lw}W</span>-<span style="color:#ff1a1a">${ll}L</span></span><span style="font-family:var(--mono);font-size:15px;font-weight:700;color:#00e644">${lacc!==null?(lacc*100).toFixed(0)+'%':'--'}</span><span style="font-family:var(--mono);font-size:14px;color:#00e644">${lu>=0?'+':''}${lu.toFixed(1)}u</span></div>`;}).filter(Boolean).join('');
     const fid2='adsp_'+grp;
+    const l2=bets.length-w;
     html+=`<div style="border:1px solid rgba(255,255,255,.08);border-radius:3px;overflow:hidden">
       <div onclick="const c=document.getElementById('${fid2}');c.style.display=c.style.display==='none'?'block':'none'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:rgba(10,0,24,.7)">
         <span style="font-family:var(--mono);font-size:16px;color:${color}">${grp}</span>
         <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-family:var(--mono);font-size:15px;color:var(--t2)">${w}W-${bets.length-w}L</span>
-          <span style="font-family:var(--mono);font-size:16px;font-weight:700;color:${pCol(acc||0)}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</span>
-          <span style="font-family:var(--mono);font-size:15px;color:${units>=0?'var(--nc)':'var(--hc)'}">${units>=0?'+':''}${units.toFixed(1)}u</span>
+          <span style="font-family:var(--mono);font-size:15px"><span style="color:#00e644">${w}W</span>-<span style="color:#ff1a1a">${l2}L</span></span>
+          <span style="font-family:var(--mono);font-size:16px;font-weight:700;color:#00e644">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</span>
+          <span style="font-family:var(--mono);font-size:15px;color:#00e644">${units>=0?'+':''}${units.toFixed(1)}u</span>
         </div>
       </div>
       <div id="${fid2}" style="display:none;background:rgba(4,0,12,.5)">${leagueRows}</div>
@@ -14253,43 +14269,44 @@ function renderAdaptiveLearning(){
   html+=`</div>`;
 
   // ── BY BET TYPE ───────────────────────────────────────────────────────────
-  const typeMap={ML:'Moneyline',RL:'Run Line',PL:'Puck Line',OU:'Over/Under',PROP:'Player Props'};
-  const typeBets=['ML','RL','PL','OU','PROP'].map(bt=>{const tb=perfAll.filter(p=>p.betType===bt);if(!tb.length)return null;const tw=tb.filter(p=>p.outcome==='win').length;const tu=tb.reduce((a,p)=>a+(p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1),0);return{bt,n:tb.length,w:tw,acc:tb.length?tw/tb.length:null,units:tu};}).filter(Boolean);
+  // RL (Run Line) removed 2026-09-23, explicit request -- MLB (the only
+  // sport that ever used it) retired 2026-09-08, so this box had been
+  // silently empty/dead for weeks. Replaced with SPREAD, which was
+  // never in this map at all despite being a real, live betType (NFL/
+  // CFB spread bets, soccer's Asian Handicap markets) -- those bets
+  // simply had nowhere to show up in this breakdown before now.
+  // Also scoped every box to PAID_LEVEL_SPORTS -- confirmed live this
+  // session that ML/OU/PROP were silently blending in retired sports'
+  // historical bets (MLB/WNBA/tennis/CBB/World Cup/Bundesliga) alongside
+  // real current paid-product picks, same contamination class of bug
+  // already fixed elsewhere this session.
+  const PAID_LEVEL_SPORTS=new Set(['NFL','CFB','NBA','NHL','LIIGA','SHL','NLA','EXTRALIGA','PL','LIGA','MLS','SERIEA','CL']);
+  const typeMap={ML:'Moneyline',SPREAD:'Spread',PL:'Puck Line',OU:'Over/Under',PROP:'Player Props'};
+  const typeBets=['ML','SPREAD','PL','OU','PROP'].map(bt=>{const tb=perfAll.filter(p=>p.betType===bt&&PAID_LEVEL_SPORTS.has(window._normSport(p)));if(!tb.length)return null;const tw=tb.filter(p=>p.outcome==='win').length;const tu=tb.reduce((a,p)=>a+(p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1),0);return{bt,n:tb.length,w:tw,acc:tb.length?tw/tb.length:null,units:tu};}).filter(Boolean);
   if(typeBets.length){
-    html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--mc);margin:12px 0 6px">// BY BET TYPE</div>
+    html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin:12px 0 6px">// BY BET TYPE</div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">
       ${typeBets.map(t=>`<div style="flex:1;min-width:70px;background:rgba(10,0,24,.8);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:9px;text-align:center">
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:3px">${typeMap[t.bt]||t.bt}</div>
-        <div style="font-family:var(--orb);font-size:24px;font-weight:700;color:${pCol(t.acc||0)}">${t.acc!==null?(t.acc*100).toFixed(0)+'%':'--'}</div>
-        <div style="font-family:var(--mono);font-size:14px;color:var(--t2);margin-top:2px">${t.w}W-${t.n-t.w}L</div>
-        <div style="font-family:var(--mono);font-size:14px;color:${t.units>=0?'var(--nc)':'var(--hc)'}">${t.units>=0?'+':''}${t.units.toFixed(1)}u</div>
+        <div style="font-family:var(--orb);font-size:24px;font-weight:700;color:#00e644">${t.acc!==null?(t.acc*100).toFixed(0)+'%':'--'}</div>
+        <div style="font-family:var(--mono);font-size:14px;margin-top:2px"><span style="color:#00e644">${t.w}W</span>-<span style="color:#ff1a1a">${t.n-t.w}L</span></div>
+        <div style="font-family:var(--mono);font-size:14px;color:#00e644">${t.units>=0?'+':''}${t.units.toFixed(1)}u</div>
       </div>`).join('')}
     </div>`;
   }
 
   // ── CALIBRATION ANALYSIS ──────────────────────────────────────────────────
   if(Object.keys(state.calErrors||{}).length){
-    html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--gc);margin:12px 0 6px">// CALIBRATION ANALYSIS — PREDICTED vs ACTUAL</div>
+    html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin:12px 0 6px">// CALIBRATION ANALYSIS — PREDICTED vs ACTUAL</div>
     <div class="card" style="margin-bottom:12px;padding:10px;overflow-x:auto">
-      <table class="dt" style="font-size:16px;min-width:280px"><thead><tr><th>TIER</th><th>PREDICTED</th><th>ACTUAL</th><th>DRIFT</th><th>N</th></tr></thead><tbody>
+      <table class="dt" style="font-size:16px;min-width:280px"><thead><tr><th style="color:#fff">TIER</th><th style="color:#fff">PREDICTED</th><th style="color:#fff">ACTUAL</th><th style="color:#fff">DRIFT</th><th style="color:#fff">N</th></tr></thead><tbody>
       ${Object.entries(state.calErrors).map(([bk,d])=>{const drift=d.predicted-d.actual;const dc=Math.abs(drift)>0.06?'var(--hc)':Math.abs(drift)>0.03?'var(--mc)':'var(--nc)';return`<tr><td style="color:var(--t3)">${bk.toUpperCase()}</td><td>${(d.predicted*100).toFixed(1)}%</td><td style="color:${d.actual>=d.predicted?'var(--nc)':'var(--hc)'}">${(d.actual*100).toFixed(1)}%</td><td style="color:${dc}">${drift>=0?'+':''}${(drift*100).toFixed(1)}%</td><td style="color:var(--t3)">${d.n}</td></tr>`;}).join('')}
       </tbody></table>
     </div>`;
   }
 
-  // ── ACCURACY TREND CHART ──────────────────────────────────────────────────
-  if((state.history||[]).length>1){
-    html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin:12px 0 6px">// ACCURACY TREND — EACH BAR = ONE LEARNING CYCLE</div>
-    <div class="card" style="margin-bottom:12px;padding:10px">
-      <div style="display:flex;align-items:flex-end;gap:3px;height:48px">
-        ${state.history.map(h=>{const pct=h.overallAcc||0.5;const ht=Math.max(4,Math.round(pct*48));const c=pct>=.60?'var(--nc)':pct>=.52?'var(--vc)':'var(--hc)';return`<div style="flex:1;background:${c};height:${ht}px;border-radius:2px 2px 0 0;min-width:4px;opacity:.9" title="${(pct*100).toFixed(1)}%"></div>`;}).join('')}
-      </div>
-      <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:4px"><span>OLDEST</span><span>NOW → ${(state.overallAcc*100).toFixed(1)}%</span></div>
-    </div>`;
-  }
-
   // ── WHERE THE MODEL IS FALLING SHORT ─────────────────────────────────────
-  html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--hc);margin:12px 0 6px">// WHERE THE MODEL FALLS SHORT</div>`;
+  html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin:12px 0 6px">// WHERE THE MODEL FALLS SHORT</div>`;
   if((state.weaknesses||[]).length){
     html+=state.weaknesses.map(w=>`<div class="card" style="margin-bottom:6px;border-left:3px solid var(--hc);padding:9px 11px">
       <div style="font-family:var(--mono);font-size:14px;color:var(--hc);letter-spacing:1px;margin-bottom:4px">▼ ${w.area}</div>
@@ -14302,7 +14319,7 @@ function renderAdaptiveLearning(){
   // ── RECOMMENDATIONS & NEXT STEPS ─────────────────────────────────────────
   if((state.recommendations||[]).length){
     const pColor={URGENT:'var(--hc)',HIGH:'var(--mc)',MEDIUM:'var(--vc)',LOW:'var(--nc)'};
-    html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--gc);margin:12px 0 6px">// RECOMMENDATIONS & NEXT STEPS</div>`;
+    html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin:12px 0 6px">// RECOMMENDATIONS & NEXT STEPS</div>`;
     html+=state.recommendations.map(r=>{const pc=pColor[r.priority]||'var(--t3)';return`<div class="card" style="margin-bottom:6px;border-left:3px solid ${pc};padding:9px 11px">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
         <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${pc};color:${pc};border-radius:2px">${r.priority}</span>
@@ -14313,7 +14330,7 @@ function renderAdaptiveLearning(){
   }
 
   // ── ADJUSTMENT MEASUREMENT ────────────────────────────────────────────────
-  html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--ic);margin:12px 0 6px">// ADJUSTMENT IMPACT MEASUREMENT</div>`;
+  html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin:12px 0 6px">// ADJUSTMENT IMPACT MEASUREMENT</div>`;
   const adjLog=JSON.parse(S.g('adaptive_log')||'[]');
   if(adjLog.length>=2){
     const recent=adjLog.slice(-5);
@@ -14338,7 +14355,7 @@ function renderAdaptiveLearning(){
   }
 
   // ── ADAPTIVE LOG ──────────────────────────────────────────────────────────
-  html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--t3);margin:12px 0 6px">// ADAPTIVE LOG — CYCLE HISTORY</div>`;
+  html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin:12px 0 6px">// ADAPTIVE LOG — CYCLE HISTORY</div>`;
   if(adjLog.length){
     const logFid='adaptive-log-body';
     const logRows=adjLog.slice().reverse().map((e,i)=>{
