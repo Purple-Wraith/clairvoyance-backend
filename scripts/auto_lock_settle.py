@@ -1733,7 +1733,22 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
 
 def send_locks_email(qualifying: list[dict], live: bool, locked_count: int | None = None,
                       label: str = "", to: list[str] | None = None, date_str: str | None = None) -> None:
-    recipients = to if to is not None else ([LOCKS_EMAIL_TO] if LOCKS_EMAIL_TO else [])
+    # Real bug, found via audit 2026-09-24: every call site across every
+    # lock function (run_lock, run_euro_early_lock, run_soccer_evening_
+    # lock, run_cfb_evening_lock, run_hockey_evening_lock, run_lock_
+    # segmented) passes the real recipients_for(product) list (owner +
+    # every active paying subscriber) regardless of `live` -- so ANY
+    # dry-run invocation (a manual workflow_dispatch test left unchecked,
+    # or LIVE_MODE ever unset for a scheduled run) sent every real
+    # subscriber a "[DRY RUN] Would lock..." email. This directly
+    # contradicts this file's own documented SAFETY principle (scheduled
+    # dry-runs "log exactly what WOULD be locked/settled and write
+    # nothing") -- a dry run should never be subscriber-visible. Anyone
+    # who genuinely wants to preview the real template already has
+    # scripts/send_demo_emails.py (synthetic data, explicitly built for
+    # that, never touches real subscribers). Dry-run now always routes to
+    # the owner only, regardless of what `to` the caller passed.
+    recipients = ([OWNER_EMAIL] if OWNER_EMAIL else []) if not live else (to if to is not None else ([LOCKS_EMAIL_TO] if LOCKS_EMAIL_TO else []))
     if not recipients:
         log("No recipients (LOCKS_EMAIL_TO unset and none passed) — skipping locked-picks email")
         return
@@ -2456,7 +2471,14 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
         # THIS run's own (NHL-only) email.
         season_inactive = product in ("nba", "hockey") and not email_qualifying
         if not live:
-            if send_email and not season_inactive:
+            # Same redundancy-skip as the live branch below (soccer/cfb
+            # both have their own dedicated early/evening pass with a
+            # better-timed email) -- this branch was missing it, so a
+            # dry-run still logged/sent a redundant soccer/cfb preview.
+            if send_email and product in ("soccer", "cfb"):
+                log(f"Locks email ({label}) skipped -- {product} has its own dedicated early/evening "
+                    f"pass with a better-timed email (dry-run)")
+            elif send_email and not season_inactive:
                 send_locks_email(email_qualifying, live=False, label=label, to=recipients)
             elif send_email:
                 log(f"Locks email ({label}) skipped -- season inactive, nothing qualifying yet")
