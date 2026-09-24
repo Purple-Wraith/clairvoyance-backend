@@ -557,18 +557,39 @@ def get_sport_performance(page) -> dict | None:
           // 2026-09-08 when all three were retired from the engine
           // entirely; KHL added the same day to match the real app.html
           // leagueMap, which already had it.
+          //
+          // Real bug, found and fixed 2026-09-24: this matched on the raw
+          // p.sport field directly (p.sport.toUpperCase()===code), but a
+          // large share of NFL bets (and some CFB) are stored with the
+          // broad/ambiguous sport:'FOOTBALL' plus the specific league in a
+          // separate league:'NFL' field -- neither 'NFL' nor 'FB' equals
+          // 'FOOTBALL', so every one of those bets silently matched no
+          // leagueMap entry at all and vanished from this breakdown.
+          // Confirmed live: NFL showed 17W-18L here vs the home page's own
+          // real 83W-61L (112 real NFL bets tagged sport:'FOOTBALL' were
+          // being dropped); CFB was off by a smaller but real amount too.
+          // The home page's own League Performance table (docs/app.html,
+          // both renderOverall's and renderHomePage's copies) never had
+          // this bug -- it classifies via p._spUC, precomputed as
+          // window._normSport(p), which already resolves the FOOTBALL/
+          // BASKETBALL/HOCKEY/SOCCER ambiguity by preferring the league
+          // field when the sport tag is one of those broad buckets. Since
+          // this script's page.evaluate runs against the same loaded
+          // app.html, window._normSport is available here too -- switched
+          // to it directly instead of maintaining a second, weaker
+          // classifier that can silently diverge from the one true one.
           const leagueMap = [
-            {lbl:'NFL',codes:['NFL','FB']},{lbl:'CFB',codes:['CFB']},
-            {lbl:'NHL',codes:['NHL']},{lbl:'College Hockey',codes:['NCAAH','COLLEGE HOCKEY']},
-            {lbl:'SHL',codes:['SHL']},{lbl:'LIIGA',codes:['LIIGA']},{lbl:'NLA',codes:['NLA']},{lbl:'EXTRALIGA',codes:['EXTRALIGA']},{lbl:'KHL',codes:['KHL']},
-            {lbl:'NBA',codes:['NBA']},
-            {lbl:'Champions League',codes:['CL','CH']},
-            {lbl:'Premier League',codes:['PL']},{lbl:'La Liga',codes:['LIGA']},
-            {lbl:'MLS',codes:['MLS']},{lbl:'Serie A',codes:['SERIEA']},
+            {lbl:'NFL',code:'NFL'},{lbl:'CFB',code:'CFB'},
+            {lbl:'NHL',code:'NHL'},{lbl:'College Hockey',code:'NCAAH'},
+            {lbl:'SHL',code:'SHL'},{lbl:'LIIGA',code:'LIIGA'},{lbl:'NLA',code:'NLA'},{lbl:'EXTRALIGA',code:'EXTRALIGA'},{lbl:'KHL',code:'KHL'},
+            {lbl:'NBA',code:'NBA'},
+            {lbl:'Champions League',code:'CL'},
+            {lbl:'Premier League',code:'PL'},{lbl:'La Liga',code:'LIGA'},
+            {lbl:'MLS',code:'MLS'},{lbl:'Serie A',code:'SERIEA'},
           ];
 
           const byLeague = bets => leagueMap.map(lm => {
-            const lb = bets.filter(p => lm.codes.some(c => p.sport && p.sport.toUpperCase() === c.toUpperCase()));
+            const lb = bets.filter(p => window._normSport(p) === lm.code);
             if (!lb.length) return null;
             const w = lb.filter(p => p.outcome === 'win').length, l = lb.filter(p => p.outcome === 'loss').length;
             const u = lb.reduce((a, p) => {
