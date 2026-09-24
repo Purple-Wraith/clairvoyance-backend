@@ -14282,7 +14282,7 @@ function renderAdaptiveLearning(){
     html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin:12px 0 6px">// BY BET TYPE</div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">
       ${typeBets.map(t=>`<div style="flex:1;min-width:70px;background:rgba(10,0,24,.8);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:9px;text-align:center">
-        <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:3px">${typeMap[t.bt]||t.bt}</div>
+        <div style="font-family:var(--mono);font-size:14px;color:var(--pc);margin-bottom:3px">${typeMap[t.bt]||t.bt}</div>
         <div style="font-family:var(--orb);font-size:24px;font-weight:700;color:#00e644">${t.acc!==null?(t.acc*100).toFixed(0)+'%':'--'}</div>
         <div style="font-family:var(--mono);font-size:14px;margin-top:2px"><span style="color:#00e644">${t.w}W</span>-<span style="color:#ff1a1a">${t.n-t.w}L</span></div>
         <div style="font-family:var(--mono);font-size:14px;color:#00e644">${t.units>=0?'+':''}${t.units.toFixed(1)}u</div>
