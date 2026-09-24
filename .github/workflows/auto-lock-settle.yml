@@ -32,10 +32,26 @@ on:
     # passes. Trades away the old redundant-lock-attempt safety margin
     # (see the retained comment below on why that redundancy existed)
     # and 5 of 7 settle passes -- accepted tradeoff for roughly half the
-    # daily Supabase reads this workflow accounts for. The 9am-12pm MT
-    # catch-up safety net below still works: the 16:20 UTC settle pass
-    # kept below still falls inside that window and still recovers a
-    # dropped lock fire, same as before.
+    # daily Supabase reads this workflow accounts for.
+    #
+    # RETIMED 2026-09-23, explicit request: the 4 fires were all clustered
+    # before noon MT (1:20am/7:05am/8:15am/10:20am), so clairvoyanceengine
+    # .info's Live Track Record (which reads the landing-perf JSON this
+    # same run writes -- see the "Commit ledger backup + landing
+    # performance JSON" step below) went stale for the rest of every day
+    # once the 10:20am run passed, confirmed live same day comparing it
+    # against the real home page. Spread across the full day instead:
+    # 7:07am (lock), 12:21pm (digest+recalibration), 4:44pm (settle),
+    # 10:27pm (settle) MT -- adds real afternoon/evening coverage.
+    # REGRESSION, flagged not silently fixed: the old 10:20am settle
+    # doubled as the 9am-12pm catch-up window's only realistic scheduled
+    # landing spot (see that window's own comment further below), so a
+    # dropped lock fire always got a same-day retry. Neither new settle
+    # time (4:44pm/10:27pm) falls in that window, so that automatic
+    # same-day recovery no longer has a natural trigger -- a dropped lock
+    # now surfaces only via the lock_missed_alert (still fires, just with
+    # no accompanying retry attempt) or a manual workflow_dispatch with
+    # mode=catch-up.
     #
     # Real audit, 2026-09-03: confirmed live via real run history that
     # this schedule doesn't reliably land near its nominal times --
@@ -47,7 +63,7 @@ on:
     # other MT time in this file, these are fixed UTC crons -- GitHub
     # Actions doesn't shift for DST, so real landing times drift ~1hr
     # earlier MT once MST returns in November.
-    - cron: '5 13 * * *'
+    - cron: '7 13 * * *'
     # Daily settlement digest + adaptive recalibration, combined into ONE
     # fire (2026-09-16, explicit request to curb Supabase egress further --
     # each of the 5 daily fires pulls the full bet ledger at least once, so
@@ -57,27 +73,30 @@ on:
     # has no real dependency on the digest step itself (digest only reads
     # and emails; it commits nothing recalibration needs) -- both just
     # needed to run sometime after TODAY's settled-bet history was final,
-    # which the 10:20am/1:20am settle passes below already guarantee
-    # regardless of exact timing. One page load, one ledger pull, both
-    # steps -- same pattern already used for the ledger-backup/landing-
-    # perf write in the "Run auto-lock / auto-settle" step. 8:15 MT =
-    # 14:15 UTC. Yesterday's results ONLY for the digest (picks locked
-    # 7/28 get their results emailed the morning of 7/29, not mixed into a
-    # same-day or multi-date dump); recalibration commits freshly-learned
-    # weights for TOMORROW's lock to pick up, not a same-day effect. See
+    # which the 7:07am lock's own settle pass plus the two dedicated
+    # settle fires below already guarantee regardless of exact timing.
+    # One page load, one ledger pull, both steps -- same pattern already
+    # used for the ledger-backup/landing-perf write in the "Run auto-lock
+    # / auto-settle" step. 12:21 MT = 18:21 UTC (retimed 2026-09-23, was
+    # 8:15am MT -- see the schedule-overview comment above). Yesterday's
+    # results ONLY for the digest (picks locked 7/28 get their results
+    # emailed the morning of 7/29, not mixed into a same-day or
+    # multi-date dump); recalibration commits freshly-learned weights for
+    # TOMORROW's lock to pick up, not a same-day effect. See
     # run_adaptive_recalibration/docs/adaptive_weights.json: the durable
     # fix for adaptiveTick() previously only ever writing to browser
     # localStorage, invisible to the automated headless lock pipeline.
-    - cron: '15 14 * * *'
-    # Settle: 2x daily -- 10:20am MT (also the one slot that falls inside
-    # the lock catch-up window below, 9am-12pm MT, strictly bounded so a
-    # catch-up lock can never land in the afternoon or evening per
-    # explicit request) and 1:20am MT (catches West Coast night games,
-    # which routinely end past midnight MT, before the next morning's
-    # 8:15am digest). These keep bets accurate but never email -- see the
-    # 14:15 UTC digest+recalibration above for the one daily email.
-    - cron: '20 16 * * *'
-    - cron: '20 7 * * *'
+    - cron: '21 18 * * *'
+    # Settle: 2x daily, retimed 2026-09-23 (was 10:20am/1:20am MT) to
+    # 4:44pm and 10:27pm MT -- gives the day real afternoon/evening
+    # coverage instead of everything landing before noon (see the
+    # schedule-overview comment above for why). Neither of these new
+    # times falls inside the 9am-12pm lock catch-up window below anymore
+    # (10:20am used to) -- that regression is called out up there too.
+    # These keep bets accurate but never email -- see the 18:21 UTC
+    # digest+recalibration above for the one daily email.
+    - cron: '44 22 * * *'
+    - cron: '27 4 * * *'
   workflow_dispatch:
     inputs:
       live:
@@ -140,16 +159,20 @@ jobs:
               *)                       echo "step_flags=" >> "$GITHUB_OUTPUT" ;;
             esac
             echo "live_flag=${{ inputs.live == true && '--live' || '' }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "15 14 * * *" ]; then
+          elif [ "${{ github.event.schedule }}" = "21 18 * * *" ]; then
             # Combined 2026-09-16 (see the cron comment above) -- one
             # browser + one ledger pull instead of two separate fires.
+            # Cron retimed 2026-09-23 from 15 14 * * * (8:15am MT) to this
+            # (12:21pm MT) -- match string updated to match.
             echo "step_flags=--daily-digest --adaptive-recalibration" >> "$GITHUB_OUTPUT"
             echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "5 13 * * *" ]; then
+          elif [ "${{ github.event.schedule }}" = "7 13 * * *" ]; then
             # The single daily lock check (cut from 3 dedicated attempts
             # to 1, 2026-09-15, to reduce Supabase egress) -- combines
             # lock + the final-lock-check email in one fire, since
             # there's no longer a "first two silent, third emails" split.
+            # Cron retimed 2026-09-23 from 5 13 * * * (7:05am MT) to this
+            # (7:07am MT) -- match string updated to match.
             echo "step_flags=--lock --final-lock-check" >> "$GITHUB_OUTPUT"
             echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
           else
@@ -217,7 +240,7 @@ jobs:
           SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
         run: |
           if [ -n "${{ steps.flags.outputs.catchup }}" ]; then
-            echo "::notice::Today's dedicated 7:05am MT lock check didn't fire -- running a catch-up lock+settle pass (this one emails, since it's the last realistic chance today)."
+            echo "::notice::Today's dedicated 7:07am MT lock check didn't fire -- running a catch-up lock+settle pass (this one emails, since it's the last realistic chance today)."
           fi
           python3 scripts/auto_lock_settle.py ${{ steps.flags.outputs.step_flags }} ${{ steps.flags.outputs.live_flag }}
 
