@@ -21180,13 +21180,34 @@ document.addEventListener('DOMContentLoaded',()=>{(async()=>{
   // connection/backend before the rest of init could even continue).
   // Running them concurrently caps the wait at the slowest single call
   // (5s) instead of the sum of all four.
+  //
+  // Real bug, found and fixed 2026-09-24: syncPicksFromSupabase(true) --
+  // the FULL, authoritative ledger pull, paginated 1000 rows/request via
+  // _fetchSupabaseBetRows -- shared this same 5s race timeout. As the
+  // ledger grew (4200+ rows, 5 paginated requests), a full pull on
+  // anything slower than a fast connection routinely exceeded 5s, so the
+  // race resolved via the timeout and the rest of init (and the first
+  // renderHomePage() paint) proceeded on whatever was already in
+  // localStorage -- stale by however far behind that device's cache had
+  // drifted, with no error or indicator that the pull hadn't actually
+  // finished. Confirmed live: a real desktop session showed 854W-333L
+  // ALL TIME while a fresh pull of the exact same ledger (and the
+  // landing page's own snapshot, sourced from an independent Python-side
+  // full pull) both computed 854W-377L -- a 44-loss gap consistent with
+  // exactly this class of "boot raced away before the real data
+  // arrived" bug, not a logic difference (the predicate and calc are
+  // identical on both sides). The other 3 calls here are lower-stakes
+  // convenience fallbacks (IndexedDB/GitHub/backend-API recovery) and
+  // keep their short budgets; this is the single source of truth for
+  // every win/loss/units figure the app displays, so it gets real
+  // headroom instead of a timeout tuned for a much smaller table.
   try{
     await Promise.allSettled([
       Promise.race([idbRecoverPicks(),new Promise(r=>setTimeout(r,2000))]),
       Promise.race([loadPicksFromGitHub(),new Promise(r=>setTimeout(r,4000))]),
       Promise.race([idbRecoverDailyLog(),new Promise(r=>setTimeout(r,2000))]),
       Promise.race([syncPicksFromBackend(),new Promise(r=>setTimeout(r,5000))]),
-      Promise.race([syncPicksFromSupabase(true),new Promise(r=>setTimeout(r,5000))]),
+      Promise.race([syncPicksFromSupabase(true),new Promise(r=>setTimeout(r,25000))]),
     ]);
   }catch(e){console.error('parallelSync',e);}
   try{_migrateMlbNhlMislabel();}catch(e){console.error('migrateMlbNhl',e);}
