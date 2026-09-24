@@ -14092,7 +14092,7 @@ function renderAdaptiveLearning(){
     S.s('adaptive_log',JSON.stringify(log.slice(-50)));
   }catch(e){}
   const ts=state.lastRun?new Date(state.lastRun).toLocaleString():'Never';
-  const accColor=a=>a>=.62?'var(--nc)':a>=.52?'var(--vc)':'var(--hc)';
+  const accColor=a=>a>=.62?'#00e644':a>=.52?'var(--vc)':'var(--hc)';
   const pCol=p=>p>=.62?'var(--nc)':p>=.52?'var(--vc)':'var(--hc)';
   let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:6px">
     <span style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px">// ADAPTIVE ENGINE · LAST CYCLE: ${ts}</span>
@@ -14122,11 +14122,6 @@ function renderAdaptiveLearning(){
         <div style="font-family:var(--mono);font-size:14px;color:var(--pc);margin-top:2px">${lbl}</div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3)">${n} bets</div>
       </div>`).join('')}
-      <div style="flex:1;min-width:70px;background:rgba(10,0,24,.8);border:1px solid rgba(77,121,255,.2);border-radius:3px;padding:9px;text-align:center">
-        <div class="pfsv" style="font-family:var(--orb);font-size:27px;font-weight:700;color:var(--vc)">${(state.evThreshold||2).toFixed(1)}%</div>
-        <div style="font-family:var(--mono);font-size:14px;color:var(--pc);margin-top:2px">EV THRESH</div>
-        <div style="font-family:var(--mono);font-size:14px;color:var(--t3)">auto-tuned</div>
-      </div>
     </div>
   </div>`;
 
@@ -14238,9 +14233,9 @@ function renderAdaptiveLearning(){
   html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin:12px 0 6px">// PERFORMANCE BY SPORT & LEAGUE</div>`;
   const sportGroups={
     BASKETBALL:{sports:['NBA'],color:'var(--pc)'},
-    HOCKEY:{sports:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH'],color:'var(--ic)'},
-    FOOTBALL:{sports:['NFL','CFB','FB'],color:'var(--hc)'},
-    SOCCER:{sports:['PL','LIGA','CL','SERIEA','MLS'],color:'var(--nc)'}, // BUND/BL excluded 2026-09-23, Bundesliga history removed from all displays
+    HOCKEY:{sports:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH'],color:'var(--pc)'},
+    FOOTBALL:{sports:['NFL','CFB','FB'],color:'var(--pc)'},
+    SOCCER:{sports:['PL','LIGA','CL','SERIEA','MLS'],color:'var(--pc)'}, // BUND/BL excluded 2026-09-23, Bundesliga history removed from all displays
   };
   const perfAll=getP().filter(p=>p.outcome!=='pending');
   html+=`<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px">`;
