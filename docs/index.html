@@ -650,7 +650,7 @@ body{line-height:1.5}
 
 <!-- FOOTBALL -->
 <div id="sp-fb" class="spane">
-  <nav class="snav"><button class="sb2 act" onclick="setSub('fb','cfb')">COLLEGE</button><button class="sb2" onclick="setSub('fb','nfl')">NFL</button></nav>
+  <nav class="snav"><button class="sb2 act" onclick="setSub('fb','cfb')">COLLEGE</button><button class="sb2" onclick="setSub('fb','nfl')">NFL</button><button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px;background:var(--pc);color:#fff">↻ SYNC</button></nav>
   <div id="fb-cfb" class="subp act">
     <!-- renderGenericWeek writes real CFB games into _genericWeekCache as a
          side effect (early-returns if its container is missing), which the
