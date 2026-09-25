@@ -13346,7 +13346,13 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   const el=document.getElementById('ovr-history-list');if(!el)return;
   let all=[...getP()].sort((a,b)=>(b.lockedAt||0)-(a.lockedAt||0));
   // ── PENDING BETS — always shown at top regardless of filters ──────────────
-  const pendingAll=all.filter(p=>p.outcome==='pending');
+  // Explicit request, 2026-09-25: soonest date first (today at top,
+  // further-out dates descending toward the bottom) -- same sort the
+  // home page's own Pending Picks list already uses. This used to have
+  // no sort at all, so pending bets just inherited whatever order `all`
+  // happened to be in (ledger sync order), which could put tomorrow's
+  // picks above today's.
+  const pendingAll=all.filter(p=>p.outcome==='pending').sort((a,b)=>(a.date||'').localeCompare(b.date||'')||((a.lockedAt||0)-(b.lockedAt||0)));
   window._ovrPendingCollapsed=window._ovrPendingCollapsed||false;
   if(pendingAll.length){
     const sportColor2={NHL:'var(--ic)',NBA:'var(--pc)',NFL:'var(--hc)',CFB:'var(--hc)',default:'var(--t3)'};
