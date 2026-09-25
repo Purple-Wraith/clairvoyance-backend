@@ -13347,6 +13347,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   let all=[...getP()].sort((a,b)=>(b.lockedAt||0)-(a.lockedAt||0));
   // ── PENDING BETS — always shown at top regardless of filters ──────────────
   const pendingAll=all.filter(p=>p.outcome==='pending');
+  window._ovrPendingCollapsed=window._ovrPendingCollapsed||false;
   if(pendingAll.length){
     const sportColor2={NHL:'var(--ic)',NBA:'var(--pc)',NFL:'var(--hc)',CFB:'var(--hc)',default:'var(--t3)'};
     const pHtml=pendingAll.map(p=>{
@@ -13375,14 +13376,17 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
     pendingSection.id='ovr-pending-section';
     pendingSection.innerHTML=`<div style="background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.3);border-radius:3px;margin-bottom:14px;overflow:hidden">
       <div style="padding:9px 12px;background:rgba(0,240,255,.08);border-bottom:1px solid rgba(0,240,255,.2);display:flex;justify-content:space-between;align-items:center">
-        <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:var(--pc);letter-spacing:2px">PENDING BETS — ${pendingAll.length}</span>
+        <span style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="window._ovrPendingCollapsed=!window._ovrPendingCollapsed;renderOverallHistory()">
+          <span style="font-family:var(--mono);font-size:16px;color:var(--pc);transition:transform .15s;display:inline-block;transform:rotate(${window._ovrPendingCollapsed?'-90':'0'}deg)">▾</span>
+          <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:var(--pc);letter-spacing:2px">PENDING BETS — ${pendingAll.length}</span>
+        </span>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <button id="auto-settle-btn" class="btn btn-p btn-sm" onclick="autoSettleAll(this)" style="font-size:15px;padding:3px 10px;background:var(--pc);color:#fff">AUTO SETTLE ALL</button>
           <button class="btn btn-sm" style="font-size:15px;padding:3px 10px;color:#ff2090;border-color:#ff2090;background:rgba(255,32,144,.08)" onclick="(function(){const d=document.getElementById('wipe-date-inp');if(d&&d.value)removePicksByDate(d.value);else toast('// ENTER A DATE FIRST');})()" title="Remove all bets for the entered date">WIPE DATE</button>
           <input id="wipe-date-inp" type="date" value="2026-06-10" style="font-family:var(--mono);font-size:15px;padding:3px 8px;background:rgba(0,0,0,.5);border:1px solid rgba(255,32,144,.3);color:rgba(220,190,255,.8);border-radius:2px;width:130px">
         </div>
       </div>
-      ${pHtml}
+      <div style="display:${window._ovrPendingCollapsed?'none':'block'}">${pHtml}</div>
     </div>`;
     // Remove old pending section if exists, then prepend fresh
     const old=document.getElementById('ovr-pending-section');if(old)old.remove();
@@ -15537,6 +15541,7 @@ function renderHomePage(){
   // every currently-pending bet regardless of date, soonest-game first, with
   // a per-row date label since they're no longer implicitly "today".
   const pendEl=document.getElementById('home-pending-bets');
+  window._homePendingCollapsed=window._homePendingCollapsed||false;
   if(pendEl){
     const allPending=pending.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||((a.lockedAt||0)-(b.lockedAt||0)));
     if(!allPending.length){
@@ -15567,8 +15572,11 @@ function renderHomePage(){
         </div>`;
       }).join('');
       pendEl.innerHTML=`
-      <div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// PENDING PICKS — ${allPending.length} PENDING</div>
-      <div style="border:1px solid rgba(0,240,255,.2);border-radius:3px;overflow:hidden;background:rgba(4,0,12,.6)">
+      <div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="window._homePendingCollapsed=!window._homePendingCollapsed;renderHomePage()">
+        <span style="font-family:var(--mono);font-size:16px;color:var(--pc);transition:transform .15s;display:inline-block;transform:rotate(${window._homePendingCollapsed?'-90':'0'}deg)">▾</span>
+        <span>// PENDING PICKS — ${allPending.length} PENDING</span>
+      </div>
+      <div style="display:${window._homePendingCollapsed?'none':'block'};border:1px solid rgba(0,240,255,.2);border-radius:3px;overflow:hidden;background:rgba(4,0,12,.6)">
         ${rows}
       </div>`;
     }
