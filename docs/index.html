@@ -13350,24 +13350,31 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   window._ovrPendingCollapsed=window._ovrPendingCollapsed||false;
   if(pendingAll.length){
     const sportColor2={NHL:'var(--ic)',NBA:'var(--pc)',NFL:'var(--hc)',CFB:'var(--hc)',default:'var(--t3)'};
+    // Date/confidence display unified with the home page's own Pending
+    // Picks row (renderHomePage) -- explicit "uniform layout" request,
+    // 2026-09-25. Same TODAY/YESTERDAY labeling and win-prob % that row
+    // already had; this one didn't.
+    const _pTodayStr=today(),_pYd=yesterday();
     const pHtml=pendingAll.map(p=>{
       const sc=sportColor2[window._normSport(p)]||sportColor2.default;
       const mu=_gameTitle(p.hA,p.awA,p.sport);
+      const pConf=p.winProb?`${(p.winProb*100).toFixed(0)}%`:'';
+      const pDateLbl=p.date===_pTodayStr?'TODAY':p.date===_pYd?'YESTERDAY':(p.date||'');
       return`<div style="padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
             ${_sportBadgeHtml(window._normSport(p),()=>sc)}
             <span style="font-family:var(--mono);font-size:16px;color:var(--t2)">${mu}</span>
+            ${pDateLbl?`<span style="font-family:var(--mono);font-size:13px;color:var(--nc);border:1px solid rgba(255,255,255,.15);padding:0 4px;border-radius:2px">${pDateLbl}</span>`:''}
             ${_gradeChipHtml(p)}
-            <span style="font-family:var(--mono);font-size:13px;color:var(--nc);border:1px solid rgba(255,255,255,.15);padding:0 4px;border-radius:2px">${p.date||''}</span>
           </div>
           <div style="font-family:var(--mono);font-size:17px;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_expandBetOn(p.betOn||p.betType,p.sport)}</div>
-          <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:1px">${p.ml||''} · ${p.betType}</div>
+          <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:1px">${p.ml||''} · ${p.betType}${pConf?' · '+pConf:''}</div>
         </div>
         <div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;align-items:center">
-          <button class="btn btn-win btn-sm" onclick="recR('${p.id}','win');setTimeout(()=>{renderOverallHistory();try{renderHomeLockedBets();}catch(e){}try{updHdr();}catch(e){}},400)">✓ WIN</button>
-          <button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss');setTimeout(()=>{renderOverallHistory();try{renderHomeLockedBets();}catch(e){}try{updHdr();}catch(e){}},400)">✗ LOSS</button>
-          <button class="btn btn-sm" style="color:var(--t3);border-color:var(--t3);font-size:15px;padding:2px 7px" onclick="removePick('${p.id}')">✕ REMOVE</button>
+          <button class="btn btn-win btn-sm" style="font-size:15px" onclick="recR('${p.id}','win');setTimeout(()=>{renderOverallHistory();try{renderHomeLockedBets();}catch(e){}try{updHdr();}catch(e){}},400)">✓ WIN</button>
+          <button class="btn btn-o btn-sm" style="font-size:15px;color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss');setTimeout(()=>{renderOverallHistory();try{renderHomeLockedBets();}catch(e){}try{updHdr();}catch(e){}},400)">✗ LOSS</button>
+          <button class="btn btn-sm" style="font-size:15px;color:var(--t3);border-color:var(--t3);padding:2px 7px" onclick="removePick('${p.id}')">✕ REMOVE</button>
         </div>
       </div>`;
     }).join('');
@@ -15564,10 +15571,10 @@ function renderHomePage(){
             <div style="font-family:var(--mono);font-size:17px;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_expandBetOn(p.betOn||'',p.sport)}</div>
             <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:1px">${p.ml||''} · ${p.betType}${conf?' · '+conf:''}</div>
           </div>
-          <div style="display:flex;gap:5px;flex-shrink:0">
+          <div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;align-items:center">
             <button class="btn btn-win btn-sm" onclick="recR('${p.id}','win');renderHomePage()" style="font-size:15px">✓ WIN</button>
             <button class="btn btn-o btn-sm" onclick="recR('${p.id}','loss');renderHomePage()" style="font-size:15px;color:var(--hc);border-color:var(--hc)">✗ LOSS</button>
-            <button class="btn btn-sm" onclick="removePick('${p.id}');renderHomePage()" style="font-size:15px;color:var(--t3);border-color:var(--t3)">✕ REMOVE</button>
+            <button class="btn btn-sm" onclick="removePick('${p.id}');renderHomePage()" style="font-size:15px;color:var(--t3);border-color:var(--t3);padding:2px 7px">✕ REMOVE</button>
           </div>
         </div>`;
       }).join('');
