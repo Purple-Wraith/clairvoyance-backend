@@ -482,7 +482,7 @@
       "away_id": "MLS-CLU-00000O",
       "home_code": "PHI",
       "away_code": "ORL",
-      "status": "scheduled",
+      "status": "firstHalf",
       "result": "0:0",
       "home_goals": 0,
       "away_goals": 0,
@@ -490,25 +490,6 @@
       "match_type": "MATCHWEEK 28",
       "stadium": "Subaru Park",
       "city": "Chester, PA"
-    },
-    {
-      "match_id": "MLS-MAT-0009M7",
-      "date": "2026-09-26",
-      "kickoff": "2026-09-26T23:30:00Z",
-      "home": "Red Bull New York",
-      "away": "St. Louis CITY SC",
-      "home_id": "MLS-CLU-00000B",
-      "away_id": "MLS-CLU-00001L",
-      "home_code": "RBNY",
-      "away_code": "STL",
-      "status": "scheduled",
-      "result": "0:0",
-      "home_goals": 0,
-      "away_goals": 0,
-      "match_day": 28,
-      "match_type": "MATCHWEEK 28",
-      "stadium": "Sports Illustrated Stadium",
-      "city": "Harrison, NJ"
     },
     {
       "match_id": "MLS-MAT-0009M5",
@@ -520,7 +501,7 @@
       "away_id": "MLS-CLU-000007",
       "home_code": "MTL",
       "away_code": "CIN",
-      "status": "scheduled",
+      "status": "firstHalf",
       "result": "0:0",
       "home_goals": 0,
       "away_goals": 0,
@@ -539,7 +520,7 @@
       "away_id": "MLS-CLU-00000F",
       "home_code": "CLT",
       "away_code": "CHI",
-      "status": "scheduled",
+      "status": "firstHalf",
       "result": "0:0",
       "home_goals": 0,
       "away_goals": 0,
@@ -558,7 +539,7 @@
       "away_id": "MLS-CLU-000004",
       "home_code": "ATL",
       "away_code": "NYC",
-      "status": "scheduled",
+      "status": "firstHalf",
       "result": "0:0",
       "home_goals": 0,
       "away_goals": 0,
@@ -756,6 +737,25 @@
       "match_type": "MATCHWEEK 28",
       "stadium": "Q2 Stadium",
       "city": "Austin, TX"
+    },
+    {
+      "match_id": "MLS-MAT-0009M7",
+      "date": "2026-09-30",
+      "kickoff": "2026-09-30T23:30:00Z",
+      "home": "Red Bull New York",
+      "away": "St. Louis CITY SC",
+      "home_id": "MLS-CLU-00000B",
+      "away_id": "MLS-CLU-00001L",
+      "home_code": "RBNY",
+      "away_code": "STL",
+      "status": "scheduled",
+      "result": "0:0",
+      "home_goals": 0,
+      "away_goals": 0,
+      "match_day": 28,
+      "match_type": "MATCHWEEK 28",
+      "stadium": "Sports Illustrated Stadium",
+      "city": "Harrison, NJ"
     },
     {
       "match_id": "MLS-MAT-0009L1",
@@ -1368,46 +1368,37 @@
   ],
   "weather": {
     "seattle sounders fc": {
-      "condition": "Clear",
-      "temp": 48,
+      "condition": "Overcast",
+      "temp": 60,
       "wind": 6,
-      "windDir": 159,
+      "windDir": 345,
       "precipProb": 0,
       "city": "Seattle WA",
       "indoor": false
     },
     "philadelphia union": {
-      "condition": "Drizzle",
-      "temp": 60,
-      "wind": 16,
-      "windDir": 3,
-      "precipProb": 44,
-      "city": "Chester PA",
-      "indoor": false
-    },
-    "red bull new york": {
       "condition": "Overcast",
-      "temp": 58,
-      "wind": 20,
-      "windDir": 359,
-      "precipProb": 61,
-      "city": "Harrison NJ",
+      "temp": 59,
+      "wind": 11,
+      "windDir": 328,
+      "precipProb": 36,
+      "city": "Chester PA",
       "indoor": false
     },
     "cf montr\u00e9al": {
       "condition": "Overcast",
-      "temp": 51,
-      "wind": 6,
-      "windDir": 349,
+      "temp": 62,
+      "wind": 5,
+      "windDir": 5,
       "precipProb": 0,
       "city": "Montr\u00e9al QC",
       "indoor": false
     },
     "charlotte fc": {
       "condition": "Clear",
-      "temp": 49,
-      "wind": 5,
-      "windDir": 345,
+      "temp": 71,
+      "wind": 4,
+      "windDir": 287,
       "precipProb": 0,
       "city": "Charlotte NC",
       "indoor": false
@@ -1419,137 +1410,146 @@
       "indoor": true
     },
     "vancouver whitecaps fc": {
-      "condition": "Clear",
-      "temp": 51,
-      "wind": 10,
-      "windDir": 293,
-      "precipProb": 1,
+      "condition": "Mainly Clear",
+      "temp": 58,
+      "wind": 6,
+      "windDir": 297,
+      "precipProb": 0,
       "city": "Vancouver BC",
       "indoor": false
     },
     "san jose earthquakes": {
       "condition": "Clear",
-      "temp": 55,
-      "wind": 0,
-      "windDir": 270,
+      "temp": 73,
+      "wind": 9,
+      "windDir": 339,
       "precipProb": 0,
       "city": "San Jose CA",
       "indoor": false
     },
     "real salt lake": {
       "condition": "Clear",
-      "temp": 64,
-      "wind": 7,
-      "windDir": 231,
+      "temp": 82,
+      "wind": 11,
+      "windDir": 206,
       "precipProb": 1,
       "city": "Sandy UT",
       "indoor": false
     },
     "nashville sc": {
       "condition": "Clear",
-      "temp": 56,
-      "wind": 2,
-      "windDir": 7,
+      "temp": 76,
+      "wind": 5,
+      "windDir": 280,
       "precipProb": 0,
       "city": "Nashville TN",
       "indoor": false
     },
     "la galaxy": {
-      "condition": "Clear",
-      "temp": 66,
-      "wind": 2,
-      "windDir": 27,
+      "condition": "Partly Cloudy",
+      "temp": 85,
+      "wind": 8,
+      "windDir": 289,
       "precipProb": 0,
       "city": "Carson CA",
       "indoor": false
     },
     "houston dynamo fc": {
-      "condition": "Clear",
-      "temp": 73,
-      "wind": 3,
-      "windDir": 13,
+      "condition": "Overcast",
+      "temp": 85,
+      "wind": 7,
+      "windDir": 103,
       "precipProb": 0,
       "city": "Houston TX",
       "indoor": false
     },
     "fc dallas": {
-      "condition": "Overcast",
-      "temp": 72,
-      "wind": 10,
-      "windDir": 132,
+      "condition": "Clear",
+      "temp": 91,
+      "wind": 11,
+      "windDir": 129,
       "precipProb": 0,
       "city": "Frisco TX",
       "indoor": false
     },
     "columbus crew": {
       "condition": "Clear",
-      "temp": 50,
-      "wind": 3,
-      "windDir": 321,
+      "temp": 65,
+      "wind": 7,
+      "windDir": 358,
       "precipProb": 0,
       "city": "Columbus OH",
       "indoor": false
     },
     "austin fc": {
-      "condition": "Overcast",
-      "temp": 79,
-      "wind": 5,
-      "windDir": 165,
+      "condition": "Mainly Clear",
+      "temp": 91,
+      "wind": 6,
+      "windDir": 106,
       "precipProb": 0,
       "city": "Austin TX",
       "indoor": false
     },
+    "red bull new york": {
+      "condition": "Drizzle",
+      "temp": 58,
+      "wind": 18,
+      "windDir": 1,
+      "precipProb": 37,
+      "city": "Harrison NJ",
+      "indoor": false
+    },
     "chicago fire fc": {
       "condition": "Clear",
-      "temp": 55,
+      "temp": 58,
       "wind": 6,
-      "windDir": 100,
+      "windDir": 53,
       "precipProb": 0,
       "city": "Chicago IL",
       "indoor": false
     },
     "toronto fc": {
-      "condition": "Overcast",
-      "temp": 52,
-      "wind": 9,
-      "windDir": 354,
+      "condition": "Partly Cloudy",
+      "temp": 65,
+      "wind": 7,
+      "windDir": 333,
       "precipProb": 0,
       "city": "Toronto ON",
       "indoor": false
     },
     "orlando city": {
-      "condition": "Clear",
-      "temp": 65,
-      "wind": 5,
-      "windDir": 338,
+      "condition": "Mainly Clear",
+      "temp": 77,
+      "wind": 7,
+      "windDir": 37,
       "precipProb": 0,
       "city": "Orlando FL",
       "indoor": false
     },
     "new england revolution": {
-      "condition": "Overcast",
-      "temp": 58,
-      "wind": 17,
-      "windDir": 28,
-      "precipProb": 21,
+      "condition": "Drizzle",
+      "temp": 55,
+      "wind": 22,
+      "windDir": 26,
+      "precipProb": 87,
       "city": "Foxborough MA",
       "indoor": false
     },
     "inter miami cf": {
-      "condition": "Clear",
-      "temp": 72,
-      "wind": 6,
-      "windDir": 335,
-      "precipProb": 0,
+      "condition": "Partly Cloudy",
+      "temp": 80,
+      "wind": 2,
+      "windDir": 333,
+      "precipProb": 5,
       "city": "Fort Lauderdale FL",
       "indoor": false
     },
     "st. louis city sc": {
       "condition": "Overcast",
-      "temp": 61,
-      "wind": 4,
-      "windDir": 62,
-      "precipProb": 2,
+      "temp": 64,
+      "wind": 1,
+      "windDir": 39,
+      "precipProb": 1,
       "city": "St. Louis MO",
       "indoor": false
     },
@@ -1560,55 +1560,55 @@
       "indoor": true
     },
     "los angeles football club": {
-      "condition": "Mainly Clear",
-      "temp": 66,
-      "wind": 2,
-      "windDir": 111,
+      "condition": "Partly Cloudy",
+      "temp": 86,
+      "wind": 7,
+      "windDir": 265,
       "precipProb": 0,
       "city": "Los Angeles CA",
       "indoor": false
     },
     "sporting kansas city": {
-      "condition": "Mainly Clear",
-      "temp": 64,
-      "wind": 10,
-      "windDir": 137,
-      "precipProb": 23,
+      "condition": "Overcast",
+      "temp": 70,
+      "wind": 4,
+      "windDir": 130,
+      "precipProb": 19,
       "city": "Kansas City KS",
       "indoor": false
     },
     "colorado rapids": {
-      "condition": "Clear",
-      "temp": 52,
-      "wind": 7,
-      "windDir": 194,
+      "condition": "Partly Cloudy",
+      "temp": 82,
+      "wind": 4,
+      "windDir": 96,
       "precipProb": 0,
       "city": "Commerce City CO",
       "indoor": false
     },
     "d.c. united": {
-      "condition": "Clear",
-      "temp": 59,
-      "wind": 10,
-      "windDir": 332,
-      "precipProb": 0,
+      "condition": "Drizzle",
+      "temp": 56,
+      "wind": 11,
+      "windDir": 330,
+      "precipProb": 49,
       "city": "Washington DC",
       "indoor": false
     },
     "fc cincinnati": {
       "condition": "Clear",
-      "temp": 49,
-      "wind": 3,
-      "windDir": 336,
+      "temp": 68,
+      "wind": 4,
+      "windDir": 333,
       "precipProb": 0,
       "city": "Cincinnati OH",
       "indoor": false
     },
     "san diego fc": {
-      "condition": "Partly Cloudy",
-      "temp": 67,
-      "wind": 2,
-      "windDir": 68,
+      "condition": "Clear",
+      "temp": 80,
+      "wind": 5,
+      "windDir": 285,
       "precipProb": 0,
       "city": "San Diego CA",
       "indoor": false
@@ -1640,6 +1640,10 @@
       "pos": "D"
     },
     "tom\u00e1s jacob": {
+      "team": "ATL",
+      "pos": "D"
+    },
+    "daniel chica": {
       "team": "ATL",
       "pos": "D"
     },
@@ -1681,7 +1685,7 @@
     },
     "luke brennan": {
       "team": "ATL",
-      "pos": "F"
+      "pos": "M"
     },
     "mauricio amaro": {
       "team": "ATL",
@@ -1724,6 +1728,10 @@
       "pos": "F"
     },
     "cayman togashi": {
+      "team": "ATL",
+      "pos": "F"
+    },
+    "cameron dunbar": {
       "team": "ATL",
       "pos": "F"
     },
@@ -2119,6 +2127,10 @@
       "team": "CHI",
       "pos": "D"
     },
+    "oscar pineda": {
+      "team": "CHI",
+      "pos": "M"
+    },
     "anton saletros": {
       "team": "CHI",
       "pos": "M"
@@ -2152,6 +2164,10 @@
       "pos": "M"
     },
     "robert turdean": {
+      "team": "CHI",
+      "pos": "M"
+    },
+    "brody williams": {
       "team": "CHI",
       "pos": "M"
     },
@@ -2273,7 +2289,7 @@
     },
     "alex harris": {
       "team": "COL",
-      "pos": "F"
+      "pos": "M"
     },
     "ibrahim sadiq": {
       "team": "COL",
@@ -2347,9 +2363,9 @@
       "team": "CLB",
       "pos": "D"
     },
-    "andr\u00e9s herrera": {
+    "andres herrera": {
       "team": "CLB",
-      "pos": "D"
+      "pos": "M"
     },
     "mohamed farsi": {
       "team": "CLB",
@@ -2584,6 +2600,10 @@
       "pos": "D"
     },
     "andrei chirila": {
+      "team": "CIN",
+      "pos": "D"
+    },
+    "felix samson": {
       "team": "CIN",
       "pos": "D"
     },
@@ -3545,7 +3565,7 @@
     },
     "mamadou fofana": {
       "team": "NE",
-      "pos": "M"
+      "pos": "D"
     },
     "andrew farrell": {
       "team": "NE",
@@ -3907,6 +3927,10 @@
       "team": "ORL",
       "pos": "M"
     },
+    "justin hylton": {
+      "team": "ORL",
+      "pos": "M"
+    },
     "zakaria taifi": {
       "team": "ORL",
       "pos": "M"
@@ -3992,6 +4016,10 @@
       "pos": "D"
     },
     "finn sundstrom": {
+      "team": "PHI",
+      "pos": "D"
+    },
+    "jordan griffin": {
       "team": "PHI",
       "pos": "D"
     },
@@ -4415,9 +4443,9 @@
       "team": "RBNY",
       "pos": "M"
     },
-    "sekou kon\u00e9": {
+    "s\u00e9kou kon\u00e9": {
       "team": "RBNY",
-      "pos": "F"
+      "pos": "M"
     },
     "tanner rosborough": {
       "team": "RBNY",
