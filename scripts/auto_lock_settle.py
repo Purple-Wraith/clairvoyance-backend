@@ -106,10 +106,14 @@ LOCKS_EMAIL_TO = os.environ.get("LOCKS_EMAIL_TO", "") or os.environ.get("SOCIAL_
 # request after Bundesliga's retirement -- can never appear in a future
 # locks email anyway (SOC_BL can no longer qualify), removed so it can't
 # resurface anywhere, including a legacy email label lookup.
+# "SOC_MLS": "MLS" entry removed 2026-09-27, same treatment following
+# MLS's own retirement -- can never appear in a future locks email either
+# (SOC_MLS can no longer qualify once PRODUCT_SPORTS["soccer"] stops
+# including it -- see that constant's own comment).
 SPORT_DISPLAY_NAME = {
     "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB", "LIIGA": "Liiga", "SHL": "SHL",
     "NLA": "NLA", "EXTRALIGA": "Extraliga",
-    "SOC_LIGA": "La Liga", "SOC_MLS": "MLS", "SOC_PL": "Premier League",
+    "SOC_LIGA": "La Liga", "SOC_PL": "Premier League",
     "SOC_ITA": "Serie A", "SOC_CL": "Champions League",
 }
 
@@ -123,12 +127,14 @@ SPORT_DISPLAY_NAME = {
 # request -- zero pending Bundesliga bets existed at retirement time, so
 # this can't affect a real future digest; .get(lg, lg) below falls back
 # to the raw code if it's ever somehow hit.
+# "MLS": "MLS" entry removed 2026-09-27, same treatment following MLS's
+# own retirement -- same .get(lg, lg) fallback applies if it's ever hit.
 LEDGER_LEAGUE_DISPLAY_NAME = {
     "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB",
     "KHL": "KHL", "SHL": "SHL", "LIIGA": "Liiga", "NLA": "NLA", "EXTRALIGA": "Extraliga",
     "NCAAH": "College Hockey",
     "CL": "Champions League", "PL": "Premier League", "LIGA": "La Liga",
-    "MLS": "MLS", "SERIEA": "Serie A",
+    "SERIEA": "Serie A",
 }
 
 # Maps the sport tag docs/app.html's _autoLockCapture() attaches to each
@@ -153,14 +159,17 @@ LEDGER_LEAGUE_DISPLAY_NAME = {
 SPORT_TO_LOCKPICK_TYPE = {
     "NBA": "NBA", "NHL": "NHL", "NFL": "NFL", "CFB": "CFB", "LIIGA": "LIIGA", "SHL": "SHL",
     "NLA": "NLA", "EXTRALIGA": "EXTRALIGA",
-    "SOC_LIGA": "LIGA", "SOC_MLS": "MLS", "SOC_PL": "PL_SOC",
+    "SOC_LIGA": "LIGA", "SOC_PL": "PL_SOC",
     "SOC_ITA": "SERIEA", "SOC_CL": "CL",
 }
-# The European leagues, kept separate from SOC_MLS as its own constant
-# purely so build_locks_email_html can split the combined soccer email into
-# an "EUROPEAN" section and a "NORTH AMERICA (MLS)" section -- soccer-lock-
-# early.yml itself now gathers both (see PRODUCT_SPORTS["soccer"] below),
-# it just labels which of the two a given qualifying leg belongs to.
+# The European leagues. Originally kept separate from SOC_MLS as its own
+# constant purely so build_locks_email_html could split the combined
+# soccer email into an "EUROPEAN" section and a "NORTH AMERICA (MLS)"
+# section; that split is now moot since MLS's 2026-09-27 retirement --
+# PRODUCT_SPORTS["soccer"] (below) no longer unions in SOC_MLS, so no
+# qualifying leg can ever land in a "NORTH AMERICA" section again. Left
+# as its own named constant regardless (still used directly by the
+# evening-prior lock and elsewhere).
 # SOC_BL (Bundesliga) removed 2026-09-23, explicit request following a
 # real settled-bet audit: the only negative-ROI soccer league (-2.6%
 # all-time, worsening to -21.8% ROI over its last 20 bets), concentrated
@@ -196,7 +205,12 @@ EARLY_HOCKEY_SPORTS = frozenset({"SHL", "LIIGA", "NLA", "EXTRALIGA"})
 
 # The 5 paid products (confirmed structure, see _subscribers.py) -- each
 # maps to the exact sport tags gather_legs()/_autoLockCapture use. Soccer
-# bundles all 6 leagues (5 European + MLS) as one purchase.
+# bundled all 6 leagues (5 European + MLS) as one purchase until
+# Bundesliga's 2026-09-23 retirement (5 leagues); MLS retired 2026-09-27,
+# explicit request following the same pattern -- SOC_MLS dropped from the
+# union below, so the soccer product is now just EURO_SOCCER_SPORTS' own
+# 4 European leagues, real settled-bet history untouched everywhere it
+# already displays.
 #
 # Hockey product promoted from NHL-only to NHL+Liiga+SHL, 2026-09-16 --
 # explicit request, now that both Liiga and SHL have real engines
@@ -230,7 +244,9 @@ PRODUCT_SPORTS: dict[str, frozenset[str]] = {
     "cfb": frozenset({"CFB"}),
     "nba": frozenset({"NBA"}),
     "hockey": frozenset({"NHL", "LIIGA", "SHL", "NLA", "EXTRALIGA"}),
-    "soccer": EURO_SOCCER_SPORTS | frozenset({"SOC_MLS"}),
+    # SOC_MLS dropped 2026-09-27 -- MLS retired, explicit request. Soccer's
+    # paid product is now exactly EURO_SOCCER_SPORTS (CL/PL/La Liga/Serie A).
+    "soccer": EURO_SOCCER_SPORTS,
 }
 # NCAAH (College Hockey) stays owner-only/personal-use until it has a
 # real engine built the way Liiga/SHL/NLA/Extraliga now do (SHL removed
@@ -990,10 +1006,9 @@ def gather_legs(page) -> dict:
           // site.api.espn.com -- the exact cross-origin host this whole
           // function's own top comment already documents ESPN blocking
           // fetch() from an automated/headless context for (confirmed in a
-          // real GitHub Actions run). That means the 5 European leagues
-          // below (MLS is unaffected -- its schedule is the same-origin
-          // mls_schedule.json) likely got ZERO real games here on every
-          // single automated run, silently, for as long as this warmup has
+          // real GitHub Actions run). That means the European leagues
+          // below likely got ZERO real games here on every single
+          // automated run, silently, for as long as this warmup has
           // existed -- there's no visible symptom, gather_legs() just
           // quietly returns no soccer legs for those leagues. Awaiting
           // loadSoccerScheduleSnapshot() first guarantees docs/app.html's
@@ -1009,12 +1024,16 @@ def gather_legs(page) -> dict:
               const todayIso = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
               // 'bl' (Bundesliga) removed 2026-09-23 -- retired, see
               // EURO_SOCCER_SPORTS' own comment for the full rationale.
-              const soccerKeys = ['liga', 'mls', 'pl', 'ita', 'cl'];
+              // 'mls' removed 2026-09-27 -- retired the same way, see
+              // PRODUCT_SPORTS' own comment for the full rationale. This is
+              // the actual automated-locking entry point (calls
+              // _renderSocMatchCard(g, 'mls') directly, bypassing the UI nav
+              // entirely), so removing it here is what structurally
+              // guarantees no new MLS pick can ever be auto-locked again.
+              const soccerKeys = ['liga', 'pl', 'ita', 'cl'];
               for (const k of soccerKeys) {
                 try {
-                  const games = (k === 'mls' && typeof _fetchMLSScheduleReal === 'function')
-                    ? (await _fetchMLSScheduleReal()) || (await _fetchLeagueScoreboard(k))
-                    : await _fetchLeagueScoreboard(k);
+                  const games = await _fetchLeagueScoreboard(k);
                   (games || []).forEach(g => {
                     if (!g.home || !g.away || g.status === 'post') return;
                     const d = new Date(g.date);
@@ -2119,8 +2138,8 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
 
 def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
     """Combined early-morning lock pass, 2026-09-17: soccer's
-    5-league product (CL/PL/La Liga/Serie A/MLS -- Bundesliga retired
-    2026-09-23) AND the 2
+    4-league product (CL/PL/La Liga/Serie A -- Bundesliga retired
+    2026-09-23, MLS retired 2026-09-27) AND the 2
     early-kickoff hockey leagues (SHL/Liiga -- see EARLY_HOCKEY_SPORTS'
     own comment on why NHL stays out). ONE gather_legs() pull covers
     both -- merged purely to save a second full browser+Playwright run
@@ -2582,12 +2601,13 @@ def main() -> None:
                           "product (soccer/CFB) passes, which always email immediately -- each is "
                           "its own dedicated once-daily run, not part of this multi-check flow.")
     ap.add_argument("--only-soccer", action="store_true",
-                     help="Lock step only: restrict to all 5 soccer leagues (CL/PL/La Liga/"
-                          "Serie A/MLS -- Bundesliga retired 2026-09-23) -- the resulting email splits legs into an "
-                          "EUROPEAN section and a NORTH AMERICA (MLS) section. For the "
-                          "early-morning pass timed ahead of European kickoffs.")
+                     help="Lock step only: restrict to all 4 soccer leagues (CL/PL/La Liga/"
+                          "Serie A -- Bundesliga retired 2026-09-23, MLS retired 2026-09-27) -- "
+                          "the EUROPEAN/NORTH AMERICA (MLS) email split this used to produce is "
+                          "now moot, no SOC_MLS leg can qualify anymore. For the early-morning "
+                          "pass timed ahead of European kickoffs.")
     ap.add_argument("--only-euro-early", action="store_true",
-                     help="Lock step only: the combined European early-morning pass -- all 5 "
+                     help="Lock step only: the combined European early-morning pass -- all 4 "
                           "soccer leagues (see --only-soccer) PLUS SHL/Liiga/NLA/Extraliga hockey "
                           "(real kickoffs as early as 7:15 AM MT). One shared gather_legs() pull, but "
                           "each product still gets its own separately-addressed email to its own "
@@ -2659,8 +2679,11 @@ def main() -> None:
     label = "SOCCER" if args.only_soccer else "CFB" if args.only_cfb else ""
     # Early passes route to that product's real (owner + paying
     # subscribers) list; soccer's early pass shares the same "soccer"
-    # subscriber list the main run's MLS pass uses, so a soccer subscriber
-    # gets both without needing two separate purchases.
+    # subscriber list the main run uses, so a soccer subscriber gets both
+    # without needing two separate purchases. (Until MLS's 2026-09-27
+    # retirement, this comment described the main run's MLS pass
+    # specifically -- soccer's product is now just the 4 European leagues,
+    # covered by the early pass alone.)
     early_to = recipients_for("soccer") if args.only_soccer else recipients_for("cfb") if args.only_cfb else None
 
     from playwright.sync_api import sync_playwright

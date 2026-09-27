@@ -119,7 +119,7 @@ _SCHEDULE_FILES: dict[str, str] = {
 }
 _SOCCER_LEAGUE_KEY = {
     "SOC_CL": "cl", "SOC_PL": "pl", "SOC_LIGA": "liga",
-    "SOC_ITA": "ita", "SOC_MLS": "mls",
+    "SOC_ITA": "ita",
 }
 _schedule_cache: dict[str, list[dict]] = {}
 

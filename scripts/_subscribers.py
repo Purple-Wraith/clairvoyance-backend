@@ -20,8 +20,12 @@ The account owner's own address is always included for every product
 regardless of subscriber list state, so the personal daily reference
 this was originally built for keeps working with zero paying subscribers.
 
-5 paid products: nfl, cfb, nba, hockey, soccer (all 6 leagues bundled --
-the 5 European leagues + MLS -- as one purchase, not sold separately).
+5 paid products: nfl, cfb, nba, hockey, soccer (all leagues in a product
+bundled as one purchase, not sold separately -- soccer originally bundled
+6 leagues, the 5 European leagues + MLS; Bundesliga retired 2026-09-23
+and MLS retired 2026-09-27, both explicit requests following real
+settled-bet audits, so soccer is now just the 4 remaining European
+leagues -- see PRODUCT_SPORTS' own comment in auto_lock_settle.py).
 
 Explicit decision 2026-09-03: tennis (ATP/WTA), WNBA, KHL, SHL, and
 LIIGA were real, live engine features kept for personal use only --

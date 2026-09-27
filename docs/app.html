@@ -1105,7 +1105,12 @@ body{line-height:1.5}
          default active soccer tab. -->
     <button class="sb2 act" onclick="setSub('soc','pl')">PREMIER LEAGUE</button>
     <button class="sb2" onclick="setSub('soc','liga')">LA LIGA</button>
-    <button class="sb2" onclick="setSub('soc','mls')">MLS</button>
+    <!-- MLS removed entirely from the UI 2026-09-27, explicit request:
+         retired as an active soccer league/paid product, same "no
+         sub-tab, no nav-dropdown entry" treatment as Bundesliga's own
+         removal above -- settled bet history/ledger entries are
+         untouched, only the interactive MLS pages and all NEW locking
+         are gone. -->
     <button class="sb2" onclick="setSub('soc','ita')">SERIE A</button>
     <button class="sb2" onclick="setSub('soc','cl')">CHAMPIONS LEAGUE</button>
     <button class="btn btn-sm btn-p" onclick="doUpdate()" style="float:right;margin:3px 6px;background:var(--pc);color:#fff">↻ SYNC</button>
@@ -1285,63 +1290,6 @@ body{line-height:1.5}
         <button class="btn btn-p btn-sm" style="margin-top:10px" onclick="applySoccerWeights('liga')">SAVE</button>
       </div>
       <div id="liga-model-weights-b"></div>
-    </div>
-  </div>
-</div>
-<!-- MLS -->
-<div id="soc-mls" class="subp">
-  <nav class="inav" id="mls-in">
-    <button class="nb act" onclick="T('mls','matches');renderLeagueMatches('mls')">MATCHES</button>
-    <button class="nb" onclick="T('mls','model');renderSoccerLeagueModel('mls')">MODEL</button>
-    <button class="nb" onclick="T('mls','config');renderSoccerLeagueConfig('mls')">CONFIG</button>
-  </nav>
-  <div class="sa" id="mls-sa">
-    <div id="mls-tab-matches" class="tab act">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-        <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <select id="mls-filter-day" onchange="renderLeagueMatches('mls')" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(0,193,75,.4);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
-          <button class="btn btn-o btn-sm" onclick="renderLeagueMatches('mls')">↻</button>
-        </div>
-      </div>
-      <div id="mls-matches-list" style="padding:4px 0"><div class="loading"><span class="spi"></span></div></div>
-    </div>    <div id="mls-tab-model" class="tab">
-      <div class="sh"><span class="i"></span> MLS MODEL ARCHITECTURE</div>
-      <div class="g3" style="margin-bottom:12px">
-        <div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">25K sims. xG differential + possession + home advantage. FBref calibration.</div></div>
-        <div class="card cp"><div class="ct">POISSON GOALS</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Bivariate Poisson scoreline model. Attack/defense strength ratings.</div></div>
-        <div class="card cn"><div class="ct">FORM + xG</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Rolling xG/xGA, shot quality, progressive passes. FBref advanced stats.</div></div>
-      </div>
-      <div class="sh"><span class="i"></span> MODEL FACTORS</div>
-      <div class="g3" style="margin-bottom:12px;gap:8px">
-        <div class="card ci" style="padding:10px"><div style="font-family:var(--mono);font-size:17px;letter-spacing:1px;color:var(--ic);margin-bottom:4px">xG DIFFERENTIAL</div><div style="font-family:var(--mono);font-size:16px;color:var(--t2)">Expected goals for minus against. Weight: HIGH</div><div style="height:3px;background:rgba(0,200,255,.15);border-radius:1px;margin-top:6px"><div style="height:100%;width:85%;background:var(--ic);border-radius:1px"></div></div></div>
-        <div class="card cp" style="padding:10px"><div style="font-family:var(--mono);font-size:17px;letter-spacing:1px;color:var(--pc);margin-bottom:4px">POSSESSION %</div><div style="font-family:var(--mono);font-size:16px;color:var(--t2)">Ball control share, style indicator. Weight: MED</div><div style="height:3px;background:rgba(240,0,255,.15);border-radius:1px;margin-top:6px"><div style="height:100%;width:60%;background:var(--pc);border-radius:1px"></div></div></div>
-        <div class="card cn" style="padding:10px"><div style="font-family:var(--mono);font-size:17px;letter-spacing:1px;color:var(--nc);margin-bottom:4px">HOME ADVANTAGE</div><div style="font-family:var(--mono);font-size:16px;color:var(--t2)">Venue-adjusted goal expectancy boost. Weight: MED</div><div style="height:3px;background:rgba(0,255,136,.15);border-radius:1px;margin-top:6px"><div style="height:100%;width:55%;background:var(--nc);border-radius:1px"></div></div></div>
-        <div class="card cm" style="padding:10px"><div style="font-family:var(--mono);font-size:17px;letter-spacing:1px;color:var(--mc);margin-bottom:4px">SHOT CONVERSION</div><div style="font-family:var(--mono);font-size:16px;color:var(--t2)">Goals per shot on target rate. Weight: MED</div><div style="height:3px;background:rgba(255,170,0,.15);border-radius:1px;margin-top:6px"><div style="height:100%;width:50%;background:var(--mc);border-radius:1px"></div></div></div>
-        <div class="card cp" style="padding:10px"><div style="font-family:var(--mono);font-size:17px;letter-spacing:1px;color:var(--pc);margin-bottom:4px">PROGRESSIVE PASSES</div><div style="font-family:var(--mono);font-size:16px;color:var(--t2)">Ball progression toward goal. Weight: LOW</div><div style="height:3px;background:rgba(240,0,255,.15);border-radius:1px;margin-top:6px"><div style="height:100%;width:35%;background:var(--pc);border-radius:1px"></div></div></div>
-        <div class="card ci" style="padding:10px"><div style="font-family:var(--mono);font-size:17px;letter-spacing:1px;color:var(--ic);margin-bottom:4px">RECENT FORM</div><div style="font-family:var(--mono);font-size:16px;color:var(--t2)">Recent goal differential vs season average. Weight: LOW</div><div style="height:3px;background:rgba(0,200,255,.15);border-radius:1px;margin-top:6px"><div style="height:100%;width:30%;background:var(--ic);border-radius:1px"></div></div></div>
-      </div>
-      <div id="mls-model-weights"></div>
-    </div>
-    <div id="mls-tab-config" class="tab">
-      <div class="sh"><span class="i"></span> MLS ENGINE CONFIG</div>
-      <div class="sg">
-        <div class="sgt">// MODEL WEIGHTS</div>
-        <div class="rr"><span class="rrl">MONTE CARLO</span><span class="rrv" id="mls-mc-v">50%</span></div><input type="range" id="mls-w-mc" min="10" max="70" value="50" oninput="document.getElementById('mls-mc-v').textContent=this.value+'%';applySoccerWeights('mls')">
-        <div class="dv"></div>
-        <div class="rr"><span class="rrl">POISSON</span><span class="rrv" id="mls-poi-v">30%</span></div><input type="range" id="mls-w-poi" min="5" max="50" value="30" oninput="document.getElementById('mls-poi-v').textContent=this.value+'%';applySoccerWeights('mls')">
-        <div class="dv"></div>
-        <div class="rr"><span class="rrl">FORM/xG</span><span class="rrv" id="mls-form-v">20%</span></div><input type="range" id="mls-w-form" min="5" max="50" value="20" oninput="document.getElementById('mls-form-v').textContent=this.value+'%';applySoccerWeights('mls')">
-        <button class="btn btn-p btn-sm" style="margin-top:10px" onclick="applySoccerWeights('mls')">APPLY</button>
-      </div>
-      <div class="sg">
-        <div class="sgt">// PICK THRESHOLDS</div>
-        <div class="rr"><span class="rrl">MIN EV %</span><span class="rrv" id="mls-ev-v">2%</span></div><input type="range" id="mls-ev-thresh" min="0" max="10" value="2" step="0.5" oninput="document.getElementById('mls-ev-v').textContent=this.value+'%'">
-        <div class="dv"></div>
-        <div class="rr"><span class="rrl">MIN WIN PROB</span><span class="rrv" id="mls-minp-v">55%</span></div><input type="range" id="mls-min-p" min="50" max="75" value="55" oninput="document.getElementById('mls-minp-v').textContent=this.value+'%'">
-        <button class="btn btn-p btn-sm" style="margin-top:10px" onclick="applySoccerWeights('mls')">SAVE</button>
-      </div>
-      <div id="mls-model-weights-b"></div>
     </div>
   </div>
 </div>
@@ -10132,7 +10080,7 @@ window._ibsRender=function(){
 
   const todayVal=(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
 
-  const sportOpts='<option value="NBA">NBA</option><option value="NFL">NFL</option><option value="NHL">NHL</option><option value="CFB">CFB</option><option value="PL">PREMIER LEAGUE</option><option value="LIGA">LA LIGA</option><option value="MLS">MLS</option><option value="CL">CHAMPIONS LEAGUE</option><option value="OTHER">OTHER</option>';
+  const sportOpts='<option value="NBA">NBA</option><option value="NFL">NFL</option><option value="NHL">NHL</option><option value="CFB">CFB</option><option value="PL">PREMIER LEAGUE</option><option value="LIGA">LA LIGA</option><option value="CL">CHAMPIONS LEAGUE</option><option value="OTHER">OTHER</option>';
 
   const outcomeOpts='<option value="pending">PENDING</option><option value="win">WIN ✓</option><option value="loss">LOSS ✗</option><option value="push">PUSH</option>';
 
@@ -11968,7 +11916,21 @@ function renderOverall(){
   // adaptiveTick()'s own allPreds (see its comment) -- sort by date
   // (then lockedAt as a same-day tiebreaker) once, reuse everywhere a
   // "most recent N" window is needed in this function.
-  const settledByDate=settled.slice().sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
+  //
+  // Real bug, found live 2026-09-27 verifying MLS's retirement: this
+  // tab's own top comment says retired-sport bets are excluded from
+  // "every number on this tab, not just the BY SPORT/LEAGUE row lists,"
+  // but `all`/`settled` only gate on _broadSportOf returning null (MLB/
+  // WNBA/CBB/World Cup/tennis) -- Bundesliga and MLS both still resolve
+  // to 'SOCCER' there, so their real settled-bet history was still
+  // silently feeding both LAST N PERFORMANCE (settledByDate.slice(-n),
+  // a real stats-accuracy issue, not just cosmetic) and the Recent Form
+  // dot strip below (confirmed live: yesterday's MLS bets showed up in
+  // its tooltips even with MLS fully retired). This gap predates MLS --
+  // Bundesliga's own 2026-09-23 purge added explicit exclusions to every
+  // OTHER combined total in this function but missed this one. Fixed
+  // once, here, for both leagues together rather than patching only MLS.
+  const settledByDate=settled.filter(p=>{const sp=_normSport(p);return sp!=='BUND'&&sp!=='MLS';}).sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
   const wins=settled.filter(p=>p.outcome==='win').length;
   const losses=settled.filter(p=>p.outcome==='loss').length;
   const acc=settled.length?wins/settled.length:null;
@@ -12044,7 +12006,7 @@ function renderOverall(){
     {lbl:'BASKETBALL',  codes:['NBA']},
     {lbl:'FOOTBALL',    codes:['NFL','CFB','FB']},
     {lbl:'HOCKEY',      codes:['NHL','NCAAH','KHL','SHL','LIIGA','NLA','EXTRALIGA','COLLEGE HOCKEY']},
-    {lbl:'SOCCER',      codes:['PL','LIGA','MLS','SERIEA','CH','CL']}, // BUND/BL excluded 2026-09-23, Bundesliga history removed from all displays
+    {lbl:'SOCCER',      codes:['PL','LIGA','SERIEA','CH','CL']}, // BUND/BL excluded 2026-09-23, MLS excluded 2026-09-27, history removed from all displays
   ];
   const bySport=sportMap.map(sm=>{
     const sp=settled.filter(p=>sm.codes.some(c=>p._spUC===c));
@@ -12064,7 +12026,7 @@ function renderOverall(){
     return{lbl:tm.lbl,...calcPerf(tp)};
   });
 
-  // By league — order: NFL, CFB, NHL, SHL, LIIGA, NLA, EXTRALIGA, NBA, Champions League, Premier, La Liga, MLS, Serie A
+  // By league — order: NFL, CFB, NHL, SHL, LIIGA, NLA, EXTRALIGA, NBA, Champions League, Premier, La Liga, Serie A
   // KHL and College Hockey (NCAAH) removed from this list 2026-09-23,
   // explicit request -- neither has a real lock/fetch path that ever
   // produces a settled bet (KHL has no fetch pipeline/product at all;
@@ -12075,6 +12037,8 @@ function renderOverall(){
   // Bundesliga's row (and real settled-bet history behind it) removed
   // from this breakdown 2026-09-23, explicit follow-up request after
   // its retirement -- see the soccer sub-nav's own comment.
+  // MLS's row (and real settled-bet history behind it) removed from
+  // this breakdown 2026-09-27, same treatment after its own retirement.
   const leagueMap=[
     {lbl:'NFL',           codes:['NFL','FB'],              always:true},
     {lbl:'CFB',           codes:['CFB'],                   always:true},
@@ -12087,7 +12051,6 @@ function renderOverall(){
     {lbl:'Champions League',codes:['CL','CH'],             always:true}, // CH kept as a legacy alias for picks locked before the CH->CL rename
     {lbl:'Premier League',codes:['PL'],                    always:true},
     {lbl:'La Liga',       codes:['LIGA'],                  always:true},
-    {lbl:'MLS',           codes:['MLS'],                   always:true},
     {lbl:'Serie A',       codes:['SERIEA'],                always:true},
   ];
   const byLeague=leagueMap.map(lm=>{
@@ -12834,7 +12797,7 @@ function renderOverallVisuals(){
   // league:'BUND' (BL was only ever a legacy alias), so a raw p.sport==='BL'
   // check never matched a single real settled Bundesliga bet, and SERIEA/CL
   // were missing from this list entirely (both are real _normSport outputs).
-  const sDataRaw=['MLB','NBA','WNBA','CBB','NFL','CFB','NHL','NCAAH','SHL','LIIGA','NLA','EXTRALIGA','KHL','SOC','WC','PL','LIGA','MLS','SERIEA','CL'].map(s=>{const sp=settled.filter(p=>_normSport(p)===s);const w=sp.filter(p=>p.outcome==='win').length;return{s,n:sp.length,w,pct:sp.length?w/sp.length:null};});
+  const sDataRaw=['MLB','NBA','WNBA','CBB','NFL','CFB','NHL','NCAAH','SHL','LIIGA','NLA','EXTRALIGA','KHL','SOC','WC','PL','LIGA','SERIEA','CL'].map(s=>{const sp=settled.filter(p=>_normSport(p)===s);const w=sp.filter(p=>p.outcome==='win').length;return{s,n:sp.length,w,pct:sp.length?w/sp.length:null};}); // MLS excluded 2026-09-27, history removed from all displays
   const tenSp=settled.filter(p=>_normSport(p)==='TEN');const tenW=tenSp.filter(p=>p.outcome==='win').length;
   const sData=[...sDataRaw,{s:'TENNIS',n:tenSp.length,w:tenW,pct:tenSp.length?tenW/tenSp.length:null}];
   const barW=260,barH=sData.length*22+10;
@@ -13754,7 +13717,7 @@ function renderOverallTrends(){
     </div>`;};
 
   // ── Recency streaks — all tracked sports ─────────────────────────────────
-  const trackedSports=['MLB','NHL','NBA','WNBA','CBB','NCAAB','NFL','CFB','KHL','SHL','LIIGA','NLA','EXTRALIGA','SOC','WC','PL','LIGA','CL','SERIEA','MLS']; // BUND/BL excluded 2026-09-23, Bundesliga history removed from all displays
+  const trackedSports=['MLB','NHL','NBA','WNBA','CBB','NCAAB','NFL','CFB','KHL','SHL','LIIGA','NLA','EXTRALIGA','SOC','WC','PL','LIGA','CL','SERIEA']; // BUND/BL excluded 2026-09-23, MLS excluded 2026-09-27, history removed from all displays
   const sportStreaks={};
   for(const sp of trackedSports){
     const sb=all.filter(p=>window._normSport(p)===sp).slice(-10);
@@ -14252,7 +14215,7 @@ function renderAdaptiveLearning(){
     BASKETBALL:{sports:['NBA'],color:'var(--pc)'},
     HOCKEY:{sports:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH'],color:'var(--pc)'},
     FOOTBALL:{sports:['NFL','CFB','FB'],color:'var(--pc)'},
-    SOCCER:{sports:['PL','LIGA','CL','SERIEA','MLS'],color:'var(--pc)'}, // BUND/BL excluded 2026-09-23, Bundesliga history removed from all displays
+    SOCCER:{sports:['PL','LIGA','CL','SERIEA'],color:'var(--pc)'}, // BUND/BL excluded 2026-09-23, MLS excluded 2026-09-27, history removed from all displays
   };
   const perfAll=getP().filter(p=>p.outcome!=='pending');
   html+=`<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px">`;
@@ -14289,10 +14252,11 @@ function renderAdaptiveLearning(){
   // simply had nowhere to show up in this breakdown before now.
   // Also scoped every box to PAID_LEVEL_SPORTS -- confirmed live this
   // session that ML/OU/PROP were silently blending in retired sports'
-  // historical bets (MLB/WNBA/tennis/CBB/World Cup/Bundesliga) alongside
-  // real current paid-product picks, same contamination class of bug
-  // already fixed elsewhere this session.
-  const PAID_LEVEL_SPORTS=new Set(['NFL','CFB','NBA','NHL','LIIGA','SHL','NLA','EXTRALIGA','PL','LIGA','MLS','SERIEA','CL']);
+  // historical bets (MLB/WNBA/tennis/CBB/World Cup/Bundesliga/MLS)
+  // alongside real current paid-product picks, same contamination class
+  // of bug already fixed elsewhere this session. MLS excluded 2026-09-27
+  // following its own retirement, same treatment as Bundesliga.
+  const PAID_LEVEL_SPORTS=new Set(['NFL','CFB','NBA','NHL','LIIGA','SHL','NLA','EXTRALIGA','PL','LIGA','SERIEA','CL']);
   const typeMap={ML:'Moneyline',SPREAD:'Spread',PL:'Puck Line',OU:'Over/Under',PROP:'Player Props'};
   const typeBets=['ML','SPREAD','PL','OU','PROP'].map(bt=>{const tb=perfAll.filter(p=>p.betType===bt&&PAID_LEVEL_SPORTS.has(window._normSport(p)));if(!tb.length)return null;const tw=tb.filter(p=>p.outcome==='win').length;const tu=tb.reduce((a,p)=>a+(p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1),0);return{bt,n:tb.length,w:tw,acc:tb.length?tw/tb.length:null,units:tu};}).filter(Boolean);
   if(typeBets.length){
@@ -14421,9 +14385,11 @@ const _OPS_HOCKEY_LEAGUES=[
 // comment for the full rationale). Confirmed live, zero pending
 // Bundesliga bets existed at removal time, so no manual settle action
 // was ever orphaned by dropping it from here.
+// MLS removed 2026-09-27 -- retired, same treatment (see the soccer
+// sub-nav's own comment for the full rationale).
 const _OPS_SOCCER_LEAGUES=[
   {k:'CL',label:'CHAMPIONS LG'},{k:'LIGA',label:'LA LIGA'},
-  {k:'MLS',label:'MLS'},{k:'PL',label:'PREMIER LG'},{k:'SERIEA',label:'SERIE A'},
+  {k:'PL',label:'PREMIER LG'},{k:'SERIEA',label:'SERIE A'},
 ];
 // Sport keys that show a league sub-row instead of running ops directly
 // off the top-level tab -- SOCCER always did; HOCKEY/FOOTBALL join it
@@ -14575,9 +14541,9 @@ function renderEngineOps(){
       {lbl:'NLA',ens:HOCKEY_ENS.nla||{mc:.7,bay:.2,elo:.1},col:'var(--ic)'},
       {lbl:'EXTRALIGA',ens:HOCKEY_ENS.extraliga||{mc:.7,bay:.2,elo:.1},col:'var(--ic)'},
     ].map(_weightRow).join('')}
-    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px;margin:10px 0 4px">SOCCER — POISSON/xG MODEL (not MC/Bayesian/ELO — same model shared across the 5 active leagues; Bundesliga retired 2026-09-23)</div>
+    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px;margin:10px 0 4px">SOCCER — POISSON/xG MODEL (not MC/Bayesian/ELO — same model shared across the 4 active leagues; Bundesliga retired 2026-09-23, MLS retired 2026-09-27)</div>
     <div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">
-      ${['Champions League','La Liga','MLS','Premier League','Serie A'].join(' · ')}
+      ${['Champions League','La Liga','Premier League','Serie A'].join(' · ')}
     </div>
   </div>`;
   const betDataSection=sec('BET DATA','var(--gc)','ops-betdata',
@@ -14720,8 +14686,10 @@ function renderCrossDeviceSync(){
   const el=document.getElementById('ovr-sync');if(!el)return;
   // Scoped to active-subscription sports/leagues so this database summary
   // matches what's actually sold today, not retired sports (MLB/WNBA/
-  // tennis/CBB/World Cup/Bundesliga) still sitting in the raw pick history.
-  const PAID_LEVEL_SPORTS=new Set(['NFL','CFB','NBA','NHL','LIIGA','SHL','NLA','EXTRALIGA','PL','LIGA','MLS','SERIEA','CL']);
+  // tennis/CBB/World Cup/Bundesliga/MLS) still sitting in the raw pick
+  // history. MLS excluded 2026-09-27 following its own retirement, same
+  // treatment as Bundesliga.
+  const PAID_LEVEL_SPORTS=new Set(['NFL','CFB','NBA','NHL','LIIGA','SHL','NLA','EXTRALIGA','PL','LIGA','SERIEA','CL']);
   const preds=getP().filter(p=>PAID_LEVEL_SPORTS.has(window._normSport(p)));
   const wins=preds.filter(p=>p.outcome==='win').length;
   const losses=preds.filter(p=>p.outcome==='loss').length;
@@ -15447,7 +15415,7 @@ function renderHomePage(){
       {lbl:'NBA',codes:['NBA']},
       {lbl:'Champions League',codes:['CL','CH']},
       {lbl:'Premier League',codes:['PL']},{lbl:'La Liga',codes:['LIGA']},
-      {lbl:'MLS',codes:['MLS']},{lbl:'Serie A',codes:['SERIEA']},
+      {lbl:'Serie A',codes:['SERIEA']},
     ];
     window._homeLgPerfPeriod=window._homeLgPerfPeriod||'month';
     const lgPerfPeriod=window._homeLgPerfPeriod;
@@ -19381,7 +19349,7 @@ async function _genPerfGraphic(periodLabel,sublabel,perf,fh,fname){
 // standalone list so the filter <select>'s options can be rendered inline
 // in the template (see the note by cv-league-filter-sel) without needing
 // LDEFS itself hoisted out of its IIFE.
-const LEAGUE_FILTER_LABELS=['NFL','CFB','NHL','College Hockey','SHL','LIIGA','NLA','EXTRALIGA','KHL','NBA','Champions League','Premier League','La Liga','Serie A','MLS'];
+const LEAGUE_FILTER_LABELS=['NFL','CFB','NHL','College Hockey','SHL','LIIGA','NLA','EXTRALIGA','KHL','NBA','Champions League','Premier League','La Liga','Serie A'];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TRACK RECORD PUBLIC VIEW
@@ -19408,7 +19376,8 @@ function renderTrackRecord(){
   // Performance card exports, Event card), so removing it here is what
   // actually keeps those combined totals consistent with the per-league
   // rows below them, which no longer show a Bundesliga line at all.
-  const _PUB_SPORTS=new Set(['MLB','NHL','NBA','NFL','CFB','PL','LIGA','MLS','SERIEA','CL']);
+  // MLS excluded 2026-09-27, same treatment following its own retirement.
+  const _PUB_SPORTS=new Set(['MLB','NHL','NBA','NFL','CFB','PL','LIGA','SERIEA','CL']);
   const pubBets=allBets.filter(b=>_PUB_SPORTS.has(_normSport(b)));
   const now=Date.now();
   const nowD=getMSTNow();
@@ -19624,7 +19593,9 @@ function renderTrackRecord(){
       // request -- its real settled bets no longer contribute to this
       // card's combined SOCCER total, same as every other place its
       // history was pulled from display (see soccer sub-nav's comment).
-      periodBets.forEach(b=>{if(_normSport(b)==='BUND')return;const s=_broadSportOf(_normSport(b));if(s&&bySport[s])bySport[s].push(b);});
+      // MLS excluded 2026-09-27, same treatment, following its own
+      // retirement -- both exclusions apply, one does not replace the other.
+      periodBets.forEach(b=>{if(_normSport(b)==='BUND')return;if(_normSport(b)==='MLS')return;const s=_broadSportOf(_normSport(b));if(s&&bySport[s])bySport[s].push(b);});
       const sportList=sportFilter?[sportFilter]:SPORT_ORDER;
       // Real bug, found and fixed: with no sport filter selected (the
       // default "ALL SPORTS" view) this used to total periodBets --
@@ -19653,7 +19624,7 @@ function renderTrackRecord(){
         pubBets;
       const PUB_SPORT_ORDER=['BASKETBALL','FOOTBALL','HOCKEY','SOCCER'];
       const pubBySport={};PUB_SPORT_ORDER.forEach(s=>pubBySport[s]=[]);
-      pubPeriodBets.forEach(b=>{if(_normSport(b)==='BUND')return;const s=_broadSportOf(_normSport(b));if(s&&pubBySport[s])pubBySport[s].push(b);});
+      pubPeriodBets.forEach(b=>{if(_normSport(b)==='BUND')return;if(_normSport(b)==='MLS')return;const s=_broadSportOf(_normSport(b));if(s&&pubBySport[s])pubBySport[s].push(b);});
       const pubSportFilter=(sportFilter&&PUB_SPORT_ORDER.includes(sportFilter))?sportFilter:'';
       const pubSportList=pubSportFilter?[pubSportFilter]:PUB_SPORT_ORDER;
       // Same real bug as filteredBets above, fixed the same way -- this
@@ -19672,7 +19643,7 @@ function renderTrackRecord(){
       // the sport name, in the same greyish tone as the column headers.
       const SPORT_LEAGUES={BASKETBALL:'NBA',FOOTBALL:'NFL, CFB',
         HOCKEY:'NHL, KHL, SHL, LIIGA',
-        SOCCER:'Champions League, La Liga, MLS, Premier League, Serie A'};
+        SOCCER:'Champions League, La Liga, Premier League, Serie A'};
       const sportRows=sportList.slice(0,6).map(s=>{
         const p=cP(bySport[s]);
         const pctStr=p.pct!==null?(p.pct*100).toFixed(1)+'%':'—';
@@ -19720,7 +19691,7 @@ function renderTrackRecord(){
 
   <!-- ── LEAGUE PERFORMANCE CARD ── -->
   <div style="font-family:'Orbitron',sans-serif;font-size:15px;letter-spacing:3px;color:#f000ff;margin-bottom:6px;text-shadow:0 0 8px #f000ff">// LEAGUE PERFORMANCE CARD — SOCIAL EXPORT</div>
-  <div style="font-family:var(--mono);font-size:15px;color:rgba(220,190,255,.45);margin-bottom:10px">The 9 subscriber-facing leagues (NFL, CFB, NBA, NHL + 5 soccer leagues) · record, win%, units, streak · 1080×1350 PNG</div>
+  <div style="font-family:var(--mono);font-size:15px;color:rgba(220,190,255,.45);margin-bottom:10px">The 8 subscriber-facing leagues (NFL, CFB, NBA, NHL + 4 soccer leagues) · record, win%, units, streak · 1080×1350 PNG</div>
   <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
     ${periods.map(per=>`<button onclick="renderTrackRecord._leaguePeriod='${per.key}';renderTrackRecord()" style="padding:5px 10px;font-family:var(--mono);font-size:15px;border-radius:2px;cursor:pointer;border:1px solid rgba(240,0,255,.35);background:${(renderTrackRecord._leaguePeriod||'ALL TIME')===per.key?'rgba(240,0,255,.28)':'rgba(240,0,255,.06)'};color:#f000ff;letter-spacing:1px">${per.label}</button>`).join('')}
   </div>
@@ -19755,7 +19726,6 @@ function renderTrackRecord(){
       {lbl:'Premier League',codes:['PL']},
       {lbl:'La Liga',      codes:['LIGA']},
       {lbl:'Serie A',      codes:['SERIEA']},
-      {lbl:'MLS',          codes:['MLS']},
     ];
     const leagueFilter=renderTrackRecord._leagueFilter||'';
     const activePeriod=renderTrackRecord._leaguePeriod||'ALL TIME';
@@ -19782,12 +19752,12 @@ function renderTrackRecord(){
     window._cvLeaguePeriodData={LDEFS:activeLDEFS,periodBets:periodBets2,activePeriod,frameLabel:frameLabel2,totalP:totalP2,leagueFilter};
 
     // Public/subscriber-scoped mirror, for the PNG export only
-    // (_genLeaguePerfGraphic) -- only the 9 real subscriber-facing
+    // (_genLeaguePerfGraphic) -- only the 8 real subscriber-facing
     // leagues (no MLB/WNBA/CBB/ATP/WTA/KHL/SHL/LIIGA/College Hockey/
-    // World Cup/Bundesliga -- Bundesliga's own row, and the real settled
-    // bets behind it, removed 2026-09-23 alongside the rest of its
-    // history, explicit follow-up request), sourced from pubBets instead
-    // of allBets.
+    // World Cup/Bundesliga/MLS -- Bundesliga's own row, and the real
+    // settled bets behind it, removed 2026-09-23, MLS's own row removed
+    // 2026-09-27, both alongside the rest of their own history, explicit
+    // follow-up requests), sourced from pubBets instead of allBets.
     const LDEFS_PUB=[
       {lbl:'NFL',          codes:['NFL','FB']},
       {lbl:'CFB',          codes:['CFB']},
@@ -19797,7 +19767,6 @@ function renderTrackRecord(){
       {lbl:'Premier League',codes:['PL']},
       {lbl:'La Liga',      codes:['LIGA']},
       {lbl:'Serie A',      codes:['SERIEA']},
-      {lbl:'MLS',          codes:['MLS']},
     ];
     const pubLeagueFilter=(leagueFilter&&LDEFS_PUB.some(l=>l.lbl===leagueFilter))?leagueFilter:'';
     const pubPeriodBets2=_filterDate?_pubDayBets:
@@ -19900,7 +19869,6 @@ function renderTrackRecord(){
       {lbl:'Champions League',codes:['CH','CL']},
       {lbl:'Premier League',codes:['PL']},
       {lbl:'La Liga',      codes:['LIGA']},
-      {lbl:'MLS',          codes:['MLS']},
     ];
     const eventName=(renderTrackRecord._eventName||'EVENT').toUpperCase();
     const eStart=renderTrackRecord._eventStart||'';
@@ -20147,7 +20115,7 @@ async function _genSportPerfGraphic(){
   // no TENNIS row at all (matches window._cvSportPeriodDataPub above).
   const SPORT_LEAGUES={BASKETBALL:'NBA',FOOTBALL:'NFL, CFB',
     HOCKEY:'NHL',
-    SOCCER:'Champions League, La Liga, MLS, Premier League, Serie A'};
+    SOCCER:'Champions League, La Liga, Premier League, Serie A'};
   const _splitLeagues=str=>{
     const parts=str.split(', ');
     if(parts.length<2)return[str,''];
@@ -20208,8 +20176,9 @@ async function _genSportPerfGraphic(){
 async function _genLeaguePerfGraphic(){
   try{renderTrackRecord();}catch(e){} // refresh dynamic dates/data at save time
   // Public/subscriber-scoped -- same reasoning as _genCombinedTrackGraphic
-  // above. Only the 10 real subscriber-facing leagues; a personal-only
-  // leagueFilter (e.g. KHL) is ignored here and falls back to all 10.
+  // above. Only the 8 real subscriber-facing leagues (Bundesliga removed
+  // 2026-09-23, MLS removed 2026-09-27); a personal-only leagueFilter
+  // (e.g. KHL) is ignored here and falls back to all 8.
   const d=window._cvLeaguePeriodDataPub;
   if(!d){toast('// SWITCH TO TRACK RECORD TAB FIRST');return;}
   const{LDEFS,periodBets,activePeriod,frameLabel,totalP,leagueFilter}=d;
@@ -24214,11 +24183,11 @@ function renderBySportAnalytics(key){
   if(!key)key='all';
   // Sport group definitions — leagues is null for single-league sports (no sub-filter shown)
   const SPORT_DEFS={
-    all:      {label:'ALL SPORTS', codes:['NHL','NBA','NFL','CFB','FB','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH','PL','LIGA','CL','SERIEA','MLS'], color:'var(--nc)', leagues:null},
+    all:      {label:'ALL SPORTS', codes:['NHL','NBA','NFL','CFB','FB','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH','PL','LIGA','CL','SERIEA'], color:'var(--nc)', leagues:null}, // MLS excluded 2026-09-27, history removed from all displays
     basketball:{label:'BASKETBALL',codes:['NBA'],                          color:'var(--pc)', leagues:null},
     hockey:   {label:'HOCKEY',     codes:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH','COLLEGE HOCKEY'], color:'var(--ic)', leagues:[{k:'NHL',label:'NHL'},{k:'NCAAH',label:'COLLEGE'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},{k:'NLA',label:'NLA'},{k:'EXTRALIGA',label:'EXTRALIGA'},{k:'KHL',label:'KHL'}]},
     football: {label:'FOOTBALL',   codes:['NFL','CFB','FB'],               color:'var(--hc)', leagues:[{k:'NFL',label:'NFL'},{k:'CFB',label:'COLLEGE'}]},
-    soccer:   {label:'SOCCER',     codes:['PL','LIGA','CL','SERIEA','MLS'], color:'var(--gc)', leagues:[{k:'CL',label:'CHAMPIONS LG'},{k:'LIGA',label:'LA LIGA'},{k:'MLS',label:'MLS'},{k:'PL',label:'PREM LG'},{k:'SERIEA',label:'SERIE A'}]}, // BUND/BL excluded 2026-09-23, Bundesliga history removed from all displays
+    soccer:   {label:'SOCCER',     codes:['PL','LIGA','CL','SERIEA'], color:'var(--gc)', leagues:[{k:'CL',label:'CHAMPIONS LG'},{k:'LIGA',label:'LA LIGA'},{k:'PL',label:'PREM LG'},{k:'SERIEA',label:'SERIE A'}]}, // BUND/BL excluded 2026-09-23, MLS excluded 2026-09-27, history removed from all displays
   };
 
   // If key is a league code (e.g. 'NBA'), find which sport it belongs to
@@ -24314,7 +24283,7 @@ function renderBySportAnalytics(key){
       {key:'basketball',label:'BASKETBALL',codes:['NBA'],color:'var(--pc)'},
       {key:'hockey',label:'HOCKEY',codes:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH'],color:'var(--ic)'},
       {key:'football',label:'FOOTBALL',codes:['NFL','CFB','FB'],color:'var(--hc)'},
-      {key:'soccer',label:'SOCCER',codes:['PL','LIGA','CL','SERIEA','MLS'],color:'var(--gc)'}, // BUND/BL excluded 2026-09-23
+      {key:'soccer',label:'SOCCER',codes:['PL','LIGA','CL','SERIEA'],color:'var(--gc)'}, // BUND/BL excluded 2026-09-23, MLS excluded 2026-09-27
     ];
     for(const g of topGroups){
       const gb=all.filter(p=>g.codes.some(c=>window._normSport(p)===c));
@@ -24335,11 +24304,11 @@ window.renderBySportAnalytics=renderBySportAnalytics;
 function renderByTeamAnalytics(key){
   if(!key)key='ALL';
   const SPORT_DEFS={
-    ALL:        {codes:['NHL','NBA','NFL','CFB','FB','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH','PL','LIGA','CL','SERIEA','MLS'], color:'var(--nc)', leagues:null},
+    ALL:        {codes:['NHL','NBA','NFL','CFB','FB','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH','PL','LIGA','CL','SERIEA'], color:'var(--nc)', leagues:null}, // MLS excluded 2026-09-27, history removed from all displays
     BASKETBALL: {codes:['NBA'],                                          color:'var(--pc)', leagues:null},
     HOCKEY:     {codes:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH','COLLEGE HOCKEY'], color:'var(--ic)', leagues:[{k:'NHL',label:'NHL'},{k:'NCAAH',label:'COLLEGE'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},{k:'NLA',label:'NLA'},{k:'EXTRALIGA',label:'EXTRALIGA'},{k:'KHL',label:'KHL'}]},
     FOOTBALL:   {codes:['NFL','CFB','FB'],                               color:'var(--hc)', leagues:[{k:'NFL',label:'NFL'},{k:'CFB',label:'CFB'}]},
-    SOCCER:     {codes:['PL','LIGA','CL','SERIEA','MLS'], color:'var(--nc)', leagues:[{k:'CL',label:'CHAMPIONS LG'},{k:'LIGA',label:'LA LIGA'},{k:'MLS',label:'MLS'},{k:'PL',label:'PREMIER'},{k:'SERIEA',label:'SERIE A'}]}, // BUND/BL excluded 2026-09-23, Bundesliga history removed from all displays
+    SOCCER:     {codes:['PL','LIGA','CL','SERIEA'], color:'var(--nc)', leagues:[{k:'CL',label:'CHAMPIONS LG'},{k:'LIGA',label:'LA LIGA'},{k:'PL',label:'PREMIER'},{k:'SERIEA',label:'SERIE A'}]}, // BUND/BL excluded 2026-09-23, MLS excluded 2026-09-27, history removed from all displays
   };
 
   // Resolve key → sport / league / team hierarchy
@@ -24495,7 +24464,6 @@ const _BYLEAGUE_DEFS=[
   {k:'CFB',label:'CFB',sport:'FOOTBALL',color:'var(--hc)'},
   {k:'CL',label:'Champions League',sport:'SOCCER',color:'var(--nc)'},
   {k:'LIGA',label:'La Liga',sport:'SOCCER',color:'var(--nc)'},
-  {k:'MLS',label:'MLS',sport:'SOCCER',color:'var(--nc)'},
   {k:'PL',label:'Premier League',sport:'SOCCER',color:'var(--nc)'},
   {k:'SERIEA',label:'Serie A',sport:'SOCCER',color:'var(--nc)'},
 ];
@@ -24585,10 +24553,10 @@ function renderAnalyticsBetHistory(filter){
     BASKETBALL: {codes:['NBA'],                     color:'var(--pc)', leagues:[{k:'NBA',label:'NBA'}]},
     HOCKEY:     {codes:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH'], color:'var(--ic)', leagues:[{k:'NHL',label:'NHL'},{k:'KHL',label:'KHL'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},{k:'NLA',label:'NLA'},{k:'EXTRALIGA',label:'EXTRALIGA'},{k:'NCAAH',label:'COLLEGE'}]},
     FOOTBALL:   {codes:['NFL','CFB','FB'],                 color:'var(--hc)', leagues:[{k:'NFL',label:'NFL'},{k:'CFB',label:'COLLEGE'}]},
-    SOCCER:     {codes:['MLS','PL','LIGA','CL','CH','SERIEA'], color:'var(--nc)', leagues:[{k:'MLS',label:'MLS'},{k:'PL',label:'Premier League'},{k:'LIGA',label:'La Liga'},{k:'CL',label:'Champions League'},{k:'SERIEA',label:'Serie A'}]},
+    SOCCER:     {codes:['PL','LIGA','CL','CH','SERIEA'], color:'var(--nc)', leagues:[{k:'PL',label:'Premier League'},{k:'LIGA',label:'La Liga'},{k:'CL',label:'Champions League'},{k:'SERIEA',label:'Serie A'}]}, // MLS excluded 2026-09-27, history removed from all displays
   };
   const OUTCOME_FILTERS=['ALL','WIN','LOSS','PROP'];
-  const LEAGUE_CODES=['NBA','NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH','NFL','CFB','FB','MLS','PL','LIGA','CL','SERIEA'];
+  const LEAGUE_CODES=['NBA','NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH','NFL','CFB','FB','PL','LIGA','CL','SERIEA'];
 
   // Resolve filter type
   let filterType='outcome'; // outcome | sport | league
@@ -24640,7 +24608,9 @@ function renderAnalyticsBetHistory(filter){
   // follow-up request -- without this, its picks would still surface in
   // the default ALL view and the BY LEAGUE sub-breakdown below even after
   // being pulled from every named per-league card elsewhere.
-  const all=getP().filter(p=>window._normSport(p)!=='BUND');
+  // MLS's real settled bets excluded here too, 2026-09-27, same treatment
+  // following its own retirement -- both exclusions apply.
+  const all=getP().filter(p=>window._normSport(p)!=='BUND'&&window._normSport(p)!=='MLS');
   let bets=all;
   if(filter==='WIN')bets=all.filter(p=>p.outcome==='win');
   else if(filter==='LOSS')bets=all.filter(p=>p.outcome==='loss');
@@ -27592,13 +27562,8 @@ function saveParlayToTracker(legs,sport){
       <button onclick="SS('soc');setSub('soc','liga');T('liga','config');renderSoccerLeagueConfig('liga');hideAllND()">Config</button>
     </div>
   </div>
-  <div class="ndl"><button onclick="SS('soc');setSub('soc','mls');T('mls','matches');renderLeagueMatches('mls');hideAllND()">MLS</button>
-    <div class="ndl-sub">
-      <button onclick="SS('soc');setSub('soc','mls');T('mls','matches');renderLeagueMatches('mls');hideAllND()">Matches</button>
-      <button onclick="SS('soc');setSub('soc','mls');T('mls','model');renderSoccerLeagueModel('mls');hideAllND()">Model</button>
-      <button onclick="SS('soc');setSub('soc','mls');T('mls','config');renderSoccerLeagueConfig('mls');hideAllND()">Config</button>
-    </div>
-  </div>
+  <!-- MLS quick-nav entry removed 2026-09-27 alongside the rest of its
+       UI -- see the soccer sub-nav's own comment for the full rationale. -->
   <div class="ndl"><button onclick="SS('soc');setSub('soc','pl');T('pl','matches');renderLeagueMatches('pl');hideAllND()">Premier League</button>
     <div class="ndl-sub">
       <button onclick="SS('soc');setSub('soc','pl');T('pl','matches');renderLeagueMatches('pl');hideAllND()">Matches</button>

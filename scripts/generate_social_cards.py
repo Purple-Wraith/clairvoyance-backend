@@ -147,11 +147,12 @@ def _mt_now() -> datetime:
 # Matches SPORT_LEAGUES in docs/app.html's Sport Performance card exactly
 # — shown as the sub-line under each sport row in the breakdown videos.
 # Bundesliga dropped 2026-09-23, retired -- see docs/app.html's own copy.
+# MLS dropped 2026-09-27, retired -- same treatment.
 SPORT_LEAGUES = {
     "BASKETBALL": "NBA",
     "FOOTBALL": "NFL, CFB",
     "HOCKEY": "NHL, KHL, SHL, LIIGA, NLA, EXTRALIGA",
-    "SOCCER": "Champions League, La Liga, MLS, Premier League, Serie A",
+    "SOCCER": "Champions League, La Liga, Premier League, Serie A",
 }
 
 
@@ -373,7 +374,7 @@ def get_year_stats(page, year: int) -> dict:
             if (t === 'NBA') return 'BASKETBALL';
             if (['NFL','CFB'].includes(t)) return 'FOOTBALL';
             if (['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH'].includes(t)) return 'HOCKEY';
-            if (['PL','LIGA','MLS','SERIEA','CL','CH'].includes(t)) return 'SOCCER'; // BUND/BL excluded 2026-09-23, Bundesliga history removed from all displays
+            if (['PL','LIGA','SERIEA','CL','CH'].includes(t)) return 'SOCCER'; // BUND/BL excluded 2026-09-23, MLS excluded 2026-09-27, history removed from all displays
             return null;
           };
           const SPORT_ORDER = ['BASKETBALL','FOOTBALL','HOCKEY','SOCCER'];
@@ -585,7 +586,7 @@ def get_sport_performance(page) -> dict | None:
             {lbl:'NBA',code:'NBA'},
             {lbl:'Champions League',code:'CL'},
             {lbl:'Premier League',code:'PL'},{lbl:'La Liga',code:'LIGA'},
-            {lbl:'MLS',code:'MLS'},{lbl:'Serie A',code:'SERIEA'},
+            {lbl:'Serie A',code:'SERIEA'},
           ];
 
           const byLeague = bets => leagueMap.map(lm => {
