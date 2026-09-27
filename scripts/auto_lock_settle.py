@@ -10,13 +10,12 @@ clairvoyance_update.py silently no-op'd on every run. This script replaces
 that dead path: it loads the REAL bet ledger straight from Supabase (same
 proven pattern generate_social_cards.py already uses), settles it via the
 real client-side autoSettle*() functions, and locks new PREMIUM/OPTIMAL
-picks via the real lockPick()/lockProp()/lockNHLProp()/lockNFLModelProp()
-functions -- then flushes everything back to Supabase via the app's own
-syncBetsToSupabase().
+picks via the real lockPick()/lockProp()/lockNHLProp() functions -- then
+flushes everything back to Supabase via the app's own syncBetsToSupabase().
 
 Auto-lock scope: ML, spread, and O/U for every sport/league with a real
-proprietary model (NBA, NHL, NFL, CFB, and 5 soccer leagues -- Bundesliga
-retired 2026-09-23).
+proprietary model (NBA, NHL, NFL, CFB, and 4 soccer leagues -- Bundesliga
+retired 2026-09-23, MLS retired 2026-09-27).
 NCAAH only has a market-read-back model (no proprietary edge to
 grade), matching how the rest of the app already treats it -- ML only
 there via _epGatherESPNCacheLegs, not extended here. Player props covered
@@ -1551,9 +1550,11 @@ def lock_prop_leg(page, sport: str, leg: dict) -> str:
         )
     # NFL branch removed 2026-09-23 alongside NFL player props leaving
     # gather_legs() entirely (see its own comment) -- a leg tagged "NFL"
-    # can no longer reach this function at all, so lockNFLModelProp() is
-    # simply never called from this pipeline anymore. The real function
-    # and its in-app PROPS tab are untouched for personal/manual use.
+    # can no longer reach this function at all. lockNFLModelProp() and
+    # its in-app PROPS tab (manual/personal viewing only by that point)
+    # were removed entirely 2026-09-27, explicit follow-up request --
+    # this branch is now permanently unreachable dead code, kept only so
+    # the sport-dispatch shape here matches lock_prop_leg's own history.
     return "skip: unhandled prop sport"
 
 
