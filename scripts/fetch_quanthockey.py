@@ -65,6 +65,8 @@ SEASON = "2026-27"
 LEAGUE_URLS = {
     "liiga": f"https://www.quanthockey.com/liiga/en/seasons/{SEASON}/",
     "shl": f"https://www.quanthockey.com/shl/en/seasons/{SEASON}/",
+    "nla": f"https://www.quanthockey.com/nla/en/seasons/{SEASON}/",
+    "extraliga": f"https://www.quanthockey.com/czech-extraliga/en/seasons/{SEASON}/",
 }
 
 # Exact column order confirmed live against both leagues' real rendered
