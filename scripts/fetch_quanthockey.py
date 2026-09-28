@@ -1,4 +1,4 @@
-"""QuantHockey team stats scraper -- Liiga and SHL.
+"""QuantHockey team stats scraper -- Liiga, SHL, NLA, and Extraliga.
 
 New source, explicit request 2026-09-22 (user supplied both real URLs
 directly: quanthockey.com/liiga/en/seasons/2026-27/ and .../shl/en/...).
@@ -45,6 +45,17 @@ real browser session against both leagues' 2026-27 pages):
 Usage:
   python3 scripts/fetch_quanthockey.py --league liiga [--push]
   python3 scripts/fetch_quanthockey.py --league shl [--push]
+  python3 scripts/fetch_quanthockey.py --league nla [--push]
+  python3 scripts/fetch_quanthockey.py --league extraliga [--push]
+
+Blocked by Cloudflare when run unattended (see above) -- in practice
+these are refreshed via an interactive Claude browser session pulling
+each league's table directly and writing docs/{league}_quanthockey.json
+by hand, not by actually invoking this script's own run()/fetch_league()
+functions. Kept for its verified-correct parsing logic and as a fallback
+for anyone who can get a real browser session past the Cloudflare
+challenge (e.g. via Claude in Chrome, using the user's own logged-in
+session, rather than a bare unauthenticated Playwright launch).
 """
 from __future__ import annotations
 
@@ -65,6 +76,12 @@ SEASON = "2026-27"
 LEAGUE_URLS = {
     "liiga": f"https://www.quanthockey.com/liiga/en/seasons/{SEASON}/",
     "shl": f"https://www.quanthockey.com/shl/en/seasons/{SEASON}/",
+    # NLA/Extraliga added 2026-09-28 -- this dict was never extended when
+    # docs/app.html's own consumer side picked them up on 2026-09-22 (see
+    # loadNlaQuantHockeyData/loadExtraligaQuantHockeyData's comment
+    # there). Same 29-column structure, confirmed live both leagues.
+    "nla": f"https://www.quanthockey.com/nla/en/seasons/{SEASON}/",
+    "extraliga": f"https://www.quanthockey.com/czech-extraliga/en/seasons/{SEASON}/",
 }
 
 # Exact column order confirmed live against both leagues' real rendered
