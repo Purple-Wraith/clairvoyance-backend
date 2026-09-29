@@ -5253,7 +5253,15 @@ function renderNHLTonight(){
       const _bm1=_nm1.best,evPct=(_bm1.evVal*100).toFixed(1),_bp1=(_bm1.prob*100).toFixed(1);
       // ── NHL analytics context ─────────────────────────────────────────────
       const _mc1=ens.mcD;
-      const _hXGF=(h.xgf5*100).toFixed(1),_aXGF=(aw.xgf5*100).toFixed(1);
+      // Real bug fixed 2026-09-29: h.xgf5/aw.xgf5 are never set anywhere
+      // in this codebase anymore (only the now-removed 4 hand-curated
+      // teams ever had it) -- this rendered "NaN% vs NaN%" in the
+      // explanation text for every single game. Same live-MoneyPuck-
+      // over-static preference _nhlOffenseRadarValues already uses
+      // (_nhlLiveCf's xgfPct, 0-1 scale), with a real '--' fallback
+      // instead of a fabricated number when neither source has it yet.
+      const _hLiveXgf=_nhlLiveCf(gh.h)?.xgfPct,_aLiveXgf=_nhlLiveCf(gh.a)?.xgfPct;
+      const _hXGF=_hLiveXgf!=null?(_hLiveXgf*100).toFixed(1):'--',_aXGF=_aLiveXgf!=null?(_aLiveXgf*100).toFixed(1):'--';
       const _hGF60=h.gf60?.toFixed(2)||'--',_aGF60=aw.gf60?.toFixed(2)||'--';
       const _hZone=(h.edge?.zone_off||h.edge?.zoneOff||50).toFixed(1),_aZone=(aw.edge?.zone_off||aw.edge?.zoneOff||50).toFixed(1);
       const _hSpd=(h.edge?.avg_spd||20.5).toFixed(1),_aSpd=(aw.edge?.avg_spd||20.5).toFixed(1);
@@ -21236,7 +21244,7 @@ function renderAnalyticsNHL(){
       ${(typeof hvBar==='function')?hvBar('5V5 DEFENSE',t.hv?.def||0):''}
       ${(typeof hvBar==='function')?hvBar('PENALTY KILL',t.hv?.pk||0):''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:7px;font-family:var(--mono);font-size:13px;color:var(--t3)">
-        <span>xGF% <span style="color:${t.xgf5>=.52?'var(--nc)':'var(--hc)'}">${(t.xgf5*100).toFixed(1)}%</span></span>
+        <span>xGF% <span style="color:${(_nhlLiveCf(abbr)?.xgfPct??t.xgf5)>=.52?'var(--nc)':'var(--hc)'}">${(_nhlLiveCf(abbr)?.xgfPct??t.xgf5)!=null?((_nhlLiveCf(abbr)?.xgfPct??t.xgf5)*100).toFixed(1):'--'}%</span></span>
         <span>HDCF <span style="color:var(--vc)">${t.hdcf?.toFixed(1)||'--'}%</span></span>
         <span>PP <span style="color:var(--gc)">${(t.pp*100).toFixed(1)}%</span></span>
         <span>GSAx <span style="color:var(--gc)">+${t.gsax?.toFixed(1)||'--'}</span></span>
