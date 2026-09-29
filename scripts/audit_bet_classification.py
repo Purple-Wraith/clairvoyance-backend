@@ -37,6 +37,7 @@ import argparse
 import json
 import re
 import sys
+import urllib.parse
 import urllib.request
 
 SUPABASE_URL = "https://vhwkbeblforpnliowpam.supabase.co"
@@ -177,16 +178,26 @@ def main() -> None:
         # not a full-column replace -- Supabase/PostgREST doesn't support a
         # partial jsonb merge via PATCH body directly, so this reads the
         # full raw object, patches those 2 keys, and writes it back whole.
+        # id is a free-text string that can contain '+' (e.g. "...POR+1.5")
+        # -- a literal '+' in a query string decodes as a space server-side
+        # (application/x-www-form-urlencoded convention), so it must be
+        # percent-encoded (quote, not quote_plus) or the filter silently
+        # matches zero rows.
+        id_enc = urllib.parse.quote(m["id"], safe="")
         req = urllib.request.Request(
-            f"{SUPABASE_URL}/rest/v1/bets?id=eq.{m['id']}&select=raw",
+            f"{SUPABASE_URL}/rest/v1/bets?id=eq.{id_enc}&select=raw",
             headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
         )
         with urllib.request.urlopen(req) as r:
-            current = json.loads(r.read())[0]["raw"]
+            batch = json.loads(r.read())
+        if not batch:
+            log(f"  SKIPPED row id={m['id']!r}: no longer found (settled/removed since audit?)")
+            continue
+        current = batch[0]["raw"]
         current["sport"] = m["correctSport"]
         current["league"] = m["correctSport"]
         patch_req = urllib.request.Request(
-            f"{SUPABASE_URL}/rest/v1/bets?id=eq.{m['id']}",
+            f"{SUPABASE_URL}/rest/v1/bets?id=eq.{id_enc}",
             data=json.dumps({"raw": current}).encode(),
             method="PATCH",
             headers={
