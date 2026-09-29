@@ -8827,7 +8827,7 @@ function _liigaBlendedRates(team){
   const gm=(team.gm!=null&&prev?.gm!=null)?team.gm*curW+prev.gm*(1-curW):(team.gm??prev?.gm??(gf+ga));
   return{gf,ga,gm,gp:curGp};
 }
-function liigaMC(homeId,awayId){
+function liigaMC(homeId,awayId,marketOU){
   const D=_LIIGA_DATA;if(!D)return null;
   const h=D.teams[homeId],aw=D.teams[awayId];
   if(!h||!aw)return null;
@@ -8861,15 +8861,15 @@ function liigaMC(homeId,awayId){
   // this model's own hLam+aLam so a team that plays in unusually high-
   // or low-event games (independent of its own GF/GA) still shows up in
   // the line the card actually offers.
-  const ouLine=parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
+  const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
   const overP=1-cdf;
   const rl15=_socSpreadProb(hLam,aLam,-1.5); // P(home covers -1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rlN:1-rl15};
 }
-function liigaEns(homeId,awayId){
-  const mc=liigaMC(homeId,awayId);
+function liigaEns(homeId,awayId,marketOU){
+  const mc=liigaMC(homeId,awayId,marketOU);
   if(!mc)return{p:.5};
   const D=_LIIGA_DATA;
   const h=D.teams[homeId],aw=D.teams[awayId];
@@ -8949,7 +8949,7 @@ function _nlaBlendedRates(team){
   const gm=(team.gm!=null&&prev?.gm!=null)?team.gm*curW+prev.gm*(1-curW):(team.gm??prev?.gm??(gf+ga));
   return{gf,ga,gm,gp:curGp};
 }
-function nlaMC(homeId,awayId){
+function nlaMC(homeId,awayId,marketOU){
   const D=_NLA_DATA;if(!D)return null;
   const h=D.teams[homeId],aw=D.teams[awayId];
   if(!h||!aw)return null;
@@ -8962,15 +8962,15 @@ function nlaMC(homeId,awayId){
   let hwP=0,awP=0,otP=0;
   Object.keys(dist).forEach(m=>{const mm=parseFloat(m);if(mm>0)hwP+=dist[m];else if(mm<0)awP+=dist[m];else otP+=dist[m];});
   hwP+=otP/2;awP+=otP/2;
-  const ouLine=parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
+  const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
   const overP=1-cdf;
   const rl15=_socSpreadProb(hLam,aLam,-1.5);
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rlN:1-rl15};
 }
-function nlaEns(homeId,awayId){
-  const mc=nlaMC(homeId,awayId);
+function nlaEns(homeId,awayId,marketOU){
+  const mc=nlaMC(homeId,awayId,marketOU);
   if(!mc)return{p:.5};
   const D=_NLA_DATA;
   const h=D.teams[homeId],aw=D.teams[awayId];
@@ -9032,7 +9032,7 @@ function _extraligaBlendedRates(team){
   const gm=(team.gm!=null&&prev?.gm!=null)?team.gm*curW+prev.gm*(1-curW):(team.gm??prev?.gm??(gf+ga));
   return{gf,ga,gm,gp:curGp};
 }
-function extraligaMC(homeId,awayId){
+function extraligaMC(homeId,awayId,marketOU){
   const D=_EXTRALIGA_DATA;if(!D)return null;
   const h=D.teams[homeId],aw=D.teams[awayId];
   if(!h||!aw)return null;
@@ -9045,15 +9045,15 @@ function extraligaMC(homeId,awayId){
   let hwP=0,awP=0,otP=0;
   Object.keys(dist).forEach(m=>{const mm=parseFloat(m);if(mm>0)hwP+=dist[m];else if(mm<0)awP+=dist[m];else otP+=dist[m];});
   hwP+=otP/2;awP+=otP/2;
-  const ouLine=parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
+  const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
   const overP=1-cdf;
   const rl15=_socSpreadProb(hLam,aLam,-1.5);
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rlN:1-rl15};
 }
-function extraligaEns(homeId,awayId){
-  const mc=extraligaMC(homeId,awayId);
+function extraligaEns(homeId,awayId,marketOU){
+  const mc=extraligaMC(homeId,awayId,marketOU);
   if(!mc)return{p:.5};
   const D=_EXTRALIGA_DATA;
   const h=D.teams[homeId],aw=D.teams[awayId];
@@ -9321,7 +9321,7 @@ function _liigaMatchCard(g){
   const D=_LIIGA_DATA;
   const h=D.teams[g.home],aw=D.teams[g.away];
   if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${g.awayName} @ ${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
-  const ens=liigaEns(g.home,g.away),mc=ens.mcD;
+  const ens=liigaEns(g.home,g.away,g.ou),mc=ens.mcD;
   const hP=ens.p,aP=1-hP;
   const hML=p2ml(hP),aML=p2ml(aP);
   const hD=ml2d(hML),aD=ml2d(aML);
@@ -9349,7 +9349,7 @@ function _liigaMatchCard(g){
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_liigaBlendedRates(h),aR=_liigaBlendedRates(aw);
-  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). G/M-derived line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
+  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). ${g.ou!=null?'Market':'G/M-derived'} line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
   const bayStr=`Record: ${g.homeName} ${h.w}-${h.l}${h.wo?'-'+h.wo+'OTW':''}${h.lo?'-'+h.lo+'OTL':''} vs ${g.awayName} ${aw.w}-${aw.l}${aw.wo?'-'+aw.wo+'OTW':''}${aw.lo?'-'+aw.lo+'OTL':''}.`;
   const capStr=`No goaltending/possession data available for this league yet -- model is scoring-rate + record only.`;
   const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
@@ -9461,7 +9461,7 @@ function _nlaMatchCard(g){
   const D=_NLA_DATA;
   const h=D.teams[g.home],aw=D.teams[g.away];
   if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${g.awayName} @ ${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
-  const ens=nlaEns(g.home,g.away),mc=ens.mcD;
+  const ens=nlaEns(g.home,g.away,g.ou),mc=ens.mcD;
   const hP=ens.p,aP=1-hP;
   const hML=p2ml(hP),aML=p2ml(aP);
   const hD=ml2d(hML),aD=ml2d(aML);
@@ -9484,7 +9484,7 @@ function _nlaMatchCard(g){
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_nlaBlendedRates(h),aR=_nlaBlendedRates(aw);
-  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). G/M-derived line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
+  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). ${g.ou!=null?'Market':'G/M-derived'} line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
   const bayStr=`Record: ${g.homeName} ${h.w}-${h.l}${h.wo?'-'+h.wo+'OTW':''}${h.lo?'-'+h.lo+'OTL':''} vs ${g.awayName} ${aw.w}-${aw.l}${aw.wo?'-'+aw.wo+'OTW':''}${aw.lo?'-'+aw.lo+'OTL':''}.`;
   const capStr=`No goaltending/possession data available for this league yet -- model is scoring-rate + record only.`;
   const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
@@ -9585,7 +9585,7 @@ function _extraligaMatchCard(g){
   const D=_EXTRALIGA_DATA;
   const h=D.teams[g.home],aw=D.teams[g.away];
   if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${g.awayName} @ ${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
-  const ens=extraligaEns(g.home,g.away),mc=ens.mcD;
+  const ens=extraligaEns(g.home,g.away,g.ou),mc=ens.mcD;
   const hP=ens.p,aP=1-hP;
   const hML=p2ml(hP),aML=p2ml(aP);
   const hD=ml2d(hML),aD=ml2d(aML);
@@ -9608,7 +9608,7 @@ function _extraligaMatchCard(g){
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_extraligaBlendedRates(h),aR=_extraligaBlendedRates(aw);
-  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). G/M-derived line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
+  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). ${g.ou!=null?'Market':'G/M-derived'} line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
   const bayStr=`Record: ${g.homeName} ${h.w}-${h.l}${h.wo?'-'+h.wo+'OTW':''}${h.lo?'-'+h.lo+'OTL':''} vs ${g.awayName} ${aw.w}-${aw.l}${aw.wo?'-'+aw.wo+'OTW':''}${aw.lo?'-'+aw.lo+'OTL':''}.`;
   const capStr=`No goaltending/possession data available for this league yet -- model is scoring-rate + record only.`;
   const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
@@ -9756,7 +9756,7 @@ function _shlBlendedRates(team){
   const gm=(team.gm!=null&&prev?.gm!=null)?team.gm*curW+prev.gm*(1-curW):(team.gm??prev?.gm??(gf+ga));
   return{gf,ga,gm,gp:curGp};
 }
-function shlMC(homeId,awayId){
+function shlMC(homeId,awayId,marketOU){
   const D=_SHL_DATA;if(!D)return null;
   const h=D.teams[homeId],aw=D.teams[awayId];
   if(!h||!aw)return null;
@@ -9788,15 +9788,15 @@ function shlMC(homeId,awayId){
   // this model's own hLam+aLam so a team that plays in unusually high-
   // or low-event games (independent of its own GF/GA) still shows up in
   // the line the card actually offers.
-  const ouLine=parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
+  const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
   const overP=1-cdf;
   const rl15=_socSpreadProb(hLam,aLam,-1.5); // P(home covers -1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rlN:1-rl15};
 }
-function shlEns(homeId,awayId){
-  const mc=shlMC(homeId,awayId);
+function shlEns(homeId,awayId,marketOU){
+  const mc=shlMC(homeId,awayId,marketOU);
   if(!mc)return{p:.5};
   const D=_SHL_DATA;
   const h=D.teams[homeId],aw=D.teams[awayId];
@@ -9851,7 +9851,7 @@ function _shlMatchCard(g){
   const D=_SHL_DATA;
   const h=D.teams[g.home],aw=D.teams[g.away];
   if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${g.awayName} @ ${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
-  const ens=shlEns(g.home,g.away),mc=ens.mcD;
+  const ens=shlEns(g.home,g.away,g.ou),mc=ens.mcD;
   const hP=ens.p,aP=1-hP;
   const hML=p2ml(hP),aML=p2ml(aP);
   const hD=ml2d(hML),aD=ml2d(aML);
@@ -9879,7 +9879,7 @@ function _shlMatchCard(g){
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_shlBlendedRates(h),aR=_shlBlendedRates(aw);
-  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). G/M-derived line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
+  const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). ${g.ou!=null?'Market':'G/M-derived'} line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
   const bayStr=`Record: ${g.homeName} ${h.w}-${h.l}${h.wo?'-'+h.wo+'OTW':''}${h.lo?'-'+h.lo+'OTL':''} vs ${g.awayName} ${aw.w}-${aw.l}${aw.wo?'-'+aw.wo+'OTW':''}${aw.lo?'-'+aw.lo+'OTL':''}.`;
   const capStr=`No goaltending/possession data available for this league yet -- model is scoring-rate + record only.`;
   const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;

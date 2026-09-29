@@ -22,13 +22,19 @@ identity can never silently drift the way a hand-maintained mapping
 table could (the exact bug class multiple sports in this app have hit
 before). Display names are carried alongside for anything user-facing.
 
-No per-game market odds yet: Flashscore only exposes those on each
-individual match's own /odds/ sub-page (confirmed live: the league-wide
-/odds/ page the user linked is actually season-long championship-winner
-futures, not per-game lines) -- fetching real per-game odds for the full
-multi-week schedule already listed would mean one extra page load per
-future fixture. Deferred; the model computes its own price the same way
-CFB already does when no market line has posted yet.
+Real per-game market Over/Under, added 2026-09-29: each match's own
+/odds/over-under/ft-including-ot/ sub-page has real bookmaker O/U pricing
+(confirmed live -- the league-wide /odds/ page is season-long
+championship-winner futures, not per-game lines, a genuinely different
+page). Fetching it is one extra page load per near-term fixture -- bounded
+to games within ODDS_LOOKAHEAD_DAYS so this doesn't balloon into one load
+per fixture across the full multi-week schedule already listed (most of
+which have no market posted yet anyway). See _flashscore_odds.py for the
+real scrape + line-selection logic (shared with fetch_shl.py/fetch_nla.py/
+fetch_extraliga.py). Fails open to None on any error or missing market --
+docs/app.html's liigaMC() falls back to its own G/M-derived line exactly
+as before when `ou` is null, same `real value || fallback` convention
+nhlMC's own market line already uses.
 """
 from __future__ import annotations
 
@@ -44,8 +50,14 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+from _flashscore_odds import fetch_match_ou_line
+
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "liiga_schedule.json"
+# How far out to bother fetching a real market O/U line -- most fixtures
+# past this window have no market posted yet anyway (wasted page load),
+# and this app's own card display only ever surfaces near-term games.
+ODDS_LOOKAHEAD_DAYS = 4
 
 BASE = "https://www.flashscore.com/hockey/finland"
 CURRENT_STANDINGS_URL = f"{BASE}/liiga/standings/C8KZXayI/standings/overall/"
@@ -274,12 +286,12 @@ def _date_txt_to_iso(date_txt: str, season_start_year: int) -> str | None:
     return dt.strftime("%Y-%m-%dT%H:%MZ")
 
 
-def fetch_fixtures(page, season_start_year: int, team_names: dict) -> list[dict]:
+def fetch_fixtures(page, season_start_year: int, team_names: dict, now: datetime) -> list[dict]:
     log(f"Fixtures: {FIXTURES_URL}")
     page.goto(FIXTURES_URL, wait_until="networkidle", timeout=30000)
     page.wait_for_timeout(1500)
     rows = page.query_selector_all("[class*='event__match']")
-    games = []
+    parsed_rows = []
     for row in rows:
         parsed = _extract_match_row(row)
         if not parsed:
@@ -287,13 +299,34 @@ def fetch_fixtures(page, season_start_year: int, team_names: dict) -> list[dict]
         iso = _date_txt_to_iso(parsed["dateTxt"], season_start_year)
         if not iso:
             continue
-        games.append({
-            "id": parsed["id"], "date": iso,
-            "home": parsed["home"], "homeName": team_names.get(parsed["home"], _slug_to_name(parsed["home_slug"])),
-            "away": parsed["away"], "awayName": team_names.get(parsed["away"], _slug_to_name(parsed["away_slug"])),
-            "state": "pre", "homeScore": None, "awayScore": None,
-        })
-    log(f"  {len(games)} upcoming fixtures parsed")
+        parsed["iso"] = iso
+        parsed_rows.append(parsed)
+    log(f"  {len(parsed_rows)} upcoming fixtures parsed")
+
+    # Real market O/U line for near-term games only -- see ODDS_LOOKAHEAD_DAYS
+    # and _flashscore_odds.py's own module docstring. Done as a second pass,
+    # after every row's own ElementHandle has already been read into a plain
+    # dict above -- navigating the page (inside fetch_match_ou_line) would
+    # otherwise invalidate the remaining rows' still-unread ElementHandles.
+    for parsed in parsed_rows:
+        game_dt = datetime.strptime(parsed["iso"], "%Y-%m-%dT%H:%MZ").replace(tzinfo=timezone.utc)
+        if 0 <= (game_dt - now).days <= ODDS_LOOKAHEAD_DAYS:
+            try:
+                parsed["ou"] = fetch_match_ou_line(
+                    page, parsed["home_slug"], parsed["home"], parsed["away_slug"], parsed["away"], parsed["id"])
+            except Exception as e:
+                log(f"  odds fetch failed for match {parsed['id']}: {e}")
+                parsed["ou"] = None
+        else:
+            parsed["ou"] = None
+
+    games = [{
+        "id": p["id"], "date": p["iso"],
+        "home": p["home"], "homeName": team_names.get(p["home"], _slug_to_name(p["home_slug"])),
+        "away": p["away"], "awayName": team_names.get(p["away"], _slug_to_name(p["away_slug"])),
+        "state": "pre", "homeScore": None, "awayScore": None,
+        "ou": p["ou"],
+    } for p in parsed_rows]
     return games
 
 
@@ -344,7 +377,7 @@ def run() -> dict:
         season_start_year = now.year if now.month >= 7 else now.year - 1
 
         team_names = {tid: t["name"] for tid, t in current_teams.items()}
-        fixtures = fetch_fixtures(page, season_start_year, team_names)
+        fixtures = fetch_fixtures(page, season_start_year, team_names, now)
         results = fetch_results(page, season_start_year, team_names)
 
         browser.close()

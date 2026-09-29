@@ -21,6 +21,12 @@ navigation, not user-supplied this time):
 Kept as its own file rather than parameterizing fetch_liiga/fetch_shl/
 fetch_nla -- same reasoning as those scripts' own docstrings: genuinely
 separate leagues with their own schedules/team sets/output files.
+
+Real per-game market Over/Under, added 2026-09-29: see _flashscore_odds.py
+(shared with fetch_liiga.py/fetch_shl.py/fetch_nla.py) -- same ODDS tab ->
+Over/Under -> FT including OT structure confirmed live across every other
+league already, extended here on the same convention. Fails open to None
+(self-derived G/M line) on any error or missing market.
 """
 from __future__ import annotations
 
@@ -36,8 +42,11 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+from _flashscore_odds import fetch_match_ou_line
+
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "extraliga_schedule.json"
+ODDS_LOOKAHEAD_DAYS = 4
 
 BASE = "https://www.flashscore.com/hockey/czech-republic"
 CURRENT_STANDINGS_URL = f"{BASE}/extraliga/standings/WOgC3lWQ/standings/overall/"
@@ -234,12 +243,12 @@ def _date_txt_to_iso(date_txt: str, season_start_year: int) -> str | None:
     return dt.strftime("%Y-%m-%dT%H:%MZ")
 
 
-def fetch_fixtures(page, season_start_year: int, team_names: dict) -> list[dict]:
+def fetch_fixtures(page, season_start_year: int, team_names: dict, now: datetime) -> list[dict]:
     log(f"Fixtures: {FIXTURES_URL}")
     page.goto(FIXTURES_URL, wait_until="networkidle", timeout=30000)
     page.wait_for_timeout(1500)
     rows = page.query_selector_all("[class*='event__match']")
-    games = []
+    parsed_rows = []
     for row in rows:
         parsed = _extract_match_row(row)
         if not parsed:
@@ -247,13 +256,29 @@ def fetch_fixtures(page, season_start_year: int, team_names: dict) -> list[dict]
         iso = _date_txt_to_iso(parsed["dateTxt"], season_start_year)
         if not iso:
             continue
-        games.append({
-            "id": parsed["id"], "date": iso,
-            "home": parsed["home"], "homeName": team_names.get(parsed["home"], _slug_to_name(parsed["home_slug"])),
-            "away": parsed["away"], "awayName": team_names.get(parsed["away"], _slug_to_name(parsed["away_slug"])),
-            "state": "pre", "homeScore": None, "awayScore": None,
-        })
-    log(f"  {len(games)} upcoming fixtures parsed")
+        parsed["iso"] = iso
+        parsed_rows.append(parsed)
+    log(f"  {len(parsed_rows)} upcoming fixtures parsed")
+
+    for parsed in parsed_rows:
+        game_dt = datetime.strptime(parsed["iso"], "%Y-%m-%dT%H:%MZ").replace(tzinfo=timezone.utc)
+        if 0 <= (game_dt - now).days <= ODDS_LOOKAHEAD_DAYS:
+            try:
+                parsed["ou"] = fetch_match_ou_line(
+                    page, parsed["home_slug"], parsed["home"], parsed["away_slug"], parsed["away"], parsed["id"])
+            except Exception as e:
+                log(f"  odds fetch failed for match {parsed['id']}: {e}")
+                parsed["ou"] = None
+        else:
+            parsed["ou"] = None
+
+    games = [{
+        "id": p["id"], "date": p["iso"],
+        "home": p["home"], "homeName": team_names.get(p["home"], _slug_to_name(p["home_slug"])),
+        "away": p["away"], "awayName": team_names.get(p["away"], _slug_to_name(p["away_slug"])),
+        "state": "pre", "homeScore": None, "awayScore": None,
+        "ou": p["ou"],
+    } for p in parsed_rows]
     return games
 
 
@@ -296,7 +321,7 @@ def run() -> dict:
         season_start_year = now.year if now.month >= 7 else now.year - 1
 
         team_names = {tid: t["name"] for tid, t in current_teams.items()}
-        fixtures = fetch_fixtures(page, season_start_year, team_names)
+        fixtures = fetch_fixtures(page, season_start_year, team_names, now)
         results = fetch_results(page, season_start_year, team_names)
 
         browser.close()
