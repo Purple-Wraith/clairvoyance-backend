@@ -2743,30 +2743,32 @@ const ESPN_IDS={'1':'BAL','2':'BOS','3':'LAA','4':'CHW','5':'CLE','6':'DET','7':
 // Normalize ESPN abbreviations to internal MLB keys
 function normAbbr(a){return {'ATH':'OAK','WSH':'WSN','CHW':'CWS'}[a]||a;}
 // ═══ NHL DATA (HockeyViz-informed) ══════════════════════════
-const NHL={
-  COL:{n:'Colorado Avalanche',hv:{off:2.2,fin:1.3,pp:1.9,def:1.1,pk:1.2,offN:'MacKinnon/Makar engine. Landeskog returned from 3yr knee IR — major boost. Necas elite playmaker.',finN:'Above-avg finishers. Dangerous off rush AND cycle. Nichushkin physical net-front presence.',ppN:'Best PP West. Makar QB, MacKinnon net-front. Necas secondary trigger from half-wall.',defN:'Structured system. Devon Toews + Josh Manson + Brent Burns on blue line.',pkN:'93.3% RS PK (28/30). Aggressive blue line pressure — Makar penalty-killing threat.'},
-    xgf5:.570,cf5:.535,hdcf:53.5,gf60:4.11,ga60:2.21,pp:.226,pk:.833,gsax:2.03,sv:.914,hdsv:.914,gaa:2.21,
-    edge:{spd:20.8,shotLoc:{slot:42,high:28,low:30},zoneOff:58.2,zoneDef:41.8,ppTime:4.2,pkTime:3.1,sh_pct:12.8,save_pct_5v5:.922,save_pct_pp:.875,save_pct_pk:.894},
-    g1:'Scott Wedgewood',g2:'Mackenzie Blackwood',series:'ELIMINATED — WCF SWEPT BY VGK (0-4)',sw:0,sl:4,
-    key:['Nathan MacKinnon (13pts PO)','Cale Makar (D)','Martin Necas (11pts PO)','Gabriel Landeskog (returned from IR)'],note:'COL swept 0-4 by VGK in WCF. MacKinnon/Makar series leaders but COL defence couldn\'t hold Hart. Eliminated.'},
-  VGK:{n:'Vegas Golden Knights',hv:{off:.8,fin:-.2,pp:.3,def:1.1,pk:1.3,offN:'Marner #1 all playoff scorers (18pts, 7G 11A in 12GP). Eichel 15pts pure playmaker. Dorofeyev 9G from 3rd line.',finN:'Below-avg finishing RS. Hart .917 SV% (12 PO games). #1 HDSv% all playoffs. Howden 8G surprise.',ppN:'PP struggled without Stone. Marner/Eichel PP unit dangerous — improving each round.',defN:'Strong Cassidy system. Shea Theodore driving from point (9pts in 12GP). McNabb physical.',pkN:'Elite PK 91.2% vs ANA. Now faces COL — best PP West with Makar/MacKinnon. Critical matchup.'},
-    xgf5:.510,cf5:.514,hdcf:50.0,gf60:3.67,ga60:2.37,pp:.221,pk:.843,gsax:4.2,sv:.917,hdsv:.929,gaa:2.37,
-    edge:{spd:21.2,shotLoc:{slot:38,high:32,low:30},zoneOff:54.1,zoneDef:45.9,ppTime:3.8,pkTime:3.5,sh_pct:11.2,save_pct_5v5:.928,save_pct_pp:.862,save_pct_pk:.912},
-    g1:'Adin Hill',g2:'Logan Thompson',series:'SCF — VGK leads 2-1 · G4 June 9 @ CAR',sw:2,sl:1,sxgf:12.75,saxgf:12.72,shdcf:51,sahdcf:49,ssog:93,sasog:118,
-    key:['Mitch Marner (22pts — #1 PO scorer)','Jack Eichel (17pts)','Pavel Dorofeyev (10G)','Shea Theodore (D)'],note:'VGK advances to Stanley Cup Finals. Hart 10W-4L .921 SV% 2.28 GAA. Marner leads ALL playoffs. Await SCF opponent.'},
-  MTL:{n:'Montreal Canadiens',hv:{off:.9,fin:1.8,pp:.5,def:.7,pk:.4,offN:'Suzuki 12pts (4G/8A) leads MTL. Hutson 13pts from D (2G/11A). Newhook 6G. Demidov rookie impact.',finN:'Cinderella run continues into ECF vs CAR. Dobes must contain elite CAR defense.',ppN:'4/20 series (20%) — declining from RS. Hutson QB on PP can be deadly when clicking.',defN:'Dobes carrying save-above-expected. Hutson/Dobson/Carrier solid LD core. Matheson physical.',pkN:'2nd-most penalties all playoffs. CAR PP dangerous with Gostisbehere.'},
-    xgf5:.490,cf5:.470,hdcf:47.2,gf60:3.08,ga60:2.59,pp:.198,pk:.804,gsax:8.08,sv:.906,hdsv:.921,gaa:2.59,
-    edge:{spd:21.8,shotLoc:{slot:40,high:32,low:28},zoneOff:52.1,zoneDef:47.9,ppTime:3.9,pkTime:3.8,sh_pct:13.8,save_pct_5v5:.929,save_pct_pp:.832,save_pct_pk:.892},
-    g1:'Jakub Dobes',g2:'Samuel Montembeault',series:'ECF — CAR WON 4-1. CAR ADVANCES TO SCF vs VGK.',sw:1,sl:4,sxgf:0,saxgf:0,shdcf:0,sahdcf:0,
-    key:['Nick Suzuki (14pts PO)','Lane Hutson (D, 14pts)','Cole Caufield','Ivan Demidov (rookie)'],note:'MTL down 1-3 vs CAR. Shutout 0-4 in G4. Dobes 8W-8L .905 SV%. Must win G5 at Raleigh May 29 or season ends. Need complete performance — special teams, goaltending, Suzuki leadership.'},
-  CAR:{n:'Carolina Hurricanes',hv:{off:1.2,fin:.8,pp:.9,def:1.9,pk:1.5,offN:'Taylor Hall 15pts (4G/11A). Blake 14pts (5G/9A). Stankoven 8G in 10GP — historic 3rd line eruption. Ehlers elite wing.',finN:'Above-avg conversion. Stankoven pure goal scorer. Blake breakout postseason. Svechnikov physical.',ppN:'Efficient PP with Gostisbehere from point. Aho net-front. Ehlers half-wall option.',defN:'PREMIUM system hockey — Andersen 11-1 1.05 GAA .951 SV% — G4 complete shutout. Slavin/Miller shutdown pair.',pkN:'BEST PK remaining (.855). Andersen unbeatable on 4-on-5 this playoffs.'},
-    xgf5:.560,cf5:.523,hdcf:52.3,gf60:3.0,ga60:1.05,pp:.221,pk:.855,gsax:11.22,sv:.951,hdsv:.924,gaa:1.05,
-    edge:{spd:20.2,shotLoc:{slot:46,high:28,low:26},zoneOff:57.8,zoneDef:42.2,ppTime:3.5,pkTime:3.0,sh_pct:11.8,save_pct_5v5:.926,save_pct_pp:.872,save_pct_pk:.918},
-    g1:'Frederik Andersen',g2:'Pyotr Kochetkov',series:'SCF — VGK leads 2-1 · G4 June 9 @ T-Mobile Arena, LV',sw:1,sl:2,
-    key:['Taylor Hall (15pts PO)','Jackson Blake (14pts PO)','Logan Stankoven (8G)','Sebastian Aho','Nikolaj Ehlers'],note:'CAR leads ECF 3-1. Andersen 11-1 1.05 GAA .951 SV% — G4 complete shutout. One win from SCF vs VGK. G5 Fri May 29 @ Lenovo Center Raleigh, 8 PM ET TNT. Home ice advantage is massive.'}
-};
-// June 9: SCF G4 — CAR at VGK @ T-Mobile Arena, Las Vegas · 8 PM ET TNT · VGK leads 2-1
-const TONIGHT=[{h:'VGK',a:'CAR',gn:4,ctx:'SCF — VGK leads 2-1',time:'8 PM ET',net:'TNT',ou:5.5,hL:'-125',aL:'+105',date:'2026-05-30'}];
+// Real bug fixed 2026-09-29, ahead of the 2026-27 season opener: this
+// table used to hand-curate 4 teams (COL/VGK/MTL/CAR) with 2025-26
+// Stanley Cup Playoff scouting notes/series text/stat lines, dated as
+// late as 2026-05-30 -- and unlike the other 28 teams (which get a fresh
+// _syntheticEntry from patchNHLStandings/_nhlDeriveHV every refresh,
+// re-derived from live standings + MoneyPuck), these 4 were NEVER
+// eligible for that refresh (patchNHLStandings's `if(!NHL[abbr])` guard
+// skips any team that already exists, and _nhlDeriveHV only re-derives
+// hv for entries flagged _syntheticEntry). Their gf60/ga60/hv/xgf5/cf5/
+// edge.* fields -- real inputs to nhlMC's own win-probability formula --
+// would have stayed frozen at last spring's small-sample playoff-
+// intensity numbers for these 4 teams for the entire new season, while
+// every other team's model input refreshes normally: a real, ongoing
+// accuracy asymmetry, not just stale display text. Starting the season
+// with NHL={} lets all 32 teams go through the exact same, already-
+// correct synthetic-entry pipeline the other 28 already relied on.
+const NHL={};
+// TONIGHT was a single hardcoded stale entry (last season's Cup Final
+// Game 4, 2026-05-30) that every real 2026-27 game already misses in
+// nhlMC's/nhlEns's own `TONIGHT.find(...)` fallback lookup (see their
+// own comments) -- kept only as the last-resort path when no live data
+// has loaded at all. An empty array is the correct "nothing to show"
+// state for that path (renderNHLTonight/renderNHLGamesOffline already
+// filter TONIGHT by today's own date before rendering anything from it),
+// rather than a real risk of ever displaying last season's game again.
+const TONIGHT=[];
 const WCF_NEXT=null; // VGK advances to SCF — opponent TBD (CAR or MTL winner)
 const ECF_DATES=['2026-05-21','2026-05-23','2026-05-25','2026-05-27','2026-05-29','2026-05-31','2026-06-02'];
 // ═══ MONEYPUCK EMBEDDED DATA (updates daily at midnight) ════
@@ -5195,59 +5197,15 @@ function nhlEns(hA,awA,marketOU){
 }
 function renderBracket(){
   const el=document.getElementById('bracket');if(!el)return;
-  // Visual bracket tree — current 2025-26 NHL playoffs state
-  el.innerHTML=`
-  <style>
-  .bkt{display:flex;flex-direction:column;gap:6px;width:100%}
-  .bkt-row{display:flex;align-items:stretch;gap:4px}
-  .bkt-cell{background:rgba(10,0,24,.8);border:1px solid rgba(77,121,255,.2);border-radius:3px;padding:8px;flex:1;min-width:0}
-  .bkt-cell.active{border-color:rgba(255,204,0,.5);background:rgba(255,204,0,.04)}
-  .bkt-cell.done{border-color:rgba(170,255,0,.3);background:rgba(170,255,0,.04);opacity:.8}
-  .bkt-cell.fire{border-color:rgba(255,0,128,.6);background:rgba(255,0,128,.06)}
-  .bkt-conf{font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--t3)}
-  .bkt-title{font-family:var(--orb);font-size:19px;font-weight:700;letter-spacing:1px;margin:2px 0}
-  .bkt-status{font-family:var(--mono);font-size:16px;letter-spacing:1px;margin-bottom:3px}
-  .bkt-note{font-family:var(--mono);font-size:17px;color:var(--t2);line-height:1.6}
-  .bkt-div{writing-mode:vertical-lr;font-family:var(--mono);font-size:16px;color:var(--t3);letter-spacing:2px;padding:4px 2px;display:flex;align-items:center;justify-content:center}
-  .bkt-arrow{display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:24px;flex-shrink:0}
-  </style>
-
-  <div class="bkt">
-    <!-- CONF FINALS header -->
-    <div style="display:grid;grid-template-columns:1fr;gap:4px;margin-bottom:6px">
-      <div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);text-align:center">CONFERENCE FINALS</div>
-    </div>
-
-    <!-- EAST ECF -->
-    <div style="margin-bottom:4px">
-      <div class="bkt-cell active" style="margin-bottom:4px;border-color:rgba(0,229,255,.5)">
-        <div class="bkt-conf">EAST · CONFERENCE FINALS — GAME 2</div>
-        <div class="bkt-title" style="color:var(--nc)">CAR vs MTL</div>
-        <div class="bkt-status" style="color:var(--nc)">SERIES LIVE · CAR -185 GAME 2</div>
-        <div class="bkt-note">GOALIES: Andersen vs Dobes · Andersen GSAx +11.2 · Aho/Svechnikov vs Caufield/Suzuki</div>
-      </div>
-    </div>
-
-    <!-- divider -->
-    <div style="height:1px;background:rgba(240,0,255,.15);margin:4px 0"></div>
-
-    <!-- WEST WCF -->
-    <div style="margin-bottom:4px">
-      <div class="bkt-cell active" style="border-color:rgba(255,204,0,.5);margin-bottom:4px">
-        <div class="bkt-conf">WEST · CONFERENCE FINALS — GAME 2</div>
-        <div class="bkt-title" style="color:var(--gc)">COL vs VGK</div>
-        <div class="bkt-status" style="color:var(--gc)">SERIES LIVE · COL -140 GAME 2</div>
-        <div class="bkt-note">GOALIES: Wedgewood vs Hart · MacKinnon/Makar vs Marchessault/Eichel<br>West Final: COL dominant xGF 57% — VGK depth battle</div>
-      </div>
-    </div>
-
-    <!-- Stanley Cup Final placeholder -->
-    <div style="margin-top:6px;padding:8px 12px;background:rgba(255,204,0,.06);border:1px solid rgba(255,204,0,.3);border-radius:3px;text-align:center">
-      <div style="font-family:var(--mono);font-size:16px;letter-spacing:3px;color:rgba(255,204,0,.5)">STANLEY CUP FINAL</div>
-      <div style="font-family:var(--orb);font-size:23px;font-weight:700;color:var(--gc);margin-top:3px">ECF WINNER vs WCF WINNER</div>
-      <div style="font-family:var(--mono);font-size:17px;color:var(--t3);margin-top:2px">BEGINS LATE MAY / EARLY JUNE</div>
-    </div>
-  </div>`;
+  // Real bug fixed 2026-09-29: this used to hardcode the 2025-26 playoffs'
+  // Conference Finals state (CAR/MTL, COL/VGK, series scores, goalie
+  // matchups) with no dynamic data binding at all -- it never reflected
+  // anything real, and would have kept showing last spring's bracket
+  // all through the new regular season and into these playoffs too.
+  // No real bracket data source is wired up yet (this app has no live
+  // NHL playoff-bracket fetch), so an honest placeholder replaces the
+  // fabricated one rather than guessing at a new one.
+  el.innerHTML=`<div class="empty" style="padding:14px">PLAYOFF BRACKET — AVAILABLE ONCE THE 2026-27 POSTSEASON BEGINS</div>`;
 }
 function renderNHLTonight(){
   const el=document.getElementById('nhl-tn');if(!el)return;let html='';
