@@ -5037,7 +5037,7 @@ async function renderGoaliesFromBackend(){
 // goaltending nudges below -- centering points only, not claimed as
 // precise constants, same role _CFB_MEDIAN_CAPACITY plays for CFB.
 const _NHL_LG_PP=.205,_NHL_LG_PK=.795,_NHL_LG_GA60=2.9,_NHL_LG_GF60=2.9;
-function nhlMC(hA,awA,n=25000){
+function nhlMC(hA,awA,n=25000,marketOU){
   const h=NHL[hA],aw=NHL[awA];if(!h||!aw)return null;
   const hfa=.055;
   const hOff=h.gf60*(1+(h.hv.off-aw.hv.def)*.11)*(1+h.hv.fin*.04);
@@ -5090,7 +5090,16 @@ function nhlMC(hA,awA,n=25000){
   const aGaAdj=gaAdj(((h.ga60??_NHL_LG_GA60)-_NHL_LG_GA60)*-.03);
   const hLam=Math.max(.4,hOff*.55*hGlv*(1+hfa)*hZadj*hSadj*(1+mpAdj)*hStAdj*hSqAdj*hGaAdj);
   const aLam=Math.max(.4,aOff*.55*aGlv*(1-hfa*.5)*aZadj*aSadj*(1-mpAdj)*aStAdj*aSqAdj*aGaAdj);
-  const ouLine=TONIGHT.find(g=>(g.h===hA&&g.a===awA)||(g.h===awA&&g.a===hA))?.ou||5.5;
+  // Real bug fixed 2026-09-29: this used to ONLY check the hardcoded
+  // TONIGHT array (a single stale entry from last season's Cup Final),
+  // so for every real 2026-27 matchup ouLine silently fell back to a
+  // flat 5.5 -- even on cards that separately display the REAL market
+  // total (gh.ou/g.overUnder from live ESPN/Odds-API data) right next to
+  // this sim's own overP, a genuine mismatch between the displayed line
+  // and the probability computed for it. marketOU (the real line, when
+  // the caller has one) is now preferred; TONIGHT lookup stays only as
+  // the last-resort fallback for the narrow case of no live data loaded.
+  const ouLine=marketOU!=null?parseFloat(marketOU):(TONIGHT.find(g=>(g.h===hA&&g.a===awA)||(g.h===awA&&g.a===hA))?.ou||5.5);
   let hw=0,aw2=0,ot=0,hT=0,aT=0,rT=0,ov=0,rl15h=0,rl15a=0;
   for(let i=0;i<n;i++){const hg=pois(hLam),ag=pois(aLam);hT+=hg;aT+=ag;rT+=hg+ag;if(hg+ag>ouLine)ov++;if(hg>ag){hw++;if(hg-ag>=2)rl15h++;}else if(ag>hg){aw2++;if(ag-hg>=2)rl15a++;}else{ot++;hw+=.5;aw2+=.5;}}
   // Special-teams (hStAdj/aStAdj) and shot-quality (hSqAdj/aSqAdj) multipliers
@@ -5102,9 +5111,9 @@ function nhlMC(hA,awA,n=25000){
   const stEdge=(hStAdj-aStAdj)*100,sqEdge=(hSqAdj-aSqAdj)*100;
   return{hwP:hw/n,awP:aw2/n,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:ov/n,underP:1-ov/n,otP:ot/n,ouLine,rl15:rl15h/n,rlN:rl15a/n,stEdge,sqEdge};
 }
-function nhlEns(hA,awA){
+function nhlEns(hA,awA,marketOU){
   const h=NHL[hA],aw=NHL[awA];if(!h||!aw)return{p:.5};
-  const mc=nhlMC(hA,awA);if(!mc)return{p:.5};
+  const mc=nhlMC(hA,awA,25000,marketOU);if(!mc)return{p:.5};
   // Real bug, found building the 3-day upcoming-games view: xgf5/gsax
   // are hand-typed fields that only ever existed on the 4 hand-curated
   // teams (last season's playoff final 4) -- the other 28 (any
@@ -5253,7 +5262,7 @@ function renderNHLTonight(){
     for(const lg of liveGames){
       const gh={h:lg.home||lg.h,a:lg.away||lg.a,gn:lg.gn||lg.gameNum||1,ctx:lg.seriesNote||lg.ctx||'',time:lg.time||lg.displayTime||'TBD',net:lg.net||lg.network||'',ou:lg.ou||5.5,hL:lg.homeML||'',aL:lg.awayML||''};
       const h=NHL[gh.h],aw=NHL[gh.a];if(!h||!aw)continue;
-      const ens=nhlEns(gh.h,gh.a);const mc=ens.mcD;
+      const ens=nhlEns(gh.h,gh.a,gh.ou);const mc=ens.mcD;
       const hP=ens.p,aP=1-ens.p;
       const hML=gh.hL||p2ml(hP),aML=gh.aL||p2ml(aP);
       const hD=ml2d(hML),aD=ml2d(aML);
@@ -5326,7 +5335,7 @@ function renderNHLTonight(){
   const todayGames=TONIGHT.filter(g=>!g.date||g.date===todayStr);
   for(const g of todayGames){
     const h=NHL[g.h],aw=NHL[g.a];if(!h||!aw)continue;
-    const ens=nhlEns(g.h,g.a);const mc=ens.mcD;
+    const ens=nhlEns(g.h,g.a,g.ou);const mc=ens.mcD;
     const hP=ens.p,aP=1-ens.p;
     const hML=g.hL||p2ml(hP),aML=g.aL||p2ml(aP);
     const hD=ml2d(hML),aD=ml2d(aML);
@@ -7801,8 +7810,6 @@ function _nhlGameCard(espnEv){
       const statusTxt=post?`FINAL · ${an} ${as2} — ${hn} ${hs}`:live?`P${c.status?.period||'?'} ${c.status?.displayClock||''} · ${an} ${as2}–${hs} ${hn}`:(new Date(espnEv.date).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Denver'})+'MT');
       // Model ensemble from static NHL data
       const hNHL=NHL[hn]||{},aNHL=NHL[an]||{};
-      let hP=0.50,aP=0.50,ens={mc:0.50,xgf:0.50,elo:0.50};
-      try{const e=nhlEns(hn,an);if(e?.p){hP=e.p;aP=1-e.p;ens={mc:+(e.mc||.50).toFixed(3),xgf:+(e.xgf||.50).toFixed(3),elo:+(e.elo||.50).toFixed(3)};}}catch(e2){}
       // _liveNHL (the CLV tracking store) only has an entry for games
       // someone has already interacted with/locked -- for everything
       // else this silently fell back to a hardcoded 6.0 total, never a
@@ -7814,13 +7821,28 @@ function _nhlGameCard(espnEv){
       // constant.
       const _espnOdds=c.odds?.[0]||null;
       const _liveNHL=(typeof _clvGetLiveOdds==='function')?_clvGetLiveOdds('NHL',hn,an):null;
+      const nhlOuL=_liveNHL?.ou??(_espnOdds?.overUnder!=null?parseFloat(_espnOdds.overUnder):6.0);
+      // Real bugs fixed 2026-09-29: (1) plP/ouP used to be hardcoded
+      // constants (.38 and .50 respectively) completely regardless of
+      // matchup -- both sit below tier()'s 55% floor, so this card's own
+      // market-scan (and the _autoLockCapture feed below, which is what
+      // auto_lock_settle.py's gather_legs() actually reads for NHL) could
+      // never grade puck line or O/U above SKIP, no matter what the real
+      // model thought. (2) nhlEns() used to be called up to 8 separate
+      // times for this exact same matchup across this function (once
+      // here, once more for the email summary, then again inside each
+      // explanation branch below) -- 8 redundant 25k-sim Poisson loops
+      // for one card. Both fixed together: one real call, with the real
+      // market O/U threaded in, its mcD reused everywhere below instead
+      // of re-fetched.
+      let hP=0.50,aP=0.50,ens={mc:0.50,xgf:0.50,elo:0.50},_nhlMcD=null;
+      try{const e=nhlEns(hn,an,nhlOuL);if(e?.p){hP=e.p;aP=1-e.p;ens={mc:+(e.mc||.50).toFixed(3),xgf:+(e.xgf||.50).toFixed(3),elo:+(e.elo||.50).toFixed(3)};_nhlMcD=e.mcD||null;}}catch(e2){}
       const hML=_liveNHL?.homeML||_espnOdds?.homeTeamOdds?.moneyLine||p2ml(hP),aML=_liveNHL?.awayML||_espnOdds?.awayTeamOdds?.moneyLine||p2ml(aP);
       const hD=ml2d(hML),aD=ml2d(aML);
       const hEV=ev(hP,hD),aEV=ev(aP,aD);
       const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
-      const plP=hP>=.5?.38:.38,plCS=chipC(plP,ev(plP,1.87));
-      const nhlOuL=_liveNHL?.ou??(_espnOdds?.overUnder!=null?parseFloat(_espnOdds.overUnder):6.0);
-      const ouP=0.50,ouD=ml2d('-110'),ouCS=chipC(ouP,ev(ouP,ouD));
+      const plP=hP>=.5?(_nhlMcD?.rl15??.38):(_nhlMcD?.rlN??.38),plCS=chipC(plP,ev(plP,1.87));
+      const ouP=_nhlMcD?.overP??.52,ouD=ml2d('-110'),ouCS=chipC(ouP,ev(ouP,ouD));
       const seriesNote=hNHL.series||aNHL.series||'';
       // Engine reasoning — best-market evaluation across ML, puck line, O/U
       const _nhlFav3=hP>=aP?hn:an,_nhlDog3=hP>=aP?an:hn;
@@ -7829,13 +7851,6 @@ function _nhlGameCard(espnEv){
       const _nhlFavEV3=hP>=aP?hEV:aEV,_nhlDogEV3=hP>=aP?aEV:hEV;
       const _plDog3=Math.max(0.25,1-plP);
       const _ensStr3=`MC ${(ens.mc*100).toFixed(0)}% / xGF ${(ens.xgf*100).toFixed(0)}% / ELO ${(ens.elo*100).toFixed(0)}%`;
-      // Email-only summary: real MC-simulated score projection, no model-name
-      // breakdown (emails show best market + MC sim scores only, not the
-      // MC/xGF/ELO ensemble weighting -- that stays on-screen via _ensStr3).
-      // ens here was reassigned above to a stripped {mc,xgf,elo} shape with
-      // no .mcD, so nhlEns() is called again for the real MC score data --
-      // same pattern the explanation branches below already use.
-      const _nhlMcD=nhlEns(hn,an)?.mcD;
       const _nhlEmailMc=_nhlMcD?`MC PROJ: ${an} ${_nhlMcD.avgA.toFixed(1)} – ${hn} ${_nhlMcD.avgH.toFixed(1)} (Total ${_nhlMcD.avgT.toFixed(1)}, 25k sims)`:null;
       const _nm3=_evalMkts([
         {label:`${_nhlFav3} ML`,prob:_nhlFavP3,evVal:_nhlFavEV3,side:'mlFav'},
@@ -7857,10 +7872,10 @@ function _nhlGameCard(espnEv){
         const _sn=seriesNote?' in '+seriesNote:'';
         if(_bm3.side==='mlFav')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFav3} ML</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn} — shot quality, xGF, and GSAx all strongly favor ${_nhlFav3}. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;
         else if(_bm3.side==='mlDog')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDog3} ML</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn} — model finds underdog value. Series context supports a closer game than the odds imply. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;
-        else if(_bm3.side==='plFav'){const _mcPl=nhlEns(hn,an)?.mcD;const _pl3FavMC=(_mcPl?.rl15!=null?_mcPl.rl15:plP),_pl3DogMC=(_mcPl?.rlN!=null?_mcPl.rlN:(1-plP));explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFav3} -1.5</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. Fav covers -1.5 in ${(_pl3FavMC*100).toFixed(1)}% of 10k sims (proj ${(_mcPl?.avgH||0).toFixed(1)}–${(_mcPl?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl3FavMC*100).toFixed(1)}% fav / ${(_pl3DogMC*100).toFixed(1)}% dog (10k sims). Dominant structural edge supports multi-goal margin. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
-        else if(_bm3.side==='plDog'){const _mcPl=nhlEns(hn,an)?.mcD;const _pl3DogMC=(_mcPl?.rlN!=null?_mcPl.rlN:(1-plP)),_pl3FavMC=(_mcPl?.rl15!=null?_mcPl.rl15:plP);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDog3} +1.5</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. Dog covers +1.5 in ${(_pl3DogMC*100).toFixed(1)}% of 10k sims (proj ${(_mcPl?.avgH||0).toFixed(1)}–${(_mcPl?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl3FavMC*100).toFixed(1)}% fav / ${(_pl3DogMC*100).toFixed(1)}% dog (10k sims). ${_nhlDog3} can stay within a goal. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
-        else if(_bm3.side==='over'){const _mc3=nhlEns(hn,an)?.mcD;const _mc3T=_mc3?(_mc3.avgH+_mc3.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_mc3?((_mc3.overP||.5)*100).toFixed(0):50)}% over in 10k sims). ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
-        else{const _mc3=nhlEns(hn,an)?.mcD;const _mc3T=_mc3?(_mc3.avgH+_mc3.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_mc3?((1-(_mc3.overP||.5))*100).toFixed(0):50)}% under in 10k sims). ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        else if(_bm3.side==='plFav'){const _pl3FavMC=(_nhlMcD?.rl15!=null?_nhlMcD.rl15:plP),_pl3DogMC=(_nhlMcD?.rlN!=null?_nhlMcD.rlN:(1-plP));explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFav3} -1.5</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. Fav covers -1.5 in ${(_pl3FavMC*100).toFixed(1)}% of 10k sims (proj ${(_nhlMcD?.avgH||0).toFixed(1)}–${(_nhlMcD?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl3FavMC*100).toFixed(1)}% fav / ${(_pl3DogMC*100).toFixed(1)}% dog (10k sims). Dominant structural edge supports multi-goal margin. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        else if(_bm3.side==='plDog'){const _pl3DogMC=(_nhlMcD?.rlN!=null?_nhlMcD.rlN:(1-plP)),_pl3FavMC=(_nhlMcD?.rl15!=null?_nhlMcD.rl15:plP);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDog3} +1.5</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. Dog covers +1.5 in ${(_pl3DogMC*100).toFixed(1)}% of 10k sims (proj ${(_nhlMcD?.avgH||0).toFixed(1)}–${(_nhlMcD?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl3FavMC*100).toFixed(1)}% fav / ${(_pl3DogMC*100).toFixed(1)}% dog (10k sims). ${_nhlDog3} can stay within a goal. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        else if(_bm3.side==='over'){const _mc3T=_nhlMcD?(_nhlMcD.avgH+_nhlMcD.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_nhlMcD?((_nhlMcD.overP||.5)*100).toFixed(0):50)}% over in 10k sims). ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        else{const _mc3T=_nhlMcD?(_nhlMcD.avgH+_nhlMcD.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_nhlMcD?((1-(_nhlMcD.overP||.5))*100).toFixed(0):50)}% under in 10k sims). ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
       }
       return`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)">
   <div class="gch">
@@ -7894,19 +7909,19 @@ function _nhlGameCard(espnEv){
     <div class="${hCS.c} chip" style="flex:1" onclick="lockH('${hn}','${an}','ML','${hn}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)})"><div class="cht">ML ${hn}</div><div class="cho">${hML}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
     <div class="${aCS.c} chip" style="flex:1" onclick="lockH('${hn}','${an}','ML','${an}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)})"><div class="cht">ML ${an}</div><div class="cho">${aML}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
     <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nhl3_${hn}_${an}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="-1.5" id="sprd_nhl3_${hn}_${an}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nhl3_${hn}_${an}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?hn:an}','${hP>=.5?an:hn}','${hn}','${an}',null,${plP.toFixed(3)},'-1.5','sprd_nhl3_${hn}_${an}','FAV','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?hn:an}</div><div id="fav_sprd_nhl3_${hn}_${an}" style="font-size:11px;opacity:.85">-1.5</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?hn:an}','${hP>=.5?an:hn}','${hn}','${an}',null,${plP.toFixed(3)},'-1.5','sprd_nhl3_${hn}_${an}','DOG','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?an:hn}</div><div id="dog_sprd_nhl3_${hn}_${an}" style="font-size:11px;opacity:.85">+1.5</div></button></div></div>
-    <div class="${ouCS.c} chip" style="flex:1" onclick="lockH('${hn}','${an}','OU','${ouP>=.5?'OVER':'UNDER'} 5.5',${ouP.toFixed(3)},'-110',${ouD.toFixed(3)})"><div class="cht">${ouP>=.5?'OVER':'UNDER'} 5.5</div><div class="cho">-110</div><div class="chp">${(ouP*100).toFixed(1)}%</div></div>
+    <div class="${ouCS.c} chip" style="flex:1" onclick="lockH('${hn}','${an}','OU','${ouP>=.5?'OVER':'UNDER'} ${nhlOuL}',${ouP.toFixed(3)},'-110',${ouD.toFixed(3)})"><div class="cht">${ouP>=.5?'OVER':'UNDER'} ${nhlOuL}</div><div class="cho">-110</div><div class="chp">${(ouP*100).toFixed(1)}%</div></div>
   </div>`:''}
   <div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
       <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span>
       <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
     </div>
-    ${(()=>{try{return _mcProjBarHTML(nhlEns(hn,an)?.mcD,nhlOuL,hn,an,{dec:2});}catch(e){return'';}})()}
+    ${(()=>{try{return _mcProjBarHTML(_nhlMcD,nhlOuL,hn,an,{dec:2});}catch(e){return'';}})()}
     ${(()=>{try{
-      const _mcD=nhlEns(hn,an)?.mcD;if(!_mcD)return'';
+      if(!_nhlMcD)return'';
       return _recommendedLineHTML({
         recSpreadFav:null,recSpreadNum:null, // NHL puck line is fixed at 1.5 by convention, not a variable market number
-        recOU:_forceHalfLine(_mcD.avgT??((_mcD.avgH??0)+(_mcD.avgA??0))),
+        recOU:_forceHalfLine(_nhlMcD.avgT??((_nhlMcD.avgH??0)+(_nhlMcD.avgA??0))),
         mktSpreadFav:null,mktSpreadNum:null,
         mktOU:_liveNHL?.ou!=null?parseFloat(_liveNHL.ou).toFixed(1):(_espnOdds?.overUnder!=null?parseFloat(_espnOdds.overUnder).toFixed(1):null),
       });
@@ -7975,7 +7990,7 @@ function renderNHLGamesOffline(){
   let html='';
   for(const g of todayGames){
     const h=NHL[g.h],aw=NHL[g.a];if(!h||!aw)continue;
-    const ens=nhlEns(g.h,g.a);const mc=ens.mcD;
+    const ens=nhlEns(g.h,g.a,g.ou);const mc=ens.mcD;
     const hP=ens.p,aP=1-ens.p;
     const hML=g.hL||p2ml(hP),aML=g.aL||p2ml(aP);
     const hD=ml2d(hML),aD=ml2d(aML);
@@ -8085,7 +8100,7 @@ function loadNHLScheduleData(){
 function _nhlUpcomingCard(g,dayIdx){
   const h=NHL[g.home],aw=NHL[g.away];
   if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${g.away} @ ${g.home}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
-  const ens=nhlEns(g.home,g.away),mc=ens.mcD;
+  const ens=nhlEns(g.home,g.away,g.overUnder),mc=ens.mcD;
   const hP=ens.p,aP=1-hP;
   const hML=g.homeML??p2ml(hP),aML=g.awayML??p2ml(aP);
   const hD=ml2d(hML),aD=ml2d(aML);
@@ -8097,7 +8112,12 @@ function _nhlUpcomingCard(g,dayIdx){
   const favEV=hP>=aP?hEV:aEV,dogEV=hP>=aP?aEV:hEV;
   const plP=hP>=.5?(mc?.rl15??.38):(mc?.rlN??.38);
   const plDogP=Math.max(.25,1-plP);
-  const ouLine=g.overUnder!=null?parseFloat(_forceHalfLine(g.overUnder)):(mc?.ouLine||5.5);
+  // g.overUnder is now threaded into nhlEns above, so mc.ouLine already
+  // equals the real market line whenever one exists -- no separate
+  // re-parse needed (previously computed independently here, then never
+  // fed into mc.overP itself, a real mismatch between this display line
+  // and the probability the sim actually returned).
+  const ouLine=mc?.ouLine??5.5;
   const ouP=mc?.overP??.52;
   const ouDec=1.91;
   const uid=`${g.home}_${g.away}_${dayIdx}`;
@@ -17131,7 +17151,7 @@ function showPickCard(){
   try{
     const all=[];const D=window.__CV_DATA||{};
     for(const g of NBA_TONIGHT){const r=nbaEns(g.h,g.a);const fav=r.p>=.5?g.h:g.a;const p=Math.max(r.p,1-r.p);if(p>=0.60)all.push({sport:'NBA',mu:`${g.a}@${g.h}`,pick:fav,abbr:fav,p,grade:p>=0.72?'PREMIUM':p>=0.63?'OPTIMAL':'LEAN'});}
-    for(const g of TONIGHT){const r=nhlEns(g.h,g.a);const p=Math.max(r.p,1-r.p);const fav=r.p>=.5?g.h:g.a;if(p>=0.60)all.push({sport:'NHL',mu:`${g.a}@${g.h}`,pick:fav,abbr:fav,p,grade:p>=0.72?'PREMIUM':p>=0.63?'OPTIMAL':'LEAN'});}
+    for(const g of TONIGHT){const r=nhlEns(g.h,g.a,g.ou);const p=Math.max(r.p,1-r.p);const fav=r.p>=.5?g.h:g.a;if(p>=0.60)all.push({sport:'NHL',mu:`${g.a}@${g.h}`,pick:fav,abbr:fav,p,grade:p>=0.72?'PREMIUM':p>=0.63?'OPTIMAL':'LEAN'});}
     picks.push(...all.sort((a,b)=>b.p-a.p).slice(0,5));
   }catch(e){}
   const modal=document.getElementById('card-modal');
