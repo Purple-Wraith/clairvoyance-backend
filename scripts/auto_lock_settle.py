@@ -978,6 +978,37 @@ def gather_legs(page) -> dict:
               });
             }
           } catch (e) {}
+          // NHL -- real gap, found + fixed 2026-09-29 auditing the NHL
+          // engine ahead of the season opener: the warmup below
+          // (renderNHLGames()) depends entirely on a LIVE cross-origin
+          // fetch to ESPN's scoreboard API (fetchESPNNHL), the exact same
+          // "blocked for automation, no same-origin fallback" gap already
+          // found and fixed for CFB/NFL above -- confirmed live in a real
+          // dry-run: "Gathered 0 games' worth of markets" and
+          // nhl={'games': 0, ...} despite 5 real games existing that day.
+          // renderNHLGames()'s own last-resort fallback (renderNHLGamesOffline,
+          // the hardcoded TONIGHT array) can't help either -- TONIGHT is
+          // empty by design now (see docs/app.html's own comment on why).
+          // Fixed the same way as CFB/NFL/Liiga/SHL immediately above:
+          // read the same-origin docs/nhl_schedule.json the Python
+          // pipeline already publishes (real per-game ML/spread/O-U from
+          // fetch_nhl.py) via the existing loadNHLScheduleData() loader,
+          // and call _nhlUpcomingCard(g, 0) directly -- confirmed by
+          // reading it that it calls _autoLockCapture('NHL', ...) itself,
+          // same as every other sport's card function here.
+          try {
+            if (typeof _nhlUpcomingCard === 'function' && typeof loadNHLScheduleData === 'function') {
+              const nhlData = await loadNHLScheduleData();
+              const todayIso = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
+              (nhlData.games || []).forEach(g => {
+                if (!g.date) return;
+                const d = new Date(g.date);
+                const localIso = isNaN(d) ? g.date.slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
+                if (localIso !== todayIso || g.state === 'post') return;
+                try { _nhlUpcomingCard(g, 0); } catch (e) {}
+              });
+            }
+          } catch (e) {}
           const warmups = [];
           if (typeof renderNBAGames === 'function') { try { renderNBAGames(); } catch (e) {} }
           if (typeof renderNHLGames === 'function') warmups.push(renderNHLGames().catch(() => {}));
