@@ -8894,7 +8894,20 @@ function liigaEns(homeId,awayId,marketOU){
   // real probability rather than one of them being a no-op.
   const bayShare=(w.bay||0)+(w.elo||0);
   const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
-  return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0};
+  // Puck-line cover blend, added 2026-09-29 -- same ensemble weights as
+  // the ML blend above, but blending mc's pure Poisson-implied cover
+  // prob (mc.rl15/rlN) with each side's own real margin-of-victory rate
+  // (_hkBigMarginRate) instead of with the win-rate log5. Favorite/dog
+  // determined by the blended ML prob `p`, matching every match-card's
+  // own favTeam/dogTeam convention.
+  const favId=p>=.5?homeId:awayId,dogId=p>=.5?awayId:homeId;
+  const bigP=r=>r?(r.big+1)/(r.n+2):.5; // Beta(1,1) posterior mean, same weak-prior convention as bayP above
+  const favBigP=bigP(_hkBigMarginRate(favId,D.games)),dogBigP=bigP(_hkBigMarginRate(dogId,D.games));
+  const bDenom=favBigP*(1-dogBigP)+dogBigP*(1-favBigP);
+  const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
+  const mcCoverP=p>=.5?mc.rl15:mc.rlN;
+  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(w.mc??.7)+marginLog5*bayShare));
+  return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP};
 }
 function _liigaPopulateDayFilter(games){
   const sel=document.getElementById('liiga-filter-day');if(!sel)return;
@@ -8985,7 +8998,15 @@ function nlaEns(homeId,awayId,marketOU){
   const w=HOCKEY_ENS.nla||{mc:.7,bay:.2,elo:.1};
   const bayShare=(w.bay||0)+(w.elo||0);
   const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
-  return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0};
+  // Puck-line cover blend -- see liigaEns's own identical comment.
+  const favId=p>=.5?homeId:awayId,dogId=p>=.5?awayId:homeId;
+  const bigP=r=>r?(r.big+1)/(r.n+2):.5;
+  const favBigP=bigP(_hkBigMarginRate(favId,D.games)),dogBigP=bigP(_hkBigMarginRate(dogId,D.games));
+  const bDenom=favBigP*(1-dogBigP)+dogBigP*(1-favBigP);
+  const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
+  const mcCoverP=p>=.5?mc.rl15:mc.rlN;
+  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(w.mc??.7)+marginLog5*bayShare));
+  return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP};
 }
 function _nlaPopulateDayFilter(games){
   const sel=document.getElementById('nla-filter-day');if(!sel)return;
@@ -9068,7 +9089,15 @@ function extraligaEns(homeId,awayId,marketOU){
   const w=HOCKEY_ENS.extraliga||{mc:.7,bay:.2,elo:.1};
   const bayShare=(w.bay||0)+(w.elo||0);
   const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
-  return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0};
+  // Puck-line cover blend -- see liigaEns's own identical comment.
+  const favId=p>=.5?homeId:awayId,dogId=p>=.5?awayId:homeId;
+  const bigP=r=>r?(r.big+1)/(r.n+2):.5;
+  const favBigP=bigP(_hkBigMarginRate(favId,D.games)),dogBigP=bigP(_hkBigMarginRate(dogId,D.games));
+  const bDenom=favBigP*(1-dogBigP)+dogBigP*(1-favBigP);
+  const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
+  const mcCoverP=p>=.5?mc.rl15:mc.rlN;
+  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(w.mc??.7)+marginLog5*bayShare));
+  return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP};
 }
 function _extraligaPopulateDayFilter(games){
   const sel=document.getElementById('extraliga-filter-day');if(!sel)return;
@@ -9148,6 +9177,30 @@ function _hkFormFactor(teamId,allGames,seasonRates){
   const delta=_hkFormFactorRaw(teamId,allGames,seasonRates);
   if(delta==null)return 1;
   return 1+Math.max(-0.06,Math.min(0.06,delta*0.05));
+}
+// Real empirical margin-of-victory signal for the puck line (-1.5/+1.5),
+// added 2026-09-29 -- each team's own real rate of winning a completed
+// game by 2+ goals, scanned across every game this season (not just the
+// last-N recency window _hkRecentRates uses above -- margin-of-victory
+// shape is a stabler season-long team trait, not something that should
+// swing on a hot/cold streak the way scoring RATE does). This is a
+// genuinely distinct signal from _socSpreadProb's own Poisson-implied
+// cover probability: two teams can share the same average GF/GA (and
+// therefore the same MC-implied cover rate) while having very different
+// real margin shapes -- one grinding out mostly 1-goal games, another
+// mostly blowing teams out or getting blown out -- so this isn't a
+// re-derivation of the MC sim, it's each team's own real game log.
+// Shared across all 4 hockey leagues, same game-object shape.
+function _hkBigMarginRate(teamId,allGames){
+  const played=(allGames||[]).filter(g=>g.state==='post'&&g.homeScore!=null&&g.awayScore!=null&&(g.home===teamId||g.away===teamId));
+  if(!played.length)return null;
+  let big=0;
+  played.forEach(g=>{
+    const own=g.home===teamId?g.homeScore:g.awayScore;
+    const opp=g.home===teamId?g.awayScore:g.homeScore;
+    if(own-opp>=2)big++;
+  });
+  return{big,n:played.length};
 }
 // ═══ QuantHockey team stats (Liiga/SHL only) ═══════════════════════════
 // Explicit request, 2026-09-22/23: real shots/team-save%/special-teams
@@ -9329,13 +9382,15 @@ function _liigaMatchCard(g){
   const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
   const ouL=mc.ouLine,ouP=mc.overP,unP=1-ouP,ouD=1.91;
   const ouEV=ev(ouP,ouD),unEV=ev(unP,ouD);
-  // Puck line -- exact analytic cover probability (mc.rl15/rlN, see
-  // liigaMC's own comment) same ±1.5 convention every other hockey card
-  // in this app already uses. Favorite/dog assigned by which side the
-  // blended ensemble actually favors, not just raw home/away, matching
-  // NHL's own favTeam/dogTeam pattern.
+  // Puck line -- blended cover probability (ens.favCoverP/dogCoverP, see
+  // liigaEns's own comment): mc's exact analytic Poisson-implied cover
+  // rate blended with each side's real margin-of-victory rate, same ±1.5
+  // convention every other hockey card in this app already uses.
+  // Favorite/dog assigned by which side the blended ensemble actually
+  // favors, not just raw home/away, matching NHL's own favTeam/dogTeam
+  // pattern.
   const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
-  const plFavP=hP>=aP?mc.rl15:mc.rlN,plDogP=1-plFavP;
+  const plFavP=ens.favCoverP,plDogP=ens.dogCoverP;
   const plD=1.87;
   const nm=_evalMkts([
     {label:`${g.homeName} ML`,prob:hP,evVal:hEV,dec:hD,side:'mlFav'},
@@ -9368,8 +9423,8 @@ function _liigaMatchCard(g){
     let sideStr;
     if(bm.side==='mlFav')sideStr=`${g.homeName}'s scoring edge unpriced by a flat moneyline.`;
     else if(bm.side==='mlDog')sideStr=`${g.awayName} road value the record alone doesn't capture.`;
-    else if(bm.side==='sprdFav')sideStr=`${favTeam} -1.5 covers in ${(plFavP*100).toFixed(1)}% of the model's exact scoring distribution (dog covers ${(plDogP*100).toFixed(1)}%).`;
-    else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's exact scoring distribution (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
+    else if(bm.side==='sprdFav')sideStr=`${favTeam} -1.5 covers in ${(plFavP*100).toFixed(1)}% of the model's blended scoring+margin projection (dog covers ${(plDogP*100).toFixed(1)}%).`;
+    else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's blended scoring+margin projection (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
     else if(bm.side==='over')sideStr=`Combined scoring rate supports goals above the ${ouL} line.`;
     else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
     explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
@@ -9470,7 +9525,7 @@ function _nlaMatchCard(g){
   const ouL=mc.ouLine,ouP=mc.overP,unP=1-ouP,ouD=1.91;
   const ouEV=ev(ouP,ouD),unEV=ev(unP,ouD);
   const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
-  const plFavP=hP>=aP?mc.rl15:mc.rlN,plDogP=1-plFavP;
+  const plFavP=ens.favCoverP,plDogP=ens.dogCoverP;
   const plD=1.87;
   const nm=_evalMkts([
     {label:`${g.homeName} ML`,prob:hP,evVal:hEV,dec:hD,side:'mlFav'},
@@ -9496,8 +9551,8 @@ function _nlaMatchCard(g){
     let sideStr;
     if(bm.side==='mlFav')sideStr=`${g.homeName}'s scoring edge unpriced by a flat moneyline.`;
     else if(bm.side==='mlDog')sideStr=`${g.awayName} road value the record alone doesn't capture.`;
-    else if(bm.side==='sprdFav')sideStr=`${favTeam} -1.5 covers in ${(plFavP*100).toFixed(1)}% of the model's exact scoring distribution (dog covers ${(plDogP*100).toFixed(1)}%).`;
-    else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's exact scoring distribution (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
+    else if(bm.side==='sprdFav')sideStr=`${favTeam} -1.5 covers in ${(plFavP*100).toFixed(1)}% of the model's blended scoring+margin projection (dog covers ${(plDogP*100).toFixed(1)}%).`;
+    else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's blended scoring+margin projection (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
     else if(bm.side==='over')sideStr=`Combined scoring rate supports goals above the ${ouL} line.`;
     else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
     explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
@@ -9594,7 +9649,7 @@ function _extraligaMatchCard(g){
   const ouL=mc.ouLine,ouP=mc.overP,unP=1-ouP,ouD=1.91;
   const ouEV=ev(ouP,ouD),unEV=ev(unP,ouD);
   const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
-  const plFavP=hP>=aP?mc.rl15:mc.rlN,plDogP=1-plFavP;
+  const plFavP=ens.favCoverP,plDogP=ens.dogCoverP;
   const plD=1.87;
   const nm=_evalMkts([
     {label:`${g.homeName} ML`,prob:hP,evVal:hEV,dec:hD,side:'mlFav'},
@@ -9620,8 +9675,8 @@ function _extraligaMatchCard(g){
     let sideStr;
     if(bm.side==='mlFav')sideStr=`${g.homeName}'s scoring edge unpriced by a flat moneyline.`;
     else if(bm.side==='mlDog')sideStr=`${g.awayName} road value the record alone doesn't capture.`;
-    else if(bm.side==='sprdFav')sideStr=`${favTeam} -1.5 covers in ${(plFavP*100).toFixed(1)}% of the model's exact scoring distribution (dog covers ${(plDogP*100).toFixed(1)}%).`;
-    else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's exact scoring distribution (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
+    else if(bm.side==='sprdFav')sideStr=`${favTeam} -1.5 covers in ${(plFavP*100).toFixed(1)}% of the model's blended scoring+margin projection (dog covers ${(plDogP*100).toFixed(1)}%).`;
+    else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's blended scoring+margin projection (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
     else if(bm.side==='over')sideStr=`Combined scoring rate supports goals above the ${ouL} line.`;
     else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
     explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
@@ -9821,7 +9876,15 @@ function shlEns(homeId,awayId,marketOU){
   // real probability rather than one of them being a no-op.
   const bayShare=(w.bay||0)+(w.elo||0);
   const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
-  return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0};
+  // Puck-line cover blend -- see liigaEns's own identical comment.
+  const favId=p>=.5?homeId:awayId,dogId=p>=.5?awayId:homeId;
+  const bigP=r=>r?(r.big+1)/(r.n+2):.5;
+  const favBigP=bigP(_hkBigMarginRate(favId,D.games)),dogBigP=bigP(_hkBigMarginRate(dogId,D.games));
+  const bDenom=favBigP*(1-dogBigP)+dogBigP*(1-favBigP);
+  const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
+  const mcCoverP=p>=.5?mc.rl15:mc.rlN;
+  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(w.mc??.7)+marginLog5*bayShare));
+  return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP};
 }
 function _shlPopulateDayFilter(games){
   const sel=document.getElementById('shl-filter-day');if(!sel)return;
@@ -9859,13 +9922,15 @@ function _shlMatchCard(g){
   const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
   const ouL=mc.ouLine,ouP=mc.overP,unP=1-ouP,ouD=1.91;
   const ouEV=ev(ouP,ouD),unEV=ev(unP,ouD);
-  // Puck line -- exact analytic cover probability (mc.rl15/rlN, see
-  // shlMC's own comment) same ±1.5 convention every other hockey card
-  // in this app already uses. Favorite/dog assigned by which side the
-  // blended ensemble actually favors, not just raw home/away, matching
-  // NHL's own favTeam/dogTeam pattern.
+  // Puck line -- blended cover probability (ens.favCoverP/dogCoverP, see
+  // liigaEns's own comment): mc's exact analytic Poisson-implied cover
+  // rate blended with each side's real margin-of-victory rate, same ±1.5
+  // convention every other hockey card in this app already uses.
+  // Favorite/dog assigned by which side the blended ensemble actually
+  // favors, not just raw home/away, matching NHL's own favTeam/dogTeam
+  // pattern.
   const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
-  const plFavP=hP>=aP?mc.rl15:mc.rlN,plDogP=1-plFavP;
+  const plFavP=ens.favCoverP,plDogP=ens.dogCoverP;
   const plD=1.87;
   const nm=_evalMkts([
     {label:`${g.homeName} ML`,prob:hP,evVal:hEV,dec:hD,side:'mlFav'},
@@ -9891,8 +9956,8 @@ function _shlMatchCard(g){
     let sideStr;
     if(bm.side==='mlFav')sideStr=`${g.homeName}'s scoring edge unpriced by a flat moneyline.`;
     else if(bm.side==='mlDog')sideStr=`${g.awayName} road value the record alone doesn't capture.`;
-    else if(bm.side==='sprdFav')sideStr=`${favTeam} -1.5 covers in ${(plFavP*100).toFixed(1)}% of the model's exact scoring distribution (dog covers ${(plDogP*100).toFixed(1)}%).`;
-    else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's exact scoring distribution (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
+    else if(bm.side==='sprdFav')sideStr=`${favTeam} -1.5 covers in ${(plFavP*100).toFixed(1)}% of the model's blended scoring+margin projection (dog covers ${(plDogP*100).toFixed(1)}%).`;
+    else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's blended scoring+margin projection (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
     else if(bm.side==='over')sideStr=`Combined scoring rate supports goals above the ${ouL} line.`;
     else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
     explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
