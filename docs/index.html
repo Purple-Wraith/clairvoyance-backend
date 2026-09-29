@@ -5111,7 +5111,30 @@ function nhlMC(hA,awA,n=25000,marketOU){
   // (same "pp" scale nhlEns's own hvM already reads as), reusable by any
   // card that wants to name these signals instead of hiding them inside hLam.
   const stEdge=(hStAdj-aStAdj)*100,sqEdge=(hSqAdj-aSqAdj)*100;
-  return{hwP:hw/n,awP:aw2/n,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:ov/n,underP:1-ov/n,otP:ot/n,ouLine,rl15:rl15h/n,rlN:rl15a/n,stEdge,sqEdge};
+  // Early-season confidence guard, added 2026-09-29 -- explicit request
+  // after a live dry-run on opening day showed 5/5 real games grading
+  // PREMIUM-tier UNDER at 82-91% confidence, a real cold-start artifact:
+  // with ~0 real games played this season, every team's gf60/ga60 (this
+  // sim's own core offense input) falls back to a flat league average
+  // (_NHL_LG_GF60/_NHL_LG_GA60), which projects a lower total than real
+  // market lines priced on actual roster/team quality -- the model was
+  // reading its own placeholder input as if it were a real edge. Shrinks
+  // hwP/overP/rl15 toward a neutral 50/50 proportional to the LESSER of
+  // the two teams' real games played this season (a game is only as
+  // trustworthy as its least-known participant), reaching full
+  // confidence once both teams have MIN_GP_FOR_FULL_CONFIDENCE real
+  // games in -- same "ramp toward full trust as real games accrue" shape
+  // _liigaBlendedRates' own CAP-based curW already established for the
+  // hockey minor leagues, not a newly invented one. Applied once here
+  // (nhlMC's own return) rather than in every consumer separately, since
+  // every one of nhlMC's probabilities -- and nhlEns's own ML blend,
+  // which uses mc.hwP as its dominant term -- all trace back to this one
+  // return.
+  const MIN_GP_FOR_FULL_CONFIDENCE=5;
+  const gpConf=Math.min(1,Math.min(h.gp||0,aw.gp||0)/MIN_GP_FOR_FULL_CONFIDENCE);
+  const damp=p=>0.5+(p-0.5)*gpConf;
+  const hwPD=damp(hw/n),overPD=damp(ov/n),rl15D=damp(rl15h/n);
+  return{hwP:hwPD,awP:1-hwPD,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:overPD,underP:1-overPD,otP:ot/n,ouLine,rl15:rl15D,rlN:1-rl15D,stEdge,sqEdge,gpConf};
 }
 function nhlEns(hA,awA,marketOU){
   const h=NHL[hA],aw=NHL[awA];if(!h||!aw)return{p:.5};
@@ -5182,6 +5205,17 @@ function nhlEns(hA,awA,marketOU){
   const _nhlW=NHL_ENS||{mc:.50,bay:.20,elo:.30};
   const blended=mc.hwP*(.64/.50)*_nhlW.mc+xgf*(.26/.20)*_nhlW.bay+edgeRaw*(1/.30)*_nhlW.elo+.04;
   let p=sportCalibrate(Math.min(.92,Math.max(.08,blended)),'NHL');
+  // Early-season confidence guard, added 2026-09-29 -- dampens the FULL
+  // blended ensemble here too, not just mc.hwP (see nhlMC's own comment
+  // for the full rationale). edgeRaw's own inputs (goalie GSAx, hv
+  // z-scores from MoneyPuck) can carry real signal from a goalie's/
+  // team's prior track record, but early in a new season that's just as
+  // plausibly a small or stale current-season sample being read as full
+  // confidence -- same risk class as gf60/ga60's league-average
+  // fallback, just less obviously wrong. Reuses mc.gpConf (the same
+  // lesser-of-two-teams' real-games-played ramp nhlMC already computed
+  // for these same 2 teams) rather than recomputing it.
+  p=0.5+(p-0.5)*(mc.gpConf??1);
   const injH=computeInjuryImpact(hA,'nhl');
   const injA=computeInjuryImpact(awA,'nhl');
   p=Math.min(.92,Math.max(.08,p-injH.penalty+injA.penalty));
@@ -17636,7 +17670,15 @@ function patchNHLStandings(standings){
         series:'', // several playoff-era UI functions guard on !series.startsWith('ELIMINATED') -- '' reads as "active", and they separately guard on hand-authored fields (g1, sw/sl) this entry doesn't have, so it's excluded from those panels cleanly rather than rendering blank/undefined
         _syntheticEntry:true};
     }
+    // Real bug fixed 2026-09-29: .gp itself was never actually stored
+    // here (only used as a local variable inside the synthetic-entry
+    // branch above, to compute gf60/ga60) -- nhlMC's new early-season
+    // confidence guard reads h.gp/aw.gp directly, and without this line
+    // it would default to 0 forever (h.gp||0), locking every NHL
+    // probability at a permanently neutral 50/50 even deep into a real
+    // season with plenty of real games played.
     NHL[abbr].w=s.w;NHL[abbr].l=s.l;NHL[abbr].otl=s.otl;NHL[abbr].pts=s.pts;
+    NHL[abbr].gp=(s.w||0)+(s.l||0)+(s.otl||0);
   }
 }
 // Backfills NHL[abbr].gsax/.hdsv for every real team from MONEYPUCK.goalies
