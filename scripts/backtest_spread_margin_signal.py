@@ -66,6 +66,7 @@ SCHEDULE_PATHS = {
 # elo:.1}`) -- this is genuinely what a user who hasn't touched the
 # CONFIG tab's sliders sees live, so it's the right default to backtest.
 ENS_W = {"mc": 0.7, "bay": 0.2, "elo": 0.1}
+MARGIN_W = 0.10  # live production weight as of 2026-09-29, post-backtest
 HFA = 0.055
 CAP = 20
 TRAILING_SUFFIX_RE = re.compile(r"\s+(ML|[+-]\d+(?:\.\d+)?)$")
@@ -274,7 +275,11 @@ def compute_probs(snapshot: dict, home_id: str, away_id: str) -> dict | None:
     b_denom = fav_big_p * (1 - dog_big_p) + dog_big_p * (1 - fav_big_p)
     margin_log5 = (fav_big_p * (1 - dog_big_p)) / b_denom if b_denom else 0.5
     mc_cover_p = rl15 if p >= 0.5 else rl_n
-    fav_cover_p = min(0.95, max(0.05, mc_cover_p * ENS_W["mc"] + margin_log5 * bay_share))
+    # MARGIN_W reduced from the ML ensemble's ~30% bay_share to a fixed
+    # 10% after this exact backtest showed full weight performed worse
+    # (see docs/app.html's liigaEns comment) -- kept in sync here so
+    # re-running this script reflects live production behavior.
+    fav_cover_p = min(0.95, max(0.05, mc_cover_p * (1 - MARGIN_W) + margin_log5 * MARGIN_W))
 
     return {
         "favId": fav_id, "dogId": dog_id,

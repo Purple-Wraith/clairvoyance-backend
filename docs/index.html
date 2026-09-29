@@ -8894,19 +8894,30 @@ function liigaEns(homeId,awayId,marketOU){
   // real probability rather than one of them being a no-op.
   const bayShare=(w.bay||0)+(w.elo||0);
   const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
-  // Puck-line cover blend, added 2026-09-29 -- same ensemble weights as
-  // the ML blend above, but blending mc's pure Poisson-implied cover
-  // prob (mc.rl15/rlN) with each side's own real margin-of-victory rate
-  // (_hkBigMarginRate) instead of with the win-rate log5. Favorite/dog
-  // determined by the blended ML prob `p`, matching every match-card's
-  // own favTeam/dogTeam convention.
+  // Puck-line cover blend, added 2026-09-29, weight reduced same day
+  // after a real point-in-time backtest (scripts/backtest_spread_margin_
+  // signal.py) against 80 real settled SPREAD bets showed the blend at
+  // full ML-ensemble weight (~30%) performed WORSE than the pure MC rate
+  // alone in 3 of 4 leagues (combined Brier 0.2409->0.2499) -- plausibly
+  // selection bias (only high-tier/confident picks get locked, and
+  // confident picks hit more than average, so pulling toward the more
+  // moderate empirical rate hurts calibration on exactly that pre-
+  // selected sample), but not proven safe at full weight either. Kept as
+  // a real signal blending mc's pure Poisson-implied cover prob (mc.rl15/
+  // rlN) with each side's own real margin-of-victory rate
+  // (_hkBigMarginRate), but at a fixed, deliberately small 10% share
+  // (MARGIN_W below) -- a mild nudge, not a co-equal ensemble term --
+  // rather than the ML blend's own bay+elo share. Re-backtest before
+  // raising this again. Favorite/dog determined by the blended ML prob
+  // `p`, matching every match-card's own favTeam/dogTeam convention.
   const favId=p>=.5?homeId:awayId,dogId=p>=.5?awayId:homeId;
   const bigP=r=>r?(r.big+1)/(r.n+2):.5; // Beta(1,1) posterior mean, same weak-prior convention as bayP above
   const favBigP=bigP(_hkBigMarginRate(favId,D.games)),dogBigP=bigP(_hkBigMarginRate(dogId,D.games));
   const bDenom=favBigP*(1-dogBigP)+dogBigP*(1-favBigP);
   const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
   const mcCoverP=p>=.5?mc.rl15:mc.rlN;
-  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(w.mc??.7)+marginLog5*bayShare));
+  const MARGIN_W=0.10;
+  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
   return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP};
 }
 function _liigaPopulateDayFilter(games){
@@ -8998,14 +9009,15 @@ function nlaEns(homeId,awayId,marketOU){
   const w=HOCKEY_ENS.nla||{mc:.7,bay:.2,elo:.1};
   const bayShare=(w.bay||0)+(w.elo||0);
   const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
-  // Puck-line cover blend -- see liigaEns's own identical comment.
+  // Puck-line cover blend, weight reduced 2026-09-29 -- see liigaEns's own comment for the full backtest rationale (MARGIN_W=0.10, down from the ML ensemble's ~30% share).
   const favId=p>=.5?homeId:awayId,dogId=p>=.5?awayId:homeId;
   const bigP=r=>r?(r.big+1)/(r.n+2):.5;
   const favBigP=bigP(_hkBigMarginRate(favId,D.games)),dogBigP=bigP(_hkBigMarginRate(dogId,D.games));
   const bDenom=favBigP*(1-dogBigP)+dogBigP*(1-favBigP);
   const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
   const mcCoverP=p>=.5?mc.rl15:mc.rlN;
-  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(w.mc??.7)+marginLog5*bayShare));
+  const MARGIN_W=0.10;
+  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
   return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP};
 }
 function _nlaPopulateDayFilter(games){
@@ -9089,14 +9101,15 @@ function extraligaEns(homeId,awayId,marketOU){
   const w=HOCKEY_ENS.extraliga||{mc:.7,bay:.2,elo:.1};
   const bayShare=(w.bay||0)+(w.elo||0);
   const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
-  // Puck-line cover blend -- see liigaEns's own identical comment.
+  // Puck-line cover blend, weight reduced 2026-09-29 -- see liigaEns's own comment for the full backtest rationale (MARGIN_W=0.10, down from the ML ensemble's ~30% share).
   const favId=p>=.5?homeId:awayId,dogId=p>=.5?awayId:homeId;
   const bigP=r=>r?(r.big+1)/(r.n+2):.5;
   const favBigP=bigP(_hkBigMarginRate(favId,D.games)),dogBigP=bigP(_hkBigMarginRate(dogId,D.games));
   const bDenom=favBigP*(1-dogBigP)+dogBigP*(1-favBigP);
   const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
   const mcCoverP=p>=.5?mc.rl15:mc.rlN;
-  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(w.mc??.7)+marginLog5*bayShare));
+  const MARGIN_W=0.10;
+  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
   return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP};
 }
 function _extraligaPopulateDayFilter(games){
@@ -9876,14 +9889,15 @@ function shlEns(homeId,awayId,marketOU){
   // real probability rather than one of them being a no-op.
   const bayShare=(w.bay||0)+(w.elo||0);
   const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
-  // Puck-line cover blend -- see liigaEns's own identical comment.
+  // Puck-line cover blend, weight reduced 2026-09-29 -- see liigaEns's own comment for the full backtest rationale (MARGIN_W=0.10, down from the ML ensemble's ~30% share).
   const favId=p>=.5?homeId:awayId,dogId=p>=.5?awayId:homeId;
   const bigP=r=>r?(r.big+1)/(r.n+2):.5;
   const favBigP=bigP(_hkBigMarginRate(favId,D.games)),dogBigP=bigP(_hkBigMarginRate(dogId,D.games));
   const bDenom=favBigP*(1-dogBigP)+dogBigP*(1-favBigP);
   const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
   const mcCoverP=p>=.5?mc.rl15:mc.rlN;
-  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(w.mc??.7)+marginLog5*bayShare));
+  const MARGIN_W=0.10;
+  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
   return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP};
 }
 function _shlPopulateDayFilter(games){
