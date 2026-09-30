@@ -652,6 +652,7 @@ body{line-height:1.5}
 <!-- TOP PICKS -->
 <div id="sp-toppicks" class="spane">
   <div class="sa" style="padding:16px">
+    <div id="toppicks-date-row" style="margin-bottom:12px"></div>
     <div id="toppicks-content"></div>
   </div>
 </div>
@@ -15537,8 +15538,59 @@ function _topPicksLeagueColor(sportTag){
   if((sportTag||'').indexOf('SOC_')===0)return'var(--gc)';
   return'var(--t3)';
 }
-function _topPicksDateLabel(){
-  return new Date().toLocaleDateString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',year:'numeric'}).toUpperCase();
+function _topPicksDateLabel(d){
+  const dt=d?new Date(d+'T12:00:00'):new Date();
+  return dt.toLocaleDateString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',year:'numeric'}).toUpperCase();
+}
+// Attaches the real game result onto whatever _autoLockCapture entry was
+// just created for this exact matchup, so a finished game's pick can be
+// graded WIN/LOSS/PUSH against the real final score instead of just
+// showing its pre-game probability forever. Explicit request, 2026-09-30:
+// "have it stay displaying and show settled results" -- computeTopPicksToday
+// used to skip any game already in state==='post' entirely, so a pick
+// simply vanished from the list the moment its game ended. hA/awA here are
+// always the exact same g.home/g.away values the calling card function
+// itself passed into _autoLockCapture (confirmed for every sport,
+// including soccer's _renderSocMatchCard), so this is an exact-match
+// lookup, never a fuzzy one.
+function _topPicksAttachResult(hA,awA,finished,hScore,aScore){
+  const i=window._autoLockLegs.findIndex(l=>l.hA===hA&&l.awA===awA);
+  if(i>=0)window._autoLockLegs[i].gameResult={finished:!!finished,hScore,aScore};
+}
+// Grades a single Top Picks entry's own best-market pick against its real
+// final score -- returns 'win'/'loss'/'push', or null if the game hasn't
+// finished (or gameResult is missing/incomplete) yet. Parses the same
+// label conventions every sport's card function already produces
+// (confirmed across CFB/NFL/NHL/hockey-minors/NBA/soccer): "{TEAM} ML",
+// "{TEAM} -N"/"{TEAM} +N" for spread, "OVER N"/"UNDER N" for totals.
+function _gradeSettledPick(e){
+  const gr=e.gameResult;
+  if(!gr||!gr.finished||gr.hScore==null||gr.aScore==null)return null;
+  const hScore=parseFloat(gr.hScore),aScore=parseFloat(gr.aScore);
+  if(isNaN(hScore)||isNaN(aScore))return null;
+  const label=e.best.label,side=e.best.side;
+  if(side==='mlFav'||side==='mlDog'){
+    const pickedHome=label===e.hA||label.startsWith(e.hA+' ');
+    const pickedScore=pickedHome?hScore:aScore,oppScore=pickedHome?aScore:hScore;
+    if(pickedScore===oppScore)return'push';
+    return pickedScore>oppScore?'win':'loss';
+  }
+  if(side==='over'||side==='under'){
+    const m=/^(OVER|UNDER)\s+([\d.]+)$/i.exec(label);if(!m)return null;
+    const line=parseFloat(m[2]),total=hScore+aScore;
+    if(total===line)return'push';
+    const overHit=total>line;
+    return(m[1].toUpperCase()==='OVER'?overHit:!overHit)?'win':'loss';
+  }
+  // Spread (every sprdFav/sprdDog/ahFav/ahDog-style side): "{TEAM} ±N"
+  const m=/^(.+?)\s([+-][\d.]+)$/.exec(label);if(!m)return null;
+  const teamPart=m[1],lineVal=parseFloat(m[2]);
+  const pickedHome=teamPart===e.hA;
+  if(!pickedHome&&teamPart!==e.awA)return null; // label didn't match either team -- don't guess
+  const pickedScore=pickedHome?hScore:aScore,oppScore=pickedHome?aScore:hScore;
+  const margin=(pickedScore-oppScore)+lineVal;
+  if(margin===0)return'push';
+  return margin>0?'win':'loss';
 }
 async function computeTopPicksToday(){
   window._autoLockLegs=[];
@@ -15550,8 +15602,8 @@ async function computeTopPicksToday(){
       if(r.ok){
         const sched=await r.json();
         Object.values(sched.weeks||{}).forEach(week=>(week||[]).forEach(g=>{
-          if(localIsoOf(g.date)!==todayIso||g.state==='post')return;
-          try{_cfbGameCard(g);}catch(e){}
+          if(localIsoOf(g.date)!==todayIso)return;
+          try{_cfbGameCard(g);_topPicksAttachResult(g.home,g.away,g.state==='post',g.homeScore,g.awayScore);}catch(e){}
         }));
       }
     }
@@ -15562,8 +15614,8 @@ async function computeTopPicksToday(){
       if(r.ok){
         const sched=await r.json();
         Object.values(sched.weeks||{}).forEach(week=>(week||[]).forEach(g=>{
-          if(localIsoOf(g.date)!==todayIso||g.state==='post'||g.seasonType===1)return;
-          try{_nflGameCard2(g);}catch(e){}
+          if(localIsoOf(g.date)!==todayIso||g.seasonType===1)return;
+          try{_nflGameCard2(g);_topPicksAttachResult(g.home,g.away,g.state==='post',g.homeScore,g.awayScore);}catch(e){}
         }));
       }
     }
@@ -15579,8 +15631,8 @@ async function computeTopPicksToday(){
     try{
       const d=await hm.load();
       (d.games||[]).forEach(g=>{
-        if(!g.date||localIsoOf(g.date)!==todayIso||g.state==='post')return;
-        try{hm.card(g);}catch(e){}
+        if(!g.date||localIsoOf(g.date)!==todayIso)return;
+        try{hm.card(g);_topPicksAttachResult(g.home,g.away,g.state==='post',g.homeScore,g.awayScore);}catch(e){}
       });
     }catch(e){}
   }
@@ -15588,8 +15640,8 @@ async function computeTopPicksToday(){
     if(typeof _nhlUpcomingCard==='function'&&typeof loadNHLScheduleData==='function'){
       const d=await loadNHLScheduleData();
       (d.games||[]).forEach(g=>{
-        if(!g.date||localIsoOf(g.date)!==todayIso||g.state==='post')return;
-        try{_nhlUpcomingCard(g,0);}catch(e){}
+        if(!g.date||localIsoOf(g.date)!==todayIso)return;
+        try{_nhlUpcomingCard(g,0);_topPicksAttachResult(g.home,g.away,g.state==='post',g.homeScore,g.awayScore);}catch(e){}
       });
     }
   }catch(e){}
@@ -15598,7 +15650,7 @@ async function computeTopPicksToday(){
     const cvData=r.ok?await r.json():null;
     const nbaToday=cvData?.nba?.today||[];
     nbaToday.forEach(g=>{
-      if(!g.date||localIsoOf(g.date)!==todayIso||g.state==='post')return;
+      if(!g.date||localIsoOf(g.date)!==todayIso)return;
       const espnEv={
         id:g.id,date:g.date,
         competitions:[{
@@ -15611,7 +15663,7 @@ async function computeTopPicksToday(){
           odds:(g.homeML!=null||g.awayML!=null||g.ou!=null)?[{homeTeamOdds:{moneyLine:g.homeML},awayTeamOdds:{moneyLine:g.awayML},overUnder:g.ou,details:g.details||''}]:[],
         }],
       };
-      if(typeof _nbaGameCard==='function'){try{_nbaGameCard(espnEv);}catch(e){}}
+      if(typeof _nbaGameCard==='function'){try{_nbaGameCard(espnEv);_topPicksAttachResult(g.home,g.away,g.state==='post',g.homeScore,g.awayScore);}catch(e){}}
     });
   }catch(e){}
   try{
@@ -15622,8 +15674,8 @@ async function computeTopPicksToday(){
         try{
           const games=await _fetchLeagueScoreboard(k);
           (games||[]).forEach(g=>{
-            if(!g.home||!g.away||g.status==='post'||localIsoOf(g.date)!==todayIso)return;
-            try{_renderSocMatchCard(g,k);}catch(e){}
+            if(!g.home||!g.away||localIsoOf(g.date)!==todayIso)return;
+            try{_renderSocMatchCard(g,k);_topPicksAttachResult(g.home,g.away,g.status==='post',g.hScore,g.aScore);}catch(e){}
           });
         }catch(e){}
       }
@@ -15639,26 +15691,34 @@ function _topPickRowHTML(e,rankNum){
   // Explicit color spec, 2026-09-30: matchup line neon magenta, pick
   // label neon cyan (regardless of sport -- was per-sport/per-tier
   // before), EV dropped from the stat line, grade tag + probability kept.
-  return`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,0,24,.7);border-left:2px solid ${col};border-radius:2px;margin-bottom:5px">
+  const so=e.settledOutcome; // 'win'|'loss'|'push'|null -- see _gradeSettledPick
+  const soCol=so==='win'?'#00e644':so==='loss'?'#ff1a1a':'var(--t3)';
+  const settledBadge=so?`<span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${soCol};color:${soCol};border-radius:2px;margin-left:3px">${so.toUpperCase()}</span>`:'';
+  const gr=e.gameResult;
+  const scoreLine=(so&&gr&&gr.hScore!=null&&gr.aScore!=null)?` · ${e.awA} ${gr.aScore} – ${e.hA} ${gr.hScore}`:'';
+  return`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,0,24,.7);border-left:2px solid ${so==='loss'?'#ff1a1a':so==='win'?'#00e644':col};border-radius:2px;margin-bottom:5px">
     ${rankNum?`<div style="font-family:var(--orb);font-size:17px;font-weight:900;color:${col};min-width:20px;text-align:center">${rankNum}</div>`:''}
     <div style="flex:1;min-width:0">
-      <div style="font-family:var(--mono);font-size:12px;color:var(--pc);letter-spacing:1px">${e.leagueLabel} · ${e.matchup}</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--pc);letter-spacing:1px">${e.leagueLabel} · ${e.matchup}${scoreLine}</div>
       <div style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--nc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.best.label}</div>
     </div>
     <div style="text-align:right;flex-shrink:0">
-      <span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${col};color:${col};border-radius:2px">${lbl}</span>
+      <span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${col};color:${col};border-radius:2px">${lbl}</span>${settledBadge}
       <div style="font-family:var(--mono);font-size:13px;color:var(--t2);margin-top:2px">${m.prob!=null?(m.prob*100).toFixed(1)+'%':'--'}</div>
     </div>
   </div>`;
 }
-function _renderTopPicksHTML(legs){
-  const dateLbl=_topPicksDateLabel();
-  const header=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP PICKS TODAY — ${dateLbl}</div>`;
+// Shared by both the live (today) and historical (ledger-backed) render
+// paths -- everything past "here are some graded legs" is identical:
+// filter to real qualifying picks, rank, group top-3-per-league, and
+// build the top-10-overall list.
+function _topPicksBodyHTML(legs,header,emptyMsg){
   const qualifying=(legs||[]).filter(l=>l.best&&l.best.tierN>=1).map(l=>{
     const mkt=(l.markets||[]).find(m=>m.side===l.best.side)||{};
-    return{...l,leagueTag:l.sport,leagueLabel:_topPicksLeagueLabel(l.sport),matchup:`${l.awA} @ ${l.hA}`,tierN:l.best.tierN,marketInfo:mkt};
+    const settledOutcome=l.settledOutcome!==undefined?l.settledOutcome:_gradeSettledPick(l);
+    return{...l,leagueTag:l.sport,leagueLabel:_topPicksLeagueLabel(l.sport),matchup:`${l.awA} @ ${l.hA}`,tierN:l.best.tierN,marketInfo:mkt,settledOutcome};
   });
-  if(!qualifying.length)return header+'<div class="empty">NO QUALIFYING PICKS TODAY YET</div>';
+  if(!qualifying.length)return header+`<div class="empty">${emptyMsg}</div>`;
   // Ranked by tier first (PREMIUM beats OPTIMAL beats LEAN, always), then
   // by mfScore -- the app's own existing composite 0-10 confidence score
   // (probability band + EV band + edge + Kelly fraction, see _mfScore()),
@@ -15689,26 +15749,83 @@ function _renderTopPicksHTML(legs){
     <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc);margin:2px 0 6px">BY LEAGUE</div>
     ${leagueSections}`;
 }
-window._topPicksCache=window._topPicksCache||null; // {ts,html}
+function _renderTopPicksHTML(legs,dateStr){
+  const header=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP PICKS TODAY — ${_topPicksDateLabel(dateStr)}</div>`;
+  return _topPicksBodyHTML(legs,header,'NO QUALIFYING PICKS TODAY YET');
+}
+// Historical lookback, explicit request 2026-09-30 ("add a drop down bar
+// so we can filter top picks by date so i can look back in time"). A past
+// date can NOT be recomputed live the way today's picks are -- cfbEns/
+// nhlEns/etc. all pull CURRENT team stats/standings/FPI, so re-running
+// them against an old game would silently grade it using information that
+// didn't exist yet on that date (a real look-ahead-bias bug, not just an
+// approximation). The real ledger is the only trustworthy record of what
+// this app actually recommended on a past day, so this reads getP()
+// instead of touching computeTopPicksToday() at all.
+function _renderTopPicksHistoryHTML(dateStr){
+  const header=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP PICKS — ${_topPicksDateLabel(dateStr)}</div>`;
+  const bets=getP().filter(p=>p.date===dateStr&&!['PROP','PARLAY'].includes((p.betType||'').toUpperCase()));
+  const legs=bets.map(p=>{
+    const dec=parseFloat(p.decOdds)||(p.ml?ml2d(p.ml):2);
+    const wp=p.winProb!=null?p.winProb:0.5;
+    const evVal=ev(wp,dec);
+    const bt=(p.betType||'').toUpperCase();
+    const mktType=(bt==='OU'||bt==='TOTAL')?'OU':(bt==='SPREAD'||bt==='RL'||bt==='PL'||bt==='ATS')?'SPREAD':'ML';
+    const side=mktType==='OU'?'over':mktType==='SPREAD'?'sprdFav':'mlFav';
+    const tierN=tier(wp,evVal,mktType);
+    const edg=typeof _edge==='function'?_edge(wp,dec):0;
+    const kF=typeof _kelly==='function'?_kelly(wp,dec):0;
+    const mfScore=typeof _mfScore==='function'?_mfScore(wp,evVal,edg,0,kF):0;
+    const settledOutcome=p.outcome==='win'?'win':p.outcome==='loss'?'loss':p.outcome==='push'?'push':null;
+    return{
+      sport:_normSport(p),hA:p.hA,awA:p.awA,
+      best:{label:p.betOn||'',side,tierN},
+      markets:[{side,prob:wp,evVal,mfScore}],
+      gameResult:(p.hScore!=null&&p.aScore!=null)?{finished:true,hScore:p.hScore,aScore:p.aScore}:null,
+      settledOutcome,
+    };
+  });
+  return _topPicksBodyHTML(legs,header,'NO PICKS LOCKED THIS DAY');
+}
+// Date dropdown -- lists TODAY plus every distinct date with at least one
+// real locked bet, most recent first, so a past selection always has real
+// data behind it. Lives in its own static container (#toppicks-date-row,
+// separate from #toppicks-content) so it isn't wiped/rebuilt by every
+// content re-render, only refreshed to reflect the current selection.
+function _renderTopPicksDateRow(selected){
+  const el=document.getElementById('toppicks-date-row');if(!el)return;
+  const todayStr=today();
+  // Capped to the most recent 60 real dates -- the full ledger goes back
+  // over a year, and a 250+ option dropdown is unusable; 60 days covers
+  // "look back in time" meaningfully without that.
+  const dates=Array.from(new Set(getP().map(p=>p.date).filter(d=>d&&d!==todayStr))).sort().reverse().slice(0,60);
+  const opts=[`<option value="${todayStr}">TODAY — ${_topPicksDateLabel(todayStr)}</option>`]
+    .concat(dates.map(d=>`<option value="${d}">${_topPicksDateLabel(d)}</option>`));
+  el.innerHTML=`<select onchange="renderTopPicksToday(true,this.value)" style="font-family:var(--mono);font-size:15px;padding:6px 10px;background:rgba(0,0,0,.6);border:1px solid var(--pc);color:var(--pc);border-radius:3px;letter-spacing:1px">${opts.join('')}</select>`;
+  const sel=el.querySelector('select');if(sel)sel.value=selected||todayStr;
+}
+window._topPicksCache=window._topPicksCache||null; // {ts,dateKey,html}
 const TOP_PICKS_TTL_MS=10*60*1000; // 10 min -- avoids re-running the full multi-league MC pipeline on every 60s home-page refresh
-async function renderTopPicksToday(force){
+async function renderTopPicksToday(force,dateStr){
   const el=document.getElementById('toppicks-content');if(!el)return;
+  dateStr=dateStr||today();
+  const isToday=dateStr===today();
+  _renderTopPicksDateRow(dateStr);
   const now=Date.now();
-  if(!force&&window._topPicksCache&&(now-window._topPicksCache.ts)<TOP_PICKS_TTL_MS){
+  if(!force&&window._topPicksCache&&window._topPicksCache.dateKey===dateStr&&(now-window._topPicksCache.ts)<TOP_PICKS_TTL_MS){
     el.innerHTML=window._topPicksCache.html;
     return;
   }
   if(window._topPicksInFlight)return; // a refresh is already running
   window._topPicksInFlight=true;
-  el.innerHTML=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP PICKS TODAY — ${_topPicksDateLabel()}</div><div class="loading"><span class="spi"></span></div>`;
+  el.innerHTML=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP PICKS${isToday?' TODAY':''} — ${_topPicksDateLabel(dateStr)}</div><div class="loading"><span class="spi"></span></div>`;
   try{
-    const legs=await computeTopPicksToday();
-    const html=_renderTopPicksHTML(legs);
-    window._topPicksCache={ts:Date.now(),html};
+    const html=isToday?_renderTopPicksHTML(await computeTopPicksToday(),dateStr):_renderTopPicksHistoryHTML(dateStr);
+    window._topPicksCache={ts:Date.now(),dateKey:dateStr,html};
     const el2=document.getElementById('toppicks-content');if(el2)el2.innerHTML=html;
   }catch(e){
     const el3=document.getElementById('toppicks-content');
-    if(el3)el3.innerHTML=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP PICKS TODAY — ${_topPicksDateLabel()}</div><div class="empty">COULD NOT COMPUTE TOP PICKS</div>`;
+    if(el3)el3.innerHTML=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP PICKS — ${_topPicksDateLabel(dateStr)}</div><div class="empty">COULD NOT COMPUTE TOP PICKS</div>`;
   }finally{
     window._topPicksInFlight=false;
   }
