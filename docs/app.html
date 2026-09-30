@@ -24637,7 +24637,7 @@ function renderByLeagueAnalytics(scope){
     const barW=acc?Math.round(acc*100):0;
     return`<div class="card" style="margin-bottom:8px;padding:0;overflow:hidden">
       <div style="padding:9px 12px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-family:var(--orb);font-size:17px;font-weight:700;color:var(--pc)">${d.label}</span><div style="display:flex;gap:10px;font-family:var(--mono);font-size:15px"><span><span style="color:#00e644">${w}W</span>-<span style="color:#ff1a1a">${l}L</span></span><span style="color:${pC(acc||0)};font-weight:700">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</span><span style="color:${uC(units)}">${units>=0?'+':''}${units.toFixed(1)}u</span></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-family:var(--orb);font-size:17px;font-weight:700;color:var(--pc)">${d.label}</span><div style="display:flex;gap:10px;font-family:var(--mono);font-size:15px"><span><span style="color:#00e644">${w}W</span>-<span style="color:#ff1a1a">${l}L</span></span><span style="color:${pC(acc||0)};font-weight:700">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</span><span style="color:${units>=0?'#00e644':'#ff1a1a'}">${units>=0?'+':''}${units.toFixed(1)}u</span></div></div>
         <div style="height:4px;background:rgba(255,255,255,.07);border-radius:2px"><div style="width:${barW}%;height:100%;background:${pC(acc||0)};border-radius:2px"></div></div>
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-top:5px">${bets.length} settled bets</div>
       </div>
@@ -24657,31 +24657,45 @@ function renderByPlayerAnalytics(){
   const pnl=p=>p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1;
   const pC=r=>r>=.62?'var(--nc)':r>=.52?'var(--vc)':'var(--hc)';
   const uC=u=>u>=0?'var(--nc)':'var(--hc)';
+  // Real bug, found auditing By Player accuracy 2026-09-30: this only
+  // handled the single order "{Player} {STAT} OVER {line}" -- real feeds
+  // also produce "{Player} OVER {STAT} {line}" (stat after OVER/UNDER,
+  // e.g. "Victor Wembanyama OVER PTS 28.5"), the goalie/skater "{Player}
+  // {STAT} (O/U {line})" parenthetical, and match-level props with no
+  // player at all ("OVER 3.5 SETS"). Confirmed live: 29 of 177 real
+  // player buckets were the raw, unparsed betOn string acting as a fake
+  // player name, AND real players were being split across 2+ separate
+  // rows depending on which betOn ordering happened to match (e.g. "OG
+  // Anunoby PTS" 3W-1L and a separate "OG Anunoby" 4W-0L were actually
+  // the SAME player's real 9W-1L record, fragmented in two). Rewritten to
+  // cut at the first OVER/UNDER keyword or parenthetical (wherever it
+  // falls) and then strip a trailing stat-abbreviation word so both
+  // orderings resolve to the same clean name.
   const playerOf=p=>{
     if(p.player)return p.player;
-    // Fall back to stripping the prop line/stat off betOn, e.g.
-    // "Nikolaj Ehlers Points OVER 0.5 (-135)" -> "Nikolaj Ehlers"
-    const raw=(p.betOn||'').replace(/\s+(OVER|UNDER)\s+[\d.]+.*$/i,'').replace(/\s+[\d.]+\s*(PTS|REB|AST|BLK|STL|GOALS|POINTS|ASSISTS|REBOUNDS).*$/i,'').trim();
-    return raw||'UNKNOWN';
+    const betOn=(p.betOn||'').trim();
+    if(!betOn)return'UNKNOWN';
+    if(/^(OVER|UNDER)\b/i.test(betOn))return'UNKNOWN'; // match-level prop, no player identity
+    const m=/^(.+?)(?:\s+(?:OVER|UNDER)\b|\s*\()/i.exec(betOn);
+    let name=(m?m[1]:betOn).trim();
+    name=name.replace(/\s+Anytime\s+\w+\s*$/i,'');
+    name=name.replace(/\b(PTS|REB|AST|BLK|STL|SOG|SHOTS|SAVES|HITS|RECEPTIONS|YARDS|TDS?|3PM|PRA|GOALS?|POINTS|ASSISTS|REBOUNDS|STRIKEOUTS)\s*$/i,'').trim();
+    return name||'UNKNOWN';
   };
-  // Real cleanup, 2026-09-30, explicit request: exclude UNKNOWN (both a
-  // player-name parsing failure -- playerOf() couldn't extract a name
-  // from betOn -- and a sport tag that never classified at lock time,
-  // e.g. a live prop found showing "Kamilla Cardoso / UNKNOWN" here) and
-  // props from fully-retired leagues (WNBA/MLB/CBB/World Cup -- see
-  // auto_lock_settle.py's own PRODUCT_SPORTS history for when/why each
-  // was retired). Also normalizes sport via _normSport(p) instead of the
-  // raw p.sport tag, same fix already applied to the settled email and
-  // _PUB_SPORTS this same session -- a prop tagged sport:"FOOTBALL"
-  // instead of "NFL" used to silently miss sportCol's lookup and fall
-  // back to the default gray.
-  const _RETIRED_LEAGUES=new Set(['WNBA','MLB','CBB','WC','UNKNOWN','MISC']);
+  // Real coverage bug, found auditing By Player accuracy 2026-09-30: this
+  // blocklist never included ATP/WTA/TEN/XP (tennis props are inactive,
+  // same as every other Analytics sub-tab this session has scoped to the
+  // real active-league set) -- confirmed live, 3 real tennis props (2
+  // ATP + 1 WTA) were leaking through. Switched to the same active-league
+  // allowlist used throughout Analytics, replacing the hand-maintained
+  // retired-league blocklist that kept missing leagues one-by-one.
+  const _ACTIVE_LEAGUES=new Set(['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','FB','PL','LIGA','CL','SERIEA']);
   const byPlayer={};
   all.forEach(p=>{
     const name=playerOf(p);
     if(name==='UNKNOWN')return;
     const sp=window._normSport(p);
-    if(_RETIRED_LEAGUES.has(sp))return;
+    if(!_ACTIVE_LEAGUES.has(sp))return;
     if(!byPlayer[name])byPlayer[name]={name,sport:sp,bets:[],w:0,l:0,u:0};
     byPlayer[name].bets.push(p);
     if(p.outcome==='win'){byPlayer[name].w++;byPlayer[name].u+=pnl(p);}
