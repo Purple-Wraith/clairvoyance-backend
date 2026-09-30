@@ -24220,7 +24220,16 @@ function renderAnalyticsByBet(){
   // no fetch pipeline left) and BL/MLS/WC (retired 2026-09-23/09-27,
   // display history removed everywhere else) to match the canonical
   // active-sport set renderBySportAnalytics already uses.
-  var sportCodes=[{s:'NHL',c:['NHL'],col:'var(--ic)'},{s:'NBA',c:['NBA'],col:'var(--pc)'},{s:'NFL',c:['NFL','FB'],col:'var(--hc)'},{s:'CFB',c:['CFB'],col:'var(--hc)'},{s:'SOCCER',c:['PL','LIGA','SERIEA','CL'],col:'var(--gc)'}];
+  // Real coverage bug, found auditing By Bet/By Sport accuracy 2026-09-30:
+  // this NHL row only ever covered NHL itself, silently excluding all of
+  // hockey's minor leagues (SHL/LIIGA/NLA/EXTRALIGA -- 161 real active
+  // bets, real sold product leagues per the Hockey bundle) from BY SPORT
+  // and from the Best Combos ranking below (which reuses this same list) --
+  // confirmed live, e.g. "SHL OU" (100%, 9W-0L, +8.2u -- a real Hot Spot
+  // combo elsewhere in Analytics) could never appear here. Aggregated into
+  // one HOCKEY row, matching how SOCCER here already aggregates its own
+  // 4 leagues into a single row rather than listing them separately.
+  var sportCodes=[{s:'HOCKEY',c:['NHL','SHL','LIIGA','NLA','EXTRALIGA'],col:'var(--ic)'},{s:'NBA',c:['NBA'],col:'var(--pc)'},{s:'NFL',c:['NFL','FB'],col:'var(--hc)'},{s:'CFB',c:['CFB'],col:'var(--hc)'},{s:'SOCCER',c:['PL','LIGA','SERIEA','CL'],col:'var(--gc)'}];
   var _BYBET_SPORT_COLS='1fr auto 60px 65px';
   var sportRows=sportCodes.map(function(sg){
     var sb2=bets.filter(function(p){return sg.c.some(function(c){return window._normSport(p)===c;});});
@@ -24361,14 +24370,32 @@ function renderBySportAnalytics(key){
     // misalignment bug already fixed for Bet History's BY LEAGUE table
     // (a row's RECORD/UNITS text shifted position based on digit count) --
     // applied here too, both for BY BET TYPE and CALIBRATION.
-    const _TYPE_COLS='30px 1fr 44px 48px';
-    const typeRows=['ML','RL','PL','OU','PROP'].map(t=>{
-      const tb=cardBets.filter(p=>(p.betType||'').toUpperCase()===t);if(!tb.length)return'';
+    // Real bug, found auditing By Sport accuracy 2026-09-30: checked raw
+    // betType against 'PL', a value that has never once appeared in the
+    // real ledger (0 matches, always filtered out), while never checking
+    // 'SPREAD' at all -- the actual field for every point-spread bet.
+    // Confirmed live: FOOTBALL alone has 136 real active SPREAD bets
+    // (71W-65L, 52.2% -- a near-coinflip category, very different from
+    // its own ML performance) that were completely invisible in this
+    // card's BY BET TYPE breakdown. Folded RL/SPREAD/ATS/PL into one
+    // 'Spread' bucket, matching By Bet Analytics' own getType() and
+    // Trends' typeStats convention.
+    const _TYPE_COLS='50px 1fr 44px 48px';
+    const _typeOf=p=>{const bt=(p.betType||'').toUpperCase();return(bt==='RL'||bt==='SPREAD'||bt==='ATS'||bt==='PL')?'Spread':bt;};
+    const typeRows=['ML','Spread','OU','PROP'].map(t=>{
+      const tb=cardBets.filter(p=>_typeOf(p)===t);if(!tb.length)return'';
       const tw=tb.filter(p=>p.outcome==='win').length;const tl=tb.length-tw;const tu=tb.reduce((a,p)=>a+pnl(p),0);const ta=tb.length?tw/tb.length:null;
       return`<div style="display:grid;grid-template-columns:${_TYPE_COLS};gap:6px;align-items:center;padding:3px 8px 3px 20px;border-top:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:15px"><span style="color:var(--pc)">${t}</span><span style="text-align:right;white-space:nowrap"><span style="color:#00e644">${tw}W</span>-<span style="color:#ff1a1a">${tl}L</span></span><span style="text-align:right;color:${pC(ta||0)};font-weight:700">${ta!==null?(ta*100).toFixed(0)+'%':'--'}</span><span style="text-align:right;color:${tu>=0?'#00e644':'#ff1a1a'}">${tu>=0?'+':''}${tu.toFixed(1)}u</span></div>`;
     }).filter(Boolean).join('');
     const _CAL_COLS='1fr 44px 40px';
-    const calBands=[{l:'70%+',min:.70,max:1},{l:'62-70%',min:.62,max:.70},{l:'55-62%',min:.55,max:.62},{l:'<55%',min:0,max:.55}];
+    // Real bug, found auditing By Sport accuracy 2026-09-30: these bands
+    // used a 70% top cutoff, but the app's actual tier() function (the
+    // one that grades every real locked pick) has always used 67% for
+    // PREMIUM -- same mismatch found and fixed in Trends' Confidence
+    // Calibration section. Aligned to tier()'s real cutoffs so a pick in
+    // the real 67-70% range lands in the same band here as it does
+    // everywhere else tier grades are shown.
+    const calBands=[{l:'67%+',min:.67,max:1},{l:'62-67%',min:.62,max:.67},{l:'55-62%',min:.55,max:.62},{l:'<55%',min:0,max:.55}];
     const calRows=calBands.map(b=>{const cb=cardBets.filter(p=>{const wp=p.winProb||0;return wp>=b.min&&wp<b.max;});if(!cb.length)return'';const cw=cb.filter(p=>p.outcome==='win').length;const ca=cb.length?cw/cb.length:null;return`<div style="display:grid;grid-template-columns:${_CAL_COLS};gap:6px;align-items:center;padding:2px 8px;border-top:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:14px"><span style="color:var(--t3)">${b.l}</span><span style="text-align:right;color:${pC(ca||0)}">${ca!==null?(ca*100).toFixed(0)+'%':'--'}</span><span style="text-align:right;color:var(--t3)">${cb.length}b</span></div>`;}).filter(Boolean).join('');
     const barW=acc?Math.round(acc*100):0;
     const l10=cardBets.slice(-10);const l10w=l10.filter(p=>p.outcome==='win').length;const l10acc=l10.length?l10w/l10.length:null;
@@ -24387,9 +24414,15 @@ function renderBySportAnalytics(key){
   // For ALL: show one card per sport group (not per league)
   let h='';
   if(activeSport==='all'){
+    // KHL/NCAAH dropped 2026-09-30: this duplicate list wasn't updated
+    // when SPORT_DEFS.hockey above had them removed (both are fully
+    // retired -- 0 real bets currently -- but leaving them here meant the
+    // ALL SPORTS overview card and the drill-down HOCKEY tab could
+    // silently disagree about what counts as "hockey" the moment either
+    // ever reappeared in the ledger).
     const topGroups=[
       {key:'basketball',label:'BASKETBALL',codes:['NBA'],color:'var(--pc)'},
-      {key:'hockey',label:'HOCKEY',codes:['NHL','KHL','SHL','LIIGA','NLA','EXTRALIGA','NCAAH'],color:'var(--ic)'},
+      {key:'hockey',label:'HOCKEY',codes:['NHL','SHL','LIIGA','NLA','EXTRALIGA'],color:'var(--ic)'},
       {key:'football',label:'FOOTBALL',codes:['NFL','CFB','FB'],color:'var(--hc)'},
       {key:'soccer',label:'SOCCER',codes:['PL','LIGA','CL','SERIEA'],color:'var(--gc)'}, // BUND/BL excluded 2026-09-23, MLS excluded 2026-09-27
     ];
