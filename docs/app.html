@@ -6288,6 +6288,14 @@ function _cfbSpreadLockDir(hA,awA,favN,dogN,baseFavP,baseSprd,inputId,dir){
   const inp=document.getElementById(inputId);
   let ns=inp?parseFloat(inp.value):parseFloat(baseSprd);
   if(isNaN(ns))ns=parseFloat(baseSprd);
+  // Real bug fixed 2026-09-30, auditing half-point line enforcement
+  // across all sports: unlike the shared _spreadLockDir (NHL/hockey
+  // minors/NBA/etc), this CFB-specific lock path never forced the
+  // magnitude onto a half-point -- a locked spread could end in .0
+  // (a real push risk real books never price) if the adjuster input
+  // ever held a whole number. Same _forceHalfLine treatment as every
+  // other sport's spread lock, sign reconstructed from `dir` after.
+  ns=(ns<0?-1:1)*parseFloat(_forceHalfLine(Math.abs(ns)));
   const delta=Math.abs(ns)-Math.abs(parseFloat(baseSprd));
   const p=dir==='FAV'?Math.max(.05,Math.min(.95,baseFavP-delta*0.045)):Math.max(.05,Math.min(.95,(1-baseFavP)+delta*0.045));
   const label=dir==='FAV'?favN+' -'+Math.abs(ns).toFixed(1):dogN+' +'+Math.abs(ns).toFixed(1);
@@ -6297,6 +6305,9 @@ function _cfbOuLockDir(hA,awA,baseOverP,baseL,inputId,dir){
   const inp=document.getElementById(inputId);
   let nl=inp?parseFloat(inp.value):parseFloat(baseL);
   if(isNaN(nl))nl=parseFloat(baseL);
+  // Same real bug/fix as _cfbSpreadLockDir just above -- never forced a
+  // half-point O/U line.
+  nl=parseFloat(_forceHalfLine(nl));
   const delta=nl-parseFloat(baseL);
   const np=Math.min(.95,Math.max(.05,baseOverP-delta*0.07));
   const p=dir==='OVER'?np:1-np;
@@ -7465,6 +7476,9 @@ function _nflSpreadLockDir(hA,awA,favN,dogN,baseFavP,baseSprd,inputId,dir){
   const inp=document.getElementById(inputId);
   let ns=inp?parseFloat(inp.value):parseFloat(baseSprd);
   if(isNaN(ns))ns=parseFloat(baseSprd);
+  // Same real bug/fix as _cfbSpreadLockDir -- never forced a half-point
+  // line, so a locked NFL spread could end in .0.
+  ns=(ns<0?-1:1)*parseFloat(_forceHalfLine(Math.abs(ns)));
   const delta=Math.abs(ns)-Math.abs(parseFloat(baseSprd));
   const p=dir==='FAV'?Math.max(.05,Math.min(.95,baseFavP-delta*0.045)):Math.max(.05,Math.min(.95,(1-baseFavP)+delta*0.045));
   const label=dir==='FAV'?favN+' -'+Math.abs(ns).toFixed(1):dogN+' +'+Math.abs(ns).toFixed(1);
@@ -7474,6 +7488,8 @@ function _nflOuLockDir(hA,awA,baseOverP,baseL,inputId,dir){
   const inp=document.getElementById(inputId);
   let nl=inp?parseFloat(inp.value):parseFloat(baseL);
   if(isNaN(nl))nl=parseFloat(baseL);
+  // Same real bug/fix as _cfbOuLockDir -- never forced a half-point line.
+  nl=parseFloat(_forceHalfLine(nl));
   const delta=nl-parseFloat(baseL);
   const np=Math.min(.95,Math.max(.05,baseOverP-delta*0.07));
   const p=dir==='OVER'?np:1-np;
