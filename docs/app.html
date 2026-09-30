@@ -6520,10 +6520,31 @@ function _cfbGameCard(g){
   const spreadDog=spreadFav===g.home?g.away:g.home;
   const favIsHome=spreadFav===g.home;
   const favMarginMean=favIsHome?mc.avgMargin:-mc.avgMargin;
-  const favCoverP=Math.min(.95,Math.max(.05,_cfbCoverProb(favMarginMean,_CFB_SIGMA_MARGIN,baseSpread)));
+  // Real gap found+fixed, 2026-09-30: SPREAD/O-U probabilities here never
+  // went through any calibration at all, unlike ML above (cfbEns already
+  // runs its p through sportCalibrate('CFB')). A full-ledger audit found
+  // CFB SPREAD/O-U badly overconfident specifically at the top band --
+  // 70%+ predicted spread picks (n=43) actually hit only 44.2%, and 70%+
+  // O-U picks (n=109) only 54.1%, both getting WORSE as predicted
+  // confidence rose (ML stayed fine/underconfident the whole way). A real
+  // per-sport correction already exists for exactly this in
+  // adaptive_weights.json's cal_adj_by_sport.CFB (learned from real
+  // settled-bet accuracy), but it only ever reached grading through
+  // tier()'s own _calAdjProbByType(p,mktType) call, which never passes a
+  // sport argument -- so CFB's own learned SPREAD/O-U correction has
+  // never actually applied anywhere, only the pooled-across-all-sports
+  // global band adjustment did. Applying it directly here, the same way
+  // cfbEns already applies sportCalibrate for ML, closes that gap without
+  // touching tier()/_evalMkts (shared by every other sport) at all.
+  const _cfbCalMkt=(p,mktType)=>{
+    if(typeof window._calAdjProbByType!=='function')return p;
+    const adj=window._calAdjProbByType(p,mktType,'CFB');
+    return(adj>0&&adj<1)?Math.min(.95,Math.max(.05,adj)):p;
+  };
+  const favCoverP=_cfbCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(favMarginMean,_CFB_SIGMA_MARGIN,baseSpread))),'SPREAD');
   const dogCoverP=1-favCoverP;
   const ouL=mc.ouLine;
-  const overP=Math.min(.95,Math.max(.05,_cfbCoverProb(mc.avgTotal,_CFB_SIGMA_TOTAL,ouL)));
+  const overP=_cfbCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(mc.avgTotal,_CFB_SIGMA_TOTAL,ouL))),'OU');
   const underP=1-overP;
   const hFpiTxt=`${_cfbRankLabel(g.home)}${g.homeName||g.home} FPI ${hFpi??'—'}`;
   const aFpiTxt=`${_cfbRankLabel(g.away)}${g.awayName||g.away} FPI ${aFpi??'—'}`;
