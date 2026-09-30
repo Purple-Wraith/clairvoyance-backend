@@ -617,6 +617,7 @@ body{line-height:1.5}
 </header>
 <nav id="sbar">
   <button class="sp act" onclick="SS('home');showND(this,'home')" onmouseenter="showND(this,'home')" onmouseleave="startHideND()">HOME</button>
+  <button class="sp" onclick="SS('toppicks');showND(this,'toppicks')" onmouseenter="showND(this,'toppicks')" onmouseleave="startHideND()">TOP PICKS</button>
   <button class="sp" onclick="SS('ovr');showND(this,'ovr')" onmouseenter="showND(this,'ovr')" onmouseleave="startHideND()">OVERALL</button>
   <button class="sp" onclick="SS('analytics');showND(this,'analytics')" onmouseenter="showND(this,'analytics')" onmouseleave="startHideND()">ANALYTICS</button>
   <button class="sp" onclick="SS('nba');showND(this,'nba')" onmouseenter="showND(this,'nba')" onmouseleave="startHideND()">BASKETBALL</button>
@@ -645,6 +646,13 @@ body{line-height:1.5}
     <div id="home-games"             style="display:none"></div>
     <div id="home-date-display"      style="display:none"></div>
     <div id="home-locked"            style="display:none"></div>
+  </div>
+</div>
+
+<!-- TOP PICKS -->
+<div id="sp-toppicks" class="spane">
+  <div class="sa" style="padding:16px">
+    <div id="toppicks-content"></div>
   </div>
 </div>
 
@@ -15628,15 +15636,18 @@ function _topPickRowHTML(e,rankNum){
   const col=e.tierN===3?'var(--gc)':e.tierN===2?'var(--nc)':'var(--ic)';
   const lbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][e.tierN];
   const m=e.marketInfo||{};
+  // Explicit color spec, 2026-09-30: matchup line neon magenta, pick
+  // label neon cyan (regardless of sport -- was per-sport/per-tier
+  // before), EV dropped from the stat line, grade tag + probability kept.
   return`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,0,24,.7);border-left:2px solid ${col};border-radius:2px;margin-bottom:5px">
     ${rankNum?`<div style="font-family:var(--orb);font-size:17px;font-weight:900;color:${col};min-width:20px;text-align:center">${rankNum}</div>`:''}
     <div style="flex:1;min-width:0">
-      <div style="font-family:var(--mono);font-size:12px;color:${_topPicksLeagueColor(e.leagueTag)};letter-spacing:1px">${e.leagueLabel} · ${e.matchup}</div>
-      <div style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.best.label}</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--pc);letter-spacing:1px">${e.leagueLabel} · ${e.matchup}</div>
+      <div style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--nc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.best.label}</div>
     </div>
     <div style="text-align:right;flex-shrink:0">
       <span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${col};color:${col};border-radius:2px">${lbl}</span>
-      <div style="font-family:var(--mono);font-size:13px;color:var(--t2);margin-top:2px">${m.prob!=null?(m.prob*100).toFixed(1)+'%':'--'} · EV ${m.evVal!=null?(m.evVal>=0?'+':'')+(m.evVal*100).toFixed(1)+'%':'--'}</div>
+      <div style="font-family:var(--mono);font-size:13px;color:var(--t2);margin-top:2px">${m.prob!=null?(m.prob*100).toFixed(1)+'%':'--'}</div>
     </div>
   </div>`;
 }
@@ -15663,40 +15674,40 @@ function _renderTopPicksHTML(legs){
   const leagueSections=Object.keys(byLeague).sort().map(label=>{
     const top3=byLeague[label].slice().sort((a,b)=>rank(b)-rank(a)).slice(0,3);
     return`<div style="margin-bottom:10px">
-      <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:${_topPicksLeagueColor(top3[0].leagueTag)};margin-bottom:5px">${label.toUpperCase()} — TOP ${top3.length}</div>
+      <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--nc);margin-bottom:5px">${label.toUpperCase()} — TOP ${top3.length}</div>
       ${top3.map(e=>_topPickRowHTML(e)).join('')}
     </div>`;
   }).join('');
   const top10=qualifying.slice().sort((a,b)=>rank(b)-rank(a)).slice(0,10);
   const top10Html=`<div style="margin-bottom:14px">
-    <div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--gc);margin-bottom:6px">★ TOP ${top10.length} OF THE DAY — ALL SPORTS</div>
+    <div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--pc);margin-bottom:6px">★ TOP ${top10.length} OF THE DAY — ALL SPORTS</div>
     ${top10.map((e,i)=>_topPickRowHTML(e,i+1)).join('')}
   </div>`;
   return`${header}
-    <div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-bottom:10px">${qualifying.length} qualifying pick${qualifying.length===1?'':'s'} across ${Object.keys(byLeague).length} league${Object.keys(byLeague).length===1?'':'s'}</div>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--nc);margin-bottom:10px">${qualifying.length} qualifying pick${qualifying.length===1?'':'s'} across ${Object.keys(byLeague).length} league${Object.keys(byLeague).length===1?'':'s'}</div>
     ${top10Html}
-    <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--t3);margin:2px 0 6px">BY LEAGUE</div>
+    <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc);margin:2px 0 6px">BY LEAGUE</div>
     ${leagueSections}`;
 }
 window._topPicksCache=window._topPicksCache||null; // {ts,html}
 const TOP_PICKS_TTL_MS=10*60*1000; // 10 min -- avoids re-running the full multi-league MC pipeline on every 60s home-page refresh
 async function renderTopPicksToday(force){
-  const el=document.getElementById('home-top-picks');if(!el)return;
+  const el=document.getElementById('toppicks-content');if(!el)return;
   const now=Date.now();
   if(!force&&window._topPicksCache&&(now-window._topPicksCache.ts)<TOP_PICKS_TTL_MS){
     el.innerHTML=window._topPicksCache.html;
     return;
   }
-  if(window._topPicksInFlight)return; // a refresh is already running (e.g. two renderHomePage() calls within the same tick)
+  if(window._topPicksInFlight)return; // a refresh is already running
   window._topPicksInFlight=true;
   el.innerHTML=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP PICKS TODAY — ${_topPicksDateLabel()}</div><div class="loading"><span class="spi"></span></div>`;
   try{
     const legs=await computeTopPicksToday();
     const html=_renderTopPicksHTML(legs);
     window._topPicksCache={ts:Date.now(),html};
-    const el2=document.getElementById('home-top-picks');if(el2)el2.innerHTML=html;
+    const el2=document.getElementById('toppicks-content');if(el2)el2.innerHTML=html;
   }catch(e){
-    const el3=document.getElementById('home-top-picks');
+    const el3=document.getElementById('toppicks-content');
     if(el3)el3.innerHTML=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP PICKS TODAY — ${_topPicksDateLabel()}</div><div class="empty">COULD NOT COMPUTE TOP PICKS</div>`;
   }finally{
     window._topPicksInFlight=false;
@@ -15891,7 +15902,6 @@ function renderHomePage(){
       <span style="display:inline-block;font-family:var(--mono);font-size:15px;color:#fff;background:var(--pc);padding:4px 10px;border-radius:3px">${keptBets.length} LOCKED · ${keptSettled.length} SETTLED</span>
     </div>
     <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--nc);margin-bottom:10px">LIVE TRACK RECORD — UPDATES CONTINUOUSLY</div>
-    <div id="home-top-picks" style="margin-bottom:14px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       ${perfCard('TODAY',rtd,'rgba(255,32,0,.9)')}
       ${perfCard('YESTERDAY',ry,'rgba(0,240,255,.8)')}
@@ -15901,12 +15911,6 @@ function renderHomePage(){
       ${perfCard('ALL TIME',rAll,'rgba(255,221,0,.9)')}
     </div>
     ${leaguePerfHtml}`;
-    // Fire-and-forget -- renderTopPicksToday() manages its own 10-min
-    // cache and in-flight guard, so this is safe to call every time
-    // renderHomePage() re-runs (every 60s via _homeRefTimer, plus every
-    // settle/lock action) without re-running the full cross-sport MC
-    // pipeline more often than that.
-    try{renderTopPicksToday();}catch(e){}
   }
 
   // ── ALL PENDING PICKS ─────────────────────────────────────────────────────
@@ -16262,6 +16266,7 @@ function SS(s){
   const mn11=document.getElementById('mn11');if(mn11)mn11.style.display=s==='fut'?'flex':'none';
   const _t=(fn)=>{try{fn();}catch(e){console.warn('SS render',e);}};
   if(s==='home'){_t(renderHomePage);}
+  if(s==='toppicks'){_t(renderTopPicksToday);}
   if(s==='hk'){_t(()=>setSub('hk','nhl'));_t(()=>T('nhl','games'));_t(renderNHLGames);_t(renderNHLTonight);_t(renderGoalies);_t(renderMoneyPuck);}
   if(s==='nba'){_t(()=>{setSub('nba','nba');});_t(()=>{T('nba','games');renderNBATonightGames();renderNBAGames();renderNBABracket();});}
   if(s==='live'){_t(()=>T('live','games'));_t(startNHLLive);_t(startNBALive);}
