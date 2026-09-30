@@ -1747,8 +1747,8 @@ body{line-height:1.5}
       <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-form" checked> Recent Form</label>
       <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-rest" checked> Rest/Fatigue</label>
       <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-weather"> Weather</label>
-      <button class="btn btn-p" style="margin-left:auto;padding:6px 18px" onclick="runSimulator()">RUN SIMULATION</button>
-      <button class="btn btn-p btn-sm" onclick="_simClearHistory()">CLEAR HISTORY</button>
+      <button class="btn btn-p" style="margin-left:auto;padding:6px 18px;background:var(--pc);color:#fff" onclick="runSimulator()">RUN SIMULATION</button>
+      <button class="btn btn-p btn-sm" style="background:var(--pc);color:#fff" onclick="_simClearHistory()">CLEAR HISTORY</button>
     </div>
 
     <!-- Results -->
@@ -25902,9 +25902,9 @@ function _simRender(el,sport,home,away,N,r){
       +'</div>'
     +'</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-      +'<button class="btn btn-p btn-sm" id="sim-lock-h">OPTIMAL '+home+' ML '+(hML>0?'+':'')+hML+'</button>'
-      +'<button class="btn btn-p btn-sm" id="sim-lock-a">OPTIMAL '+away+' ML '+(aML>0?'+':'')+aML+'</button>'
-      +'<button class="btn btn-p btn-sm" id="sim-lock-ou">OPTIMAL '+(r.overP>=.5?'OVER':'UNDER')+' '+_forceHalfLine(r.ou)+'</button>'
+      +'<button class="btn btn-p btn-sm" style="background:var(--pc);color:#fff" id="sim-lock-h">OPTIMAL '+home+' ML '+(hML>0?'+':'')+hML+'</button>'
+      +'<button class="btn btn-p btn-sm" style="background:var(--pc);color:#fff" id="sim-lock-a">OPTIMAL '+away+' ML '+(aML>0?'+':'')+aML+'</button>'
+      +'<button class="btn btn-p btn-sm" style="background:var(--pc);color:#fff" id="sim-lock-ou">OPTIMAL '+(r.overP>=.5?'OVER':'UNDER')+' '+_forceHalfLine(r.ou)+'</button>'
     +'</div>';
   el.innerHTML=html;
   setTimeout(function(){
