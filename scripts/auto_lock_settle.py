@@ -116,6 +116,63 @@ SPORT_DISPLAY_NAME = {
     "SOC_ITA": "Serie A", "SOC_CL": "Champions League",
 }
 
+# Real bug, found + fixed 2026-09-30 auditing the settlement email: this
+# email used to group by the raw `sport` field with no normalization at
+# all, so a real settled bet tagged sport:"FOOTBALL" (a legacy/broad tag
+# some lock paths still write) formed its own separate "FOOTBALL" section
+# in the email, distinct from every other real NFL bet tagged sport:"NFL"
+# -- both are the same league, just split across two headers. Confirmed
+# live in the real ledger: FOOTBALL/ML, FOOTBALL/OU, FOOTBALL/SPREAD,
+# FOOTBALL/PROP all exist as real settled rows alongside NFL/* rows for
+# the same sport. Direct Python port of docs/app.html's own _normSport(p)
+# -- the canonical classifier every other display in this app already
+# uses -- covering just the explicit-tag branches (no team-abbreviation
+# guessing: a settled bet always has a real tag already, so that fallback
+# path in _normSport never applies here).
+_BROAD_AMBIGUOUS_SPORTS = {"FOOTBALL", "BASKETBALL", "HOCKEY", "SOCCER", "BASEBALL"}
+
+
+def norm_sport_for_email(sport: str | None, league: str | None) -> str:
+    sport_up = (sport or "").strip().upper()
+    league_up = (league or "").strip().upper()
+    raw = league_up if (sport_up in _BROAD_AMBIGUOUS_SPORTS and league_up) else (sport_up or league_up)
+    if raw in ("MLB", "BASEBALL"):
+        return "MLB"
+    if raw in ("NHL", "HOCKEY", "ICE HOCKEY"):
+        return "NHL"
+    if raw == "WNBA":
+        return "WNBA"
+    if raw in ("NBA", "BASKETBALL"):
+        return "NBA"
+    if raw in ("CBB", "NCAAB", "COLLEGE BASKETBALL"):
+        return "CBB"
+    if raw in ("NFL", "FOOTBALL"):
+        return "NFL"
+    if raw in ("CFB", "COLLEGE FOOTBALL", "NCAAF"):
+        return "CFB"
+    if raw in ("KHL", "SHL", "LIIGA", "NLA", "EXTRALIGA"):
+        return raw
+    if raw in ("NCAAH", "COLLEGE HOCKEY"):
+        return "NCAAH"
+    if raw in ("WC", "WORLDCUP", "WORLD_CUP", "WORLD CUP", "SOC"):
+        return "WC"
+    if raw in ("PL", "PREMIER LEAGUE"):
+        return "PL"
+    if raw in ("LIGA", "LA LIGA"):
+        return "LIGA"
+    if raw in ("BUND", "BL", "BUNDESLIGA"):
+        return "BUND"
+    if raw == "MLS":
+        return "MLS"
+    if raw in ("SERIEA", "SERIE A"):
+        return "SERIEA"
+    if raw in ("CL", "CH", "CHAMPIONS LEAGUE"):
+        return "CL"
+    # Real _normSport(p)'s own fallthrough: any tag it doesn't explicitly
+    # recognize (ATP, WTA, TEN, etc.) is returned as-is rather than
+    # guessed at -- matching that exactly instead of inventing new cases.
+    return raw or "MISC"
+
 # Display names keyed by the LEDGER's own `league` field (lockPick()'s
 # _leagueMap in docs/app.html -- BUND/LIGA/PL/SERIEA/CL/MLS, no "SOC_"
 # prefix) -- a DIFFERENT tag scheme from SPORT_DISPLAY_NAME above, which
@@ -680,7 +737,7 @@ def run_settle(page, live: bool, only_dates: list[str] | None = None) -> list[di
             """
             () => getP().filter(p => p.outcome !== 'pending' && p.settledAt && (Date.now() - p.settledAt) < 180000)
               .map(p => ({
-                betOn: p.betOn, sport: p.sport, outcome: p.outcome, date: p.date,
+                betOn: p.betOn, sport: p.sport, league: p.league, outcome: p.outcome, date: p.date,
                 hA: p.hA, awA: p.awA, hScore: p.hScore, aScore: p.aScore,
                 playerResult: p.playerResult,
               }))
@@ -740,7 +797,7 @@ def _settle_result_html(b: dict) -> str:
 def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | None = None) -> str:
     by_sport: dict[str, list[dict]] = {}
     for b in settled:
-        by_sport.setdefault(b.get("sport") or "?", []).append(b)
+        by_sport.setdefault(norm_sport_for_email(b.get("sport"), b.get("league")), []).append(b)
 
     wins = sum(1 for b in settled if b.get("outcome") == "win")
     losses = sum(1 for b in settled if b.get("outcome") == "loss")
@@ -760,7 +817,7 @@ def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | No
                       f'border-radius:6px;color:#ff9090;font-size:13px">'
                       f'⚠ {len(unresolved)} pick(s) from this date could not be confirmed settled yet -- '
                       f'real score/result not found. Will keep retrying automatically.<ul style="margin:6px 0 0;padding-left:18px">'
-                      + "".join(f'<li>{_esc(b.get("sport"))}: {_esc(b.get("betOn"))}</li>' for b in unresolved)
+                      + "".join(f'<li>{_esc(SPORT_DISPLAY_NAME.get(norm_sport_for_email(b.get("sport"), b.get("league")), norm_sport_for_email(b.get("sport"), b.get("league"))))}: {_esc(b.get("betOn"))}</li>' for b in unresolved)
                       + '</ul></div>')
     if not settled:
         parts.append('<div style="padding:20px 0;color:#555;font-size:14px">No bets settled this run.</div>')
