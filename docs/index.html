@@ -3222,7 +3222,14 @@ function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors){
   try{
     var entry={sport,hA,awA,mcSummary:mcSummary||null,
       best:nm.best?{label:nm.best.label,side:nm.best.side,tierN:nm.tierN}:null,
-      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:m.dec,ml:m.ml,tierN:m.tierN})),
+      // mfScore added 2026-09-30: _evalMkts already computes this per
+      // market -- the same composite 0-10 confidence score (probability
+      // band + EV band + edge + Kelly fraction) _mfScore() was built for
+      // exactly this purpose, "which pick is actually best," just never
+      // exposed outside this per-game sort before. Home's Top Picks Today
+      // panel uses it as the real tiebreaker within a tier instead of a
+      // cruder ad-hoc EV/probability blend.
+      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:m.dec,ml:m.ml,tierN:m.tierN,mfScore:m.mfScore})),
       // Optional -- only soccer's capture call currently passes this (see
       // _renderSocMatchCard). Threaded through build_qualifying/
       // lock_game_leg into lockPick's extraMeta so it lands on the
@@ -15582,7 +15589,16 @@ function _renderTopPicksHTML(legs){
     return{...l,leagueTag:l.sport,leagueLabel:_topPicksLeagueLabel(l.sport),matchup:`${l.awA} @ ${l.hA}`,tierN:l.best.tierN,marketInfo:mkt};
   });
   if(!qualifying.length)return header+'<div class="empty">NO QUALIFYING PICKS TODAY YET</div>';
-  const rank=e=>e.tierN*1000+(e.marketInfo.evVal||0)*100+(e.marketInfo.prob||0)*10;
+  // Ranked by tier first (PREMIUM beats OPTIMAL beats LEAN, always), then
+  // by mfScore -- the app's own existing composite 0-10 confidence score
+  // (probability band + EV band + edge + Kelly fraction, see _mfScore()),
+  // the same real metric _evalMkts() already uses to pick the single best
+  // market WITHIN one game. Using it again here for the cross-game/
+  // cross-sport ranking (instead of a simpler ad-hoc EV%+probability
+  // blend) means a pick's rank here always reflects the same standard of
+  // "how good is this bet" the rest of the app already trusts, not a
+  // second, different opinion invented just for this list.
+  const rank=e=>e.tierN*100+(e.marketInfo.mfScore||0);
   const byLeague={};
   qualifying.forEach(e=>{(byLeague[e.leagueLabel]=byLeague[e.leagueLabel]||[]).push(e);});
   const leagueSections=Object.keys(byLeague).sort().map(label=>{
