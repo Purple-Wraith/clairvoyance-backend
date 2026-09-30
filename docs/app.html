@@ -14151,9 +14151,18 @@ function renderOverallTrends(){
   }).filter(Boolean).slice(-12).reverse();
 
   // ── Confidence calibration ────────────────────────────────────────────────
+  // Real bug, found auditing Trends accuracy 2026-09-30: these bands used
+  // 70%/62%/55% cutoffs, but the app's actual tier() function (the one
+  // that grades every locked pick PREMIUM/OPTIMAL/LEAN/SKIP) has always
+  // used 67%/62%/55%. The whole point of this section is "predicted vs
+  // actual" against the app's own real tiers -- using an invented 70%
+  // boundary instead of tier()'s real 67% meant 103 real bets (69W-34L,
+  // 67.0% actual) were bucketed as "OPTIMAL 62-70%" and compared against
+  // the wrong 62% target, when they're genuinely PREMIUM-tier picks per
+  // the engine that locked them. Aligned to tier()'s real cutoffs.
   const confBands=[
-    {l:'PREMIUM 70%+',min:.70,max:1,target:.70},
-    {l:'OPTIMAL 62-70%',min:.62,max:.70,target:.62},
+    {l:'PREMIUM 67%+',min:.67,max:1,target:.67},
+    {l:'OPTIMAL 62-67%',min:.62,max:.67,target:.62},
     {l:'LEAN 55-62%',min:.55,max:.62,target:.55},
     {l:'SKIP <55%',  min:0,  max:.55,target:.50},
   ];
@@ -14295,7 +14304,7 @@ function renderOverallTrends(){
           <span style="font-family:var(--mono);font-size:15px;color:var(--t2)">${mu}</span>
           <span style="font-family:var(--mono);font-size:15px;color:var(--vc)">${_expandBetOn(p.betOn||'',p.sport)}</span>
         </div>
-        <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:2px">${p.betType} · <span style="color:var(--hc)">${marginStr}</span> · ${p.date||''}</div>
+        <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:2px">${p.betType} · <span style="color:#ff1a1a">${marginStr}</span> · ${p.date||''}</div>
       </div>`;
     }).join(''):'<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">No near misses found</div>'}
   </div>`;
@@ -14305,7 +14314,7 @@ function renderOverallTrends(){
     <div style="font-family:var(--mono);font-size:15px;color:var(--ic);letter-spacing:2px;margin-bottom:8px">// CONFIDENCE CALIBRATION — PREDICTED vs ACTUAL</div>
     ${confData.map(b=>{
       const col=b.acc!==null?pctCol(b.acc):'var(--t3)';
-      const driftCol=b.drift===null?'var(--t3)':b.drift>0.04?'var(--nc)':b.drift<-0.04?'var(--hc)':'var(--t2)';
+      const driftCol=b.drift===null?'var(--t3)':b.drift>0.04?'#00e644':b.drift<-0.04?'#ff1a1a':'var(--t2)';
       const barW=b.acc!==null?Math.round(b.acc*100):0;
       const targetW=Math.round(b.target*100);
       return`<div style="margin-bottom:8px">
