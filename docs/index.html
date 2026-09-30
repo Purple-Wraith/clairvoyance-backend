@@ -14003,14 +14003,23 @@ function renderOverallTrends(){
   // -- the per-sport streak below (sb.slice(-10), then a forward run-
   // length loop) needs real chronological order to mean anything. Same
   // fix as adaptiveTick()/renderOverall's own settledByDate.
-  const all=getP().filter(p=>p.outcome!=='pending')
+  // Retired-league removal, 2026-09-30 follow-up: this used to pull the
+  // raw unfiltered ledger, so combos/streaks/self-assessment all mixed in
+  // leagues the app no longer bets (confirmed live: BUND still surfacing
+  // in COLD SPOTS). Scoped to the same active-league allowlist Bet History
+  // Analytics now uses.
+  const _ACTIVE_LEAGUES=new Set(['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','FB','PL','LIGA','CL','SERIEA']);
+  const all=getP().filter(p=>p.outcome!=='pending'&&_ACTIVE_LEAGUES.has(window._normSport(p)))
     .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
   if(all.length<5){el.innerHTML='<div class="empty">NOT ENOUGH DATA — SETTLE MORE PICKS TO SEE TRENDS</div>';return;}
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   const pnl=p=>p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1;
-  const pctCol=r=>r>=.62?'var(--nc)':r>=.52?'var(--vc)':'var(--hc)';
-  const uCol=u=>u>=0?'var(--nc)':'var(--hc)';
+  // Color convention, 2026-09-30 follow-up: green for good/win signal, red
+  // for bad/loss signal (was cyan/lime/hot-pink) -- lime stays as the
+  // existing middle "OPTIMAL tier" marker, a separate pre-existing signal.
+  const pctCol=r=>r>=.62?'#00e644':r>=.52?'var(--vc)':'#ff1a1a';
+  const uCol=u=>u>=0?'#00e644':'#ff1a1a';
   const now=Date.now();
   const d7=now-7*86400000; const d30=now-30*86400000; const d90=now-90*86400000;
   const recent=all.filter(p=>_pickTs(p)>=d30);
@@ -14023,11 +14032,12 @@ function renderOverallTrends(){
   for(const p of all){const k=(p.sport||'?')+'_'+(p.betType||'ML');if(!combos[k])combos[k]={key:k,sport:p.sport,type:p.betType,n:0,w:0,u:0};combos[k].n++;if(p.outcome==='win'){combos[k].w++;combos[k].u+=(parseFloat(p.decOdds)||2)-1;}else if(p.outcome==='loss')combos[k].u-=1;}
   const hotList=Object.values(combos).filter(c=>c.n>=3).sort((a,b)=>(b.w/b.n)-(a.w/a.n));
   const hot=hotList.slice(0,5),cold=hotList.slice(-5).reverse();
-  const sportCol={'MLB':'var(--vc)','NHL':'var(--ic)','NBA':'var(--pc)','default':'var(--t3)'};
-  const trendCard=(c,type)=>{const acc=c.w/c.n;const col=type==='hot'?pctCol(acc):'var(--hc)';const uc=uCol(c.u);
+  // Uniform aesthetic, 2026-09-30 follow-up: every sport/league label in
+  // Trends is now the same neon magenta instead of a per-sport map.
+  const trendCard=(c,type)=>{const acc=c.w/c.n;const col=type==='hot'?'#00e644':'#ff1a1a';const uc=uCol(c.u);
     return`<div style="padding:8px;margin-bottom:5px;background:rgba(10,4,24,.85);border:1px solid rgba(255,255,255,.07);border-left:3px solid ${col};border-radius:3px">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:${sportCol[c.sport]||'var(--t3)'}">${c.sport}</span>
+        <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:var(--pc)">${c.sport}</span>
         <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">${c.type}</span>
         <span style="font-family:var(--mono);font-size:17px;font-weight:700;color:${col}">${(acc*100).toFixed(0)}%</span>
         <span style="font-family:var(--mono);font-size:15px;color:${uc}">${c.u>=0?'+':''}${c.u.toFixed(1)}u</span>
@@ -14036,7 +14046,7 @@ function renderOverallTrends(){
     </div>`;};
 
   // ── Recency streaks — all tracked sports ─────────────────────────────────
-  const trackedSports=['MLB','NHL','NBA','WNBA','CBB','NCAAB','NFL','CFB','KHL','SHL','LIIGA','NLA','EXTRALIGA','SOC','WC','PL','LIGA','CL','SERIEA']; // BUND/BL excluded 2026-09-23, MLS excluded 2026-09-27, history removed from all displays
+  const trackedSports=['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','PL','LIGA','CL','SERIEA']; // trimmed to _ACTIVE_LEAGUES, 2026-09-30 -- MLB/WNBA/CBB/NCAAB/KHL/SOC/WC/BUND/BL/MLS all retired
   const sportStreaks={};
   for(const sp of trackedSports){
     const sb=all.filter(p=>window._normSport(p)===sp).slice(-10);
@@ -14050,8 +14060,8 @@ function renderOverallTrends(){
   }
 
   // ── Trend comparison: recent vs historical ────────────────────────────────
-  const trendComp=(['MLB','NHL','NBA']).map(sp=>{
-    const rb=recent.filter(p=>p.sport===sp);const hb=historical.filter(p=>p.sport===sp);
+  const trendComp=(['NBA','NHL','NFL','CFB']).map(sp=>{
+    const rb=recent.filter(p=>window._normSport(p)===sp);const hb=historical.filter(p=>window._normSport(p)===sp);
     if(!rb.length&&!hb.length)return null;
     const rp=perfOf(rb);const hp=perfOf(hb);
     const delta=(rp.acc||0)-(hp.acc||0);
@@ -14094,7 +14104,7 @@ function renderOverallTrends(){
   });
 
   // ── Self-assessment ───────────────────────────────────────────────────────
-  const spStats=[...['MLB','NHL','NBA'].map(s=>{const sb=all.filter(p=>p.sport===s);const p=perfOf(sb);return{s,...p};}),{s:'TENNIS',...perfOf(all.filter(p=>p.sport==='TEN'||p.sport==='ATP'||p.sport==='WTA'))}].filter(d=>d.n>=3);
+  const spStats=['NBA','NHL','NFL','CFB'].map(s=>{const sb=all.filter(p=>window._normSport(p)===s);const p=perfOf(sb);return{s,...p};}).filter(d=>d.n>=3);
   spStats.sort((a,b)=>(b.acc||0)-(a.acc||0));
   const bestSp=spStats[0],worstSp=spStats[spStats.length-1];
   const typeStats=['ML','RL','PL','OU','PROP'].map(t=>{const tb=all.filter(p=>p.betType===t);const p=perfOf(tb);return{t,...p};}).filter(d=>d.n>=3);
@@ -14140,11 +14150,11 @@ function renderOverallTrends(){
   // ── Section 1: Hot / Cold Spots ──
   h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
     <div class="card" style="padding:10px">
-      <div style="font-family:var(--mono);font-size:15px;color:var(--nc);letter-spacing:2px;margin-bottom:8px">// HOT SPOTS</div>
+      <div style="font-family:var(--mono);font-size:15px;color:#00e644;letter-spacing:2px;margin-bottom:8px">// HOT SPOTS</div>
       ${hot.map(c=>trendCard(c,'hot')).join('')||'<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">Need more data</div>'}
     </div>
     <div class="card" style="padding:10px">
-      <div style="font-family:var(--mono);font-size:15px;color:var(--hc);letter-spacing:2px;margin-bottom:8px">// COLD SPOTS</div>
+      <div style="font-family:var(--mono);font-size:15px;color:#ff1a1a;letter-spacing:2px;margin-bottom:8px">// COLD SPOTS</div>
       ${cold.map(c=>trendCard(c,'cold')).join('')||'<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">Need more data</div>'}
     </div>
   </div>`;
@@ -14155,7 +14165,7 @@ function renderOverallTrends(){
       <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin-bottom:8px">// RECENCY — LAST 10 + LAST 7 DAYS BY SPORT</div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px">
         ${Object.entries(sportStreaks).map(([sp,s])=>{
-          const col=sportCol[sp]||'var(--t3)';const sc=s.curType==='win'?'var(--nc)':'var(--hc)';
+          const col='var(--pc)';const sc=s.curType==='win'?'#00e644':'#ff1a1a';
           const r7str=s.r7n>=2?`7D: ${s.r7acc!==null?(s.r7acc*100).toFixed(0)+'%':'--'} (${s.r7n})`:'';
           return`<div style="padding:8px;background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.07);border-radius:3px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
@@ -14179,9 +14189,9 @@ function renderOverallTrends(){
         <tbody>
           ${trendComp.map(t=>{
             const arrow=t.delta>0.04?'▲':t.delta<-0.04?'▼':'~';
-            const dc=t.delta>0.04?'var(--nc)':t.delta<-0.04?'var(--hc)':'var(--t3)';
+            const dc=t.delta>0.04?'#00e644':t.delta<-0.04?'#ff1a1a':'var(--t3)';
             return`<tr>
-              <td style="color:${sportCol[t.sp]||'var(--t3)'};font-weight:700">${t.sp}</td>
+              <td style="color:var(--pc);font-weight:700">${t.sp}</td>
               <td style="color:${t.rp.acc!==null?pctCol(t.rp.acc):'var(--t3)'};">${t.rp.acc!==null?(t.rp.acc*100).toFixed(0)+'%':'—'} (${t.rp.n})</td>
               <td style="color:${t.hp.acc!==null?pctCol(t.hp.acc):'var(--t3)'};">${t.hp.acc!==null?(t.hp.acc*100).toFixed(0)+'%':'—'} (${t.hp.n})</td>
               <td style="color:${dc};font-weight:700">${arrow} ${t.delta!==0?(t.delta>0?'+':'')+(t.delta*100).toFixed(0)+'%':''}</td>
@@ -14204,7 +14214,7 @@ function renderOverallTrends(){
         marginStr=`margin: ${Math.abs((p.hScore||0)-(p.aScore||0))}`;
       }
       const mu=_gameTitle(p.hA,p.awA,p.sport);
-      const sc=sportCol[window._normSport(p)]||'var(--t3)';
+      const sc='var(--pc)';
       return`<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
           ${_sportBadgeHtml(window._normSport(p),()=>sc)}
@@ -14243,11 +14253,11 @@ function renderOverallTrends(){
   </div>`;
 
   // ── Section 6: Self-Assessment (enhanced) ──
-  h+=`<div class="card" style="margin-bottom:12px;padding:10px;border-left:3px solid var(--nc)">
-    <div style="font-family:var(--mono);font-size:15px;color:var(--nc);letter-spacing:2px;margin-bottom:8px">// SELF-ASSESSMENT</div>
+  h+=`<div class="card" style="margin-bottom:12px;padding:10px;border-left:3px solid #00e644">
+    <div style="font-family:var(--mono);font-size:15px;color:#00e644;letter-spacing:2px;margin-bottom:8px">// SELF-ASSESSMENT</div>
     ${spStats.map(d=>{const bar=d.acc!==null?Math.round(d.acc*100):0;const col=pctCol(d.acc||0);return`<div style="margin-bottom:6px">
       <div style="display:flex;justify-content:space-between;margin-bottom:2px">
-        <span style="font-family:var(--orb);font-size:15px;font-weight:700;color:${sportCol[d.s]||'var(--t3)'}">${d.s}</span>
+        <span style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--pc)">${d.s}</span>
         <div style="display:flex;gap:8px">
           <span style="font-family:var(--mono);font-size:15px;color:${col};font-weight:700">${d.acc!==null?(d.acc*100).toFixed(1)+'%':'--'}</span>
           <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">${d.w}W-${d.l}L</span>
@@ -14257,8 +14267,8 @@ function renderOverallTrends(){
       <div style="height:4px;background:rgba(255,255,255,.07);border-radius:2px"><div style="width:${bar}%;height:100%;background:${col};border-radius:2px"></div></div>
     </div>`;}).join('')}
     <div style="border-top:1px solid rgba(255,255,255,.07);margin-top:8px;padding-top:8px">
-      ${bestSp?`<div style="font-family:var(--mono);font-size:16px;color:var(--nc);margin-bottom:3px">▲ STRONGEST: ${bestSp.s} — ${(bestSp.acc*100).toFixed(0)}% (${bestSp.n} bets)</div>`:''}
-      ${worstSp&&worstSp.s!==bestSp?.s?`<div style="font-family:var(--mono);font-size:16px;color:var(--hc);margin-bottom:3px">▼ WEAKEST: ${worstSp.s} — ${(worstSp.acc*100).toFixed(0)}% (${worstSp.n} bets)</div>`:''}
+      ${bestSp?`<div style="font-family:var(--mono);font-size:16px;color:#00e644;margin-bottom:3px">▲ STRONGEST: ${bestSp.s} — ${(bestSp.acc*100).toFixed(0)}% (${bestSp.n} bets)</div>`:''}
+      ${worstSp&&worstSp.s!==bestSp?.s?`<div style="font-family:var(--mono);font-size:16px;color:#ff1a1a;margin-bottom:3px">▼ WEAKEST: ${worstSp.s} — ${(worstSp.acc*100).toFixed(0)}% (${worstSp.n} bets)</div>`:''}
       ${bestType?`<div style="font-family:var(--mono);font-size:16px;color:var(--vc)">✓ BEST TYPE: ${bestType.t} — ${(bestType.acc*100).toFixed(0)}%</div>`:''}
     </div>
   </div>`;
@@ -14280,32 +14290,32 @@ function renderOverallTrends(){
 
   // ── Section 8: Win Analysis ──
   if(winAnalysis.length){
-    h+=`<div class="card" style="margin-bottom:12px;padding:10px;border-left:3px solid var(--nc)">
-      <div style="font-family:var(--mono);font-size:15px;color:var(--nc);letter-spacing:2px;margin-bottom:8px">// WIN ANALYSIS — LAST ${winAnalysis.length}</div>
-      ${winAnalysis.map(({p,factors})=>{const sc=sportCol[window._normSport(p)]||'var(--t3)';const mu=_gameTitle(p.hA,p.awA,p.sport);return`<div style="padding:6px 0;border-bottom:1px solid rgba(0,240,255,.07)">
+    h+=`<div class="card" style="margin-bottom:12px;padding:10px;border-left:3px solid #00e644">
+      <div style="font-family:var(--mono);font-size:15px;color:#00e644;letter-spacing:2px;margin-bottom:8px">// WIN ANALYSIS — LAST ${winAnalysis.length}</div>
+      ${winAnalysis.map(({p,factors})=>{const sc='var(--pc)';const mu=_gameTitle(p.hA,p.awA,p.sport);return`<div style="padding:6px 0;border-bottom:1px solid rgba(0,230,68,.07)">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:2px">
           ${_sportBadgeHtml(window._normSport(p),()=>sc)}
           <span style="font-family:var(--mono);font-size:15px;color:var(--t)">${_expandBetOn(p.betOn||'',p.sport)}</span>
-          <span style="font-family:var(--mono);font-size:14px;color:var(--nc)">WIN</span>
+          <span style="font-family:var(--mono);font-size:14px;color:#00e644">WIN</span>
         </div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3)">${mu} · ${p.date||''} · ${p.ml||''}</div>
-        <div style="font-family:var(--mono);font-size:14px;color:var(--nc);margin-top:2px">WHY IT WON: ${factors.length?factors.join(' · '):'model edge confirmed'}</div>
+        <div style="font-family:var(--mono);font-size:14px;color:#00e644;margin-top:2px">WHY IT WON: ${factors.length?factors.join(' · '):'model edge confirmed'}</div>
       </div>`;}).join('')}
     </div>`;
   }
 
   // ── Section 9: Loss Analysis ──
   if(lossAnalysis.length){
-    h+=`<div class="card" style="margin-bottom:12px;padding:10px;border-left:3px solid var(--hc)">
-      <div style="font-family:var(--mono);font-size:15px;color:var(--hc);letter-spacing:2px;margin-bottom:8px">// LOSS ANALYSIS — LAST ${lossAnalysis.length}</div>
-      ${lossAnalysis.map(({p,factors})=>{const sc=sportCol[window._normSport(p)]||'var(--t3)';const mu=_gameTitle(p.hA,p.awA,p.sport);return`<div style="padding:6px 0;border-bottom:1px solid rgba(255,32,144,.07)">
+    h+=`<div class="card" style="margin-bottom:12px;padding:10px;border-left:3px solid #ff1a1a">
+      <div style="font-family:var(--mono);font-size:15px;color:#ff1a1a;letter-spacing:2px;margin-bottom:8px">// LOSS ANALYSIS — LAST ${lossAnalysis.length}</div>
+      ${lossAnalysis.map(({p,factors})=>{const sc='var(--pc)';const mu=_gameTitle(p.hA,p.awA,p.sport);return`<div style="padding:6px 0;border-bottom:1px solid rgba(255,26,26,.07)">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:2px">
           ${_sportBadgeHtml(window._normSport(p),()=>sc)}
           <span style="font-family:var(--mono);font-size:15px;color:var(--t)">${_expandBetOn(p.betOn||'',p.sport)}</span>
-          <span style="font-family:var(--mono);font-size:14px;color:var(--hc)">LOSS</span>
+          <span style="font-family:var(--mono);font-size:14px;color:#ff1a1a">LOSS</span>
         </div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3)">${mu} · ${p.date||''} · ${p.ml||''}</div>
-        <div style="font-family:var(--mono);font-size:14px;color:var(--hc);margin-top:2px">POSSIBLE FACTORS: ${factors.length?factors.join(' · '):'none identified'}</div>
+        <div style="font-family:var(--mono);font-size:14px;color:#ff1a1a;margin-top:2px">POSSIBLE FACTORS: ${factors.length?factors.join(' · '):'none identified'}</div>
       </div>`;}).join('')}
     </div>`;
   }
@@ -14343,7 +14353,7 @@ function renderOverallTrends(){
       <div style="font-family:var(--mono);font-size:15px;color:var(--mc);letter-spacing:2px;margin-bottom:6px">// PLAYER PROPS PERFORMANCE</div>
       <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:8px">OVERALL: <span style="color:${pctCol(propAcc||0)};font-weight:700">${propAcc!==null?(propAcc*100).toFixed(0)+'%':'--'}</span> · ${propW}W/${propL}L · ${propBets.length} props</div>
       ${playerRows.length?`<div style="display:flex;flex-direction:column;gap:4px">
-        ${playerRows.map(([player,d])=>{const tot=d.w+d.l;const acc=d.w/tot;const col=pctCol(acc);const sc=sportCol[d.sport]||'var(--t3)';return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+        ${playerRows.map(([player,d])=>{const tot=d.w+d.l;const acc=d.w/tot;const col=pctCol(acc);const sc='var(--pc)';return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
           <div><span style="font-family:var(--mono);font-size:15px;color:var(--t)">${player}</span><span style="font-family:var(--mono);font-size:13px;color:${sc};margin-left:5px">${d.sport}</span></div>
           <div style="display:flex;gap:8px"><span style="font-family:var(--mono);font-size:16px;font-weight:700;color:${col}">${(acc*100).toFixed(0)}%</span><span style="font-family:var(--mono);font-size:14px;color:var(--t3)">${d.w}W-${d.l}L</span></div>
         </div>`;}).join('')}
@@ -24039,22 +24049,28 @@ window.renderBetTrends=renderBetTrends;
 function renderAnalyticsByBet(){
   var el=document.getElementById('analytics-bybet-content');if(!el)return;
   var tf=window._betTypeFilter||'ALL';
-  var all=getP().filter(function(p){return p.outcome!=='pending';});
+  // Retired-league removal, 2026-09-30 follow-up: scoped to the same
+  // active-league allowlist Bet History Analytics uses, so the record/
+  // net units/ROI/high-hit% summary here reflects the current portfolio.
+  var _ACTIVE_LEAGUES=new Set(['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','FB','PL','LIGA','CL','SERIEA']);
+  var all=getP().filter(function(p){return p.outcome!=='pending'&&_ACTIVE_LEAGUES.has(window._normSport(p));});
   if(!all.length){el.innerHTML='<div class="empty">NO SETTLED BETS YET</div>';return;}
   var pnl=function(p){return p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1;};
   var pC=function(r){return r>=.62?'var(--nc)':r>=.52?'var(--vc)':'var(--hc)';};
   var uC=function(u){return u>=0?'var(--nc)':'var(--hc)';};
-  // Bet type mapping
+  // Bet type mapping — Parlay/Other dropped 2026-09-30 (explicit request:
+  // this app doesn't lock parlays, so that row/filter was always empty;
+  // "Other" was an unclassified catch-all that only ever caught mis-tagged
+  // props/edge cases, not a real bet type worth its own row)
   var getType=function(p){
     var bt=(p.betType||'').toUpperCase();
     if(bt==='ML')return'ML';
     if(bt==='RL'||bt==='SPREAD'||bt==='ATS'||bt==='PL')return'Spread';
     if(bt==='OU'||bt==='TOTAL')return'O/U';
-    if(bt==='PARLAY')return'Parlay';
     if(bt==='PROP'||bt==='NRFI'||bt==='PLAYER_PROP')return'Props';
     return'Other';
   };
-  var TYPE_DEFS=['ALL','ML','O/U','Spread','Parlay','Props'];
+  var TYPE_DEFS=['ALL','ML','O/U','Spread','Props'];
   // Filter buttons
   var filterRow='<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">'+
     TYPE_DEFS.map(function(t){
@@ -24079,14 +24095,21 @@ function renderAnalyticsByBet(){
   var hhW=hhBets.filter(function(p){return p.outcome==='win';}).length;
   var hhAcc=hhBets.length?hhW/hhBets.length:null;
   var sumBar='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
-    +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:'+pC(acc||0)+'">'+(acc!==null?(acc*100).toFixed(1)+'%':'--')+'</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">WIN RATE</div></div>'
-    +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:20px;font-weight:700;color:var(--nc);white-space:nowrap">'+w+'W-'+l+'L</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">RECORD</div></div>'
-    +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:'+uC(units)+'">'+(units>=0?'+':'')+units.toFixed(1)+'u</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">NET UNITS</div></div>'
-    +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:'+uC(roi)+'">'+(roi>=0?'+':'')+roi.toFixed(1)+'%</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">ROI</div></div>'
-    +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px" title="Win rate among picks flagged 75%+ model probability at lock"><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:'+(hhAcc!==null?pC(hhAcc):'var(--t3)')+'">'+(hhAcc!==null?(hhAcc*100).toFixed(1)+'%':'--')+'</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">HIGH HIT % ('+hhBets.length+')</div></div>'
+    +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:#00e644">'+(acc!==null?(acc*100).toFixed(1)+'%':'--')+'</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">WIN RATE</div></div>'
+    +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:20px;font-weight:700;white-space:nowrap"><span style="color:#00e644">'+w+'W</span>-<span style="color:#ff1a1a">'+l+'L</span></div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">RECORD</div></div>'
+    +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:'+(units>=0?'#00e644':'#ff1a1a')+'">'+(units>=0?'+':'')+units.toFixed(1)+'u</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">NET UNITS</div></div>'
+    +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:'+(roi>=0?'#00e644':'#ff1a1a')+'">'+(roi>=0?'+':'')+roi.toFixed(1)+'%</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">ROI</div></div>'
+    +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px" title="Win rate among picks flagged 75%+ model probability at lock"><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:'+(hhAcc!==null?'#00e644':'var(--t3)')+'">'+(hhAcc!==null?(hhAcc*100).toFixed(1)+'%':'--')+'</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">HIGH HIT % ('+hhBets.length+')</div></div>'
     +'</div>';
-  // By type breakdown table
-  var typeRows=['ML','O/U','Spread','Parlay','Props','Other'].map(function(t){
+  // By type breakdown table — converted flex→grid, 2026-09-30 follow-up:
+  // free-floating flex children meant each row's RECORD/UNITS text landed
+  // at a different horizontal position depending on digit count (same
+  // class of bug already fixed for Bet History's BY LEAGUE list). A fixed
+  // 6-column grid, shared by the header row and every data row, keeps
+  // every column lined up regardless of value width. Parlay/Other rows
+  // dropped (this app doesn't lock parlays; Other was an empty catch-all).
+  var _BYBET_COLS='1fr 80px 60px 70px 65px 90px';
+  var typeRows=['ML','O/U','Spread','Props'].map(function(t){
     var tb=all.filter(function(p){return getType(p)===t;});if(!tb.length)return'';
     var tw=tb.filter(function(p){return p.outcome==='win';}).length;
     var ta=tb.length?tw/tb.length:null;
@@ -24096,18 +24119,18 @@ function renderAnalyticsByBet(){
     var thh=tb.filter(function(p){return p.winProb!=null&&p.winProb>=0.75;});
     var thhW=thh.filter(function(p){return p.outcome==='win';}).length;
     var thhAcc=thh.length?thhW/thh.length:null;
-    return'<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.05);font-family:var(--mono);font-size:17px">'
-      +'<span style="color:var(--t);min-width:70px">'+t+'</span>'
-      +'<span style="color:var(--t3)">'+tw+'W-'+(tb.length-tw)+'L</span>'
-      +'<span style="color:'+pC(ta||0)+';font-weight:700">'+(ta!==null?(ta*100).toFixed(1)+'%':'--')+'</span>'
-      +(avgO?'<span style="color:var(--t3)">'+avgO.toFixed(2)+'</span>':'<span></span>')
-      +'<span style="color:'+uC(tu)+'">'+(tu>=0?'+':'')+tu.toFixed(1)+'u</span>'
-      +'<span style="color:var(--gc);font-size:15px" title="High Hit % (75%+ flagged picks)">'+(thhAcc!==null?(thhAcc*100).toFixed(0)+'%·'+thh.length:'--')+'</span>'
+    return'<div style="display:grid;grid-template-columns:'+_BYBET_COLS+';gap:6px;align-items:center;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.05);font-family:var(--mono);font-size:17px">'
+      +'<span style="color:var(--pc)">'+t+'</span>'
+      +'<span style="text-align:right;white-space:nowrap"><span style="color:#00e644">'+tw+'W</span>-<span style="color:#ff1a1a">'+(tb.length-tw)+'L</span></span>'
+      +'<span style="text-align:right;color:'+pC(ta||0)+';font-weight:700">'+(ta!==null?(ta*100).toFixed(1)+'%':'--')+'</span>'
+      +'<span style="text-align:right;color:var(--t3)">'+(avgO?avgO.toFixed(2):'--')+'</span>'
+      +'<span style="text-align:right;color:'+(tu>=0?'#00e644':'#ff1a1a')+'">'+(tu>=0?'+':'')+tu.toFixed(1)+'u</span>'
+      +'<span style="text-align:right;color:var(--gc);font-size:15px" title="High Hit % (75%+ flagged picks)">'+(thhAcc!==null?(thhAcc*100).toFixed(0)+'%·'+thh.length:'--')+'</span>'
       +'</div>';
   }).filter(Boolean).join('');
   var typeTable='<div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">'
-    +'<div style="display:flex;justify-content:space-between;padding:6px 10px;background:rgba(10,0,24,.8);font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px">'
-    +'<span>BET TYPE</span><span>RECORD</span><span>WIN%</span><span>AVG ODDS</span><span>UNITS</span><span>HIGH HIT</span></div>'
+    +'<div style="display:grid;grid-template-columns:'+_BYBET_COLS+';gap:6px;padding:6px 10px;background:rgba(10,0,24,.8);font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px">'
+    +'<span>BET TYPE</span><span style="text-align:right">RECORD</span><span style="text-align:right">WIN%</span><span style="text-align:right">ODDS</span><span style="text-align:right">UNITS</span><span style="text-align:right">HIGH HIT</span></div>'
     +typeRows+'</div>';
   // By sport for selected type
   // Real cleanup, 2026-09-30: dropped MLB/WNBA (fully retired 2026-09-08,
@@ -24115,17 +24138,18 @@ function renderAnalyticsByBet(){
   // display history removed everywhere else) to match the canonical
   // active-sport set renderBySportAnalytics already uses.
   var sportCodes=[{s:'NHL',c:['NHL'],col:'var(--ic)'},{s:'NBA',c:['NBA'],col:'var(--pc)'},{s:'NFL',c:['NFL','FB'],col:'var(--hc)'},{s:'CFB',c:['CFB'],col:'var(--hc)'},{s:'SOCCER',c:['PL','LIGA','SERIEA','CL'],col:'var(--gc)'}];
+  var _BYBET_SPORT_COLS='1fr auto 60px 65px';
   var sportRows=sportCodes.map(function(sg){
     var sb2=bets.filter(function(p){return sg.c.some(function(c){return window._normSport(p)===c;});});
     if(!sb2.length)return'';
     var sw=sb2.filter(function(p){return p.outcome==='win';}).length;
     var sa=sb2.length?sw/sb2.length:null;
     var su=sb2.reduce(function(a,p){return a+pnl(p);},0);
-    return'<div style="display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:17px">'
-      +'<span style="color:var(--pc);min-width:80px">'+sg.s+'</span>'
-      +'<span><span style="color:#00e644">'+sw+'W</span>-<span style="color:#ff1a1a">'+(sb2.length-sw)+'L</span></span>'
-      +'<span style="color:'+pC(sa||0)+';font-weight:700">'+(sa!==null?(sa*100).toFixed(1)+'%':'--')+'</span>'
-      +'<span style="color:'+uC(su)+'">'+(su>=0?'+':'')+su.toFixed(1)+'u</span>'
+    return'<div style="display:grid;grid-template-columns:'+_BYBET_SPORT_COLS+';gap:6px;align-items:center;padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:17px">'
+      +'<span style="color:var(--pc)">'+sg.s+'</span>'
+      +'<span style="text-align:right;white-space:nowrap"><span style="color:#00e644">'+sw+'W</span>-<span style="color:#ff1a1a">'+(sb2.length-sw)+'L</span></span>'
+      +'<span style="text-align:right;color:'+pC(sa||0)+';font-weight:700">'+(sa!==null?(sa*100).toFixed(1)+'%':'--')+'</span>'
+      +'<span style="text-align:right;color:'+(su>=0?'#00e644':'#ff1a1a')+'">'+(su>=0?'+':'')+su.toFixed(1)+'u</span>'
       +'</div>';
   }).filter(Boolean).join('');
   var sportTable=sportRows?'<div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">'
@@ -24133,7 +24157,7 @@ function renderAnalyticsByBet(){
     +sportRows+'</div>':'';
   // Best combos
   var combos=[];
-  ['ML','O/U','Spread','Parlay','Props'].forEach(function(t){
+  ['ML','O/U','Spread','Props'].forEach(function(t){
     sportCodes.forEach(function(sg){
       var cb=all.filter(function(p){return getType(p)===t&&sg.c.some(function(c){return window._normSport(p)===c;});});
       if(cb.length<2)return;
@@ -24149,7 +24173,7 @@ function renderAnalyticsByBet(){
       +'<span style="color:var(--t)">'+c.label+'</span>'
       +'<span style="color:var(--t3)">'+c.n+' bets</span>'
       +'<span style="color:'+pC(c.acc)+';font-weight:700">'+(c.acc*100).toFixed(0)+'%</span>'
-      +'<span style="color:'+uC(c.units)+'">'+(c.units>=0?'+':'')+c.units.toFixed(1)+'u</span>'
+      +'<span style="color:'+(c.units>=0?'#00e644':'#ff1a1a')+'">'+(c.units>=0?'+':'')+c.units.toFixed(1)+'u</span>'
       +'</div>';
   }).join('');
   var comboTable=comboRows?'<div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">'
@@ -24250,21 +24274,27 @@ function renderBySportAnalytics(key){
     if(!cardBets.length)return'';
     const w=cardBets.filter(p=>p.outcome==='win').length;const l2=cardBets.filter(p=>p.outcome==='loss').length;
     const acc=cardBets.length?w/cardBets.length:null;const units=cardBets.reduce((a,p)=>a+pnl(p),0);
+    // Grid-aligned rows, 2026-09-30 follow-up: same free-floating-flex
+    // misalignment bug already fixed for Bet History's BY LEAGUE table
+    // (a row's RECORD/UNITS text shifted position based on digit count) --
+    // applied here too, both for BY BET TYPE and CALIBRATION.
+    const _TYPE_COLS='30px 1fr 44px 48px';
     const typeRows=['ML','RL','PL','OU','PROP'].map(t=>{
       const tb=cardBets.filter(p=>(p.betType||'').toUpperCase()===t);if(!tb.length)return'';
       const tw=tb.filter(p=>p.outcome==='win').length;const tl=tb.length-tw;const tu=tb.reduce((a,p)=>a+pnl(p),0);const ta=tb.length?tw/tb.length:null;
-      return`<div style="display:flex;justify-content:space-between;padding:3px 8px 3px 20px;border-top:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:15px"><span style="color:var(--pc)">${t}</span><span><span style="color:#00e644">${tw}W</span>-<span style="color:#ff1a1a">${tl}L</span></span><span style="color:${pC(ta||0)};font-weight:700">${ta!==null?(ta*100).toFixed(0)+'%':'--'}</span><span style="color:${uC(tu)}">${tu>=0?'+':''}${tu.toFixed(1)}u</span></div>`;
+      return`<div style="display:grid;grid-template-columns:${_TYPE_COLS};gap:6px;align-items:center;padding:3px 8px 3px 20px;border-top:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:15px"><span style="color:var(--pc)">${t}</span><span style="text-align:right;white-space:nowrap"><span style="color:#00e644">${tw}W</span>-<span style="color:#ff1a1a">${tl}L</span></span><span style="text-align:right;color:${pC(ta||0)};font-weight:700">${ta!==null?(ta*100).toFixed(0)+'%':'--'}</span><span style="text-align:right;color:${tu>=0?'#00e644':'#ff1a1a'}">${tu>=0?'+':''}${tu.toFixed(1)}u</span></div>`;
     }).filter(Boolean).join('');
+    const _CAL_COLS='1fr 44px 40px';
     const calBands=[{l:'70%+',min:.70,max:1},{l:'62-70%',min:.62,max:.70},{l:'55-62%',min:.55,max:.62},{l:'<55%',min:0,max:.55}];
-    const calRows=calBands.map(b=>{const cb=cardBets.filter(p=>{const wp=p.winProb||0;return wp>=b.min&&wp<b.max;});if(!cb.length)return'';const cw=cb.filter(p=>p.outcome==='win').length;const ca=cb.length?cw/cb.length:null;return`<div style="display:flex;justify-content:space-between;padding:2px 8px;border-top:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:14px"><span style="color:var(--t3)">${b.l}</span><span style="color:${pC(ca||0)}">${ca!==null?(ca*100).toFixed(0)+'%':'--'}</span><span style="color:var(--t3)">${cb.length}b</span></div>`;}).filter(Boolean).join('');
+    const calRows=calBands.map(b=>{const cb=cardBets.filter(p=>{const wp=p.winProb||0;return wp>=b.min&&wp<b.max;});if(!cb.length)return'';const cw=cb.filter(p=>p.outcome==='win').length;const ca=cb.length?cw/cb.length:null;return`<div style="display:grid;grid-template-columns:${_CAL_COLS};gap:6px;align-items:center;padding:2px 8px;border-top:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:14px"><span style="color:var(--t3)">${b.l}</span><span style="text-align:right;color:${pC(ca||0)}">${ca!==null?(ca*100).toFixed(0)+'%':'--'}</span><span style="text-align:right;color:var(--t3)">${cb.length}b</span></div>`;}).filter(Boolean).join('');
     const barW=acc?Math.round(acc*100):0;
     const l10=cardBets.slice(-10);const l10w=l10.filter(p=>p.outcome==='win').length;const l10acc=l10.length?l10w/l10.length:null;
     let streak=0,stType='';for(let i=cardBets.length-1;i>=0;i--){const o=cardBets[i].outcome;if(!stType){stType=o;streak=1;}else if(o===stType)streak++;else break;}
     return`<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden">
       <div style="padding:10px 12px;background:rgba(10,0,24,.8);border-bottom:1px solid rgba(255,255,255,.06)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-family:var(--orb);font-size:18px;font-weight:700;color:var(--pc)">${label}</span><div style="display:flex;gap:10px;font-family:var(--mono);font-size:16px"><span><span style="color:#00e644">${w}W</span>-<span style="color:#ff1a1a">${l2}L</span></span><span style="color:${pC(acc||0)};font-weight:700">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</span><span style="color:${uC(units)}">${units>=0?'+':''}${units.toFixed(1)}u</span></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-family:var(--orb);font-size:18px;font-weight:700;color:var(--pc)">${label}</span><div style="display:flex;gap:10px;font-family:var(--mono);font-size:16px"><span><span style="color:#00e644">${w}W</span>-<span style="color:#ff1a1a">${l2}L</span></span><span style="color:${pC(acc||0)};font-weight:700">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</span><span style="color:${units>=0?'#00e644':'#ff1a1a'}">${units>=0?'+':''}${units.toFixed(1)}u</span></div></div>
         <div style="height:5px;background:rgba(255,255,255,.07);border-radius:2px;margin-bottom:6px"><div style="width:${barW}%;height:100%;background:${pC(acc||0)};border-radius:2px"></div></div>
-        <div style="display:flex;gap:12px;font-family:var(--mono);font-size:15px;color:var(--t3)"><span>L10: <span style="color:${pC(l10acc||0)}">${l10acc!==null?(l10acc*100).toFixed(0)+'%':'--'}</span></span><span>STREAK: <span style="color:${stType==='win'?'var(--nc)':'var(--hc)'}">${streak}${stType==='win'?'W':'L'}</span></span><span>${cardBets.length} bets</span></div>
+        <div style="display:flex;gap:12px;font-family:var(--mono);font-size:15px;color:var(--t3)"><span>L10: <span style="color:${pC(l10acc||0)}">${l10acc!==null?(l10acc*100).toFixed(0)+'%':'--'}</span></span><span>STREAK: <span style="color:${stType==='win'?'#00e644':'#ff1a1a'}">${streak}${stType==='win'?'W':'L'}</span></span><span>${cardBets.length} bets</span></div>
       </div>
       ${typeRows?`<div style="background:rgba(4,0,12,.5)"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:2px;padding:5px 8px">BY BET TYPE</div>${typeRows}</div>`:''}
       ${calRows?`<div style="background:rgba(4,0,12,.4)"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:2px;padding:5px 8px">CALIBRATION</div>${calRows}</div>`:''}
@@ -24542,18 +24572,21 @@ function renderByPlayerAnalytics(){
     else if(p.outcome==='loss'){byPlayer[name].l++;byPlayer[name].u+=pnl(p);}
   });
   const players=Object.values(byPlayer).sort((a,b)=>(b.w+b.l)-(a.w+a.l));
-  const sportCol={NHL:'var(--ic)',NBA:'var(--pc)',NFL:'var(--hc)',default:'var(--t3)'};
+  // Uniform aesthetic, 2026-09-30 follow-up: every player's league tag is
+  // now the same neon magenta instead of a per-sport sportCol map, and
+  // wins/losses/units use the established flat green/red convention
+  // instead of the threshold-based pC()/cyan-uC() used elsewhere.
   const rows=players.map(pl=>{
     const n=pl.w+pl.l;const acc=n?pl.w/n:null;
     return`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.06);border-radius:3px;margin-bottom:5px">
       <div style="flex:1;min-width:0">
         <div style="font-family:var(--orb);font-size:16px;font-weight:700;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${pl.name}</div>
-        <div style="font-family:var(--mono);font-size:13px;color:${sportCol[pl.sport]||sportCol.default}">${pl.sport||'—'}</div>
+        <div style="font-family:var(--mono);font-size:13px;color:var(--pc)">${pl.sport||'—'}</div>
       </div>
-      <div style="display:flex;gap:10px;font-family:var(--mono);font-size:15px;flex-shrink:0">
-        <span>${pl.w}W-${pl.l}L</span>
+      <div style="display:flex;gap:10px;font-family:var(--mono);font-size:15px;flex-shrink:0;white-space:nowrap">
+        <span><span style="color:#00e644">${pl.w}W</span>-<span style="color:#ff1a1a">${pl.l}L</span></span>
         <span style="color:${pC(acc||0)};font-weight:700">${acc!==null?(acc*100).toFixed(0)+'%':'--'}</span>
-        <span style="color:${uC(pl.u)}">${pl.u>=0?'+':''}${pl.u.toFixed(1)}u</span>
+        <span style="color:${pl.u>=0?'#00e644':'#ff1a1a'}">${pl.u>=0?'+':''}${pl.u.toFixed(1)}u</span>
       </div>
     </div>`;
   }).join('');
@@ -24628,8 +24661,14 @@ function renderAnalyticsBetHistory(filter){
   // current active portfolio, not the full historical ledger. Matches the
   // same retired-league set already established elsewhere this session
   // (Top Picks History, By Player Analytics).
-  const _RETIRED_LEAGUES=new Set(['MLB','WNBA','CBB','WC','BUND','MLS']);
-  const all=getP().filter(p=>!_RETIRED_LEAGUES.has(window._normSport(p)));
+  // Switched from a retired-league blocklist to an active-league allowlist,
+  // 2026-09-30 follow-up: WTA/ATP/XP/TEN/UNKNOWN (none of which were ever
+  // added to _RETIRED_LEAGUES) kept leaking into the BY LEAGUE breakdown.
+  // Blocklisting them one-by-one is fragile against the next stray tag --
+  // an allowlist of the sports this app actually still locks picks for is
+  // the durable fix.
+  const _ACTIVE_LEAGUES=new Set(LEAGUE_CODES);
+  const all=getP().filter(p=>_ACTIVE_LEAGUES.has(window._normSport(p)));
   let bets=all;
   if(filter==='WIN')bets=all.filter(p=>p.outcome==='win');
   else if(filter==='LOSS')bets=all.filter(p=>p.outcome==='loss');
@@ -24672,10 +24711,9 @@ function renderAnalyticsBetHistory(filter){
   const sportBreak={};settled.forEach(p=>{const s=window._normSport(p)||'?';if(!sportBreak[s])sportBreak[s]={w:0,l:0};if(p.outcome==='win')sportBreak[s].w++;else sportBreak[s].l++;});
 
   let h=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-    <div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${pC(acc||0)}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">WIN RATE</div></div>
-    <div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:20px;font-weight:700;color:var(--nc);white-space:nowrap">${w}W-${l}L</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${settled.length} SETTLED</div></div>
-    <div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${uC(units)}">${units>=0?'+':''}${units.toFixed(1)}u</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">NET UNITS</div></div>
-    ${pending.length?`<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:var(--pc)">${pending.length}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">PENDING</div></div>`:''}
+    <div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:#00e644">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">WIN RATE</div></div>
+    <div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:20px;font-weight:700;white-space:nowrap"><span style="color:#00e644">${w}W</span>-<span style="color:#ff1a1a">${l}L</span></div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${settled.length} SETTLED</div></div>
+    <div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${units>=0?'#00e644':'#ff1a1a'}">${units>=0?'+':''}${units.toFixed(1)}u</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">NET UNITS</div></div>
   </div>`;
   if(avgWO||avgLO){h+=`<div class="card" style="margin-bottom:10px;padding:10px"><div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px;margin-bottom:6px">AVERAGE ODDS</div><div style="display:flex;gap:14px;font-family:var(--mono);font-size:16px">${avgWO?`<span>Win avg: <span style="color:var(--nc)">${avgWO.toFixed(2)}</span> dec</span>`:''} ${avgLO?`<span>Loss avg: <span style="color:var(--hc)">${avgLO.toFixed(2)}</span> dec</span>`:''}</div></div>`;}
   const sbRows=Object.entries(sportBreak).filter(([,d])=>d.w+d.l>0).sort((a,b)=>(b[1].w+b[1].l)-(a[1].w+a[1].l));
