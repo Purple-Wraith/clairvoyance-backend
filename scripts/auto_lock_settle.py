@@ -1066,6 +1066,51 @@ def gather_legs(page) -> dict:
               });
             }
           } catch (e) {}
+          // NBA -- same real gap as NHL just above, found the same day
+          // auditing the other sports: renderNBAGames() (the warmup a few
+          // lines below) does its own live cross-origin ESPN fetch with
+          // no same-origin fallback, so it gathers nothing in this headless
+          // context and _nbaGameCard() -- the only function that calls
+          // _autoLockCapture('NBA', ...) -- never runs. Confirmed
+          // separately against the real ledger: NBA's own settled ML bets
+          // show 0% real score capture across 130 real rows, the same
+          // signature NHL had before its fix. Unlike NHL/Liiga/SHL, there
+          // is no dedicated nba_schedule.json -- NBA's real same-origin
+          // data is docs/data.json's own nba.today (fetch_nba_scoreboard()
+          // in clairvoyance_update.py, real ML/spread/O-U already
+          // included). Fetched directly here (not assumed already loaded
+          // into window.__CV_DATA, whose own load timing in this headless
+          // context isn't guaranteed) and adapted into the minimal ESPN-
+          // event shape _nbaGameCard() itself expects (competitions[0].
+          // competitors/status/odds) -- reusing that real, already-correct
+          // card function instead of duplicating its model/market logic.
+          try {
+            const dataResp = await fetch('data.json', { cache: 'no-store' });
+            const cvData = dataResp.ok ? await dataResp.json() : null;
+            const nbaToday = cvData?.nba?.today || [];
+            const todayIso = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
+            nbaToday.forEach(g => {
+              if (!g.date) return;
+              const d = new Date(g.date);
+              const localIso = isNaN(d) ? g.date.slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
+              if (localIso !== todayIso || g.state === 'post') return;
+              const espnEv = {
+                id: g.id, date: g.date,
+                competitions: [{
+                  competitors: [
+                    { homeAway: 'home', team: { abbreviation: g.home, displayName: g.home }, score: String(g.homeScore ?? 0) },
+                    { homeAway: 'away', team: { abbreviation: g.away, displayName: g.away }, score: String(g.awayScore ?? 0) },
+                  ],
+                  status: { type: { state: g.state }, period: g.period, displayClock: g.displayClock },
+                  venue: { fullName: g.venue || '' },
+                  odds: (g.homeML != null || g.awayML != null || g.ou != null)
+                    ? [{ homeTeamOdds: { moneyLine: g.homeML }, awayTeamOdds: { moneyLine: g.awayML }, overUnder: g.ou, details: g.details || '' }]
+                    : [],
+                }],
+              };
+              if (typeof _nbaGameCard === 'function') { try { _nbaGameCard(espnEv); } catch (e) {} }
+            });
+          } catch (e) {}
           const warmups = [];
           if (typeof renderNBAGames === 'function') { try { renderNBAGames(); } catch (e) {} }
           if (typeof renderNHLGames === 'function') warmups.push(renderNHLGames().catch(() => {}));
