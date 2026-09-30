@@ -14028,8 +14028,18 @@ function renderOverallTrends(){
   function perfOf(bets){const w=bets.filter(p=>p.outcome==='win').length;const l=bets.filter(p=>p.outcome==='loss').length;const u=bets.reduce((a,p)=>a+pnl(p),0);return{w,l,n:bets.length,acc:bets.length?w/bets.length:null,u};}
 
   // ── Sport × bet-type hot/cold combos ─────────────────────────────────────
+  // Real bug, found auditing Trends accuracy 2026-09-30: this grouped by
+  // the raw p.sport field instead of _normSport(p) -- same class of bug
+  // already fixed for Bet History's BY LEAGUE breakdown last session.
+  // Confirmed live: 133 real NFL picks are stored with the ambiguous raw
+  // tag sport:'FOOTBALL' (not 'NFL'), so they fell into a fabricated
+  // "FOOTBALL" combo bucket instead of NFL's real one -- HOT SPOTS was
+  // showing "FOOTBALL ML 100% +17.1u (13W-0L)" as if "FOOTBALL" were a
+  // real league, while the true NFL_ML combo (properly normalized) is
+  // 11W-1L, and CFB_ML was undercounted by 7 real picks that leaked into
+  // the same fake bucket.
   const combos={};
-  for(const p of all){const k=(p.sport||'?')+'_'+(p.betType||'ML');if(!combos[k])combos[k]={key:k,sport:p.sport,type:p.betType,n:0,w:0,u:0};combos[k].n++;if(p.outcome==='win'){combos[k].w++;combos[k].u+=(parseFloat(p.decOdds)||2)-1;}else if(p.outcome==='loss')combos[k].u-=1;}
+  for(const p of all){const sp=window._normSport(p)||'?';const k=sp+'_'+(p.betType||'ML');if(!combos[k])combos[k]={key:k,sport:sp,type:p.betType,n:0,w:0,u:0};combos[k].n++;if(p.outcome==='win'){combos[k].w++;combos[k].u+=(parseFloat(p.decOdds)||2)-1;}else if(p.outcome==='loss')combos[k].u-=1;}
   const hotList=Object.values(combos).filter(c=>c.n>=3).sort((a,b)=>(b.w/b.n)-(a.w/a.n));
   const hot=hotList.slice(0,5),cold=hotList.slice(-5).reverse();
   // Uniform aesthetic, 2026-09-30 follow-up: every sport/league label in
@@ -14060,32 +14070,85 @@ function renderOverallTrends(){
   }
 
   // ── Trend comparison: recent vs historical ────────────────────────────────
-  const trendComp=(['NBA','NHL','NFL','CFB']).map(sp=>{
+  // Same stale 4-league coverage bug as Self-Assessment below -- expanded
+  // to the full trackedSports scope so hockey's minors and soccer aren't
+  // silently invisible from the recent-vs-historical comparison either.
+  const trendComp=trackedSports.map(sp=>{
     const rb=recent.filter(p=>window._normSport(p)===sp);const hb=historical.filter(p=>window._normSport(p)===sp);
     if(!rb.length&&!hb.length)return null;
     const rp=perfOf(rb);const hp=perfOf(hb);
-    const delta=(rp.acc||0)-(hp.acc||0);
+    // Real bug, found auditing Trends accuracy 2026-09-30: a sport with
+    // zero recent bets (rp.acc===null, e.g. NBA/CFB off-season gaps) had
+    // its null accuracy coerced to 0 by the `||0` fallback, so the delta
+    // math read that as "accuracy collapsed to 0%" and rendered a bright
+    // red "-77%" decline arrow for a sport that simply hasn't played
+    // recently -- not one that's actually performing worse. Delta is now
+    // null (renders as a neutral "~", no fabricated percentage) unless
+    // both buckets have at least 2 real bets to compare.
+    const delta=(rp.n>=2&&hp.n>=2)?(rp.acc-hp.acc):null;
     return{sp,rp,hp,delta};
   }).filter(Boolean);
 
   // ── Near misses — all sports, all bet types ───────────────────────────────
-  const nearMiss=all.filter(p=>p.outcome==='loss').filter(p=>{
-    // Team game ML/RL: lost by ≤2
-    if((p.betType==='ML'||p.betType==='PL'||p.betType==='RL')&&p.hScore!=null&&p.aScore!=null){
-      return Math.abs((p.hScore||0)-(p.aScore||0))<=2;
+  // Extracts a prop's real numeric line from betOn. Confirmed live against
+  // the real ledger this format is genuinely inconsistent across feeds:
+  // "Jalen Brunson PTS OVER 27.5", the goalie/skater "Carter Hart Saves
+  // (O/U 22.5)" parenthetical, "Colby Parkinson OVER 27.5 Receiving Yards"
+  // (extra trailing text after the number), and "Brett Howden Shots OVER
+  // 1.5 (-120)" (trailing odds) all need the number read from right after
+  // the OVER/UNDER keyword, not the old trailing-digit regex, which broke
+  // on every format except the plainest one. "Anytime TD"/"Anytime Goal"
+  // markets are excluded outright -- they're a binary yes/no occurrence,
+  // not a countable stat with a real line, so "missed by N" is meaningless
+  // for them (confirmed: the old code let these default to line=0, which
+  // fabricated 5 false "near misses" out of nothing every time
+  // playerResult happened to be 0 or 1).
+  function _propLineOf(betOn){
+    if(!betOn)return null;
+    if(/anytime/i.test(betOn))return null;
+    let m=/O\/U\s*([\d.]+)/i.exec(betOn);if(m)return parseFloat(m[1]);
+    m=/(OVER|UNDER)\s+([\d.]+)/i.exec(betOn);if(m)return parseFloat(m[2]);
+    return null;
+  }
+  const nearMiss=all.filter(p=>p.outcome==='loss').map(p=>{
+    // Team game ML: lost by ≤2
+    if(p.betType==='ML'&&p.hScore!=null&&p.aScore!=null){
+      const margin=Math.abs((p.hScore||0)-(p.aScore||0));
+      return margin<=2?{p,marginStr:`margin: ${margin}`}:null;
+    }
+    // Spread/RL: missed covering by ≤1.5 -- same cover-margin formula
+    // _gradeSettledPick uses for Top Picks grading, reused here since it's
+    // the correct math (actual signed margin + the picked line), not the
+    // raw score differential the old code showed for every bet type
+    // (confirmed live, real bug: "CMU at MIA UNDER 54.5" showed "margin:
+    // 49" -- the literal 52-3 score gap -- for a bet that actually missed
+    // its OU number by half a point; the same wrong-metric bug applied
+    // here too before Spread/RL was even included in this filter at all).
+    if((p.betType==='SPREAD'||p.betType==='RL')&&p.hScore!=null&&p.aScore!=null){
+      const m=/^(.+?)\s([+-][\d.]+)$/.exec(p.betOn||'');if(!m)return null;
+      const team=m[1],lineVal=parseFloat(m[2]);
+      const pickedHome=team===p.hA;
+      if(!pickedHome&&team!==p.awA)return null;
+      const pickedScore=pickedHome?p.hScore:p.aScore,oppScore=pickedHome?p.aScore:p.hScore;
+      const margin=(pickedScore-oppScore)+lineVal;
+      return(margin<0&&Math.abs(margin)<=1.5)?{p,marginStr:`missed cover by ${Math.abs(margin).toFixed(1)}`}:null;
     }
     // O/U: total within 1.5 of line
     if(p.betType==='OU'&&p.hScore!=null&&p.aScore!=null){
       const total=(p.hScore||0)+(p.aScore||0);const line=parseFloat((p.betOn||'').replace(/OVER|UNDER/gi,'').trim()||'0');
-      return !isNaN(line)&&Math.abs(total-line)<=1.5;
+      if(isNaN(line))return null;
+      const margin=Math.abs(total-line);
+      return margin<=1.5?{p,marginStr:`missed total by ${margin.toFixed(1)}`}:null;
     }
-    // Props: playerResult within 2 of line
+    // Props: playerResult within 2 of a real numeric line
     if(p.betType==='PROP'&&p.playerResult!=null){
-      const line=parseFloat((p.betOn||'').match(/([\d.]+)$/)?.[1]||'0');
-      return !isNaN(line)&&Math.abs(Number(p.playerResult)-line)<=2;
+      const line=_propLineOf(p.betOn||'');
+      if(line==null)return null;
+      const margin=Math.abs(Number(p.playerResult)-line);
+      return margin<=2?{p,marginStr:`missed by ${margin.toFixed(1)}`}:null;
     }
-    return false;
-  }).slice(-12).reverse();
+    return null;
+  }).filter(Boolean).slice(-12).reverse();
 
   // ── Confidence calibration ────────────────────────────────────────────────
   const confBands=[
@@ -14104,10 +14167,28 @@ function renderOverallTrends(){
   });
 
   // ── Self-assessment ───────────────────────────────────────────────────────
-  const spStats=['NBA','NHL','NFL','CFB'].map(s=>{const sb=all.filter(p=>window._normSport(p)===s);const p=perfOf(sb);return{s,...p};}).filter(d=>d.n>=3);
+  // Real coverage bug, found auditing Trends accuracy 2026-09-30: this
+  // only ever checked NBA/NHL/NFL/CFB, silently leaving 8 of the app's 12
+  // real active leagues (all of hockey's minors + all 4 soccer leagues)
+  // out of STRONGEST/WEAKEST entirely. Confirmed live: EXTRALIGA
+  // (81.8%, n=22) actually outperforms NHL (80.6%, n=129) point-estimate-
+  // wise, so "STRONGEST: NHL" wasn't even the top result among the app's
+  // own real portfolio -- just the top result among a stale 4-league
+  // subset. Expanded to the same trackedSports scope Recency already uses.
+  const spStats=trackedSports.map(s=>{const sb=all.filter(p=>window._normSport(p)===s);const p=perfOf(sb);return{s,...p};}).filter(d=>d.n>=3);
   spStats.sort((a,b)=>(b.acc||0)-(a.acc||0));
   const bestSp=spStats[0],worstSp=spStats[spStats.length-1];
-  const typeStats=['ML','RL','PL','OU','PROP'].map(t=>{const tb=all.filter(p=>p.betType===t);const p=perfOf(tb);return{t,...p};}).filter(d=>d.n>=3);
+  // Real bug, found auditing Trends accuracy 2026-09-30: checked raw
+  // betType against 'PL' (a value that has never once appeared in the
+  // real ledger -- 0 matches, always filtered out) while never checking
+  // 'SPREAD' at all, the actual field name for every real point-spread
+  // bet. Confirmed live: 240 active-league SPREAD bets (the single
+  // largest bet-type category after ML and O/U -- roughly a fifth of the
+  // whole portfolio) were completely invisible in BY BET TYPE and never
+  // eligible for the BEST TYPE callout. Folded RL/SPREAD/ATS/PL into one
+  // 'Spread' bucket, matching By Bet Analytics' own getType() convention.
+  const _typeOf=p=>{const bt=(p.betType||'').toUpperCase();return(bt==='RL'||bt==='SPREAD'||bt==='ATS'||bt==='PL')?'Spread':bt;};
+  const typeStats=['ML','Spread','OU','PROP'].map(t=>{const tb=all.filter(p=>_typeOf(p)===t);const p=perfOf(tb);return{t,...p};}).filter(d=>d.n>=3);
   typeStats.sort((a,b)=>(b.acc||0)-(a.acc||0));
   const bestType=typeStats[0];
 
@@ -14188,13 +14269,13 @@ function renderOverallTrends(){
         <thead><tr><th>SPORT</th><th>RECENT ACC</th><th>HIST ACC</th><th>TREND</th></tr></thead>
         <tbody>
           ${trendComp.map(t=>{
-            const arrow=t.delta>0.04?'▲':t.delta<-0.04?'▼':'~';
-            const dc=t.delta>0.04?'#00e644':t.delta<-0.04?'#ff1a1a':'var(--t3)';
+            const arrow=t.delta===null?'~':t.delta>0.04?'▲':t.delta<-0.04?'▼':'~';
+            const dc=t.delta===null?'var(--t3)':t.delta>0.04?'#00e644':t.delta<-0.04?'#ff1a1a':'var(--t3)';
             return`<tr>
               <td style="color:var(--pc);font-weight:700">${t.sp}</td>
               <td style="color:${t.rp.acc!==null?pctCol(t.rp.acc):'var(--t3)'};">${t.rp.acc!==null?(t.rp.acc*100).toFixed(0)+'%':'—'} (${t.rp.n})</td>
               <td style="color:${t.hp.acc!==null?pctCol(t.hp.acc):'var(--t3)'};">${t.hp.acc!==null?(t.hp.acc*100).toFixed(0)+'%':'—'} (${t.hp.n})</td>
-              <td style="color:${dc};font-weight:700">${arrow} ${t.delta!==0?(t.delta>0?'+':'')+(t.delta*100).toFixed(0)+'%':''}</td>
+              <td style="color:${dc};font-weight:700">${arrow}${t.delta!==null?' '+(t.delta>0?'+':'')+(t.delta*100).toFixed(0)+'%':''}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -14205,14 +14286,7 @@ function renderOverallTrends(){
   // ── Section 4: Near Misses — all sports, all bet types ──
   h+=`<div class="card" style="margin-bottom:12px;padding:10px">
     <div style="font-family:var(--mono);font-size:15px;color:var(--vc);letter-spacing:2px;margin-bottom:8px">// NEAR MISSES — LOSSES BY RAZOR MARGIN (ALL SPORTS & PROPS)</div>
-    ${nearMiss.length?nearMiss.map(p=>{
-      let marginStr='';
-      if(p.betType==='PROP'&&p.playerResult!=null){
-        const line=parseFloat((p.betOn||'').match(/([\d.]+)$/)?.[1]||'0');
-        marginStr=`missed by ${Math.abs(Number(p.playerResult)-line).toFixed(1)}`;
-      } else if(p.hScore!=null){
-        marginStr=`margin: ${Math.abs((p.hScore||0)-(p.aScore||0))}`;
-      }
+    ${nearMiss.length?nearMiss.map(({p,marginStr})=>{
       const mu=_gameTitle(p.hA,p.awA,p.sport);
       const sc='var(--pc)';
       return`<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">
