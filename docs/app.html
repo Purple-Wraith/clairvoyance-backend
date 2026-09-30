@@ -7434,10 +7434,26 @@ function _nflGameCard2(g){
   const spreadDog=spreadFav===g.home?g.away:g.home;
   const favIsHome=spreadFav===g.home;
   const favMarginMean=favIsHome?mc.avgMargin:-mc.avgMargin;
-  const favCoverP=Math.min(.95,Math.max(.05,_cfbCoverProb(favMarginMean,_NFL_SIGMA_MARGIN,baseSpread)));
+  // Same gap as CFB (fixed 2026-09-29, commit 7f055472): SPREAD/O-U
+  // probabilities here never went through any calibration, unlike ML
+  // above (nflEns already runs its p through sportCalibrate('NFL')). A
+  // full-ledger audit confirmed the identical overconfidence pattern for
+  // NFL -- 70%+ predicted SPREAD picks (n=24) actually hit only 37.5%,
+  // and 70%+ O-U picks (n=14) only 57.1% -- and adaptive_weights.json's
+  // cal_adj_by_sport.NFL already has a real learned correction
+  // ({0.55:-0.048,0.7:-0.09,0.75:-0.12}, larger than CFB's) that never
+  // reached grading because tier()'s shared _calAdjProbByType(p,mktType)
+  // call never passes a sport argument. Applying it directly here, same
+  // as the CFB fix, closes the gap without touching tier()/_evalMkts.
+  const _nflCalMkt=(p,mktType)=>{
+    if(typeof window._calAdjProbByType!=='function')return p;
+    const adj=window._calAdjProbByType(p,mktType,'NFL');
+    return(adj>0&&adj<1)?Math.min(.95,Math.max(.05,adj)):p;
+  };
+  const favCoverP=_nflCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(favMarginMean,_NFL_SIGMA_MARGIN,baseSpread))),'SPREAD');
   const dogCoverP=1-favCoverP;
   const ouL=mc.ouLine;
-  const overP=Math.min(.95,Math.max(.05,_cfbCoverProb(mc.avgTotal,_NFL_SIGMA_TOTAL,ouL)));
+  const overP=_nflCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(mc.avgTotal,_NFL_SIGMA_TOTAL,ouL))),'OU');
   const underP=1-overP;
   const gidSafe=(g.home+'_'+g.away).replace(/[^A-Za-z0-9_]/g,'');
   const rawMkts=[
