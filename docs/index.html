@@ -1748,7 +1748,7 @@ body{line-height:1.5}
       <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-rest" checked> Rest/Fatigue</label>
       <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-weather"> Weather</label>
       <button class="btn btn-p" style="margin-left:auto;padding:6px 18px" onclick="runSimulator()">RUN SIMULATION</button>
-      <button class="btn btn-o btn-sm" onclick="_simClearHistory()">CLEAR HISTORY</button>
+      <button class="btn btn-p btn-sm" onclick="_simClearHistory()">CLEAR HISTORY</button>
     </div>
 
     <!-- Results -->
@@ -25903,8 +25903,8 @@ function _simRender(el,sport,home,away,N,r){
     +'</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
       +'<button class="btn btn-p btn-sm" id="sim-lock-h">OPTIMAL '+home+' ML '+(hML>0?'+':'')+hML+'</button>'
-      +'<button class="btn btn-o btn-sm" id="sim-lock-a">OPTIMAL '+away+' ML '+(aML>0?'+':'')+aML+'</button>'
-      +'<button class="btn btn-o btn-sm" id="sim-lock-ou">OPTIMAL '+(r.overP>=.5?'OVER':'UNDER')+' '+_forceHalfLine(r.ou)+'</button>'
+      +'<button class="btn btn-p btn-sm" id="sim-lock-a">OPTIMAL '+away+' ML '+(aML>0?'+':'')+aML+'</button>'
+      +'<button class="btn btn-p btn-sm" id="sim-lock-ou">OPTIMAL '+(r.overP>=.5?'OVER':'UNDER')+' '+_forceHalfLine(r.ou)+'</button>'
     +'</div>';
   el.innerHTML=html;
   setTimeout(function(){
