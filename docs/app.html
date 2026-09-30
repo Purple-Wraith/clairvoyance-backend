@@ -3487,10 +3487,16 @@ function autoSettleFromESPN(games,targetDate){
 async function autoSettleNHL(targetDate){
   // See autoSettleFromESPN's comment -- same targetDate backfill pattern.
   targetDate=targetDate||today();
+  // Efficiency fix, 2026-09-30 auto-settle audit: skip the live fetch
+  // entirely when there's no pending NHL bet for this date at all --
+  // this used to fire on every settle pass regardless, even on a date
+  // with zero NHL bets locked.
+  const preds=getP();
+  if(!preds.some(p=>p.outcome==='pending'&&p.date===targetDate&&_normSport(p)==='NHL'))return;
   try{
     const r=await fetch(`https://api-web.nhle.com/v1/score/${targetDate}`,{mode:'cors'});
     if(!r.ok)return;const d=await r.json();
-    const preds=getP();let changed=false;
+    let changed=false;
     for(const g of(d.games||[])){
       if(g.gameState!=='FINAL'&&g.gameState!=='OFF')continue;
       // Defense in depth: NHL's endpoint is date-scoped by URL PATH
@@ -4642,29 +4648,15 @@ function recR(id,outcome,hScore,aScore){
   try{setTimeout(()=>{adaptiveTick();renderAdaptiveLearning();},200);}catch(e){}
   setTimeout(()=>{try{renderGlobalLiveBets();}catch(e){}try{renderHomeLockedBets();}catch(e){}try{renderNHLLockedBets();}catch(e){}try{renderNBALockedBets();}catch(e){}try{renderHomePage();}catch(e){}},120);
 }
-function autoSettleAll(){
-  const preds=getP();
-  const pending=preds.filter(p=>p.outcome==='pending');
-  if(!pending.length){toast('// NO PENDING BETS TO SETTLE','#ff9000');return;}
-  // WC R32 confirmed results (updated Jul 1 2026)
-  const WC_CONFIRMED=[
-    {winner:'Paraguay',losers:['Germany','GER']},{winner:'France',losers:['Sweden','SWE']},{winner:'Canada',losers:['South Africa','RSA']},{winner:'Morocco',losers:['Netherlands','NED']},{winner:'Brazil',losers:['Japan','JPN']},{winner:'Norway',losers:['Ivory Coast','CIV','Norway']},{winner:'Mexico',losers:['Ecuador','ECU']},
-  ];
-  let settled=0;
-  pending.forEach(bet=>{
-    if(bet.outcome!=='pending')return;
-    const bStr=((bet.betOn||bet.pick||'')+'').toLowerCase();
-    let resolved=null;
-    WC_CONFIRMED.forEach(r=>{
-      if(resolved)return;
-      if(bStr.includes(r.winner.toLowerCase()))resolved='win';
-      else if(r.losers.some(l=>bStr.includes(l.toLowerCase())))resolved='loss';
-    });
-    if(resolved){recR(bet.id,resolved);settled++;}
-  });
-  if(settled===0)toast('// NO MATCHING BETS FOUND','#ff9000');
-}
-window.autoSettleAll=autoSettleAll;
+// Real dead code, found + removed 2026-09-30 auto-settle audit: a second
+// autoSettleAll() used to be declared here (a hardcoded, one-time World
+// Cup R32 result table -- WC is fully retired now). Function
+// declarations at top level are fully hoisted before any script on the
+// page runs, and the later, real, unified autoSettleAll(btn) declared
+// further down (search "AUTO SETTLE ALL — unified settle") always won on
+// window.autoSettleAll -- this whole block, including its own
+// `window.autoSettleAll=autoSettleAll` line, was unreachable from the
+// moment it was written.
 function recRFromLog(date,recId,outcome){
   const log=getDailyLog();const preds=getP();
   if(log[date]){const rec=log[date].recs.find(r=>r.id===recId);if(rec)rec.outcome=outcome;saveDailyLog(log);}
@@ -6821,11 +6813,16 @@ async function autoSettleCFB(targetDate){
   // dates= param confirmed directly against ESPN's real API to return
   // real historical events for an arbitrary past date, not just "today".
   targetDate=targetDate||today();
+  // Efficiency fix, 2026-09-30 auto-settle audit: skip the live fetch
+  // (a 300-event scoreboard pull) entirely when there's no pending CFB
+  // bet for this date at all.
+  const preds=getP();
+  if(!preds.some(p=>p.outcome==='pending'&&p.date===targetDate&&_normSport(p)==='CFB'))return;
   try{
     const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?limit=300&dates='+targetDate.replace(/-/g,''));
     if(!r.ok)return;
     const d=await r.json();
-    const preds=getP();let changed=false;
+    let changed=false;
     for(const ev of(d.events||[])){
       const comp=(ev.competitions||[{}])[0];
       if(comp.status?.type?.state!=='post')continue;
@@ -6947,11 +6944,18 @@ async function autoSettleExtraliga(targetDate){return _autoSettleFlashscoreHocke
 // autoSettleCFB does rather than needing a JSON-snapshot fallback.
 async function autoSettleNCAAH(targetDate){
   targetDate=targetDate||today();
+  // Efficiency fix, 2026-09-30 auto-settle audit: skip the live fetch
+  // entirely when there's no pending NCAAH bet for this date -- nothing
+  // currently locks NCAAH at all (no lock button wired up yet, see this
+  // function's own file-level comment history), so today this always
+  // skips, but the guard is real and correct for whenever that changes.
+  const preds=getP();
+  if(!preds.some(p=>p.outcome==='pending'&&p.date===targetDate&&_normSport(p)==='NCAAH'))return;
   try{
     const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/hockey/mens-college-hockey/scoreboard?limit=300&dates='+targetDate.replace(/-/g,''));
     if(!r.ok)return;
     const d=await r.json();
-    const preds=getP();let changed=false;
+    let changed=false;
     for(const ev of(d.events||[])){
       const comp=(ev.competitions||[{}])[0];
       if(comp.status?.type?.state!=='post')continue;
@@ -7000,19 +7004,17 @@ async function autoSettleNCAAH(targetDate){
 // even for a real O/U pick); parses the always-correct betOn text instead:
 // betOn===p.hA -> home win, betOn==='DRAW' -> draw, betOn===p.awA -> away
 // win, /^(OVER|UNDER) N$/ -> goals total.
+// Real cleanup, 2026-09-30, auto-settle efficiency audit: World Cup,
+// Bundesliga ('bl'), and MLS entries removed -- all 3 are fully retired
+// (no new picks generate for any of them, see PRODUCT_SPORTS history in
+// auto_lock_settle.py) and a real ledger check found zero pending bets
+// in any of them, so they were pure dead weight: 3 extra live ESPN
+// fetches, forever, on every single settle pass, for leagues that can
+// never have anything left to settle.
 const _SOC_SETTLE_LEAGUES=[
-  // World Cup (and any other FIFA international tournament under the same
-  // ESPN slug) -- previously missing entirely, so a real World Cup bet
-  // (country-vs-country, _normSport() tags these 'WC') could never auto-
-  // settle no matter how correct the date-window logic was. 'fifa.world'
-  // confirmed directly against ESPN's real API (returns real 2026 World
-  // Cup fixtures/scores, e.g. the real ARG 2-1 ENG semifinal).
-  {key:'wc',espn:'fifa.world',sport:'WC'},
   {key:'cl',espn:'UEFA.champions',sport:'CL'},
   {key:'pl',espn:'eng.1',sport:'PL'},
   {key:'liga',espn:'esp.1',sport:'LIGA'},
-  {key:'bl',espn:'ger.1',sport:'BUND'},
-  {key:'mls',espn:'usa.1',sport:'MLS'},
   {key:'ita',espn:'ita.1',sport:'SERIEA'},
 ];
 async function autoSettleSoccer(targetDate){
@@ -7043,6 +7045,12 @@ async function autoSettleSoccer(targetDate){
     return _socMatchAliases[k]||k;
   };
   for(const lg of _SOC_SETTLE_LEAGUES){
+    // Efficiency fix, 2026-09-30: skip this league's live ESPN fetch
+    // entirely when nothing pending actually needs it today -- with
+    // typically 0-2 soccer bets pending across all 4 leagues combined,
+    // this pass used to fire 4 live requests every single time regardless,
+    // 3 of them almost always pointless.
+    if(!preds.some(p=>p.outcome==='pending'&&p.date===targetDate&&_normSport(p)===lg.sport))continue;
     try{
       const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/'+lg.espn+'/scoreboard?dates='+targetDate.replace(/-/g,''));
       if(!r.ok)continue;
@@ -7637,11 +7645,15 @@ function lockNFLGame(hA,awA,betType,betOn,ml,winProb,ouLine){
 async function autoSettleNFL2(targetDate){
   // See autoSettleFromESPN's comment -- same targetDate backfill pattern.
   targetDate=targetDate||today();
+  // Efficiency fix, 2026-09-30 auto-settle audit: skip the live fetch
+  // entirely when there's no pending NFL bet for this date at all.
+  const preds=getP();
+  if(!preds.some(p=>p.outcome==='pending'&&p.date===targetDate&&_normSport(p)==='NFL'))return;
   try{
     const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=100&dates='+targetDate.replace(/-/g,''));
     if(!r.ok)return;
     const d=await r.json();
-    const preds=getP();let changed=false;
+    let changed=false;
     for(const ev of(d.events||[])){
       const comp=(ev.competitions||[{}])[0];
       if(comp.status?.type?.state!=='post')continue;
@@ -14886,10 +14898,16 @@ function renderCrossDeviceSync(){
 async function autoSettleNBA(targetDate){
   // See autoSettleFromESPN's comment -- same targetDate backfill pattern.
   targetDate=targetDate||today();
+  // Efficiency fix, 2026-09-30 auto-settle audit: skip the live fetch
+  // entirely when there's no pending NBA bet for this date at all --
+  // matters most in the off-season, when this used to fire a live
+  // scoreboard request every settle pass for a sport with nothing locked.
+  const preds=getP();
+  if(!preds.some(p=>p.outcome==='pending'&&p.date===targetDate&&_normSport(p)==='NBA'))return;
   try{
     const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?seasontype=3&dates='+targetDate.replace(/-/g,''));
     if(!r.ok)return;const d=await r.json();
-    const preds=getP();let changed=false;
+    let changed=false;
     for(const ev of(d.events||[])){
       const c=ev.competitions?.[0];if(!c)continue;
       if(c.status?.type?.state!=='post')continue;
