@@ -3580,7 +3580,10 @@ function _ouLockDir(hA,awA,date,baseOverP,baseL,inputId,dir,sport){
   // avoid a push. Forced here (before the probability delta below is
   // computed) rather than just at display time, so the locked
   // probability and the locked label always agree on the same final line.
-  nl=parseFloat(_forceHalfLine(nl));
+  // Direction-aware since 2026-09-30 (_forceHalfLineDir) -- a whole-number
+  // line rounds toward whichever half-point is easier for the side
+  // actually being locked (OVER down, UNDER up) instead of always up.
+  nl=parseFloat(_forceHalfLineDir(nl,dir));
   var delta=nl-parseFloat(baseL);
   var np=Math.min(.78,Math.max(.22,baseOverP-delta*0.07));
   var lockP=dir==='OVER'?np:1-np;
@@ -3598,9 +3601,10 @@ function _ouParlayDir(hA,awA,date,baseOverP,baseL,inputId,dir,sport){
   var inp=document.getElementById(inputId);
   var nl=inp?parseFloat(inp.value):parseFloat(baseL);
   if(isNaN(nl))nl=parseFloat(baseL);
-  // Same .5-forcing as _ouLockDir above -- explicit request, every locked
-  // O/U line must end in .5.
-  nl=parseFloat(_forceHalfLine(nl));
+  // Same direction-aware .5-forcing as _ouLockDir above -- explicit
+  // request, every locked O/U line must end in .5, rounded toward
+  // whichever half-point is easier for the side actually being locked.
+  nl=parseFloat(_forceHalfLineDir(nl,dir));
   var delta=nl-parseFloat(baseL);
   var np=Math.min(.78,Math.max(.22,baseOverP-delta*0.07));
   var lockP=dir==='OVER'?np:1-np;
@@ -3696,6 +3700,22 @@ function _ouDefaultLine(avgT,fallback){
 function _forceHalfLine(x){
   const n=Math.round(parseFloat(x)*2)/2;
   return(Number.isInteger(n)?n+0.5:n).toFixed(1);
+}
+// Direction-aware O/U half-point rounding — explicit request, 2026-09-30:
+// _forceHalfLine above always bumps a whole-number line UP (52.0 -> 52.5)
+// with no idea which side is actually being locked, which quietly favors
+// UNDER over OVER every single time a line happens to land on a whole
+// number (an OVER lock got the *harder* number to clear, 52.5, when the
+// bettor's own side should get the easier one). Bumps toward whichever
+// side benefits the side actually being locked instead: OVER rounds DOWN
+// (52.0 -> 51.5, easier to clear), UNDER rounds UP (52.0 -> 52.5, still
+// easier to clear from that side). A line that's already a real half-point
+// (the overwhelmingly common case — market lines are already .5) is
+// returned unchanged either way, exactly like _forceHalfLine.
+function _forceHalfLineDir(x,dir){
+  const n=Math.round(parseFloat(x)*2)/2;
+  if(!Number.isInteger(n))return n.toFixed(1);
+  return(dir==='UNDER'?n+0.5:n-0.5).toFixed(1);
 }
 function _isMobileViewport(){return window.matchMedia&&window.matchMedia('(max-width:768px)').matches;}
 function _isMobileBtn(el){return el.tagName==='BUTTON'||el.classList.contains('btn')||el.classList.contains('btn-n')||el.classList.contains('btn-p')||el.classList.contains('btn-o')||el.classList.contains('btn-g')||el.classList.contains('btn-h')||el.classList.contains('btn-i')||el.classList.contains('btn-sm');}
@@ -6305,8 +6325,10 @@ function _cfbOuLockDir(hA,awA,baseOverP,baseL,inputId,dir){
   let nl=inp?parseFloat(inp.value):parseFloat(baseL);
   if(isNaN(nl))nl=parseFloat(baseL);
   // Same real bug/fix as _cfbSpreadLockDir just above -- never forced a
-  // half-point O/U line.
-  nl=parseFloat(_forceHalfLine(nl));
+  // half-point O/U line. Direction-aware since 2026-09-30 (see
+  // _forceHalfLineDir): a whole-number line rounds toward whichever
+  // half-point is easier for the side actually being locked.
+  nl=parseFloat(_forceHalfLineDir(nl,dir));
   const delta=nl-parseFloat(baseL);
   const np=Math.min(.95,Math.max(.05,baseOverP-delta*0.07));
   const p=dir==='OVER'?np:1-np;
@@ -7509,7 +7531,10 @@ function _nflOuLockDir(hA,awA,baseOverP,baseL,inputId,dir){
   let nl=inp?parseFloat(inp.value):parseFloat(baseL);
   if(isNaN(nl))nl=parseFloat(baseL);
   // Same real bug/fix as _cfbOuLockDir -- never forced a half-point line.
-  nl=parseFloat(_forceHalfLine(nl));
+  // Direction-aware since 2026-09-30 (see _forceHalfLineDir): a
+  // whole-number line rounds toward whichever half-point is easier for
+  // the side actually being locked.
+  nl=parseFloat(_forceHalfLineDir(nl,dir));
   const delta=nl-parseFloat(baseL);
   const np=Math.min(.95,Math.max(.05,baseOverP-delta*0.07));
   const p=dir==='OVER'?np:1-np;
