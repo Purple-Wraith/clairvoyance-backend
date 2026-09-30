@@ -15795,10 +15795,10 @@ function _renderTopPicksHistoryHTML(dateStr){
 function _renderTopPicksDateRow(selected){
   const el=document.getElementById('toppicks-date-row');if(!el)return;
   const todayStr=today();
-  // Capped to the most recent 60 real dates -- the full ledger goes back
-  // over a year, and a 250+ option dropdown is unusable; 60 days covers
+  // Capped to the most recent 30 real dates -- the full ledger goes back
+  // over a year, and a 250+ option dropdown is unusable; 30 days covers
   // "look back in time" meaningfully without that.
-  const dates=Array.from(new Set(getP().map(p=>p.date).filter(d=>d&&d!==todayStr))).sort().reverse().slice(0,60);
+  const dates=Array.from(new Set(getP().map(p=>p.date).filter(d=>d&&d!==todayStr))).sort().reverse().slice(0,30);
   const opts=[`<option value="${todayStr}">TODAY — ${_topPicksDateLabel(todayStr)}</option>`]
     .concat(dates.map(d=>`<option value="${d}">${_topPicksDateLabel(d)}</option>`));
   el.innerHTML=`<select onchange="renderTopPicksToday(true,this.value)" style="font-family:var(--mono);font-size:15px;padding:6px 10px;background:rgba(0,0,0,.6);border:1px solid var(--pc);color:var(--pc);border-radius:3px;letter-spacing:1px">${opts.join('')}</select>`;
