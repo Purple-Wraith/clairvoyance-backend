@@ -4576,6 +4576,29 @@ function recR(id,outcome,hScore,aScore){
   }
   preds[i].outcome=outcome;preds[i].settledAt=Date.now();
   if(hScore!==undefined)preds[i].hScore=hScore;if(aScore!==undefined)preds[i].aScore=aScore;
+  // Real gap, found + fixed 2026-09-30 auditing the settlement email:
+  // manual WIN/LOSS buttons (recR called with only id+outcome, no score)
+  // never attach a real score even when one is already sitting in
+  // already-loaded client-side schedule data -- confirmed live against
+  // the real ledger that most LIIGA/SHL/NLA/EXTRALIGA settled bets have
+  // no hScore/aScore at all (source:"manual"), while the automated
+  // _autoSettleFlashscoreHockey path -- which DOES write real scores --
+  // never gets a chance to run on a bet a human already marked non-
+  // pending. Best-effort backfill: only runs when the caller didn't
+  // already pass an explicit score, only for leagues with an already-
+  // loaded same-origin schedule cache, and silently no-ops (same as
+  // today's behavior) if that cache isn't loaded or the game isn't found
+  // -- never blocks or delays the manual settle action itself.
+  if(hScore===undefined&&aScore===undefined){
+    try{
+      const p0=preds[i];
+      const _hkCaches={LIIGA:_LIIGA_DATA,SHL:_SHL_DATA,NLA:_NLA_DATA,EXTRALIGA:_EXTRALIGA_DATA};
+      const cache=_hkCaches[_normSport(p0)];
+      const g=cache?.games?.find(g=>g.state==='post'&&g.homeScore!=null&&g.awayScore!=null&&
+        ((g.homeName===p0.hA&&g.awayName===p0.awA)||(g.homeName===p0.awA&&g.awayName===p0.hA)));
+      if(g){preds[i].hScore=g.homeName===p0.hA?g.homeScore:g.awayScore;preds[i].aScore=g.homeName===p0.hA?g.awayScore:g.homeScore;}
+    }catch(e){}
+  }
   saveP(preds);
   const p=preds[i];
   // Always sync to daily_log — create the day + record if it doesn't exist yet
