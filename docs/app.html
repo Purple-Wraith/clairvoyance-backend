@@ -39,6 +39,12 @@
   --orb:'Orbitron',sans-serif;--mono:'Share Tech Mono',monospace;--ex:'Exo 2',sans-serif;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+/* Explicit request, 2026-09-30: every schedule day/week/conference filter
+   select across Basketball/Football/Hockey/Soccer (previously each
+   sport's own team color) recolored uniform neon magenta, matching Top
+   Picks' own date dropdown. Global (not just mobile) since the request
+   was for the dropdowns everywhere, not phone-specific. */
+select[id$="-filter-day"],select[id$="-filter-week"],select[id$="-filter-conf"]{border-color:var(--pc)!important;color:var(--pc)!important}
 html{height:-webkit-fill-available;-webkit-text-size-adjust:100%}
 body{font-family:var(--ex);font-size:25px;color:var(--t);background-color:#0d0d0d;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.04) 0px,rgba(255,255,255,.04) 1px,transparent 1px,transparent 50%),repeating-linear-gradient(-45deg,rgba(255,255,255,.04) 0px,rgba(255,255,255,.04) 1px,transparent 1px,transparent 50%),repeating-linear-gradient(0deg,rgba(0,0,0,.25) 0px,rgba(0,0,0,.25) 1px,transparent 1px,transparent 22px),repeating-linear-gradient(90deg,rgba(0,0,0,.25) 0px,rgba(0,0,0,.25) 1px,transparent 1px,transparent 22px),radial-gradient(ellipse at 0% 0%,rgba(240,0,255,.10) 0%,transparent 50%),radial-gradient(ellipse at 100% 0%,rgba(77,121,255,.08) 0%,transparent 45%),radial-gradient(ellipse at 50% 100%,rgba(0,240,255,.06) 0%,transparent 45%);background-size:22px 22px,22px 22px,22px 22px,22px 22px,100% 100%,100% 100%,100% 100%;-webkit-font-smoothing:antialiased;position:fixed;inset:0;overflow:hidden}
 body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(240,0,255,.006) 2px,rgba(240,0,255,.006) 3px);pointer-events:none;z-index:9999}
@@ -214,8 +220,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
      elements with zero margin, one long timestamp away from actually
      overlapping. 7px + tighter letter-spacing gives it real breathing
      room instead of exactly filling its column. */
-  html #hdr-automation-status{font-size:7px!important;gap:2px!important;letter-spacing:0!important}
-  html #hdr-automation-status div{white-space:nowrap}
+  html #hdr-automation-status,html #hdr-automation-status-left{font-size:7px!important;gap:2px!important;letter-spacing:0!important}
+  html #hdr-automation-status div,html #hdr-automation-status-left div{white-space:nowrap}
   /* Adaptive tab's "Performance Snapshot" row (renderAdaptiveLearning) --
      4 cards each with a 27px hero number, fine at desktop widths but on
      a ~375px phone each card's actual width (~85px in a straight 4-up
@@ -634,8 +640,9 @@ body{line-height:1.5}
 
 <div id="app">
 <header id="hdr">
-  <div class="hdr-l">
+  <div class="hdr-l" style="display:flex;align-items:center;gap:6px">
     <span id="live-dot" title="Live games in progress" style="display:none;width:8px;height:8px;background:var(--hc);border-radius:50%;margin-left:6px;animation:blink 1s infinite;vertical-align:middle"></span>
+    <div id="hdr-automation-status-left" style="font-family:var(--mono);font-size:15px;letter-spacing:.3px;line-height:1.3"></div>
   </div>
   <div class="logo" style="display:flex;flex-direction:column;align-items:center;gap:3px">CLAIRVOYANCE
     <div style="display:flex;align-items:center;gap:0;justify-content:center">
@@ -687,7 +694,7 @@ body{line-height:1.5}
 <!-- TOP PICKS -->
 <div id="sp-toppicks" class="spane">
   <div class="sa" style="padding:16px">
-    <div id="toppicks-date-row" style="margin-bottom:12px"></div>
+    <div id="toppicks-date-row" style="margin-bottom:12px;display:flex;justify-content:flex-end"></div>
     <div id="toppicks-content"></div>
   </div>
 </div>
@@ -15761,20 +15768,23 @@ async function computeTopPicksToday(){
   await new Promise(r=>setTimeout(r,300));
   return window._autoLockLegs||[];
 }
-function _topPickRowHTML(e,rankNum){
+function _topPickRowHTML(e){
   const col=e.tierN===3?'var(--gc)':e.tierN===2?'var(--nc)':'var(--ic)';
   const lbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][e.tierN];
   const m=e.marketInfo||{};
   // Explicit color spec, 2026-09-30: matchup line neon magenta, pick
   // label neon cyan (regardless of sport -- was per-sport/per-tier
   // before), EV dropped from the stat line, grade tag + probability kept.
+  // Rank-number badge removed 2026-09-30, explicit request ("remove
+  // numbers from top picks of the day") -- each section's own W-L record
+  // (see _recordHTML in _topPicksBodyHTML) carries the "how good is this
+  // list" signal instead.
   const so=e.settledOutcome; // 'win'|'loss'|'push'|null -- see _gradeSettledPick
   const soCol=so==='win'?'#00e644':so==='loss'?'#ff1a1a':'var(--t3)';
   const settledBadge=so?`<span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${soCol};color:${soCol};border-radius:2px;margin-left:3px">${so.toUpperCase()}</span>`:'';
   const gr=e.gameResult;
   const scoreLine=(so&&gr&&gr.hScore!=null&&gr.aScore!=null)?` · ${e.awA} ${gr.aScore} – ${e.hA} ${gr.hScore}`:'';
   return`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,0,24,.7);border-left:2px solid ${so==='loss'?'#ff1a1a':so==='win'?'#00e644':col};border-radius:2px;margin-bottom:5px">
-    ${rankNum?`<div style="font-family:var(--orb);font-size:17px;font-weight:900;color:${col};min-width:20px;text-align:center">${rankNum}</div>`:''}
     <div style="flex:1;min-width:0">
       <div style="font-family:var(--mono);font-size:12px;color:var(--pc);letter-spacing:1px">${e.leagueLabel} · ${e.matchup}${scoreLine}</div>
       <div style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--nc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.best.label}</div>
@@ -15806,19 +15816,29 @@ function _topPicksBodyHTML(legs,header,emptyMsg){
   // "how good is this bet" the rest of the app already trusts, not a
   // second, different opinion invented just for this list.
   const rank=e=>e.tierN*100+(e.marketInfo.mfScore||0);
+  // Explicit request, 2026-09-30: show each section's own real W-L record
+  // (wins green, losses red) next to its header -- computed from
+  // settledOutcome, which is null for anything not finished yet, so an
+  // all-pending section just shows no record rather than a misleading 0-0.
+  const _recordHTML=list=>{
+    const w=list.filter(e=>e.settledOutcome==='win').length;
+    const l=list.filter(e=>e.settledOutcome==='loss').length;
+    if(!w&&!l)return'';
+    return` <span style="font-family:var(--mono);font-size:12px;font-weight:700"><span style="color:#00e644">${w}W</span>-<span style="color:#ff1a1a">${l}L</span></span>`;
+  };
   const byLeague={};
   qualifying.forEach(e=>{(byLeague[e.leagueLabel]=byLeague[e.leagueLabel]||[]).push(e);});
   const leagueSections=Object.keys(byLeague).sort().map(label=>{
     const top3=byLeague[label].slice().sort((a,b)=>rank(b)-rank(a)).slice(0,3);
     return`<div style="margin-bottom:10px">
-      <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--nc);margin-bottom:5px">${label.toUpperCase()} — TOP ${top3.length}</div>
+      <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--nc);margin-bottom:5px">${label.toUpperCase()} — TOP ${top3.length}${_recordHTML(top3)}</div>
       ${top3.map(e=>_topPickRowHTML(e)).join('')}
     </div>`;
   }).join('');
   const top10=qualifying.slice().sort((a,b)=>rank(b)-rank(a)).slice(0,10);
   const top10Html=`<div style="margin-bottom:14px">
-    <div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--pc);margin-bottom:6px">★ TOP ${top10.length} OF THE DAY — ALL SPORTS</div>
-    ${top10.map((e,i)=>_topPickRowHTML(e,i+1)).join('')}
+    <div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--pc);margin-bottom:6px">★ TOP ${top10.length} OF THE DAY — ALL SPORTS${_recordHTML(top10)}</div>
+    ${top10.map(e=>_topPickRowHTML(e)).join('')}
   </div>`;
   return`${header}
     <div style="font-family:var(--mono);font-size:12px;color:var(--nc);margin-bottom:10px">${qualifying.length} qualifying pick${qualifying.length===1?'':'s'} across ${Object.keys(byLeague).length} league${Object.keys(byLeague).length===1?'':'s'}</div>
@@ -16258,20 +16278,26 @@ function renderHomePage(){
   // enough to fit on one short line at a smaller size instead.
   const LABEL_MOBILE={lastLock:'LOCK',lastSettle:'SETTLE'};
   function _escHdr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  // Split across two header elements, explicit request 2026-09-30 ("move
+  // last lock text to top left of header and keep last settle in top
+  // right... so its balanced") -- was both stacked in the single
+  // right-aligned hdr-automation-status column; LAST LOCK now renders
+  // into its own left-side element instead.
+  const TARGET_EL={lastLock:'hdr-automation-status-left',lastSettle:'hdr-automation-status'};
   async function renderAutomationStatus(){
-    const el=document.getElementById('hdr-automation-status');
-    if(!el)return;
     let status=null;
     try{
       const r=await fetch('automation_status.json?_v='+Date.now());
       if(r.ok)status=await r.json();
     }catch(e){}
-    if(!status){el.innerHTML='';return;}
     const isMobile=window.matchMedia('(max-width:768px)').matches;
-    const rows=['lastLock','lastSettle'].map(kind=>{
+    ['lastLock','lastSettle'].forEach(kind=>{
+      const el=document.getElementById(TARGET_EL[kind]);
+      if(!el)return;
+      if(!status){el.innerHTML='';return;}
       const s=status[kind];
       const label=isMobile?LABEL_MOBILE[kind]:LABEL[kind];
-      if(!s)return `<div style="color:#666">${label}: NO DATA</div>`;
+      if(!s){el.innerHTML=`<div style="color:#666">${label}: NO DATA</div>`;return;}
       const ageHrs=(Date.now()-new Date(s.tsUTC).getTime())/3600000;
       const stale=ageHrs>STALE_HOURS[kind];
       const failed=s.ok===false;
@@ -16282,9 +16308,8 @@ function renderHomePage(){
       // own strftime) -- stripping the leading date is safe and
       // deterministic, not a guess at the string's shape.
       const ts=isMobile?String(s.tsMT||'?').replace(/^\d{4}-\d{2}-\d{2}\s+/,''):(s.tsMT||'?');
-      return `<div title="${_escHdr(s.detail||'')}" style="color:${color}">${icon} ${label}: ${_escHdr(ts)}${staleNote}</div>`;
+      el.innerHTML=`<div title="${_escHdr(s.detail||'')}" style="color:${color}">${icon} ${label}: ${_escHdr(ts)}${staleNote}</div>`;
     });
-    el.innerHTML=rows.join('');
   }
   renderAutomationStatus();
   setInterval(renderAutomationStatus,120000);
@@ -20662,14 +20687,19 @@ window._applyNewsFilter=function(bar){
 };
 function newsFilterBar(tabId,col){
   const SPORTS=['ALL','Basketball','Football','Hockey','Soccer'];
+  // CH (college hockey)/KHL/BL (Bundesliga)/MLS removed 2026-09-30,
+  // explicit request -- all 4 are fully retired (no fetch pipeline, no
+  // new picks), so surfacing them as selectable news filters just
+  // offered a category that could never actually have any real news
+  // fetched into it (CH/KHL were never in NEWS_LEAGUES below to begin
+  // with -- these buttons filtered an empty set forever).
   const LEAGUES=[
     {k:'ALL',label:'ALL'},
     {k:'NBA',label:'NBA'},
     {k:'NFL',label:'NFL'},{k:'CFB',label:'CFB'},
-    {k:'NHL',label:'NHL'},{k:'CH',label:'C.HOCKEY'},
-    {k:'KHL',label:'KHL'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},
+    {k:'NHL',label:'NHL'},{k:'SHL',label:'SHL'},{k:'LIIGA',label:'LIIGA'},
     {k:'NLA',label:'NLA'},{k:'EXTRALIGA',label:'EXTRALIGA'},
-    {k:'BL',label:'BUNDESLIGA'},{k:'LIGA',label:'LA LIGA'},{k:'MLS',label:'MLS'},
+    {k:'LIGA',label:'LA LIGA'},
     {k:'PL',label:'PREMIER LEAGUE'},{k:'ITA',label:'SERIE A'},{k:'CL',label:'CHAMPIONS LEAGUE'}
   ];
   const sportBtns=SPORTS.map(s=>{
@@ -20715,9 +20745,12 @@ async function renderNewsAll(){
   const el=document.getElementById('news-all-content');if(!el)return;
   el.innerHTML=newsLoadingState('FETCHING ALL SPORTS NEWS…');
   const now=new Date();
-  const NEWS_LEAGUES=['mlb','nhl','nba','wnba','cbb','nfl','cfb','bl','liga','mls','pl','ita','cl'];
-  const INJ_LEAGUES=['mlb','nhl','nba','wnba','cbb','nfl','cfb'];
-  const TXN_LEAGUES=['mlb','nhl','nba','wnba','nfl'];
+  // wnba/bl/mls removed 2026-09-30, explicit request -- all 3 are fully
+  // retired (WNBA/Bundesliga/MLS), so their news/injuries/transactions no
+  // longer need fetching into the aggregated feed.
+  const NEWS_LEAGUES=['mlb','nhl','nba','cbb','nfl','cfb','liga','pl','ita','cl'];
+  const INJ_LEAGUES=['mlb','nhl','nba','cbb','nfl','cfb'];
+  const TXN_LEAGUES=['mlb','nhl','nba','nfl'];
   const [newsResults,injResults,txnResults]=await Promise.all([
     Promise.all(NEWS_LEAGUES.map(l=>fetchESPNNews('sports',l,l==='mlb'||l==='nhl'||l==='nba'?15:10))),
     Promise.all(INJ_LEAGUES.map(l=>fetchESPNInjuries(l))),
@@ -20730,7 +20763,7 @@ async function renderNewsAll(){
   let html='';
   html+=`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:8px 12px;background:rgba(0,240,255,.04);border:1px solid rgba(0,240,255,.15);border-radius:3px">
     <span style="font-family:var(--mono);font-size:15px;color:rgba(0,240,255,.7);letter-spacing:1px">LAST UPDATED: ${updStr} · ESPN LIVE</span>
-    <button onclick="['mlb','nhl','nba','wnba','cbb','nfl','cfb','bl','liga','mls','pl','ita','cl'].forEach(s=>{delete NEWS_CACHE['sports_'+s];delete NEWS_CACHE['injuries_'+s];delete NEWS_CACHE['transactions_'+s]});renderNewsAll()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(0,240,255,.08);border:1px solid rgba(0,240,255,.3);color:#00f0ff;border-radius:2px;cursor:pointer">↻ UPDATE ALL NEWS</button>
+    <button onclick="['mlb','nhl','nba','cbb','nfl','cfb','liga','pl','ita','cl'].forEach(s=>{delete NEWS_CACHE['sports_'+s];delete NEWS_CACHE['injuries_'+s];delete NEWS_CACHE['transactions_'+s]});renderNewsAll()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(0,240,255,.08);border:1px solid rgba(0,240,255,.3);color:#00f0ff;border-radius:2px;cursor:pointer">↻ UPDATE ALL NEWS</button>
   </div>`;
   html+=newsFilterBar('news-tab-all','#f000ff');
   if(latestTxn.length){
@@ -20748,7 +20781,7 @@ async function renderNewsInjuries(){
   const el=document.getElementById('news-injuries-content');if(!el)return;
   el.innerHTML=newsLoadingState('FETCHING INJURY REPORTS…');
   const now=new Date();
-  const INJ_LEAGUES=['mlb','nhl','nba','wnba','cbb','nfl','cfb'];
+  const INJ_LEAGUES=['mlb','nhl','nba','cbb','nfl','cfb']; // wnba removed 2026-09-30, retired
   const all=(await Promise.all(INJ_LEAGUES.map(l=>fetchESPNInjuries(l)))).flat();
   if(!all.length){el.innerHTML=newsErrorState('injury');return;}
   const out=all.filter(i=>i.status.toLowerCase().includes('out')||i.status.toLowerCase().includes(' ir')||i.status.toLowerCase().includes('injured reserve'));
@@ -20761,7 +20794,7 @@ async function renderNewsInjuries(){
   const updStr=now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' · '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
   let html=`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:8px 12px;background:rgba(255,32,144,.04);border:1px solid rgba(255,32,144,.15);border-radius:3px">
     <span style="font-family:var(--mono);font-size:15px;color:rgba(255,32,144,.7);letter-spacing:1px">LAST UPDATED: ${updStr} · ESPN LIVE · ${all.length} PLAYERS</span>
-    <button onclick="['mlb','nhl','nba','wnba','cbb','nfl','cfb'].forEach(s=>delete NEWS_CACHE['injuries_'+s]);renderNewsInjuries()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(255,32,144,.08);border:1px solid rgba(255,32,144,.3);color:#ff2090;border-radius:2px;cursor:pointer">↻ UPDATE INJURIES</button>
+    <button onclick="['mlb','nhl','nba','cbb','nfl','cfb'].forEach(s=>delete NEWS_CACHE['injuries_'+s]);renderNewsInjuries()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(255,32,144,.08);border:1px solid rgba(255,32,144,.3);color:#ff2090;border-radius:2px;cursor:pointer">↻ UPDATE INJURIES</button>
   </div>`;
   html+=newsFilterBar('news-tab-injuries','#ff2090');
   html+=buildSection('OUT / INJURED RESERVE','#ff2090',out);
@@ -20775,7 +20808,7 @@ async function renderNewsTrades(){
   const el=document.getElementById('news-trades-content');if(!el)return;
   el.innerHTML=newsLoadingState('FETCHING TRANSACTIONS…');
   const now=new Date();
-  const TXN_LEAGUES=['mlb','nhl','nba','wnba','nfl'];
+  const TXN_LEAGUES=['mlb','nhl','nba','nfl']; // wnba removed 2026-09-30, retired
   const all=(await Promise.all(TXN_LEAGUES.map(l=>fetchESPNTransactions(l)))).flat().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
   if(!all.length){el.innerHTML='<div class="empty">NO TRANSACTIONS AVAILABLE</div>';return;}
   const trades=all.filter(t=>(t.type||'').toLowerCase().includes('trade'));
@@ -20786,7 +20819,7 @@ async function renderNewsTrades(){
   const updStr=now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' · '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
   let html=`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:8px 12px;background:rgba(187,255,0,.04);border:1px solid rgba(187,255,0,.15);border-radius:3px">
     <span style="font-family:var(--mono);font-size:15px;color:rgba(187,255,0,.7);letter-spacing:1px">LAST UPDATED: ${updStr} · ESPN LIVE · ${all.length} MOVES</span>
-    <button onclick="['mlb','nhl','nba','wnba','nfl'].forEach(s=>delete NEWS_CACHE['transactions_'+s]);renderNewsTrades()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(187,255,0,.08);border:1px solid rgba(187,255,0,.3);color:#bbff00;border-radius:2px;cursor:pointer">↻ UPDATE TRANSACTIONS</button>
+    <button onclick="['mlb','nhl','nba','nfl'].forEach(s=>delete NEWS_CACHE['transactions_'+s]);renderNewsTrades()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(187,255,0,.08);border:1px solid rgba(187,255,0,.3);color:#bbff00;border-radius:2px;cursor:pointer">↻ UPDATE TRANSACTIONS</button>
   </div>`;
   html+=newsFilterBar('news-tab-trades','#bbff00');
   html+=sec('TRADES','#bbff00',trades)+sec('SIGNINGS','#00f0ff',signings)+sec('WAIVERS / RELEASES','#ff2090',waived)+sec('OTHER MOVES','rgba(220,190,255,.7)',other);
@@ -27212,8 +27245,11 @@ function saveParlayToTracker(legs,sport){
 <div id="navd-analytics" class="nav-drop-fixed" onmouseenter="cancelHideND()" onmouseleave="startHideND()">
   <button onclick="SS('analytics');setSub('analytics','bysport');renderBySportAnalytics('all');hideAllND()">By Sport</button>
   <button onclick="SS('analytics');setSub('analytics','byteam');renderByTeamAnalytics('ALL');hideAllND()">By Team</button>
+  <button onclick="SS('analytics');setSub('analytics','byleague');renderByLeagueAnalytics('ALL');hideAllND()">By League</button>
+  <button onclick="SS('analytics');setSub('analytics','byplayer');renderByPlayerAnalytics();hideAllND()">By Player</button>
   <button onclick="SS('analytics');setSub('analytics','bethistory');renderAnalyticsBetHistory('ALL');hideAllND()">Bet History</button>
   <button onclick="SS('analytics');setSub('analytics','trends');renderAnalyticsTrends();hideAllND()">Trends</button>
+  <button onclick="SS('analytics');setSub('analytics','bybet');renderAnalyticsByBet();hideAllND()">By Bet</button>
 </div>
 
 </body>
