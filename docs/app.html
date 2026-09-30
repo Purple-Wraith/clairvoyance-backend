@@ -13501,7 +13501,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   const _sportDefs=[
     {key:'BASKETBALL',label:'BASKETBALL',color:'var(--pc)', leagues:[{key:'NBA',label:'NBA'}]},
     {key:'FOOTBALL',  label:'FOOTBALL',  color:'var(--hc)', leagues:[{key:'NFL',label:'NFL'},{key:'CFB',label:'CFB'}]},
-    {key:'HOCKEY',    label:'HOCKEY',    color:'var(--ic)', leagues:[{key:'NHL',label:'NHL'},{key:'SHL',label:'SHL'},{key:'LIIGA',label:'LIIGA'}]},
+    {key:'HOCKEY',    label:'HOCKEY',    color:'var(--ic)', leagues:[{key:'NHL',label:'NHL'},{key:'SHL',label:'SHL'},{key:'LIIGA',label:'LIIGA'},{key:'NLA',label:'NLA'},{key:'EXTRALIGA',label:'EXTRALIGA'}]},
     {key:'SOCCER',    label:'SOCCER',    color:'var(--nc)', leagues:[{key:'BUND',label:'BUNDESLIGA'},{key:'CL',label:'CHAMPIONS LEAGUE'},{key:'LIGA',label:'LA LIGA'},{key:'MLS',label:'MLS'},{key:'PL',label:'PREMIER'},{key:'SERIEA',label:'SERIE A'}]},
   ];
   // Determine active sport group (for sub-row display)
@@ -18758,7 +18758,17 @@ function renderTrackRecord(){
   // actually keeps those combined totals consistent with the per-league
   // rows below them, which no longer show a Bundesliga line at all.
   // MLS excluded 2026-09-27, same treatment following its own retirement.
-  const _PUB_SPORTS=new Set(['MLB','NHL','NBA','NFL','CFB','PL','LIGA','SERIEA','CL']);
+  // Real bug fixed 2026-09-29, auditing all 5 hockey leagues' tagging: MLB
+  // was still in this set despite being fully retired 2026-09-08 (no
+  // longer fetched/locked/settled anywhere) -- removed. LIIGA/SHL/NLA/
+  // EXTRALIGA were missing entirely despite being confirmed live, sold
+  // (bundled into the real "Hockey" product alongside NHL -- see
+  // clairvoyance-landing's own Coverage/Build-Your-Access sections,
+  // "NHL + LIIGA + SHL + NLA + EXTRALIGA") -- every subscriber-facing
+  // Track Record total/export (this set gates pubBets, see this
+  // function's own comment above) was silently showing only NHL's
+  // results for a product sold as covering all 5 leagues. Added.
+  const _PUB_SPORTS=new Set(['NHL','LIIGA','SHL','NLA','EXTRALIGA','NBA','NFL','CFB','PL','LIGA','SERIEA','CL']);
   const pubBets=allBets.filter(b=>_PUB_SPORTS.has(_normSport(b)));
   const now=Date.now();
   const nowD=getMSTNow();
@@ -19143,6 +19153,10 @@ function renderTrackRecord(){
       {lbl:'NFL',          codes:['NFL','FB']},
       {lbl:'CFB',          codes:['CFB']},
       {lbl:'NHL',          codes:['NHL']},
+      {lbl:'SHL',          codes:['SHL']},
+      {lbl:'LIIGA',        codes:['LIIGA']},
+      {lbl:'NLA',          codes:['NLA']},
+      {lbl:'EXTRALIGA',    codes:['EXTRALIGA']},
       {lbl:'NBA',          codes:['NBA']},
       {lbl:'Champions League',codes:['CH','CL']},
       {lbl:'Premier League',codes:['PL']},
@@ -25214,7 +25228,7 @@ function renderOvrAnalytics(filter){
   // BY SPORT breakdown
   if(filter==='sport'){
     out+=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin:0 0 10px">PERFORMANCE BY SPORT</div>`;
-    const sMap=[{lbl:'BASEBALL',codes:['MLB','NCAB']},{lbl:'BASKETBALL',codes:['NBA','WNBA']},{lbl:'FOOTBALL',codes:['NFL','FB']},{lbl:'HOCKEY',codes:['NHL']}];
+    const sMap=[{lbl:'BASEBALL',codes:['MLB','NCAB']},{lbl:'BASKETBALL',codes:['NBA','WNBA']},{lbl:'FOOTBALL',codes:['NFL','FB']},{lbl:'HOCKEY',codes:['NHL','SHL','LIIGA','NLA','EXTRALIGA']}];
     sMap.forEach(sm=>{
       const sp=settled.filter(p=>sm.codes.some(c=>window._normSport(p)===c.toUpperCase()));
       const d=calcP(sp);
