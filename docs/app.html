@@ -399,6 +399,41 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
      while reading noticeably bigger than the 6px pass. ── */
   html .rf-dots{gap:2px!important}
   html .form-dot{width:7px!important;height:7px!important}
+  /* ── Real gap, found auditing mobile 2026-09-30: the font-size blanket
+     cap above shrinks oversized headers/labels down to 8-12px, but wide
+     letter-spacing (1-3px inline, extremely common on this app's mono/
+     orbitron headers) becomes proportionally enormous once the font
+     itself is tiny -- a 2px letter-spacing on an 8px font adds 25%+
+     extra width per character, which is exactly why several already
+     font-capped headers (Home's "LIVE TRACK RECORD" line, the Sync
+     sub-tab's section headers, etc) still read as oversized or wrap
+     awkwardly on a phone despite their actual font-size already being
+     small. ── */
+  [style*="letter-spacing:3px"]:not(input):not(select):not(textarea),
+  [style*="letter-spacing:2px"]:not(input):not(select):not(textarea){letter-spacing:.5px!important}
+  /* ── Schedule day/week/conference filter selects (Hockey's 5 leagues,
+     Soccer's 4 leagues, CFB, NFL) all share the same padding:6px 8px --
+     font-size has to stay >=16px (iOS auto-zooms on focus below that,
+     see the input/select/textarea rule above), but padding isn't
+     constrained by that at all, so shrinking it alone brings each box
+     down to a size actually proportionate with the buttons/labels next
+     to it instead of dominating the row. ── */
+  html select[id$="-filter-day"],html select[id$="-filter-week"],html select[id$="-filter-conf"]{padding:4px 6px!important}
+  /* ── Overall Dashboard's "FILTER BY MONTH" select -- same treatment. ── */
+  html #ovr-month-select{padding:4px 6px!important}
+  /* ── "Remove picks by date/month" (All Bets tab) and "WIPE DATE"
+     (Pending Bets section) date/month inputs -- both already excluded
+     from the font-size cap (must stay >=16px), but their padding/width
+     were never brought down to match the now-shrunk buttons sitting
+     right next to them, which is exactly what read as "too large and
+     not uniform." ── */
+  html #ovr-wipe-date,html #ovr-wipe-month{padding:3px 6px!important}
+  html #wipe-date-inp{padding:3px 6px!important}
+  /* ── Home page "LIVE TRACK RECORD" status line -- already a small 11px,
+     but combined with its own letter-spacing (handled above) it still
+     read as oversized for a minor continuously-updating status line;
+     shrink the font specifically here too. ── */
+  html #home-live-track-lbl{font-size:9px!important}
 }
 @media(max-width:480px){
   /* ── Extra-narrow phones (SE, older Android) ── */
@@ -3732,6 +3767,32 @@ function _forceHalfLineDir(x,dir){
   if(!Number.isInteger(n))return n.toFixed(1);
   return(dir==='UNDER'?n+0.5:n-0.5).toFixed(1);
 }
+// Real bug, found + fixed 2026-09-30 mobile audit: all 4 of these were
+// referenced throughout capMobileFontSizes() below but never actually
+// declared anywhere in the file -- every single call threw a real
+// ReferenceError on its very first qualifying element, silently (every
+// call site wraps this in try/catch), meaning this entire JS-side mobile
+// font/padding-capping system has never executed successfully even once
+// since it was written. This is very likely the single biggest reason so
+// much of the app still reads oversized on mobile despite the extensive
+// CSS-based capping elsewhere in this file -- that CSS system only ever
+// covers font-size declared as a literal inline "style=" string; anything
+// set or left at its default via a class/computed style depended entirely
+// on this JS pass, which could never run.
+// Values matched EXACTLY to the CSS blanket-cap's own floor (8px, see the
+// "Blanket inline font-size cap" comment in the <style> block) rather
+// than picked independently -- this function sets font-size via
+// el.style.setProperty(...,'important'), an INLINE !important
+// declaration, which always wins over a stylesheet !important rule of
+// the same property regardless of source order. A ceiling looser than
+// the CSS system's own target (12px was tried first) doesn't just fail
+// to help, it actively REGRESSES every element the CSS system was
+// already correctly capping to 8px back up to the looser JS ceiling,
+// confirmed live on the Sync sub-tab's body text and stat numbers.
+const _MOBILE_FONT_CEILING=8;
+const _MOBILE_BUTTON_FONT_CEILING=8;
+const _MOBILE_BUTTON_PAD_CEILING=5;
+const _MOBILE_BUTTON_PAD_H_CEILING=9;
 function _isMobileViewport(){return window.matchMedia&&window.matchMedia('(max-width:768px)').matches;}
 function _isMobileBtn(el){return el.tagName==='BUTTON'||el.classList.contains('btn')||el.classList.contains('btn-n')||el.classList.contains('btn-p')||el.classList.contains('btn-o')||el.classList.contains('btn-g')||el.classList.contains('btn-h')||el.classList.contains('btn-i')||el.classList.contains('btn-sm');}
 function capMobileFontSizes(root){
@@ -4232,6 +4293,22 @@ async function syncPicksFromSupabase(full){
       return;
     }
     _mergeRemoteBetRows(rows);
+    // Real bug, found 2026-09-30: a long-lived mobile PWA session (opened
+    // once, backgrounded/foregrounded repeatedly for days without ever
+    // being fully reloaded -- completely normal PWA usage, unlike desktop
+    // which gets a real page reload far more often) only ever ran the
+    // visibilitychange-triggered pull below, which called this with no
+    // `full` argument -- always the scoped 10-day pull, never the
+    // complete-ledger one. Anything locked/settled more than 10 days
+    // before whatever moment the phone happened to be looked at could
+    // never reach that device, so its home-page LOCKED/SETTLED totals
+    // permanently drifted further behind desktop's the longer the PWA
+    // stayed installed without a true relaunch. Recording every full
+    // pull's own timestamp here (regardless of which caller requested it)
+    // gives the visibilitychange handler a single source of truth to
+    // decide "has it been too long since this device last saw the WHOLE
+    // ledger" and upgrade itself to a full pull when it has.
+    if(full)try{localStorage.setItem('cv_last_full_pull_ts',String(Date.now()));}catch(e){}
   }catch(e){console.warn('[CV] Supabase pull failed (offline?):',e.message);}
 }
 // Read-only fallback for when Supabase itself is unreachable (see the
@@ -16018,7 +16095,7 @@ function renderHomePage(){
       <span style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc)">// ENGINE PERFORMANCE</span>
       <span style="display:inline-block;font-family:var(--mono);font-size:15px;color:#fff;background:var(--pc);padding:4px 10px;border-radius:3px">${keptBets.length} LOCKED · ${keptSettled.length} SETTLED</span>
     </div>
-    <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--nc);margin-bottom:10px">LIVE TRACK RECORD — UPDATES CONTINUOUSLY</div>
+    <div id="home-live-track-lbl" style="font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--nc);margin-bottom:10px">LIVE TRACK RECORD — UPDATES CONTINUOUSLY</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       ${perfCard('TODAY',rtd,'rgba(255,32,0,.9)')}
       ${perfCard('YESTERDAY',ry,'rgba(0,240,255,.8)')}
@@ -16117,14 +16194,27 @@ function renderHomePage(){
   // cut. syncPicksFromSupabase's own 3s debounce (see its own comment)
   // already protects against this firing twice in quick succession if
   // the interval and a visibility-triggered pull land close together.
+  // Escalates to a full (complete-ledger) pull instead of the normal
+  // scoped 10-day one when it's been more than 24h since this device's
+  // last full pull -- see syncPicksFromSupabase's own comment on the real
+  // bug this fixes: a long-lived mobile PWA that's only ever backgrounded/
+  // foregrounded (never truly relaunched) used to never requalify for
+  // anything beyond the scoped pull, so its LOCKED/SETTLED totals could
+  // drift permanently behind desktop's real numbers the longer it stayed
+  // installed. 24h keeps this rare (an actively-used device still mostly
+  // takes the cheap scoped path) while guaranteeing every device
+  // self-heals to the true full ledger at least once a day.
+  const _syncOnForeground=()=>{
+    if(document.hidden)return;
+    try{
+      const lastFull=parseInt(localStorage.getItem('cv_last_full_pull_ts')||'0',10);
+      const needsFull=Date.now()-lastFull>24*60*60*1000;
+      syncPicksFromSupabase(needsFull);
+    }catch(e){}
+  };
   if(!window._supabasePullTimer){
-    window._supabasePullTimer=setInterval(()=>{
-      if(document.hidden)return;
-      try{syncPicksFromSupabase();}catch(e){}
-    },3*60*60*1000);
-    document.addEventListener('visibilitychange',()=>{
-      if(!document.hidden){try{syncPicksFromSupabase();}catch(e){}}
-    });
+    window._supabasePullTimer=setInterval(_syncOnForeground,3*60*60*1000);
+    document.addEventListener('visibilitychange',_syncOnForeground);
   }
 }
 
