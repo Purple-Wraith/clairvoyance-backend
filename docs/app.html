@@ -423,18 +423,34 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
      see the input/select/textarea rule above), but padding isn't
      constrained by that at all, so shrinking it alone brings each box
      down to a size actually proportionate with the buttons/labels next
-     to it instead of dominating the row. ── */
-  html select[id$="-filter-day"],html select[id$="-filter-week"],html select[id$="-filter-conf"]{padding:4px 6px!important}
-  /* ── Overall Dashboard's "FILTER BY MONTH" select -- same treatment. ── */
-  html #ovr-month-select{padding:4px 6px!important}
+     to it instead of dominating the row.
+     Real gap, found on a second pass: padding alone still left these
+     oversized on a real phone -- a native <select> reserves its own
+     "chrome" space (the dropdown arrow's box) on top of CSS padding,
+     which iOS/Android render at a fixed size regardless of how small the
+     padding gets. -webkit/-moz-appearance:none strips that native chrome
+     so the box's real footprint is finally just font+padding, with a
+     small custom arrow (inline SVG, sized to match) taking its place. ── */
+  html select[id$="-filter-day"],html select[id$="-filter-week"],html select[id$="-filter-conf"],
+  html #ovr-month-select{
+    padding:3px 20px 3px 6px!important;
+    -webkit-appearance:none!important;-moz-appearance:none!important;appearance:none!important;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%23f000ff' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")!important;
+    background-repeat:no-repeat!important;background-position:right 6px center!important;background-size:10px 7px!important;
+  }
   /* ── "Remove picks by date/month" (All Bets tab) and "WIPE DATE"
      (Pending Bets section) date/month inputs -- both already excluded
-     from the font-size cap (must stay >=16px), but their padding/width
-     were never brought down to match the now-shrunk buttons sitting
-     right next to them, which is exactly what read as "too large and
-     not uniform." ── */
-  html #ovr-wipe-date,html #ovr-wipe-month{padding:3px 6px!important}
-  html #wipe-date-inp{padding:3px 6px!important}
+     from the font-size cap (must stay >=16px). Real gap, found on a
+     second pass: padding alone wasn't enough here either, AND the 3
+     inputs were never actually the same width as each other (a native
+     type="date"/type="month" input sizes itself unless given an explicit
+     width, so ovr-wipe-date/ovr-wipe-month -- neither of which had one --
+     rendered at two different native-chrome-driven widths, and
+     wipe-date-inp's own hardcoded 130px was a third, different number)
+     -- confirmed live: 144px vs 176.5px vs 130px. All 3 now share one
+     explicit width so they're genuinely uniform, not just each
+     individually smaller. ── */
+  html #ovr-wipe-date,html #ovr-wipe-month,html #wipe-date-inp{padding:2px 4px!important;width:126px!important;min-width:0!important}
   /* ── Home page "LIVE TRACK RECORD" status line -- already a small 11px,
      but combined with its own letter-spacing (handled above) it still
      read as oversized for a minor continuously-updating status line;
@@ -12099,7 +12115,7 @@ function renderHistoryForSport(sport,summId,listId){
     const accColor=acc===null?'var(--t3)':acc>=.55?'var(--nc)':acc>=.45?'var(--vc)':'var(--hc)';
     sumEl.innerHTML=`<div class="g4" style="gap:8px;margin-bottom:10px">
       <div class="card cp" style="text-align:center;padding:9px"><div class="mono" style="font-size:27px;font-weight:700;color:${accColor}">${acc===null?'--':(acc*100).toFixed(1)+'%'}</div><div style="font-size:17px;color:var(--t3);font-family:var(--mono)">WIN RATE</div></div>
-      <div class="card cp" style="text-align:center;padding:9px"><div class="mono" style="font-size:27px;font-weight:700;color:var(--t)">${wins}W-${losses}L</div><div style="font-size:17px;color:var(--t3);font-family:var(--mono)">RECORD</div></div>
+      <div class="card cp" style="text-align:center;padding:9px"><div class="mono" style="font-size:20px;font-weight:700;color:var(--t);white-space:nowrap">${wins}W-${losses}L</div><div style="font-size:17px;color:var(--t3);font-family:var(--mono)">RECORD</div></div>
       <div class="card cp" style="text-align:center;padding:9px"><div class="mono" style="font-size:27px;font-weight:700;color:${roi===null?'var(--t3)':roi>=0?'var(--nc)':'var(--hc)'}">${roi===null?'--':((roi*100).toFixed(1)+'%')}</div><div style="font-size:17px;color:var(--t3);font-family:var(--mono)">ROI</div></div>
       <div class="card cp" style="text-align:center;padding:9px"><div class="mono" style="font-size:27px;font-weight:700;color:${streakType==='win'?'var(--nc)':'var(--hc)'}">${streak>0?`${streak}${streakType==='win'?'W':'L'}`:'--'}</div><div style="font-size:17px;color:var(--t3);font-family:var(--mono)">STREAK</div></div>
     </div>
@@ -20747,12 +20763,13 @@ async function renderNewsAll(){
   const now=new Date();
   // wnba/bl/mls removed 2026-09-30, explicit request -- all 3 are fully
   // retired (WNBA/Bundesliga/MLS), so their news/injuries/transactions no
-  // longer need fetching into the aggregated feed.
-  const NEWS_LEAGUES=['mlb','nhl','nba','cbb','nfl','cfb','liga','pl','ita','cl'];
-  const INJ_LEAGUES=['mlb','nhl','nba','cbb','nfl','cfb'];
-  const TXN_LEAGUES=['mlb','nhl','nba','nfl'];
+  // longer need fetching into the aggregated feed. mlb removed same day,
+  // separate explicit request -- also fully retired.
+  const NEWS_LEAGUES=['nhl','nba','cbb','nfl','cfb','liga','pl','ita','cl'];
+  const INJ_LEAGUES=['nhl','nba','cbb','nfl','cfb'];
+  const TXN_LEAGUES=['nhl','nba','nfl'];
   const [newsResults,injResults,txnResults]=await Promise.all([
-    Promise.all(NEWS_LEAGUES.map(l=>fetchESPNNews('sports',l,l==='mlb'||l==='nhl'||l==='nba'?15:10))),
+    Promise.all(NEWS_LEAGUES.map(l=>fetchESPNNews('sports',l,l==='nhl'||l==='nba'?15:10))),
     Promise.all(INJ_LEAGUES.map(l=>fetchESPNInjuries(l))),
     Promise.all(TXN_LEAGUES.map(l=>fetchESPNTransactions(l)))
   ]);
@@ -20763,7 +20780,7 @@ async function renderNewsAll(){
   let html='';
   html+=`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:8px 12px;background:rgba(0,240,255,.04);border:1px solid rgba(0,240,255,.15);border-radius:3px">
     <span style="font-family:var(--mono);font-size:15px;color:rgba(0,240,255,.7);letter-spacing:1px">LAST UPDATED: ${updStr} · ESPN LIVE</span>
-    <button onclick="['mlb','nhl','nba','cbb','nfl','cfb','liga','pl','ita','cl'].forEach(s=>{delete NEWS_CACHE['sports_'+s];delete NEWS_CACHE['injuries_'+s];delete NEWS_CACHE['transactions_'+s]});renderNewsAll()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(0,240,255,.08);border:1px solid rgba(0,240,255,.3);color:#00f0ff;border-radius:2px;cursor:pointer">↻ UPDATE ALL NEWS</button>
+    <button onclick="['nhl','nba','cbb','nfl','cfb','liga','pl','ita','cl'].forEach(s=>{delete NEWS_CACHE['sports_'+s];delete NEWS_CACHE['injuries_'+s];delete NEWS_CACHE['transactions_'+s]});renderNewsAll()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(0,240,255,.08);border:1px solid rgba(0,240,255,.3);color:#00f0ff;border-radius:2px;cursor:pointer">↻ UPDATE ALL NEWS</button>
   </div>`;
   html+=newsFilterBar('news-tab-all','#f000ff');
   if(latestTxn.length){
@@ -20781,7 +20798,7 @@ async function renderNewsInjuries(){
   const el=document.getElementById('news-injuries-content');if(!el)return;
   el.innerHTML=newsLoadingState('FETCHING INJURY REPORTS…');
   const now=new Date();
-  const INJ_LEAGUES=['mlb','nhl','nba','cbb','nfl','cfb']; // wnba removed 2026-09-30, retired
+  const INJ_LEAGUES=['nhl','nba','cbb','nfl','cfb']; // wnba/mlb removed 2026-09-30, retired
   const all=(await Promise.all(INJ_LEAGUES.map(l=>fetchESPNInjuries(l)))).flat();
   if(!all.length){el.innerHTML=newsErrorState('injury');return;}
   const out=all.filter(i=>i.status.toLowerCase().includes('out')||i.status.toLowerCase().includes(' ir')||i.status.toLowerCase().includes('injured reserve'));
@@ -20794,7 +20811,7 @@ async function renderNewsInjuries(){
   const updStr=now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' · '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
   let html=`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:8px 12px;background:rgba(255,32,144,.04);border:1px solid rgba(255,32,144,.15);border-radius:3px">
     <span style="font-family:var(--mono);font-size:15px;color:rgba(255,32,144,.7);letter-spacing:1px">LAST UPDATED: ${updStr} · ESPN LIVE · ${all.length} PLAYERS</span>
-    <button onclick="['mlb','nhl','nba','cbb','nfl','cfb'].forEach(s=>delete NEWS_CACHE['injuries_'+s]);renderNewsInjuries()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(255,32,144,.08);border:1px solid rgba(255,32,144,.3);color:#ff2090;border-radius:2px;cursor:pointer">↻ UPDATE INJURIES</button>
+    <button onclick="['nhl','nba','cbb','nfl','cfb'].forEach(s=>delete NEWS_CACHE['injuries_'+s]);renderNewsInjuries()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(255,32,144,.08);border:1px solid rgba(255,32,144,.3);color:#ff2090;border-radius:2px;cursor:pointer">↻ UPDATE INJURIES</button>
   </div>`;
   html+=newsFilterBar('news-tab-injuries','#ff2090');
   html+=buildSection('OUT / INJURED RESERVE','#ff2090',out);
@@ -20808,7 +20825,7 @@ async function renderNewsTrades(){
   const el=document.getElementById('news-trades-content');if(!el)return;
   el.innerHTML=newsLoadingState('FETCHING TRANSACTIONS…');
   const now=new Date();
-  const TXN_LEAGUES=['mlb','nhl','nba','nfl']; // wnba removed 2026-09-30, retired
+  const TXN_LEAGUES=['nhl','nba','nfl']; // wnba/mlb removed 2026-09-30, retired
   const all=(await Promise.all(TXN_LEAGUES.map(l=>fetchESPNTransactions(l)))).flat().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
   if(!all.length){el.innerHTML='<div class="empty">NO TRANSACTIONS AVAILABLE</div>';return;}
   const trades=all.filter(t=>(t.type||'').toLowerCase().includes('trade'));
@@ -20819,7 +20836,7 @@ async function renderNewsTrades(){
   const updStr=now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' · '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
   let html=`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:8px 12px;background:rgba(187,255,0,.04);border:1px solid rgba(187,255,0,.15);border-radius:3px">
     <span style="font-family:var(--mono);font-size:15px;color:rgba(187,255,0,.7);letter-spacing:1px">LAST UPDATED: ${updStr} · ESPN LIVE · ${all.length} MOVES</span>
-    <button onclick="['mlb','nhl','nba','nfl'].forEach(s=>delete NEWS_CACHE['transactions_'+s]);renderNewsTrades()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(187,255,0,.08);border:1px solid rgba(187,255,0,.3);color:#bbff00;border-radius:2px;cursor:pointer">↻ UPDATE TRANSACTIONS</button>
+    <button onclick="['nhl','nba','nfl'].forEach(s=>delete NEWS_CACHE['transactions_'+s]);renderNewsTrades()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(187,255,0,.08);border:1px solid rgba(187,255,0,.3);color:#bbff00;border-radius:2px;cursor:pointer">↻ UPDATE TRANSACTIONS</button>
   </div>`;
   html+=newsFilterBar('news-tab-trades','#bbff00');
   html+=sec('TRADES','#bbff00',trades)+sec('SIGNINGS','#00f0ff',signings)+sec('WAIVERS / RELEASES','#ff2090',waived)+sec('OTHER MOVES','rgba(220,190,255,.7)',other);
@@ -24033,7 +24050,7 @@ function renderAnalyticsByBet(){
   var hhAcc=hhBets.length?hhW/hhBets.length:null;
   var sumBar='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
     +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:'+pC(acc||0)+'">'+(acc!==null?(acc*100).toFixed(1)+'%':'--')+'</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">WIN RATE</div></div>'
-    +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:var(--nc)">'+w+'W-'+l+'L</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">RECORD</div></div>'
+    +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:20px;font-weight:700;color:var(--nc);white-space:nowrap">'+w+'W-'+l+'L</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">RECORD</div></div>'
     +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:'+uC(units)+'">'+(units>=0?'+':'')+units.toFixed(1)+'u</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">NET UNITS</div></div>'
     +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:'+uC(roi)+'">'+(roi>=0?'+':'')+roi.toFixed(1)+'%</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">ROI</div></div>'
     +'<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px" title="Win rate among picks flagged 75%+ model probability at lock"><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:'+(hhAcc!==null?pC(hhAcc):'var(--t3)')+'">'+(hhAcc!==null?(hhAcc*100).toFixed(1)+'%':'--')+'</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">HIGH HIT % ('+hhBets.length+')</div></div>'
@@ -24623,7 +24640,7 @@ function renderAnalyticsBetHistory(filter){
 
   let h=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
     <div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${pC(acc||0)}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">WIN RATE</div></div>
-    <div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:var(--nc)">${w}W-${l}L</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${settled.length} SETTLED</div></div>
+    <div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:20px;font-weight:700;color:var(--nc);white-space:nowrap">${w}W-${l}L</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${settled.length} SETTLED</div></div>
     <div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${uC(units)}">${units>=0?'+':''}${units.toFixed(1)}u</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">NET UNITS</div></div>
     ${pending.length?`<div class="card" style="flex:1;min-width:70px;text-align:center;padding:9px"><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:var(--pc)">${pending.length}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">PENDING</div></div>`:''}
   </div>`;
@@ -27118,7 +27135,7 @@ function saveParlayToTracker(legs,sport){
 
 <!-- Fixed-position nav dropdowns — at body level, outside #app flex column -->
 <div id="navd-ovr" class="nav-drop-fixed" onmouseenter="cancelHideND()" onmouseleave="startHideND()">
-  <button onclick="SS('ovr');T('ovr','dash');hideAllND()">Overall</button>
+  <button onclick="SS('ovr');T('ovr','dash');hideAllND()">Dashboard</button>
   <button onclick="SS('ovr');T('ovr','history');hideAllND()">All Bets</button>
   <button onclick="SS('ovr');T('ovr','adaptive');hideAllND()">Adaptive</button>
   <button onclick="SS('ovr');T('ovr','sync');hideAllND()">Sync</button>
