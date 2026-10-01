@@ -9574,7 +9574,15 @@ function _hkBigMarginRate(teamId,allGames){
   });
   return{big,n:played.length};
 }
-// ═══ QuantHockey team stats (Liiga/SHL only) ═══════════════════════════
+// ═══ QuantHockey team stats (Liiga/SHL/NLA/Extraliga) ═══════════════════
+// Stale header fixed 2026-10-01 -- this still said "Liiga/SHL only" even
+// though NLA/Extraliga joined the same day this block's own loaders
+// below were extended for them (see loadNlaQuantHockeyData's comment);
+// confirmed live the two newer leagues are fully wired end-to-end --
+// real data in docs/nla_quanthockey.json/extraliga_quanthockey.json
+// (same generation timestamp as liiga/shl's, 100% team-name resolution,
+// zero null fields), and a real match card for each renders the full
+// OFFENSE/DEFENSE QuantHockey tabs, not the 4-axis fallback.
 // Explicit request, 2026-09-22/23: real shots/team-save%/special-teams
 // data for Liiga/SHL, filling exactly the gap _hkBasicRadarValues' own
 // comment below discloses ("no possession/goaltending/special-teams
