@@ -11314,6 +11314,20 @@ function _nbaGameCard(espnEv){
       // Model ensemble
       let hP=0.53,aP=0.47,hML,aML,hD,aD,ens={mc:0.45,bay:0.30,elo:0.25};
       try{const e=nbaEns(hn,an,(_liveNBA?.homeML||espnHL)?{hL:_liveNBA?.homeML||espnHL}:null);if(e?.p){hP=e.p;aP=1-e.p;ens={mc:+(e.mc||.45).toFixed(3),bay:+(e.bay||.30).toFixed(3),elo:+(e.elo||.25).toFixed(3)};}}catch(e2){}
+      // Same tie-default bug as NHL's puck-line fix (see its own comment):
+      // nbaEns() returns an exact p:0.5 when nbaMC() fails entirely
+      // (missing team data) -- that early return skips its own market-
+      // blend step even when real odds were passed in, so every downstream
+      // `hP>=aP?hn:an` check here (spread fav/dog, _nbaFav/_nbaDog) then
+      // silently defaults to the home team on that tie. Nudge toward the
+      // real market moneyline instead, same epsilon approach.
+      if(hP===0.5&&aP===0.5){
+        const _mHml=parseFloat(_liveNBA?.homeML??espnHL),_mAml=parseFloat(_liveNBA?.awayML??espnAL);
+        if(!isNaN(_mHml)&&!isNaN(_mAml)&&_mHml!==_mAml){
+          const _nudge=_mHml<_mAml?0.0001:-0.0001;
+          hP=0.5+_nudge;aP=0.5-_nudge;
+        }
+      }
       hML=_liveNBA?.homeML||espnHL||(pre?p2ml(hP):0);aML=_liveNBA?.awayML||espnAL||(pre?p2ml(aP):0);
       hD=ml2d(hML);aD=ml2d(aML);
       const hEV=ev(hP,hD);const aEV=ev(aP,aD);
@@ -23552,6 +23566,23 @@ function _renderSocMatchCard(g,leagueKey){
   // dead-even 0.0 margin projection (a real line can never be a whole
   // number with no juice-side ambiguity).
   var ahMargin=mc.avgH-mc.avgA;
+  // Real bug, found 2026-09-30 auditing other sports for the NHL puck-line
+  // tie-default bug (see that fix's own comment): when both teams fall
+  // back to the same default xG (0.9, _soccerMC's own fallback for
+  // missing/invalid data -- a real, recurring case for the leagues
+  // without full xG coverage), the random Monte Carlo simulation can
+  // genuinely land on an exact avgH===avgA tie. ahAbsLine's `||0.5`
+  // fallback plus `ahMargin>=0?-ahAbsLine:...` then silently always made
+  // the HOME side the Asian Handicap favorite on that tie, ignoring the
+  // real market moneylines (g.hML/g.aML) already blended into hP/aP a few
+  // lines above. Nudge the margin itself (not ahAbsLine, computed next)
+  // toward whichever side the real market favors so the magnitude stays
+  // identical (_forceHalfLine(0.0001) still resolves to the same 0.5 the
+  // old `||0.5` fallback gave) and only the fav/dog side changes.
+  if(ahMargin===0&&g.hML!=null&&g.aML!=null){
+    var _socMH=parseFloat(g.hML),_socMA=parseFloat(g.aML);
+    if(!isNaN(_socMH)&&!isNaN(_socMA)&&_socMH!==_socMA)ahMargin=_socMH<_socMA?0.0001:-0.0001;
+  }
   var ahAbsLine=parseFloat(_forceHalfLine(Math.abs(ahMargin)||0.5));
   var ahHomeLine=ahMargin>=0?-ahAbsLine:ahAbsLine;
   var ahHomeCoverP=_socSpreadProb(hxg,axg,ahHomeLine);
