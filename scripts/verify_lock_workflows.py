@@ -200,9 +200,17 @@ def check_euro_early() -> str | None:
         return problem
     if not run:
         return None
+    # "Locks email (SHL/LIIGA)" was the product label this check was
+    # written against -- auto_lock_settle.py's own hockey-early section
+    # renamed it to "HOCKEY" (covers SHL/LIIGA/NLA/EXTRALIGA together,
+    # see EARLY_HOCKEY_SPORTS) without this string being updated to match,
+    # so a perfectly normal run (confirmed live: 8 real qualifying legs,
+    # correctly skipped because an earlier pass that same day already
+    # locked them -- not an error) was reported as a verification failure
+    # every single day. Real false-positive, not a real lock problem.
     return _check_run(run, "European Early Lock",
                        ["=== AUTO-LOCK (PREMIUM/OPTIMAL) — EUROPEAN EARLY (SOCCER + SHL/LIIGA) ===",
-                        "Locks email (SOCCER)", "Locks email (SHL/LIIGA)"])
+                        "Locks email (SOCCER)", "Locks email (HOCKEY)"])
 
 
 def check_main_lock() -> str | None:
