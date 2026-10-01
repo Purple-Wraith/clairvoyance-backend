@@ -5405,7 +5405,19 @@ function renderNHLTonight(){
       const gh={h:lg.home||lg.h,a:lg.away||lg.a,gn:lg.gn||lg.gameNum||1,ctx:lg.seriesNote||lg.ctx||'',time:lg.time||lg.displayTime||'TBD',net:lg.net||lg.network||'',ou:lg.ou||5.5,hL:lg.homeML||'',aL:lg.awayML||''};
       const h=NHL[gh.h],aw=NHL[gh.a];if(!h||!aw)continue;
       const ens=nhlEns(gh.h,gh.a,gh.ou);const mc=ens.mcD;
-      const hP=ens.p,aP=1-ens.p;
+      // Same fix as _nhlGameCard's own copy of this bug (see its comment):
+      // an exact 0.5/0.5 model tie (early-season gpConf guard) used to make
+      // every `hP>=.5`/`hP>=aP` check below default to the home team as
+      // favorite regardless of the real market -- nudge toward whichever
+      // side the real moneyline actually favors instead.
+      let hP=ens.p,aP=1-ens.p;
+      if(hP===0.5&&aP===0.5){
+        const _mHml=parseFloat(gh.hL),_mAml=parseFloat(gh.aL);
+        if(!isNaN(_mHml)&&!isNaN(_mAml)&&_mHml!==_mAml){
+          const _nudge=_mHml<_mAml?0.0001:-0.0001;
+          hP=0.5+_nudge;aP=0.5-_nudge;
+        }
+      }
       const hML=gh.hL||p2ml(hP),aML=gh.aL||p2ml(aP);
       const hD=ml2d(hML),aD=ml2d(aML);
       const hEV=ev(hP,hD),aEV=ev(aP,aD);
@@ -5486,7 +5498,18 @@ function renderNHLTonight(){
   for(const g of todayGames){
     const h=NHL[g.h],aw=NHL[g.a];if(!h||!aw)continue;
     const ens=nhlEns(g.h,g.a,g.ou);const mc=ens.mcD;
-    const hP=ens.p,aP=1-ens.p;
+    // Same fix as _nhlGameCard's own copy of this bug (see its comment):
+    // an exact 0.5/0.5 model tie used to make every `hP>=.5`/`hP>=aP`
+    // check below default to the home team as favorite regardless of the
+    // real market -- nudge toward whichever side the real moneyline favors.
+    let hP=ens.p,aP=1-ens.p;
+    if(hP===0.5&&aP===0.5){
+      const _mHml=parseFloat(g.hL),_mAml=parseFloat(g.aL);
+      if(!isNaN(_mHml)&&!isNaN(_mAml)&&_mHml!==_mAml){
+        const _nudge=_mHml<_mAml?0.0001:-0.0001;
+        hP=0.5+_nudge;aP=0.5-_nudge;
+      }
+    }
     const hML=g.hL||p2ml(hP),aML=g.aL||p2ml(aP);
     const hD=ml2d(hML),aD=ml2d(aML);
     const hEV=ev(hP,hD),aEV=ev(aP,aD);
@@ -8065,6 +8088,29 @@ function _nhlGameCard(espnEv){
       // of re-fetched.
       let hP=0.50,aP=0.50,ens={mc:0.50,xgf:0.50,elo:0.50},_nhlMcD=null;
       try{const e=nhlEns(hn,an,nhlOuL);if(e?.p){hP=e.p;aP=1-e.p;ens={mc:+(e.mc||.50).toFixed(3),xgf:+(e.xgf||.50).toFixed(3),elo:+(e.elo||.50).toFixed(3)};_nhlMcD=e.mcD||null;}}catch(e2){}
+      // Real bug, found 2026-09-30 (reported live: TOR @ home vs NYI,
+      // season opener, locked as "-1.5" favorite when the real market has
+      // them correctly favored too, but the underlying cause generalizes):
+      // nhlEns's own early-season confidence guard (gpConf) can legitimately
+      // return hP===aP===0.5 exactly when a team has too few games played
+      // to form any real opinion (confirmed live: TOR gp=1, NYI gp=0 this
+      // case). Every downstream `hP>=.5`/`hP>=aP` check in this function --
+      // the puck-line FAV/DOG button assignment, _nhlFav3/_nhlDog3, the
+      // goalie/xGF/zone splits in the explanation text -- then defaults to
+      // calling the HOME team the favorite purely by tie-break order, not
+      // because of any real signal, silently ignoring the real market odds
+      // this function already has in hand (_espnOdds). Nudging hP/aP by an
+      // amount far too small to move any displayed percentage (still
+      // rounds to the same X.X%) but enough to break every `>=` comparison
+      // below in the real market's direction fixes every one of those call
+      // sites at once, with no changes needed at each individual site.
+      if(hP===0.5&&aP===0.5){
+        const _mHml=parseFloat(_espnOdds?.homeTeamOdds?.moneyLine),_mAml=parseFloat(_espnOdds?.awayTeamOdds?.moneyLine);
+        if(!isNaN(_mHml)&&!isNaN(_mAml)&&_mHml!==_mAml){
+          const _nudge=_mHml<_mAml?0.0001:-0.0001; // more negative ML = more favored
+          hP=0.5+_nudge;aP=0.5-_nudge;
+        }
+      }
       const hML=_liveNHL?.homeML||_espnOdds?.homeTeamOdds?.moneyLine||p2ml(hP),aML=_liveNHL?.awayML||_espnOdds?.awayTeamOdds?.moneyLine||p2ml(aP);
       const hD=ml2d(hML),aD=ml2d(aML);
       const hEV=ev(hP,hD),aEV=ev(aP,aD);
@@ -8219,7 +8265,18 @@ function renderNHLGamesOffline(){
   for(const g of todayGames){
     const h=NHL[g.h],aw=NHL[g.a];if(!h||!aw)continue;
     const ens=nhlEns(g.h,g.a,g.ou);const mc=ens.mcD;
-    const hP=ens.p,aP=1-ens.p;
+    // Same fix as _nhlGameCard's own copy of this bug (see its comment):
+    // an exact 0.5/0.5 model tie used to make every `hP>=.5`/`hP>=aP`
+    // check below default to the home team as favorite regardless of the
+    // real market -- nudge toward whichever side the real moneyline favors.
+    let hP=ens.p,aP=1-ens.p;
+    if(hP===0.5&&aP===0.5){
+      const _mHml=parseFloat(g.hL),_mAml=parseFloat(g.aL);
+      if(!isNaN(_mHml)&&!isNaN(_mAml)&&_mHml!==_mAml){
+        const _nudge=_mHml<_mAml?0.0001:-0.0001;
+        hP=0.5+_nudge;aP=0.5-_nudge;
+      }
+    }
     const hML=g.hL||p2ml(hP),aML=g.aL||p2ml(aP);
     const hD=ml2d(hML),aD=ml2d(aML);
     const hEV=ev(hP,hD),aEV=ev(aP,aD);
