@@ -9213,7 +9213,15 @@ function liigaEns(homeId,awayId,marketOU){
   // term instead of silently vanishing, so the 3 sliders still sum to a
   // real probability rather than one of them being a no-op.
   const bayShare=(w.bay||0)+(w.elo||0);
-  const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
+  // Real gap, found + fixed 2026-10-01 (explicit accuracy audit): unlike
+  // NHL/NBA/SOC, this blended probability never passed through
+  // sportCalibrate() at all -- so LIIGA got neither a static historical
+  // correction nor the auto-learned per-band adjustment every other real
+  // sport's ens() function benefits from, even once real settled-bet
+  // history existed to learn from. See renderOverall's per-sport
+  // calibration loop (same date) for the LIIGA entry this now actually
+  // feeds.
+  const p=sportCalibrate(Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare)),'LIIGA');
   // Puck-line cover blend, added 2026-09-29, weight reduced same day
   // after a real point-in-time backtest (scripts/backtest_spread_margin_
   // signal.py) against 80 real settled SPREAD bets showed the blend at
@@ -9237,7 +9245,17 @@ function liigaEns(homeId,awayId,marketOU){
   const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
   const mcCoverP=p>=.5?mc.rl15:mc.rlN;
   const MARGIN_W=0.10;
-  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
+  let favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
+  // Real gap, found + fixed 2026-10-01: same missing-calibration issue as
+  // the ML probability above, but measured worse here -- a real-ledger
+  // audit found LIIGA SPREAD picks graded 67%+ (avg ~76% predicted)
+  // actually hit only 58.6% (n=29), the kind of gap tier()'s own learned
+  // per-sport correction exists to catch, same pattern CFB's _cfbCalMkt
+  // already applies for its own SPREAD/O-U.
+  if(typeof window._calAdjProbByType==='function'){
+    const _adj=window._calAdjProbByType(favCoverP,'SPREAD','LIIGA');
+    if(_adj>0&&_adj<1)favCoverP=_adj;
+  }
   return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP};
 }
 function _liigaPopulateDayFilter(games){
@@ -9328,7 +9346,9 @@ function nlaEns(homeId,awayId,marketOU){
   const log5=denom?(hBay*(1-aBay))/denom:.5;
   const w=HOCKEY_ENS.nla||{mc:.7,bay:.2,elo:.1};
   const bayShare=(w.bay||0)+(w.elo||0);
-  const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
+  // Same missing-calibration gap as liigaEns (see its own comment, fixed
+  // 2026-10-01): never ran through sportCalibrate() before.
+  const p=sportCalibrate(Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare)),'NLA');
   // Puck-line cover blend, weight reduced 2026-09-29 -- see liigaEns's own comment for the full backtest rationale (MARGIN_W=0.10, down from the ML ensemble's ~30% share).
   const favId=p>=.5?homeId:awayId,dogId=p>=.5?awayId:homeId;
   const bigP=r=>r?(r.big+1)/(r.n+2):.5;
@@ -9337,7 +9357,15 @@ function nlaEns(homeId,awayId,marketOU){
   const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
   const mcCoverP=p>=.5?mc.rl15:mc.rlN;
   const MARGIN_W=0.10;
-  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
+  let favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
+  // Same SPREAD calibration gap as liigaEns (fixed 2026-10-01) -- measured
+  // even worse here: NLA SPREAD picks graded 67%+ (avg ~74% predicted)
+  // actually hit only 50.0% (n=12), essentially a coinflip at claimed
+  // PREMIUM confidence.
+  if(typeof window._calAdjProbByType==='function'){
+    const _adj=window._calAdjProbByType(favCoverP,'SPREAD','NLA');
+    if(_adj>0&&_adj<1)favCoverP=_adj;
+  }
   return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP};
 }
 function _nlaPopulateDayFilter(games){
@@ -9420,7 +9448,9 @@ function extraligaEns(homeId,awayId,marketOU){
   const log5=denom?(hBay*(1-aBay))/denom:.5;
   const w=HOCKEY_ENS.extraliga||{mc:.7,bay:.2,elo:.1};
   const bayShare=(w.bay||0)+(w.elo||0);
-  const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
+  // Same missing-calibration gap as liigaEns (see its own comment, fixed
+  // 2026-10-01): never ran through sportCalibrate() before.
+  const p=sportCalibrate(Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare)),'EXTRALIGA');
   // Puck-line cover blend, weight reduced 2026-09-29 -- see liigaEns's own comment for the full backtest rationale (MARGIN_W=0.10, down from the ML ensemble's ~30% share).
   const favId=p>=.5?homeId:awayId,dogId=p>=.5?awayId:homeId;
   const bigP=r=>r?(r.big+1)/(r.n+2):.5;
@@ -9429,7 +9459,16 @@ function extraligaEns(homeId,awayId,marketOU){
   const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
   const mcCoverP=p>=.5?mc.rl15:mc.rlN;
   const MARGIN_W=0.10;
-  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
+  let favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
+  // Same SPREAD calibration gap as liigaEns (fixed 2026-10-01). EXTRALIGA's
+  // own real sample currently runs slightly underconfident rather than
+  // overconfident (83.3% actual vs ~76% predicted at 67%+, n=12) -- this
+  // correction moves in whichever direction the real ledger actually
+  // shows, not just downward, same as every other sport's learned band.
+  if(typeof window._calAdjProbByType==='function'){
+    const _adj=window._calAdjProbByType(favCoverP,'SPREAD','EXTRALIGA');
+    if(_adj>0&&_adj<1)favCoverP=_adj;
+  }
   return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP};
 }
 function _extraligaPopulateDayFilter(games){
@@ -10208,7 +10247,9 @@ function shlEns(homeId,awayId,marketOU){
   // term instead of silently vanishing, so the 3 sliders still sum to a
   // real probability rather than one of them being a no-op.
   const bayShare=(w.bay||0)+(w.elo||0);
-  const p=Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare));
+  // Same missing-calibration gap as liigaEns (see its own comment, fixed
+  // 2026-10-01): never ran through sportCalibrate() before.
+  const p=sportCalibrate(Math.min(.95,Math.max(.05,mc.hwP*(w.mc??.7)+log5*bayShare)),'SHL');
   // Puck-line cover blend, weight reduced 2026-09-29 -- see liigaEns's own comment for the full backtest rationale (MARGIN_W=0.10, down from the ML ensemble's ~30% share).
   const favId=p>=.5?homeId:awayId,dogId=p>=.5?awayId:homeId;
   const bigP=r=>r?(r.big+1)/(r.n+2):.5;
@@ -10217,7 +10258,14 @@ function shlEns(homeId,awayId,marketOU){
   const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
   const mcCoverP=p>=.5?mc.rl15:mc.rlN;
   const MARGIN_W=0.10;
-  const favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
+  let favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
+  // Same SPREAD calibration gap as liigaEns (fixed 2026-10-01) -- measured
+  // real-ledger overconfidence here too: SHL SPREAD picks graded 67%+
+  // (avg ~75% predicted) actually hit 64.3% (n=14).
+  if(typeof window._calAdjProbByType==='function'){
+    const _adj=window._calAdjProbByType(favCoverP,'SPREAD','SHL');
+    if(_adj>0&&_adj<1)favCoverP=_adj;
+  }
   return{p,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP};
 }
 function _shlPopulateDayFilter(games){
@@ -12616,7 +12664,20 @@ function renderOverall(){
     }
     return out;
   };
-  for(const _sp of ['NHL','NBA','SOC','CFB','NFL']){
+  // SHL/LIIGA/NLA/EXTRALIGA added 2026-10-01, explicit accuracy/
+  // reliability audit: these 4 leagues (added 2026-09-22) had real
+  // settled-bet history (22-80 bets each by this point) but were never
+  // added to this loop, AND their own ens() functions never called
+  // sportCalibrate() at all -- so unlike every other sport here, they
+  // got NEITHER the static historical Platt correction NOR this adaptive
+  // per-band one. Confirmed live via a real-ledger audit: SPREAD picks
+  // graded 67%+ (claimed PREMIUM confidence, avg ~75% predicted) actually
+  // hit only 50-65% in 3 of the 4 leagues (NLA the worst: 74% predicted,
+  // 50.0% actual on n=12) -- a real, measurable overconfidence problem,
+  // not a sample-noise artifact, and the exact failure mode this per-
+  // sport loop exists to catch and correct automatically. _spUC matches
+  // these 4 directly (no shared-tag ambiguity like CFB/NFL's 'FOOTBALL').
+  for(const _sp of ['NHL','NBA','SOC','CFB','NFL','SHL','LIIGA','NLA','EXTRALIGA']){
     // _spUC precomputed once per pick near the top of this function (see
     // that comment for why mutating these fresh getP() objects is safe)
     // -- reused here instead of recomputing .toUpperCase() per item per
