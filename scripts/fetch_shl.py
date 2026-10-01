@@ -286,9 +286,31 @@ def fetch_fixtures(page, season_start_year: int, team_names: dict, now: datetime
 
 
 def fetch_results(page, season_start_year: int, team_names: dict) -> list[dict]:
+    """Real bug, found 2026-10-02 auditing the manual-settlement backlog:
+    Flashscore's /results/ page only renders its most recent ~15-20
+    matches by default and needs its own "Show more matches" button
+    clicked to load older ones -- this never clicked it, so the moment
+    two teams' NEXT meeting got scraped as an upcoming fixture while this
+    page's default window had already scrolled past their LAST meeting,
+    that completed game permanently vanished from every future run's
+    `games` list (fixtures showed the future rematch; results never
+    re-surfaced the real completed one) -- the pick settles against
+    nothing, forever, until someone does it by hand. Clicking the real
+    "Show more matches" button (Flashscore's actual class, confirmed
+    against this same site's markup elsewhere in this codebase) repeatedly
+    covers a real multi-week lookback instead of just the default page."""
     log(f"Results: {RESULTS_URL}")
     page.goto(RESULTS_URL, wait_until="networkidle", timeout=30000)
     page.wait_for_timeout(1500)
+    for _ in range(6):  # ~6 clicks comfortably covers several weeks of back-results
+        more = page.query_selector("a.event__more, .event__more")
+        if not more:
+            break
+        try:
+            more.click()
+            page.wait_for_timeout(800)
+        except Exception:
+            break
     rows = page.query_selector_all("[class*='event__match']")
     games = []
     for row in rows:

@@ -334,6 +334,20 @@ def fetch_results(page, season_start_year: int, team_names: dict) -> list[dict]:
     log(f"Results: {RESULTS_URL}")
     page.goto(RESULTS_URL, wait_until="networkidle", timeout=30000)
     page.wait_for_timeout(1500)
+    # Real bug, found 2026-10-02: Flashscore's /results/ page only renders
+    # its most recent ~15-20 matches by default (needs "Show more matches"
+    # clicked for older ones) -- see fetch_shl.py's fetch_results for the
+    # full incident writeup (same shared bug, same fix, across all 4 hockey
+    # leagues). Clicking it repeatedly covers a real multi-week lookback.
+    for _ in range(6):
+        more = page.query_selector("a.event__more, .event__more")
+        if not more:
+            break
+        try:
+            more.click()
+            page.wait_for_timeout(800)
+        except Exception:
+            break
     rows = page.query_selector_all("[class*='event__match']")
     games = []
     for row in rows:
