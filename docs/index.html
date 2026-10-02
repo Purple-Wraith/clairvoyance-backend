@@ -16069,24 +16069,46 @@ async function runLedgerIntegrityCheck(btn){
     for(const lg of Object.keys(hockeyLoaders)){
       try{if(hockeyLoaders[lg].load)await hockeyLoaders[lg].load();}catch(e){}
     }
-    const mismatches=[];
+    // Fixed 2026-10-03: this used to compare against the FIRST schedule game
+    // between the two teams, so any rematch (teams meet 2-3x a month) was
+    // flagged -- all 10 LIIGA "mismatches" reported that day were false
+    // positives (each had a real game on its stored date). Now a mismatch
+    // is only "no game between these two teams on the stored MT date",
+    // matching either home/away orientation (picks are sometimes stored
+    // with home/away swapped relative to the schedule).
+    const mtDate=d=>new Date(d).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+    const gradeHockeyPick=(p,g)=>{
+      const hs=g.homeScore,as=g.awayScore;if(hs==null||as==null)return null;
+      const b=p.betOn||'';
+      if(p.betType==='OU'){const m=b.match(/(OVER|UNDER)\s*([\d.]+)/i);if(!m)return null;const t=hs+as,l=parseFloat(m[2]);return t===l?'push':((/over/i.test(m[1])?t>l:t<l)?'win':'loss');}
+      if(p.betType==='SPREAD'){const m=b.match(/^(.*?)\s*([+-]\d+(\.\d+)?)$/);if(!m)return null;const team=m[1].trim(),line=parseFloat(m[2]);const mine=team===g.homeName?hs:team===g.awayName?as:null;if(mine==null)return null;const opp=team===g.homeName?as:hs;const d=mine+line-opp;return d>0?'win':d<0?'loss':'push';}
+      if(p.betType==='ML'){const team=b.replace(/\s*ML$/i,'').trim();const mine=team===g.homeName?hs:team===g.awayName?as:null;if(mine==null)return null;const opp=team===g.homeName?as:hs;return mine>opp?'win':mine<opp?'loss':'push';}
+      return null;
+    };
+    const mismatches=[],badGrades=[];
     for(const p of preds){
       const sp=window._normSport(p);
       const loader=hockeyLoaders[sp];
       if(!loader)continue;
       const D=loader.get();
       if(!D||!Array.isArray(D.games)||!D.games.length)continue;
-      if(!p.hA||!p.awA)continue;
-      const game=D.games.find(g=>(g.homeName===p.hA&&g.awayName===p.awA)||(g.homeName===p.awA&&g.awayName===p.hA));
-      if(!game||!game.date)continue;
-      const realDate=new Date(game.date).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
-      if(realDate&&p.date&&realDate!==p.date){
-        mismatches.push({id:p.id,betOn:p.betOn,sport:sp,storedDate:p.date,realDate});
+      if(!p.hA||!p.awA||!p.date)continue;
+      const between=D.games.filter(g=>g.date&&((g.homeName===p.hA&&g.awayName===p.awA)||(g.homeName===p.awA&&g.awayName===p.hA)));
+      if(!between.length)continue;
+      const onDate=between.find(g=>mtDate(g.date)===p.date);
+      if(!onDate){
+        mismatches.push({id:p.id,betOn:p.betOn,sport:sp,storedDate:p.date,realDate:between.map(g=>mtDate(g.date)).join(' / ')});
+        continue;
+      }
+      if((p.outcome==='win'||p.outcome==='loss')&&onDate.state==='post'){
+        const regraded=gradeHockeyPick(p,onDate);
+        if(regraded&&regraded!==p.outcome)badGrades.push({id:p.id,betOn:p.betOn,sport:sp,stored:p.outcome,regraded,score:`${onDate.homeName} ${onDate.homeScore}-${onDate.awayScore} ${onDate.awayName}`});
       }
     }
 
     out.innerHTML=
       _ehSecHTML('DATE MISMATCHES',mismatches,m=>`<div style="font-family:var(--mono);font-size:14px;color:var(--t2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">#${_ehEsc(m.id)} · ${_ehEsc(m.betOn||'?')} (${_ehEsc(m.sport)}) — stored ${_ehEsc(m.storedDate)}, real game date ${_ehEsc(m.realDate)}</div>`)+
+      _ehSecHTML('SETTLED OUTCOME DISAGREES WITH SCHEDULE SCORE',badGrades,m=>`<div style="font-family:var(--mono);font-size:14px;color:var(--t2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">#${_ehEsc(m.id)} · ${_ehEsc(m.betOn||'?')} (${_ehEsc(m.sport)}) — stored ${_ehEsc(m.stored)}, schedule score says ${_ehEsc(m.regraded)} (${_ehEsc(m.score)})</div>`)+
       _ehSecHTML('ORPHANED / RETIRED-LEAGUE PICKS',orphans,p=>`<div style="font-family:var(--mono);font-size:14px;color:var(--t2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">#${_ehEsc(p.id)} · ${_ehEsc(p.betOn||'?')} — sport "${_ehEsc(p.sport||'?')}" not in active-league allowlist (outcome: ${_ehEsc(p.outcome)})</div>`)+
       _ehSecHTML('DUPLICATE IDS',dupes,d=>`<div style="font-family:var(--mono);font-size:14px;color:var(--t2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">id "${_ehEsc(d.id)}" appears ${d.c} times</div>`);
   }catch(e){
