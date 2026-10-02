@@ -73,6 +73,7 @@ import os
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import sys
 
@@ -138,10 +139,23 @@ def log(msg: str) -> None:
 
 
 def _mt_now() -> datetime:
-    # Good enough for day-of-week/day-of-month cadence decisions — this
-    # project's other scheduled workflows are all pinned to MDT (UTC-6)
-    # rather than doing real DST-aware conversion, same convention here.
-    return datetime.now(timezone.utc) - timedelta(hours=6)
+    # Real bug, found auditing this file 2026-10-02: this used to be a
+    # fixed UTC-6 offset (the old comment claimed "this project's other
+    # scheduled workflows are all pinned to MDT (UTC-6)", which is no
+    # longer true -- auto_lock_settle.py/daily_health_check.py/
+    # weekly_health_digest.py/generate_pick_of_day_social.py all already
+    # do real DST-aware America/Denver conversion via zoneinfo). A fixed
+    # UTC-6 offset is only correct during MDT (mid-March to early
+    # November); once DST ends and America/Denver becomes MST (UTC-7),
+    # every is_sunday/is_first_of_month/is_new_year/is_biweekly cadence
+    # decision in run() below would silently compute against a clock an
+    # hour ahead of real MT. This cron fires mid-morning MT (15:52 UTC),
+    # not near a midnight boundary, so the practical blast radius was
+    # low -- but correctness here shouldn't depend on happening to run
+    # far from the one hour a day it would actually flip a day-boundary
+    # decision. Real zoneinfo conversion matches the convention every
+    # other script in this pipeline already uses.
+    return datetime.now(timezone.utc).astimezone(ZoneInfo("America/Denver"))
 
 
 # Matches SPORT_LEAGUES in docs/app.html's Sport Performance card exactly
@@ -1002,16 +1016,25 @@ def build_covers_caption() -> dict[str, str]:
     # audit found it the only negative-ROI soccer league, worsening not
     # stabilizing -- see EURO_SOCCER_SPORTS' own comment in
     # auto_lock_settle.py), dropping soccer's active bundle from 6 leagues
-    # to 5 -- real total is 13 leagues across the same 5 sports.
+    # to 5 -- real total was 13 leagues across the same 5 sports.
+    # Real bug, found auditing this file 2026-10-02: MLS retired
+    # 2026-09-27 (4 days after the above update), dropping soccer's
+    # active bundle from 5 leagues to 4 (CL/PL/La Liga/Serie A only --
+    # see PRODUCT_SPORTS' own comment in auto_lock_settle.py), but this
+    # caption was never updated to match -- it kept advertising MLS (a
+    # retired league with no new picks ever locking) as part of the
+    # count. Real total is NFL(1)+CFB(1)+NBA(1)+hockey(NHL/Liiga/SHL/
+    # NLA/Extraliga=5)+soccer(CL/PL/La Liga/Serie A=4) = 12 leagues
+    # across the same 5 sports/products.
     ig = (
         "One engine. Every sport that matters.\n\nThis is Clairvoyance.\n\n"
-        "13 leagues across 5 sports, every pick graded, every result tracked publicly — model outputs, not gut feelings.\n\n"
+        "12 leagues across 5 sports, every pick graded, every result tracked publicly — model outputs, not gut feelings.\n\n"
         "Follow for daily signals, subscribe for exclusive graded picks, and intelligence briefs.\n\n"
         "clairvoyanceengine.info\nIG @clairvoyanceengine\nX @clairvoyanceeng\n\n"
         "#foryou #sportsbetting #bettingtips #bettingpicks"
     )
     x = (
-        "One engine. Every sport that matters.\n\n13 leagues, 5 sports, every pick graded.\n\n"
+        "One engine. Every sport that matters.\n\n12 leagues, 5 sports, every pick graded.\n\n"
         "clairvoyanceengine.info\n\n#sportsbetting #bettingpicks"
     )
     return {"instagram": ig, "x": x}
