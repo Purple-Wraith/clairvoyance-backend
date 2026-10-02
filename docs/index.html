@@ -3387,10 +3387,13 @@ function _mcProjBarHTML(mc,ouL,hTeam,aTeam,opts){
   const overStr=mc.overP!=null?(mc.overP*100).toFixed(0)+'% O':'';
   const otStr=mc.otP!=null?' · OT '+(mc.otP*100).toFixed(0)+'%':'';
   const nSims=opts&&opts.n?opts.n:25000;
-  const nStr=nSims>=1000?Math.round(nSims/1000)+'k sims':nSims+' sims';
+  // opts.exact: SHL/LIIGA/NLA/EXTRALIGA's liigaMC/shlMC/nlaMC/extraligaMC are NOT simulations -- they are exact
+  // independent-Poisson math (_socMarginDist/_socPoissonPmf/_socSpreadProb), so never claim a sim count for them
+  // (same wording convention as _mcLineScore's opts.exact).
+  const nStr=(opts&&opts.exact)?'exact Poisson distribution, not sims':(nSims>=1000?Math.round(nSims/1000)+'k sims':nSims+' sims');
   const unit=opts&&opts.unit?opts.unit:'';
   return'<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px;padding:5px 9px;background:rgba(0,0,0,.35);border-radius:3px;border:1px solid rgba(255,255,255,.07)">'
-    +'<span style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">MC PROJ ('+nStr+')</span>'
+    +'<span style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">'+((opts&&opts.exact)?'PROJ':'MC PROJ')+' ('+nStr+')</span>'
     +'<span style="font-family:var(--mono);font-size:16px;color:var(--nc);font-weight:700">'+h+(unit?' '+unit:'')+'  –  '+a+(unit?' '+unit:'')+'</span>'
     +'<span style="font-family:var(--mono);font-size:14px;color:var(--t3)">Total <span style="color:var(--vc);font-weight:700">'+t+'</span> vs <span style="color:var(--t2)">'+ouL+'</span>'+(overStr?' &middot; '+overStr:'')+(otStr?otStr:'')+'</span>'
     +'<span style="font-family:var(--mono);font-size:14px;color:var(--t3)">Margin <span style="color:'+(favIsH?'var(--nc)':'var(--ic)')+'">'+marginDisp+' ('+(favIsH?hTeam:aTeam)+')</span></span>'
@@ -10420,12 +10423,12 @@ function _liigaMatchCard(g){
   // about THIS game -- exactly the "boilerplate that doesn't change based
   // on the actual pick" this cleanup pass is for. Dropped entirely rather
   // than kept as dead weight on every Liiga/SHL/NLA/Extraliga card.
-  const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
+  const ensStr=`Ensemble: Poisson model ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
   let explanation;
   if(topTier===0){
-    explanation=`No qualifying edge (best ${bm.label} ${bp}%). ${ratesStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). Skip or monitor line movement.`;
+    explanation=`No qualifying edge (best ${bm.label} ${bp}%). ${ratesStr} Exact-Poisson proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). Skip or monitor line movement.`;
   }else{
-    const mcProjStr=`MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line).`;
+    const mcProjStr=`Exact-Poisson proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line).`;
     // Real bug fixed here: this branching used to only recognize
     // mlFav/mlDog/over, so a puck-line (sprdFav/sprdDog) best market fell
     // through to the generic O/U "tighter, lower-scoring line" wording --
@@ -10451,7 +10454,7 @@ function _liigaMatchCard(g){
   // sim count.
   if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}),{[bm.side]:explanation});
   else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}));
-  _autoLockCapture('LIIGA',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
+  _autoLockCapture('LIIGA',g.homeName,g.awayName,nm,`EXACT-POISSON PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
@@ -10504,7 +10507,7 @@ function _liigaMatchCard(g){
         <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span>
         <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
       </div>
-      ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2})}
+      ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
       <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
@@ -10571,12 +10574,12 @@ function _nlaMatchCard(g){
   // Part 2 content cleanup, 2026-10-02 -- see _liigaMatchCard's identical
   // fix for the full rationale (dropped `capStr`, a flat boilerplate
   // sentence that never varied by the actual pick).
-  const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
+  const ensStr=`Ensemble: Poisson model ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
   let explanation;
   if(topTier===0){
-    explanation=`No qualifying edge (best ${bm.label} ${bp}%). ${ratesStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). Skip or monitor line movement.`;
+    explanation=`No qualifying edge (best ${bm.label} ${bp}%). ${ratesStr} Exact-Poisson proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). Skip or monitor line movement.`;
   }else{
-    const mcProjStr=`MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line).`;
+    const mcProjStr=`Exact-Poisson proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line).`;
     let sideStr;
     if(bm.side==='mlFav')sideStr=`${g.homeName}'s scoring edge unpriced by a flat moneyline.`;
     else if(bm.side==='mlDog')sideStr=`${g.awayName} road value the record alone doesn't capture.`;
@@ -10590,7 +10593,7 @@ function _nlaMatchCard(g){
   // (this is NLA, the same near-duplicate pattern).
   if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}),{[bm.side]:explanation});
   else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}));
-  _autoLockCapture('NLA',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
+  _autoLockCapture('NLA',g.homeName,g.awayName,nm,`EXACT-POISSON PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
@@ -10643,7 +10646,7 @@ function _nlaMatchCard(g){
         <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span>
         <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
       </div>
-      ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2})}
+      ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
       <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
@@ -10706,12 +10709,12 @@ function _extraligaMatchCard(g){
   // Part 2 content cleanup, 2026-10-02 -- see _liigaMatchCard's identical
   // fix for the full rationale (dropped `capStr`, a flat boilerplate
   // sentence that never varied by the actual pick).
-  const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
+  const ensStr=`Ensemble: Poisson model ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
   let explanation;
   if(topTier===0){
-    explanation=`No qualifying edge (best ${bm.label} ${bp}%). ${ratesStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). Skip or monitor line movement.`;
+    explanation=`No qualifying edge (best ${bm.label} ${bp}%). ${ratesStr} Exact-Poisson proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). Skip or monitor line movement.`;
   }else{
-    const mcProjStr=`MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line).`;
+    const mcProjStr=`Exact-Poisson proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line).`;
     let sideStr;
     if(bm.side==='mlFav')sideStr=`${g.homeName}'s scoring edge unpriced by a flat moneyline.`;
     else if(bm.side==='mlDog')sideStr=`${g.awayName} road value the record alone doesn't capture.`;
@@ -10725,7 +10728,7 @@ function _extraligaMatchCard(g){
   // (this is Extraliga, the same near-duplicate pattern).
   if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}),{[bm.side]:explanation});
   else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}));
-  _autoLockCapture('EXTRALIGA',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
+  _autoLockCapture('EXTRALIGA',g.homeName,g.awayName,nm,`EXACT-POISSON PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
@@ -10778,7 +10781,7 @@ function _extraligaMatchCard(g){
         <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span>
         <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
       </div>
-      ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2})}
+      ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
       <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
@@ -11013,12 +11016,12 @@ function _shlMatchCard(g){
   // Part 2 content cleanup, 2026-10-02 -- see _liigaMatchCard's identical
   // fix for the full rationale (dropped `capStr`, a flat boilerplate
   // sentence that never varied by the actual pick).
-  const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
+  const ensStr=`Ensemble: Poisson model ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
   let explanation;
   if(topTier===0){
-    explanation=`No qualifying edge (best ${bm.label} ${bp}%). ${ratesStr} MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). Skip or monitor line movement.`;
+    explanation=`No qualifying edge (best ${bm.label} ${bp}%). ${ratesStr} Exact-Poisson proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line). Skip or monitor line movement.`;
   }else{
-    const mcProjStr=`MC proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line).`;
+    const mcProjStr=`Exact-Poisson proj: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (${mc.avgT.toFixed(1)} total vs ${ouL} line).`;
     let sideStr;
     if(bm.side==='mlFav')sideStr=`${g.homeName}'s scoring edge unpriced by a flat moneyline.`;
     else if(bm.side==='mlDog')sideStr=`${g.awayName} road value the record alone doesn't capture.`;
@@ -11032,7 +11035,7 @@ function _shlMatchCard(g){
   // (this is SHL, the same near-duplicate pattern).
   if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}),{[bm.side]:explanation});
   else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}));
-  _autoLockCapture('SHL',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
+  _autoLockCapture('SHL',g.homeName,g.awayName,nm,`EXACT-POISSON PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
@@ -11085,7 +11088,7 @@ function _shlMatchCard(g){
         <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span>
         <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
       </div>
-      ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2})}
+      ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
       <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
