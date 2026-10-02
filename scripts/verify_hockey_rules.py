@@ -45,6 +45,7 @@ checks = [
     ("HOCKEY_ODDS_MAX_AGE_H", js_num("HOCKEY_ODDS_MAX_AGE_H"), A.HOCKEY_ODDS_MAX_AGE_H),
     ("HOCKEY_LANE_LABEL", js_str("HOCKEY_LANE_LABEL"), A.HOCKEY_LANE_LABEL),
     ("LOCK_START_MARGIN_MIN", js_num("LOCK_START_MARGIN_MIN"), A.LOCK_START_MARGIN_MIN),
+    ("_TB_DUR_MIN (lock_timing.DUR_MIN)", js_obj("_TB_DUR_MIN"), {k: float(v) for k, v in __import__("lock_timing").DUR_MIN.items()}),
     ("HOCKEY_REQUIRE_REAL_PRICE", "true" in re.search(r"const HOCKEY_REQUIRE_REAL_PRICE=(\w+)", html).group(1), A.HOCKEY_REQUIRE_REAL_PRICE),
 ]
 bad = 0
