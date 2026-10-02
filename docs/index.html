@@ -2901,6 +2901,125 @@ const MP_DATA={
 function p2ml(p){return p>=.5?-Math.round(100*p/(1-p)):'+'+Math.round(100*(1-p)/p)}
 function _mlFmt(v){const s=String(v);return(s.charAt(0)==='+'||s.charAt(0)==='-')?s:(v>0?'+':'')+s;}
 function ml2d(ml){const m=parseFloat(ml);return m>0?m/100+1:100/Math.abs(m)+1}
+// ═══ REAL MARKET PRICES — European hockey leagues (SHL/LIIGA/NLA/EXTRALIGA) ═══
+// Added 2026-10-02. These four leagues' cards used to price every bet with
+// NO market data: ML = p2ml(model prob) (so ML EV was ~0 by construction),
+// O/U a flat 1.91, puck line a flat 1.87. scripts/_flashscore_odds.py now
+// scrapes real bookmaker prices into each schedule game's `odds` object
+// ({ml:{home,away,books},ou:[{line,over,under,books}],pl:{'-1.5':{home,away},
+// '+1.5':{...}},at}, decimal, median across bookmakers). When a game has
+// `odds`, the cards DISPLAY and LOCK the real price (stored in the pick's
+// `ml`/`decOdds` with `priceSource:'market'`); when it doesn't, behavior is
+// exactly what it was (`priceSource:'assumed'` on the pick, old assumed price).
+//
+// HARD GUARDRAIL -- pick QUALIFICATION is unchanged by default.
+// tier() (-> _evalMkts -> the pipeline's QUALIFYING_TIERS={2,3}, which locks
+// picks AND emails paid subscribers) needs BOTH a probability floor and an
+// EV floor (PREMIUM p>=.67&&EV>=.05, OPTIMAL p>=.62&&EV>=.03, LEAN p>=.55&&
+// EV>=.01), and EV = prob*dec-1 -- so the price directly feeds the tier (and
+// _evalMkts' mfScore/best-market sort via edge/kelly, which also use dec).
+// Real bookmaker prices carry vig, so ML EV (0 by construction before) goes
+// negative nearly everywhere and most ML picks would stop qualifying.
+// Therefore: by default (false) the tier inputs (dec/evVal handed to
+// _evalMkts) are STILL the old assumed prices; the real price rides along
+// as extra fields (mktMl/mktDec/mktEv/priceSource) used only for display and
+// for what gets stored on a lock. Flip to true to feed real-price EV into
+// tiering -- that is the one-line switch for the owner's decision.
+const HOCKEY_MKT_PRICE_TIERING=false;
+// A pre-game price older than this is not trusted (a failed odds refresh can
+// leave an old `odds` carried over); closing prices on finished games are kept.
+const _HK_ODDS_MAX_AGE_MS=36*3600*1000;
+const _HK_MINOR_LEAGUES=['SHL','LIIGA','NLA','EXTRALIGA'];
+function _hkValidDec(d){return typeof d==='number'&&isFinite(d)&&d>1.0&&d<=200;}
+// decimal -> American display string ('-145' / '+200'); inverse of ml2d.
+function _dec2ml(d){if(!_hkValidDec(d))return null;return d>=2?'+'+Math.round((d-1)*100):String(-Math.round(100/(d-1)));}
+function _hkOdds(g){
+  const o=g&&g.odds;if(!o)return null;
+  if(g.state!=='post'&&o.at){const t=Date.parse(o.at);if(isFinite(t)&&Date.now()-t>_HK_ODDS_MAX_AGE_MS)return null;}
+  return o;
+}
+function _hkLeg(dec,src){return{src:src,dec:dec,ml:_dec2ml(dec)};}
+function _hkOuLegAt(odds,line,dir){
+  const e=odds&&Array.isArray(odds.ou)?odds.ou.find(x=>Math.abs(x.line-line)<0.01):null;
+  const d=e?(dir==='OVER'||dir==='over'?e.over:e.under):null;
+  return _hkValidDec(d)?{..._hkLeg(d,'market'),books:e.books||null}:null;
+}
+// Puck line (home-perspective keys): '-1.5' row = home gives 1.5 (home price =
+// home -1.5, away price = away +1.5); '+1.5' row = home gets 1.5.
+function _hkPlLegsAt(odds,favIsHome,mag){
+  if(!odds||!odds.pl||Math.abs(mag-1.5)>0.01)return null;
+  const r=favIsHome?odds.pl['-1.5']:odds.pl['+1.5'];if(!r)return null;
+  const fd=favIsHome?r.home:r.away,dd=favIsHome?r.away:r.home;
+  if(!_hkValidDec(fd)||!_hkValidDec(dd))return null;
+  return{fav:{..._hkLeg(fd,'market'),books:r.books||null},dog:{..._hkLeg(dd,'market'),books:r.books||null}};
+}
+// Everything a card needs: displayed/lockable price per leg, market when the
+// game has real odds else the old assumed numbers (ML p2ml, PL 1.87/-115,
+// O/U 1.91/-110).
+function _hkPrices(g,hP,favIsHome,ouL){
+  const o=_hkOdds(g);
+  const aP=1-hP;
+  const asmMl=p=>{const m=String(p2ml(p));return{src:'assumed',dec:ml2d(m),ml:m};};
+  let ml={home:asmMl(hP),away:asmMl(aP)};
+  if(o&&o.ml&&_hkValidDec(o.ml.home)&&_hkValidDec(o.ml.away))ml={home:_hkLeg(o.ml.home,'market'),away:_hkLeg(o.ml.away,'market')};
+  let pl={fav:{src:'assumed',dec:1.87,ml:'-115'},dog:{src:'assumed',dec:1.87,ml:'-115'}};
+  const plm=_hkPlLegsAt(o,favIsHome,1.5);if(plm)pl=plm;
+  const asmOu={src:'assumed',dec:1.91,ml:'-110'};
+  const ou={over:_hkOuLegAt(o,ouL,'OVER')||asmOu,under:_hkOuLegAt(o,ouL,'UNDER')||asmOu};
+  return{ml,pl,ou};
+}
+// EV used as the TIER INPUT: assumed-price EV unless HOCKEY_MKT_PRICE_TIERING.
+function _hkTierDec(assumedDec,leg){return(HOCKEY_MKT_PRICE_TIERING&&leg&&leg.src==='market')?leg.dec:assumedDec;}
+function _hkTierEv(p,assumedDec,leg){return ev(p,_hkTierDec(assumedDec,leg));}
+// One _evalMkts input row. dec/evVal = tier inputs (see guardrail above);
+// mktMl/mktDec/mktEv/priceSource = real-price info for display + lock only.
+function _hkMkt(label,prob,side,assumedDec,leg){
+  const mk=!!(leg&&leg.src==='market');
+  return{label,prob,side,evVal:_hkTierEv(prob,assumedDec,leg),dec:_hkTierDec(assumedDec,leg),
+    mktMl:mk?leg.ml:null,mktDec:mk?leg.dec:null,mktEv:mk?ev(prob,leg.dec):null,priceSource:mk?'market':'assumed'};
+}
+function _hkSrcTag(leg){
+  return leg&&leg.src==='market'
+    ?'<span style="color:var(--gc)">MARKET</span>'
+    :'<span style="color:var(--t3)">MODEL-ASSUMED</span>';
+}
+function _hkExtraMeta(leg){return leg?`{priceSource:'${leg.src}'}`:'undefined';}
+// Live price label under the puck-line / O-U boxes. The line inputs are
+// adjustable, so the label (and the price a lock stores) follows the line.
+window._hkPxReg=window._hkPxReg||{};
+function _hkPxText(rg,val){
+  if(rg.kind==='ou'){
+    const L=parseFloat(val);const o=_hkOdds(rg.g);
+    const ov=_hkOuLegAt(o,L,'OVER'),un=_hkOuLegAt(o,L,'UNDER');
+    const mk=ov&&un;
+    const a=mk?ov:{src:'assumed',ml:'-110'},b=mk?un:{src:'assumed',ml:'-110'};
+    return`O ${_mlFmt(a.ml)} · U ${_mlFmt(b.ml)} ${_hkSrcTag(a)}${mk&&ov.books?` (${ov.books} bk)`:''}`;
+  }
+  const mag=Math.abs(parseFloat(val));const legs=_hkPlLegsAt(_hkOdds(rg.g),rg.favIsHome,mag);
+  const f=legs?legs.fav:{src:'assumed',ml:'-115'},d=legs?legs.dog:{src:'assumed',ml:'-115'};
+  return`FAV ${_mlFmt(f.ml)} · DOG ${_mlFmt(d.ml)} ${_hkSrcTag(f)}`;
+}
+function _hkPxLabelHTML(inputId,rg){
+  window._hkPxReg[inputId]=rg;
+  return`<div id="px_${inputId}" style="font-family:var(--mono);font-size:11px;letter-spacing:.3px;color:var(--t2);text-align:center;margin-top:1px">${_hkPxText(rg,rg.kind==='ou'?rg.line:-1.5)}</div>`;
+}
+function _hkPxRefresh(inputId){
+  try{
+    const rg=window._hkPxReg&&window._hkPxReg[inputId];if(!rg)return;
+    const inp=document.getElementById(inputId),lbl=document.getElementById('px_'+inputId);
+    if(inp&&lbl)lbl.innerHTML=_hkPxText(rg,inp.value);
+  }catch(e){}
+}
+// Lock-time price lookup for _ouLockDir/_spreadLockDir: the price of the
+// exact side/line actually being locked, or null when this input isn't a
+// registered hockey-minor card (every other sport keeps its old behavior).
+function _hkLockLeg(inputId,kind,line,dir){
+  const rg=window._hkPxReg&&window._hkPxReg[inputId];if(!rg||rg.kind!==kind)return null;
+  const o=_hkOdds(rg.g);
+  if(kind==='ou')return _hkOuLegAt(o,line,dir)||{src:'assumed',dec:1.91,ml:'-110'};
+  const legs=_hkPlLegsAt(o,rg.favIsHome,Math.abs(line));
+  return legs?(dir==='FAV'?legs.fav:legs.dog):{src:'assumed',dec:1.87,ml:'-115'};
+}
 // ═══ GENERIC TEAM-SPORT CARD (NFL / CFB / CBB) ═════════════════════════════
 // NFL/CFB/CBB have no team-rating dataset the way MLB/NBA/NHL/WNBA do (no
 // TEAMS/NBA_TEAMS-equivalent, no ELO history), so a full MLB-depth
@@ -3375,7 +3494,11 @@ function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors){
       // 2026-10-02. null for any sport/call site that hasn't been wired up
       // to _attachReasoning yet, so this stays backward-compatible rather
       // than throwing when m.reasoning is undefined.
-      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:m.dec,ml:m.ml,tierN:m.tierN,mfScore:m.mfScore,reasoning:m.reasoning||null})),
+      // ml/dec: the REAL market price when the card priced this market from one (mktMl/mktDec,
+      // European hockey cards only) so the pipeline's lockPick call stores it; evVal/tierN stay the
+      // tier inputs (see HOCKEY_MKT_PRICE_TIERING) so qualification is unaffected. priceSource
+      // ('market'|'assumed'|null) is threaded through build_qualifying/lock_game_leg onto the pick.
+      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:(m.mktDec!=null?m.mktDec:m.dec),ml:(m.mktMl!=null?m.mktMl:m.ml),priceSource:m.priceSource||null,tierN:m.tierN,mfScore:m.mfScore,reasoning:m.reasoning||null})),
       // Optional -- only soccer's capture call currently passes this (see
       // _renderSocMatchCard). Threaded through build_qualifying/
       // lock_game_leg into lockPick's extraMeta so it lands on the
@@ -3535,7 +3658,9 @@ function _attachReasoning(nm,mcLineFn,richBySide){
   try{
     (nm.mkts||[]).forEach(m=>{
       const tierLbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN]||'SKIP';
-      const head=`PICK: ${m.label} — ${tierLbl} (${(m.prob*100).toFixed(1)}% win prob, EV ${m.evVal>=0?'+':''}${(m.evVal*100).toFixed(1)}%)`;
+      // European hockey cards only (priceSource is set nowhere else): say which price this is.
+      const pxNote=m.priceSource==='market'&&m.mktEv!=null?` · MARKET PRICE ${_mlFmt(m.mktMl)} (EV at market ${m.mktEv>=0?'+':''}${(m.mktEv*100).toFixed(1)}%)`:m.priceSource==='assumed'?' · price model-assumed (no market quote)':'';
+      const head=`PICK: ${m.label} — ${tierLbl} (${(m.prob*100).toFixed(1)}% win prob, EV ${m.evVal>=0?'+':''}${(m.evVal*100).toFixed(1)}%${pxNote})`;
       const mcLine=mcLineFn?mcLineFn(m.side):null;
       const rich=(richBySide&&richBySide[m.side])?_stripHTML(richBySide[m.side]):null;
       m.reasoning=[head,mcLine?('MODEL: '+mcLine):null,rich?('WHY: '+rich):null].filter(Boolean).join('\n');
@@ -3904,7 +4029,7 @@ function _ouAdj(hA,awA,date,baseOverP,ouL,delta){
 // Shared by _adjV and a new oninput handler on the input itself so both
 // paths (step buttons AND direct typing) always keep the sign current.
 function _syncSprdLabels(id){var el=document.getElementById(id);if(!el)return;var nv=Math.round((parseFloat(el.value)||0)*2)/2;var fl=document.getElementById('fav_'+id);var dl=document.getElementById('dog_'+id);if(fl)fl.textContent=(nv<0?'':'+')+(nv).toFixed(1);if(dl){var dv=-nv;dl.textContent=(dv<0?'':'+')+(dv).toFixed(1);}}
-function _adjV(id,d){var el=document.getElementById(id);if(!el)return;var v=parseFloat(el.value)||0;var nv=Math.round((v+d)*2)/2;el.value=nv.toFixed(1);if(id.indexOf('ah_wc_')===0)_syncAHLabels(id);else _syncSprdLabels(id);}
+function _adjV(id,d){var el=document.getElementById(id);if(!el)return;var v=parseFloat(el.value)||0;var nv=Math.round((v+d)*2)/2;el.value=nv.toFixed(1);if(id.indexOf('ah_wc_')===0)_syncAHLabels(id);else _syncSprdLabels(id);_hkPxRefresh(id);}
 function _ouLockDir(hA,awA,date,baseOverP,baseL,inputId,dir,sport){
   var inp=document.getElementById(inputId);
   var nl=inp?parseFloat(inp.value):parseFloat(baseL);
@@ -3929,7 +4054,12 @@ function _ouLockDir(hA,awA,date,baseOverP,baseL,inputId,dir,sport){
   // The explicit 'OU' betType override (see lockPick's own comment) keeps
   // this an OU lock even though `sport` -- not the literal string 'OU' --
   // occupies lockPick's `type` slot here.
-  lockPick(hA,awA,sport||'OU',dir+' '+nl.toFixed(1),lockP,'-110',1.91,date||today(),undefined,'OU');
+  // Real market price for the exact side/line being locked (European hockey
+  // cards only -- see HOCKEY_MKT_PRICE_TIERING's comment); every other sport
+  // has no registered input and keeps the flat -110/1.91 exactly as before.
+  var _hkL=_hkLockLeg(inputId,'ou',nl,dir);
+  if(_hkL)lockPick(hA,awA,sport||'OU',dir+' '+nl.toFixed(1),lockP,_hkL.ml,_hkL.dec,date||today(),undefined,'OU',{priceSource:_hkL.src});
+  else lockPick(hA,awA,sport||'OU',dir+' '+nl.toFixed(1),lockP,'-110',1.91,date||today(),undefined,'OU');
 }
 function _ouParlayDir(hA,awA,date,baseOverP,baseL,inputId,dir,sport){
   var inp=document.getElementById(inputId);
@@ -3974,7 +4104,11 @@ function _spreadLockDir(favN,dogN,hA,awA,date,baseP,baseSprd,inputId,dir,sport){
   // The explicit 'SPREAD' betType override (see lockPick's own comment)
   // keeps this a SPREAD lock even though `sport` occupies lockPick's `type`
   // slot here instead of the literal string 'SPREAD'.
-  lockPick(hA,awA,sport||'SPREAD',label,sp,'-115',1.87,date||today(),undefined,'SPREAD');
+  // Real puck-line price (+/-1.5 only) for European hockey cards -- same
+  // pattern as _ouLockDir above; other sports unchanged.
+  var _hkL=_hkLockLeg(inputId,'pl',ns,dir);
+  if(_hkL)lockPick(hA,awA,sport||'SPREAD',label,sp,_hkL.ml,_hkL.dec,date||today(),undefined,'SPREAD',{priceSource:_hkL.src});
+  else lockPick(hA,awA,sport||'SPREAD',label,sp,'-115',1.87,date||today(),undefined,'SPREAD');
 }
 // Real bug, found and fixed, 2026-09-16: this function existed but had
 // zero call sites anywhere in the app -- dead code, presumably left over
@@ -10230,10 +10364,14 @@ function _liigaMatchCard(g){
   const hP=ens.p,aP=1-hP;
   const hML=p2ml(hP),aML=p2ml(aP);
   const hD=ml2d(hML),aD=ml2d(aML);
-  const hEV=ev(hP,hD),aEV=ev(aP,aD);
-  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
   const ouL=mc.ouLine,ouP=mc.overP,unP=1-ouP,ouD=1.91;
-  const ouEV=ev(ouP,ouD),unEV=ev(unP,ouD);
+  const plD=1.87;
+  // Real market prices when this game has `odds` (see HOCKEY_MKT_PRICE_TIERING's comment):
+  // shown + locked at market; the tier inputs below stay on the assumed prices by default.
+  const px=_hkPrices(g,hP,hP>=aP,ouL);
+  const hEV=_hkTierEv(hP,hD,px.ml.home),aEV=_hkTierEv(aP,aD,px.ml.away);
+  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+  const ouEV=_hkTierEv(ouP,ouD,px.ou.over),unEV=_hkTierEv(unP,ouD,px.ou.under);
   // Puck line -- blended cover probability (ens.favCoverP/dogCoverP, see
   // liigaEns's own comment): mc's exact analytic Poisson-implied cover
   // rate blended with each side's real margin-of-victory rate, same ±1.5
@@ -10243,14 +10381,13 @@ function _liigaMatchCard(g){
   // pattern.
   const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
   const plFavP=ens.favCoverP,plDogP=ens.dogCoverP;
-  const plD=1.87;
   const nm=_evalMkts([
-    {label:`${g.homeName} ML`,prob:hP,evVal:hEV,dec:hD,side:'mlFav'},
-    {label:`${g.awayName} ML`,prob:aP,evVal:aEV,dec:aD,side:'mlDog'},
-    {label:`${favTeam} -1.5`,prob:plFavP,evVal:ev(plFavP,plD),dec:plD,side:'sprdFav'},
-    {label:`${dogTeam} +1.5`,prob:plDogP,evVal:ev(plDogP,plD),dec:plD,side:'sprdDog'},
-    {label:`OVER ${ouL}`,prob:ouP,evVal:ouEV,dec:ouD,side:'over'},
-    {label:`UNDER ${ouL}`,prob:unP,evVal:unEV,dec:ouD,side:'under'},
+    _hkMkt(`${g.homeName} ML`,hP,'mlFav',hD,px.ml.home),
+    _hkMkt(`${g.awayName} ML`,aP,'mlDog',aD,px.ml.away),
+    _hkMkt(`${favTeam} -1.5`,plFavP,'sprdFav',plD,px.pl.fav),
+    _hkMkt(`${dogTeam} +1.5`,plDogP,'sprdDog',plD,px.pl.dog),
+    _hkMkt(`OVER ${ouL}`,ouP,'over',ouD,px.ou.over),
+    _hkMkt(`UNDER ${ouL}`,unP,'under',ouD,px.ou.under),
   ]);
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
@@ -10317,31 +10454,33 @@ function _liigaMatchCard(g){
       }catch(e){return'';}})()}
     </div>
     <div class="brow">
-      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','LIIGA','${g.homeName}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
-      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','LIIGA','${g.awayName}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(aML)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','LIIGA','${g.homeName}',${hP.toFixed(3)},'${px.ml.home.ml}',${px.ml.home.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.home)})"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(px.ml.home.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
+      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','LIIGA','${g.awayName}',${aP.toFixed(3)},'${px.ml.away.ml}',${px.ml.away.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.away)})"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(px.ml.away.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
       <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div>
         <div style="display:flex;align-items:center;gap:2px">
           <button onclick="event.stopPropagation();_adjV('sprd_liiga_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
-          <input type="number" step="0.5" value="-1.5" id="sprd_liiga_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)">
+          <input type="number" step="0.5" value="-1.5" id="sprd_liiga_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id);_hkPxRefresh(this.id)">
           <button onclick="event.stopPropagation();_adjV('sprd_liiga_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
         </div>
         <div style="display:flex;gap:2px;width:100%">
           <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_liiga_${g.id}','FAV','LIIGA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${favTeam}</div><div id="fav_sprd_liiga_${g.id}" style="font-size:11px;opacity:.85">-1.5</div></button>
           <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_liiga_${g.id}','DOG','LIIGA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${dogTeam}</div><div id="dog_sprd_liiga_${g.id}" style="font-size:11px;opacity:.85">+1.5</div></button>
         </div>
+        ${_hkPxLabelHTML('sprd_liiga_'+g.id,{kind:'pl',g:g,favIsHome:hP>=aP})}
       </div>
       <div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div>
         <div style="display:flex;align-items:center;gap:2px">
           <button onclick="event.stopPropagation();_adjV('ouinp_liiga_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
-          <input type="number" step="0.5" value="${ouL}" id="ouinp_liiga_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center">
+          <input type="number" step="0.5" value="${ouL}" id="ouinp_liiga_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_hkPxRefresh(this.id)">
           <button onclick="event.stopPropagation();_adjV('ouinp_liiga_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
         </div>
         <div style="display:flex;gap:3px">
           <button onclick="event.stopPropagation();_ouLockDir('${g.homeName}','${g.awayName}','${dateStr}',${ouP.toFixed(3)},'${ouL}','ouinp_liiga_${g.id}','OVER','LIIGA')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button>
           <button onclick="event.stopPropagation();_ouLockDir('${g.homeName}','${g.awayName}','${dateStr}',${ouP.toFixed(3)},'${ouL}','ouinp_liiga_${g.id}','UNDER','LIIGA')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button>
         </div>
+        ${_hkPxLabelHTML('ouinp_liiga_'+g.id,{kind:'ou',g:g,line:ouL})}
       </div>
     </div>
     <div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px">
@@ -10352,7 +10491,7 @@ function _liigaMatchCard(g){
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
   </div>`;
 }
@@ -10390,20 +10529,23 @@ function _nlaMatchCard(g){
   const hP=ens.p,aP=1-hP;
   const hML=p2ml(hP),aML=p2ml(aP);
   const hD=ml2d(hML),aD=ml2d(aML);
-  const hEV=ev(hP,hD),aEV=ev(aP,aD);
-  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
   const ouL=mc.ouLine,ouP=mc.overP,unP=1-ouP,ouD=1.91;
-  const ouEV=ev(ouP,ouD),unEV=ev(unP,ouD);
+  const plD=1.87;
+  // Real market prices when this game has `odds` (see HOCKEY_MKT_PRICE_TIERING's comment):
+  // shown + locked at market; the tier inputs below stay on the assumed prices by default.
+  const px=_hkPrices(g,hP,hP>=aP,ouL);
+  const hEV=_hkTierEv(hP,hD,px.ml.home),aEV=_hkTierEv(aP,aD,px.ml.away);
+  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+  const ouEV=_hkTierEv(ouP,ouD,px.ou.over),unEV=_hkTierEv(unP,ouD,px.ou.under);
   const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
   const plFavP=ens.favCoverP,plDogP=ens.dogCoverP;
-  const plD=1.87;
   const nm=_evalMkts([
-    {label:`${g.homeName} ML`,prob:hP,evVal:hEV,dec:hD,side:'mlFav'},
-    {label:`${g.awayName} ML`,prob:aP,evVal:aEV,dec:aD,side:'mlDog'},
-    {label:`${favTeam} -1.5`,prob:plFavP,evVal:ev(plFavP,plD),dec:plD,side:'sprdFav'},
-    {label:`${dogTeam} +1.5`,prob:plDogP,evVal:ev(plDogP,plD),dec:plD,side:'sprdDog'},
-    {label:`OVER ${ouL}`,prob:ouP,evVal:ouEV,dec:ouD,side:'over'},
-    {label:`UNDER ${ouL}`,prob:unP,evVal:unEV,dec:ouD,side:'under'},
+    _hkMkt(`${g.homeName} ML`,hP,'mlFav',hD,px.ml.home),
+    _hkMkt(`${g.awayName} ML`,aP,'mlDog',aD,px.ml.away),
+    _hkMkt(`${favTeam} -1.5`,plFavP,'sprdFav',plD,px.pl.fav),
+    _hkMkt(`${dogTeam} +1.5`,plDogP,'sprdDog',plD,px.pl.dog),
+    _hkMkt(`OVER ${ouL}`,ouP,'over',ouD,px.ou.over),
+    _hkMkt(`UNDER ${ouL}`,unP,'under',ouD,px.ou.under),
   ]);
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
@@ -10451,31 +10593,33 @@ function _nlaMatchCard(g){
       }catch(e){return'';}})()}
     </div>
     <div class="brow">
-      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','NLA','${g.homeName}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
-      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','NLA','${g.awayName}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(aML)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','NLA','${g.homeName}',${hP.toFixed(3)},'${px.ml.home.ml}',${px.ml.home.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.home)})"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(px.ml.home.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
+      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','NLA','${g.awayName}',${aP.toFixed(3)},'${px.ml.away.ml}',${px.ml.away.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.away)})"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(px.ml.away.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
       <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div>
         <div style="display:flex;align-items:center;gap:2px">
           <button onclick="event.stopPropagation();_adjV('sprd_nla_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
-          <input type="number" step="0.5" value="-1.5" id="sprd_nla_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)">
+          <input type="number" step="0.5" value="-1.5" id="sprd_nla_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id);_hkPxRefresh(this.id)">
           <button onclick="event.stopPropagation();_adjV('sprd_nla_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
         </div>
         <div style="display:flex;gap:2px;width:100%">
           <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_nla_${g.id}','FAV','NLA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${favTeam}</div><div id="fav_sprd_nla_${g.id}" style="font-size:11px;opacity:.85">-1.5</div></button>
           <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_nla_${g.id}','DOG','NLA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${dogTeam}</div><div id="dog_sprd_nla_${g.id}" style="font-size:11px;opacity:.85">+1.5</div></button>
         </div>
+        ${_hkPxLabelHTML('sprd_nla_'+g.id,{kind:'pl',g:g,favIsHome:hP>=aP})}
       </div>
       <div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div>
         <div style="display:flex;align-items:center;gap:2px">
           <button onclick="event.stopPropagation();_adjV('ouinp_nla_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
-          <input type="number" step="0.5" value="${ouL}" id="ouinp_nla_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center">
+          <input type="number" step="0.5" value="${ouL}" id="ouinp_nla_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_hkPxRefresh(this.id)">
           <button onclick="event.stopPropagation();_adjV('ouinp_nla_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
         </div>
         <div style="display:flex;gap:3px">
           <button onclick="event.stopPropagation();_ouLockDir('${g.homeName}','${g.awayName}','${dateStr}',${ouP.toFixed(3)},'${ouL}','ouinp_nla_${g.id}','OVER','NLA')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button>
           <button onclick="event.stopPropagation();_ouLockDir('${g.homeName}','${g.awayName}','${dateStr}',${ouP.toFixed(3)},'${ouL}','ouinp_nla_${g.id}','UNDER','NLA')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button>
         </div>
+        ${_hkPxLabelHTML('ouinp_nla_'+g.id,{kind:'ou',g:g,line:ouL})}
       </div>
     </div>
     <div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px">
@@ -10486,7 +10630,7 @@ function _nlaMatchCard(g){
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
   </div>`;
 }
@@ -10520,20 +10664,23 @@ function _extraligaMatchCard(g){
   const hP=ens.p,aP=1-hP;
   const hML=p2ml(hP),aML=p2ml(aP);
   const hD=ml2d(hML),aD=ml2d(aML);
-  const hEV=ev(hP,hD),aEV=ev(aP,aD);
-  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
   const ouL=mc.ouLine,ouP=mc.overP,unP=1-ouP,ouD=1.91;
-  const ouEV=ev(ouP,ouD),unEV=ev(unP,ouD);
+  const plD=1.87;
+  // Real market prices when this game has `odds` (see HOCKEY_MKT_PRICE_TIERING's comment):
+  // shown + locked at market; the tier inputs below stay on the assumed prices by default.
+  const px=_hkPrices(g,hP,hP>=aP,ouL);
+  const hEV=_hkTierEv(hP,hD,px.ml.home),aEV=_hkTierEv(aP,aD,px.ml.away);
+  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+  const ouEV=_hkTierEv(ouP,ouD,px.ou.over),unEV=_hkTierEv(unP,ouD,px.ou.under);
   const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
   const plFavP=ens.favCoverP,plDogP=ens.dogCoverP;
-  const plD=1.87;
   const nm=_evalMkts([
-    {label:`${g.homeName} ML`,prob:hP,evVal:hEV,dec:hD,side:'mlFav'},
-    {label:`${g.awayName} ML`,prob:aP,evVal:aEV,dec:aD,side:'mlDog'},
-    {label:`${favTeam} -1.5`,prob:plFavP,evVal:ev(plFavP,plD),dec:plD,side:'sprdFav'},
-    {label:`${dogTeam} +1.5`,prob:plDogP,evVal:ev(plDogP,plD),dec:plD,side:'sprdDog'},
-    {label:`OVER ${ouL}`,prob:ouP,evVal:ouEV,dec:ouD,side:'over'},
-    {label:`UNDER ${ouL}`,prob:unP,evVal:unEV,dec:ouD,side:'under'},
+    _hkMkt(`${g.homeName} ML`,hP,'mlFav',hD,px.ml.home),
+    _hkMkt(`${g.awayName} ML`,aP,'mlDog',aD,px.ml.away),
+    _hkMkt(`${favTeam} -1.5`,plFavP,'sprdFav',plD,px.pl.fav),
+    _hkMkt(`${dogTeam} +1.5`,plDogP,'sprdDog',plD,px.pl.dog),
+    _hkMkt(`OVER ${ouL}`,ouP,'over',ouD,px.ou.over),
+    _hkMkt(`UNDER ${ouL}`,unP,'under',ouD,px.ou.under),
   ]);
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
@@ -10581,31 +10728,33 @@ function _extraligaMatchCard(g){
       }catch(e){return'';}})()}
     </div>
     <div class="brow">
-      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','EXTRALIGA','${g.homeName}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
-      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','EXTRALIGA','${g.awayName}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(aML)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','EXTRALIGA','${g.homeName}',${hP.toFixed(3)},'${px.ml.home.ml}',${px.ml.home.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.home)})"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(px.ml.home.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
+      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','EXTRALIGA','${g.awayName}',${aP.toFixed(3)},'${px.ml.away.ml}',${px.ml.away.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.away)})"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(px.ml.away.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
       <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div>
         <div style="display:flex;align-items:center;gap:2px">
           <button onclick="event.stopPropagation();_adjV('sprd_extraliga_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
-          <input type="number" step="0.5" value="-1.5" id="sprd_extraliga_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)">
+          <input type="number" step="0.5" value="-1.5" id="sprd_extraliga_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id);_hkPxRefresh(this.id)">
           <button onclick="event.stopPropagation();_adjV('sprd_extraliga_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
         </div>
         <div style="display:flex;gap:2px;width:100%">
           <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_extraliga_${g.id}','FAV','EXTRALIGA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${favTeam}</div><div id="fav_sprd_extraliga_${g.id}" style="font-size:11px;opacity:.85">-1.5</div></button>
           <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_extraliga_${g.id}','DOG','EXTRALIGA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${dogTeam}</div><div id="dog_sprd_extraliga_${g.id}" style="font-size:11px;opacity:.85">+1.5</div></button>
         </div>
+        ${_hkPxLabelHTML('sprd_extraliga_'+g.id,{kind:'pl',g:g,favIsHome:hP>=aP})}
       </div>
       <div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div>
         <div style="display:flex;align-items:center;gap:2px">
           <button onclick="event.stopPropagation();_adjV('ouinp_extraliga_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
-          <input type="number" step="0.5" value="${ouL}" id="ouinp_extraliga_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center">
+          <input type="number" step="0.5" value="${ouL}" id="ouinp_extraliga_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_hkPxRefresh(this.id)">
           <button onclick="event.stopPropagation();_adjV('ouinp_extraliga_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
         </div>
         <div style="display:flex;gap:3px">
           <button onclick="event.stopPropagation();_ouLockDir('${g.homeName}','${g.awayName}','${dateStr}',${ouP.toFixed(3)},'${ouL}','ouinp_extraliga_${g.id}','OVER','EXTRALIGA')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button>
           <button onclick="event.stopPropagation();_ouLockDir('${g.homeName}','${g.awayName}','${dateStr}',${ouP.toFixed(3)},'${ouL}','ouinp_extraliga_${g.id}','UNDER','EXTRALIGA')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button>
         </div>
+        ${_hkPxLabelHTML('ouinp_extraliga_'+g.id,{kind:'ou',g:g,line:ouL})}
       </div>
     </div>
     <div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px">
@@ -10616,7 +10765,7 @@ function _extraligaMatchCard(g){
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
   </div>`;
 }
@@ -10810,10 +10959,14 @@ function _shlMatchCard(g){
   const hP=ens.p,aP=1-hP;
   const hML=p2ml(hP),aML=p2ml(aP);
   const hD=ml2d(hML),aD=ml2d(aML);
-  const hEV=ev(hP,hD),aEV=ev(aP,aD);
-  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
   const ouL=mc.ouLine,ouP=mc.overP,unP=1-ouP,ouD=1.91;
-  const ouEV=ev(ouP,ouD),unEV=ev(unP,ouD);
+  const plD=1.87;
+  // Real market prices when this game has `odds` (see HOCKEY_MKT_PRICE_TIERING's comment):
+  // shown + locked at market; the tier inputs below stay on the assumed prices by default.
+  const px=_hkPrices(g,hP,hP>=aP,ouL);
+  const hEV=_hkTierEv(hP,hD,px.ml.home),aEV=_hkTierEv(aP,aD,px.ml.away);
+  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+  const ouEV=_hkTierEv(ouP,ouD,px.ou.over),unEV=_hkTierEv(unP,ouD,px.ou.under);
   // Puck line -- blended cover probability (ens.favCoverP/dogCoverP, see
   // liigaEns's own comment): mc's exact analytic Poisson-implied cover
   // rate blended with each side's real margin-of-victory rate, same ±1.5
@@ -10823,14 +10976,13 @@ function _shlMatchCard(g){
   // pattern.
   const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
   const plFavP=ens.favCoverP,plDogP=ens.dogCoverP;
-  const plD=1.87;
   const nm=_evalMkts([
-    {label:`${g.homeName} ML`,prob:hP,evVal:hEV,dec:hD,side:'mlFav'},
-    {label:`${g.awayName} ML`,prob:aP,evVal:aEV,dec:aD,side:'mlDog'},
-    {label:`${favTeam} -1.5`,prob:plFavP,evVal:ev(plFavP,plD),dec:plD,side:'sprdFav'},
-    {label:`${dogTeam} +1.5`,prob:plDogP,evVal:ev(plDogP,plD),dec:plD,side:'sprdDog'},
-    {label:`OVER ${ouL}`,prob:ouP,evVal:ouEV,dec:ouD,side:'over'},
-    {label:`UNDER ${ouL}`,prob:unP,evVal:unEV,dec:ouD,side:'under'},
+    _hkMkt(`${g.homeName} ML`,hP,'mlFav',hD,px.ml.home),
+    _hkMkt(`${g.awayName} ML`,aP,'mlDog',aD,px.ml.away),
+    _hkMkt(`${favTeam} -1.5`,plFavP,'sprdFav',plD,px.pl.fav),
+    _hkMkt(`${dogTeam} +1.5`,plDogP,'sprdDog',plD,px.pl.dog),
+    _hkMkt(`OVER ${ouL}`,ouP,'over',ouD,px.ou.over),
+    _hkMkt(`UNDER ${ouL}`,unP,'under',ouD,px.ou.under),
   ]);
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
@@ -10878,31 +11030,33 @@ function _shlMatchCard(g){
       }catch(e){return'';}})()}
     </div>
     <div class="brow">
-      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','SHL','${g.homeName}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
-      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','SHL','${g.awayName}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},'${dateStr}')"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(aML)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','SHL','${g.homeName}',${hP.toFixed(3)},'${px.ml.home.ml}',${px.ml.home.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.home)})"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(px.ml.home.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
+      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','SHL','${g.awayName}',${aP.toFixed(3)},'${px.ml.away.ml}',${px.ml.away.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.away)})"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(px.ml.away.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
       <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div>
         <div style="display:flex;align-items:center;gap:2px">
           <button onclick="event.stopPropagation();_adjV('sprd_shl_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
-          <input type="number" step="0.5" value="-1.5" id="sprd_shl_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)">
+          <input type="number" step="0.5" value="-1.5" id="sprd_shl_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id);_hkPxRefresh(this.id)">
           <button onclick="event.stopPropagation();_adjV('sprd_shl_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
         </div>
         <div style="display:flex;gap:2px;width:100%">
           <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_shl_${g.id}','FAV','SHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${favTeam}</div><div id="fav_sprd_shl_${g.id}" style="font-size:11px;opacity:.85">-1.5</div></button>
           <button onclick="event.stopPropagation();_spreadLockDir('${favTeam}','${dogTeam}','${g.homeName}','${g.awayName}','${dateStr}',${plFavP.toFixed(3)},'-1.5','sprd_shl_${g.id}','DOG','SHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${dogTeam}</div><div id="dog_sprd_shl_${g.id}" style="font-size:11px;opacity:.85">+1.5</div></button>
         </div>
+        ${_hkPxLabelHTML('sprd_shl_'+g.id,{kind:'pl',g:g,favIsHome:hP>=aP})}
       </div>
       <div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div>
         <div style="display:flex;align-items:center;gap:2px">
           <button onclick="event.stopPropagation();_adjV('ouinp_shl_${g.id}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>
-          <input type="number" step="0.5" value="${ouL}" id="ouinp_shl_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center">
+          <input type="number" step="0.5" value="${ouL}" id="ouinp_shl_${g.id}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_hkPxRefresh(this.id)">
           <button onclick="event.stopPropagation();_adjV('ouinp_shl_${g.id}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button>
         </div>
         <div style="display:flex;gap:3px">
           <button onclick="event.stopPropagation();_ouLockDir('${g.homeName}','${g.awayName}','${dateStr}',${ouP.toFixed(3)},'${ouL}','ouinp_shl_${g.id}','OVER','SHL')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button>
           <button onclick="event.stopPropagation();_ouLockDir('${g.homeName}','${g.awayName}','${dateStr}',${ouP.toFixed(3)},'${ouL}','ouinp_shl_${g.id}','UNDER','SHL')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button>
         </div>
+        ${_hkPxLabelHTML('ouinp_shl_'+g.id,{kind:'ou',g:g,line:ouL})}
       </div>
     </div>
     <div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px">
@@ -10913,7 +11067,7 @@ function _shlMatchCard(g){
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
   </div>`;
 }
