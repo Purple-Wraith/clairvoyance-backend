@@ -3332,8 +3332,15 @@ window._autoLockLegs=window._autoLockLegs||[];
 // just parks it in a flat, overwrite-on-rerender lookup table keyed the
 // same way lockPick resolves a market at click time (hA|awA|betType
 // bucket — see _evalMkts' mktT and lockPick's _betTypeNorm), so lockPick
-// can read it back with zero changes to any individual lock button. A
-// stale/missing entry (page reloaded between render and click, or an old
+// can read it back with zero changes to any individual lock button. Each
+// bucket is an ARRAY of {label,reasoning} (one entry per side -- e.g. both
+// the favorite's and the underdog's spread reasoning share one SPREAD
+// bucket) -- an earlier version of this cache stored a single string per
+// bucket and a real bug surfaced live-testing this feature: whichever
+// side _evalMkts' own sort happened to place last in nm.mkts silently won,
+// so locking the favorite could show the underdog's reasoning. lockPick
+// matches its own `betOn` back to the right array entry's label.
+// A stale/missing entry (page reloaded between render and click, or an old
 // pick from before this feature existed) just means lockPick stores
 // reasoning:null — handled gracefully by the Bet History / locked-bets
 // "WHY THIS PICK" expand panel (docs/app.html's UI layer), never a crash.
@@ -3380,12 +3387,26 @@ function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors){
     var i=window._autoLockLegs.findIndex(function(l){return l.sport===sport&&l.hA===hA&&l.awA===awA;});
     if(i>=0)window._autoLockLegs[i]=entry;else window._autoLockLegs.push(entry);
     // Populate the manual-UI reasoning cache (see window._reasoningCache's
-    // own comment above) -- one entry per market TYPE (ML/SPREAD/OU), not
-    // per side, since a game only ever has one real ML/spread/O-U market
-    // and lockPick only ever resolves a betType at that granularity.
+    // own comment above). Bucketed by market TYPE (ML/SPREAD/OU) since
+    // that's the granularity lockPick's _betTypeNorm resolves to -- but
+    // EACH bucket holds an ARRAY of {label,reasoning}, one per side
+    // (mlFav+mlDog, sprdFav+sprdDog, over+under all share one bucket).
+    // Real bug, found live-testing this feature: an earlier version stored
+    // a single string per bucket, so whichever side _evalMkts' own
+    // tier/mfScore sort happened to place LAST in nm.mkts silently
+    // overwrote the other -- locking the favorite could show the
+    // underdog's reasoning, or vice versa, depending on that game's sort
+    // order. lockPick matches back to the correct side by comparing its
+    // own `betOn` text against each candidate's `label` (see its own
+    // comment) rather than guessing fav/dog from mktT alone.
     (nm.mkts||[]).forEach(function(m){
       if(!m.reasoning||!m.mktT)return;
-      window._reasoningCache[hA+'|'+awA+'|'+m.mktT]=m.reasoning;
+      var key=hA+'|'+awA+'|'+m.mktT;
+      if(!window._reasoningCache[key])window._reasoningCache[key]=[];
+      var arr=window._reasoningCache[key];
+      var idx=arr.findIndex(function(e){return e.label===m.label;});
+      var entry={label:m.label,reasoning:m.reasoning};
+      if(idx>=0)arr[idx]=entry;else arr.push(entry);
     });
   }catch(e){}
 }
@@ -4807,18 +4828,28 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   //  2. window._reasoningCache — the manual-UI lock-button path (lockH/
   //     _spreadLockDir/_ouLockDir/direct lockPick onclick calls never pass
   //     extraMeta). Every sport's card function calls _attachReasoning()
-  //     right before _autoLockCapture(), which parks each market's
-  //     reasoning in this cache keyed hA|awA|betType-bucket — see
-  //     _autoLockCapture's own comment. Bucketed to 'SPREAD' for PL/RL too
-  //     since _evalMkts' mktT (what populated the cache) never
-  //     distinguishes puck-line/run-line from a generic spread.
+  //     right before _autoLockCapture(), which parks each SIDE's reasoning
+  //     in this cache keyed hA|awA|betType-bucket, as an array of
+  //     {label,reasoning} (one per side -- fav/dog, over/under) — see
+  //     _autoLockCapture's own comment, including the real "wrong side's
+  //     reasoning shown" bug that shape fixes vs. a single cached string
+  //     per bucket. Matched back to the right side below by comparing
+  //     `betOn` against each candidate's label: for ML, lockH passes just
+  //     the team name as betOn while the label is "`${team} ML`"; for
+  //     SPREAD/OU, betOn and label are both built the same
+  //     "`${team} ${line}`"/"`OVER/UNDER ${line}`" way and match exactly.
+  //     Bucketed to 'SPREAD' for PL/RL too since _evalMkts' mktT (what
+  //     populated the cache) never distinguishes puck-line/run-line from a
+  //     generic spread.
   //  Neither source hitting is normal (e.g. a pick locked before this
   //  feature shipped, or a sport/card not yet wired to _attachReasoning) —
   //  falls back to null, which the Bet History / locked-bets "WHY THIS
   //  PICK" panel renders as a graceful "no detailed reasoning captured"
   //  message rather than crashing or showing "undefined".
   const _reasonBucket=_betTypeNorm==='OU'?'OU':_betTypeNorm==='PROP'?null:(_betTypeNorm==='PL'||_betTypeNorm==='RL'||_betTypeNorm==='SPREAD')?'SPREAD':'ML';
-  const _cachedReasoning=(_reasonBucket&&window._reasoningCache)?(window._reasoningCache[hA+'|'+awA+'|'+_reasonBucket]||window._reasoningCache[awA+'|'+hA+'|'+_reasonBucket]||null):null;
+  const _reasonArr=(_reasonBucket&&window._reasoningCache)?(window._reasoningCache[hA+'|'+awA+'|'+_reasonBucket]||window._reasoningCache[awA+'|'+hA+'|'+_reasonBucket]||[]):[];
+  const _reasonEntry=_reasonArr.find(e=>e.label===betOn||e.label===betOn+' ML'||betOn===String(e.label).replace(/ ML$/,''));
+  const _cachedReasoning=_reasonEntry?_reasonEntry.reasoning:null;
   const reasoning=(extraMeta&&extraMeta.reasoning)||_cachedReasoning||null;
   const _apiDup=_findSameMarketLock(getP(),dateKey,hA,awA,_betTypeNorm);
   if(_apiDup){toast(`// ALREADY LOCKED: ${_apiDup.betOn} ${_apiDup.ml} (${_apiDup.outcome==='pending'?'still pending':_apiDup.outcome.toUpperCase()})`);return;}
