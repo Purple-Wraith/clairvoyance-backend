@@ -108,6 +108,27 @@ on:
     # Backup main lock, gated: runs only if no main lock is recorded for today's MT date yet (data/last_lock_date.txt), so a
     # dropped/very late 05:27Z slot is retried before NFL's 11 AM MT kickoffs. A no-op slot costs one bash check.
     - cron: '7 9 * * *'
+    # GATED SETTLE-ONLY slots (2026-10-02): European hockey (SHL/Liiga/NLA/Extraliga) games end at ~12-3 PM MT but the only settle
+    # slots used to land 6:44-8:14 PM MT (22:44Z) and 4:30-6:10 AM MT (05:27Z), so a morning game's pick sat 'pending' for 4-17 hours
+    # -- and each slot read the schedule files as last committed AND redeployed to Pages (refreshes land 2-6h late, so a game that
+    # was in progress at the last scrape was not even in the file). Fix: these four slots are staggered through the afternoon /
+    # evening / overnight (nominal times chosen from the observed delay bands in european-lock-early.yml: nominal 16:17Z lands
+    # ~19:20-21:20Z = 1:20-3:20 PM MT, 19:37Z ~21:40-00:50Z = 3:40-6:50 PM MT, 01:17Z ~04:20-06:20Z = 10:20 PM-12:20 AM MT, 03:37Z
+    # ~07:50-10:20Z = 1:50-4:20 AM MT; with the existing 22:44Z/05:27Z that is a settle-capable landing every ~2-3h). Each one is a
+    # NO-OP unless there is something to settle, decided WITHOUT Supabase by scripts/settle_gate.py (see the "Pre-settle" step):
+    #   stage 1 (bash+python, ~15s, no browser): is there a pending European-hockey pick in docs/picks_backup.json whose game could
+    #           be over?  no -> the run ends here (no Playwright install, no scrape, no ledger pull).
+    #   scrape : re-scrape the four /results/ pages INTO the checkout (scripts/refresh_hockey_results.py via lock_prep.py).
+    #   stage 2: is a pending pick's game NOW final in that fresh copy, and can the app grade it?  no -> end (no ledger pull).
+    #   yes    : run `auto_lock_settle.py --settle --serve-local` -- settle-only: no lock, no email -- reading the fresh checkout copy
+    #           (falls back to the deployed Pages copy if the local server cannot start); then refresh picks_backup.json AFTER the
+    #           settle so the next gate sees the picks as settled.
+    # Egress: the only Supabase cost is the one full-ledger pull of a run that passes stage 2 -- i.e. at most one per batch of games
+    # that just finished (typically 1-3 per day), never for an idle slot.
+    - cron: '17 16 * * *'
+    - cron: '37 19 * * *'
+    - cron: '17 1 * * *'
+    - cron: '37 3 * * *'
   workflow_dispatch:
     inputs:
       live:
@@ -128,8 +149,12 @@ permissions:
 # Lock-capable slots (05:27Z, 09:07Z, 13:07Z and manual dispatch) run one at a time so two of them landing together (GitHub delays
 # cluster) cannot both lock + email; the digest and settle slots share a second group so they are never cancelled in favour of a lock.
 # A queued run waits; GitHub keeps only the newest pending run per group, which is fine -- every lock slot is idempotent.
+#
+# The four gated settle-only slots get their OWN group ('gated'): they are idempotent and mostly no-ops, and sharing 'other' would let a
+# queued gated run cancel a pending digest (GitHub keeps one pending run per group). Concurrent ledger writers are safe -- the push side
+# of _doSupabaseSync pulls and reconciles first and never regresses a settled row.
 concurrency:
-  group: auto-lock-settle-${{ (github.event.schedule == '21 18 * * *' || github.event.schedule == '44 22 * * *') && 'other' || 'lock' }}
+  group: auto-lock-settle-${{ (github.event.schedule == '21 18 * * *' || github.event.schedule == '44 22 * * *') && 'other' || (github.event.schedule == '17 16 * * *' || github.event.schedule == '37 19 * * *' || github.event.schedule == '17 1 * * *' || github.event.schedule == '37 3 * * *') && 'gated' || 'lock' }}
   cancel-in-progress: false
 
 jobs:
@@ -200,6 +225,23 @@ jobs:
               echo "step_flags=--lock --final-lock-check" >> "$GITHUB_OUTPUT"
             fi
             echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "17 16 * * *" ] || [ "${{ github.event.schedule }}" = "37 19 * * *" ] || [ "${{ github.event.schedule }}" = "17 1 * * *" ] || [ "${{ github.event.schedule }}" = "37 3 * * *" ]; then
+            # GATED SETTLE-ONLY slot (see the cron comment above). Explicit branch on purpose: falling through to the generic
+            # else-branch below would let it run a catch-up LOCK (9am-12pm MT with no lock recorded) or send the lock-missed
+            # alert email -- a settle-only slot must do neither.
+            echo "gated=1" >> "$GITHUB_OUTPUT"
+            echo "step_flags=--settle" >> "$GITHUB_OUTPUT"
+            echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
+            # This run's checkout can predate the newest picks_backup.json / schedule commit (scheduled runs start hours late).
+            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" pull --rebase --autostash --quiet origin main || echo "::warning::git sync failed -- gating on the checked-out commit"
+            # Stage 1 (no Supabase, no network, no browser): is there anything that could be final? Exit 1 = no.
+            if python3 scripts/settle_gate.py --stage candidates; then
+              echo "::notice::settle gate (stage 1): a pending European-hockey pick might be final -- continuing."
+            else
+              echo "::notice::settle gate (stage 1): nothing pending that could be final yet -- no-op (no browser, no Supabase)."
+              echo "should_run=0" >> "$GITHUB_OUTPUT"
+              echo "step_flags=" >> "$GITHUB_OUTPUT"
+            fi
           elif [ "${{ github.event.schedule }}" = "7 13 * * *" ]; then
             # The single daily lock check (cut from 3 dedicated attempts
             # to 1, 2026-09-15, to reduce Supabase egress) -- combines
@@ -286,8 +328,39 @@ jobs:
           if [ "${{ steps.flags.outputs.live_flag }}" != "--live" ]; then PUSH_FLAG="--no-push"; fi
           python3 scripts/lock_prep.py --jobs nhl,nfl $PUSH_FLAG
 
+      - name: Pre-settle results refresh + settle gate (fail-open)
+        # Every settle-capable slot (gated, 22:44Z, 05:27Z, 18:21Z digest, manual settle/catch-up): re-scrape the four European
+        # hockey /results/ pages into THIS checkout right before the settle logic runs, so the pass (started with --serve-local
+        # below) grades against scores minutes old instead of the last full refresh + Pages redeploy. Gated slots then run stage 2
+        # of scripts/settle_gate.py: only when a pending pick's game is now final does the heavy job (one Supabase ledger pull) run.
+        # Other slots always run the heavy job; their stage-1 check only decides whether the re-scrape is worth the minutes.
+        # Best effort: any error leaves the files as they were and (for a gated slot) lets the heavy settle run anyway.
+        id: presettle
+        if: ${{ steps.flags.outputs.should_run != '0' && (contains(steps.flags.outputs.step_flags, '--settle') || contains(steps.flags.outputs.step_flags, '--daily-digest')) }}
+        continue-on-error: true
+        timeout-minutes: 12
+        env:
+          TZ: America/Denver
+        run: |
+          PUSH_FLAG=""
+          if [ "${{ steps.flags.outputs.live_flag }}" != "--live" ]; then PUSH_FLAG="--no-push"; fi
+          GATED="${{ steps.flags.outputs.gated }}"
+          if [ -n "$GATED" ] || python3 scripts/settle_gate.py --stage candidates; then
+            python3 scripts/lock_prep.py --jobs hockey-results $PUSH_FLAG
+          else
+            echo "::notice::no pending European-hockey pick could be final -- skipping the results re-scrape."
+          fi
+          if [ -n "$GATED" ]; then
+            if python3 scripts/settle_gate.py --stage final; then
+              echo "run_heavy=1" >> "$GITHUB_OUTPUT"
+            else
+              echo "run_heavy=0" >> "$GITHUB_OUTPUT"
+              echo "::notice::settle gate (stage 2): no pending pick's game is final in the fresh results -- no-op (no ledger pull)."
+            fi
+          fi
+
       - name: Run auto-lock / auto-settle
-        if: ${{ steps.flags.outputs.should_run != '0' }}
+        if: ${{ steps.flags.outputs.should_run != '0' && steps.presettle.outputs.run_heavy != '0' }}
         env:
           TZ: America/Denver
           LOCK_RESULT: ${{ runner.temp }}/lock_pass.json
@@ -303,10 +376,13 @@ jobs:
           if [ -n "${{ steps.flags.outputs.catchup }}" ]; then
             echo "::notice::Today's dedicated 7:07am MT lock check didn't fire -- running a catch-up lock+settle pass (this one emails, since it's the last realistic chance today)."
           fi
-          # Lock slots read THIS checkout's docs/ (incl. the JSON refreshed above) instead of the deployed Pages copy.
+          # Lock AND settle-capable slots read THIS checkout's docs/ (incl. the JSON refreshed above) instead of the deployed Pages
+          # copy (which lags a refresh commit by minutes and the refresh itself by hours). --serve-local falls back to the deployed
+          # URL if the local server cannot start. Only lock passes write a --result-file.
           EXTRA=""
           case "${{ steps.flags.outputs.step_flags }}" in
             *--lock*) EXTRA="--serve-local --result-file $LOCK_RESULT" ;;
+            *--settle*|*--daily-digest*) EXTRA="--serve-local" ;;
           esac
           python3 scripts/auto_lock_settle.py ${{ steps.flags.outputs.step_flags }} $EXTRA ${{ steps.flags.outputs.live_flag }}
 
@@ -335,7 +411,7 @@ jobs:
         # committing whatever these files WERE written before that
         # failure -- decoupled from that step's reliability, not
         # inheriting it.
-        if: ${{ !cancelled() && steps.flags.outputs.should_run != '0' }}
+        if: ${{ !cancelled() && steps.flags.outputs.should_run != '0' && steps.presettle.outputs.run_heavy != '0' }}
         run: |
           git add docs/picks_backup.json docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
           if git diff --cached --quiet; then
