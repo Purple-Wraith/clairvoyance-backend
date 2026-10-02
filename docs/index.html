@@ -2981,24 +2981,40 @@ window.addEventListener('load',function(){try{_pbWrapRenderers();_pbUpdateBar();
 // `ml`/`decOdds` with `priceSource:'market'`); when it doesn't, behavior is
 // exactly what it was (`priceSource:'assumed'` on the pick, old assumed price).
 //
-// HARD GUARDRAIL -- pick QUALIFICATION is unchanged by default.
-// tier() (-> _evalMkts -> the pipeline's QUALIFYING_TIERS={2,3}, which locks
-// picks AND emails paid subscribers) needs BOTH a probability floor and an
-// EV floor (PREMIUM p>=.67&&EV>=.05, OPTIMAL p>=.62&&EV>=.03, LEAN p>=.55&&
-// EV>=.01), and EV = prob*dec-1 -- so the price directly feeds the tier (and
-// _evalMkts' mfScore/best-market sort via edge/kelly, which also use dec).
-// Real bookmaker prices carry vig, so ML EV (0 by construction before) goes
-// negative nearly everywhere and most ML picks would stop qualifying.
-// Therefore: by default (false) the tier inputs (dec/evVal handed to
-// _evalMkts) are STILL the old assumed prices; the real price rides along
-// as extra fields (mktMl/mktDec/mktEv/priceSource) used only for display and
-// for what gets stored on a lock. Flip to true to feed real-price EV into
-// tiering -- that is the one-line switch for the owner's decision.
-const HOCKEY_MKT_PRICE_TIERING=false;
-// A pre-game price older than this is not trusted (a failed odds refresh can
-// leave an old `odds` carried over); closing prices on finished games are kept.
-const _HK_ODDS_MAX_AGE_MS=36*3600*1000;
+// QUALIFICATION (updated 2026-10-03, Part B -- see the HOCKEY QUALIFICATION CUTOFFS block just below).
+// tier() (-> _evalMkts -> the pipeline's QUALIFYING_TIERS={2,3}, which locks picks AND emails paid subscribers) needs
+// BOTH a probability floor and an EV floor, and EV = prob*dec-1. Real bookmaker prices carry vig, so honest EV is mostly
+// negative (a fair-priced leg sits at about -2% to -3.5%). Until 2026-10-03 the tier INPUTS were still the old assumed
+// prices (HOCKEY_MKT_PRICE_TIERING=false) so qualification did not move when real prices arrived; now hockey legs are graded on
+// the REAL price, must HAVE one (HOCKEY_REQUIRE_REAL_PRICE), and a separate explicit HIGH-PROBABILITY lane carries the short-
+// priced, high-hit-rate picks that the honest-EV floors alone would drop. All numbers are in the block below.
+// ═══ HOCKEY QUALIFICATION CUTOFFS -- ONE PLACE (NHL + SHL/LIIGA/NLA/EXTRALIGA) ═══
+// Retune HERE only. scripts/auto_lock_settle.py's HOCKEY_* constants mirror these for the subscriber email legend and
+// scripts/verify_hockey_rules.py fails if they ever differ. Evidence: scripts/backtest_hockey_models.py tiers.
+//  - Value lane: tier() graded on the REAL price. Probability floors are the app-wide .55/.62/.67; the EV floors are
+//    +1/+3/+5% over the real (vig-inclusive) price. QUALIFYING_TIERS={2,3} (OPTIMAL/PREMIUM) unchanged.
+//  - High-probability lane (hkLane): an ML pick, or a +1.5 puck-line DOG, with blended win/cover probability >= the floor and
+//    EV at the real price not worse than HOCKEY_LANE_EV_MIN qualifies even when its tier is LEAN/SKIP. Replaces the old blunt
+//    "any ML >= 75% regardless of price" rule for hockey. NOTE the EV floor is negative on purpose: a FAIRLY priced leg shows
+//    EV = -(bookmaker margin), about -4% (ML/O-U) to -6.5% (+/-1.5 puck line) on the Flashscore consensus prices, so -7% means "a normally
+//    margined market, model not materially against the price", not "bad value". Backtest (NHL closing prices, p>=.65): hit 69%,
+//    ROI -2.3% +-3.8, ~32 legs per 68-game slate; on the live 2026-10-02 slate it yields 22 legs (see the Part B report).
+//  - Only a REAL posted price (priceSource 'market': Flashscore consensus or ESPN single book) can qualify; no market, a
+//    stale one (older than HOCKEY_ODDS_MAX_AGE_H) or a missing book -> the leg is graded SKIP and never locks.
+const HOCKEY_MKT_PRICE_TIERING=true;
+const HOCKEY_REQUIRE_REAL_PRICE=true;
+const HOCKEY_TIER_PROB={LEAN:.55,OPTIMAL:.62,PREMIUM:.67};
+const HOCKEY_TIER_EV={LEAN:.01,OPTIMAL:.03,PREMIUM:.05};
+const HOCKEY_LANE_ML_P=.65,HOCKEY_LANE_PLDOG_P=.65,HOCKEY_LANE_EV_MIN=-.07;
+const HOCKEY_LANE_LABEL='HIGH PROB';
+const HOCKEY_ODDS_MAX_AGE_H=18;
+// A pre-game price older than HOCKEY_ODDS_MAX_AGE_H is not trusted (a failed odds refresh can leave an old `odds` carried
+// over); closing prices on finished games are kept. 18h (was 36h): measured against the real workflow run history the latest
+// scrape before each lock pass was 1-2h old for NHL, 9-11.5h for the European evening-prior lock and 15-19.5h for the
+// European same-morning safety-net lock; the extra European refresh cron added with this change brings that last one under the cap.
+const _HK_ODDS_MAX_AGE_MS=HOCKEY_ODDS_MAX_AGE_H*3600*1000;
 const _HK_MINOR_LEAGUES=['SHL','LIIGA','NLA','EXTRALIGA'];
+const _HK_ALL=['NHL','SHL','LIIGA','NLA','EXTRALIGA'];
 function _hkValidDec(d){return typeof d==='number'&&isFinite(d)&&d>1.0&&d<=200;}
 // decimal -> American display string ('-145' / '+200'); inverse of ml2d.
 function _dec2ml(d){if(!_hkValidDec(d))return null;return d>=2?'+'+Math.round((d-1)*100):String(-Math.round(100/(d-1)));}
@@ -3044,10 +3060,36 @@ function _hkTierEv(p,assumedDec,leg){return ev(p,_hkTierDec(assumedDec,leg));}
 // mktMl/mktDec/mktEv/priceSource = real-price info for display + lock only.
 function _hkMkt(label,prob,side,assumedDec,leg,bl){
   const mk=!!(leg&&leg.src==='market');
-  return{label,prob,side,evVal:_hkTierEv(prob,assumedDec,leg),dec:_hkTierDec(assumedDec,leg),
+  return{hk:true,priceReal:mk,label,prob,side,evVal:_hkTierEv(prob,assumedDec,leg),dec:_hkTierDec(assumedDec,leg),
     ml:_dec2ml(_hkTierDec(assumedDec,leg)), // stored beside dec when the row is not market-priced (was left undefined -> lockPick defaulted ml to '-110' next to a different dec)
     mktMl:mk?leg.ml:null,mktDec:mk?leg.dec:null,mktEv:mk?ev(prob,leg.dec):null,priceSource:mk?'market':'assumed',
     ..._hkBlFields(bl)};
+}
+// Hockey qualification verdicts for one _evalMkts row (rows built by _hkMkt carry hk:true). See HOCKEY QUALIFICATION CUTOFFS.
+// -> tier 0..3 graded on the row's tier-input price (the REAL price once HOCKEY_MKT_PRICE_TIERING), 0 when no real price.
+function _hkTierRow(m,mktT){
+  if(HOCKEY_REQUIRE_REAL_PRICE&&!m.priceReal)return 0;
+  return tier(m.prob,m.evVal,mktT,m.marketProb!=null,{p:HOCKEY_TIER_PROB,e:HOCKEY_TIER_EV});
+}
+// -> true when the row qualifies through the HIGH-PROBABILITY lane: ML, or the +1.5 puck-line dog; real price required.
+function _hkLaneRow(m){
+  if(!m.hk||!m.priceReal||m.mktDec==null)return false;
+  const e=ev(m.prob,m.mktDec); // EV at the REAL price regardless of how tiering is configured
+  if(e<HOCKEY_LANE_EV_MIN)return false;
+  if(m.side==='mlFav'||m.side==='mlDog')return m.prob>=HOCKEY_LANE_ML_P;
+  if(m.side==='plDog'||m.side==='sprdDog')return m.prob>=HOCKEY_LANE_PLDOG_P;
+  return false;
+}
+// Chip pill for an ML chip, read from the SAME _evalMkts row the lock pipeline uses (so the pill can never disagree).
+function _hkChipFor(nm,label){
+  const m=(nm&&nm.mkts||[]).find(x=>x.label===label);
+  if(!m)return{c:'chip-h',pl:'ph',lb:'// SKIP'};
+  const t=m.tierN;
+  if(t===3)return{c:'chip-g',pl:'pg',lb:'PREMIUM'};
+  if(t===2)return{c:'chip-p',pl:'pp',lb:'// OPTIMAL'};
+  if(m.hkLane)return{c:'chip-n',pl:'pn',lb:'// '+HOCKEY_LANE_LABEL};
+  if(t===1)return{c:'chip-n',pl:'pn',lb:'// LEAN'};
+  return{c:'chip-h',pl:'ph',lb:'// SKIP'};
 }
 function _hkSrcTag(leg){
   return leg&&leg.src==='market'
@@ -3304,7 +3346,7 @@ function _nhlSchedGame(hn,an,dateIso){
 }
 // Market-scan footer text for one _evalMkts row (same wording on every hockey card).
 function _hkScanTxt(m){
-  return m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed');
+  return m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed');
 }
 // Lock-time price lookup for _ouLockDir/_spreadLockDir: the price of the
 // exact side/line actually being locked, or null when this input isn't a
@@ -3438,7 +3480,7 @@ async function renderGenericWeek(containerId,espnPath,sportTag){
 }
 
 function ev(p,d){return+(p*d-1).toFixed(4)}
-function tier(p,e,mktType,marketAnchored){
+function tier(p,e,mktType,marketAnchored,floors){
   // Apply calibration adjustment if available (computed by renderOverall or loaded from localStorage)
   // marketAnchored (2026-10-03): the probability was already pulled toward the no-vig market by the hockey market blend
   // (HOCKEY_MKT_BLEND_ALPHA). These bands correct the MODEL's historical bias (they were learned on model-only pick
@@ -3455,6 +3497,7 @@ function tier(p,e,mktType,marketAnchored){
       p=adjP;
     }
   }
+  if(floors)return(p>=floors.p.PREMIUM&&e>=floors.e.PREMIUM)?3:(p>=floors.p.OPTIMAL&&e>=floors.e.OPTIMAL)?2:(p>=floors.p.LEAN&&e>=floors.e.LEAN)?1:0; // hockey rows pass HOCKEY_TIER_*
   if(p>=.67&&e>=.05)return 3;if(p>=.62&&e>=.03)return 2;if(p>=.55&&e>=.01)return 1;return 0;
 }
 // Grade for a locked pick — recomputed from its stored winProb/decOdds/
@@ -3464,12 +3507,25 @@ function tier(p,e,mktType,marketAnchored){
 function _gradeLabel(p){
   if(p==null||p.winProb==null)return null;
   const dec=parseFloat(p.decOdds)||(p.ml?ml2d(p.ml):2);
+  // Hockey pick locked at a REAL price: graded with the hockey cutoffs (HOCKEY_TIER_*), and a pick that only clears the
+  // high-probability lane reads HIGH PROB -- same rules _evalMkts applied at lock time, recomputed from the stored fields.
+  if(p.priceSource==='market'&&_HK_ALL.indexOf(String(p.league||p.sport||'').toUpperCase())>=0){
+    const e=ev(p.winProb,dec);
+    const t=tier(p.winProb,e,p.betType||'ML',p.marketProb!=null,{p:HOCKEY_TIER_PROB,e:HOCKEY_TIER_EV});
+    if(t>=2)return['SKIP','LEAN','OPTIMAL','PREMIUM'][t];
+    if(e>=HOCKEY_LANE_EV_MIN){
+      const bt=String(p.betType||'ML').toUpperCase();
+      if(bt==='ML'&&p.winProb>=HOCKEY_LANE_ML_P)return HOCKEY_LANE_LABEL;
+      if((bt==='SPREAD'||bt==='PL'||bt==='RL')&&/\+1\.5\s*$/.test(String(p.betOn||''))&&p.winProb>=HOCKEY_LANE_PLDOG_P)return HOCKEY_LANE_LABEL;
+    }
+    return['SKIP','LEAN','OPTIMAL','PREMIUM'][t]||null;
+  }
   const t=tier(p.winProb,ev(p.winProb,dec),p.betType||'ML',p.marketProb!=null);
   return['SKIP','LEAN','OPTIMAL','PREMIUM'][t]||null;
 }
 function _gradeChipHtml(p){
   const g=_gradeLabel(p);if(!g||g==='SKIP')return'';
-  const col=g==='PREMIUM'?'var(--gc)':g==='OPTIMAL'?'var(--pc)':'var(--nc)';
+  const col=(g==='PREMIUM'||g===HOCKEY_LANE_LABEL)?'var(--gc)':g==='OPTIMAL'?'var(--pc)':'var(--nc)';
   return`<span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${col}66;color:${col};border-radius:2px;letter-spacing:1px">${g}</span>`;
 }
 // Universal league-label + sport-sub-label pair for every pick, across
@@ -3790,7 +3846,7 @@ window._reasoningCache=window._reasoningCache||{};
 function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors){
   try{
     var entry={sport,hA,awA,mcSummary:mcSummary||null,
-      best:nm.best?{label:nm.best.label,side:nm.best.side,tierN:nm.tierN}:null,
+      best:nm.best?{label:nm.best.label,side:nm.best.side,tierN:nm.tierN,lane:!!nm.best.hkLane&&nm.best.tierN<2}:null,
       // mfScore added 2026-09-30: _evalMkts already computes this per
       // market -- the same composite 0-10 confidence score (probability
       // band + EV band + edge + Kelly fraction) _mfScore() was built for
@@ -3807,7 +3863,7 @@ function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors){
       // European hockey cards only) so the pipeline's lockPick call stores it; evVal/tierN stay the
       // tier inputs (see HOCKEY_MKT_PRICE_TIERING) so qualification is unaffected. priceSource
       // ('market'|'assumed'|null) is threaded through build_qualifying/lock_game_leg onto the pick.
-      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:(m.mktDec!=null?m.mktDec:m.dec),ml:(m.mktMl!=null?m.mktMl:m.ml),priceSource:m.priceSource||null,modelProb:m.modelProb!=null?m.modelProb:null,marketProb:m.marketProb!=null?m.marketProb:null,blendAlpha:m.blendAlpha!=null?m.blendAlpha:null,tierN:m.tierN,mfScore:m.mfScore,reasoning:m.reasoning||null})),
+      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:(m.mktDec!=null?m.mktDec:m.dec),ml:(m.mktMl!=null?m.mktMl:m.ml),priceSource:m.priceSource||null,modelProb:m.modelProb!=null?m.modelProb:null,marketProb:m.marketProb!=null?m.marketProb:null,blendAlpha:m.blendAlpha!=null?m.blendAlpha:null,hkLane:!!m.hkLane,tierN:m.tierN,mfScore:m.mfScore,reasoning:m.reasoning||null})),
       // Optional -- only soccer's capture call currently passes this (see
       // _renderSocMatchCard). Threaded through build_qualifying/
       // lock_game_leg into lockPick's extraMeta so it lands on the
@@ -3850,11 +3906,16 @@ function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors){
   }catch(e){}
 }
 // ── Universal best-market evaluator — used by all sport reasoning blocks ──────
+// A lane-only leg (tier < 2 but qualifies through the high-probability lane) ranks between LEAN and OPTIMAL.
+function _effTier(m){return(m.hkLane&&m.tierN<2)?1.5:m.tierN;}
 function _evalMkts(mkts){
   mkts=mkts.map(m=>{
     const mktT=m.side==='over'||m.side==='under'||m.side==='setsOver'||m.side==='setsUnder'?'OU':
                m.side==='rlFav'||m.side==='rlDog'||m.side==='plFav'||m.side==='plDog'||m.side==='sprdFav'||m.side==='sprdDog'||m.side==='ahFav'||m.side==='ahDog'?'SPREAD':'ML';
-    const tN=tier(m.prob,m.evVal,mktT,m.marketProb!=null); // market-blended legs skip tier()'s model-bias re-pricing (see tier())
+    // hockey rows (hk:true) are graded on the real price with HOCKEY_TIER_* and may qualify through the high-probability lane;
+    // everything else keeps tier()'s app-wide floors. Market-blended legs skip tier()'s model-bias re-pricing (see tier()).
+    const tN=m.hk?_hkTierRow(m,mktT):tier(m.prob,m.evVal,mktT,m.marketProb!=null);
+    const lane=m.hk?_hkLaneRow(m):false;
     const edg=m.dec?_edge(m.prob,m.dec):_edge(m.prob,1.91);
     const kF=m.dec?_kelly(m.prob,m.dec):0;
     const mfS=_mfScore(m.prob,m.evVal,edg,0,kF);
@@ -3865,14 +3926,17 @@ function _evalMkts(mkts){
     // time, so a lock click can find the reasoning this function already
     // computed for that specific market without any new plumbing through
     // the ~30 individual lock-button onclick call sites.
-    return{...m,tierN:tN,edge:edg,kelly:kF,mfScore:mfS,mktT};
-  }).sort((a,b)=>b.tierN-a.tierN||b.mfScore-a.mfScore||b.evVal-a.evVal);
-  const best=mkts[0];const n=best.tierN;
-  const lbl=n===3?'PREMIUM':n===2?'OPTIMAL':n===1?'LEAN':'SKIP';
-  const col=n===3?'var(--gc)':n===2?'var(--nc)':n===1?'var(--ic)':'var(--t3)';
+    return{...m,tierN:tN,hkLane:lane,edge:edg,kelly:kF,mfScore:mfS,mktT};
+  }).sort((a,b)=>_effTier(b)-_effTier(a)||b.mfScore-a.mfScore||b.evVal-a.evVal);
+  const best=mkts[0];let n=best.tierN;
+  const laneBest=!!best.hkLane&&n<2; // best market qualifies only through the high-probability lane
+  if(laneBest)n=Math.max(n,1);
+  const lbl=laneBest?HOCKEY_LANE_LABEL:n===3?'PREMIUM':n===2?'OPTIMAL':n===1?'LEAN':'SKIP';
+  const col=laneBest?'var(--gc)':n===3?'var(--gc)':n===2?'var(--nc)':n===1?'var(--ic)':'var(--t3)';
   const size=n===3?'Full':n===2?'Standard':'Half';
-  const sec=mkts.slice(1).filter(m=>m.tierN>=1&&m.side!==best.side);
-  const secStr=sec.length?' · Also: '+sec.map(m=>`${m.label} (${['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN]})`).join(', '):'';
+  const _lbl1=m=>(m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN];
+  const sec=mkts.slice(1).filter(m=>(m.tierN>=1||m.hkLane)&&m.side!==best.side);
+  const secStr=sec.length?' · Also: '+sec.map(m=>`${m.label} (${_lbl1(m)})`).join(', '):'';
   return{best,tierN:n,lbl,col,size,sec,secStr,mkts};
 }
 // ── "Why this pick" reasoning composer (Part 3: enhanced MC breakdown) ───
@@ -6311,7 +6375,7 @@ function renderNHLTonight(){
       const _px1=_nhlPrices(_pg1,hP,hP>=aP,gh.ou);
       const hML=_px1.ml.home.ml,aML=_px1.ml.away.ml,hD=_px1.ml.home.dec,aD=_px1.ml.away.dec;
       const hEV=_hkTierEv(hP,hAsmD1,_px1.ml.home),aEV=_hkTierEv(aP,aAsmD1,_px1.ml.away);
-      const hCS=chipC(hP,hEV,!!(ens.mkt&&ens.mkt.ml)),aCS=chipC(aP,aEV,!!(ens.mkt&&ens.mkt.ml));
+      let hCS=chipC(hP,hEV,!!(ens.mkt&&ens.mkt.ml)),aCS=chipC(aP,aEV,!!(ens.mkt&&ens.mkt.ml));
       const ouP=ens.ouP!=null?ens.ouP:(mc?.overP||.52),ouCS=chipC(ouP,ev(ouP,1.91));
       const _tnML=ens.mkt&&ens.mkt.ml; // market-blend record (home perspective), null = pure model
       const _tnPL=ens.mkt&&ens.mkt.pl,_tnOU=ens.mkt&&ens.mkt.ou;
@@ -6339,6 +6403,7 @@ function renderNHLTonight(){
         _hkMkt(`OVER ${gh.ou}`,ouP,'over',_nhlOuDec,_px1.ou.over,_tnOU),
         _hkMkt(`UNDER ${gh.ou}`,1-ouP,'under',_nhlOuDec,_px1.ou.under,_hkBlComp(_tnOU)),
       ]);
+  hCS=_hkChipFor(_nm1,`${gh.h} ML`);aCS=_hkChipFor(_nm1,`${gh.a} ML`); // pills read from the pipeline's own rows
       const topTier=_nm1.tierN,topTierLabel=_nm1.lbl,topTierCol=_nm1.col;
       // evPct carries its own sign now -- real bug, found persisting this
       // text into the ledger's `reasoning` field: every EV display call
@@ -6398,7 +6463,7 @@ function renderNHLTonight(){
       if(topTier>0)_attachReasoning(_nm1,side=>_mcLineScore(mc,side,gh.ou,{n:25000}),{[_bm1.side]:explanation});
       else _attachReasoning(_nm1,side=>_mcLineScore(mc,side,gh.ou,{n:25000}));
       _autoLockCapture('NHL',gh.h,gh.a,_nm1,mc?`MC PROJ: ${gh.a} ${mc.avgA.toFixed(1)} – ${gh.h} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null);
-      html+=`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)"><div class="gch"><div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${gh.a}</span><span style="color:var(--t3);font-size:15px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${gh.h}</span></div><div class="gsp">GOALIES: ${aw.g1} vs ${h.g1}</div><div class="gsp">${gh.ctx?'G'+gh.gn+' · '+gh.ctx+' · ':''}<span style="color:var(--vc)">O/U ${gh.ou}</span></div></div><div style="text-align:right"><div class="np mono" style="font-size:19px">${statusDot}${statusTxt}</div></div></div><div class="brow"><div class="${hCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.h}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},${_hkExtraMeta(_px1.ml.home,_tnML)})"><div class="cht">ML ${gh.h}</div><div class="cho">${_mlFmt(hML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px1.ml.home)}</div>${_hkBlendTag(_tnML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div><div class="${aCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.a}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},${_hkExtraMeta(_px1.ml.away,_hkBlComp(_tnML))})"><div class="cht">ML ${gh.a}</div><div class="cho">${_mlFmt(aML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px1.ml.away)}</div>${_hkBlendTag(_hkBlComp(_tnML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div><div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="-1.5" id="sprd_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id);_hkPxRefresh(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','FAV','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.h:gh.a}</div><div id="fav_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">-1.5</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','DOG','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.a:gh.h}</div><div id="dog_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">+1.5</div></button></div>${_hkPxLabelHTML('sprd_nhl1_'+gh.h+'_'+gh.a,{kind:'pl',g:_pg1,favIsHome:hP>=aP,nhl:true})}${_hkBlendLabelHTML('sprd_nhl1_'+gh.h+'_'+gh.a,_tnPL,-1.5)}</div><div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${gh.ou}" id="ouinp_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button></div>${_hkPxLabelHTML('ouinp_nhl1_'+gh.h+'_'+gh.a,{kind:'ou',g:_pg1,line:gh.ou,nhl:true})}${_hkBlendLabelHTML('ouinp_nhl1_'+gh.h+'_'+gh.a,_tnOU,gh.ou)}</div></div><div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span><span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span></div>${_mcProjBarHTML(mc,gh.ou||5.5,gh.h,gh.a,{dec:2})}${_bestMarketBoxHTML(_nm1.tierN,_nm1.col,_nm1.lbl,_nm1.best.label,_nm1.best.prob,_nm1.best.evVal)}<div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div><div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm1.mkts.map(_hkScanTxt).join(' · ')}</div></div><div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px"><span class="mono" style="font-size:16px;color:var(--t3)">MC:${(ens.mc*100).toFixed(0)}% xGF:${(ens.xgf*100).toFixed(0)}% ELO:${(ens.elo*100).toFixed(0)}% · PROJ ${mc?mc.avgH.toFixed(1)+'-'+mc.avgA.toFixed(1):'—'} · OT ${mc?(mc.otP*100).toFixed(0):0}%</span></div></div>`;
+      html+=`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)"><div class="gch"><div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${gh.a}</span><span style="color:var(--t3);font-size:15px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${gh.h}</span></div><div class="gsp">GOALIES: ${aw.g1} vs ${h.g1}</div><div class="gsp">${gh.ctx?'G'+gh.gn+' · '+gh.ctx+' · ':''}<span style="color:var(--vc)">O/U ${gh.ou}</span></div></div><div style="text-align:right"><div class="np mono" style="font-size:19px">${statusDot}${statusTxt}</div></div></div><div class="brow"><div class="${hCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.h}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},${_hkExtraMeta(_px1.ml.home,_tnML)})"><div class="cht">ML ${gh.h}</div><div class="cho">${_mlFmt(hML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px1.ml.home)}</div>${_hkBlendTag(_tnML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div></div><div class="${aCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.a}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},${_hkExtraMeta(_px1.ml.away,_hkBlComp(_tnML))})"><div class="cht">ML ${gh.a}</div><div class="cho">${_mlFmt(aML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px1.ml.away)}</div>${_hkBlendTag(_hkBlComp(_tnML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div></div><div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="-1.5" id="sprd_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id);_hkPxRefresh(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','FAV','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.h:gh.a}</div><div id="fav_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">-1.5</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','DOG','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.a:gh.h}</div><div id="dog_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">+1.5</div></button></div>${_hkPxLabelHTML('sprd_nhl1_'+gh.h+'_'+gh.a,{kind:'pl',g:_pg1,favIsHome:hP>=aP,nhl:true})}${_hkBlendLabelHTML('sprd_nhl1_'+gh.h+'_'+gh.a,_tnPL,-1.5)}</div><div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${gh.ou}" id="ouinp_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button></div>${_hkPxLabelHTML('ouinp_nhl1_'+gh.h+'_'+gh.a,{kind:'ou',g:_pg1,line:gh.ou,nhl:true})}${_hkBlendLabelHTML('ouinp_nhl1_'+gh.h+'_'+gh.a,_tnOU,gh.ou)}</div></div><div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span><span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span></div>${_mcProjBarHTML(mc,gh.ou||5.5,gh.h,gh.a,{dec:2})}${_bestMarketBoxHTML(_nm1.tierN,_nm1.col,_nm1.lbl,_nm1.best.label,_nm1.best.prob,_nm1.best.evVal)}<div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div><div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm1.mkts.map(_hkScanTxt).join(' · ')}</div></div><div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px"><span class="mono" style="font-size:16px;color:var(--t3)">MC:${(ens.mc*100).toFixed(0)}% xGF:${(ens.xgf*100).toFixed(0)}% ELO:${(ens.elo*100).toFixed(0)}% · PROJ ${mc?mc.avgH.toFixed(1)+'-'+mc.avgA.toFixed(1):'—'} · OT ${mc?(mc.otP*100).toFixed(0):0}%</span></div></div>`;
     }
     el.innerHTML=html||'<div class="empty">NO NHL GAMES TONIGHT</div>';
     return;
@@ -6481,8 +6546,8 @@ function renderNHLTonight(){
     <div style="text-align:right"><div class="np mono" style="font-size:19px">${statusDot}${statusTxt}</div></div>
   </div>
   <div class="brow">
-    <div class="${hCS.c} chip" style="flex:1" onclick="lockH('${g.h}','${g.a}','ML','${g.h}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)})"><div class="cht">ML ${g.h}</div><div class="cho">${hML}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
-    <div class="${aCS.c} chip" style="flex:1" onclick="lockH('${g.h}','${g.a}','ML','${g.a}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)})"><div class="cht">ML ${g.a}</div><div class="cho">${aML}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+    <div class="${hCS.c} chip" style="flex:1" onclick="lockH('${g.h}','${g.a}','ML','${g.h}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)})"><div class="cht">ML ${g.h}</div><div class="cho">${hML}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div></div>
+    <div class="${aCS.c} chip" style="flex:1" onclick="lockH('${g.h}','${g.a}','ML','${g.a}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)})"><div class="cht">ML ${g.a}</div><div class="cho">${aML}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div></div>
     <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nhl2_${g.h}_${g.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="-1.5" id="sprd_nhl2_${g.h}_${g.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nhl2_${g.h}_${g.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?g.h:g.a}','${hP>=.5?g.a:g.h}','${g.h}','${g.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl2_${g.h}_${g.a}','FAV','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?g.h:g.a}</div><div id="fav_sprd_nhl2_${g.h}_${g.a}" style="font-size:11px;opacity:.85">-1.5</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?g.h:g.a}','${hP>=.5?g.a:g.h}','${g.h}','${g.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl2_${g.h}_${g.a}','DOG','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?g.a:g.h}</div><div id="dog_sprd_nhl2_${g.h}_${g.a}" style="font-size:11px;opacity:.85">+1.5</div></button></div></div>
     <div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nhl2_${g.h}_${g.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${g.ou}" id="ouinp_nhl2_${g.h}_${g.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nhl2_${g.h}_${g.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_ouLockDir('${g.h}','${g.a}',null,${ouP.toFixed(3)},'${g.ou}','ouinp_nhl2_${g.h}_${g.a}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_ouLockDir('${g.h}','${g.a}',null,${ouP.toFixed(3)},'${g.ou}','ouinp_nhl2_${g.h}_${g.a}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button></div></div>
   </div>
@@ -9092,7 +9157,7 @@ function _nhlGameCard(espnEv){
       const _px=_nhlPrices(_pg,hP,hP>=aP,nhlOuL);
       const hML=_px.ml.home.ml,aML=_px.ml.away.ml,hD=_px.ml.home.dec,aD=_px.ml.away.dec;
       const hEV=_hkTierEv(hP,hAsmD3,_px.ml.home),aEV=_hkTierEv(aP,aAsmD3,_px.ml.away);
-      const hCS=chipC(hP,hEV,!!(_nhlEns&&_nhlEns.mkt&&_nhlEns.mkt.ml)),aCS=chipC(aP,aEV,!!(_nhlEns&&_nhlEns.mkt&&_nhlEns.mkt.ml));
+      let hCS=chipC(hP,hEV,!!(_nhlEns&&_nhlEns.mkt&&_nhlEns.mkt.ml)),aCS=chipC(aP,aEV,!!(_nhlEns&&_nhlEns.mkt&&_nhlEns.mkt.ml));
       const _bPL3=_nhlEns&&_nhlEns.mkt&&_nhlEns.mkt.pl;
       const plP0=hP>=.5?(_nhlMcD?.rl15??.38):(_nhlMcD?.rl15A??.38);
       const plP=(_bPL3&&_nhlEns.favCoverP!=null)?_nhlEns.favCoverP:plP0,plCS=chipC(plP,ev(plP,1.87));
@@ -9116,6 +9181,7 @@ function _nhlGameCard(espnEv){
         _hkMkt(`OVER ${nhlOuL}`,ouP,'over',1.91,_px.ou.over,_gcOU),
         _hkMkt(`UNDER ${nhlOuL}`,1-ouP,'under',1.91,_px.ou.under,_hkBlComp(_gcOU)),
       ]);
+  hCS=_hkChipFor(_nm3,`${hn} ML`);aCS=_hkChipFor(_nm3,`${an} ML`); // pills read from the pipeline's own rows
       const topTier=_nm3.tierN,topTierLabel=_nm3.lbl,topTierCol=_nm3.col;
       const _bm3=_nm3.best,_topP3=_nhlFavP3;
       let explanation='';
@@ -9184,8 +9250,8 @@ function _nhlGameCard(espnEv){
     <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real input this app already has for this team (GF/60, PP%/PK%, Corsi, high-danger chances, save%, GSAx, Edge speed/zone) normalized 0-100. Missing data defaults to the 50 midpoint.</div>
   </div>
   ${pre?`<div class="brow">
-    <div class="${hCS.c} chip" style="flex:1" onclick="lockH('${hn}','${an}','ML','${hn}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},${_hkExtraMeta(_px.ml.home,_gcML)})"><div class="cht">ML ${hn}</div><div class="cho">${_mlFmt(hML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px.ml.home)}</div>${_hkBlendTag(_gcML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
-    <div class="${aCS.c} chip" style="flex:1" onclick="lockH('${hn}','${an}','ML','${an}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},${_hkExtraMeta(_px.ml.away,_hkBlComp(_gcML))})"><div class="cht">ML ${an}</div><div class="cho">${_mlFmt(aML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px.ml.away)}</div>${_hkBlendTag(_hkBlComp(_gcML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+    <div class="${hCS.c} chip" style="flex:1" onclick="lockH('${hn}','${an}','ML','${hn}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},${_hkExtraMeta(_px.ml.home,_gcML)})"><div class="cht">ML ${hn}</div><div class="cho">${_mlFmt(hML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px.ml.home)}</div>${_hkBlendTag(_gcML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div></div>
+    <div class="${aCS.c} chip" style="flex:1" onclick="lockH('${hn}','${an}','ML','${an}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},${_hkExtraMeta(_px.ml.away,_hkBlComp(_gcML))})"><div class="cht">ML ${an}</div><div class="cho">${_mlFmt(aML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px.ml.away)}</div>${_hkBlendTag(_hkBlComp(_gcML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div></div>
     <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nhl3_${hn}_${an}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="-1.5" id="sprd_nhl3_${hn}_${an}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id);_hkPxRefresh(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nhl3_${hn}_${an}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?hn:an}','${hP>=.5?an:hn}','${hn}','${an}',null,${plP.toFixed(3)},'-1.5','sprd_nhl3_${hn}_${an}','FAV','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?hn:an}</div><div id="fav_sprd_nhl3_${hn}_${an}" style="font-size:11px;opacity:.85">-1.5</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?hn:an}','${hP>=.5?an:hn}','${hn}','${an}',null,${plP.toFixed(3)},'-1.5','sprd_nhl3_${hn}_${an}','DOG','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?an:hn}</div><div id="dog_sprd_nhl3_${hn}_${an}" style="font-size:11px;opacity:.85">+1.5</div></button></div>${_hkPxLabelHTML('sprd_nhl3_'+hn+'_'+an,{kind:'pl',g:_pg,favIsHome:hP>=aP,nhl:true})}${_hkBlendLabelHTML('sprd_nhl3_'+hn+'_'+an,_bPL3,-1.5)}</div>
     <div class="${ouCS.c} chip" style="flex:1" onclick="lockH('${hn}','${an}','OU','${ouP>=.5?'OVER':'UNDER'} ${nhlOuL}',${(ouP>=.5?ouP:1-ouP).toFixed(3)},'${(ouP>=.5?_px.ou.over:_px.ou.under).ml}',${(ouP>=.5?_px.ou.over:_px.ou.under).dec.toFixed(3)},${_hkExtraMeta(ouP>=.5?_px.ou.over:_px.ou.under,ouP>=.5?_gcOU:_hkBlComp(_gcOU))})"><div class="cht">${ouP>=.5?'OVER':'UNDER'} ${nhlOuL}</div><div class="cho">${_mlFmt((ouP>=.5?_px.ou.over:_px.ou.under).ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(ouP>=.5?_px.ou.over:_px.ou.under)}</div><div class="chp">${((ouP>=.5?ouP:1-ouP)*100).toFixed(1)}%</div></div>
   </div>`:''}
@@ -9440,7 +9506,7 @@ function _nhlUpcomingCard(g,dayIdx){
   const px=_nhlPrices(g,hP,hP>=aP,ouLine0);
   const hML=px.ml.home.ml,aML=px.ml.away.ml,hD=px.ml.home.dec,aD=px.ml.away.dec;
   const hEV=_hkTierEv(hP,hAsmD,px.ml.home),aEV=_hkTierEv(aP,aAsmD,px.ml.away);
-  const hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
+  let hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
   const favTeam=hP>=aP?g.home:g.away,dogTeam=hP>=aP?g.away:g.home;
   const favP=Math.max(hP,aP),dogP=Math.min(hP,aP);
   const plP=hP>=.5?(mc?.rl15??.38):(mc?.rl15A??.38);
@@ -9464,6 +9530,7 @@ function _nhlUpcomingCard(g,dayIdx){
     _hkMkt(`OVER ${ouLine}`,ouP,'over',ouDec,px.ou.over,bOU),
     _hkMkt(`UNDER ${ouLine}`,1-ouP,'under',ouDec,px.ou.under,_hkBlComp(bOU)),
   ]);
+  hCS=_hkChipFor(nm,`${g.home} ML`);aCS=_hkChipFor(nm,`${g.away} ML`); // pills read from the pipeline's own rows
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   // evPct carries its own sign -- see renderNHLTonight's live-data loop
   // (near the top of this file) for the full rationale.
@@ -9526,8 +9593,8 @@ function _nhlUpcomingCard(g,dayIdx){
       <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real input this app already has for this team (GF/60, PP%/PK%, Corsi, high-danger chances, save%, GSAx, Edge speed/zone) normalized 0-100. Missing data defaults to the 50 midpoint.</div>
     </div>
     <div class="brow">
-      <div class="${hCS.c} chip" style="flex:1" onclick="lockH('${g.home}','${g.away}','ML','${g.home}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},${_hkExtraMeta(px.ml.home,bML)})"><div class="cht">ML ${g.home}</div><div class="cho">${_mlFmt(hML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div>${_hkBlendTag(bML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
-      <div class="${aCS.c} chip" style="flex:1" onclick="lockH('${g.home}','${g.away}','ML','${g.away}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},${_hkExtraMeta(px.ml.away,_hkBlComp(bML))})"><div class="cht">ML ${g.away}</div><div class="cho">${_mlFmt(aML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div>${_hkBlendTag(_hkBlComp(bML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+      <div class="${hCS.c} chip" style="flex:1" onclick="lockH('${g.home}','${g.away}','ML','${g.home}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},${_hkExtraMeta(px.ml.home,bML)})"><div class="cht">ML ${g.home}</div><div class="cho">${_mlFmt(hML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div>${_hkBlendTag(bML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div></div>
+      <div class="${aCS.c} chip" style="flex:1" onclick="lockH('${g.home}','${g.away}','ML','${g.away}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},${_hkExtraMeta(px.ml.away,_hkBlComp(bML))})"><div class="cht">ML ${g.away}</div><div class="cho">${_mlFmt(aML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div>${_hkBlendTag(_hkBlComp(bML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div></div>
       <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div>
         <div style="display:flex;align-items:center;gap:2px">
@@ -10109,7 +10176,7 @@ window.HOCKEY_ENS=window.HOCKEY_ENS||{};
 function _hkPerfCrossTab(sportTag){
   const settled=getP().filter(p=>window._normSport(p)===sportTag&&p.outcome!=='pending'&&p.outcome!=='push');
   const BET_TYPES=['ML','SPREAD','OU'];
-  const TIERS=['LEAN','OPTIMAL','PREMIUM'];
+  const TIERS=['LEAN','OPTIMAL','PREMIUM',HOCKEY_LANE_LABEL]; // + the hockey high-probability lane (see _gradeLabel)
   const cross={};
   BET_TYPES.forEach(bt=>{cross[bt]={};TIERS.forEach(t=>cross[bt][t]={w:0,l:0,u:0});});
   settled.forEach(p=>{
@@ -10874,7 +10941,7 @@ function _liigaMatchCard(g){
   // shown + locked at market; the tier inputs below stay on the assumed prices by default.
   const px=_hkPrices(g,hP,hP>=aP,ouL);
   const hEV=_hkTierEv(hP,hD,px.ml.home),aEV=_hkTierEv(aP,aD,px.ml.away);
-  const hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
+  let hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
   const ouEV=_hkTierEv(ouP,ouD,px.ou.over),unEV=_hkTierEv(unP,ouD,px.ou.under);
   // Puck line -- blended cover probability (ens.favCoverP/dogCoverP, see
   // liigaEns's own comment): mc's exact analytic Poisson-implied cover
@@ -10893,6 +10960,7 @@ function _liigaMatchCard(g){
     _hkMkt(`OVER ${ouL}`,ouP,'over',ouD,px.ou.over,bOU),
     _hkMkt(`UNDER ${ouL}`,unP,'under',ouD,px.ou.under,_hkBlComp(bOU)),
   ]);
+  hCS=_hkChipFor(nm,`${g.homeName} ML`);aCS=_hkChipFor(nm,`${g.awayName} ML`); // pills read from the pipeline's own rows
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_liigaBlendedRates(h),aR=_liigaBlendedRates(aw);
@@ -10958,8 +11026,8 @@ function _liigaMatchCard(g){
       }catch(e){return'';}})()}
     </div>
     <div class="brow">
-      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','LIIGA','${g.homeName}',${hP.toFixed(3)},'${px.ml.home.ml}',${px.ml.home.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.home,bML)})"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(px.ml.home.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div>${_hkBlendTag(bML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
-      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','LIIGA','${g.awayName}',${aP.toFixed(3)},'${px.ml.away.ml}',${px.ml.away.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.away,_hkBlComp(bML))})"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(px.ml.away.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div>${_hkBlendTag(_hkBlComp(bML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','LIIGA','${g.homeName}',${hP.toFixed(3)},'${px.ml.home.ml}',${px.ml.home.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.home,bML)})"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(px.ml.home.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div>${_hkBlendTag(bML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div></div>
+      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','LIIGA','${g.awayName}',${aP.toFixed(3)},'${px.ml.away.ml}',${px.ml.away.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.away,_hkBlComp(bML))})"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(px.ml.away.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div>${_hkBlendTag(_hkBlComp(bML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div></div>
       <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div>
         <div style="display:flex;align-items:center;gap:2px">
@@ -10997,7 +11065,7 @@ function _liigaMatchCard(g){
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
   </div>`;
 }
@@ -11042,7 +11110,7 @@ function _nlaMatchCard(g){
   // shown + locked at market; the tier inputs below stay on the assumed prices by default.
   const px=_hkPrices(g,hP,hP>=aP,ouL);
   const hEV=_hkTierEv(hP,hD,px.ml.home),aEV=_hkTierEv(aP,aD,px.ml.away);
-  const hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
+  let hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
   const ouEV=_hkTierEv(ouP,ouD,px.ou.over),unEV=_hkTierEv(unP,ouD,px.ou.under);
   const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
   const plFavP=ens.favCoverP,plDogP=ens.dogCoverP;
@@ -11054,6 +11122,7 @@ function _nlaMatchCard(g){
     _hkMkt(`OVER ${ouL}`,ouP,'over',ouD,px.ou.over,bOU),
     _hkMkt(`UNDER ${ouL}`,unP,'under',ouD,px.ou.under,_hkBlComp(bOU)),
   ]);
+  hCS=_hkChipFor(nm,`${g.homeName} ML`);aCS=_hkChipFor(nm,`${g.awayName} ML`); // pills read from the pipeline's own rows
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_nlaBlendedRates(h),aR=_nlaBlendedRates(aw);
@@ -11100,8 +11169,8 @@ function _nlaMatchCard(g){
       }catch(e){return'';}})()}
     </div>
     <div class="brow">
-      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','NLA','${g.homeName}',${hP.toFixed(3)},'${px.ml.home.ml}',${px.ml.home.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.home,bML)})"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(px.ml.home.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div>${_hkBlendTag(bML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
-      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','NLA','${g.awayName}',${aP.toFixed(3)},'${px.ml.away.ml}',${px.ml.away.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.away,_hkBlComp(bML))})"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(px.ml.away.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div>${_hkBlendTag(_hkBlComp(bML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','NLA','${g.homeName}',${hP.toFixed(3)},'${px.ml.home.ml}',${px.ml.home.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.home,bML)})"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(px.ml.home.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div>${_hkBlendTag(bML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div></div>
+      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','NLA','${g.awayName}',${aP.toFixed(3)},'${px.ml.away.ml}',${px.ml.away.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.away,_hkBlComp(bML))})"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(px.ml.away.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div>${_hkBlendTag(_hkBlComp(bML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div></div>
       <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div>
         <div style="display:flex;align-items:center;gap:2px">
@@ -11139,7 +11208,7 @@ function _nlaMatchCard(g){
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
   </div>`;
 }
@@ -11180,7 +11249,7 @@ function _extraligaMatchCard(g){
   // shown + locked at market; the tier inputs below stay on the assumed prices by default.
   const px=_hkPrices(g,hP,hP>=aP,ouL);
   const hEV=_hkTierEv(hP,hD,px.ml.home),aEV=_hkTierEv(aP,aD,px.ml.away);
-  const hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
+  let hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
   const ouEV=_hkTierEv(ouP,ouD,px.ou.over),unEV=_hkTierEv(unP,ouD,px.ou.under);
   const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
   const plFavP=ens.favCoverP,plDogP=ens.dogCoverP;
@@ -11192,6 +11261,7 @@ function _extraligaMatchCard(g){
     _hkMkt(`OVER ${ouL}`,ouP,'over',ouD,px.ou.over,bOU),
     _hkMkt(`UNDER ${ouL}`,unP,'under',ouD,px.ou.under,_hkBlComp(bOU)),
   ]);
+  hCS=_hkChipFor(nm,`${g.homeName} ML`);aCS=_hkChipFor(nm,`${g.awayName} ML`); // pills read from the pipeline's own rows
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_extraligaBlendedRates(h),aR=_extraligaBlendedRates(aw);
@@ -11238,8 +11308,8 @@ function _extraligaMatchCard(g){
       }catch(e){return'';}})()}
     </div>
     <div class="brow">
-      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','EXTRALIGA','${g.homeName}',${hP.toFixed(3)},'${px.ml.home.ml}',${px.ml.home.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.home,bML)})"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(px.ml.home.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div>${_hkBlendTag(bML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
-      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','EXTRALIGA','${g.awayName}',${aP.toFixed(3)},'${px.ml.away.ml}',${px.ml.away.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.away,_hkBlComp(bML))})"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(px.ml.away.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div>${_hkBlendTag(_hkBlComp(bML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','EXTRALIGA','${g.homeName}',${hP.toFixed(3)},'${px.ml.home.ml}',${px.ml.home.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.home,bML)})"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(px.ml.home.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div>${_hkBlendTag(bML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div></div>
+      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','EXTRALIGA','${g.awayName}',${aP.toFixed(3)},'${px.ml.away.ml}',${px.ml.away.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.away,_hkBlComp(bML))})"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(px.ml.away.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div>${_hkBlendTag(_hkBlComp(bML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div></div>
       <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div>
         <div style="display:flex;align-items:center;gap:2px">
@@ -11277,7 +11347,7 @@ function _extraligaMatchCard(g){
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
   </div>`;
 }
@@ -11492,7 +11562,7 @@ function _shlMatchCard(g){
   // shown + locked at market; the tier inputs below stay on the assumed prices by default.
   const px=_hkPrices(g,hP,hP>=aP,ouL);
   const hEV=_hkTierEv(hP,hD,px.ml.home),aEV=_hkTierEv(aP,aD,px.ml.away);
-  const hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
+  let hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
   const ouEV=_hkTierEv(ouP,ouD,px.ou.over),unEV=_hkTierEv(unP,ouD,px.ou.under);
   // Puck line -- blended cover probability (ens.favCoverP/dogCoverP, see
   // liigaEns's own comment): mc's exact analytic Poisson-implied cover
@@ -11511,6 +11581,7 @@ function _shlMatchCard(g){
     _hkMkt(`OVER ${ouL}`,ouP,'over',ouD,px.ou.over,bOU),
     _hkMkt(`UNDER ${ouL}`,unP,'under',ouD,px.ou.under,_hkBlComp(bOU)),
   ]);
+  hCS=_hkChipFor(nm,`${g.homeName} ML`);aCS=_hkChipFor(nm,`${g.awayName} ML`); // pills read from the pipeline's own rows
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_shlBlendedRates(h),aR=_shlBlendedRates(aw);
@@ -11557,8 +11628,8 @@ function _shlMatchCard(g){
       }catch(e){return'';}})()}
     </div>
     <div class="brow">
-      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','SHL','${g.homeName}',${hP.toFixed(3)},'${px.ml.home.ml}',${px.ml.home.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.home,bML)})"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(px.ml.home.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div>${_hkBlendTag(bML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
-      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','SHL','${g.awayName}',${aP.toFixed(3)},'${px.ml.away.ml}',${px.ml.away.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.away,_hkBlComp(bML))})"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(px.ml.away.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div>${_hkBlendTag(_hkBlComp(bML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
+      <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','SHL','${g.homeName}',${hP.toFixed(3)},'${px.ml.home.ml}',${px.ml.home.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.home,bML)})"><div class="cht">ML ${g.homeName}</div><div class="cho">${_mlFmt(px.ml.home.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.home)}</div>${_hkBlendTag(bML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div></div>
+      <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${g.homeName}','${g.awayName}','SHL','${g.awayName}',${aP.toFixed(3)},'${px.ml.away.ml}',${px.ml.away.dec.toFixed(3)},'${dateStr}','manual',undefined,${_hkExtraMeta(px.ml.away,_hkBlComp(bML))})"><div class="cht">ML ${g.awayName}</div><div class="cho">${_mlFmt(px.ml.away.ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(px.ml.away)}</div>${_hkBlendTag(_hkBlComp(bML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div></div>
       <div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px">
         <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div>
         <div style="display:flex;align-items:center;gap:2px">
@@ -11596,7 +11667,7 @@ function _shlMatchCard(g){
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
   </div>`;
 }
@@ -16625,6 +16696,32 @@ const _EH_HOCKEY_LEAGUES=['SHL','LIIGA','NLA','EXTRALIGA'];
 // against).
 const _EH_DROP_THRESHOLD=0.4;
 const _EH_MIN_BASELINE_RUNS=3;
+// ── Hockey ODDS COVERAGE (Part B monitoring, 2026-10-03) ─────────────────────────────────────────────────────────────
+// Hockey legs only qualify on a REAL, FRESH market price (HOCKEY_REQUIRE_REAL_PRICE). If a scrape fails for a whole day
+// nothing would lock for subscribers -- so this shows, per league, how many games starting in the next 36h have usable odds
+// (same _hkOdds freshness rule the cards/lock use) and when odds were last scraped. Same-origin schedule JSONs, tab-open only.
+async function _hkOddsHealthHTML(){
+  const files={NHL:'nhl_schedule.json',SHL:'shl_schedule.json',LIIGA:'liiga_schedule.json',NLA:'nla_schedule.json',EXTRALIGA:'extraliga_schedule.json'};
+  const now=Date.now(),horizon=now+36*3600*1000;
+  let rows='',anyRed=false;
+  for(const [lg,f] of Object.entries(files)){
+    let d=null;try{const r=await fetch(f+'?_v='+now,{cache:'no-store'});if(r.ok)d=await r.json();}catch(e){}
+    if(!d||!Array.isArray(d.games)){rows+=`<div class="card" style="margin-bottom:6px;padding:8px 12px"><span style="font-family:var(--mono);font-size:15px;color:var(--t3)">${lg}: SCHEDULE FILE UNAVAILABLE</span></div>`;continue;}
+    const up=d.games.filter(g=>g.state==='pre'&&g.date&&Date.parse(g.date)>=now&&Date.parse(g.date)<=horizon);
+    const ok=up.filter(g=>{const o=_hkOdds(g);return o&&o.ml&&_hkValidDec(o.ml.home)&&_hkValidDec(o.ml.away);});
+    const lacking=up.length-ok.length;
+    let lastAt=0;d.games.forEach(g=>{const t=g.odds&&g.odds.at?Date.parse(g.odds.at):0;if(t>lastAt)lastAt=t;});
+    const meta=d.odds_meta||null;
+    const red=up.length>0&&ok.length===0, amber=!red&&lacking>0;
+    if(red)anyRed=true;
+    const col=red?'#ff1a1a':amber?'#ff9000':'#00e644';
+    const ago=lastAt?_ehAgo(now-lastAt):'NEVER';
+    const extra=meta?` · LAST PASS ${meta.priced||0} PRICED / ${meta.in_window||0} IN WINDOW${meta.unmapped&&meta.unmapped.length?' · UNMAPPED: '+_ehEsc(meta.unmapped.join(', ')):''}${meta.error?' · ERROR: '+_ehEsc(meta.error):''}`:'';
+    rows+=`<div class="card" style="margin-bottom:6px;padding:8px 12px;border-left:3px solid ${col}"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-family:var(--mono);font-size:15px"><span style="color:var(--t2);letter-spacing:1px">${lg}</span><span style="color:${col}">${up.length?`${ok.length}/${up.length} GAMES PRICED (NEXT 36H)${lacking?` · ${lacking} WITHOUT ODDS`:''}`:'NO GAMES IN NEXT 36H'}</span></div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-top:3px">LAST ODDS SCRAPE ${ago}${extra}</div></div>`;
+  }
+  const warn=anyRed?`<div style="font-family:var(--mono);font-size:14px;color:#ff1a1a;margin-bottom:8px">⚠ A league has games in the next 36h but NO usable odds -- hockey legs for it will NOT qualify (real price required) until the next scrape lands.</div>`:'';
+  return warn+rows;
+}
 function _scraperHealthHTML(log){
   if(!Array.isArray(log)||!log.length){
     return`<div class="empty">NO SCRAPE HISTORY YET — CHECK BACK AFTER THE NEXT SCHEDULED SCRAPE</div>`;
@@ -16906,6 +17003,7 @@ async function renderEngineHealth(){
   }
 
   const scraperHtml=_scraperHealthHTML(scraperLog);
+  let oddsHtml='';try{oddsHtml=await _hkOddsHealthHTML();}catch(e){oddsHtml='<div class="empty">ODDS COVERAGE UNAVAILABLE</div>';}
   const calHtml=_calDriftHTML(calWeights);
 
   el.innerHTML=`
@@ -16917,6 +17015,8 @@ async function renderEngineHealth(){
     <div class="card" style="padding:8px 10px">${ghHtml}</div>
     <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin:14px 0 8px">// SCRAPER HEALTH — HOCKEY RESULTS CAPTURED/SCRAPE</div>
     ${scraperHtml}
+    <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin:14px 0 8px">// HOCKEY ODDS COVERAGE — GAMES WITH A REAL, FRESH PRICE (REQUIRED TO QUALIFY)</div>
+    ${oddsHtml}
     <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin:14px 0 8px">// CALIBRATION DRIFT — cal_adj_by_sport (CURRENT SNAPSHOT)</div>
     ${calHtml}
     <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin:14px 0 8px">// LEDGER INTEGRITY CHECK</div>

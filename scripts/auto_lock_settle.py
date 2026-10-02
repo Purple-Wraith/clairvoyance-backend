@@ -325,6 +325,22 @@ PRODUCT_LABEL: dict[str, str] = {
 QUALIFYING_TIERS = {2, 3}
 TIER_LABEL = {0: "SKIP", 1: "LEAN", 2: "OPTIMAL", 3: "PREMIUM"}
 
+# ── HOCKEY QUALIFICATION RULES (NHL + SHL/LIIGA/NLA/EXTRALIGA) ──────────────────────────────────────────────────────────
+# The numbers live in ONE place: the "HOCKEY QUALIFICATION CUTOFFS" block in docs/app.html (HOCKEY_TIER_EV,
+# HOCKEY_LANE_*, HOCKEY_REQUIRE_REAL_PRICE ...), which grades every hockey leg (tierN) and flags high-probability-lane
+# legs (hkLane) inside _evalMkts. build_qualifying() below just consumes those verdicts (QUALIFYING_TIERS {2,3} or hkLane).
+# The constants here only DESCRIBE the rules in the subscriber email legend; scripts/verify_hockey_rules.py checks they equal
+# the app.html block so the legend can never drift from what actually qualifies. Backtest: scripts/backtest_hockey_models.py tiers.
+HOCKEY_SPORTS = frozenset({"NHL", "LIIGA", "SHL", "NLA", "EXTRALIGA"})
+HOCKEY_REQUIRE_REAL_PRICE = True
+HOCKEY_TIER_EV = {"LEAN": 0.01, "OPTIMAL": 0.03, "PREMIUM": 0.05}      # EV floors on the REAL price (tier probability floors stay .55/.62/.67)
+HOCKEY_TIER_PROB = {"LEAN": 0.55, "OPTIMAL": 0.62, "PREMIUM": 0.67}
+HOCKEY_LANE_ML_P = 0.65            # high-probability lane: moneyline win probability floor
+HOCKEY_LANE_PLDOG_P = 0.65         # high-probability lane: +1.5 puck-line (underdog side) cover probability floor
+HOCKEY_LANE_EV_MIN = -0.07         # high-probability lane: EV at the real price may not be worse than this
+HOCKEY_ODDS_MAX_AGE_H = 18         # a posted price older than this is not trusted (mirrors HOCKEY_ODDS_MAX_AGE_H in app.html)
+HOCKEY_LANE_LABEL = "HIGH PROB"
+
 
 def log(msg: str) -> None:
     ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
@@ -1490,11 +1506,27 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
             # good-value bet) while still being a very likely winner, and
             # that's worth surfacing even though it's not a normal pick.
             is_high_hit = _market_type(m.get("side")) == "ML" and prob >= _HIGH_HIT_P
-            if tier_n in QUALIFYING_TIERS or is_high_hit:
+            # Hockey (NHL + SHL/LIIGA/NLA/EXTRALIGA), 2026-10-03: graded on the REAL price by docs/app.html's
+            # HOCKEY QUALIFICATION CUTOFFS block. A leg qualifies through the value lane (tier OPTIMAL/PREMIUM) or the explicit
+            # high-probability lane (hkLane), and ONLY with a real posted price -- the blunt "ML >= 75% regardless of
+            # tier/EV" rule above no longer applies to hockey (the lane replaces it).
+            is_hockey = sport in HOCKEY_SPORTS
+            lane_leg = False
+            if is_hockey:
+                if HOCKEY_REQUIRE_REAL_PRICE and m.get("priceSource") != "market":
+                    continue
+                lane_leg = bool(m.get("hkLane")) and tier_n not in QUALIFYING_TIERS
+                is_high_hit = False
+                qualifies = tier_n in QUALIFYING_TIERS or bool(m.get("hkLane"))
+            else:
+                qualifies = tier_n in QUALIFYING_TIERS or is_high_hit
+            if qualifies:
                 game_qualifying.append({
                     "kind": "GAME", "sport": sport, "hA": gl.get("hA"), "awA": gl.get("awA"),
                     "side": m.get("side"), "label": m.get("label"), "prob": m.get("prob"),
                     "ml": m.get("ml"), "dec": m.get("dec"), "tierN": tier_n, "evVal": m.get("evVal"),
+                    # True when a hockey leg qualifies ONLY through the high-probability lane (tier below OPTIMAL).
+                    "lane": lane_leg,
                     # "market" | "assumed" | None: set only by the 4 European
                     # hockey cards (SHL/LIIGA/NLA/EXTRALIGA, 2026-10-02) --
                     # whether m["ml"]/m["dec"] above is a REAL bookmaker price
@@ -1781,6 +1813,7 @@ def _market_type(side: str | None) -> str:
 
 _TIER_COLOR = {3: "#ffdd00", 2: "#00e5ff", 1: "#6699ff", 0: "#666"}  # PREMIUM/OPTIMAL/LEAN/SKIP
 _GRADE_COLOR = {"PREMIUM": "#ffdd00", "OPTIMAL": "#00e5ff", "LEAN": "#6699ff"}
+_LANE_COLOR = "#ff9f1c"  # hockey HIGH PROB lane badge
 
 
 def _leg_html(q: dict) -> str:
@@ -1802,7 +1835,10 @@ def _leg_html(q: dict) -> str:
         ev_val = q.get("evVal")
         ev_str = f' · EV {ev_val*100:+.1f}%' if ev_val is not None else ''
         prob = q.get("prob") or 0
-        hh = ' <span style="color:#ffdd00">🔥 HIGH HIT %</span>' if _market_type(q.get("side")) == "ML" and prob >= _HIGH_HIT_P else ''
+        hh = ' <span style="color:#ffdd00">🔥 HIGH HIT %</span>' if (_market_type(q.get("side")) == "ML" and prob >= _HIGH_HIT_P
+                                                                     and q.get("sport") not in HOCKEY_SPORTS) else ''
+        if q.get("lane"):
+            tier_lbl, color = HOCKEY_LANE_LABEL, _LANE_COLOR
         return (f'<div style="padding:5px 0">'
                 f'<span style="background:{color};color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
                 f'border-radius:3px;display:inline-block;margin-bottom:3px">{tier_lbl}</span>'
@@ -1870,7 +1906,14 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
     parts = [banner_html, _EMAIL_WRAP_OPEN, f'<div style="font-size:12px;letter-spacing:1px;color:#555;text-transform:uppercase">{_esc(status_line)}</div>']
 
     high_hit = [q for q in qualifying if q["kind"] == "GAME" and _market_type(q.get("side")) == "ML"
-                and (q.get("prob") or 0) >= _HIGH_HIT_P]
+                and (q.get("prob") or 0) >= _HIGH_HIT_P and q.get("sport") not in HOCKEY_SPORTS]
+    lane_legs = [q for q in qualifying if q["kind"] == "GAME" and q.get("lane")]
+    if lane_legs:
+        n = len(lane_legs)
+        parts.append(f'<div style="background:#fff1de;border:1px solid #e08a00;'
+                      f'border-radius:4px;padding:8px 12px;margin:10px 0;font-size:13px;color:#7a4500">'
+                      f'{n} {HOCKEY_LANE_LABEL} hockey pick{"s" if n != 1 else ""} today '
+                      f'(likely-to-hit picks at short prices -- see "What the grades mean")</div>')
     if high_hit:
         n = len(high_hit)
         parts.append(f'<div style="background:#fff6d6;border:1px solid #e6c200;'
@@ -1878,17 +1921,14 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
                       f'🔥 {n} HIGH HIT % moneyline pick{"s" if n != 1 else ""} today '
                       f'(75%+ model win probability, regardless of tier/EV)</div>')
 
-    # Grade + EV legend -- explains what every reader needs to interpret
-    # the picks below before they hit any of them: what PREMIUM/OPTIMAL
-    # mean (the only two tiers/grades a pick normally qualifies on --
-    # QUALIFYING_TIERS is {2, 3} for game legs, and build_qualifying()
-    # only ever includes PREMIUM/OPTIMAL-graded props), what EV means,
-    # and the one deliberate exception: a HIGH HIT % moneyline pick can
-    # appear even at LEAN or SKIP tier (see build_qualifying()'s
-    # is_high_hit branch) -- called out explicitly here so a LEAN/SKIP
-    # badge showing up doesn't read as a mistake. Shown on every send,
-    # including the empty/no-picks-today one, since it's reference
-    # material, not something tied to today's specific picks.
+    # Grade + EV legend -- explains what every reader needs to interpret the picks below before they hit any of them.
+    # Rewritten 2026-10-03 (hockey real-price cutoffs): hockey picks are graded against the REAL consensus market price (not an
+    # assumed one), EV is measured against that price, and a clearly-labelled HIGH PROB lane carries likely-to-hit picks at short
+    # prices. The numbers below come from the HOCKEY_* constants (mirrors of docs/app.html; verify_hockey_rules.py enforces it).
+    # Non-hockey sports still qualify on PREMIUM/OPTIMAL plus the 75%+ moneyline HIGH HIT % exception, described last.
+    # Shown on every send, including the empty/no-picks-today one, since it's reference material.
+    _pct = lambda x: f"{x * 100:.0f}%"
+    _evp = lambda x: f"{x * 100:+.0f}%"
     parts.append(
         '<div style="background:#14001f;border-radius:6px;padding:14px 18px;margin:14px 0 18px">'
         '<div style="font-size:11px;letter-spacing:1.5px;color:#f20cff;text-transform:uppercase;'
@@ -1898,16 +1938,27 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
         'the model\'s highest-confidence picks -- the strongest combination of win probability and '
         f'edge. &nbsp; <span style="background:{_TIER_COLOR[2]};color:#000;font-weight:700;font-size:11px;'
         'padding:1px 7px;border-radius:3px">OPTIMAL</span> still clears our bar, just with somewhat '
-        'less confidence or edge than PREMIUM. These two grades are the only ones a pick normally '
-        'qualifies on.</div>'
+        'less confidence or edge than PREMIUM. These are the two value grades: for hockey (NHL, SHL, Liiga, NLA, Extraliga) they '
+        f'need a win probability of at least {_pct(HOCKEY_TIER_PROB["OPTIMAL"])} (OPTIMAL) / {_pct(HOCKEY_TIER_PROB["PREMIUM"])} (PREMIUM) '
+        f'AND an edge of at least {_evp(HOCKEY_TIER_EV["OPTIMAL"])} / {_evp(HOCKEY_TIER_EV["PREMIUM"])} over the real market price.</div>'
         '<div style="font-size:13px;color:#eee;line-height:1.6;margin-top:10px">'
         '<strong style="color:#fff">EV (Expected Value)</strong> the model\'s estimated long-run profit '
-        'edge over the listed price, as a percentage of stake -- e.g. EV +8.1% means the model expects '
+        'edge over the market price, as a percentage of stake -- e.g. EV +8.1% means the model expects '
         'this pick to profit about 8.1% of stake on average if made repeatedly at this probability and '
-        'price. Game picks show EV; player props don\'t carry an EV figure in the underlying data, so '
-        'only probability is shown for those.</div>'
+        'price. For hockey the price is the consensus (median) of the bookmakers\' posted prices at lock time -- '
+        'not an assumed number -- and it includes the bookmakers\' margin, so even a fairly priced pick shows a negative EV about equal to the margin '
+        '(roughly -4% to -7%) and a positive EV means the model sees real value beyond the margin. '
+        'Game picks show EV; player props don\'t carry an EV figure in the underlying data, so '
+        'only probability is shown for those. A hockey pick is only ever made when a real market price exists for it.</div>'
         '<div style="font-size:13px;color:#eee;line-height:1.6;margin-top:10px">'
-        '🔥 <strong style="color:#fff">HIGH HIT %</strong> the one exception to PREMIUM/OPTIMAL-only: a '
+        f'<span style="background:{_LANE_COLOR};color:#000;font-weight:700;font-size:11px;padding:1px 7px;border-radius:3px">'
+        f'{HOCKEY_LANE_LABEL}</span> hockey only: a moneyline pick (or a +1.5 puck-line underdog) the model gives at least '
+        f'{_pct(HOCKEY_LANE_ML_P)} to win (cover), whose price is not worse than {_evp(HOCKEY_LANE_EV_MIN)} EV. These are '
+        'built to hit often, at short prices: expect a high win rate and a return close to break-even after the bookmakers\' margin, '
+        'not a value edge. They are included even when the grade would otherwise be LEAN or SKIP, and are labelled so you can '
+        'tell them apart from the value picks.</div>'
+        '<div style="font-size:13px;color:#eee;line-height:1.6;margin-top:10px">'
+        '🔥 <strong style="color:#fff">HIGH HIT %</strong> every other sport: a '
         'moneyline pick at 75%+ model win probability is included regardless of tier -- even a '
         f'<span style="background:{_TIER_COLOR[1]};color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
         f'border-radius:3px">LEAN</span> or <span style="background:{_TIER_COLOR[0]};color:#fff;font-weight:700;'
@@ -1918,7 +1969,7 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
     )
 
     if not qualifying:
-        parts.append('<div style="padding:20px 0;color:#555;font-size:14px">No PREMIUM/OPTIMAL legs cleared the bar today.</div>')
+        parts.append('<div style="padding:20px 0;color:#555;font-size:14px">No picks cleared the bar today.</div>')
         parts.append(_LOCKS_EMAIL_CLOSE)
         return "".join(parts)
 
@@ -1940,7 +1991,7 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
                 if mc_summary:
                     bits.append(_esc(mc_summary))
                 if best:
-                    bits.append(f'Best market value on this game: {_esc(best["label"])} ({TIER_LABEL.get(best.get("tierN"), "?")})')
+                    bits.append(f'Best market value on this game: {_esc(best["label"])} ({HOCKEY_LANE_LABEL if best.get("lane") else TIER_LABEL.get(best.get("tierN"), "?")})')
                 parts.append(f'<div style="border-top:1px solid rgba(255,255,255,.12);margin-top:8px;padding-top:8px;'
                               f'font-size:12px;color:#bbb;line-height:1.5">{"<br>".join(bits)}</div>')
             parts.append('</div>')
