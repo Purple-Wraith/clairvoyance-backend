@@ -1711,8 +1711,8 @@ body{line-height:1.5}
   <!-- LOCK TIMING: filters the WHOLE view (record, win%, units/ROI). Default ALL = nothing hidden. In-memory only. -->
   <div id="tb-bar" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:4px 12px;background:rgba(4,0,12,.7);border-bottom:1px solid rgba(255,255,255,.06)">
     <span style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:2px">LOCK TIMING</span>
-    <button class="btn btn-o btn-sm act" data-tb="all" onclick="setTimingBasis('all')" style="font-size:13px!important;padding:2px 8px!important">ALL PICKS</button>
-    <button class="btn btn-o btn-sm" data-tb="clean" onclick="setTimingBasis('clean')" style="font-size:13px!important;padding:2px 8px!important" title="Drops picks known to be locked after the game started; picks with no start data stay">PRE-START ONLY</button>
+    <button class="btn btn-o btn-sm act" data-tb="all" onclick="setTimingBasis('all')" style="font-size:13px!important;padding:2px 8px!important">INCLUDING LATE MANUAL LOCKS</button>
+    <button class="btn btn-o btn-sm" data-tb="clean" onclick="setTimingBasis('clean')" style="font-size:13px!important;padding:2px 8px!important" title="Drops picks known to be locked after the game started; picks with no start data stay">PRE-START LOCKS ONLY</button>
     <button class="btn btn-o btn-sm" data-tb="strict" onclick="setTimingBasis('strict')" style="font-size:13px!important;padding:2px 8px!important" title="Only picks verified as locked before the game started; picks with no start data are dropped too">VERIFIED PRE-START</button>
     <span id="tb-note" style="font-family:var(--mono);font-size:12px;color:var(--t3);letter-spacing:.5px"></span>
   </div>
@@ -2980,15 +2980,15 @@ function setPriceBasis(m){
 }
 window.setPriceBasis=setPriceBasis;
 // ── LOCK TIMING BASIS (added 2026-10-02) ──────────────────────────────────────────────────────────────────────────────
-// Real finding: picks locked AFTER the game started win far more often than pre-start locks (European hockey: 66% vs
-// ~93%) -- look-ahead contamination. Every pick's lock timing is classified from startMs (stored on new picks) or, for
+// Picks locked AFTER the game started (the owner's manual late locks) win far more often than pre-start locks (European
+// hockey: ~93% vs ~66%) because the result was largely known, so they say nothing about model accuracy. Every pick's lock timing is classified from startMs (stored on new picks) or, for
 // history, derived by matching the pick to its game in the schedule files (teams either orientation + the game's
 // Mountain-time date == pick.date; hockey minors by name, NHL/CFB/NFL by abbreviation). Classes:
 //   pre      locked before the scheduled start          during   locked 0..dur min after start (game in progress)
 //   after    locked more than dur min after start (finished)   unknown  no start data (soccer/NBA history, props...)
 // window._TB (Analytics "LOCK TIMING" bar; in-memory only, default 'all' so nothing is hidden):
-//   'all'     every pick (default)
-//   'clean'   drops picks KNOWN to be locked after start; unknown-timing picks stay (counted separately in the note)
+//   'all'     every pick, including late manual locks (default)
+//   'clean'   PRE-START LOCKS ONLY: drops picks KNOWN to be locked after start; unknown-timing picks stay (counted separately in the note)
 //   'strict'  keeps only picks VERIFIED pre-start (unknown excluded)
 // Unlike the price-basis bar this filters the WHOLE view -- record, win% AND units/ROI -- via _aP().
 window._TB=window._TB||'all';
@@ -3010,7 +3010,7 @@ async function _tbLoad(){
 // Loads the schedule index once (cached on window); re-renders the active Analytics tab + bar when it lands.
 function _tbKick(){
   if(window._tbIdx||window._tbLoading)return;
-  window._tbLoading=_tbLoad().then(function(){window._tbLoading=null;try{_tbUpdateBar();}catch(e){}if(window._TB!=='all')try{_tbRerender();}catch(e){}}).catch(function(){window._tbLoading=null;window._tbIdx={};});
+  window._tbLoading=_tbLoad().then(function(){window._tbLoading=null;try{_tbUpdateBar();}catch(e){}if(window._TB!=='all')try{_tbRerender();}catch(e){}if(window._ovrNeedsTiming){window._ovrNeedsTiming=false;try{if(typeof renderOverall==='function')renderOverall();}catch(e){}}}).catch(function(){window._tbLoading=null;window._tbIdx={};});
 }
 function _pickStartMs(p){
   if(p.startMs!=null&&isFinite(p.startMs)&&p.startMs>946684800000)return p.startMs;
@@ -3032,6 +3032,21 @@ function _tbIn(p){
 }
 // Analytics data source: getP() unless an Analytics renderer is running with a timing filter active.
 function _aP(){return(window._TB==='all'||!window._aCtx)?getP():getP().filter(_tbIn);}
+// ── Learning inputs exclude late locks (Part 3, 2026-10-02) ──────────────────────────────────────────────────────────
+// The adaptive calibration (renderOverall's per-band / per-sport loop -> window.__CV_CAL_ADJ_BY_SPORT ->
+// docs/adaptive_weights.json) and adaptiveTick()'s ensemble-weight learning must only learn from honest predictions.
+// A pick locked after the game started (or ended) -- a late manual lock -- wins ~93% of the time in the European hockey
+// ledger because its result was largely known, so learning from it teaches the model it is under-confident. Eligible = NOT known-late. Unknown timing is kept, EXCEPT for
+// the four European hockey leagues, whose schedules cover every pick (an unmatched euro pick means the schedule index has
+// not loaded yet, so it is withheld rather than guessed). NHL unknowns (121 pre-2026-27 picks no schedule file covers) are
+// kept: dropping them would erase NHL calibration, and the known-late NHL picks are already excluded.
+const _CAL_EXCL_UNKNOWN=new Set(['SHL','LIIGA','NLA','EXTRALIGA']);
+function _calEligible(p){
+  const t=_pickTiming(p);
+  if(t==='during'||t==='after')return false;
+  if(t==='unknown'&&_CAL_EXCL_UNKNOWN.has(window._normSport(p)))return false;
+  return true;
+}
 // Count picks per timing class (settled only) for a pick list.
 function _tbCounts(preds){
   const c={pre:{n:0,w:0},during:{n:0,w:0},after:{n:0,w:0},unknown:{n:0,w:0}};
@@ -3045,8 +3060,8 @@ function _tbUpdateBar(){
   const ACT=new Set(['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','FB','PL','LIGA','CL','SERIEA']);
   const c=_tbCounts(getP().filter(p=>ACT.has(window._normSport(p))));
   const f=x=>x.n+' ('+x.w+'-'+(x.n-x.w)+(x.n?', '+Math.round(x.w/x.n*100)+'%':'')+')';
-  const lbl=window._TB==='all'?'ALL PICKS':window._TB==='clean'?'PRE-START ONLY (KNOWN LATE LOCKS DROPPED, UNKNOWN KEPT)':'VERIFIED PRE-START ONLY (UNKNOWN DROPPED TOO)';
-  note.textContent=lbl+' · SETTLED: PRE-START '+f(c.pre)+' · IN-PROGRESS '+f(c.during)+' · AFTER-END '+f(c.after)+' · UNKNOWN '+f(c.unknown)+(window._tbIdx?'':' · LOADING SCHEDULES…');
+  const lbl=window._TB==='all'?'ALL PICKS, INCLUDING LATE MANUAL LOCKS':window._TB==='clean'?'PRE-START LOCKS ONLY (KNOWN LATE LOCKS DROPPED, UNKNOWN-TIMING KEPT)':'VERIFIED PRE-START ONLY (UNKNOWN-TIMING DROPPED TOO)';
+  note.textContent=lbl+' · SETTLED: PRE-START '+f(c.pre)+' · LOCKED IN-PROGRESS '+f(c.during)+' · LOCKED AFTER-END '+f(c.after)+' · UNKNOWN '+f(c.unknown)+(window._tbIdx?'':' · LOADING SCHEDULES…');
 }
 function _tbRerender(){
   try{
@@ -3892,12 +3907,13 @@ function _mfScore(p,e,edgePP,sigmaV,kFrac){
   return+(pS+eS+edS+alS+kS).toFixed(2);
 }
 // ── Pre-start lock guard (added 2026-10-02) ───────────────────────────
-// Real bug: picks were being locked AFTER the game started/finished (the European-hockey ledger showed 28% of
-// picks locked after kickoff, winning ~93% vs ~66% pre-start). The lock pipeline captured every schedule-file
-// game whose `state` wasn't 'post', but those files refresh only 2-3x/day and the lock workflows land hours after
-// their nominal time. Both the Python pipeline and lockPick now refuse a game whose scheduled start is within
-// LOCK_START_MARGIN_MIN minutes of now (or already past). KEEP IN SYNC with LOCK_START_MARGIN_MIN in
-// scripts/auto_lock_settle.py (scripts/verify_hockey_rules.py checks this).
+// The ledger holds many picks locked AFTER the game started (European hockey: 28% of picks, winning ~93% vs ~66% for
+// pre-start locks). Those are mostly the owner's deliberate MANUAL locks, made when the automated pre-game lock pass
+// (GitHub Actions delays) hadn't landed in time -- manual locks stay allowed and are just stamped (see lockPick).
+// The AUTOMATED passes, though, must never lock a game that has started: the schedule files they read refresh only 2-3x a
+// day, so `state` can lag real kickoff. Both build_qualifying()/lock_game_leg() in scripts/auto_lock_settle.py and
+// lockPick (for lockOrigin 'auto' only) refuse a game whose start is within LOCK_START_MARGIN_MIN minutes of now or past.
+// KEEP IN SYNC with LOCK_START_MARGIN_MIN in scripts/auto_lock_settle.py (scripts/verify_hockey_rules.py checks this).
 const LOCK_START_MARGIN_MIN=10;
 // ISO timestamp / epoch ms -> epoch ms, or null. Date-only strings ('2026-10-02') are rejected on purpose: they parse
 // as midnight UTC, which would be a wrong start time rather than an honest "unknown".
@@ -3973,7 +3989,7 @@ window._reasoningCache=window._reasoningCache||{};
 // startRaw: the game's real scheduled start -- an ISO timestamp string or epoch ms (every card's own game
 // object carries it as g.date / espnEv.date). Parsed by _startMsOf into `startMs` on the captured entry so the
 // Python pipeline (build_qualifying / lock_game_leg) and lockPick can refuse any game that has already started
-// -- see LOCK_START_GUARD below and scripts/auto_lock_settle.py's LOCK_START_MARGIN_MIN. null when the card had no
+// -- see LOCK_START_MARGIN_MIN and scripts/auto_lock_settle.py. null when the card had no
 // parseable start time (the pipeline then fails CLOSED for NHL + the 4 European hockey leagues).
 function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors,startRaw){
   try{
@@ -5482,15 +5498,22 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   // trying to cram both meanings into `type`.
   // Bet Journal: record reason (set via showBetJournalModal or skipped)
   const dateKey=date||today();
-  // Pre-start guard (see LOCK_START_MARGIN_MIN): refuse a game that has started or starts within the margin. The
-  // start comes from extraMeta.startMs (the Python pipeline passes it) or, for manual lock buttons, from the
-  // _gameStartReg entry the card's own _autoLockCapture parked at render time. Unknown start -> no JS-side guard
-  // (the Python pipeline fails closed on its own for hockey).
+  // Lock timing (2026-10-02). Start comes from extraMeta.startMs (the Python pipeline passes it) or, for the manual lock
+  // buttons, from the _gameStartReg entry the card's own _autoLockCapture parked at render time. Every pick whose start is
+  // known is stamped with startMs, leadMin (minutes before start at lock; NEGATIVE = locked after start) and lockTiming:
+  // 'pre' | 'late-manual'. MANUAL locks are NEVER blocked -- the owner deliberately locks games already under way when the
+  // automated pre-game lock didn't land in time -- they are just labelled, and excluded from model calibration/learning
+  // (their result was known, so they say nothing about model accuracy; see _calEligible). The one thing refused here is an
+  // AUTOMATED lock (extraMeta.lockOrigin==='auto', set only by scripts/auto_lock_settle.py lock_game_leg) on a game that has
+  // started or starts within LOCK_START_MARGIN_MIN -- defence in depth behind the Python pre-start guard.
   const _stMs=(extraMeta&&extraMeta.startMs!=null)?extraMeta.startMs:_lookupGameStart(hA,awA,dateKey);
-  // Lock timing recorded on every pick whose start is known (Part 2): startMs + leadMin (minutes before start at lock).
-  const _timingMeta=_stMs!=null?{startMs:_stMs,leadMin:Math.round((_stMs-Date.now())/60000)}:{};
-  {const _stBlk=_lockStartBlock(_stMs);
-   if(_stBlk){try{toast(`// LOCK REFUSED: ${betOn} — ${_stBlk}`);}catch(e){}try{console.warn('[lockPick] refused:',hA,'vs',awA,betOn,_stBlk);}catch(e){}return;}}
+  const _leadRaw=_stMs!=null?(_stMs-Date.now())/60000:null;
+  const _timingMeta=_stMs!=null?{startMs:_stMs,leadMin:Math.round(_leadRaw),lockTiming:_leadRaw>0?'pre':'late-manual'}:{};
+  const _lateLock=_leadRaw!=null&&_leadRaw<=0;
+  if(extraMeta&&extraMeta.lockOrigin==='auto'){
+    const _stBlk=_lockStartBlock(_stMs);
+    if(_stBlk){try{toast(`// AUTO-LOCK REFUSED: ${betOn} — ${_stBlk}`);}catch(e){}try{console.warn('[lockPick] auto-lock refused:',hA,'vs',awA,betOn,_stBlk);}catch(e){}return;}
+  }
   // ── Sport + league + bet-type detection — computed FIRST so both the
   // API path and the offline-fallback path below can use it. (Previously
   // this lived after the API branch, so referencing sportTag/_betTypeNorm/
@@ -5617,7 +5640,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
       const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
       if(!log[dateKey].locked.includes(betOn))log[dateKey].locked.push(betOn);
       const rec=log[dateKey].recs.find(r=>r.ha===hA&&r.awa===awA&&r.lb===betOn);if(rec)rec.locked=true;
-      saveDailyLog(log);updHdr();toast(`// LOCKED → API: ${betOn} ${ml}`);try{window.showBetPopup({type:'lock',betOn,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,ml,prob:p,decOdds:d});}catch(ex){}
+      saveDailyLog(log);updHdr();toast(_lateLock?`// LOCKED AFTER GAME START: ${betOn} ${ml} — excluded from model accuracy`:`// LOCKED → API: ${betOn} ${ml}`);try{window.showBetPopup({type:'lock',betOn,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,ml,prob:p,decOdds:d});}catch(ex){}
       setTimeout(()=>{try{renderNHLLockedBets();}catch(e){}try{renderNBALockedBets();}catch(e){}try{renderHomeLockedBets();}catch(e){}try{renderOverallHistory();}catch(e){}try{renderHomePage();}catch(e){}},120);return;
     }
   }
@@ -5643,7 +5666,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
   if(!log[dateKey].locked.includes(betOn))log[dateKey].locked.push(betOn);
   const rec=log[dateKey].recs.find(r=>r.ha===hA&&r.awa===awA&&r.lb===betOn);if(rec)rec.locked=true;
-  saveDailyLog(log);updHdr();toast(`// LOCKED: ${betOn} ${ml}`);try{window.showBetPopup({type:'lock',betOn,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,ml,prob:p,decOdds:d});}catch(ex){}
+  saveDailyLog(log);updHdr();toast(_lateLock?`// LOCKED AFTER GAME START: ${betOn} ${ml} — excluded from model accuracy`:`// LOCKED: ${betOn} ${ml}`);try{window.showBetPopup({type:'lock',betOn,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,ml,prob:p,decOdds:d});}catch(ex){}
   setTimeout(()=>{try{renderNHLLockedBets();}catch(e){}try{renderNBALockedBets();}catch(e){}try{renderHomeLockedBets();}catch(e){}try{renderOverallHistory();}catch(e){}try{renderHomePage();}catch(e){}},120);
 }
 // ── Wipe blocklist — IDs permanently deleted, never restored by any sync ──
@@ -13959,13 +13982,21 @@ function renderOverall(){
   });
 
   // Model calibration — expanded bands
+  // Learning input: settled picks minus those locked after the game started (see _calEligible). Used by the global
+  // band table, Brier/log-loss and every per-sport band loop below. window.__CV_CAL_EXCL reports what was withheld.
+  if(!window._tbIdx){window._ovrNeedsTiming=true;try{_tbKick();}catch(e){}}
+  const _calSrc=settled.filter(_calEligible);
+  window.__CV_CAL_EXCL=(function(){const o={settled:settled.length,used:_calSrc.length,excluded:settled.length-_calSrc.length,idxLoaded:!!window._tbIdx,byLeague:{},unknownKept:{}};
+    settled.forEach(p=>{const sp=p._spUC||window._normSport(p);const t=_pickTiming(p);
+      if(!_calEligible(p)){o.byLeague[sp]=(o.byLeague[sp]||0)+1;}
+      else if(t==='unknown'){o.unknownKept[sp]=(o.unknownKept[sp]||0)+1;}});return o;})();
   const calBands=[
     {min:.50,max:.55,lbl:'50-55%'},{min:.55,max:.60,lbl:'55-60%'},
     {min:.60,max:.65,lbl:'60-65%'},{min:.65,max:.70,lbl:'65-70%'},
     {min:.70,max:.75,lbl:'70-75%'},{min:.75,max:1.0, lbl:'75%+'},
   ];
   const cal=calBands.map(b=>{
-    const bp=settled.filter(p=>p.winProb>=b.min&&p.winProb<b.max);
+    const bp=_calSrc.filter(p=>p.winProb>=b.min&&p.winProb<b.max);
     const bw=bp.filter(p=>p.outcome==='win').length;
     const act=bp.length?bw/bp.length:null;
     const exp=(b.min+Math.min(b.max,.98))/2;
@@ -13981,7 +14012,7 @@ function renderOverall(){
   // 90% pick that loses costs far more than one locked at 55%), so they
   // move even when raw win% looks fine. 0 = perfect, 0.25 Brier = a coin
   // flip guessed at 50%, lower is always better for both.
-  const _scoredBets=settled.filter(p=>p.winProb!=null&&!isNaN(p.winProb));
+  const _scoredBets=_calSrc.filter(p=>p.winProb!=null&&!isNaN(p.winProb));
   let _brierScore=null,_logLossScore=null;
   if(_scoredBets.length){
     let bSum=0,lSum=0;const eps=1e-9;
@@ -14142,10 +14173,10 @@ function renderOverall(){
     // had an 'NFL' entry to read), same league-field fix needed since NFL
     // shares the exact 'FOOTBALL' sport tag with CFB.
     const _spBets=_sp==='SOC'
-      ?settled.filter(p=>_SOC_LEAGUE_TAGS.has(p._spUC))
+      ?_calSrc.filter(p=>_SOC_LEAGUE_TAGS.has(p._spUC))
       :_sp==='CFB'||_sp==='NFL'
-      ?settled.filter(p=>(p.league||'').toUpperCase()===_sp)
-      :settled.filter(p=>p._spUC===_sp);
+      ?_calSrc.filter(p=>(p.league||'').toUpperCase()===_sp)
+      :_calSrc.filter(p=>p._spUC===_sp);
     _newAdjBySport[_sp]=_calcBandAdjFor(_spBets,_prevAdjBySport[_sp]||{});
   }
   S.s(_calAdjBySportKey,JSON.stringify(_newAdjBySport));
@@ -16923,6 +16954,8 @@ function _calDriftHTML(weights){
     return`<div class="empty">NO CALIBRATION DATA YET</div>`;
   }
   const genLine=weights.generatedUTC?`<div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:8px">SNAPSHOT: ${_ehEsc(weights.generatedUTC)} (current correction only — no history logged yet)</div>`:'';
+  const ci=weights.cal_inputs;
+  const inLine=ci?`<div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:8px">LEARNED FROM ${ci.used} OF ${ci.settled} SETTLED PICKS · ${ci.excluded} WITHHELD (LOCKED AFTER GAME START${ci.byLeague&&Object.keys(ci.byLeague).length?': '+Object.keys(ci.byLeague).map(k=>_ehEsc(k)+' '+ci.byLeague[k]).join(', '):''}) · ${Object.keys(ci.unknownKept||{}).length?'UNKNOWN-TIMING KEPT: '+Object.keys(ci.unknownKept).map(k=>_ehEsc(k)+' '+ci.unknownKept[k]).join(', '):'NO UNKNOWN-TIMING PICKS KEPT'}</div>`:'';
   const rows=Object.keys(bySport).map(sp=>{
     const bands=bySport[sp]||{};
     const bandKeys=Object.keys(bands).sort((a,b)=>parseFloat(a)-parseFloat(b));
@@ -16940,7 +16973,7 @@ function _calDriftHTML(weights){
       </div>
     </div>`;
   }).join('');
-  return genLine+rows;
+  return genLine+inLine+rows;
 }
 
 // ── Ledger integrity checker — on-demand only, see runLedgerIntegrityCheck ──
@@ -16955,7 +16988,7 @@ function _ehSecHTML(title,items,renderItem){
     ${items.map(renderItem).join('')}
   </div>`;
 }
-// "LOCKED AFTER GAME START" section (Part 2, 2026-10-02): look-ahead contamination audit. Classifies every active-league
+// "LOCKED AFTER GAME START" section (Part 2, 2026-10-02): late-lock audit. Classifies every active-league
 // pick by lock timing (see _pickTiming) and shows the three-way split with records, per league, and every date/league that
 // has picks locked after the game began. Unknown = no start data (not an issue, just unverifiable).
 function _tbLedgerSectionHTML(preds){
@@ -16979,7 +17012,7 @@ function _tbLedgerSectionHTML(preds){
   const color=nLate?'#ff1a1a':'#00e644';
   return`<div class="card" style="margin-bottom:8px;padding:10px 12px;border-left:3px solid ${color}">
     <div style="font-family:var(--mono);font-size:15px;color:${color};margin-bottom:6px">${nLate?'✗':'✓'} LOCKED AFTER GAME START: ${nLate} PICK(S) (${lateSettled} SETTLED)</div>
-    <div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-bottom:6px">Look-ahead contamination: a pick locked after kickoff is not a prediction. Start time = stored startMs, else matched to the schedule file (SHL/LIIGA/NLA/EXTRALIGA/NHL/CFB/NFL; soccer/NBA history has no start data in the app, so it shows as unknown). The pre-start guard (2026-10-02) stops new ones; Analytics > LOCK TIMING filters these out of every record.</div>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-bottom:6px">Late locks (mostly the owner's deliberate manual locks after the pre-game pass missed) are not predictions -- their result was largely known -- so they are excluded from model calibration. Start time = stored startMs, else matched to the schedule file (SHL/LIIGA/NLA/EXTRALIGA/NHL/CFB/NFL; soccer/NBA history has no start data in the app, so it shows as unknown). Manual late locks stay allowed (new ones are stamped lockTiming 'late-manual'); the automated passes now refuse started games. Analytics > LOCK TIMING can filter these out of any record.</div>
     ${head}
     <div style="font-family:var(--mono);font-size:13px;color:var(--pc);letter-spacing:1px;margin:8px 0 2px">BY LEAGUE</div>${lgHtml}
     ${dRows.length?`<div style="font-family:var(--mono);font-size:13px;color:var(--pc);letter-spacing:1px;margin:8px 0 2px">BY DATE / LEAGUE (LATE LOCKS ONLY)</div>${dHtml}`:''}
@@ -20254,7 +20287,8 @@ function adaptiveTick(){
   // decision) -- without it, retired-sport bets (MLB/WNBA/CBB/World Cup/
   // tennis) could still leak into what's supposed to be an assessment of
   // the ACTIVE model's recent performance.
-  const allPreds=getP().filter(p=>p.outcome!=='pending'&&_broadSportOf(_normSport(p))!==null)
+  if(!window._tbIdx){try{_tbKick();}catch(e){}} // lock-timing index (see _calEligible); first call before it loads is conservative
+  const allPreds=getP().filter(p=>p.outcome!=='pending'&&_broadSportOf(_normSport(p))!==null&&_calEligible(p))
     .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
   if(allPreds.length<5){
     const st={lastRun:Date.now(),betsAnalyzed:0,status:'INSUFFICIENT_DATA',msg:'Need at least 5 settled bets to begin adaptive learning. Lock picks and record outcomes.'};

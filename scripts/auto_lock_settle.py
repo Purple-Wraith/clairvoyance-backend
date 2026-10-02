@@ -342,11 +342,12 @@ HOCKEY_ODDS_MAX_AGE_H = 18         # a posted price older than this is not trust
 HOCKEY_LANE_LABEL = "HIGH PROB"
 
 # ── PRE-START LOCK GUARD (2026-10-02) ────────────────────────────────────────────────────────────────────────────────────
-# Real bug: the European-hockey ledger showed 28% of picks locked AFTER the game started (those won ~93% vs ~66% for
-# pre-start locks -- look-ahead contamination). The pipeline captured every schedule-file game whose `state` wasn't 'post',
-# but those files refresh only 2-3x/day and GitHub Actions lock passes land hours after their nominal time, so a pass could
-# "lock" a game that was in progress or finished. build_qualifying()/lock_game_leg() now refuse any leg whose scheduled
-# start (startMs, epoch ms, threaded from docs/app.html's _autoLockCapture) is within LOCK_START_MARGIN_MIN of now or past.
+# The automated passes must never lock a game that has started. gather_legs() and the evening-prior gatherers capture every
+# schedule-file game whose `state` isn't 'post', but those files refresh only 2-3x/day and GitHub Actions lock passes land
+# hours after their nominal time, so `state` can lag real kickoff. build_qualifying()/lock_game_leg() now refuse any leg whose
+# scheduled start (startMs, epoch ms, threaded from docs/app.html's _autoLockCapture) is within LOCK_START_MARGIN_MIN of now
+# or past. (The ledger's picks locked after start are mostly the owner's deliberate MANUAL locks -- those stay allowed; see
+# lockPick's lockTiming stamp. This guard only governs the automated passes.)
 # Mirrors LOCK_START_MARGIN_MIN in docs/app.html (checked by scripts/verify_hockey_rules.py).
 LOCK_START_MARGIN_MIN = 10
 # Sports where an UNKNOWN/unparseable start fails CLOSED (leg refused). Every other sport fails OPEN when startMs is
@@ -507,8 +508,13 @@ def run_adaptive_recalibration(page, live: bool) -> None:
     log("=== ADAPTIVE RECALIBRATION ===")
     result = page.evaluate(
         """
-        () => {
+        async () => {
           if (typeof adaptiveTick !== 'function') return null;
+          // 2026-10-02: calibration/learning inputs exclude picks locked after the game started (late manual locks -- see
+          // docs/app.html _calEligible). That needs the schedule-derived lock-timing index, which loads asynchronously;
+          // renderOverall()/adaptiveTick() are synchronous, so load it first. If it can't load, the 4 European hockey
+          // leagues are withheld (unknown timing) rather than learned from blindly.
+          try { if (typeof _tbLoad === 'function') await _tbLoad(); } catch (e) {}
           const state = adaptiveTick();
           // renderOverall() is what actually computes+sets
           // window.__CV_CAL_ADJ_BY_SPORT (the per-sport probability-band
@@ -528,6 +534,7 @@ def run_adaptive_recalibration(page, live: bool) -> None:
             // boot would silently drop it.
             raw: {ens: ENS, nhl_ens: NHL_ENS, nba_ens: NBA_ENS, wnba_ens: WNBA_ENS},
             calAdjBySport: window.__CV_CAL_ADJ_BY_SPORT || null,
+            calExcl: window.__CV_CAL_EXCL || null,
           };
         }
         """
@@ -538,6 +545,12 @@ def run_adaptive_recalibration(page, live: bool) -> None:
     state = result.get("state") or {}
     raw = result.get("raw") or {}
     cal_adj_by_sport = result.get("calAdjBySport")
+    cal_excl = result.get("calExcl")
+    if cal_excl:
+        log(f"  calibration inputs: {cal_excl.get('used')} of {cal_excl.get('settled')} settled picks used, "
+            f"{cal_excl.get('excluded')} withheld (locked after game start / unknown-timing euro hockey): "
+            f"{cal_excl.get('byLeague')}; unknown-timing kept: {cal_excl.get('unknownKept')}; "
+            f"schedule index loaded: {cal_excl.get('idxLoaded')}")
     if state.get("status") == "INSUFFICIENT_DATA":
         log(f"Skipping: {state.get('msg')}")
         return
@@ -564,6 +577,8 @@ def run_adaptive_recalibration(page, live: bool) -> None:
         "nba_ens": raw.get("nba_ens"),
         "wnba_ens": raw.get("wnba_ens"),
         "cal_adj_by_sport": cal_adj_by_sport,
+        # What the calibration learned from: picks locked after the game started are withheld (docs/app.html _calEligible).
+        "cal_inputs": cal_excl,
         "evt": state.get("evThreshold"),
         "betsAnalyzed": state.get("betsAnalyzed"),
         "overallAcc": state.get("overallAcc"),
@@ -1825,7 +1840,7 @@ def lock_game_leg(page, q: dict, date_override: str | None = None, now=None) -> 
           if (dup) return 'already-locked';
           const before = getP().length;
           const hasBlend = (modelProb != null && marketProb != null);
-          const extraMeta = (socFactors || reasoning || priceSource || hasBlend || startMs != null) ? { ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}), ...(hasBlend ? { modelProb, marketProb, ...(blendAlpha != null ? { blendAlpha } : {}) } : {}), ...(startMs != null ? { startMs } : {}) } : null;
+          const extraMeta = { lockOrigin: 'auto', ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}), ...(hasBlend ? { modelProb, marketProb, ...(blendAlpha != null ? { blendAlpha } : {}) } : {}), ...(startMs != null ? { startMs } : {}) };
           await lockPick(hA, awA, type, betOn, prob, ml != null ? ml : '-110', dec || 1.91, dateKey, 'manual', betTypeOverride, extraMeta);
           const after = getP().length;
           return after > before ? 'locked' : 'failed';
