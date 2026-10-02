@@ -3509,7 +3509,15 @@ function _mcLineSoccer(mc,side,ouLine){
 // on-screen rendering only; this ledger field is read back later by an
 // expand/collapse panel as plain text (see Part 4), not re-rendered as
 // trusted HTML, so tags are dropped rather than carried through.
-function _stripHTML(s){return s?String(s).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim():'';}
+// Real gap, found live-testing the persisted `reasoning` field: replacing
+// every tag with '' (not a space) ran adjacent text together wherever the
+// source HTML used a tag as its only separator -- e.g. CFB's own
+// mlReasoning/sprdReasoning/ouReasoning each end a `<span>...</span>` with
+// `<br>` then start the next sentence with no leading space, so this used
+// to persist as "...EV +0.1%#2 UGA FPI 28.3...", the %/# run together with
+// no break at all. Replacing with a space instead (then collapsing
+// repeats, same as before) fixes every caller at once.
+function _stripHTML(s){return s?String(s).replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim():'';}
 // Attaches a standardized plain-text `.reasoning` string to every market
 // inside an _evalMkts() result. Call this AFTER _evalMkts(), BEFORE
 // _autoLockCapture() -- _autoLockCapture reads nm.mkts to build both the
@@ -7010,7 +7018,6 @@ function _cfbGameCard(g){
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const liveStatus=_footballLiveStatus(g,'cfb');
   const timeDisplay=liveStatus?liveStatus.html:timeStr;
-  const hFpi=D.fpi[g.home]?.fpi,aFpi=D.fpi[g.away]?.fpi;
   if(!mc){
     // cfbMC() now falls back to real ESPN market data (spread, or
     // moneyline odds converted to an implied margin when no spread is
@@ -7066,8 +7073,6 @@ function _cfbGameCard(g){
   const ouL=mc.ouLine;
   const overP=_cfbCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(mc.avgTotal,_CFB_SIGMA_TOTAL,ouL))),'OU');
   const underP=1-overP;
-  const hFpiTxt=`${_cfbRankLabel(g.home)}${g.homeName||g.home} FPI ${hFpi??'—'}`;
-  const aFpiTxt=`${_cfbRankLabel(g.away)}${g.awayName||g.away} FPI ${aFpi??'—'}`;
   const facts=_cfbAnalysisFacts(g,mc,ens);
   // Evaluate all 6 markets through the same shared multi-factor scorer
   // MLB/NBA use (grades each market PREMIUM/OPTIMAL/LEAN/SKIP), but keep
@@ -7087,7 +7092,23 @@ function _cfbGameCard(g){
   const mlGrade=hP>=aP?_mktGrade('mlFav'):_mktGrade('mlDog');
   const sprdGrade=favCoverP>=dogCoverP?_mktGrade('sprdFav'):_mktGrade('sprdDog');
   const ouGrade=overP>=underP?_mktGrade('over'):_mktGrade('under');
-  const mlReasoning=`<span style="color:${mlGrade.col}">${mlGrade.m.label} · ${mlGrade.lbl} · ${(mlGrade.m.prob*100).toFixed(1)}% · EV ${mlGrade.m.evVal>=0?'+':''}${(mlGrade.m.evVal*100).toFixed(1)}%</span><br>${hFpiTxt} vs ${aFpiTxt}. ${_cfbPickReasoning(g,mc,facts,'ML')}`;
+  // Real bug, found persisting this text into the ledger's `reasoning`
+  // field (this text used to only ever render transiently on the card):
+  // each of the 3 "EV ..." spans below used to hardcode a literal '+'
+  // prefix regardless of evVal's actual sign, so a negative EV (a market
+  // this card still displays, just doesn't recommend) printed as the
+  // broken "EV +-0.1%". Same fix mirrored in NFL's near-identical copy of
+  // this block below.
+  // Part 2 content cleanup, 2026-10-02: this used to prepend a bare
+  // "#2 UGA FPI 28.3 vs #3 ND FPI 27.8"-style line (hFpiTxt/aFpiTxt,
+  // removed above) ahead of _cfbPickReasoning's own first sentence, which
+  // already states both teams' exact same FPI values -- plus their rank
+  // and the point gap between them -- in fuller, more useful prose. A
+  // bare restatement of the identical two numbers with no added context,
+  // and the two disagreed on each team's rank (hFpiTxt's own
+  // _cfbRankLabel vs _cfbPickReasoning's f.hFpiRank/f.aFpiRank), so it was
+  // actively confusing, not just redundant.
+  const mlReasoning=`<span style="color:${mlGrade.col}">${mlGrade.m.label} · ${mlGrade.lbl} · ${(mlGrade.m.prob*100).toFixed(1)}% · EV ${mlGrade.m.evVal>=0?'+':''}${(mlGrade.m.evVal*100).toFixed(1)}%</span><br>${_cfbPickReasoning(g,mc,facts,'ML')}`;
   const sprdReasoning=`<span style="color:${sprdGrade.col}">${sprdGrade.m.label} · ${sprdGrade.lbl} · ${(sprdGrade.m.prob*100).toFixed(1)}% · EV ${sprdGrade.m.evVal>=0?'+':''}${(sprdGrade.m.evVal*100).toFixed(1)}%</span><br>MC-projected margin ${(favIsHome?mc.avgMargin:-mc.avgMargin)>=0?'+':''}${(favIsHome?mc.avgMargin:-mc.avgMargin).toFixed(1)} for ${spreadFav}. ${_cfbPickReasoning(g,mc,facts,'SPREAD')}`;
   const ouReasoning=`<span style="color:${ouGrade.col}">${ouGrade.m.label} · ${ouGrade.lbl} · ${(ouGrade.m.prob*100).toFixed(1)}% · EV ${ouGrade.m.evVal>=0?'+':''}${(ouGrade.m.evVal*100).toFixed(1)}%</span><br>${_cfbPickReasoning(g,mc,facts,'OU')}`;
   // "Why this pick" capture -- moved _autoLockCapture to AFTER mlReasoning/
@@ -10200,7 +10221,16 @@ function _liigaMatchCard(g){
   const hR=_liigaBlendedRates(h),aR=_liigaBlendedRates(aw);
   const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). ${g.ou!=null?'Market':'G/M-derived'} line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
   const bayStr=`Record: ${g.homeName} ${h.w}-${h.l}${h.wo?'-'+h.wo+'OTW':''}${h.lo?'-'+h.lo+'OTL':''} vs ${g.awayName} ${aw.w}-${aw.l}${aw.wo?'-'+aw.wo+'OTW':''}${aw.lo?'-'+aw.lo+'OTL':''}.`;
-  const capStr=`No goaltending/possession data available for this league yet -- model is scoring-rate + record only.`;
+  // Part 2 content cleanup, 2026-10-02 (extended to the 4 hockey-minor
+  // leagues after the same pass was done for NHL/NBA): this used to also
+  // concatenate a `capStr` -- "No goaltending/possession data available
+  // for this league yet -- model is scoring-rate + record only." -- into
+  // every single explanation below, win or lose, favorite or underdog,
+  // any market. It's a flat string literal with zero interpolation: it
+  // never once varies by the actual pick, so it tells the reader nothing
+  // about THIS game -- exactly the "boilerplate that doesn't change based
+  // on the actual pick" this cleanup pass is for. Dropped entirely rather
+  // than kept as dead weight on every Liiga/SHL/NLA/Extraliga card.
   const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
   let explanation;
   if(topTier===0){
@@ -10221,7 +10251,7 @@ function _liigaMatchCard(g){
     else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's blended scoring+margin projection (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
     else if(bm.side==='over')sideStr=`Combined scoring rate supports goals above the ${ouL} line.`;
     else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
-    explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
+    explanation=`${ratesStr} ${bayStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
   }
   // "Why this pick" capture -- _autoLockCapture moved to AFTER
   // `explanation` is built (was right after _evalMkts above), same
@@ -10344,7 +10374,9 @@ function _nlaMatchCard(g){
   const hR=_nlaBlendedRates(h),aR=_nlaBlendedRates(aw);
   const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). ${g.ou!=null?'Market':'G/M-derived'} line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
   const bayStr=`Record: ${g.homeName} ${h.w}-${h.l}${h.wo?'-'+h.wo+'OTW':''}${h.lo?'-'+h.lo+'OTL':''} vs ${g.awayName} ${aw.w}-${aw.l}${aw.wo?'-'+aw.wo+'OTW':''}${aw.lo?'-'+aw.lo+'OTL':''}.`;
-  const capStr=`No goaltending/possession data available for this league yet -- model is scoring-rate + record only.`;
+  // Part 2 content cleanup, 2026-10-02 -- see _liigaMatchCard's identical
+  // fix for the full rationale (dropped `capStr`, a flat boilerplate
+  // sentence that never varied by the actual pick).
   const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
   let explanation;
   if(topTier===0){
@@ -10358,7 +10390,7 @@ function _nlaMatchCard(g){
     else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's blended scoring+margin projection (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
     else if(bm.side==='over')sideStr=`Combined scoring rate supports goals above the ${ouL} line.`;
     else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
-    explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
+    explanation=`${ratesStr} ${bayStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
   }
   // "Why this pick" capture -- see _liigaMatchCard's identical comment
   // (this is NLA, the same near-duplicate pattern).
@@ -10472,7 +10504,9 @@ function _extraligaMatchCard(g){
   const hR=_extraligaBlendedRates(h),aR=_extraligaBlendedRates(aw);
   const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). ${g.ou!=null?'Market':'G/M-derived'} line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
   const bayStr=`Record: ${g.homeName} ${h.w}-${h.l}${h.wo?'-'+h.wo+'OTW':''}${h.lo?'-'+h.lo+'OTL':''} vs ${g.awayName} ${aw.w}-${aw.l}${aw.wo?'-'+aw.wo+'OTW':''}${aw.lo?'-'+aw.lo+'OTL':''}.`;
-  const capStr=`No goaltending/possession data available for this league yet -- model is scoring-rate + record only.`;
+  // Part 2 content cleanup, 2026-10-02 -- see _liigaMatchCard's identical
+  // fix for the full rationale (dropped `capStr`, a flat boilerplate
+  // sentence that never varied by the actual pick).
   const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
   let explanation;
   if(topTier===0){
@@ -10486,7 +10520,7 @@ function _extraligaMatchCard(g){
     else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's blended scoring+margin projection (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
     else if(bm.side==='over')sideStr=`Combined scoring rate supports goals above the ${ouL} line.`;
     else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
-    explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
+    explanation=`${ratesStr} ${bayStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
   }
   // "Why this pick" capture -- see _liigaMatchCard's identical comment
   // (this is Extraliga, the same near-duplicate pattern).
@@ -10767,7 +10801,9 @@ function _shlMatchCard(g){
   const hR=_shlBlendedRates(h),aR=_shlBlendedRates(aw);
   const ratesStr=`Blended GF/GA per game: ${g.homeName} ${hR.gf.toFixed(2)}/${hR.ga.toFixed(2)} (${h.gp}GP this season${h.prevSeason?', '+h.prevSeason.gp+'GP prior':''}) vs ${g.awayName} ${aR.gf.toFixed(2)}/${aR.ga.toFixed(2)} (${aw.gp}GP${aw.prevSeason?', '+aw.prevSeason.gp+'GP prior':''}). ${g.ou!=null?'Market':'G/M-derived'} line: ${ouL} (${g.homeName} ${hR.gm.toFixed(2)}, ${g.awayName} ${aR.gm.toFixed(2)}).`;
   const bayStr=`Record: ${g.homeName} ${h.w}-${h.l}${h.wo?'-'+h.wo+'OTW':''}${h.lo?'-'+h.lo+'OTL':''} vs ${g.awayName} ${aw.w}-${aw.l}${aw.wo?'-'+aw.wo+'OTW':''}${aw.lo?'-'+aw.lo+'OTL':''}.`;
-  const capStr=`No goaltending/possession data available for this league yet -- model is scoring-rate + record only.`;
+  // Part 2 content cleanup, 2026-10-02 -- see _liigaMatchCard's identical
+  // fix for the full rationale (dropped `capStr`, a flat boilerplate
+  // sentence that never varied by the actual pick).
   const ensStr=`Ensemble: MC ${(ens.mc*100).toFixed(0)}% / Bayesian log5 ${(ens.bay*100).toFixed(0)}%.`;
   let explanation;
   if(topTier===0){
@@ -10781,7 +10817,7 @@ function _shlMatchCard(g){
     else if(bm.side==='sprdDog')sideStr=`${dogTeam} +1.5 covers in ${(plDogP*100).toFixed(1)}% of the model's blended scoring+margin projection (fav covers ${(plFavP*100).toFixed(1)}%) -- close enough to stay within a goal.`;
     else if(bm.side==='over')sideStr=`Combined scoring rate supports goals above the ${ouL} line.`;
     else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
-    explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
+    explanation=`${ratesStr} ${bayStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
   }
   // "Why this pick" capture -- see _liigaMatchCard's identical comment
   // (this is SHL, the same near-duplicate pattern).
@@ -15789,10 +15825,185 @@ function _ehAgo(ms){
   if(h<48)return Math.round(h)+'h ago';
   return Math.round(h/24)+'d ago';
 }
+// ── Scraper health — rows-captured-per-scrape trend, per hockey league ──
+// Added 2026-10-02 as the direct detection mechanism for a real incident
+// this session: the SHL/Liiga/NLA/Extraliga Flashscore scrapers silently
+// captured far fewer completed games than they should have, for weeks,
+// with zero error raised (one run captured 27 results, a pagination fix
+// -- see fetch_shl.py's fetch_results/_extract_match_row comments --
+// brought it to 34). There was no historical log of "how many rows did
+// this scrape capture" to have caught that sooner; scripts/
+// _scraper_health.py (used by all 4 hockey fetch_*.py scripts) is that
+// log now, and this reads it back.
+const _EH_HOCKEY_LEAGUES=['SHL','LIIGA','NLA','EXTRALIGA'];
+// Judgment calls, no prior precedent for either number: a run is flagged
+// anomalous when its `results` count is more than 40% below the trailing
+// average of its own recent history, and that average isn't trusted
+// until at least 3 prior runs exist (the "very first few runs" the spec
+// calls out -- a single cold-start run has no real baseline to compare
+// against).
+const _EH_DROP_THRESHOLD=0.4;
+const _EH_MIN_BASELINE_RUNS=3;
+function _scraperHealthHTML(log){
+  if(!Array.isArray(log)||!log.length){
+    return`<div class="empty">NO SCRAPE HISTORY YET — CHECK BACK AFTER THE NEXT SCHEDULED SCRAPE</div>`;
+  }
+  return _EH_HOCKEY_LEAGUES.map(lg=>{
+    const entries=log.filter(r=>r&&r.league===lg).sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
+    if(!entries.length){
+      return`<div class="card" style="margin-bottom:8px;padding:10px 12px"><div style="font-family:var(--mono);font-size:15px;color:var(--t3)">${lg}: NO HISTORY YET</div></div>`;
+    }
+    const latest=entries[entries.length-1];
+    const baseline=entries.slice(0,-1).slice(-10); // trailing window, excludes the latest run itself
+    let anomalous=false,avg=null,pct=null;
+    if(baseline.length>=_EH_MIN_BASELINE_RUNS){
+      avg=baseline.reduce((s,r)=>s+(r.results||0),0)/baseline.length;
+      if(avg>0){pct=((latest.results||0)-avg)/avg;anomalous=pct<=-_EH_DROP_THRESHOLD;}
+    }
+    const shown=entries.slice(-20);
+    const maxV=Math.max(1,...shown.map(r=>r.results||0));
+    const bars=shown.map((r,i)=>{
+      const isLast=i===shown.length-1;
+      const h=Math.max(3,Math.round((r.results||0)/maxV*36));
+      const barColor=isLast?(anomalous?'#ff1a1a':'#00e644'):'rgba(0,230,68,.35)';
+      return`<div title="${_ehEsc(r.ts||'')}: ${r.results||0} results / ${r.fixtures||0} fixtures" style="width:7px;height:${h}px;background:${barColor};border-radius:1px"></div>`;
+    }).join('');
+    const color=anomalous?'#ff1a1a':'#00e644';
+    const statusTxt=anomalous
+      ?`⚠ DROP: ${latest.results} vs trailing avg ${avg.toFixed(1)} (${(pct*100).toFixed(0)}%)`
+      :(avg!=null?`${latest.results} results (avg ${avg.toFixed(1)})`:`${latest.results} results (building baseline, ${baseline.length}/${_EH_MIN_BASELINE_RUNS} runs)`);
+    return`<div class="card" style="margin-bottom:8px;padding:10px 12px;border-left:3px solid ${color}">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <div style="font-family:var(--mono);font-size:15px;letter-spacing:1px;color:var(--t2)">${lg}</div>
+        <div style="font-family:var(--mono);font-size:14px;color:${color}">${statusTxt}</div>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:40px;margin-top:6px">${bars}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Calibration drift monitor — current cal_adj_by_sport snapshot ──────
+// Goal: surface which sports/confidence-bands the adaptive-learning loop
+// is correcting up vs down, and by how much, so a model quietly
+// degrading shows up here before it's a subscriber-facing problem.
+// Checked first (2026-10-02): docs/adaptive_weights.json is a single
+// snapshot that scripts/auto_lock_settle.py's run_adaptive_recalibration
+// overwrites wholesale on every run (path.write_text(json.dumps(
+// snapshot...)), no append) -- there's genuinely no history to trend
+// over time yet. Shipping the simpler, still-valuable current-snapshot
+// table here rather than also building a history mechanism (that would
+// mean touching auto_lock_settle.py's recalibration path, out of scope
+// for this panel's own risk budget -- see this commit's own notes).
+function _calDriftHTML(weights){
+  const bySport=weights&&weights.cal_adj_by_sport;
+  if(!bySport||!Object.keys(bySport).length){
+    return`<div class="empty">NO CALIBRATION DATA YET</div>`;
+  }
+  const genLine=weights.generatedUTC?`<div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:8px">SNAPSHOT: ${_ehEsc(weights.generatedUTC)} (current correction only — no history logged yet)</div>`:'';
+  const rows=Object.keys(bySport).map(sp=>{
+    const bands=bySport[sp]||{};
+    const bandKeys=Object.keys(bands).sort((a,b)=>parseFloat(a)-parseFloat(b));
+    if(!bandKeys.length)return'';
+    const cells=bandKeys.map(bk=>{
+      const v=bands[bk];
+      const color=v>0?'#00e644':v<0?'#ff1a1a':'var(--t3)';
+      const sign=v>0?'+':'';
+      return`<div style="text-align:center;min-width:56px"><div style="font-family:var(--mono);font-size:12px;color:var(--t3)">${(parseFloat(bk)*100).toFixed(0)}%</div><div style="font-family:var(--orb);font-size:15px;font-weight:700;color:${color}">${sign}${(v*100).toFixed(1)}</div></div>`;
+    }).join('');
+    return`<div class="card" style="margin-bottom:6px;padding:8px 10px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-family:var(--mono);font-size:15px;letter-spacing:1px;color:var(--pc);min-width:70px">${_ehEsc(sp)}</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">${cells}</div>
+      </div>
+    </div>`;
+  }).join('');
+  return genLine+rows;
+}
+
+// ── Ledger integrity checker — on-demand only, see runLedgerIntegrityCheck ──
+// Deliberately NOT run on tab load -- scanning the full ledger (3700+
+// bets, cross-checked against 4 schedule caches) is real work, button
+// click only, same "don't run unprompted" principle as the rest of this
+// tab's no-polling design.
+function _ehSecHTML(title,items,renderItem){
+  if(!items.length)return`<div class="card" style="margin-bottom:8px;padding:10px 12px;border-left:3px solid #00e644"><div style="font-family:var(--mono);font-size:15px;color:#00e644">✓ ${title}: NO ISSUES FOUND</div></div>`;
+  return`<div class="card" style="margin-bottom:8px;padding:10px 12px;border-left:3px solid #ff1a1a">
+    <div style="font-family:var(--mono);font-size:15px;color:#ff1a1a;margin-bottom:6px">✗ ${title}: ${items.length} FOUND</div>
+    ${items.map(renderItem).join('')}
+  </div>`;
+}
+async function runLedgerIntegrityCheck(btn){
+  const out=document.getElementById('eh-ledger-report');if(!out)return;
+  if(btn){btn.disabled=true;btn.textContent='⏳ SCANNING LEDGER…';}
+  out.innerHTML='<div class="loading"><span class="spi"></span> SCANNING LEDGER…</div>';
+  try{
+    const preds=getP();
+
+    // Duplicate IDs -- any `id` appearing more than once anywhere in the ledger.
+    const idCounts=new Map();
+    for(const p of preds){const k=p.id;idCounts.set(k,(idCounts.get(k)||0)+1);}
+    const dupes=[...idCounts.entries()].filter(([,c])=>c>1).map(([id,c])=>({id,c}));
+
+    // Orphaned/retired-league picks -- same active-league allowlist
+    // pattern already established elsewhere in this file (see
+    // renderCrossDeviceSync's PAID_LEVEL_SPORTS / the Bet History
+    // Analytics _ACTIVE_LEAGUES sets above) -- pending, or locked
+    // recently enough that it's still actionable rather than ancient
+    // settled history from a sport that was active back when it locked.
+    const ACTIVE=new Set(['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','FB','PL','LIGA','CL','SERIEA']);
+    const RECENT_MS=30*24*3600*1000; // "recently locked" -- judgment call, 30 days
+    const now=Date.now();
+    const orphans=preds.filter(p=>{
+      const sp=window._normSport(p);
+      if(ACTIVE.has(sp))return false;
+      const isPending=p.outcome==='pending';
+      const isRecent=!!(p.lockedAt&&(now-p.lockedAt)<RECENT_MS);
+      return isPending||isRecent;
+    });
+
+    // Date mismatches -- hockey leagues only (SHL/Liiga/NLA/Extraliga),
+    // cross-checked against the already-loaded schedule caches for a
+    // same-teams game whose real date differs from the pick's stored
+    // date. This is exactly the bug class found and fixed this session.
+    const hockeyLoaders={
+      SHL:{load:typeof loadShlScheduleData==='function'?loadShlScheduleData:null,get:()=>_SHL_DATA},
+      LIIGA:{load:typeof loadLiigaScheduleData==='function'?loadLiigaScheduleData:null,get:()=>_LIIGA_DATA},
+      NLA:{load:typeof loadNlaScheduleData==='function'?loadNlaScheduleData:null,get:()=>_NLA_DATA},
+      EXTRALIGA:{load:typeof loadExtraligaScheduleData==='function'?loadExtraligaScheduleData:null,get:()=>_EXTRALIGA_DATA},
+    };
+    for(const lg of Object.keys(hockeyLoaders)){
+      try{if(hockeyLoaders[lg].load)await hockeyLoaders[lg].load();}catch(e){}
+    }
+    const mismatches=[];
+    for(const p of preds){
+      const sp=window._normSport(p);
+      const loader=hockeyLoaders[sp];
+      if(!loader)continue;
+      const D=loader.get();
+      if(!D||!Array.isArray(D.games)||!D.games.length)continue;
+      if(!p.hA||!p.awA)continue;
+      const game=D.games.find(g=>(g.homeName===p.hA&&g.awayName===p.awA)||(g.homeName===p.awA&&g.awayName===p.hA));
+      if(!game||!game.date)continue;
+      const realDate=new Date(game.date).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+      if(realDate&&p.date&&realDate!==p.date){
+        mismatches.push({id:p.id,betOn:p.betOn,sport:sp,storedDate:p.date,realDate});
+      }
+    }
+
+    out.innerHTML=
+      _ehSecHTML('DATE MISMATCHES',mismatches,m=>`<div style="font-family:var(--mono);font-size:14px;color:var(--t2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">#${_ehEsc(m.id)} · ${_ehEsc(m.betOn||'?')} (${_ehEsc(m.sport)}) — stored ${_ehEsc(m.storedDate)}, real game date ${_ehEsc(m.realDate)}</div>`)+
+      _ehSecHTML('ORPHANED / RETIRED-LEAGUE PICKS',orphans,p=>`<div style="font-family:var(--mono);font-size:14px;color:var(--t2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">#${_ehEsc(p.id)} · ${_ehEsc(p.betOn||'?')} — sport "${_ehEsc(p.sport||'?')}" not in active-league allowlist (outcome: ${_ehEsc(p.outcome)})</div>`)+
+      _ehSecHTML('DUPLICATE IDS',dupes,d=>`<div style="font-family:var(--mono);font-size:14px;color:var(--t2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">id "${_ehEsc(d.id)}" appears ${d.c} times</div>`);
+  }catch(e){
+    out.innerHTML=`<div class="empty">LEDGER CHECK FAILED: ${_ehEsc(e.message||e)}</div>`;
+  }
+  if(btn){btn.disabled=false;btn.textContent='RUN LEDGER INTEGRITY CHECK';}
+}
+
 async function renderEngineHealth(){
   const el=document.getElementById('ovr-health');if(!el)return;
   el.innerHTML='<div class="loading"><span class="spi"></span> LOADING ENGINE HEALTH…</div>';
-  let status=null,ver=null,ghRuns=null,ghErr=null;
+  let status=null,ver=null,ghRuns=null,ghErr=null,scraperLog=null,calWeights=null;
   try{
     const r=await fetch('automation_status.json?_v='+Date.now(),{cache:'no-store'});
     if(r.ok)status=await r.json();
@@ -15800,6 +16011,20 @@ async function renderEngineHealth(){
   try{
     const r=await fetch('version.json?_v='+Date.now(),{cache:'no-store'});
     if(r.ok)ver=await r.json();
+  }catch(e){}
+  // Scraper-health log and calibration snapshot -- same same-origin,
+  // tab-open/REFRESH-only fetch pattern as automation_status.json/
+  // version.json above, not an interval. scraper_health.json won't exist
+  // at all until the first scrape run with the new logging lands (see
+  // scripts/_scraper_health.py) -- a 404/fetch failure here just leaves
+  // scraperLog null, handled explicitly below as "no history yet".
+  try{
+    const r=await fetch('scraper_health.json?_v='+Date.now(),{cache:'no-store'});
+    if(r.ok)scraperLog=await r.json();
+  }catch(e){}
+  try{
+    const r=await fetch('adaptive_weights.json?_v='+Date.now(),{cache:'no-store'});
+    if(r.ok)calWeights=await r.json();
   }catch(e){}
   try{
     const r=await fetch('https://api.github.com/repos/Purple-Wraith/clairvoyance-backend/actions/runs?per_page=15');
@@ -15866,6 +16091,9 @@ async function renderEngineHealth(){
     }).join('');
   }
 
+  const scraperHtml=_scraperHealthHTML(scraperLog);
+  const calHtml=_calDriftHTML(calWeights);
+
   el.innerHTML=`
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${chips}</div>
     ${deployLine}
@@ -15873,6 +16101,16 @@ async function renderEngineHealth(){
     ${details}
     <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin:14px 0 8px">// RECENT GITHUB ACTIONS RUNS</div>
     <div class="card" style="padding:8px 10px">${ghHtml}</div>
+    <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin:14px 0 8px">// SCRAPER HEALTH — HOCKEY RESULTS CAPTURED/SCRAPE</div>
+    ${scraperHtml}
+    <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin:14px 0 8px">// CALIBRATION DRIFT — cal_adj_by_sport (CURRENT SNAPSHOT)</div>
+    ${calHtml}
+    <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin:14px 0 8px">// LEDGER INTEGRITY CHECK</div>
+    <div class="card" style="padding:10px 12px;margin-bottom:8px">
+      <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:8px">On-demand only — scans the full ledger for date mismatches, orphaned/retired-league picks and duplicate IDs. Not run automatically on tab load.</div>
+      <button class="btn btn-p" style="padding:9px 18px;font-size:15px;background:var(--pc);color:#fff" onclick="runLedgerIntegrityCheck(this)">RUN LEDGER INTEGRITY CHECK</button>
+    </div>
+    <div id="eh-ledger-report"></div>
   `;
 }
 
