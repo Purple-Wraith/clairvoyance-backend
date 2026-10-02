@@ -14115,12 +14115,16 @@ function renderOverall(){
   const _calAdjBySportKey='cv_cal_adj_by_sport_v1';
   const _prevAdjBySport=JSON.parse(S.g(_calAdjBySportKey,'{}')||'{}');
   const _newAdjBySport={};
-  const _calcBandAdjFor=(bets,prevForSport)=>{
+  // resetStale (European hockey only): a band with fewer than 5 CLEAN (pre-start) picks keeps no old correction -- every
+  // value those leagues carried so far was learned from a pool that included late locks, so with no clean evidence the
+  // honest adjustment is 0, not a stale contaminated number. Only applied once the lock-timing index has loaded (otherwise
+  // every euro pick looks 'unknown' and this would wipe the table for a moment).
+  const _calcBandAdjFor=(bets,prevForSport,resetStale)=>{
     const out={...prevForSport};
     for(const b of calBands){
       const bp=bets.filter(p=>p.winProb>=b.min&&p.winProb<b.max);
       const n=bp.length;
-      if(n<5)continue;
+      if(n<5){if(resetStale&&window._tbIdx)delete out[b.min];continue;}
       const bw=bp.filter(p=>p.outcome==='win').length;
       const act=bw/n;
       const exp=(b.min+Math.min(b.max,.98))/2;
@@ -14177,7 +14181,7 @@ function renderOverall(){
       :_sp==='CFB'||_sp==='NFL'
       ?_calSrc.filter(p=>(p.league||'').toUpperCase()===_sp)
       :_calSrc.filter(p=>p._spUC===_sp);
-    _newAdjBySport[_sp]=_calcBandAdjFor(_spBets,_prevAdjBySport[_sp]||{});
+    _newAdjBySport[_sp]=_calcBandAdjFor(_spBets,_prevAdjBySport[_sp]||{},_CAL_EXCL_UNKNOWN.has(_sp));
   }
   S.s(_calAdjBySportKey,JSON.stringify(_newAdjBySport));
   window.__CV_CAL_ADJ_BY_SPORT=_newAdjBySport;
