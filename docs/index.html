@@ -3381,7 +3381,7 @@ function _mlbTier(p,e,sigmaV){
   if(p>=.56&&e>=.01&&sig<=.14)return 1;
   return 0;
 }
-function chipC(p,e){const t=tier(p,e);if(t===3)return{c:'chip-g',pl:'pg',lb:'PREMIUM'};if(t===2)return{c:'chip-p',pl:'pp',lb:'// OPTIMAL'};if(t===1)return{c:'chip-n',pl:'pn',lb:'// LEAN'};return{c:'chip-h',pl:'ph',lb:'// SKIP'};}
+function chipC(p,e,marketAnchored){const t=tier(p,e,undefined,marketAnchored);if(t===3)return{c:'chip-g',pl:'pg',lb:'PREMIUM'};if(t===2)return{c:'chip-p',pl:'pp',lb:'// OPTIMAL'};if(t===1)return{c:'chip-n',pl:'pn',lb:'// LEAN'};return{c:'chip-h',pl:'ph',lb:'// SKIP'};}
 /* Generic prop Monte Carlo — normal distribution */
 // Shared opponent-defense adjustment for NBA/NHL player props --
 // same "capped nudge off a REAL, dynamically-computed league average"
@@ -6143,7 +6143,7 @@ function renderNHLTonight(){
       const hML=gh.hL||p2ml(hP),aML=gh.aL||p2ml(aP);
       const hD=ml2d(hML),aD=ml2d(aML);
       const hEV=ev(hP,hD),aEV=ev(aP,aD);
-      const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+      const hCS=chipC(hP,hEV,!!(ens.mkt&&ens.mkt.ml)),aCS=chipC(aP,aEV,!!(ens.mkt&&ens.mkt.ml));
       const ouP=mc?.overP||.52,ouCS=chipC(ouP,ev(ouP,1.91));
       const _tnML=ens.mkt&&ens.mkt.ml; // market-blend record (home perspective), null = pure model
       const plP=hP>=.5?(mc?.rl15||.38):(mc?.rl15A||.38),plCS=chipC(plP,ev(plP,1.87));
@@ -8909,9 +8909,9 @@ function _nhlGameCard(espnEv){
       const hML=_liveNHL?.homeML||_espnOdds?.homeTeamOdds?.moneyLine||p2ml(hP),aML=_liveNHL?.awayML||_espnOdds?.awayTeamOdds?.moneyLine||p2ml(aP);
       const hD=ml2d(hML),aD=ml2d(aML);
       const hEV=ev(hP,hD),aEV=ev(aP,aD);
-      const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+      const hCS=chipC(hP,hEV,!!(_nhlEns&&_nhlEns.mkt&&_nhlEns.mkt.ml)),aCS=chipC(aP,aEV,!!(_nhlEns&&_nhlEns.mkt&&_nhlEns.mkt.ml));
       const plP=hP>=.5?(_nhlMcD?.rl15??.38):(_nhlMcD?.rl15A??.38),plCS=chipC(plP,ev(plP,1.87));
-      const ouP=(_nhlEns&&_nhlEns.ouP!=null)?_nhlEns.ouP:(_nhlMcD?.overP??.52),ouD=ml2d('-110'),ouCS=chipC(ouP,ev(ouP,ouD));
+      const ouP=(_nhlEns&&_nhlEns.ouP!=null)?_nhlEns.ouP:(_nhlMcD?.overP??.52),ouD=ml2d('-110'),ouCS=chipC(ouP,ev(ouP,ouD),!!(_nhlEns&&_nhlEns.mkt&&_nhlEns.mkt.ou));
       const _gcML=_nhlEns&&_nhlEns.mkt&&_nhlEns.mkt.ml,_gcOU=_nhlEns&&_nhlEns.mkt&&_nhlEns.mkt.ou;
       const seriesNote=hNHL.series||aNHL.series||'';
       // Engine reasoning — best-market evaluation across ML, puck line, O/U
@@ -9240,7 +9240,7 @@ function _nhlUpcomingCard(g,dayIdx){
   const hML=g.homeML??p2ml(hP),aML=g.awayML??p2ml(aP);
   const hD=ml2d(hML),aD=ml2d(aML);
   const hEV=ev(hP,hD),aEV=ev(aP,aD);
-  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+  const hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
   const favTeam=hP>=aP?g.home:g.away,dogTeam=hP>=aP?g.away:g.home;
   const favP=Math.max(hP,aP),dogP=Math.min(hP,aP);
   const favD=hP>=aP?hD:aD,dogD=hP>=aP?aD:hD;
@@ -10671,7 +10671,7 @@ function _liigaMatchCard(g){
   // shown + locked at market; the tier inputs below stay on the assumed prices by default.
   const px=_hkPrices(g,hP,hP>=aP,ouL);
   const hEV=_hkTierEv(hP,hD,px.ml.home),aEV=_hkTierEv(aP,aD,px.ml.away);
-  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+  const hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
   const ouEV=_hkTierEv(ouP,ouD,px.ou.over),unEV=_hkTierEv(unP,ouD,px.ou.under);
   // Puck line -- blended cover probability (ens.favCoverP/dogCoverP, see
   // liigaEns's own comment): mc's exact analytic Poisson-implied cover
@@ -10839,7 +10839,7 @@ function _nlaMatchCard(g){
   // shown + locked at market; the tier inputs below stay on the assumed prices by default.
   const px=_hkPrices(g,hP,hP>=aP,ouL);
   const hEV=_hkTierEv(hP,hD,px.ml.home),aEV=_hkTierEv(aP,aD,px.ml.away);
-  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+  const hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
   const ouEV=_hkTierEv(ouP,ouD,px.ou.over),unEV=_hkTierEv(unP,ouD,px.ou.under);
   const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
   const plFavP=ens.favCoverP,plDogP=ens.dogCoverP;
@@ -10977,7 +10977,7 @@ function _extraligaMatchCard(g){
   // shown + locked at market; the tier inputs below stay on the assumed prices by default.
   const px=_hkPrices(g,hP,hP>=aP,ouL);
   const hEV=_hkTierEv(hP,hD,px.ml.home),aEV=_hkTierEv(aP,aD,px.ml.away);
-  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+  const hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
   const ouEV=_hkTierEv(ouP,ouD,px.ou.over),unEV=_hkTierEv(unP,ouD,px.ou.under);
   const favTeam=hP>=aP?g.homeName:g.awayName,dogTeam=hP>=aP?g.awayName:g.homeName;
   const plFavP=ens.favCoverP,plDogP=ens.dogCoverP;
@@ -11289,7 +11289,7 @@ function _shlMatchCard(g){
   // shown + locked at market; the tier inputs below stay on the assumed prices by default.
   const px=_hkPrices(g,hP,hP>=aP,ouL);
   const hEV=_hkTierEv(hP,hD,px.ml.home),aEV=_hkTierEv(aP,aD,px.ml.away);
-  const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
+  const hCS=chipC(hP,hEV,!!bML),aCS=chipC(aP,aEV,!!bML);
   const ouEV=_hkTierEv(ouP,ouD,px.ou.over),unEV=_hkTierEv(unP,ouD,px.ou.under);
   // Puck line -- blended cover probability (ens.favCoverP/dogCoverP, see
   // liigaEns's own comment): mc's exact analytic Poisson-implied cover
