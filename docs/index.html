@@ -1696,6 +1696,7 @@ body{line-height:1.5}
     <button class="sb2" onclick="setSub('analytics','bethistory');renderAnalyticsBetHistory('ALL')">BET HISTORY</button>
     <button class="sb2" onclick="setSub('analytics','trends');renderAnalyticsTrends()">TRENDS</button>
     <button class="sb2" onclick="setSub('analytics','bybet');renderAnalyticsByBet()">BY BET</button>
+    <button class="sb2" onclick="setSub('analytics','visuals');renderAnalyticsVisuals()">VISUALS</button>
   </nav>
   <div id="analytics-bysport" class="subp act"><div class="sa"><div class="tab act" style="padding:12px 12px 82px">
     <div class="sh"><span class="ic"></span> ENGINE PERFORMANCE BY SPORT</div>
@@ -1775,6 +1776,10 @@ body{line-height:1.5}
   <div id="analytics-bybet" class="subp"><div class="sa"><div class="tab act" style="padding:12px 12px 82px">
     <div class="sh"><span class="pc"></span> ANALYSIS BY BET TYPE</div>
     <div id="analytics-bybet-content"><div class="loading"><span class="spi"></span></div></div>
+  </div></div></div>
+  <div id="analytics-visuals" class="subp"><div class="sa"><div class="tab act" style="padding:12px 12px 82px">
+    <div class="sh"><span class="nc"></span> VISUALS — 7 DATA-DRIVEN CHARTS</div>
+    <div id="analytics-visuals-content"><div class="loading"><span class="spi"></span></div></div>
   </div></div></div>
   <div id="analytics-mlb" style="display:none"><div id="analytics-mlb-content"></div></div>
   <div id="analytics-nhl" style="display:none"><div id="analytics-nhl-content"></div></div>
@@ -17809,6 +17814,7 @@ function setSub(sport,sub){
     else if(sub==='bethistory')try{renderAnalyticsBetHistory('ALL');}catch(e){}
     else if(sub==='trends')try{renderAnalyticsTrends();}catch(e){}
     else if(sub==='bybet')try{renderAnalyticsByBet();}catch(e){}
+    else if(sub==='visuals')try{renderAnalyticsVisuals();}catch(e){}
   }
   if(sport==='hk'&&sub==='ncaah'){try{T('ncaah','matches');renderGenericWeek('ncaah-matches-list','hockey/mens-college-hockey','NCAAH');}catch(e){}}
   if(sport==='hk'&&['khl','shl','liiga','nla','extraliga'].includes(sub)){try{T(sub,'matches');}catch(e){}}
