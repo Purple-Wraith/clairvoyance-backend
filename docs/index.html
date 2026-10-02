@@ -27052,10 +27052,18 @@ function _clvTodayKey(){
    ─ Props: odds not on ESPN — logs locked price, notes no market data
    ═══════════════════════════════════════════════════════════════ */
 
+// MLB/WNBA/SOC(World Cup)/NCAAB removed 2026-10-01 -- real bug found in this
+// retired-league audit: this map drives _clvScanAllSports(), which runs
+// automatically on every page load and then every 5 minutes forever via
+// setInterval (see _clvBoot() below) -- no tab visit, no opt-in, no API key
+// needed, just a plain public ESPN scoreboard fetch for every key in this
+// object. All 4 of these leagues have been fully retired (MLB/WNBA/World
+// Cup 2026-09-08, CBB/NCAAB 2026-09-08 as well), so this had been silently
+// polling ESPN for 4 dead leagues' live scores/odds every 5 minutes in
+// every single browser tab this app was ever left open in.
 var _CLV_SPORT_MAP={
-  MLB:'baseball/mlb',NHL:'hockey/nhl',NBA:'basketball/nba',WNBA:'basketball/wnba',
-  NFL:'football/nfl',CFB:'football/college-football',
-  SOC:'soccer/fifa.world',NCAAB:'basketball/mens-college-basketball'
+  NHL:'hockey/nhl',NBA:'basketball/nba',
+  NFL:'football/nfl',CFB:'football/college-football'
 };
 
 /* ── Events store: cv_clv_events ─────────────────────────────── */
@@ -27077,18 +27085,19 @@ function _getOddsApiKey(){return localStorage.getItem('cv_odds_api_key')||'';}
 function _setOddsApiKey(k){if(k)localStorage.setItem('cv_odds_api_key',k.trim());}
 
 /* Odds API sport key map */
+// MLB/WNBA/WC(World Cup)/BL(Bundesliga)/MLS removed 2026-10-01 -- same
+// retirement bug as _CLV_SPORT_MAP above, just on the opt-in Odds-API path
+// (requires a user-pasted key, see _getOddsApiKey()): every key here got
+// scanned by the same always-on _clvScanAllSports() poll, so a session with
+// a key configured was spending its own limited 500 req/month Odds-API
+// quota checking lines for 5 fully-retired leagues every 5 minutes.
 var _ODDS_API_SPORT_MAP={
-  MLB:'baseball_mlb',
   NBA:'basketball_nba',
-  WNBA:'basketball_wnba',
   NHL:'icehockey_nhl',
   NFL:'americanfootball_nfl',
   CFB:'americanfootball_ncaaf',
-  WC:'soccer_fifa_world_cup_2026',
   PL:'soccer_epl',
-  LIGA:'soccer_spain_la_liga',
-  BL:'soccer_germany_bundesliga',
-  MLS:'soccer_usa_mls'
+  LIGA:'soccer_spain_la_liga'
 };
 
 /* Full team name → engine abbreviation */
