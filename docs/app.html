@@ -4327,13 +4327,22 @@ function _classifyTeamsSport(hA,awA){
     const gA=((g.awA||g.away||g.aab||'')+'').toUpperCase();
     return(gH===h&&gA===a)||(gH===a&&gA===h);
   });
-  if(_liveMatch(window.ESPN_GAMES||window._mlbGames))return'MLB';
-  if(_liveMatch(window._wnbaGameData))return'WNBA';
+  // Real bug, found 2026-10-02: NHL's season-opener week always overlaps
+  // MLB's regular-season finale on the calendar, and several team codes
+  // are shared by both leagues (COL, PIT, BOS, CHI, DET, PHI, ...). MLB
+  // used to be checked first here, so a live same-day MLB fixture between
+  // two such codes won the match before NHL/NBA ever got a look, even
+  // when the pick being locked was actually the NHL (or NBA) game —
+  // confirmed live: a real COL @ PIT NHL pick (Avalanche/Penguins) got
+  // tagged sport:'MLB' because COL/PIT also had a real MLB game (Rockies/
+  // Pirates) that same day. NHL/NBA now checked first; MLB/WNBA last.
   const _D=window.__CV_DATA||{};
   if(_liveMatch(_D.nhl&&_D.nhl.today))return'NHL';
   if(_liveMatch(_D.nba&&_D.nba.today))return'NBA';
+  if(_liveMatch(window.ESPN_GAMES||window._mlbGames))return'MLB';
+  if(_liveMatch(window._wnbaGameData))return'WNBA';
   const _sc=s=>(s.has(h)?1:0)+(s.has(a)?1:0);
-  const _cand=[['WNBA',_sc(_WNBAc)],['MLB',_sc(_MLBc)],['NHL',_sc(_NHLc)],['NBA',_sc(_NBAc)]];
+  const _cand=[['NHL',_sc(_NHLc)],['NBA',_sc(_NBAc)],['WNBA',_sc(_WNBAc)],['MLB',_sc(_MLBc)]];
   let best=null,bestScore=0;
   _cand.forEach(function(c){if(c[1]>bestScore){bestScore=c[1];best=c[0];}});
   return bestScore>0?best:'UNKNOWN';
