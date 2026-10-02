@@ -75,7 +75,17 @@ MONITORED = [
 # retired/personal-only sports (MLB, WNBA, tennis, World Cup, CBB)
 # excluded so this digest's calibration/stuck-pending numbers match
 # what the Dashboard itself would show, not a broader/different set.
-ACTIVE_TAGS = {"NBA", "NFL", "CFB", "NHL", "KHL", "SHL", "LIIGA", "NCAAH",
+# Real bug, found auditing this file 2026-10-02: NLA and EXTRALIGA were
+# added to docs/app.html's own _broadSportOf() HOCKEY group back on
+# 2026-09-23 (same day they were promoted into auto_lock_settle.py's
+# PRODUCT_SPORTS["hockey"] -- real paid-product leagues since) but this
+# copy of the set was never updated to match. Any real settled NLA/
+# Extraliga bet silently fell out of is_active_sport() -- excluded from
+# both calibration_buckets() (so this digest's calibration numbers
+# quietly omitted two live paid-product leagues) and stuck_pending() (so
+# a stuck NLA/Extraliga pick older than 3 days would never be flagged
+# here, even though it's real paying-subscriber inventory).
+ACTIVE_TAGS = {"NBA", "NFL", "CFB", "NHL", "KHL", "SHL", "LIIGA", "NLA", "EXTRALIGA", "NCAAH",
                "PL", "LIGA", "BUND", "BL", "MLS", "SERIEA", "CL", "CH"}
 
 
