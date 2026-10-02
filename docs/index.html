@@ -25842,13 +25842,15 @@ window.renderByLeagueAnalytics=renderByLeagueAnalytics;
 // ── BY PLAYER — every player with a logged prop history, across all
 // sports. Extracted from prop bets' betOn/player field since props are
 // the only bet type with a real per-player identity.
-function renderByPlayerAnalytics(){
-  const el=document.getElementById('analytics-byplayer-content');if(!el)return;
+// Shared player-prop aggregation — extracted 2026-10-02 (Visuals tab) so
+// the new sparkline section (_vzPlayerSparklineSectionHTML) reuses this
+// EXACT name-parsing/league-filtering logic instead of a second, divergent
+// copy that could silently drift from this one (same player bucketed
+// under two different names in the two tabs, etc). Behavior unchanged from
+// before the extraction — see the inline comments below for the real bugs
+// this parsing already had to fix.
+function _vzPlayerPropAggregates(){
   const all=getP().filter(p=>p.outcome!=='pending'&&(p.betType||'').toUpperCase()==='PROP');
-  if(!all.length){el.innerHTML='<div class="empty">NO PLAYER PROP HISTORY YET</div>';return;}
-  const pnl=p=>p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1;
-  const pC=r=>r>=.62?'var(--nc)':r>=.52?'var(--vc)':'var(--hc)';
-  const uC=u=>u>=0?'var(--nc)':'var(--hc)';
   // Real bug, found auditing By Player accuracy 2026-09-30: this only
   // handled the single order "{Player} {STAT} OVER {line}" -- real feeds
   // also produce "{Player} OVER {STAT} {line}" (stat after OVER/UNDER,
@@ -25890,10 +25892,16 @@ function renderByPlayerAnalytics(){
     if(!_ACTIVE_LEAGUES.has(sp))return;
     if(!byPlayer[name])byPlayer[name]={name,sport:sp,bets:[],w:0,l:0,u:0};
     byPlayer[name].bets.push(p);
-    if(p.outcome==='win'){byPlayer[name].w++;byPlayer[name].u+=pnl(p);}
-    else if(p.outcome==='loss'){byPlayer[name].l++;byPlayer[name].u+=pnl(p);}
+    if(p.outcome==='win'){byPlayer[name].w++;byPlayer[name].u+=_vzPnl(p);}
+    else if(p.outcome==='loss'){byPlayer[name].l++;byPlayer[name].u+=_vzPnl(p);}
   });
-  const players=Object.values(byPlayer).sort((a,b)=>(b.w+b.l)-(a.w+a.l));
+  return Object.values(byPlayer).sort((a,b)=>(b.w+b.l)-(a.w+a.l));
+}
+function renderByPlayerAnalytics(){
+  const el=document.getElementById('analytics-byplayer-content');if(!el)return;
+  const players=_vzPlayerPropAggregates();
+  if(!players.length){el.innerHTML='<div class="empty">NO PLAYER PROP HISTORY YET</div>';return;}
+  const pC=r=>r>=.62?'var(--nc)':r>=.52?'var(--vc)':'var(--hc)';
   // Uniform aesthetic, 2026-09-30 follow-up: every player's league tag is
   // now the same neon magenta instead of a per-sport sportCol map, and
   // wins/losses/units use the established flat green/red convention
@@ -27085,6 +27093,464 @@ function cvXParlayLoadProps(s){
 // renderByLeagueAnalytics/renderByPlayerAnalytics/renderAnalyticsBetHistory/
 // renderAnalyticsTrends/renderAnalyticsByBet above -- this block was pure
 // legacy weight left over from before that tab existed.
+
+// ════════════════════════════════════════════════════════════════════════
+// ANALYTICS — VISUALS sub-tab (added 2026-10-02). A brand-new, genuinely
+// reachable `renderAnalyticsVisuals()` — NOT a resurrection of the dead
+// function by the same name removed 2026-09-30 above (that one targeted a
+// stale `analytics-visuals-content` div from an old layout that no longer
+// existed anywhere in the HTML). This one targets the real
+// #analytics-visuals-content pane wired into the Analytics sub-nav.
+//
+// 7 hand-rolled SVG/HTML visualizations, all computed from real getP()
+// ledger data (never placeholder), all grouped by window._normSport(p)
+// (never a raw p.sport field — see this session's own SHL/LIIGA/NLA/
+// Extraliga mistagging fixes for why that matters). Curves use the same
+// open/closed Catmull-Rom → cubic-bezier smoothing and dual neon glow
+// SVG <filter> technique as the matchup radar chart above (_catmullRomPath/
+// _matchupRadarSVG) instead of default straight-line/flat-rect charts, and
+// reuse this app's own established tokens (var(--nc)/--pc/--vc/--hc/--t*/
+// --orb/--mono) for any plain-HTML/CSS text — SVG presentation attributes
+// use literal hex (matching each token's real value) instead of var(),
+// same convention _matchupRadarSVG itself already uses, since relying on
+// var() resolving inside raw SVG attributes (vs. a style="") is iffier
+// across browsers than just hardcoding the same hex the token already is.
+//
+// #6 (ensemble agreement) is honestly SCOPED DOWN from the original ask:
+// confirmed by reading lockPick's actual push() calls that the MC/Bayesian/
+// Elo component probabilities (ens.mc/ens.bay/ens.elo, computed by e.g.
+// nhlEns()) are only ever used transiently at render time and are NOT
+// among the fields persisted onto a locked pick (id/date/hA/awA/sport/
+// league/betType/betOn/winProb/ml/decOdds/wager/outcome/lockedAt/source/
+// ...extraMeta/reasoning — extraMeta itself only ever carries reasoning/
+// socFactors from the auto-lock pipeline, never ensemble floats). There is
+// no real per-pick component-disagreement signal sitting in the ledger to
+// plot without fabricating one, so this chart instead plots the one
+// confidence number that IS persisted (winProb, the final blended
+// probability) against the real outcome — see
+// _vzConfidenceScatterSectionHTML's own on-page copy, which states this
+// gap to the user directly rather than silently presenting a differently-
+// scoped chart as if it were the original ask.
+// ════════════════════════════════════════════════════════════════════════
+
+// Canonical active-league code list + sport-group color/hex map — mirrors
+// the exact allowlist/grouping renderAnalyticsBetHistory and
+// renderAnalyticsByBet already established above, so Visuals' sport/
+// league buckets agree with every other Analytics sub-tab instead of
+// defining a third, divergent grouping.
+const _VZ_LEAGUE_CODES=['NHL','SHL','LIIGA','NLA','EXTRALIGA','NBA','NFL','CFB','PL','LIGA','CL','SERIEA'];
+const _VZ_LEAGUE_HEX={NHL:'#6690ff',SHL:'#6690ff',LIIGA:'#6690ff',NLA:'#6690ff',EXTRALIGA:'#6690ff',NBA:'#f000ff',NFL:'#ff2090',CFB:'#ff2090',PL:'#ffdd00',LIGA:'#ffdd00',CL:'#ffdd00',SERIEA:'#ffdd00'};
+const _VZ_SPORT_GROUPS=[
+  {k:'BASKETBALL',label:'BASKETBALL',codes:['NBA'],                                    color:'var(--pc)',hex:'#f000ff'},
+  {k:'HOCKEY',    label:'HOCKEY',    codes:['NHL','SHL','LIIGA','NLA','EXTRALIGA'],     color:'var(--ic)',hex:'#6690ff'},
+  {k:'FOOTBALL',  label:'FOOTBALL',  codes:['NFL','CFB'],                              color:'var(--hc)',hex:'#ff2090'},
+  {k:'SOCCER',    label:'SOCCER',    codes:['PL','LIGA','CL','SERIEA'],                color:'var(--gc)',hex:'#ffdd00'},
+];
+function _vzPnl(p){return p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1;}
+// All settled, currently-active-league bets, sorted chronologically (date
+// then lockedAt as a same-day tiebreaker) — same ordering convention
+// renderBySportAnalytics/adaptiveTick already established, needed here so
+// the equity curve and the player/streak sparklines read oldest→newest.
+function _vzSettled(){
+  return getP().filter(p=>p.outcome!=='pending'&&_VZ_LEAGUE_CODES.includes(window._normSport(p)))
+    .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
+}
+function _vzEmptyCardHTML(title,note,icon){
+  return `<div class="card" style="margin-bottom:14px">
+    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="${icon||'nc'}"></span> ${title}</div>
+    <div class="empty" style="padding:18px">NOT ENOUGH DATA YET<br><span style="font-size:13px;color:var(--t3)">${note||'Check back once more bets from this slice have settled.'}</span></div>
+  </div>`;
+}
+// Red↔green gradient for an over/under-delivery delta (percentage points
+// or ROI%, both centered on 0). `scale` is the magnitude (in the same
+// units as delta) at which the color fully saturates.
+function _vzDeltaColor(delta,scale){
+  scale=scale||15;
+  const a=Math.min(1,Math.abs(delta)/scale);
+  return delta>=0?`rgba(0,230,68,${(0.10+a*0.5).toFixed(2)})`:`rgba(255,32,96,${(0.10+a*0.5).toFixed(2)})`;
+}
+function _vzGlowDefs(id,color,std){return `<filter id="${id}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="${std||3}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;}
+// Open (non-looping) Catmull-Rom → cubic-bezier conversion — same technique
+// as the matchup radar's own _catmullRomPath, just for a left-to-right
+// series (clamps the virtual control points at both ends) instead of a
+// closed polygon (which wraps around to the opposite side of the shape).
+function _vzOpenSplinePath(pts){
+  const n=pts.length;
+  if(n===0)return'';
+  if(n===1)return`M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  let d=`M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for(let i=0;i<n-1;i++){
+    const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(n-1,i+2)];
+    const c1x=p1[0]+(p2[0]-p0[0])/6,c1y=p1[1]+(p2[1]-p0[1])/6;
+    const c2x=p2[0]-(p3[0]-p1[0])/6,c2y=p2[1]-(p3[1]-p1[1])/6;
+    d+=` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+// ── #1: Reliability / calibration curve ───────────────────────────────
+// Buckets settled, probability-tagged picks by their stored winProb (5pp
+// bands from 50% up, plus a catch-all <50% bucket for underdog value
+// bets), plots real win rate per bucket as a smoothed curve against the
+// y=x "perfectly calibrated" dashed diagonal. Buckets under `minN` render
+// smaller/fainter (not hidden — hiding a thin bucket would silently erase
+// exactly the kind of small-sample overconfidence this chart exists to
+// surface) so a 2-bet 100% bucket doesn't visually outweigh a 40-bet 58%
+// one.
+function _vzCalibrationChartSVG(bets,colorHex,minN){
+  minN=minN||8;
+  const bands=[{lo:0,hi:50,lbl:'<50'},{lo:50,hi:55},{lo:55,hi:60},{lo:60,hi:65},{lo:65,hi:70},{lo:70,hi:75},{lo:75,hi:80},{lo:80,hi:85},{lo:85,hi:90},{lo:90,hi:101,lbl:'90+'}];
+  const bucketed=bands.map(b=>{
+    const bb=bets.filter(p=>{const wp=(p.winProb||0)*100;return wp>=b.lo&&wp<b.hi;});
+    if(!bb.length)return null;
+    const w=bb.filter(p=>p.outcome==='win').length;
+    const mid=(b.lo+Math.min(b.hi,100))/2;
+    return{mid,n:bb.length,acc:w/bb.length*100};
+  }).filter(Boolean);
+  if(bucketed.length<2)return null;
+  const W=640,H=300,ML=46,MR=14,MT=20,MB=38;
+  const plotW=W-ML-MR,plotH=H-MT-MB;
+  const xOf=v=>ML+(v/100)*plotW;
+  const yOf=v=>MT+plotH-(v/100)*plotH;
+  const gridY=[0,25,50,75,100].map(v=>`<line x1="${ML}" y1="${yOf(v).toFixed(1)}" x2="${W-MR}" y2="${yOf(v).toFixed(1)}" stroke="rgba(255,255,255,.07)" stroke-width="1"/><text x="${ML-7}" y="${(yOf(v)+4).toFixed(1)}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.55)">${v}%</text>`).join('');
+  const gridX=[0,25,50,75,100].map(v=>`<text x="${xOf(v).toFixed(1)}" y="${H-MB+18}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.55)">${v}%</text>`).join('');
+  const diag=`<line x1="${xOf(0).toFixed(1)}" y1="${yOf(0).toFixed(1)}" x2="${xOf(100).toFixed(1)}" y2="${yOf(100).toFixed(1)}" stroke="rgba(255,255,255,.4)" stroke-width="1.5" stroke-dasharray="5,5"/>`;
+  const pts=bucketed.map(b=>[xOf(b.mid),yOf(b.acc)]);
+  const path=_vzOpenSplinePath(pts);
+  const gid='vzCalibGlow'+Math.round(Math.random()*1e9);
+  // Labels alternate above/below their dot by bucket index parity (rather
+  // than always above) — with 10 bands often sitting close together in y
+  // when the curve is roughly flat across a stretch, always-above labels
+  // collided into unreadable overlapping text. A small pill background
+  // behind each label keeps it legible over the curve/gridlines too.
+  const dots=bucketed.map((b,i)=>{
+    const dim=b.n<minN;
+    const r=dim?3:5.5;
+    const op=dim?0.45:1;
+    const[x,y]=pts[i];
+    const above=i%2===0;
+    const ly=above?y-14:y+20;
+    const lbl=`${b.acc.toFixed(0)}% n${b.n}`;
+    const lw=lbl.length*5.6+6;
+    return`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${colorHex}" fill-opacity="${op}" filter="url(#${gid})"><title>Predicted ~${b.mid.toFixed(0)}% — actual ${b.acc.toFixed(1)}% (n=${b.n})</title></circle>`
+      +`<rect x="${(x-lw/2).toFixed(1)}" y="${(ly-9).toFixed(1)}" width="${lw.toFixed(1)}" height="13" rx="3" fill="rgba(4,0,12,.72)"/>`
+      +`<text x="${x.toFixed(1)}" y="${(ly+1).toFixed(1)}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="rgba(230,230,255,${dim?0.55:0.9})">${lbl}</text>`;
+  }).join('');
+  return`<svg viewBox="0 0 ${W} ${H}" width="100%" height="280" role="img" aria-label="Calibration curve: predicted win probability vs actual win rate">`
+    +`<defs>${_vzGlowDefs(gid,colorHex,3)}</defs>`
+    +gridY+gridX+diag
+    +`<path d="${path}" fill="none" stroke="${colorHex}" stroke-width="2.5" filter="url(#${gid})"/>`
+    +dots
+    +`<text x="${ML}" y="14" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.7)">ACTUAL WIN RATE ↑</text>`
+    +`<text x="${W-MR}" y="${H-6}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.7)">PREDICTED WIN PROB →</text>`
+    +`</svg>`;
+}
+function _vzCalibrationCardHTML(allSettled){
+  const withProb=allSettled.filter(p=>p.winProb!=null);
+  if(withProb.length<10)return _vzEmptyCardHTML('RELIABILITY CURVE — PREDICTED VS ACTUAL','Needs at least 10 settled, probability-tagged bets to plot a meaningful curve.');
+  const tabs=[];
+  const pushTab=(label,bets,hex)=>{
+    if(bets.length<10)return;
+    const svg=_vzCalibrationChartSVG(bets,hex,8);
+    if(!svg)return;
+    tabs.push({label,svg:`<div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-bottom:6px">${bets.length} settled, probability-tagged bets</div>${svg}`});
+  };
+  pushTab('ALL',withProb,'#00f0ff');
+  _VZ_LEAGUE_CODES.forEach(code=>pushTab(code,withProb.filter(p=>window._normSport(p)===code),_VZ_LEAGUE_HEX[code]||'#00f0ff'));
+  return`<div class="card" style="margin-bottom:14px">
+    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="nc"></span> RELIABILITY CURVE — PREDICTED VS ACTUAL</div>
+    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Buckets every settled pick by the win probability the model gave it at lock time, then plots how often that bucket actually won. The dashed diagonal is "perfectly calibrated" — a curve sitting below it means the model was overconfident there. Small/faint points are low-sample buckets (under 8 bets) and shouldn't be trusted as hard as the bigger ones. Switch leagues below — this is the exact view that caught SHL/LIIGA/NLA/Extraliga grading PREMIUM at ~75% predicted while actually hitting 50-65%; averaging all hockey together would hide that.</div>
+    ${tabs.length?_radarTabPanelHTML('vzcalib',tabs):'<div class="empty">NO SINGLE LEAGUE HAS 10+ PROBABILITY-TAGGED SETTLED BETS YET</div>'}
+  </div>`;
+}
+
+// ── #2: Equity curve ───────────────────────────────────────────────────
+// Running cumulative units won/lost, in real settlement order — an area
+// + line chart (gradient fill under the curve, glow stroke) so drawdowns
+// and hot streaks are visible, not just the single final number.
+function _vzEquityChartSVG(bets,colorHex){
+  if(bets.length<2)return null;
+  let cum=0;
+  const series=bets.map(p=>{cum+=_vzPnl(p);return cum;});
+  const n=series.length;
+  const minV=Math.min(0,...series),maxV=Math.max(0,...series);
+  const span=(maxV-minV)||1;
+  const W=640,H=300,ML=54,MR=14,MT=24,MB=24;
+  const plotW=W-ML-MR,plotH=H-MT-MB;
+  const xOf=i=>ML+(n===1?0:(i/(n-1))*plotW);
+  const yOf=v=>MT+plotH-((v-minV)/span)*plotH;
+  const zeroY=yOf(0);
+  const pts=series.map((v,i)=>[xOf(i),yOf(v)]);
+  const path=_vzOpenSplinePath(pts);
+  const areaPath=path+` L${pts[n-1][0].toFixed(1)},${zeroY.toFixed(1)} L${pts[0][0].toFixed(1)},${zeroY.toFixed(1)} Z`;
+  const gid='vzEqGlow'+Math.round(Math.random()*1e9);
+  const gradId='vzEqGrad'+Math.round(Math.random()*1e9);
+  const lineCol=series[n-1]>=0?'#00e644':'#ff2090';
+  const steps=4,gridY=[];
+  for(let i=0;i<=steps;i++){const v=minV+span*(i/steps);gridY.push(`<line x1="${ML}" y1="${yOf(v).toFixed(1)}" x2="${W-MR}" y2="${yOf(v).toFixed(1)}" stroke="rgba(255,255,255,.06)" stroke-width="1"/><text x="${ML-7}" y="${(yOf(v)+4).toFixed(1)}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.55)">${v>=0?'+':''}${v.toFixed(1)}u</text>`);}
+  const zeroLine=(minV<0&&maxV>0)?`<line x1="${ML}" y1="${zeroY.toFixed(1)}" x2="${W-MR}" y2="${zeroY.toFixed(1)}" stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-dasharray="3,3"/>`:'';
+  return`<svg viewBox="0 0 ${W} ${H}" width="100%" height="280" role="img" aria-label="Cumulative units won or lost over time">`
+    +`<defs>${_vzGlowDefs(gid,lineCol,3)}<linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${lineCol}" stop-opacity="0.35"/><stop offset="100%" stop-color="${lineCol}" stop-opacity="0.02"/></linearGradient></defs>`
+    +gridY.join('')+zeroLine
+    +`<path d="${areaPath}" fill="url(#${gradId})" stroke="none"/>`
+    +`<path d="${path}" fill="none" stroke="${lineCol}" stroke-width="2.5" filter="url(#${gid})"/>`
+    +`<circle cx="${pts[n-1][0].toFixed(1)}" cy="${pts[n-1][1].toFixed(1)}" r="4.5" fill="${lineCol}" filter="url(#${gid})"/>`
+    +`<text x="${W-MR}" y="16" text-anchor="end" font-family="var(--mono)" font-size="12" fill="${lineCol}">FINAL: ${series[n-1]>=0?'+':''}${series[n-1].toFixed(1)}u</text>`
+    +`</svg>`;
+}
+function _vzEquityCardHTML(allSettled){
+  if(allSettled.length<10)return _vzEmptyCardHTML('EQUITY CURVE — CUMULATIVE UNITS','Needs at least 10 settled bets to show a meaningful curve.','pc');
+  const tabs=[];
+  const pushTab=(label,bets,hex)=>{if(bets.length<5)return;const svg=_vzEquityChartSVG(bets,hex);if(!svg)return;tabs.push({label,svg});};
+  pushTab('ALL',allSettled,'#00f0ff');
+  _VZ_SPORT_GROUPS.forEach(g=>pushTab(g.label,allSettled.filter(p=>g.codes.includes(window._normSport(p))),g.hex));
+  return`<div class="card" style="margin-bottom:14px">
+    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="pc"></span> EQUITY CURVE — CUMULATIVE UNITS</div>
+    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Running total of units won/lost, in the order bets actually settled. Shows real drawdowns and hot streaks along the way, not just a single end number.</div>
+    ${tabs.length?_radarTabPanelHTML('vzequity',tabs):'<div class="empty">NOT ENOUGH DATA YET</div>'}
+  </div>`;
+}
+
+// ── #3: Sport × confidence-tier heatmap ───────────────────────────────
+// Each tier claims a minimum win-probability floor — the exact thresholds
+// tier() itself grades every real pick with (LEAN 55%+, OPTIMAL 62%+,
+// PREMIUM 67%+; see tier()'s own `if(p>=.67&&e>=.05)return 3;...` ladder
+// and renderBySportAnalytics' calBands, which already uses these same
+// cutoffs for its own CALIBRATION rows) — used here as the "claimed"
+// floor since the app has never defined a separate target-accuracy table
+// per tier; grading floor is the only real, already-established number to
+// compare actual settled accuracy against. _gradeLabel(p) recomputes each
+// pick's tier from its stored winProb/decOdds/betType the same way the
+// rest of the app does, rather than trusting a possibly-stale label.
+function _vzTierHeatmapHTML(allSettled){
+  const TIERS=[{k:'LEAN',floor:55},{k:'OPTIMAL',floor:62},{k:'PREMIUM',floor:67}];
+  const rows=_VZ_SPORT_GROUPS.map(g=>{
+    const bets=allSettled.filter(p=>g.codes.includes(window._normSport(p)));
+    const cells=TIERS.map(t=>{
+      const tb=bets.filter(p=>_gradeLabel(p)===t.k);
+      if(tb.length<5)return{empty:true,n:tb.length};
+      const w=tb.filter(p=>p.outcome==='win').length;
+      const acc=w/tb.length*100;
+      return{empty:false,n:tb.length,acc,delta:acc-t.floor};
+    });
+    return{label:g.label,color:g.color,cells};
+  }).filter(r=>r.cells.some(c=>!c.empty));
+  if(!rows.length)return null;
+  const header=TIERS.map(t=>`<div style="text-align:center;font-family:var(--mono);font-size:12px;color:var(--t3);letter-spacing:1px">${t.k}<br><span style="font-size:10px;opacity:.7">claims ${t.floor}%+</span></div>`).join('');
+  const body=rows.map(r=>{
+    const cellsHtml=r.cells.map(c=>{
+      if(c.empty)return`<div style="text-align:center;padding:14px 4px;font-family:var(--mono);font-size:11px;color:var(--t3);background:rgba(255,255,255,.02);border-radius:4px">n/a${c.n?' (n='+c.n+')':''}</div>`;
+      const bg=_vzDeltaColor(c.delta,15);
+      const glow=Math.abs(c.delta)>=5?`0 0 14px ${c.delta>=0?'rgba(0,230,68,.35)':'rgba(255,32,96,.35)'}`:'none';
+      return`<div style="text-align:center;padding:9px 4px;border-radius:4px;background:${bg};box-shadow:${glow};border:1px solid rgba(255,255,255,.08)">`
+        +`<div style="font-family:var(--orb);font-size:17px;font-weight:700;color:var(--t)">${c.acc.toFixed(0)}%</div>`
+        +`<div style="font-family:var(--mono);font-size:10px;color:var(--t2)">${c.delta>=0?'+':''}${c.delta.toFixed(1)}pp · n${c.n}</div>`
+        +`</div>`;
+    }).join('');
+    return`<div style="display:grid;grid-template-columns:78px 1fr 1fr 1fr;gap:5px;align-items:center;margin-bottom:6px">`
+      +`<div style="font-family:var(--orb);font-size:13px;font-weight:700;color:${r.color}">${r.label}</div>`
+      +cellsHtml+`</div>`;
+  }).join('');
+  return`<div style="display:grid;grid-template-columns:78px 1fr 1fr 1fr;gap:5px;margin-bottom:8px"><div></div>${header}</div>${body}`;
+}
+function _vzTierCardHTML(allSettled){
+  const grid=_vzTierHeatmapHTML(allSettled);
+  if(!grid)return _vzEmptyCardHTML('SPORT × CONFIDENCE TIER — REAL VS CLAIMED','No sport/tier combination has 5+ settled bets yet.','vc');
+  return`<div class="card" style="margin-bottom:14px">
+    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="vc"></span> SPORT × CONFIDENCE TIER — REAL VS CLAIMED</div>
+    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Each tier (LEAN/OPTIMAL/PREMIUM) claims a minimum win-probability floor — the same 55%/62%/67% cutoffs tier() itself grades every real pick with. Green means that sport is beating its tier's own floor in real settled results; red means it's underdelivering. Cells need at least 5 settled bets to show a number.</div>
+    ${grid}
+  </div>`;
+}
+
+// ── #4: Win/loss streak sparkline strip ───────────────────────────────
+// Same dot-strip visual language as renderOverall's own "PERIOD
+// PERFORMANCE" recent-form strip (formDots — green/push-yellow/red dots
+// with a glow box-shadow, hover/tap tooltip via showDotTip), just one
+// strip per sport instead of one strip for the whole portfolio, so a hot
+// or cold streak in a specific sport is visible at a glance instead of
+// averaged into the aggregate.
+function _vzStreakStripHTML(allSettled){
+  const groups=_VZ_SPORT_GROUPS.map(g=>{
+    const bets=allSettled.filter(p=>g.codes.includes(window._normSport(p)));
+    if(bets.length<5)return null;
+    const recent=bets.slice(-40);
+    const w=recent.filter(p=>p.outcome==='win').length;
+    const l=recent.filter(p=>p.outcome==='loss').length;
+    let streak=0,stType='';
+    for(let i=recent.length-1;i>=0;i--){const o=recent[i].outcome;if(!stType){stType=o;streak=1;}else if(o===stType)streak++;else break;}
+    const dots=recent.map(p=>{
+      const c=p.outcome==='win'?'#00e644':p.outcome==='push'?'#ffdd00':'#ff2090';
+      const tip=`${p.date||''} ${(p.betOn||'').replace(/"/g,"'")} — ${(p.outcome||'').toUpperCase()}`;
+      return`<span class="form-dot" data-tip="${tip.replace(/"/g,"'")}" style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${c};box-shadow:0 0 5px ${c}aa;flex-shrink:0;cursor:pointer" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2000)"></span>`;
+    }).join('');
+    return{label:g.label,color:g.color,dots,w,l,streak,stType,n:recent.length};
+  }).filter(Boolean);
+  if(!groups.length)return null;
+  return groups.map(g=>`<div style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;flex-wrap:wrap;gap:4px">
+      <span style="font-family:var(--orb);font-size:15px;font-weight:700;color:${g.color}">${g.label}</span>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--t3)">last ${g.n} · <span style="color:#00e644">${g.w}W</span>-<span style="color:#ff2090">${g.l}L</span>${g.streak>=3?` · <span style="color:${g.stType==='win'?'#00e644':'#ff2090'}">${g.streak}${g.stType==='win'?'W':'L'} streak</span>`:''}</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px">${g.dots}</div>
+  </div>`).join('');
+}
+function _vzStreakCardHTML(allSettled){
+  const strip=_vzStreakStripHTML(allSettled);
+  if(!strip)return _vzEmptyCardHTML('RECENT FORM — WIN/LOSS STREAKS BY SPORT','No sport has 5+ settled bets yet.','hc');
+  return`<div class="card" style="margin-bottom:14px">
+    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="hc"></span> RECENT FORM — WIN/LOSS STREAKS BY SPORT</div>
+    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Each dot is one settled bet, oldest→newest left to right (last 40 per sport). Green = win, pink = loss, yellow = push. Hover or tap a dot for the matchup.</div>
+    ${strip}
+  </div>`;
+}
+
+// ── #5: Player prop trend sparklines ──────────────────────────────────
+// Reuses _vzPlayerPropAggregates() (the same aggregation
+// renderByPlayerAnalytics itself calls, extracted from that function this
+// session specifically so this wouldn't need a second, divergent copy of
+// its name-parsing/league-filtering logic) and adds a per-player recent-
+// form dot strip next to the existing hit-rate number.
+function _vzPlayerSparklineSectionHTML(){
+  const players=_vzPlayerPropAggregates().filter(p=>(p.w+p.l)>=3).slice(0,16);
+  if(!players.length)return _vzEmptyCardHTML('PLAYER PROP FORM — RECENT TREND','Needs players with at least 3 settled prop bets.','mc');
+  const rows=players.map(pl=>{
+    const n=pl.w+pl.l;const acc=n?pl.w/n:null;
+    const recent=pl.bets.slice(-10);
+    const dots=recent.map(p=>{
+      const c=p.outcome==='win'?'#00e644':p.outcome==='push'?'#ffdd00':'#ff2090';
+      return`<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c};box-shadow:0 0 4px ${c}aa;flex-shrink:0"></span>`;
+    }).join('');
+    return`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.06);border-radius:3px;margin-bottom:5px">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${pl.name}</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--pc)">${pl.sport||'—'} · ${n} props</div>
+      </div>
+      <div style="display:flex;gap:3px;flex-shrink:0">${dots}</div>
+      <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:${acc!=null&&acc>=.55?'#00e644':acc!=null&&acc<.45?'#ff2090':'var(--t3)'};min-width:38px;text-align:right;flex-shrink:0">${acc!==null?(acc*100).toFixed(0)+'%':'--'}</div>
+    </div>`;
+  }).join('');
+  return`<div class="card" style="margin-bottom:14px">
+    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="mc"></span> PLAYER PROP FORM — RECENT TREND</div>
+    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Each row's dot strip is that player's last 10 settled prop bets (oldest→newest, left→right) next to their all-time hit rate — a quick read on who's hot or cold right now. Top ${players.length} players by bet volume.</div>
+    ${rows}
+  </div>`;
+}
+
+// ── #6: Model confidence vs outcome (scoped down from ensemble agreement) ─
+// See the big comment at the top of this section for why: MC/Bayesian/Elo
+// component probabilities aren't persisted per locked pick today. This
+// plots the one confidence number that IS persisted — winProb — against
+// the real outcome (jittered so overlapping points stay visible), with a
+// bucketed real-win-rate trend curve overlaid as a rough visual stand-in
+// for "does more model confidence actually track with being right."
+function _vzConfidenceScatterSVG(bets,colorHex){
+  if(bets.length<15)return null;
+  const W=640,H=300,ML=46,MR=14,MT=20,MB=38;
+  const plotW=W-ML-MR,plotH=H-MT-MB;
+  const xFrac=wp=>Math.max(0,Math.min(1,(wp*100-40)/60)); // map 40%-100% winProb across the plot
+  const winY=MT+plotH*0.16,lossY=MT+plotH*0.84;
+  const pts=bets.map(p=>{
+    const x=ML+xFrac(p.winProb)*plotW+(Math.random()-0.5)*9;
+    const yBase=p.outcome==='win'?winY:lossY;
+    const y=yBase+(Math.random()-0.5)*plotH*0.26;
+    return{x,y,win:p.outcome==='win'};
+  });
+  const dots=pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${p.win?'#00e644':'#ff2090'}" fill-opacity="0.5"/>`).join('');
+  const buckets=[];
+  for(let lo=40;lo<100;lo+=10){
+    const bb=bets.filter(p=>{const wp=p.winProb*100;return wp>=lo&&wp<lo+10;});
+    if(bb.length>=5){const w=bb.filter(p=>p.outcome==='win').length;buckets.push([ML+xFrac((lo+5)/100)*plotW, lossY-(w/bb.length)*(lossY-winY)]);}
+  }
+  const trendPath=buckets.length>=2?_vzOpenSplinePath(buckets):'';
+  const gid='vzScatGlow'+Math.round(Math.random()*1e9);
+  const axisX=[40,55,70,85,100].map(v=>`<text x="${(ML+xFrac(v/100)*plotW).toFixed(1)}" y="${H-MB+18}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.55)">${v}%</text>`).join('');
+  return`<svg viewBox="0 0 ${W} ${H}" width="100%" height="280" role="img" aria-label="Model confidence vs actual outcome scatter">`
+    +`<defs>${_vzGlowDefs(gid,colorHex,3)}</defs>`
+    +`<line x1="${ML}" y1="${winY.toFixed(1)}" x2="${W-MR}" y2="${winY.toFixed(1)}" stroke="rgba(0,230,68,.25)" stroke-width="1"/>`
+    +`<text x="${ML-6}" y="${(winY+4).toFixed(1)}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="rgba(0,230,68,.7)">WIN</text>`
+    +`<line x1="${ML}" y1="${lossY.toFixed(1)}" x2="${W-MR}" y2="${lossY.toFixed(1)}" stroke="rgba(255,32,144,.25)" stroke-width="1"/>`
+    +`<text x="${ML-6}" y="${(lossY+4).toFixed(1)}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="rgba(255,32,144,.7)">LOSS</text>`
+    +axisX+dots
+    +(trendPath?`<path d="${trendPath}" fill="none" stroke="${colorHex}" stroke-width="2.5" filter="url(#${gid})"/>`:'')
+    +`<text x="${W-MR}" y="14" text-anchor="end" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.7)">MODEL CONFIDENCE (winProb) →</text>`
+    +`</svg>`;
+}
+function _vzConfidenceScatterSectionHTML(allSettled){
+  const withProb=allSettled.filter(p=>p.winProb!=null);
+  if(withProb.length<15)return _vzEmptyCardHTML('MODEL CONFIDENCE VS OUTCOME','Needs at least 15 settled, probability-tagged bets.','vc');
+  const svg=_vzConfidenceScatterSVG(withProb,'#bbff00');
+  return`<div class="card" style="margin-bottom:14px">
+    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="vc"></span> MODEL CONFIDENCE VS OUTCOME</div>
+    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Originally scoped as an ensemble-agreement chart — how much the MC/Bayesian/Elo components disagreed on a game vs whether the pick was right. Those three numbers are only ever computed on the fly when a card renders and aren't saved onto the locked pick itself, so there's no real per-pick disagreement signal in the ledger to plot honestly. This instead plots the one confidence number that IS persisted — the model's final blended win probability — against the real outcome (dots jittered so overlapping points stay visible). The curve is the real win-rate trend across that same confidence range.</div>
+    ${svg||'<div class="empty">NOT ENOUGH DATA</div>'}
+  </div>`;
+}
+
+// ── #7: Bet-type × sport ROI matrix ───────────────────────────────────
+function _vzTypeOf(p){
+  const bt=(p.betType||'').toUpperCase();
+  if(bt==='RL'||bt==='SPREAD'||bt==='ATS'||bt==='PL')return'SPREAD';
+  if(bt==='OU'||bt==='TOTAL')return'OU';
+  if(bt==='PROP')return'PROP';
+  if(bt==='ML')return'ML';
+  return null;
+}
+function _vzRoiMatrixHTML(allSettled){
+  const TYPES=['ML','SPREAD','OU','PROP'];
+  const rows=_VZ_SPORT_GROUPS.map(g=>{
+    const bets=allSettled.filter(p=>g.codes.includes(window._normSport(p)));
+    const cells=TYPES.map(t=>{
+      const tb=bets.filter(p=>_vzTypeOf(p)===t);
+      if(tb.length<5)return{empty:true,n:tb.length};
+      const units=tb.reduce((a,p)=>a+_vzPnl(p),0);
+      return{empty:false,n:tb.length,units,roi:units/tb.length*100};
+    });
+    return{label:g.label,color:g.color,cells};
+  }).filter(r=>r.cells.some(c=>!c.empty));
+  if(!rows.length)return null;
+  const header=TYPES.map(t=>`<div style="text-align:center;font-family:var(--mono);font-size:12px;color:var(--t3);letter-spacing:1px">${t}</div>`).join('');
+  const body=rows.map(r=>{
+    const cellsHtml=r.cells.map(c=>{
+      if(c.empty)return`<div style="text-align:center;padding:14px 4px;font-family:var(--mono);font-size:11px;color:var(--t3);background:rgba(255,255,255,.02);border-radius:4px">n/a${c.n?' (n='+c.n+')':''}</div>`;
+      const bg=_vzDeltaColor(c.roi,25);
+      const glow=Math.abs(c.roi)>=10?`0 0 14px ${c.roi>=0?'rgba(0,230,68,.35)':'rgba(255,32,96,.35)'}`:'none';
+      return`<div style="text-align:center;padding:9px 4px;border-radius:4px;background:${bg};box-shadow:${glow};border:1px solid rgba(255,255,255,.08)">`
+        +`<div style="font-family:var(--orb);font-size:16px;font-weight:700;color:var(--t)">${c.roi>=0?'+':''}${c.roi.toFixed(1)}%</div>`
+        +`<div style="font-family:var(--mono);font-size:10px;color:var(--t2)">${c.units>=0?'+':''}${c.units.toFixed(1)}u · n${c.n}</div>`
+        +`</div>`;
+    }).join('');
+    return`<div style="display:grid;grid-template-columns:72px 1fr 1fr 1fr 1fr;gap:4px;align-items:center;margin-bottom:6px">`
+      +`<div style="font-family:var(--orb);font-size:13px;font-weight:700;color:${r.color}">${r.label}</div>`
+      +cellsHtml+`</div>`;
+  }).join('');
+  return`<div style="display:grid;grid-template-columns:72px 1fr 1fr 1fr 1fr;gap:4px;margin-bottom:8px"><div></div>${header}</div>${body}`;
+}
+function _vzRoiCardHTML(allSettled){
+  const grid=_vzRoiMatrixHTML(allSettled);
+  if(!grid)return _vzEmptyCardHTML('BET TYPE × SPORT — ROI','No sport/bet-type combination has 5+ settled bets yet.','gc');
+  return`<div class="card" style="margin-bottom:14px">
+    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="gc"></span> BET TYPE × SPORT — ROI</div>
+    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Real return on investment per unit staked, broken out by sport and bet type. Green cells are profitable, red are not — unit total and sample size are shown underneath so a hot cell with 5 bets doesn't look as trustworthy as one with 60.</div>
+    ${grid}
+  </div>`;
+}
+
+// ── Top-level dispatcher — wired to the VISUALS sub-nav button/setSub ──
+function renderAnalyticsVisuals(){
+  const el=document.getElementById('analytics-visuals-content');if(!el)return;
+  const allSettled=_vzSettled();
+  if(!allSettled.length){el.innerHTML=_vzEmptyCardHTML('ANALYTICS VISUALS','No settled bets yet — every chart below needs real graded history to plot.');return;}
+  el.innerHTML=_vzCalibrationCardHTML(allSettled)
+    +_vzEquityCardHTML(allSettled)
+    +_vzTierCardHTML(allSettled)
+    +_vzStreakCardHTML(allSettled)
+    +_vzPlayerSparklineSectionHTML()
+    +_vzConfidenceScatterSectionHTML(allSettled)
+    +_vzRoiCardHTML(allSettled);
+}
+window.renderAnalyticsVisuals=renderAnalyticsVisuals;
+
 /* ── Window exports for standalone Simulator + Tracker ──────────── */
 window.getP    = typeof getP    ==='function' ? getP    : function(){return [];};
 window.lockPick= typeof lockPick==='function' ? lockPick: function(){};
