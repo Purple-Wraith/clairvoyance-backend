@@ -4839,8 +4839,17 @@ def main() -> None:
     # WC26_SCHEDULE already uses (_wc_name_to_abbr).
     pl_best_odds   = fetch_best_odds("pl",   [], name_resolver=_soccer_club_key) if S in ("soccer","all") else {}
     liga_best_odds = fetch_best_odds("liga", [], name_resolver=_soccer_club_key) if S in ("soccer","all") else {}
-    bl_best_odds   = fetch_best_odds("bl",   [], name_resolver=_soccer_club_key) if S in ("soccer","all") else {}
-    mls_best_odds = fetch_best_odds("mls", [], name_resolver=_soccer_club_key) if S in ("soccer","all") else {}
+    # bl_best_odds/mls_best_odds hardcoded empty 2026-10-01 -- real bug found
+    # in this retired-league audit, same class as mls_stats/mls_standings/
+    # mls_schedule/mls_rosters above: both Bundesliga (2026-09-23) and MLS
+    # (2026-09-27) are fully retired, but this kept calling fetch_best_odds()
+    # live against the Odds API for both every "soccer"/"all" run. Neither
+    # was ever actually consumed downstream either way -- _backfill_odds()
+    # a few lines below only ever applies to mlb/nba/nhl/wnba, never to any
+    # soccer league, so this was a live fetch for a retired league feeding a
+    # bestOddsExt.bl/bestOddsExt.mls key nothing in docs/app.html reads.
+    bl_best_odds: dict = {}  # Bundesliga retired 2026-09-23
+    mls_best_odds: dict = {}  # MLS retired 2026-09-27
     wc_best_odds: dict = {}  # World Cup retired 2026-09-08
 
     # Backfill real book odds into game objects so the app displays them
