@@ -2107,7 +2107,27 @@ async function _doSupabaseSync(){
     // reconciling first guarantees this device only ever pushes its own
     // genuinely-known state, not a stale echo of an old one.
     try{if(typeof syncPicksFromSupabase==='function')await syncPicksFromSupabase();}catch(e){}
-    const bets=(typeof getP==='function'?getP():[]).filter(p=>p&&p.id);
+    // Real usage problem, found 2026-10-02 (explicit request to cut
+    // Supabase usage after a prior real outage -- see _fetchSupabaseBetRows'
+    // own 2026-09-13 incident comment): this used to re-upload the ENTIRE
+    // ledger every single sync cycle, not just what actually changed. The
+    // pull side was already correctly scoped (sinceDays=10 by default,
+    // see _fetchSupabaseBetRows), but the push side re-sent every bet ever
+    // recorded, forever, on every debounced sync -- confirmed live, the
+    // real ledger is 3700+ rows and grows daily, so every single lock or
+    // settle action (many times a day across a dozen sports) was pushing
+    // the FULL historical table, not the handful of rows that actually
+    // changed. A fully-settled bet from 3 months ago can never change
+    // again, so re-sending it costs real egress/write quota for zero
+    // benefit. Scoped the same way the pull side already is: every
+    // pending bet (can still change outcome at any time, never safe to
+    // skip) plus anything with a game date in the last 21 days (covers a
+    // late manual correction or a settle that landed a few days after the
+    // game, with real margin) -- older, already-settled history never
+    // gets re-pushed since Supabase already has it from when it first
+    // settled.
+    const _pushCutoff=new Date(Date.now()-21*86400000).toISOString().slice(0,10);
+    const bets=(typeof getP==='function'?getP():[]).filter(p=>p&&p.id&&(p.outcome==='pending'||(p.date||'')>=_pushCutoff));
     if(!bets.length)return;
     const rows=bets.map(_supabaseBetRow);
     // PostgREST request bodies aren't unlimited — chunk into batches.
