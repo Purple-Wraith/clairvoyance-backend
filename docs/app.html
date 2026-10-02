@@ -8296,8 +8296,10 @@ async function _autoSettleFlashscoreHockey(targetDate,loadFn,sportTag){
           const covered=diff+cls.line;
           outcome=covered>0?'win':covered<0?'loss':'push';
         }else{
-          if(p.betOn===hn)outcome=hs>as?'win':'loss';
-          else if(p.betOn===an)outcome=as>hs?'win':'loss';
+          // Manual picks are stored as "<Team> ML" (every other settle path -- CFB/soccer/ESPN -- accepts that spelling; this
+          // one only accepted the bare team name, so those picks sat pending forever even with a final score in the file).
+          if(p.betOn===hn||p.betOn===hn+' ML')outcome=hs>as?'win':'loss';
+          else if(p.betOn===an||p.betOn===an+' ML')outcome=as>hs?'win':'loss';
         }
         if(outcome){p.outcome=outcome;p.settledAt=Date.now();p.hScore=hs;p.aScore=as;changed=true;
           toast(`✓ AUTO-SETTLED: ${p.betOn} ${outcome.toUpperCase()}`,outcome==='win'?'#00e644':outcome==='loss'?'#ff1a1a':'#ff9000');
