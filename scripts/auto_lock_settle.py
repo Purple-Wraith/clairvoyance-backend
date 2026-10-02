@@ -2707,7 +2707,9 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
         return 0
 
     if not qualifying:
-        rep["complete"] = not analysis["noPrice"] and not guard.get("skipped")
+        # "complete" gates the workflow marker: nothing MORE can be locked. A leg skipped because its game started is final
+        # (nothing later can lock it), so skips do not make a pass incomplete; only upcoming games with no real price do.
+        rep["complete"] = not analysis["noPrice"]
         ok_email, why = _zero_pick_decision(qualifying, guard, rep["complete"])
         if send_email and ok_email:
             send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to)
@@ -2819,7 +2821,9 @@ def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
             continue
 
         if not qualifying:
-            rep["complete"] = not analysis["noPrice"] and not guard.get("skipped")
+            # "complete" gates the workflow marker: nothing MORE can be locked. A leg skipped because its game started is final
+            # (nothing later can lock it), so skips do not make a pass incomplete; only upcoming games with no real price do.
+            rep["complete"] = not analysis["noPrice"]
             ok_email, why = _zero_pick_decision(qualifying, guard, rep["complete"])
             if send_email and ok_email:
                 send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to)
@@ -2901,7 +2905,9 @@ def _run_rolling_pass(page, live: bool, send_email: bool, to: list[str] | None, 
         return 0
 
     if not qualifying:
-        rep["complete"] = not analysis["noPrice"] and not guard.get("skipped")
+        # "complete" gates the workflow marker: nothing MORE can be locked. A leg skipped because its game started is final
+        # (nothing later can lock it), so skips do not make a pass incomplete; only upcoming games with no real price do.
+        rep["complete"] = not analysis["noPrice"]
         ok_email, why = _zero_pick_decision(qualifying, guard, rep["complete"])
         if send_email and ok_email:
             send_locks_email(qualifying, live=True, locked_count=0, label=email_label, to=to, date_str=dates[-1])
