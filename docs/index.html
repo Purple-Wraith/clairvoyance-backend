@@ -15793,7 +15793,65 @@ function renderCrossDeviceSync(){
       </div>`).join('')}
     </div>`;
   }
+  // ── Sync debug panel — added 2026-10-02, exactly the sync-drift bug
+  // class found and fixed earlier this session (a long-lived mobile PWA
+  // session falling behind desktop because it only ever ran the scoped
+  // 10-day pull -- see syncPicksFromSupabase's own comment). Makes that
+  // debuggable without opening devtools: real cv_last_full_pull_ts, local
+  // vs remote bet counts, and a manual full-resync button that reuses
+  // syncPicksFromSupabase(true) directly rather than a new sync path.
+  html+=`<div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin:14px 0 6px">// SYNC DEBUG</div>
+  <div class="card" style="margin-bottom:12px;padding:12px">
+    <div id="sync-debug-body"><div class="loading"><span class="spi"></span> LOADING SYNC DEBUG…</div></div>
+    <button class="btn btn-o btn-fw" style="padding:10px;margin-top:10px" onclick="_forceFullResync(this)">⟳ FORCE FULL RESYNC</button>
+  </div>`;
   el.innerHTML=html;
+  _renderSyncDebugPanel();
+}
+// Count-only Supabase query -- PostgREST's `Prefer: count=exact` header
+// returns the real total row count via the Content-Range response
+// header (e.g. "0-0/3721" or, on a HEAD request with no rows returned,
+// "*/3721"), with select=id + method:HEAD keeping the actual payload
+// near-zero bytes. Deliberately not pulling every row just to count
+// them -- that would defeat this session's own earlier Supabase-egress
+// reduction work (see _fetchSupabaseBetRows's sinceDays comment, the
+// real 2026-09-15 incident that fix addresses).
+async function _sbCountOnly(){
+  const r=await fetch(SUPABASE_URL+'/rest/v1/bets?select=id',{
+    method:'HEAD',
+    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Prefer':'count=exact'},
+  });
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const cr=r.headers.get('content-range');
+  const m=cr&&cr.match(/\/(\d+)$/);
+  if(!m)throw new Error('no count in Content-Range header');
+  return parseInt(m[1],10);
+}
+async function _renderSyncDebugPanel(){
+  const body=document.getElementById('sync-debug-body');if(!body)return;
+  const lastFullTs=parseInt(localStorage.getItem('cv_last_full_pull_ts')||'0',10);
+  const lastFullTxt=lastFullTs?`${_ehAgo(Date.now()-lastFullTs)} (${new Date(lastFullTs).toLocaleString()})`:'NEVER (no full pull recorded on this device yet)';
+  const localCount=getP().length;
+  let remoteCount=null,remoteErr=null;
+  try{remoteCount=await _sbCountOnly();}catch(e){remoteErr=e.message||'FETCH FAILED';}
+  const diff=(remoteCount!=null)?(localCount-remoteCount):null;
+  const diffColor=diff==null?'var(--t3)':diff===0?'#00e644':Math.abs(diff)>5?'#ff1a1a':'#ff9000';
+  body.innerHTML=`<div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.9">
+    <div>LAST FULL SYNC: <span style="color:var(--t3)">${_ehEsc(lastFullTxt)}</span></div>
+    <div>LOCAL BET COUNT: <span style="color:var(--nc)">${localCount}</span></div>
+    <div>REMOTE BET COUNT (Supabase): <span style="color:${remoteErr?'#ff9000':'var(--nc)'}">${remoteErr?_ehEsc(remoteErr):remoteCount}</span></div>
+    ${diff!=null?`<div>DIFFERENCE (local − remote): <span style="color:${diffColor}">${diff>0?'+':''}${diff}</span></div>`:''}
+  </div>`;
+}
+async function _forceFullResync(btn){
+  if(btn){btn.disabled=true;btn.textContent='⏳ RESYNCING…';}
+  try{
+    await syncPicksFromSupabase(true);
+    toast('// FULL RESYNC COMPLETE');
+  }catch(e){
+    toast('// RESYNC FAILED: '+(e.message||e));
+  }
+  renderCrossDeviceSync();
 }
 
 // ── Engine Health — glanceable automation + CI status (added 2026-10-02) ───
