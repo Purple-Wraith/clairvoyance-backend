@@ -3595,10 +3595,11 @@ function _mcLineScore(mc,side,ouLine,opts){
   if((side==='over'||side==='under')&&mc.overP!=null&&ouLine!=null){
     const p=side==='over'?mc.overP:1-mc.overP;
     extra=` — ${side.toUpperCase()} hits ${(p*100).toFixed(1)}% of outcomes vs the ${ouLine} line`;
-  }else if(side==='plFav'&&mc.rl15!=null){
-    extra=` — favorite covers -1.5 in ${(mc.rl15*100).toFixed(1)}% of outcomes`;
-  }else if(side==='plDog'&&mc.rlN!=null){
-    extra=` — underdog covers +1.5 in ${(mc.rlN*100).toFixed(1)}% of outcomes`;
+  }else if((side==='plFav'||side==='plDog')&&mc.rl15!=null){
+    // opts.homeFav===false: the favorite is the AWAY team, whose -1.5 cover
+    // is rl15A (P(away wins by 2+)), not rl15; the dog's +1.5 is its complement.
+    const favCov=(opts.homeFav===false&&mc.rl15A!=null)?mc.rl15A:mc.rl15;
+    extra=side==='plFav'?` — favorite covers -1.5 in ${(favCov*100).toFixed(1)}% of outcomes`:` — underdog covers +1.5 in ${((1-favCov)*100).toFixed(1)}% of outcomes`;
   }
   const otTxt=mc.otP!=null?` (OT/SO in ${(mc.otP*100).toFixed(0)}% of outcomes)`:'';
   return`Projected ${a.toFixed(1)}–${h.toFixed(1)} (total ${total.toFixed(1)})${otTxt}${extra}, from ${sampleTxt}.`;
@@ -5776,8 +5777,8 @@ function nhlMC(hA,awA,n=25000,marketOU){
   const MIN_GP_FOR_FULL_CONFIDENCE=5;
   const gpConf=Math.min(1,Math.min(h.gp||0,aw.gp||0)/MIN_GP_FOR_FULL_CONFIDENCE);
   const damp=p=>0.5+(p-0.5)*gpConf;
-  const hwPD=damp(hw/n),overPD=damp(ov/n),rl15D=damp(rl15h/n);
-  return{hwP:hwPD,awP:1-hwPD,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:overPD,underP:1-overPD,otP:ot/n,ouLine,rl15:rl15D,rlN:1-rl15D,stEdge,sqEdge,gpConf};
+  const hwPD=damp(hw/n),overPD=damp(ov/n),rl15D=damp(rl15h/n),rl15AD=damp(rl15a/n);
+  return{hwP:hwPD,awP:1-hwPD,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:overPD,underP:1-overPD,otP:ot/n,ouLine,rl15:rl15D,rl15A:rl15AD,rlN:1-rl15D,stEdge,sqEdge,gpConf};
 }
 function nhlEns(hA,awA,marketOU){
   const h=NHL[hA],aw=NHL[awA];if(!h||!aw)return{p:.5};
@@ -5916,7 +5917,7 @@ function renderNHLTonight(){
       const hEV=ev(hP,hD),aEV=ev(aP,aD);
       const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
       const ouP=mc?.overP||.52,ouCS=chipC(ouP,ev(ouP,1.91));
-      const plP=hP>=.5?(mc?.rl15||.38):(mc?.rlN||.38),plCS=chipC(plP,ev(plP,1.87));
+      const plP=hP>=.5?(mc?.rl15||.38):(mc?.rl15A||.38),plCS=chipC(plP,ev(plP,1.87));
       const _nhlPlFavDec=gh.plFavOdds?ml2d(gh.plFavOdds):1.87;
       const _nhlPlDogDec=gh.plDogOdds?ml2d(gh.plDogOdds):2.05;
       const _nhlOuDec=gh.ouOdds?ml2d(gh.ouOdds):1.91;
@@ -5982,8 +5983,8 @@ function renderNHLTonight(){
         const _nhlEns=`${_ensStr1} (${_sigStr1})`;
         if(_bm1.side==='mlFav')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} ML</strong> · ${topTierLabel} · ${_bp1}% · EV ${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Goalies: ${_favGoalie} GSAx +${favGsax.toFixed(1)} vs ${_dogGoalie} GSAx ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)} — ${parseFloat(_gaxDiff)>3?'decisive':'meaningful'} advantage. ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
         else if(_bm1.side==='mlDog')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} ML</strong> · ${topTierLabel} · ${_bp1}% · EV ${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Underdog value: ${_dogGoalie} GSAx ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)} capable of stealing game despite xGF deficit. Dog xGF ${_dogXGF}% / Zone ${_dogZone}% signal competitive game. ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
-        else if(_bm1.side==='plFav'){const _pl1FavMC=(mc?.rl15!=null?mc.rl15:plP),_pl1DogMC=(mc?.rlN!=null?mc.rlN:(1-plP));explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} -1.5</strong> · ${topTierLabel} · ${_bp1}% · EV ${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Fav covers -1.5 in ${(_pl1FavMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl1FavMC*100).toFixed(1)}% fav / ${(_pl1DogMC*100).toFixed(1)}% dog (10k sims). xGF ${_favXGF}% vs ${_dogXGF}% + GF/60 ${_favGF60}. ${_favGoalie} GSAx +${favGsax.toFixed(1)}. ${_nhlCtx}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;}
-        else if(_bm1.side==='plDog'){const _pl1DogMC=(mc?.rlN!=null?mc.rlN:(1-plP)),_pl1FavMC=(mc?.rl15!=null?mc.rl15:plP);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} +1.5</strong> · ${topTierLabel} · ${_bp1}% · EV ${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Dog covers +1.5 in ${(_pl1DogMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl1FavMC*100).toFixed(1)}% fav / ${(_pl1DogMC*100).toFixed(1)}% dog (10k sims). ${_dogGoalie} GSAx ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)} limits damage. Dog Zone% ${_dogZone} / GF60 ${_dogGF60}. ${_nhlCtx}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;}
+        else if(_bm1.side==='plFav'){const _pl1FavMC=plP,_pl1DogMC=1-plP;explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} -1.5</strong> · ${topTierLabel} · ${_bp1}% · EV ${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Fav covers -1.5 in ${(_pl1FavMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl1FavMC*100).toFixed(1)}% fav / ${(_pl1DogMC*100).toFixed(1)}% dog (10k sims). xGF ${_favXGF}% vs ${_dogXGF}% + GF/60 ${_favGF60}. ${_favGoalie} GSAx +${favGsax.toFixed(1)}. ${_nhlCtx}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;}
+        else if(_bm1.side==='plDog'){const _pl1DogMC=1-plP,_pl1FavMC=plP;explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} +1.5</strong> · ${topTierLabel} · ${_bp1}% · EV ${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Dog covers +1.5 in ${(_pl1DogMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl1FavMC*100).toFixed(1)}% fav / ${(_pl1DogMC*100).toFixed(1)}% dog (10k sims). ${_dogGoalie} GSAx ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)} limits damage. Dog Zone% ${_dogZone} / GF60 ${_dogGF60}. ${_nhlCtx}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;}
         else if(_bm1.side==='over')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${gh.ou}</strong> · ${topTierLabel} · ${_bp1}% · EV ${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Totals play: combined GF/60 ${(parseFloat(_favGF60)+parseFloat(_dogGF60)).toFixed(2)} projects ${(parseFloat(_projH1)+parseFloat(_projA1)).toFixed(1)} goals vs ${gh.ou} line. Pace/speed: ${_favSpd} vs ${_dogSpd} mph (open game). ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
         else explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${gh.ou}</strong> · ${topTierLabel} · ${_bp1}% · EV ${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Low-scoring game: combined ERA ${_gsaxStr} + tight zone entry data projects under the number. GF/60: ${_favGF60} vs ${_dogGF60} — both rotations defensively sound. ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
       }
@@ -6024,7 +6025,7 @@ function renderNHLTonight(){
     const hEV=ev(hP,hD),aEV=ev(aP,aD);
     const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
     const ouP=mc?.overP||.52,ouCS=chipC(ouP,ev(ouP,1.91));
-    const plP=hP>=.5?(mc?.rl15||.38):(mc?.rlN||.38),plCS=chipC(plP,ev(plP,1.87));
+    const plP=hP>=.5?(mc?.rl15||.38):(mc?.rl15A||.38),plCS=chipC(plP,ev(plP,1.87));
     const _nhlPlFavDec2=g.plFavOdds?ml2d(g.plFavOdds):1.87;
     const _nhlPlDogDec2=g.plDogOdds?ml2d(g.plDogOdds):2.05;
     const _nhlOuDec2=g.ouOdds?ml2d(g.ouOdds):1.91;
@@ -6056,8 +6057,8 @@ function renderNHLTonight(){
     if(topTier===0){explanation=`Model finds no qualifying edge (best prob ${(favP*100).toFixed(1)}%). Series pressure creates inefficiency — skip or watch live line movement before ${g.time}.`;}
     else if(_bm2.side==='mlFav'){explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} ML</strong> graded ${topTierLabel} (${_bp2}%, EV ${evPct}%) — top-tier edge against current market pricing. Goaltending heavily favors ${favTeam} (${_g2gsax}). ${_ensStr2} all align. ${_nm2.size}-unit play${_nm2.secStr}.`;}
     else if(_bm2.side==='mlDog'){explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} ML</strong> graded ${topTierLabel} (${_bp2}%, EV ${evPct}%) — value on the underdog. ${_g2gsax} supports a closer game than the line suggests. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
-    else if(_bm2.side==='plFav'){const _pl2FavMC=(mc?.rl15!=null?mc.rl15:plP),_pl2DogMC=(mc?.rlN!=null?mc.rlN:(1-plP));explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} -1.5</strong> graded ${topTierLabel} (${_bp2}%, EV ${evPct}%). Fav covers -1.5 in ${(_pl2FavMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl2FavMC*100).toFixed(1)}% fav / ${(_pl2DogMC*100).toFixed(1)}% dog (10k sims). ${_g2gsax} signals dominant ${favTeam} performance. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
-    else if(_bm2.side==='plDog'){const _pl2DogMC=(mc?.rlN!=null?mc.rlN:(1-plP)),_pl2FavMC=(mc?.rl15!=null?mc.rl15:plP);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} +1.5</strong> graded ${topTierLabel} (${_bp2}%, EV ${evPct}%). Dog covers +1.5 in ${(_pl2DogMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl2FavMC*100).toFixed(1)}% fav / ${(_pl2DogMC*100).toFixed(1)}% dog (10k sims). ${_g2gsax} suggests ${dogTeam} can keep this within a goal. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
+    else if(_bm2.side==='plFav'){const _pl2FavMC=plP,_pl2DogMC=1-plP;explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} -1.5</strong> graded ${topTierLabel} (${_bp2}%, EV ${evPct}%). Fav covers -1.5 in ${(_pl2FavMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl2FavMC*100).toFixed(1)}% fav / ${(_pl2DogMC*100).toFixed(1)}% dog (10k sims). ${_g2gsax} signals dominant ${favTeam} performance. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
+    else if(_bm2.side==='plDog'){const _pl2DogMC=1-plP,_pl2FavMC=plP;explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} +1.5</strong> graded ${topTierLabel} (${_bp2}%, EV ${evPct}%). Dog covers +1.5 in ${(_pl2DogMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl2FavMC*100).toFixed(1)}% fav / ${(_pl2DogMC*100).toFixed(1)}% dog (10k sims). ${_g2gsax} suggests ${dogTeam} can keep this within a goal. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
     else if(_bm2.side==='over'){const _mc2T=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${g.ou||5.5}</strong> graded ${topTierLabel} (${_bp2}%, EV ${evPct}%). MC projects ${_mc2T} goals vs ${g.ou||5.5} line (${(mc?.overP*100||50).toFixed(0)}% over in 10k sims). ${_g2gsax}. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
     else{const _mc2T=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${g.ou||5.5}</strong> graded ${topTierLabel} (${_bp2}%, EV ${evPct}%). MC projects ${_mc2T} goals vs ${g.ou||5.5} line (${((1-(mc?.overP||.5))*100).toFixed(0)}% under in 10k sims). ${_g2gsax} tight goaltending duel. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
     // "Why this pick" capture -- see loop 1 just above for the rationale
@@ -8679,7 +8680,7 @@ function _nhlGameCard(espnEv){
       const hD=ml2d(hML),aD=ml2d(aML);
       const hEV=ev(hP,hD),aEV=ev(aP,aD);
       const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
-      const plP=hP>=.5?(_nhlMcD?.rl15??.38):(_nhlMcD?.rlN??.38),plCS=chipC(plP,ev(plP,1.87));
+      const plP=hP>=.5?(_nhlMcD?.rl15??.38):(_nhlMcD?.rl15A??.38),plCS=chipC(plP,ev(plP,1.87));
       const ouP=_nhlMcD?.overP??.52,ouD=ml2d('-110'),ouCS=chipC(ouP,ev(ouP,ouD));
       const seriesNote=hNHL.series||aNHL.series||'';
       // Engine reasoning — best-market evaluation across ML, puck line, O/U
@@ -8724,8 +8725,8 @@ function _nhlGameCard(espnEv){
         // same card.
         if(_bm3.side==='mlFav')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFav3} ML</strong> graded ${topTierLabel} (${_bp3}%, EV ${_ep3}%)${_sn} — shot quality, xGF, and GSAx all strongly favor ${_nhlFav3}. ${_nm3.size}-unit play${_nm3.secStr}.`;
         else if(_bm3.side==='mlDog')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDog3} ML</strong> graded ${topTierLabel} (${_bp3}%, EV ${_ep3}%)${_sn} — model finds underdog value. Series context supports a closer game than the odds imply. ${_nm3.size}-unit play${_nm3.secStr}.`;
-        else if(_bm3.side==='plFav'){const _pl3FavMC=(_nhlMcD?.rl15!=null?_nhlMcD.rl15:plP);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFav3} -1.5</strong> graded ${topTierLabel} (${_bp3}%, EV ${_ep3}%)${_sn}. Fav covers -1.5 in ${(_pl3FavMC*100).toFixed(1)}% of 10k sims (proj ${(_nhlMcD?.avgH||0).toFixed(1)}–${(_nhlMcD?.avgA||0).toFixed(1)}). Dominant structural edge supports multi-goal margin. ${_nm3.size}-unit play${_nm3.secStr}.`;}
-        else if(_bm3.side==='plDog'){const _pl3DogMC=(_nhlMcD?.rlN!=null?_nhlMcD.rlN:(1-plP));explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDog3} +1.5</strong> graded ${topTierLabel} (${_bp3}%, EV ${_ep3}%)${_sn}. Dog covers +1.5 in ${(_pl3DogMC*100).toFixed(1)}% of 10k sims (proj ${(_nhlMcD?.avgH||0).toFixed(1)}–${(_nhlMcD?.avgA||0).toFixed(1)}). ${_nhlDog3} can stay within a goal. ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        else if(_bm3.side==='plFav'){const _pl3FavMC=plP;explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFav3} -1.5</strong> graded ${topTierLabel} (${_bp3}%, EV ${_ep3}%)${_sn}. Fav covers -1.5 in ${(_pl3FavMC*100).toFixed(1)}% of 10k sims (proj ${(_nhlMcD?.avgH||0).toFixed(1)}–${(_nhlMcD?.avgA||0).toFixed(1)}). Dominant structural edge supports multi-goal margin. ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        else if(_bm3.side==='plDog'){const _pl3DogMC=1-plP;explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDog3} +1.5</strong> graded ${topTierLabel} (${_bp3}%, EV ${_ep3}%)${_sn}. Dog covers +1.5 in ${(_pl3DogMC*100).toFixed(1)}% of 10k sims (proj ${(_nhlMcD?.avgH||0).toFixed(1)}–${(_nhlMcD?.avgA||0).toFixed(1)}). ${_nhlDog3} can stay within a goal. ${_nm3.size}-unit play${_nm3.secStr}.`;}
         else if(_bm3.side==='over'){const _mc3T=_nhlMcD?(_nhlMcD.avgH+_nhlMcD.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV ${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_nhlMcD?((_nhlMcD.overP||.5)*100).toFixed(0):50)}% over in 10k sims). ${_nm3.size}-unit play${_nm3.secStr}.`;}
         else{const _mc3T=_nhlMcD?(_nhlMcD.avgH+_nhlMcD.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV ${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_nhlMcD?((1-(_nhlMcD.overP||.5))*100).toFixed(0):50)}% under in 10k sims). ${_nm3.size}-unit play${_nm3.secStr}.`;}
       }
@@ -8867,7 +8868,7 @@ function renderNHLGamesOffline(){
     const hD=ml2d(hML),aD=ml2d(aML);
     const hEV=ev(hP,hD),aEV=ev(aP,aD);
     const hCS=chipC(hP,hEV),aCS=chipC(aP,aEV);
-    const plP=hP>=.5?(mc?.rl15||.38):(mc?.rlN||.38),plCS=chipC(plP,ev(plP,1.87));
+    const plP=hP>=.5?(mc?.rl15||.38):(mc?.rl15A||.38),plCS=chipC(plP,ev(plP,1.87));
     const ouP=mc?.overP||.52,ouCS=chipC(ouP,ev(ouP,1.91));
     const _nhlPlFavDec3=g.plFavOdds?ml2d(g.plFavOdds):1.87;
     const _nhlPlDogDec3=g.plDogOdds?ml2d(g.plDogOdds):2.05;
@@ -8899,8 +8900,8 @@ function renderNHLGamesOffline(){
       const _bpOff=(_bmOff.prob*100).toFixed(1);
       if(_bmOff.side==='mlFav')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFavOff} ML</strong> graded ${topTierLabel} (${_bpOff}%, EV ${evPct}%) — material market inefficiency. ${_g3gsax} is the primary driver. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;
       else if(_bmOff.side==='mlDog')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDogOff} ML</strong> graded ${topTierLabel} (${_bpOff}%, EV ${evPct}%) — underdog value. ${_g3gsax} supports a closer game. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;
-      else if(_bmOff.side==='plFav'){const _plOFavMC=(mc?.rl15!=null?mc.rl15:plP),_plODogMC=(mc?.rlN!=null?mc.rlN:(1-plP));explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFavOff} -1.5</strong> graded ${topTierLabel} (${_bpOff}%, EV ${evPct}%). Fav covers -1.5 in ${(_plOFavMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_plOFavMC*100).toFixed(1)}% fav / ${(_plODogMC*100).toFixed(1)}% dog (10k sims). ${_g3gsax} signals dominant ${_nhlFavOff} performance. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
-      else if(_bmOff.side==='plDog'){const _plODogMC=(mc?.rlN!=null?mc.rlN:(1-plP)),_plOFavMC=(mc?.rl15!=null?mc.rl15:plP);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDogOff} +1.5</strong> graded ${topTierLabel} (${_bpOff}%, EV ${evPct}%). Dog covers +1.5 in ${(_plODogMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_plOFavMC*100).toFixed(1)}% fav / ${(_plODogMC*100).toFixed(1)}% dog (10k sims). ${_g3gsax} suggests a tight game. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
+      else if(_bmOff.side==='plFav'){const _plOFavMC=plP,_plODogMC=1-plP;explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFavOff} -1.5</strong> graded ${topTierLabel} (${_bpOff}%, EV ${evPct}%). Fav covers -1.5 in ${(_plOFavMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_plOFavMC*100).toFixed(1)}% fav / ${(_plODogMC*100).toFixed(1)}% dog (10k sims). ${_g3gsax} signals dominant ${_nhlFavOff} performance. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
+      else if(_bmOff.side==='plDog'){const _plODogMC=1-plP,_plOFavMC=plP;explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDogOff} +1.5</strong> graded ${topTierLabel} (${_bpOff}%, EV ${evPct}%). Dog covers +1.5 in ${(_plODogMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_plOFavMC*100).toFixed(1)}% fav / ${(_plODogMC*100).toFixed(1)}% dog (10k sims). ${_g3gsax} suggests a tight game. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
       else if(_bmOff.side==='over'){const _mcOffT=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${_ouLOff}</strong> graded ${topTierLabel} (${_bpOff}%, EV ${evPct}%). MC projects ${_mcOffT} goals vs ${_ouLOff} line (${(mc?(mc.overP||.5)*100:50).toFixed(0)}% over in 10k sims). ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
       else{const _mcOffT=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${_ouLOff}</strong> graded ${topTierLabel} (${_bpOff}%, EV ${evPct}%). MC projects ${_mcOffT} goals vs ${_ouLOff} line (${(mc?(1-(mc.overP||.5))*100:50).toFixed(0)}% under in 10k sims). ${_g3gsax}. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
     }
@@ -8989,7 +8990,7 @@ function _nhlUpcomingCard(g,dayIdx){
   const favP=Math.max(hP,aP),dogP=Math.min(hP,aP);
   const favD=hP>=aP?hD:aD,dogD=hP>=aP?aD:hD;
   const favEV=hP>=aP?hEV:aEV,dogEV=hP>=aP?aEV:hEV;
-  const plP=hP>=.5?(mc?.rl15??.38):(mc?.rlN??.38);
+  const plP=hP>=.5?(mc?.rl15??.38):(mc?.rl15A??.38);
   const plDogP=Math.max(.25,1-plP);
   // g.overUnder is now threaded into nhlEns above, so mc.ouLine already
   // equals the real market line whenever one exists -- no separate
@@ -9031,10 +9032,10 @@ function _nhlUpcomingCard(g,dayIdx){
   }else if(bm.side==='mlDog'){
     explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} ML</strong> graded ${topTierLabel} (${bp}%, EV ${evPct}%) — underdog value. ${gsaxStr} signals a closer game than the market price implies. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
   }else if(bm.side==='plFav'){
-    const favMC=mc?.rl15??plP;
+    const favMC=plP;
     explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} -1.5</strong> graded ${topTierLabel} (${bp}%, EV ${evPct}%). Fav covers -1.5 in ${(favMC*100).toFixed(1)}% of sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). ${gsaxStr}. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
   }else if(bm.side==='plDog'){
-    const dogMC=mc?.rlN??plDogP;
+    const dogMC=1-plP;
     explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} +1.5</strong> graded ${topTierLabel} (${bp}%, EV ${evPct}%). Dog covers +1.5 in ${(dogMC*100).toFixed(1)}% of sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). ${gsaxStr} keeps this within a goal. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
   }else if(bm.side==='over'){
     const projT=mc?(mc.avgH+mc.avgA).toFixed(1):'—';
@@ -9792,7 +9793,8 @@ function liigaMC(homeId,awayId,marketOU){
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
   const overP=1-cdf;
   const rl15=_socSpreadProb(hLam,aLam,-1.5); // P(home covers -1.5)
-  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rlN:1-rl15};
+  const rl15A=_socSpreadProb(aLam,hLam,-1.5); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
+  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
 }
 function liigaEns(homeId,awayId,marketOU){
   const mc=liigaMC(homeId,awayId,marketOU);
@@ -9849,7 +9851,11 @@ function liigaEns(homeId,awayId,marketOU){
   const favBigP=bigP(_hkBigMarginRate(favId,D.games)),dogBigP=bigP(_hkBigMarginRate(dogId,D.games));
   const bDenom=favBigP*(1-dogBigP)+dogBigP*(1-favBigP);
   const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
-  const mcCoverP=p>=.5?mc.rl15:mc.rlN;
+  // Real bug, found 2026-10-03: this used rlN (= P(home does NOT win by 2+) = AWAY +1.5 cover, ~70%)
+  // as the favorite's -1.5 cover rate whenever the AWAY team was the favorite -- every settled
+  // -1.5 pick in these leagues was an away favorite (17-25 at ~78% predicted). Favorite's cover
+  // is P(favorite wins by 2+): rl15 for a home favorite, rl15A for an away favorite.
+  const mcCoverP=p>=.5?mc.rl15:mc.rl15A;
   const MARGIN_W=0.10;
   let favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
   // Real gap, found + fixed 2026-10-01: same missing-calibration issue as
@@ -9935,7 +9941,8 @@ function nlaMC(homeId,awayId,marketOU){
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
   const overP=1-cdf;
   const rl15=_socSpreadProb(hLam,aLam,-1.5);
-  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rlN:1-rl15};
+  const rl15A=_socSpreadProb(aLam,hLam,-1.5); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
+  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
 }
 function nlaEns(homeId,awayId,marketOU){
   const mc=nlaMC(homeId,awayId,marketOU);
@@ -9961,7 +9968,11 @@ function nlaEns(homeId,awayId,marketOU){
   const favBigP=bigP(_hkBigMarginRate(favId,D.games)),dogBigP=bigP(_hkBigMarginRate(dogId,D.games));
   const bDenom=favBigP*(1-dogBigP)+dogBigP*(1-favBigP);
   const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
-  const mcCoverP=p>=.5?mc.rl15:mc.rlN;
+  // Real bug, found 2026-10-03: this used rlN (= P(home does NOT win by 2+) = AWAY +1.5 cover, ~70%)
+  // as the favorite's -1.5 cover rate whenever the AWAY team was the favorite -- every settled
+  // -1.5 pick in these leagues was an away favorite (17-25 at ~78% predicted). Favorite's cover
+  // is P(favorite wins by 2+): rl15 for a home favorite, rl15A for an away favorite.
+  const mcCoverP=p>=.5?mc.rl15:mc.rl15A;
   const MARGIN_W=0.10;
   let favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
   // Same SPREAD calibration gap as liigaEns (fixed 2026-10-01) -- measured
@@ -10037,7 +10048,8 @@ function extraligaMC(homeId,awayId,marketOU){
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
   const overP=1-cdf;
   const rl15=_socSpreadProb(hLam,aLam,-1.5);
-  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rlN:1-rl15};
+  const rl15A=_socSpreadProb(aLam,hLam,-1.5); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
+  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
 }
 function extraligaEns(homeId,awayId,marketOU){
   const mc=extraligaMC(homeId,awayId,marketOU);
@@ -10063,7 +10075,11 @@ function extraligaEns(homeId,awayId,marketOU){
   const favBigP=bigP(_hkBigMarginRate(favId,D.games)),dogBigP=bigP(_hkBigMarginRate(dogId,D.games));
   const bDenom=favBigP*(1-dogBigP)+dogBigP*(1-favBigP);
   const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
-  const mcCoverP=p>=.5?mc.rl15:mc.rlN;
+  // Real bug, found 2026-10-03: this used rlN (= P(home does NOT win by 2+) = AWAY +1.5 cover, ~70%)
+  // as the favorite's -1.5 cover rate whenever the AWAY team was the favorite -- every settled
+  // -1.5 pick in these leagues was an away favorite (17-25 at ~78% predicted). Favorite's cover
+  // is P(favorite wins by 2+): rl15 for a home favorite, rl15A for an away favorite.
+  const mcCoverP=p>=.5?mc.rl15:mc.rl15A;
   const MARGIN_W=0.10;
   let favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
   // Same SPREAD calibration gap as liigaEns (fixed 2026-10-01). EXTRALIGA's
@@ -10879,7 +10895,8 @@ function shlMC(homeId,awayId,marketOU){
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
   const overP=1-cdf;
   const rl15=_socSpreadProb(hLam,aLam,-1.5); // P(home covers -1.5)
-  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rlN:1-rl15};
+  const rl15A=_socSpreadProb(aLam,hLam,-1.5); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
+  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
 }
 function shlEns(homeId,awayId,marketOU){
   const mc=shlMC(homeId,awayId,marketOU);
@@ -10915,7 +10932,11 @@ function shlEns(homeId,awayId,marketOU){
   const favBigP=bigP(_hkBigMarginRate(favId,D.games)),dogBigP=bigP(_hkBigMarginRate(dogId,D.games));
   const bDenom=favBigP*(1-dogBigP)+dogBigP*(1-favBigP);
   const marginLog5=bDenom?(favBigP*(1-dogBigP))/bDenom:.5;
-  const mcCoverP=p>=.5?mc.rl15:mc.rlN;
+  // Real bug, found 2026-10-03: this used rlN (= P(home does NOT win by 2+) = AWAY +1.5 cover, ~70%)
+  // as the favorite's -1.5 cover rate whenever the AWAY team was the favorite -- every settled
+  // -1.5 pick in these leagues was an away favorite (17-25 at ~78% predicted). Favorite's cover
+  // is P(favorite wins by 2+): rl15 for a home favorite, rl15A for an away favorite.
+  const mcCoverP=p>=.5?mc.rl15:mc.rl15A;
   const MARGIN_W=0.10;
   let favCoverP=Math.min(.95,Math.max(.05,mcCoverP*(1-MARGIN_W)+marginLog5*MARGIN_W));
   // Same SPREAD calibration gap as liigaEns (fixed 2026-10-01) -- measured
