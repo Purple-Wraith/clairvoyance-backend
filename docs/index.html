@@ -18505,7 +18505,16 @@ async function loadRemoteData(force=false){
       'NHL:',(d.nhl?.today||[]).length);
   }catch(e){console.warn('[CV] data.json offline:',e.message);}
   loadSoccerFBref();
-  loadMLSOptaStats();
+  // loadMLSOptaStats() call removed 2026-10-01 -- real bug found in this
+  // retired-league audit: MLS was fully retired 2026-09-27, but this ran
+  // unconditionally on every single app boot/data refresh, fetching
+  // mls_opta_stats.json live every time regardless of which tab (if any)
+  // the user ever visited. Its only real consumers, _mlsStyleFactor()/
+  // _mlsLeagueAverages(), already have zero callers anywhere else in this
+  // file, so nothing downstream ever read window.__CV_MLS_OPTA anyway --
+  // this was a pure wasted fetch. loadMLSOptaStats() itself is left defined
+  // (unused) rather than deleted, same "don't orphan it, just stop calling
+  // it" convention this file already uses for other retired sports.
   loadSoccerStandingsSnapshot();
   loadSoccerScheduleSnapshot();
 }
