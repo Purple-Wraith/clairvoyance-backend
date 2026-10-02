@@ -24,6 +24,12 @@ on:
     # game finishes, 5 minutes after Liiga's own afternoon refresh for
     # the same runner-contention reason as the morning stagger above.
     - cron: '5 21 * * *'
+    # 3rd daily refresh (08:15 UTC = 2:15 AM MT), added 2026-10-03 -- odds FRESHNESS for the European same-morning lock.
+    # Hockey legs only qualify on a real, fresh (<=18h) bookmaker price (HOCKEY_ODDS_MAX_AGE_H in docs/app.html). Measured on
+    # the real run history (2026-09-17..10-02): european-lock-early actually lands ~15:00-19:00 UTC and the latest odds
+    # scrape before it was 15.5-19.5h old (the morning refresh above lands AFTER it). This extra pass lands (scheduled runs
+    # here fire ~4-6h late) ahead of that lock, bringing the age to a few hours. Data-only, ~1-2 min.
+    - cron: '15 8 * * *'
   workflow_dispatch:
 
 permissions:
