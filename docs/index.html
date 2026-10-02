@@ -3318,6 +3318,26 @@ function _mfScore(p,e,edgePP,sigmaV,kFrac){
 // grading drifting from what a user actually sees on screen. Pure
 // logging; never changes what any card renders or returns.
 window._autoLockLegs=window._autoLockLegs||[];
+// ── "Why this pick" reasoning cache — manual-UI lock path ────────────────
+// Added 2026-10-02 alongside the ledger `reasoning` field (see lockPick's
+// own comment). Every sport's lock chip is a plain onclick="lockPick(...)"
+// (or lockH/_spreadLockDir/_ouLockDir, all of which funnel into lockPick)
+// built from a template-literal string at render time — there's no clean
+// way to carry a multi-line reasoning string as a literal argument through
+// ~30 independent onclick call sites without either a quoting nightmare or
+// ballooning every card's HTML with a duplicate paragraph per button.
+// Instead, the SAME render pass that builds the onclick string already
+// computes that market's full reasoning (via _attachReasoning, called by
+// each sport's card function right before _autoLockCapture below) — this
+// just parks it in a flat, overwrite-on-rerender lookup table keyed the
+// same way lockPick resolves a market at click time (hA|awA|betType
+// bucket — see _evalMkts' mktT and lockPick's _betTypeNorm), so lockPick
+// can read it back with zero changes to any individual lock button. A
+// stale/missing entry (page reloaded between render and click, or an old
+// pick from before this feature existed) just means lockPick stores
+// reasoning:null — handled gracefully by the Bet History / locked-bets
+// "WHY THIS PICK" expand panel (docs/app.html's UI layer), never a crash.
+window._reasoningCache=window._reasoningCache||{};
 // mcSummary: an optional short plain-text line describing the real MC/
 // model projection behind this game's numbers (e.g. real simulated
 // score, expected goals, projected margin) -- whatever that sport's own
@@ -3336,7 +3356,12 @@ function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors){
       // exposed outside this per-game sort before. Home's Top Picks Today
       // panel uses it as the real tiebreaker within a tier instead of a
       // cruder ad-hoc EV/probability blend.
-      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:m.dec,ml:m.ml,tierN:m.tierN,mfScore:m.mfScore})),
+      // reasoning: the plain-text "why this pick" string _attachReasoning
+      // already set on each market object (see its own comment) -- added
+      // 2026-10-02. null for any sport/call site that hasn't been wired up
+      // to _attachReasoning yet, so this stays backward-compatible rather
+      // than throwing when m.reasoning is undefined.
+      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:m.dec,ml:m.ml,tierN:m.tierN,mfScore:m.mfScore,reasoning:m.reasoning||null})),
       // Optional -- only soccer's capture call currently passes this (see
       // _renderSocMatchCard). Threaded through build_qualifying/
       // lock_game_leg into lockPick's extraMeta so it lands on the
@@ -3354,6 +3379,14 @@ function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors){
     // later capture is kept since it reflects the more complete data.
     var i=window._autoLockLegs.findIndex(function(l){return l.sport===sport&&l.hA===hA&&l.awA===awA;});
     if(i>=0)window._autoLockLegs[i]=entry;else window._autoLockLegs.push(entry);
+    // Populate the manual-UI reasoning cache (see window._reasoningCache's
+    // own comment above) -- one entry per market TYPE (ML/SPREAD/OU), not
+    // per side, since a game only ever has one real ML/spread/O-U market
+    // and lockPick only ever resolves a betType at that granularity.
+    (nm.mkts||[]).forEach(function(m){
+      if(!m.reasoning||!m.mktT)return;
+      window._reasoningCache[hA+'|'+awA+'|'+m.mktT]=m.reasoning;
+    });
   }catch(e){}
 }
 // ── Universal best-market evaluator — used by all sport reasoning blocks ──────
@@ -3365,7 +3398,14 @@ function _evalMkts(mkts){
     const edg=m.dec?_edge(m.prob,m.dec):_edge(m.prob,1.91);
     const kF=m.dec?_kelly(m.prob,m.dec):0;
     const mfS=_mfScore(m.prob,m.evVal,edg,0,kF);
-    return{...m,tierN:tN,edge:edg,kelly:kF,mfScore:mfS};
+    // mktT kept on the returned object (not just used locally) — the "Why
+    // this pick" reasoning cache (_autoLockCapture/lockPick, added
+    // 2026-10-02) keys its lookup by this exact ML/SPREAD/OU bucket, same
+    // granularity lockPick's own _betTypeNorm already resolves to at lock
+    // time, so a lock click can find the reasoning this function already
+    // computed for that specific market without any new plumbing through
+    // the ~30 individual lock-button onclick call sites.
+    return{...m,tierN:tN,edge:edg,kelly:kF,mfScore:mfS,mktT};
   }).sort((a,b)=>b.tierN-a.tierN||b.mfScore-a.mfScore||b.evVal-a.evVal);
   const best=mkts[0];const n=best.tierN;
   const lbl=n===3?'PREMIUM':n===2?'OPTIMAL':n===1?'LEAN':'SKIP';
@@ -3374,6 +3414,98 @@ function _evalMkts(mkts){
   const sec=mkts.slice(1).filter(m=>m.tierN>=1&&m.side!==best.side);
   const secStr=sec.length?' · Also: '+sec.map(m=>`${m.label} (${['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN]})`).join(', '):'';
   return{best,tierN:n,lbl,col,size,sec,secStr,mkts};
+}
+// ── "Why this pick" reasoning composer (Part 3: enhanced MC breakdown) ───
+// Added 2026-10-02. Three generic MC-breakdown line builders cover every
+// sport/league in the app with no sport-specific duplication beyond what
+// each card already has in scope:
+//  - _mcLineScore: the avgH/avgA/avgT/overP/otP/rl15/rlN shape shared by
+//    nhlMC/nbaMC AND all 4 hockey-minor "MC" functions (liigaMC/shlMC/
+//    nlaMC/extraligaMC). Pass opts.exact=true for the hockey minors --
+//    confirmed (earlier audit this session) that they're exact Poisson
+//    convolutions, not simulations, so this never claims a fake sim count
+//    for them, per explicit instruction.
+//  - _mcLineMargin: CFB/NFL's avgMargin/avgTotal shape (both real 25k-sim
+//    Monte Carlo, just margin-shaped rather than two-score-shaped).
+//  - _mcLineSoccer: _soccerMC's own shape (hWin/draw/aWin/avgH/avgA/avgT/
+//    over25/over35/btts/hxg/axg/n) -- also a real sampling-loop Monte
+//    Carlo (see _soccerMC's own poissonSample loop), unlike the hockey
+//    minors above despite both starting from independent-Poisson goals.
+// Each returns one plain-text line (no HTML -- this persists into the
+// ledger's raw JSON via lockPick's `reasoning` field, not just a one-time
+// render) or null when the sport has no MC data yet for this game.
+function _mcLineScore(mc,side,ouLine,opts){
+  if(!mc||mc.avgH==null||mc.avgA==null)return null;
+  opts=opts||{};
+  const h=mc.avgH,a=mc.avgA;
+  const total=mc.avgT!=null?mc.avgT:h+a;
+  const sampleTxt=opts.exact?'an exact Poisson distribution (not a simulation)':'a '+(opts.n&&opts.n>=1000?Math.round(opts.n/1000)+'k':opts.n||'25k')+'-sim Monte Carlo';
+  let extra='';
+  if((side==='over'||side==='under')&&mc.overP!=null&&ouLine!=null){
+    const p=side==='over'?mc.overP:1-mc.overP;
+    extra=` — ${side.toUpperCase()} hits ${(p*100).toFixed(1)}% of outcomes vs the ${ouLine} line`;
+  }else if(side==='plFav'&&mc.rl15!=null){
+    extra=` — favorite covers -1.5 in ${(mc.rl15*100).toFixed(1)}% of outcomes`;
+  }else if(side==='plDog'&&mc.rlN!=null){
+    extra=` — underdog covers +1.5 in ${(mc.rlN*100).toFixed(1)}% of outcomes`;
+  }
+  const otTxt=mc.otP!=null?` (OT/SO in ${(mc.otP*100).toFixed(0)}% of outcomes)`:'';
+  return`Projected ${a.toFixed(1)}–${h.toFixed(1)} (total ${total.toFixed(1)})${otTxt}${extra}, from ${sampleTxt}.`;
+}
+function _mcLineMargin(mc,side,favName,dogName,baseSpread,favCoverP,overP,ouL){
+  if(!mc||mc.avgMargin==null||mc.avgTotal==null)return null;
+  let extra='';
+  if((side==='sprdFav'||side==='sprdDog')&&favCoverP!=null&&baseSpread!=null){
+    const p=side==='sprdFav'?favCoverP:1-favCoverP;
+    extra=` — ${side==='sprdFav'?favName:dogName} covers the ${baseSpread.toFixed(1)}-pt line in ${(p*100).toFixed(1)}% of simulated outcomes`;
+  }else if((side==='over'||side==='under')&&overP!=null&&ouL!=null){
+    const p=side==='over'?overP:1-overP;
+    const ouLTxt=typeof ouL==='number'?ouL.toFixed(1):ouL;
+    extra=` — ${side.toUpperCase()} hits ${(p*100).toFixed(1)}% of simulated outcomes vs the ${ouLTxt} line`;
+  }
+  return`Projected margin ${mc.avgMargin>=0?'+':''}${mc.avgMargin.toFixed(1)} (${favName}), total ${mc.avgTotal.toFixed(1)}${extra}, from a 25k-sim Monte Carlo.`;
+}
+function _mcLineSoccer(mc,side,ouLine){
+  if(!mc||mc.avgH==null||mc.avgA==null)return null;
+  const extra=(side==='over'||side==='under')&&ouLine!=null
+    ?(Math.abs(ouLine-2.5)<0.01?` — OVER 2.5 hits ${(mc.over25*100).toFixed(1)}% of outcomes`:Math.abs(ouLine-3.5)<0.01?` — OVER 3.5 hits ${(mc.over35*100).toFixed(1)}% of outcomes`:''):'';
+  const nTxt=mc.n>=1000?Math.round(mc.n/1000)+'k':mc.n;
+  return`Projected ${mc.avgA.toFixed(2)}–${mc.avgH.toFixed(2)} goals (xG ${mc.axg.toFixed(2)}/${mc.hxg.toFixed(2)}), BTTS ${(mc.btts*100).toFixed(0)}%${extra}, from a ${nTxt}-sim Monte Carlo.`;
+}
+// Strips HTML for storage in the plain-text `reasoning` field -- several
+// sports' existing per-market explanation strings (CFB/NFL's mlReasoning/
+// sprdReasoning/ouReasoning, NHL/NBA/soccer's single best-market
+// `explanation`) already carry inline <strong style="..."> tags meant for
+// on-screen rendering only; this ledger field is read back later by an
+// expand/collapse panel as plain text (see Part 4), not re-rendered as
+// trusted HTML, so tags are dropped rather than carried through.
+function _stripHTML(s){return s?String(s).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim():'';}
+// Attaches a standardized plain-text `.reasoning` string to every market
+// inside an _evalMkts() result. Call this AFTER _evalMkts(), BEFORE
+// _autoLockCapture() -- _autoLockCapture reads nm.mkts to build both the
+// Python auto-lock pipeline's per-market `markets` array AND the manual-UI
+// lock reasoning cache (see its own comment), so if this runs after,
+// neither path ever sees a reasoning string.
+// mcLineFn(side)->string|null: sport-specific callback, typically a thin
+// wrapper around _mcLineScore/_mcLineMargin/_mcLineSoccer above with that
+// sport's own already-computed mc object closed over.
+// richBySide: optional {side:plainOrHtmlText} for sports that already
+// compute a hand-written, richer per-market paragraph (CFB/NFL's 3
+// separate reasoning strings; NHL/NBA/soccer/hockey-minors' single best-
+// market `explanation`, keyed under whichever side IS nm.best.side) --
+// used verbatim (HTML-stripped) instead of a generic one-line fallback
+// for whichever market(s) it covers.
+function _attachReasoning(nm,mcLineFn,richBySide){
+  try{
+    (nm.mkts||[]).forEach(m=>{
+      const tierLbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN]||'SKIP';
+      const head=`PICK: ${m.label} — ${tierLbl} (${(m.prob*100).toFixed(1)}% win prob, EV ${m.evVal>=0?'+':''}${(m.evVal*100).toFixed(1)}%)`;
+      const mcLine=mcLineFn?mcLineFn(m.side):null;
+      const rich=(richBySide&&richBySide[m.side])?_stripHTML(richBySide[m.side]):null;
+      m.reasoning=[head,mcLine?('MODEL: '+mcLine):null,rich?('WHY: '+rich):null].filter(Boolean).join('\n');
+    });
+  }catch(e){}
+  return nm;
 }
 // Standalone, glowing "BEST MARKET" callout -- explicit request, 2026-09-16:
 // every sport's game card should visually pop the actual best pick, not
@@ -4662,6 +4794,32 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
     KHL:'KHL',SHL:'SHL',LIIGA:'LIIGA',NLA:'NLA',EXTRALIGA:'EXTRALIGA',NCAAH:'NCAAH',CL:'CL',PL:'PL',LIGA:'LIGA',BUND:'BUND',MLS:'MLS',SERIEA:'SERIEA'};
   const leagueTag=_leagueMap[sportTag]||sportTag;
   const _betTypeNorm=betTypeOverride||(type==='PL'?'PL':type==='RL'?'RL':type==='OU'?'OU':type==='PROP'?'PROP':type==='SPREAD'?'SPREAD':'ML');
+  // ── "Why this pick" reasoning — persistence (Part 1, added 2026-10-02) ──
+  // `reasoning`: a plain-text snapshot of the real model reasoning behind
+  // whichever market this call is locking, captured at lock time so it
+  // survives after the card that produced it is gone/re-rendered. Two
+  // sources, checked in order:
+  //  1. extraMeta.reasoning — explicit, used by the automated pipeline
+  //     (scripts/auto_lock_settle.py's lock_game_leg(), same extraMeta
+  //     slot socFactors already rides in) since that path computes
+  //     reasoning server-side-adjacent in gather_legs()'s qualifying-leg
+  //     scan and can pass it straight through.
+  //  2. window._reasoningCache — the manual-UI lock-button path (lockH/
+  //     _spreadLockDir/_ouLockDir/direct lockPick onclick calls never pass
+  //     extraMeta). Every sport's card function calls _attachReasoning()
+  //     right before _autoLockCapture(), which parks each market's
+  //     reasoning in this cache keyed hA|awA|betType-bucket — see
+  //     _autoLockCapture's own comment. Bucketed to 'SPREAD' for PL/RL too
+  //     since _evalMkts' mktT (what populated the cache) never
+  //     distinguishes puck-line/run-line from a generic spread.
+  //  Neither source hitting is normal (e.g. a pick locked before this
+  //  feature shipped, or a sport/card not yet wired to _attachReasoning) —
+  //  falls back to null, which the Bet History / locked-bets "WHY THIS
+  //  PICK" panel renders as a graceful "no detailed reasoning captured"
+  //  message rather than crashing or showing "undefined".
+  const _reasonBucket=_betTypeNorm==='OU'?'OU':_betTypeNorm==='PROP'?null:(_betTypeNorm==='PL'||_betTypeNorm==='RL'||_betTypeNorm==='SPREAD')?'SPREAD':'ML';
+  const _cachedReasoning=(_reasonBucket&&window._reasoningCache)?(window._reasoningCache[hA+'|'+awA+'|'+_reasonBucket]||window._reasoningCache[awA+'|'+hA+'|'+_reasonBucket]||null):null;
+  const reasoning=(extraMeta&&extraMeta.reasoning)||_cachedReasoning||null;
   const _apiDup=_findSameMarketLock(getP(),dateKey,hA,awA,_betTypeNorm);
   if(_apiDup){toast(`// ALREADY LOCKED: ${_apiDup.betOn} ${_apiDup.ml} (${_apiDup.outcome==='pending'?'still pending':_apiDup.outcome.toUpperCase()})`);return;}
   if(API_ONLINE()){
@@ -4675,7 +4833,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
       const preds=getP();const localId=`api_${res.id}`;
       if(!preds.find(x=>x.id===localId)){
         _removeWipedIds([localId]); // see _removeWipedIds' own comment
-        preds.push({id:localId,_backendId:res.id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:100,outcome:'pending',lockedAt:Date.now(),source:_lockSource,...(extraMeta||{})});
+        preds.push({id:localId,_backendId:res.id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:100,outcome:'pending',lockedAt:Date.now(),source:_lockSource,...(extraMeta||{}),reasoning});
       }
       saveP(preds);
       const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
@@ -4703,7 +4861,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   // with an explicit "already locked" toast instead.
   if(_dup){toast(`// ALREADY LOCKED: ${_dup.betOn} ${_dup.ml} (${_dup.outcome==='pending'?'still pending':_dup.outcome.toUpperCase()})`);return;}
   _removeWipedIds([id]); // see _removeWipedIds' own comment -- a deliberate new lock must never be silently swallowed by an old wipe of this same id
-  preds.push({id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:0,outcome:'pending',lockedAt:Date.now(),hScore:null,aScore:null,source:_lockSource,...(extraMeta||{})});saveP(preds);
+  preds.push({id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:0,outcome:'pending',lockedAt:Date.now(),hScore:null,aScore:null,source:_lockSource,...(extraMeta||{}),reasoning});saveP(preds);
   const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
   if(!log[dateKey].locked.includes(betOn))log[dateKey].locked.push(betOn);
   const rec=log[dateKey].recs.find(r=>r.ha===hA&&r.awa===awA&&r.lb===betOn);if(rec)rec.locked=true;
@@ -5568,6 +5726,16 @@ function renderNHLTonight(){
         else if(_bm1.side==='over')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${gh.ou}</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Totals play: combined GF/60 ${(parseFloat(_favGF60)+parseFloat(_dogGF60)).toFixed(2)} projects ${(parseFloat(_projH1)+parseFloat(_projA1)).toFixed(1)} goals vs ${gh.ou} line. Pace/speed: ${_favSpd} vs ${_dogSpd} mph (open game). ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
         else explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${gh.ou}</strong> · ${topTierLabel} · ${_bp1}% · EV +${evPct}% · edge +${(_nhl1Edge*100).toFixed(1)}pp. `+`Low-scoring game: combined ERA ${_gsaxStr} + tight zone entry data projects under the number. GF/60: ${_favGF60} vs ${_dogGF60} — both rotations defensively sound. ${_nhlCtx}. ${_nhlProj}. ${_nhlEns}. Kelly ${_nhl1Kelly}%. ${_nm1.size}-unit play${_nm1.secStr}.`;
       }
+      // "Why this pick" capture -- see _nhlGameCard's identical comment.
+      // No existing _autoLockCapture call in this loop (live-data branch of
+      // renderNHLTonight) before this feature -- added here too so the
+      // manual-UI reasoning cache gets populated for whichever NHL card the
+      // user actually sees render first (_autoLockCapture safely replaces,
+      // not duplicates, an existing window._autoLockLegs entry for the
+      // same matchup -- see its own comment).
+      if(topTier>0)_attachReasoning(_nm1,side=>_mcLineScore(mc,side,gh.ou,{n:25000}),{[_bm1.side]:explanation});
+      else _attachReasoning(_nm1,side=>_mcLineScore(mc,side,gh.ou,{n:25000}));
+      _autoLockCapture('NHL',gh.h,gh.a,_nm1,mc?`MC PROJ: ${gh.a} ${mc.avgA.toFixed(1)} – ${gh.h} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null);
       html+=`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)"><div class="gch"><div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${gh.a}</span><span style="color:var(--t3);font-size:15px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${gh.h}</span></div><div class="gsp">GOALIES: ${aw.g1} vs ${h.g1}</div><div class="gsp">${gh.ctx?'G'+gh.gn+' · '+gh.ctx+' · ':''}<span style="color:var(--vc)">O/U ${gh.ou}</span></div></div><div style="text-align:right"><div class="np mono" style="font-size:19px">${statusDot}${statusTxt}</div></div></div><div class="brow"><div class="${hCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.h}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)})"><div class="cht">ML ${gh.h}</div><div class="cho">${hML}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div><div class="${aCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.a}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)})"><div class="cht">ML ${gh.a}</div><div class="cho">${aML}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div><div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="-1.5" id="sprd_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','FAV','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.h:gh.a}</div><div id="fav_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">-1.5</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','DOG','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.a:gh.h}</div><div id="dog_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">+1.5</div></button></div></div><div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${gh.ou}" id="ouinp_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button></div></div></div><div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span><span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span></div>${_mcProjBarHTML(mc,gh.ou||5.5,gh.h,gh.a,{dec:2})}${_bestMarketBoxHTML(_nm1.tierN,_nm1.col,_nm1.lbl,_nm1.best.label,_nm1.best.prob,_nm1.best.evVal)}<div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div><div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm1.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div></div><div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px"><span class="mono" style="font-size:16px;color:var(--t3)">MC:${(ens.mc*100).toFixed(0)}% xGF:${(ens.xgf*100).toFixed(0)}% ELO:${(ens.elo*100).toFixed(0)}% · PROJ ${mc?mc.avgH.toFixed(1)+'-'+mc.avgA.toFixed(1):'—'} · OT ${mc?(mc.otP*100).toFixed(0):0}%</span></div></div>`;
     }
     el.innerHTML=html||'<div class="empty">NO NHL GAMES TONIGHT</div>';
@@ -5629,6 +5797,12 @@ function renderNHLTonight(){
     else if(_bm2.side==='plDog'){const _pl2DogMC=(mc?.rlN!=null?mc.rlN:(1-plP)),_pl2FavMC=(mc?.rl15!=null?mc.rl15:plP);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} +1.5</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%). Dog covers +1.5 in ${(_pl2DogMC*100).toFixed(1)}% of 10k sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl2FavMC*100).toFixed(1)}% fav / ${(_pl2DogMC*100).toFixed(1)}% dog (10k sims). ${_g2gsax} suggests ${dogTeam} can keep this within a goal. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
     else if(_bm2.side==='over'){const _mc2T=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${g.ou||5.5}</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%). MC projects ${_mc2T} goals vs ${g.ou||5.5} line (${(mc?.overP*100||50).toFixed(0)}% over in 10k sims). ${_g2gsax}. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
     else{const _mc2T=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${g.ou||5.5}</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%). MC projects ${_mc2T} goals vs ${g.ou||5.5} line (${((1-(mc?.overP||.5))*100).toFixed(0)}% under in 10k sims). ${_g2gsax} tight goaltending duel. ${_ensStr2}. ${_nm2.size}-unit play${_nm2.secStr}.`;}
+    // "Why this pick" capture -- see loop 1 just above for the rationale
+    // (this is renderNHLTonight's hardcoded-TONIGHT fallback loop, its
+    // near-duplicate).
+    if(topTier>0)_attachReasoning(_nm2,side=>_mcLineScore(mc,side,g.ou||5.5,{n:25000}),{[_bm2.side]:explanation});
+    else _attachReasoning(_nm2,side=>_mcLineScore(mc,side,g.ou||5.5,{n:25000}));
+    _autoLockCapture('NHL',g.h,g.a,_nm2,mc?`MC PROJ: ${g.a} ${mc.avgA.toFixed(1)} – ${g.h} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null);
     html+=`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)">
   <div class="gch">
     <div>
@@ -6824,7 +6998,6 @@ function _cfbGameCard(g){
     {label:`UNDER ${ouL.toFixed(1)}`,prob:underP,dec:1.909,ml:'-110',side:'under'},
   ].map(m=>({...m,evVal:ev(m.prob,m.dec)}));
   const nm=_evalMkts(rawMkts);
-  if(_cfbBothMajorConf(D,g.home,g.away))_autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`);
   const _mktGrade=side=>{const m=nm.mkts.find(x=>x.side===side);const lbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN];const col=m.tierN===3?'var(--gc)':m.tierN===2?'var(--nc)':m.tierN===1?'var(--ic)':'var(--t3)';return{m,lbl,col};};
   const mlGrade=hP>=aP?_mktGrade('mlFav'):_mktGrade('mlDog');
   const sprdGrade=favCoverP>=dogCoverP?_mktGrade('sprdFav'):_mktGrade('sprdDog');
@@ -6832,6 +7005,14 @@ function _cfbGameCard(g){
   const mlReasoning=`<span style="color:${mlGrade.col}">${mlGrade.m.label} · ${mlGrade.lbl} · ${(mlGrade.m.prob*100).toFixed(1)}% · EV +${(mlGrade.m.evVal*100).toFixed(1)}%</span><br>${hFpiTxt} vs ${aFpiTxt}. ${_cfbPickReasoning(g,mc,facts,'ML')}`;
   const sprdReasoning=`<span style="color:${sprdGrade.col}">${sprdGrade.m.label} · ${sprdGrade.lbl} · ${(sprdGrade.m.prob*100).toFixed(1)}% · EV +${(sprdGrade.m.evVal*100).toFixed(1)}%</span><br>MC-projected margin ${(favIsHome?mc.avgMargin:-mc.avgMargin)>=0?'+':''}${(favIsHome?mc.avgMargin:-mc.avgMargin).toFixed(1)} for ${spreadFav}. ${_cfbPickReasoning(g,mc,facts,'SPREAD')}`;
   const ouReasoning=`<span style="color:${ouGrade.col}">${ouGrade.m.label} · ${ouGrade.lbl} · ${(ouGrade.m.prob*100).toFixed(1)}% · EV +${(ouGrade.m.evVal*100).toFixed(1)}%</span><br>${_cfbPickReasoning(g,mc,facts,'OU')}`;
+  // "Why this pick" capture -- moved _autoLockCapture to AFTER mlReasoning/
+  // sprdReasoning/ouReasoning exist (was right after _evalMkts above) so
+  // _attachReasoning can use CFB's own already-written per-market
+  // paragraphs as the rich WHY text instead of a generic fallback. No
+  // behavior change to the guard itself (_cfbBothMajorConf), just later.
+  _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverP,overP,ouL),
+    {mlFav:mlReasoning,mlDog:mlReasoning,sprdFav:sprdReasoning,sprdDog:sprdReasoning,over:ouReasoning,under:ouReasoning});
+  if(_cfbBothMajorConf(D,g.home,g.away))_autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`);
   const gidSafe=(g.home+'_'+g.away).replace(/[^A-Za-z0-9_]/g,'');
   return`<div class="gc" style="border-left:2px solid rgba(255,110,20,.4)">
     <div class="gch">
@@ -7705,7 +7886,6 @@ function _nflGameCard2(g){
     {label:`UNDER ${ouL.toFixed(1)}`,prob:underP,dec:1.909,ml:'-110',side:'under'},
   ].map(m=>({...m,evVal:ev(m.prob,m.dec)}));
   const nm=_evalMkts(rawMkts);
-  _autoLockCapture('NFL',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`);
   const hS=D.standings[g.home]||{},aS=D.standings[g.away]||{};
   const injH=(D.injuriesByTeam[g.home]||[]).filter(i=>i.status&&i.status.toLowerCase()!=='active');
   const injA=(D.injuriesByTeam[g.away]||[]).filter(i=>i.status&&i.status.toLowerCase()!=='active');
@@ -7730,6 +7910,13 @@ function _nflGameCard2(g){
   const ouReasoning=`<span style="color:${ouGrade.col}">${ouGrade.m.label} · ${ouGrade.lbl} · ${(ouGrade.m.prob*100).toFixed(1)}% · EV +${(ouGrade.m.evVal*100).toFixed(1)}%</span><br>`
     +(mc.wx?`Real forecast at ${g.venue||g.city||'the venue'}: ${mc.wx.temp}°F, ${mc.wx.wind}mph wind${mc.wx.snow>0?`, ${mc.wx.snow}"/hr snow`:''} — folded into the total as a ${mc.wxImpact.totalAdj>=0?'+':''}${mc.wxImpact.totalAdj}-pt adjustment. `:g.indoor?`${g.venue||'This venue'} is indoors — no weather factor applies. `:'No forecast loaded yet for this venue (too far out, or location unresolved) — total is weather-neutral for now. ')
     +`MC sim (${mc.n.toLocaleString()} runs): proj ${g.away} ${mc.avgA} – ${g.home} ${mc.avgH} (${mc.avgTotal} total) vs the ${ouL.toFixed(1)} line.`;
+  // "Why this pick" capture -- same pattern as CFB's own card just above:
+  // _attachReasoning runs after mlReasoning/sprdReasoning/ouReasoning exist
+  // so it can use NFL's own real per-market paragraphs as the rich WHY
+  // text, then _autoLockCapture reads nm.mkts' new .reasoning field.
+  _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverP,overP,ouL),
+    {mlFav:mlReasoning,mlDog:mlReasoning,sprdFav:sprdReasoning,sprdDog:sprdReasoning,over:ouReasoning,under:ouReasoning});
+  _autoLockCapture('NFL',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`);
   return`<div class="gc" style="border-left:2px solid rgba(0,120,255,.4)">
     <div class="gch">
       <div>
@@ -8235,7 +8422,6 @@ function _nhlGameCard(espnEv){
         {label:`OVER ${nhlOuL}`,prob:ouP,evVal:ev(ouP,1.91),side:'over'},
         {label:`UNDER ${nhlOuL}`,prob:1-ouP,evVal:ev(1-ouP,1.91),side:'under'},
       ]);
-      _autoLockCapture('NHL',hn,an,_nm3,_nhlEmailMc);
       const topTier=_nm3.tierN,topTierLabel=_nm3.lbl,topTierCol=_nm3.col;
       const _bm3=_nm3.best,_topP3=_nhlFavP3;
       let explanation='';
@@ -8245,13 +8431,31 @@ function _nhlGameCard(espnEv){
       else{
         const _bp3=(_bm3.prob*100).toFixed(1),_ep3=(_bm3.evVal*100).toFixed(1);
         const _sn=seriesNote?' in '+seriesNote:'';
-        if(_bm3.side==='mlFav')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFav3} ML</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn} — shot quality, xGF, and GSAx all strongly favor ${_nhlFav3}. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;
-        else if(_bm3.side==='mlDog')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDog3} ML</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn} — model finds underdog value. Series context supports a closer game than the odds imply. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;
-        else if(_bm3.side==='plFav'){const _pl3FavMC=(_nhlMcD?.rl15!=null?_nhlMcD.rl15:plP),_pl3DogMC=(_nhlMcD?.rlN!=null?_nhlMcD.rlN:(1-plP));explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFav3} -1.5</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. Fav covers -1.5 in ${(_pl3FavMC*100).toFixed(1)}% of 10k sims (proj ${(_nhlMcD?.avgH||0).toFixed(1)}–${(_nhlMcD?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl3FavMC*100).toFixed(1)}% fav / ${(_pl3DogMC*100).toFixed(1)}% dog (10k sims). Dominant structural edge supports multi-goal margin. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
-        else if(_bm3.side==='plDog'){const _pl3DogMC=(_nhlMcD?.rlN!=null?_nhlMcD.rlN:(1-plP)),_pl3FavMC=(_nhlMcD?.rl15!=null?_nhlMcD.rl15:plP);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDog3} +1.5</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. Dog covers +1.5 in ${(_pl3DogMC*100).toFixed(1)}% of 10k sims (proj ${(_nhlMcD?.avgH||0).toFixed(1)}–${(_nhlMcD?.avgA||0).toFixed(1)}). MC cover rate: ${(_pl3FavMC*100).toFixed(1)}% fav / ${(_pl3DogMC*100).toFixed(1)}% dog (10k sims). ${_nhlDog3} can stay within a goal. ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
-        else if(_bm3.side==='over'){const _mc3T=_nhlMcD?(_nhlMcD.avgH+_nhlMcD.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_nhlMcD?((_nhlMcD.overP||.5)*100).toFixed(0):50)}% over in 10k sims). ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
-        else{const _mc3T=_nhlMcD?(_nhlMcD.avgH+_nhlMcD.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_nhlMcD?((1-(_nhlMcD.overP||.5))*100).toFixed(0):50)}% under in 10k sims). ${_ensStr3}. ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        // Part 2 content cleanup, 2026-10-02: every branch below used to end
+        // with "${_ensStr3}." (the MC/xGF/ELO ensemble split) -- genuinely
+        // redundant, since that exact split is already shown immediately
+        // below this paragraph in the card's own footer line ("MC:X% xGF:Y%
+        // ELO:Z%"). The plFav/plDog branches also used to state the same
+        // cover-rate percentage twice in two different phrasings ("Fav
+        // covers -1.5 in X%..." immediately followed by "MC cover rate: X%
+        // fav / Y% dog" -- the same two numbers, just restated). Both
+        // trimmed; nothing removed that isn't shown again elsewhere on the
+        // same card.
+        if(_bm3.side==='mlFav')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFav3} ML</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn} — shot quality, xGF, and GSAx all strongly favor ${_nhlFav3}. ${_nm3.size}-unit play${_nm3.secStr}.`;
+        else if(_bm3.side==='mlDog')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDog3} ML</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn} — model finds underdog value. Series context supports a closer game than the odds imply. ${_nm3.size}-unit play${_nm3.secStr}.`;
+        else if(_bm3.side==='plFav'){const _pl3FavMC=(_nhlMcD?.rl15!=null?_nhlMcD.rl15:plP);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlFav3} -1.5</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. Fav covers -1.5 in ${(_pl3FavMC*100).toFixed(1)}% of 10k sims (proj ${(_nhlMcD?.avgH||0).toFixed(1)}–${(_nhlMcD?.avgA||0).toFixed(1)}). Dominant structural edge supports multi-goal margin. ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        else if(_bm3.side==='plDog'){const _pl3DogMC=(_nhlMcD?.rlN!=null?_nhlMcD.rlN:(1-plP));explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nhlDog3} +1.5</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. Dog covers +1.5 in ${(_pl3DogMC*100).toFixed(1)}% of 10k sims (proj ${(_nhlMcD?.avgH||0).toFixed(1)}–${(_nhlMcD?.avgA||0).toFixed(1)}). ${_nhlDog3} can stay within a goal. ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        else if(_bm3.side==='over'){const _mc3T=_nhlMcD?(_nhlMcD.avgH+_nhlMcD.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_nhlMcD?((_nhlMcD.overP||.5)*100).toFixed(0):50)}% over in 10k sims). ${_nm3.size}-unit play${_nm3.secStr}.`;}
+        else{const _mc3T=_nhlMcD?(_nhlMcD.avgH+_nhlMcD.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${nhlOuL}</strong> graded ${topTierLabel} (${_bp3}%, EV +${_ep3}%)${_sn}. MC projects ${_mc3T} goals vs ${nhlOuL} line (${(_nhlMcD?((1-(_nhlMcD.overP||.5))*100).toFixed(0):50)}% under in 10k sims). ${_nm3.size}-unit play${_nm3.secStr}.`;}
       }
+      // "Why this pick" capture -- _autoLockCapture moved to AFTER
+      // `explanation` is built (was right after _evalMkts above) so
+      // _attachReasoning can use this card's own best-market paragraph as
+      // the rich WHY text for whichever side nm.best actually is; every
+      // other market gets the generic PICK/MODEL composition only.
+      if(topTier>0&&!post&&!live)_attachReasoning(_nm3,side=>_mcLineScore(_nhlMcD,side,nhlOuL,{n:25000}),{[_bm3.side]:explanation});
+      else _attachReasoning(_nm3,side=>_mcLineScore(_nhlMcD,side,nhlOuL,{n:25000}));
+      _autoLockCapture('NHL',hn,an,_nm3,_nhlEmailMc);
       return`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)">
   <div class="gch">
     <div>
@@ -8417,6 +8621,12 @@ function renderNHLGamesOffline(){
       else if(_bmOff.side==='over'){const _mcOffT=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${_ouLOff}</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%). MC projects ${_mcOffT} goals vs ${_ouLOff} line (${(mc?(mc.overP||.5)*100:50).toFixed(0)}% over in 10k sims). ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
       else{const _mcOffT=mc?(mc.avgH+mc.avgA).toFixed(1):'—';explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${_ouLOff}</strong> graded ${topTierLabel} (${_bpOff}%, EV +${evPct}%). MC projects ${_mcOffT} goals vs ${_ouLOff} line (${(mc?(1-(mc.overP||.5))*100:50).toFixed(0)}% under in 10k sims). ${_g3gsax}. ${_ensStrOff}. ${_nmOff.size}-unit play${_nmOff.secStr}.`;}
     }
+    // "Why this pick" capture -- see renderNHLTonight's loops just above
+    // for the rationale (this is renderNHLGamesOffline, the hardcoded-
+    // TONIGHT last-resort fallback, another near-duplicate).
+    if(topTier>0)_attachReasoning(_nmOff,side=>_mcLineScore(mc,side,_ouLOff,{n:25000}),{[_bmOff.side]:explanation});
+    else _attachReasoning(_nmOff,side=>_mcLineScore(mc,side,_ouLOff,{n:25000}));
+    _autoLockCapture('NHL',g.h,g.a,_nmOff,mc?`MC PROJ: ${g.a} ${mc.avgA.toFixed(1)} – ${g.h} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null);
     html+=`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)">
   <div class="gch">
     <div>
@@ -8517,12 +8727,17 @@ function _nhlUpcomingCard(g,dayIdx){
   ]);
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,evPct=(bm.evVal*100).toFixed(1),bp=(bm.prob*100).toFixed(1);
-  _autoLockCapture('NHL',g.home,g.away,nm,mc?`MC PROJ: ${g.away} ${mc.avgA.toFixed(1)} – ${g.home} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null);
   const favGsax=hP>=.5?(h.gsax||0):(aw.gsax||0),dogGsax=hP>=.5?(aw.gsax||0):(h.gsax||0);
   const gsaxStr=`GSAx: ${favGsax>=0?'+':''}${favGsax.toFixed(1)} vs ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)}`;
   const stStr=mc?.stEdge!=null?` / ST ${(mc.stEdge>=0?'+':'')+mc.stEdge.toFixed(1)}pp`:'';
   const sqStr=mc?.sqEdge!=null?` / SQ ${(mc.sqEdge>=0?'+':'')+mc.sqEdge.toFixed(1)}pp`:'';
   const ensStr=`MC ${(ens.mc*100).toFixed(0)}% / xGF ${(ens.xgf*100).toFixed(0)}% / hv ${(ens.hvM>=0?'+':'')+(ens.hvM*100).toFixed(1)}pp${stStr}${sqStr}`;
+  // Part 2 content cleanup, 2026-10-02: trimmed the plFav/plDog branches'
+  // duplicate "MC cover rate: X% fav / Y% dog" sentence -- the exact same
+  // two numbers immediately preceding it in "Fav/Dog covers ±1.5 in X% of
+  // sims". See _nhlGameCard's identical fix just above for the full
+  // rationale (this function is its near-duplicate, used by the real
+  // auto-lock pipeline's NHL warmup).
   let explanation='';
   if(topTier===0){
     explanation=`No qualifying edge (best ${bm.label} ${bp}%). Skip or monitor line movement before puck drop.`;
@@ -8531,11 +8746,11 @@ function _nhlUpcomingCard(g,dayIdx){
   }else if(bm.side==='mlDog'){
     explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} ML</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%) — underdog value. ${gsaxStr} signals a closer game than the market price implies. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
   }else if(bm.side==='plFav'){
-    const favMC=mc?.rl15??plP,dogMC=mc?.rlN??plDogP;
-    explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} -1.5</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). Fav covers -1.5 in ${(favMC*100).toFixed(1)}% of sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(favMC*100).toFixed(1)}% fav / ${(dogMC*100).toFixed(1)}% dog. ${gsaxStr}. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
+    const favMC=mc?.rl15??plP;
+    explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} -1.5</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). Fav covers -1.5 in ${(favMC*100).toFixed(1)}% of sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). ${gsaxStr}. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
   }else if(bm.side==='plDog'){
-    const favMC=mc?.rl15??plP,dogMC=mc?.rlN??plDogP;
-    explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} +1.5</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). Dog covers +1.5 in ${(dogMC*100).toFixed(1)}% of sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). MC cover rate: ${(favMC*100).toFixed(1)}% fav / ${(dogMC*100).toFixed(1)}% dog. ${gsaxStr} keeps this within a goal. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
+    const dogMC=mc?.rlN??plDogP;
+    explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${dogTeam} +1.5</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). Dog covers +1.5 in ${(dogMC*100).toFixed(1)}% of sims (proj ${(mc?.avgH||0).toFixed(1)}–${(mc?.avgA||0).toFixed(1)}). ${gsaxStr} keeps this within a goal. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
   }else if(bm.side==='over'){
     const projT=mc?(mc.avgH+mc.avgA).toFixed(1):'—';
     explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${ouLine}</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). MC projects ${projT} goals vs the ${ouLine} line (${((mc?.overP??.5)*100).toFixed(0)}% over in sims). ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
@@ -8543,6 +8758,10 @@ function _nhlUpcomingCard(g,dayIdx){
     const projT=mc?(mc.avgH+mc.avgA).toFixed(1):'—';
     explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${ouLine}</strong> graded ${topTierLabel} (${bp}%, EV +${evPct}%). MC projects ${projT} goals vs the ${ouLine} line (${((1-(mc?.overP??.5))*100).toFixed(0)}% under in sims). ${gsaxStr} points to tighter defense/goaltending. ${ensStr}. ${nm.size}-unit play${nm.secStr}.`;
   }
+  // "Why this pick" capture -- see _nhlGameCard's identical comment above.
+  if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouLine,{n:25000}),{[bm.side]:explanation});
+  else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouLine,{n:25000}));
+  _autoLockCapture('NHL',g.home,g.away,nm,mc?`MC PROJ: ${g.away} ${mc.avgA.toFixed(1)} – ${g.home} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.away} ${g.awayScore} – ${g.home} ${g.homeScore}`:''}`:timeStr;
@@ -9881,7 +10100,6 @@ function _liigaMatchCard(g){
     {label:`OVER ${ouL}`,prob:ouP,evVal:ouEV,dec:ouD,side:'over'},
     {label:`UNDER ${ouL}`,prob:unP,evVal:unEV,dec:ouD,side:'under'},
   ]);
-  _autoLockCapture('LIIGA',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_liigaBlendedRates(h),aR=_liigaBlendedRates(aw);
@@ -9910,6 +10128,16 @@ function _liigaMatchCard(g){
     else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
     explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
   }
+  // "Why this pick" capture -- _autoLockCapture moved to AFTER
+  // `explanation` is built (was right after _evalMkts above), same
+  // pattern as every other sport's card -- see _nhlGameCard's comment.
+  // opts.exact:true -- liigaMC is an exact Poisson convolution, not a
+  // Monte Carlo simulation (confirmed by an earlier audit this session),
+  // so the MODEL line below is worded accordingly, never claiming a fake
+  // sim count.
+  if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}),{[bm.side]:explanation});
+  else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}));
+  _autoLockCapture('LIIGA',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
@@ -10016,7 +10244,6 @@ function _nlaMatchCard(g){
     {label:`OVER ${ouL}`,prob:ouP,evVal:ouEV,dec:ouD,side:'over'},
     {label:`UNDER ${ouL}`,prob:unP,evVal:unEV,dec:ouD,side:'under'},
   ]);
-  _autoLockCapture('NLA',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_nlaBlendedRates(h),aR=_nlaBlendedRates(aw);
@@ -10038,6 +10265,11 @@ function _nlaMatchCard(g){
     else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
     explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
   }
+  // "Why this pick" capture -- see _liigaMatchCard's identical comment
+  // (this is NLA, the same near-duplicate pattern).
+  if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}),{[bm.side]:explanation});
+  else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}));
+  _autoLockCapture('NLA',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
@@ -10140,7 +10372,6 @@ function _extraligaMatchCard(g){
     {label:`OVER ${ouL}`,prob:ouP,evVal:ouEV,dec:ouD,side:'over'},
     {label:`UNDER ${ouL}`,prob:unP,evVal:unEV,dec:ouD,side:'under'},
   ]);
-  _autoLockCapture('EXTRALIGA',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_extraligaBlendedRates(h),aR=_extraligaBlendedRates(aw);
@@ -10162,6 +10393,11 @@ function _extraligaMatchCard(g){
     else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
     explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
   }
+  // "Why this pick" capture -- see _liigaMatchCard's identical comment
+  // (this is Extraliga, the same near-duplicate pattern).
+  if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}),{[bm.side]:explanation});
+  else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}));
+  _autoLockCapture('EXTRALIGA',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
@@ -10431,7 +10667,6 @@ function _shlMatchCard(g){
     {label:`OVER ${ouL}`,prob:ouP,evVal:ouEV,dec:ouD,side:'over'},
     {label:`UNDER ${ouL}`,prob:unP,evVal:unEV,dec:ouD,side:'under'},
   ]);
-  _autoLockCapture('SHL',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
   const bm=nm.best,bp=Math.round(bm.prob*100),evPct=(bm.evVal*100).toFixed(1);
   const hR=_shlBlendedRates(h),aR=_shlBlendedRates(aw);
@@ -10453,6 +10688,11 @@ function _shlMatchCard(g){
     else sideStr=`Combined scoring rate supports a tighter finish under the ${ouL} line.`;
     explanation=`${ratesStr} ${bayStr} ${capStr} ${mcProjStr} ${sideStr} ${ensStr} ${nm.size}-unit play${nm.secStr}.`;
   }
+  // "Why this pick" capture -- see _liigaMatchCard's identical comment
+  // (this is SHL, the same near-duplicate pattern).
+  if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}),{[bm.side]:explanation});
+  else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}));
+  _autoLockCapture('SHL',g.homeName,g.awayName,nm,`MC PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
@@ -11527,7 +11767,6 @@ function _nbaGameCard(espnEv){
         ]:[]),
       ];
       const _nmNBA=_evalMkts(_nbaMkts);
-      _autoLockCapture('NBA',hn,an,_nmNBA,_nbaEmailMc);
       const topTier=_nmNBA.tierN,topTierLabel=_nmNBA.lbl,topTierCol=_nmNBA.col;
       const _bmNBA=_nmNBA.best,evPct=(_bmNBA.evVal*100).toFixed(1);
       let explanation='';
@@ -11586,13 +11825,21 @@ function _nbaGameCard(espnEv){
           const _sizeNBA=_nmNBA.size+'-unit play';
           if(_bmNBA.side==='mlFav')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaFav} ML</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`${_nbaCtxLine}. `+`${_nbaProjLine}. Pace avg ${(parseFloat(_hPace)+parseFloat(_aPace)/2).toFixed(1)} — ${parseFloat(_hPace)>100?'up-tempo':parseFloat(_hPace)<97?'half-court':'normal pace'} game. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
           else if(_bmNBA.side==='mlDog')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaDog} ML</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Underdog value: ${_dogNbaN} net ${_dogNet} / DRtg ${_dogDrtg} / eFG ${_dogEFG}% — metrics don't justify the line. ${_nbaCtxLine}. ${_nbaProjLine}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
-          else if(_bmNBA.side==='sprdFav'){const _nbaFavCoverPct=(sprdP*100).toFixed(1),_nbaDogCoverPct=((1-sprdP)*100).toFixed(1);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaFav} -ATS (${sprdLbl})</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Fav covers -${Math.abs(espnSprdNum)} in ${_nbaFavCoverPct}% of simulations. ${_projSprdDisp}-pt proj margin vs ${espnSprdNum} line (+${(parseFloat(_projSprdDisp)-Math.abs(espnSprdNum)).toFixed(1)} value). MC cover rate: ${_nbaFavCoverPct}% fav / ${_nbaDogCoverPct}% dog. ${_nbaCtxLine}. eFG ${_favEFG}% vs opp-allowed ${_favOppEFG}%. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;}
-          else if(_bmNBA.side==='sprdDog'){const _nbaFavCoverPct=(sprdP*100).toFixed(1),_nbaDogCoverPct=((1-sprdP)*100).toFixed(1);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaDog} +ATS (${sprdLbl})</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Dog covers +${Math.abs(espnSprdNum)} in ${_nbaDogCoverPct}% of simulations. ${_projSprdDisp}-pt proj margin vs ${espnSprdNum} line — fav falls short by ${(Math.abs(espnSprdNum)-Math.abs(parseFloat(_projSprdDisp))).toFixed(1)} pts. MC cover rate: ${_nbaFavCoverPct}% fav / ${_nbaDogCoverPct}% dog. ${_nbaCtxLine}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;}
+          else if(_bmNBA.side==='sprdFav'){const _nbaFavCoverPct=(sprdP*100).toFixed(1);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaFav} -ATS (${sprdLbl})</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Fav covers -${Math.abs(espnSprdNum)} in ${_nbaFavCoverPct}% of simulations. ${_projSprdDisp}-pt proj margin vs ${espnSprdNum} line (+${(parseFloat(_projSprdDisp)-Math.abs(espnSprdNum)).toFixed(1)} value). ${_nbaCtxLine}. eFG ${_favEFG}% vs opp-allowed ${_favOppEFG}%. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;}
+          else if(_bmNBA.side==='sprdDog'){const _nbaDogCoverPct=((1-sprdP)*100).toFixed(1);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaDog} +ATS (${sprdLbl})</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Dog covers +${Math.abs(espnSprdNum)} in ${_nbaDogCoverPct}% of simulations. ${_projSprdDisp}-pt proj margin vs ${espnSprdNum} line — fav falls short by ${(Math.abs(espnSprdNum)-Math.abs(parseFloat(_projSprdDisp))).toFixed(1)} pts. ${_nbaCtxLine}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;}
           else if(_bmNBA.side==='over')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${ouL}</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Totals play: projected combined ${(parseFloat(_projHScr)+parseFloat(_projAScr)).toFixed(1)} vs ${ouL} line. Pace: ${_hPace}/${_aPace} (avg ${((parseFloat(_hPace)+parseFloat(_aPace))/2).toFixed(1)} pos/game). eFG: ${_hEFG}%/${_aEFG}% — above-average efficiency both sides. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
           else explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${ouL}</strong> · ${topTierLabel} · ${_bpNBA}% · EV +${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Under play: projected ${(parseFloat(_projHScr)+parseFloat(_projAScr)).toFixed(1)} combined vs ${ouL} line. DRtg: ${_hDrtg}/${_aDrtg} — elite defensive resistance limiting efficient scoring. TOV%: ${_hTOV}/${_aTOV}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
         }
       }else if(live){explanation=`IN PROGRESS — ${an} ${as2} · ${hn} ${hs} · Q${c.status?.period||'?'} ${c.status?.displayClock||''}. Live model suspended during game.`;}
       else{explanation=`FINAL — ${as2>hs?an:hn} WIN · ${Math.max(as2,hs)}-${Math.min(as2,hs)}.`;}
+      // "Why this pick" capture -- _autoLockCapture moved to AFTER
+      // `explanation` is built (was right after _evalMkts above), same
+      // reasoning as every other sport's card -- see _nhlGameCard's
+      // comment for the full rationale. Only meaningful pre-tipoff (nmNBA/
+      // topTier reflect a live model projection only while pre is true).
+      if(pre&&topTier>0)_attachReasoning(_nmNBA,side=>_mcLineScore(nbaEnsD?.mcD,side,ouL,{n:25000}),{[_bmNBA.side]:explanation});
+      else if(pre)_attachReasoning(_nmNBA,side=>_mcLineScore(nbaEnsD?.mcD,side,ouL,{n:25000}));
+      _autoLockCapture('NBA',hn,an,_nmNBA,_nbaEmailMc);
       const parlayBtn='';
       const _nbaGidSafe=String(espnEv.id||(hn+'_'+an)).replace(/[^a-zA-Z0-9]/g,'');
       return`<div class="gc" style="border-left:2px solid rgba(240,0,255,.4)">
@@ -23923,7 +24170,6 @@ function _renderSocMatchCard(g,leagueKey){
     {label:ahFavName+' -'+ahAbsLine.toFixed(1),prob:ahFavP,evVal:ev(ahFavP,1.909),side:'ahFav'},
     {label:ahDogName+' +'+ahAbsLine.toFixed(1),prob:ahDogP,evVal:ev(ahDogP,1.909),side:'ahDog'},
   ]);
-  _autoLockCapture('SOC_'+leagueKey.toUpperCase(),g.home,g.away,_mkts,'xG PROJ: '+g.home+' '+hxg.toFixed(2)+' – '+g.away+' '+axg.toFixed(2),_eg.factors);
   var topT=_mkts.tierN,topLabel=_mkts.lbl,topCol=_mkts.col;
   var _bm=_mkts.best,_bp=Math.round(_bm.prob*100),_be=(_bm.evVal*100).toFixed(1);
   var _implied=1/ml2d(_bm.side==='home'?hML:_bm.side==='draw'?dML:_bm.side==='away'?aML:1.909);
@@ -23975,6 +24221,15 @@ function _renderSocMatchCard(g,leagueKey){
     ahDogName+' priced to survive within '+ahAbsLine.toFixed(1)+' even if outscored.')+
     ' Kelly '+_kellyPct+'%. '+topLabel+' · '+_mkts.size+'-unit play'+_mkts.secStr+'.'+
     _socFactorSummary(_bm.side);
+  // "Why this pick" capture -- _autoLockCapture moved to AFTER
+  // `explanation` is built (was right after _evalMkts above), same
+  // pattern as every other sport's card -- see _nhlGameCard's comment.
+  // _soccerMC is a real sampling-loop Monte Carlo (unlike the 4 hockey-
+  // minor "MC" functions), so _mcLineSoccer's own n-sim wording applies
+  // honestly here.
+  if(topT>0)_attachReasoning(_mkts,function(side){return _mcLineSoccer(mc,side,ouL);},(function(){var r={};r[_bm.side]=explanation;return r;})());
+  else _attachReasoning(_mkts,function(side){return _mcLineSoccer(mc,side,ouL);});
+  _autoLockCapture('SOC_'+leagueKey.toUpperCase(),g.home,g.away,_mkts,'xG PROJ: '+g.home+' '+hxg.toFixed(2)+' – '+g.away+' '+axg.toFixed(2),_eg.factors);
   var isLive=g.status==='in',isFinal=g.status==='post';
   var scoreHtml='';
   if(isLive){scoreHtml='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="font-family:var(--orb);font-size:27px;font-weight:900;color:#ffdd00">'+(g.hScore||0)+'</span><span style="font-family:var(--mono);font-size:15px;color:#ffdd00;background:rgba(255,221,0,.12);padding:2px 7px;border-radius:2px;border:1px solid rgba(255,221,0,.4);animation:pulse 1.5s infinite">● LIVE '+(g.clock||'')+'</span><span style="font-family:var(--orb);font-size:27px;font-weight:900;color:#ffdd00">'+(g.aScore||0)+'</span></div>';}
