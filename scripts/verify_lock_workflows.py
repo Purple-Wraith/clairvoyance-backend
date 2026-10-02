@@ -243,7 +243,9 @@ def check_main_lock() -> str | None:
         # there for why), so this independent copy of the same match needed
         # the identical fix.
         cmd_lines = [l for l in log.splitlines() if "python3 scripts/auto_lock_settle.py" in l]
-        if cmd_lines and "--lock" in cmd_lines[-1] and "--settle" not in cmd_lines[-1]:
+        # 2026-10-02: the primary pre-dawn slot runs `--settle --lock --final-lock-check` (settle + lock in one pass), so a
+        # command with --settle still counts as the lock pass when it also carries --lock --final-lock-check.
+        if cmd_lines and "--lock" in cmd_lines[-1] and ("--settle" not in cmd_lines[-1] or "--final-lock-check" in cmd_lines[-1]):
             # Found today's lock pass -- run the full content check on it.
             problem = _check_run(run, "Main Lock", ["=== AUTO-LOCK (PREMIUM/OPTIMAL) — ALL PRODUCTS ==="])
             if problem:

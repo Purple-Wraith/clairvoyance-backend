@@ -410,6 +410,57 @@ def start_guard(sport, start_ms, now=None, margin_min: float = LOCK_START_MARGIN
     return True, "ok", mins
 
 
+MT = ZoneInfo("America/Denver")
+
+
+def mt_date_of_ms(ms) -> str | None:
+    """America/Denver calendar date (YYYY-MM-DD) of an epoch-ms start, or None if unusable."""
+    t = parse_start_ms(ms)
+    return None if t is None else datetime.fromtimestamp(t / 1000.0, MT).strftime("%Y-%m-%d")
+
+
+def horizon_dates(now=None, days: int = 2) -> list[str]:
+    """The Mountain-time calendar dates a ROLLING-HORIZON pass covers: today and tomorrow, relative to the moment the pass
+    ACTUALLY runs. The evening-prior passes used to lock "tomorrow" only. GitHub delays scheduled runs by 5-7 hours, so a pass
+    scheduled for 10 PM MT really runs at ~4 AM MT -- AFTER midnight -- when "tomorrow" is the day AFTER the games that are about
+    to start (SHL kicks off at 7:15 AM MT that same morning). Covering [today, tomorrow] makes the pass correct whether it lands
+    before or after midnight; games that already started are refused by the pre-start guard, so the extra date costs nothing."""
+    t = datetime.fromtimestamp(_now_ms(now) / 1000.0, MT)
+    return [(t + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days)]
+
+
+# One report per lock pass run in this process (appended by the run_* functions, read by main() for the result file, the
+# automation status and the owner alert). Plain dicts so they serialise straight to JSON.
+PASS_REPORTS: list[dict] = []
+
+
+def analyze_games(result: dict, only_sports=None, now=None) -> dict:
+    """Facts about the games a pass gathered (independent of what qualified): how many, how many already started, when the
+    next one kicks off, and which UPCOMING hockey games have no real posted price (so cannot qualify YET -- a later pass,
+    after the odds post, may lock them: the pass is not 'complete')."""
+    now_ms = _now_ms(now)
+    games = [g for g in (result.get("gameLegs") or []) if only_sports is None or g.get("sport") in only_sports]
+    upcoming: list[float] = []
+    started = 0
+    no_price: list[str] = []
+    for g in games:
+        st = parse_start_ms(g.get("startMs"))
+        if st is None:
+            continue
+        if st <= now_ms:
+            started += 1
+            continue
+        upcoming.append(st)
+        if g.get("sport") in HOCKEY_SPORTS and not any(m.get("priceSource") == "market" for m in (g.get("markets") or [])):
+            no_price.append(f"{g.get('sport')} {g.get('awA')} @ {g.get('hA')}")
+    return {
+        "games": len(games), "started": started, "upcoming": len(upcoming),
+        "nextStartMs": min(upcoming) if upcoming else None,
+        "firstStartMs": min([parse_start_ms(g.get("startMs")) for g in games if parse_start_ms(g.get("startMs"))] or [None]) if games else None,
+        "noPrice": no_price,
+    }
+
+
 def log(msg: str) -> None:
     ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
     print(f"[{ts}] {msg}", flush=True)
@@ -452,14 +503,35 @@ def _commit_and_push(paths: list[str], message: str) -> None:
     push_res = subprocess.run(["git", "-C", str(ROOT), "push", "origin", "main"], capture_output=True, text=True)
     if push_res.returncode != 0:
         subprocess.run(["git", "-C", str(ROOT), "fetch", "origin", "main"], capture_output=True)
-        if subprocess.run(["git", "-C", str(ROOT), *_GIT_IDENTITY, "rebase", "origin/main"], capture_output=True).returncode == 0:
+        if subprocess.run(["git", "-C", str(ROOT), *_GIT_IDENTITY, "rebase", "--autostash", "origin/main"], capture_output=True).returncode == 0:
             subprocess.run(["git", "-C", str(ROOT), "push", "origin", "main"], capture_output=True)
         else:
             subprocess.run(["git", "-C", str(ROOT), "rebase", "--abort"], capture_output=True)
             log(f"_commit_and_push: push failed and rebase also failed: {push_res.stderr}")
 
 
-def write_automation_status(kind: str, ok: bool, detail: str) -> None:
+LOCK_PASS_HISTORY_MAX = 60  # how many recent lock passes docs/automation_status.json keeps under "lockPasses" (Engine Health)
+
+
+def read_marker_from_origin(rel_path: str) -> str:
+    """Contents of a data/ marker file as of origin/main (fetching first), falling back to the checked-out copy. A scheduled run's
+    checkout is the commit that existed when it was TRIGGERED, so a run queued behind another slot of the same workflow (they share a
+    concurrency group) does not see the marker that earlier slot pushed -- which would let both email subscribers."""
+    try:
+        subprocess.run(["git", "-C", str(ROOT), "fetch", "--quiet", "--depth=1", "origin", "main"], capture_output=True, timeout=60)
+        r = subprocess.run(["git", "-C", str(ROOT), "show", f"origin/main:{rel_path}"], capture_output=True, text=True, timeout=30)
+        if r.returncode == 0:
+            return r.stdout.strip()
+    except Exception:
+        pass
+    try:
+        return (ROOT / rel_path).read_text().strip()
+    except Exception:
+        return ""
+
+
+def write_automation_status(kind: str, ok: bool, detail: str, extra: dict | None = None,
+                            passes: list[dict] | None = None, owner_alert_hash: str | None = None) -> None:
     """kind: 'lastLock' or 'lastSettle'. Drives the header's LAST LOCK/LAST
     SETTLE indicators (docs/app.html reads this same file, same-origin, no
     CORS concerns). Written only for real --live runs -- a dry-run
@@ -481,12 +553,121 @@ def write_automation_status(kind: str, ok: bool, detail: str) -> None:
         "tsMT": now_mt.strftime("%Y-%m-%d %I:%M %p MT"),
         "ok": ok,
         "detail": detail,
+        **(extra or {}),
     }
+    # Engine Health (2026-10-02): every lock pass appends one entry -- when it LANDED vs the next kickoff and whether it refused
+    # legs because games had already started -- so a late pass is visible instead of silently succeeding. Newest last.
+    if passes:
+        hist = status.get("lockPasses") if isinstance(status.get("lockPasses"), list) else []
+        hist.extend(passes)
+        status["lockPasses"] = hist[-LOCK_PASS_HISTORY_MAX:]
+    if owner_alert_hash:
+        al = status.get("ownerAlerts") if isinstance(status.get("ownerAlerts"), dict) else {}
+        al[owner_alert_hash] = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+        # keep only the last ~3 days of hashes
+        cutoff = (now_utc - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        status["ownerAlerts"] = {k: v for k, v in al.items() if v >= cutoff}
     try:
         path.write_text(json.dumps(status, indent=2))
         _commit_and_push(["docs/automation_status.json"], f"chore: {kind} status ({'ok' if ok else 'FAILED'})")
     except Exception as exc:
         log(f"write_automation_status failed: {exc}")
+
+
+def pass_entries(kind_key: str, reports: list[dict]) -> list[dict]:
+    """PASS_REPORTS -> compact lockPasses entries for docs/automation_status.json (what Engine Health shows)."""
+    now_utc = datetime.now(timezone.utc)
+    now_ms = now_utc.timestamp() * 1000.0
+    out = []
+    for r in reports:
+        nxt = r.get("nextStartMs")
+        out.append({
+            "key": kind_key, "kind": r.get("kind"), "label": r.get("label"),
+            "tsUTC": now_utc.strftime("%Y-%m-%dT%H:%M:%SZ"), "tsMT": now_utc.astimezone(MT).strftime("%Y-%m-%d %I:%M %p MT"),
+            "dates": r.get("dates"), "live": bool(r.get("live")), "complete": bool(r.get("complete")),
+            "qualifying": r.get("qualifying", 0), "new": r.get("new", 0), "already": r.get("already", 0),
+            "failed": r.get("failed", 0), "skippedStarted": r.get("skipped", 0),
+            "games": r.get("games", 0), "started": r.get("started", 0), "upcoming": r.get("upcoming", 0),
+            "nextStartMs": nxt, "nextStartMT": (datetime.fromtimestamp(nxt / 1000.0, MT).strftime("%a %m-%d %I:%M %p MT") if nxt else None),
+            "marginMin": (round((nxt - now_ms) / 60000.0) if nxt else None),
+            "noPriceGames": len(r.get("noPrice") or []),
+            # Red flag: this pass refused qualifying legs because their game had already started / was about to.
+            "late": bool(r.get("skipped")),
+        })
+    return out
+
+
+def owner_alert_for(reports: list[dict]) -> tuple[str, str, str] | None:
+    """-> (hash, subject, html) for the OWNER-ONLY pre-kickoff alert, or None. Raised when a LIVE pass found qualifying legs it
+    could NOT lock before kickoff (refused by the start guard: the game already started / starts within LOCK_START_MARGIN_MIN) or
+    legs that failed to lock. Those are exactly the picks that would otherwise need a manual lock -- listed so the owner knows
+    whether manual action is needed. Never goes to subscribers. Deduped by the hash of the leg set (see main())."""
+    items: list[dict] = []
+    fails: list[str] = []
+    for r in reports:
+        if not r.get("live"):
+            continue
+        items += [dict(d, pass_label=r.get("label")) for d in (r.get("skippedDetail") or [])]
+        fails += [f"{r.get('label')}: {x}" for x in (r.get("failedLabels") or [])]
+    if not items and not fails:
+        return None
+    import hashlib
+    key = "|".join(sorted(f"{i.get('sport')}:{i.get('game')}:{i.get('leg')}" for i in items) + sorted(fails))
+    h = hashlib.sha1(key.encode()).hexdigest()[:12]
+    now_mt = datetime.now(MT).strftime("%a %m-%d %I:%M %p MT")
+    rows = []
+    for i in sorted(items, key=lambda d: d.get("startMs") or 0):
+        st = i.get("startMs")
+        st_txt = datetime.fromtimestamp(st / 1000.0, MT).strftime("%a %I:%M %p MT") if st else "start unknown"
+        rows.append(f"<li><strong>{_esc(i.get('sport'))}</strong> {_esc(i.get('game'))} — {_esc(i.get('leg'))} "
+                    f"({_esc(i.get('tier'))}, {(i.get('prob') or 0) * 100:.0f}%) — kickoff {st_txt} — <em>{_esc(i.get('why'))}</em></li>")
+    for f in fails:
+        rows.append(f"<li><strong>LOCK FAILED</strong> {_esc(f)}</li>")
+    n = len(items) + len(fails)
+    html = (f"{_EMAIL_WRAP_OPEN}"
+            f'<div style="font-size:16px;color:#ff9090;font-weight:700">⚠ {n} qualifying pick(s) NOT locked before kickoff</div>'
+            f'<div style="margin-top:10px;font-size:14px;color:#ccc">A lock pass landed at {now_mt} and found these legs qualifying, '
+            f"but could not lock them (game already started or within {LOCK_START_MARGIN_MIN} min of start, or the lock failed). "
+            f"No subscriber email was sent for them. If you still want any of these, lock them manually in the app -- they are "
+            f"stamped 'late-manual' and excluded from every published figure and from model learning."
+            f'<ul style="margin:8px 0 0;padding-left:18px">{"".join(rows)}</ul></div>{_EMAIL_WRAP_CLOSE}')
+    return h, f"Clairvoyance — ACTION: {n} qualifying pick(s) not locked before kickoff", html
+
+
+def send_owner_alert(subject: str, html: str) -> bool:
+    """OWNER-ONLY email (OWNER_EMAIL / LOCKS_EMAIL_TO / SOCIAL_CARD_EMAIL_TO) -- never any subscriber list."""
+    to = OWNER_EMAIL or LOCKS_EMAIL_TO
+    if not to:
+        log("owner alert: no OWNER_EMAIL/LOCKS_EMAIL_TO configured -- not sent")
+        return False
+    ok, msg = _send_gmail(subject, to, html)
+    log("Owner alert sent" if ok else f"Owner alert send failed: {msg}")
+    return bool(ok)
+
+
+def finish_live_pass(status_key: str, ok: bool, detail: str, reports: list[dict], result_file: str | None) -> None:
+    """Everything a LIVE lock pass does when it is over: writes the pass result file (the workflow reads `complete` from it to
+    decide whether to record the lock marker), appends the Engine Health pass entries, writes the lastX status, and sends the
+    owner-only pre-kickoff alert (deduped). Dry runs never reach here (nothing real happened)."""
+    complete = bool(reports) and all(r.get("complete") for r in reports) and ok
+    if result_file:
+        try:
+            Path(result_file).write_text(json.dumps({"complete": complete, "ok": ok, "reports": reports}, default=str))
+        except Exception as exc:
+            log(f"could not write result file {result_file}: {exc}")
+    alert = owner_alert_for(reports)
+    sent_hash = None
+    if alert:
+        h, subject, html = alert
+        try:
+            seen = json.loads((ROOT / "docs" / "automation_status.json").read_text()).get("ownerAlerts", {})
+        except Exception:
+            seen = {}
+        if h in seen:
+            log(f"owner alert {h} already sent ({seen[h]}) -- not repeating")
+        elif send_owner_alert(subject, html):
+            sent_hash = h
+    write_automation_status(status_key, ok, detail, passes=pass_entries(status_key, reports), owner_alert_hash=sent_hash)
 
 
 def run_adaptive_recalibration(page, live: bool) -> None:
@@ -1347,60 +1528,73 @@ EURO_LEAGUE_KEY_TO_SPORT = {"cl": "SOC_CL", "pl": "SOC_PL", "liga": "SOC_LIGA", 
 
 
 def gather_soccer_legs_for_date(page, target_date_iso: str) -> dict:
-    """Evening-prior-lock version of gather_legs(), narrowed to just the 5
-    European soccer leagues and a single target date instead of "today".
+    """Single-date wrapper kept for tests/back-compat -- see gather_soccer_legs_for_dates."""
+    return gather_soccer_legs_for_dates(page, [target_date_iso])
+
+
+def gather_soccer_legs_for_dates(page, target_dates: list[str]) -> dict:
+    """Evening-prior-lock version of gather_legs(), narrowed to just the
+    4 European soccer leagues and a set of target dates instead of "today".
 
     Unlike the main gather_legs() (which drives the live page's own render
     functions -- renderNBAGames(), renderLeagueMatches(), etc. -- all of
     which are hardcoded to "today" by design, see _fetchLeagueScoreboard's
     own comment on why), this calls docs/app.html's _renderSocMatchCard(g,
-    leagueKey) directly, one game object at a time, sourced from
-    docs/soccer_schedule_tomorrow.json (written by scrape_soccer_schedule.py
-    --tomorrow) instead of any live/today-scoped fetch. _renderSocMatchCard
-    itself has no "today" dependency -- it computes xG/Monte-Carlo/EV
-    purely from the game object it's given and fires the same
-    _autoLockCapture() hook every other sport's card renderer uses, so
+    leagueKey) directly, one game object at a time, sourced from the
+    published snapshots instead of any live/today-scoped fetch.
+    _renderSocMatchCard itself has no "today" dependency -- it computes
+    xG/Monte-Carlo/EV purely from the game object it's given and fires the
+    same _autoLockCapture() hook every other sport's card renderer uses, so
     this reuses the exact same evaluation logic as the live site with zero
-    duplicated grading code, just fed tomorrow's games instead of today's.
+    duplicated grading code.
 
-    The snapshot's own `date` field is checked against target_date_iso
-    (converted to ESPN's YYYYMMDD form) before use -- same "reject a stale
-    snapshot rather than silently grading the wrong day's games" guard
-    loadSoccerScheduleSnapshot() already applies to the live site's
-    same-day seed."""
-    target_date_espn = target_date_iso.replace("-", "")
+    ROLLING HORIZON (2026-10-02): target_dates is a list of Mountain dates
+    (see horizon_dates), and BOTH snapshots are read: soccer_schedule_tomorrow.json
+    (written by scrape_soccer_schedule.py --tomorrow) and soccer_schedule.json
+    (today's games, daily-schedules-refresh). A snapshot is used only when its
+    own `date` field (ESPN YYYYMMDD) is one of the target dates -- the same "reject a
+    stale snapshot rather than silently grading the wrong day's games" guard
+    loadSoccerScheduleSnapshot() applies -- so a pass that runs after midnight
+    MT (GitHub delays these workflows 5-7h) still covers the games about to
+    start that morning. Games already final are skipped; the pre-start guard
+    in build_qualifying handles started ones."""
+    target_espn = [d.replace("-", "") for d in target_dates]
     return page.evaluate(
         """
-        async ({ targetDateEspn, leagueKeys }) => {
+        async ({ targetEspn, leagueKeys }) => {
           window._autoLockLegs = [];
-          try {
-            const r = await fetch('soccer_schedule_tomorrow.json', { cache: 'no-store' });
-            if (r.ok) {
+          for (const file of ['soccer_schedule_tomorrow.json', 'soccer_schedule.json']) {
+            try {
+              const r = await fetch(file, { cache: 'no-store' });
+              if (!r.ok) { console.warn('[CV evening-lock] ' + file + ' fetch failed:', r.status); continue; }
               const d = await r.json();
-              if (d && d.date === targetDateEspn && d.leagues) {
+              if (d && targetEspn.includes(d.date) && d.leagues) {
                 leagueKeys.forEach(key => {
                   (d.leagues[key] || []).forEach(g => {
-                    if (!g.home || !g.away) return;
+                    if (!g.home || !g.away || g.status === 'post') return;
                     try { _renderSocMatchCard(g, key); } catch (e) {}
                   });
                 });
               } else if (d) {
-                console.warn('[CV evening-lock] soccer_schedule_tomorrow.json date mismatch, skipping:', d.date, 'expected', targetDateEspn);
+                console.warn('[CV evening-lock] ' + file + ' date ' + d.date + ' not in target dates ' + targetEspn.join(',') + ', skipping');
               }
-            } else {
-              console.warn('[CV evening-lock] soccer_schedule_tomorrow.json fetch failed:', r.status);
-            }
-          } catch (e) { console.warn('[CV evening-lock] snapshot load error:', e.message); }
+            } catch (e) { console.warn('[CV evening-lock] snapshot load error (' + file + '):', e.message); }
+          }
           await new Promise(r => setTimeout(r, 300));
           return { gameLegs: window._autoLockLegs || [], propLegs: [] };
         }
         """,
-        {"targetDateEspn": target_date_espn, "leagueKeys": list(EURO_LEAGUE_KEY_TO_SPORT.keys())},
+        {"targetEspn": target_espn, "leagueKeys": list(EURO_LEAGUE_KEY_TO_SPORT.keys())},
     )
 
 
 def gather_cfb_legs_for_date(page, target_date_iso: str) -> dict:
-    """Evening-prior-lock version for CFB, same rationale as
+    """Single-date wrapper kept for tests/back-compat -- see gather_cfb_legs_for_dates."""
+    return gather_cfb_legs_for_dates(page, [target_date_iso])
+
+
+def gather_cfb_legs_for_dates(page, target_dates: list[str]) -> dict:
+    """Rolling-horizon (list of Mountain dates -- see horizon_dates) evening-prior-lock version for CFB, same rationale as
     gather_soccer_legs_for_date above -- but simpler, since CFB needs no
     new data-feed workflow at all: docs/cfb_schedule.json already covers
     the FULL SEASON in one file (confirmed live: dates spanning Aug 2026
@@ -1423,7 +1617,7 @@ def gather_cfb_legs_for_date(page, target_date_iso: str) -> dict:
     a genuinely future date, but costs nothing to guard)."""
     return page.evaluate(
         """
-        async (targetDateIso) => {
+        async (targetDates) => {
           window._autoLockLegs = [];
           try {
             const r = await fetch('cfb_schedule.json', { cache: 'no-store' });
@@ -1432,7 +1626,7 @@ def gather_cfb_legs_for_date(page, target_date_iso: str) -> dict:
               Object.values(sched.weeks || {}).forEach(week => (week || []).forEach(g => {
                 const d = new Date(g.date);
                 const localIso = isNaN(d) ? (g.date || '').slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
-                if (localIso !== targetDateIso || g.state === 'post') return;
+                if (!targetDates.includes(localIso) || g.state === 'post') return;
                 try { _cfbGameCard(g); } catch (e) {}
               }));
             } else {
@@ -1443,11 +1637,16 @@ def gather_cfb_legs_for_date(page, target_date_iso: str) -> dict:
           return { gameLegs: window._autoLockLegs || [], propLegs: [] };
         }
         """,
-        target_date_iso,
+        list(target_dates),
     )
 
 
 def gather_hockey_evening_legs_for_date(page, target_date_iso: str) -> dict:
+    """Single-date wrapper kept for tests/back-compat -- see gather_hockey_legs_for_dates."""
+    return gather_hockey_legs_for_dates(page, [target_date_iso])
+
+
+def gather_hockey_legs_for_dates(page, target_dates: list[str]) -> dict:
     """Evening-prior-lock version for SHL/Liiga/NLA/Extraliga combined,
     same rationale as gather_cfb_legs_for_date above -- no new data-feed
     workflow needed: docs/liiga_schedule.json/shl_schedule.json/
@@ -1473,10 +1672,15 @@ def gather_hockey_evening_legs_for_date(page, target_date_iso: str) -> dict:
     Central European evening schedule as Liiga/SHL (real kickoffs land
     in the early-MT-morning window from a US perspective), so they
     belong in the same evening-prior-lock pass rather than the standard
-    same-day morning lock."""
+    same-day morning lock.
+
+    ROLLING HORIZON (2026-10-02): takes a LIST of Mountain dates (see horizon_dates) instead of one. GitHub runs these
+    "evening" workflows 5-7h late, i.e. after midnight MT, when a single "tomorrow" date would skip the games about to start
+    that morning; every game on any listed date that is not final is captured, and build_qualifying's pre-start guard drops
+    the ones that already started."""
     return page.evaluate(
         """
-        async (targetDateIso) => {
+        async (targetDates) => {
           window._autoLockLegs = [];
           const leagues = [
             { load: loadLiigaScheduleData, card: (typeof _liigaMatchCard === 'function') ? _liigaMatchCard : null, label: 'Liiga' },
@@ -1491,7 +1695,7 @@ def gather_hockey_evening_legs_for_date(page, target_date_iso: str) -> dict:
               (data && data.games || []).forEach(g => {
                 const d = new Date(g.date);
                 const localIso = isNaN(d) ? (g.date || '').slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
-                if (localIso !== targetDateIso || g.state === 'post') return;
+                if (!targetDates.includes(localIso) || g.state === 'post') return;
                 try { lg.card(g); } catch (e) {}
               });
             } catch (e) { console.warn('[CV evening-lock ' + lg.label + '] error:', e.message); }
@@ -1500,7 +1704,7 @@ def gather_hockey_evening_legs_for_date(page, target_date_iso: str) -> dict:
           return { gameLegs: window._autoLockLegs || [], propLegs: [] };
         }
         """,
-        target_date_iso,
+        list(target_dates),
     )
 
 
@@ -1568,6 +1772,7 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
     qualifying: list[dict] = []
     skipped_legs = 0
     skipped_games: list[str] = []
+    skipped_detail: list[dict] = []   # every qualifying leg the guard refused (for the owner's pre-kickoff alert)
     unguarded_legs = 0
     for gl in result.get("gameLegs") or []:
         sport = gl.get("sport")
@@ -1603,6 +1808,9 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                 qualifies = tier_n in QUALIFYING_TIERS or is_high_hit
             if qualifies and not guard_ok:
                 game_skipped += 1
+                skipped_detail.append({"sport": sport, "game": f"{gl.get('awA')} @ {gl.get('hA')}", "leg": m.get("label"),
+                                       "startMs": parse_start_ms(gl.get("startMs")), "why": guard_reason,
+                                       "prob": m.get("prob"), "tier": TIER_LABEL.get(tier_n, "?") if tier_n is not None else "?"})
                 continue
             if qualifies and guard_reason.startswith("no start time"):
                 unguarded_legs += 1
@@ -1658,6 +1866,10 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                     # The game's real scheduled start (epoch ms) -- lock_game_leg re-checks it (defence in depth) and
                     # passes it to lockPick, which stores startMs on the pick.
                     "startMs": gl.get("startMs"),
+                    # MT calendar date of the game's real start: the date its pick is stamped with (lockPick's id and the
+                    # settlement lookup both use the GAME's date). Used by the rolling-horizon evening passes, whose legs span
+                    # more than one date; None when the start is unknown (callers then fall back to their own date).
+                    "lockDate": mt_date_of_ms(gl.get("startMs")),
                 })
         if game_skipped:
             skipped_legs += game_skipped
@@ -1707,7 +1919,8 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
     START_GUARD_TOTALS["skipped"] += skipped_legs
     START_GUARD_TOTALS["unguarded"] += unguarded_legs
     if guard_stats is not None:
-        guard_stats.update({"skipped": skipped_legs, "games": skipped_games, "unguarded": unguarded_legs})
+        guard_stats.update({"skipped": skipped_legs, "games": skipped_games, "unguarded": unguarded_legs,
+                            "detail": skipped_detail})
     log(f"  start guard (margin {LOCK_START_MARGIN_MIN}m): {skipped_legs} legs skipped: game already started"
         f"{' (' + str(len(skipped_games)) + ' game(s))' if skipped_games else ''}"
         + (f"; {unguarded_legs} leg(s) had no start time and fail open" if unguarded_legs else ""))
@@ -2348,13 +2561,16 @@ class LockResult(NamedTuple):
     # Legs refused by the pre-start guard inside lock_game_leg (game already started / starts within the margin). NOT a
     # failure: the pass did its job. Defaults to 0 so every existing LockResult(0, 0, 0) call site still works.
     skipped: int = 0
+    # Labels of the legs that genuinely failed to lock (for the owner's alert); empty when none.
+    failed_labels: tuple = ()
 
     @property
     def confirmed(self) -> int:
         return self.new + self.already_locked
 
 
-def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | None = None) -> LockResult:
+def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | None = None,
+                          per_leg_dates: bool = False) -> LockResult:
     """Actually calls the real lockPick()/lockProp()/etc. for each leg.
     Shared by run_lock() (single-product early passes) and
     run_lock_segmented() (the main run's per-product loop) so there's one
@@ -2373,9 +2589,13 @@ def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | Non
     dedup were indistinguishable in both the logs and the email. Now
     logged and counted separately."""
     new = already_locked = failed = skipped = 0
+    failed_labels: list[str] = []
     for q in qualifying:
         try:
-            outcome = lock_game_leg(page, q, date_override) if q["kind"] == "GAME" else lock_prop_leg(page, q["sport"], q["leg"])
+            # per_leg_dates (rolling-horizon evening passes): every leg is stamped with ITS OWN game's Mountain date, so one
+            # pass can lock today's and tomorrow's games; legs with an unknown start fall back to date_override.
+            leg_date = (q.get("lockDate") or date_override) if per_leg_dates else date_override
+            outcome = lock_game_leg(page, q, leg_date) if q["kind"] == "GAME" else lock_prop_leg(page, q["sport"], q["leg"])
             label = q.get('label') or q.get('leg', {}).get('player')
             if outcome == "locked":
                 new += 1
@@ -2388,13 +2608,15 @@ def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | Non
                 log(f"  skip: {outcome[6:]} -- {label}")
             else:
                 failed += 1
+                failed_labels.append(str(label))
                 log(f"  FAILED to lock ({outcome}): {label}")
         except Exception as exc:
             failed += 1
+            failed_labels.append(str(q.get("label") or q.get("leg", {}).get("player")))
             log(f"  FAILED to lock: {exc}")
     if skipped:
         log(f"  {skipped} leg(s) skipped at lock time: game already started")
-    return LockResult(new, already_locked, failed, skipped)
+    return LockResult(new, already_locked, failed, skipped, tuple(failed_labels))
 
 
 def verify_locks_for_date(page, date_iso: str | None = None) -> int:
@@ -2421,6 +2643,17 @@ def verify_locks_for_date(page, date_iso: str | None = None) -> int:
     return count
 
 
+def verify_locks_for_dates(page, dates: list[str]) -> int:
+    """verify_locks_for_date over several dates with ONE ledger pull (the rolling-horizon passes lock picks dated today AND
+    tomorrow). Returns the total number of pending picks found for those dates."""
+    n = load_bet_ledger(page)
+    counts = page.evaluate(
+        "(ds) => ds.map(d => getP().filter(p => p.date === d && p.outcome === 'pending').length)", list(dates))
+    log(f"VERIFY: fresh Supabase pull ({n} total bets) shows pending picks locked per date: "
+        + ", ".join(f"{d}={c}" for d, c in zip(dates, counts)))
+    return sum(counts)
+
+
 # Back-compat alias -- every existing call site in this file passes no
 # args and means "today"; kept as a thin wrapper rather than touching
 # every call site for a rename that adds no behavior change there.
@@ -2442,7 +2675,15 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
     instead of trusting "the function didn't throw"."""
     log(f"=== AUTO-LOCK (PREMIUM/OPTIMAL){' — ' + label if label else ''} ===")
     result = gather_legs(page)
-    qualifying = build_qualifying(result, only_sports=only_sports)
+    guard: dict = {}
+    qualifying = build_qualifying(result, only_sports=only_sports, guard_stats=guard)
+    analysis = analyze_games(result, only_sports)
+    rep = {"kind": f"early-{(label or 'all').lower()}", "label": label or "ALL", "dates": [datetime.now(MT).strftime("%Y-%m-%d")],
+           "qualifying": len(qualifying), "new": 0, "already": 0, "failed": 0, "skipped": guard.get("skipped", 0),
+           "skippedDetail": guard.get("detail", []), "failedLabels": [], "games": analysis["games"],
+           "started": analysis["started"], "upcoming": analysis["upcoming"], "nextStartMs": analysis["nextStartMs"],
+           "noPrice": analysis["noPrice"], "live": live, "complete": False}
+    PASS_REPORTS.append(rep)
     log(f"Gathered {len(result.get('gameLegs') or [])} games' worth of markets, "
         f"{len(result.get('propLegs') or [])} prop legs total")
     prop_diag = result.get("propDiag") or {}
@@ -2466,8 +2707,12 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
         return 0
 
     if not qualifying:
-        if send_email:
+        rep["complete"] = not analysis["noPrice"] and not guard.get("skipped")
+        ok_email, why = _zero_pick_decision(qualifying, guard, rep["complete"])
+        if send_email and ok_email:
             send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to)
+        elif send_email:
+            log(f"Locks email ({label or 'ALL'}) suppressed (zero-pick): {why}")
         else:
             log(f"Locks email ({label or 'ALL'}) skipped -- already sent today")
         return 0
@@ -2475,6 +2720,9 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
     result = _lock_qualifying_legs(page, qualifying)
     log(f"Locked {result.new} new, {result.already_locked} already locked, "
         f"{result.failed} failed -- {result.confirmed}/{len(qualifying)} qualifying legs confirmed locked")
+    rep.update({"new": result.new, "already": result.already_locked, "failed": result.failed,
+                "failedLabels": list(result.failed_labels), "skipped": rep["skipped"] + result.skipped})
+    rep["complete"] = result.failed == 0 and not analysis["noPrice"]
     if result.new > 0:
         flush_to_supabase(page)
         log("Flushed locks to Supabase")
@@ -2543,7 +2791,15 @@ def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
         ("SOCCER", PRODUCT_SPORTS["soccer"], "soccer"),
         ("HOCKEY", EARLY_HOCKEY_SPORTS, "hockey"),
     ):
-        qualifying = build_qualifying(result, only_sports=only_sports)
+        guard: dict = {}
+        qualifying = build_qualifying(result, only_sports=only_sports, guard_stats=guard)
+        analysis = analyze_games(result, only_sports)
+        rep = {"kind": f"euro-early-{product}", "label": label, "dates": [datetime.now(MT).strftime("%Y-%m-%d")],
+               "qualifying": len(qualifying), "new": 0, "already": 0, "failed": 0, "skipped": guard.get("skipped", 0),
+               "skippedDetail": guard.get("detail", []), "failedLabels": [], "games": analysis["games"],
+               "started": analysis["started"], "upcoming": analysis["upcoming"], "nextStartMs": analysis["nextStartMs"],
+               "noPrice": analysis["noPrice"], "live": live, "complete": False}
+        PASS_REPORTS.append(rep)
         to = recipients_for(product)
         log(f"{len(qualifying)} qualifying PREMIUM/OPTIMAL legs found ({label.lower()} only) "
             f"-> {len(to)} recipient(s)")
@@ -2563,12 +2819,19 @@ def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
             continue
 
         if not qualifying:
-            if send_email:
+            rep["complete"] = not analysis["noPrice"] and not guard.get("skipped")
+            ok_email, why = _zero_pick_decision(qualifying, guard, rep["complete"])
+            if send_email and ok_email:
                 send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to)
+            elif send_email:
+                log(f"Locks email ({label}) suppressed (zero-pick): {why}")
             continue
 
         result_lock = _lock_qualifying_legs(page, qualifying)
         total_locked += result_lock.new
+        rep.update({"new": result_lock.new, "already": result_lock.already_locked, "failed": result_lock.failed,
+                    "failedLabels": list(result_lock.failed_labels), "skipped": rep["skipped"] + result_lock.skipped})
+        rep["complete"] = result_lock.failed == 0 and not analysis["noPrice"]
         log(f"[{label}] {result_lock.new} new, {result_lock.already_locked} already locked, "
             f"{result_lock.failed} failed -- {result_lock.confirmed}/{len(qualifying)} confirmed locked")
         if send_email and result_lock.new == 0 and qualifying:
@@ -2585,7 +2848,89 @@ def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
     return total_locked
 
 
-def run_soccer_evening_lock(page, live: bool, send_email: bool = True, to: list[str] | None = None) -> int:
+def _zero_pick_decision(qualifying: list[dict], guard: dict, complete: bool) -> tuple[bool, str]:
+    """-> (email_subscribers, reason) for a pass whose qualifying list is EMPTY. Current behavior (before 2026-10-02) was to email
+    the product's subscribers "No picks cleared the bar today" whenever the list was empty -- including a pass that landed after
+    kickoff and found every game already started (the start guard drops them), and a pass that ran before the day's real prices
+    posted. Both read as "the engine found nothing" when the truth is "this pass was too late / too early". The subscriber
+    email is now sent ONLY when the pass is COMPLETE (every upcoming game it saw had real prices and nothing failed) and the
+    guard skipped nothing; the owner is told about the other cases via the pre-kickoff alert instead (see owner_alert_for)."""
+    if guard.get("skipped"):
+        return False, f"{guard['skipped']} qualifying leg(s) skipped because their game had already started -- a late pass, not 'no picks'"
+    if not complete:
+        return False, "pass incomplete (upcoming games still have no real price, or a lock failed) -- a later pass may find picks"
+    return True, "complete pass, nothing qualified"
+
+
+def _dates_label(qualifying: list[dict], fallback: str) -> str:
+    ds = sorted({q.get("lockDate") for q in qualifying if q.get("lockDate")})
+    return " & ".join(ds) if ds else fallback
+
+
+def _run_rolling_pass(page, live: bool, send_email: bool, to: list[str] | None, *, kind: str, label: str, title: str,
+                      gather, only_sports, dry_label: str, now=None) -> int:
+    """ONE implementation behind run_soccer_evening_lock / run_cfb_evening_lock / run_hockey_evening_lock (they used to be three
+    copies). Rolling horizon: gathers every game on today's AND tomorrow's Mountain dates relative to the moment the pass really
+    runs (see horizon_dates), locks each qualifying leg stamped with its own game date, and records a PASS_REPORT (completeness,
+    skipped/failed legs, next kickoff) for the result file, the Engine Health status and the owner's pre-kickoff alert.
+    Returns the number of NEW locks."""
+    dates = horizon_dates(now)
+    log(f"=== AUTO-LOCK (PREMIUM/OPTIMAL) — {title}, ROLLING HORIZON {' + '.join(dates)} ===")
+    result = gather(page, dates)
+    guard: dict = {}
+    qualifying = build_qualifying(result, only_sports=only_sports, now=now, guard_stats=guard)
+    analysis = analyze_games(result, only_sports, now)
+    log(f"Gathered {len(result.get('gameLegs') or [])} games' worth of markets for {' + '.join(dates)} "
+        f"({analysis['started']} already started, {analysis['upcoming']} upcoming"
+        f"{', ' + str(len(analysis['noPrice'])) + ' upcoming with NO real price yet' if analysis['noPrice'] else ''})")
+    log(f"{len(qualifying)} qualifying PREMIUM/OPTIMAL legs found ({dry_label})")
+    for q in qualifying:
+        log(f"  [{q['sport']}] {q['label']} ({TIER_LABEL.get(q['tierN'], '?')}) -> pick date {q.get('lockDate')}")
+    rep = {"kind": kind, "label": label, "dates": dates, "qualifying": len(qualifying), "new": 0, "already": 0, "failed": 0,
+           "skipped": guard.get("skipped", 0), "skippedDetail": guard.get("detail", []), "failedLabels": [],
+           "games": analysis["games"], "started": analysis["started"], "upcoming": analysis["upcoming"],
+           "nextStartMs": analysis["nextStartMs"], "noPrice": analysis["noPrice"], "live": live, "complete": False}
+    PASS_REPORTS.append(rep)
+    email_label = label
+    date_str = _dates_label(qualifying, dates[-1])
+
+    if not live:
+        log(f"[DRY RUN] Would lock {len(qualifying)} legs above (pass --live to write)")
+        if send_email:
+            send_locks_email(qualifying, live=False, label=email_label, to=to, date_str=date_str)
+        return 0
+
+    if not qualifying:
+        rep["complete"] = not analysis["noPrice"] and not guard.get("skipped")
+        ok_email, why = _zero_pick_decision(qualifying, guard, rep["complete"])
+        if send_email and ok_email:
+            send_locks_email(qualifying, live=True, locked_count=0, label=email_label, to=to, date_str=dates[-1])
+        else:
+            log(f"Locks email ({label}) suppressed (zero-pick): {why}" if send_email else f"Locks email ({label}) skipped -- already sent")
+        return 0
+
+    lock_result = _lock_qualifying_legs(page, qualifying, date_override=dates[-1], per_leg_dates=True)
+    log(f"Locked {lock_result.new} new, {lock_result.already_locked} already locked, {lock_result.failed} failed -- "
+        f"{lock_result.confirmed}/{len(qualifying)} qualifying legs confirmed locked ({' + '.join(dates)})")
+    rep.update({"new": lock_result.new, "already": lock_result.already_locked, "failed": lock_result.failed,
+                "failedLabels": list(lock_result.failed_labels), "skipped": rep["skipped"] + lock_result.skipped})
+    rep["complete"] = lock_result.failed == 0 and not analysis["noPrice"]
+    if lock_result.new > 0:
+        flush_to_supabase(page)
+        log("Flushed locks to Supabase")
+    # Subscriber email only when this pass locked something NEW: an extra pass that finds nothing new never re-emails (the
+    # pass-level dedupe the redundant slots rely on).
+    if send_email and lock_result.new == 0:
+        log(f"Locks email ({label}) skipped -- all {len(qualifying)} qualifying leg(s) were already locked by an earlier "
+            f"pass, nothing new to report")
+    elif send_email:
+        send_locks_email(qualifying, live=True, locked_count=lock_result.confirmed, label=email_label, to=to, date_str=date_str)
+    else:
+        log(f"Locks email ({label}) skipped -- already sent")
+    return lock_result.new
+
+
+def run_soccer_evening_lock(page, live: bool, send_email: bool = True, to: list[str] | None = None, now=None) -> int:
     """Evening-prior lock for the European soccer leagues (CL/PL/La
     Liga/Serie A -- Bundesliga retired 2026-09-23) -- runs the NIGHT BEFORE those leagues'
     matchday, not that morning. See soccer-lock-evening.yml's own
@@ -2609,52 +2954,11 @@ def run_soccer_evening_lock(page, live: bool, send_email: bool = True, to: list[
     etc). Data comes from docs/soccer_schedule_tomorrow.json (scraped by
     a dedicated earlier step in soccer-lock-evening.yml), not any live
     fetch -- see gather_soccer_legs_for_date's own docstring."""
-    tomorrow_iso = (datetime.now(ZoneInfo("America/Denver")) + timedelta(days=1)).strftime("%Y-%m-%d")
-    log(f"=== AUTO-LOCK (PREMIUM/OPTIMAL) — SOCCER, EVENING-PRIOR FOR {tomorrow_iso} ===")
-    result = gather_soccer_legs_for_date(page, tomorrow_iso)
-    qualifying = build_qualifying(result, only_sports=EURO_SOCCER_SPORTS)
-    log(f"Gathered {len(result.get('gameLegs') or [])} games' worth of markets for {tomorrow_iso}")
-    log(f"{len(qualifying)} qualifying PREMIUM/OPTIMAL legs found (soccer evening-prior only)")
-
-    for q in qualifying:
-        log(f"  [{q['sport']}] {q['label']} ({TIER_LABEL.get(q['tierN'], '?')})")
-
-    label = "SOCCER — TOMORROW'S SLATE"
-    if not live:
-        log(f"[DRY RUN] Would lock {len(qualifying)} legs above for {tomorrow_iso} (pass --live to write)")
-        if send_email:
-            send_locks_email(qualifying, live=False, label=label, to=to, date_str=tomorrow_iso)
-        return 0
-
-    if not qualifying:
-        if send_email:
-            send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to, date_str=tomorrow_iso)
-        else:
-            log("Locks email (SOCCER evening-prior) skipped -- already sent tonight")
-        return 0
-
-    result = _lock_qualifying_legs(page, qualifying, date_override=tomorrow_iso)
-    log(f"Locked {result.new} new, {result.already_locked} already locked, {result.failed} failed -- "
-        f"{result.confirmed}/{len(qualifying)} qualifying legs confirmed locked for {tomorrow_iso}")
-    if result.new > 0:
-        flush_to_supabase(page)
-        log("Flushed locks to Supabase")
-    # Same guard as run_lock/run_lock_segmented -- mainly defends against
-    # a manual workflow_dispatch re-run after tonight's real slot already
-    # succeeded (the YAML's own marker check normally prevents this
-    # function being invoked twice in one night, but doesn't cover a
-    # manual re-trigger).
-    if send_email and result.new == 0 and qualifying:
-        log(f"Locks email (SOCCER evening-prior) skipped -- all {len(qualifying)} qualifying "
-            f"leg(s) were already locked earlier tonight, nothing new to report")
-    elif send_email:
-        send_locks_email(qualifying, live=True, locked_count=result.confirmed, label=label, to=to, date_str=tomorrow_iso)
-    else:
-        log("Locks email (SOCCER evening-prior) skipped -- already sent tonight")
-    return result.new
+    return _run_rolling_pass(page, live, send_email, to, kind="soccer-evening", label="SOCCER — UPCOMING SLATE", title="SOCCER, EVENING-PRIOR",
+                             gather=gather_soccer_legs_for_dates, only_sports=EURO_SOCCER_SPORTS, dry_label="soccer evening-prior only", now=now)
 
 
-def run_cfb_evening_lock(page, live: bool, send_email: bool = True, to: list[str] | None = None) -> int:
+def run_cfb_evening_lock(page, live: bool, send_email: bool = True, to: list[str] | None = None, now=None) -> int:
     """Evening-prior lock for CFB -- runs the NIGHT BEFORE gameday, not
     that morning. See cfb-lock-evening.yml's own docstring for the full
     rationale; short version: real Saturday kickoffs cluster heavily at
@@ -2675,47 +2979,11 @@ def run_cfb_evening_lock(page, live: bool, send_email: bool = True, to: list[str
     Data comes from docs/cfb_schedule.json, already refreshed twice
     daily by the existing daily-schedules-refresh.yml -- no new data-feed
     workflow needed, see gather_cfb_legs_for_date's own docstring."""
-    tomorrow_iso = (datetime.now(ZoneInfo("America/Denver")) + timedelta(days=1)).strftime("%Y-%m-%d")
-    log(f"=== AUTO-LOCK (PREMIUM/OPTIMAL) — CFB, EVENING-PRIOR FOR {tomorrow_iso} ===")
-    result = gather_cfb_legs_for_date(page, tomorrow_iso)
-    qualifying = build_qualifying(result, only_sports=frozenset({"CFB"}))
-    log(f"Gathered {len(result.get('gameLegs') or [])} games' worth of markets for {tomorrow_iso}")
-    log(f"{len(qualifying)} qualifying PREMIUM/OPTIMAL legs found (CFB evening-prior only)")
-
-    for q in qualifying:
-        log(f"  [{q['sport']}] {q['label']} ({TIER_LABEL.get(q['tierN'], '?')})")
-
-    label = "CFB — TOMORROW'S SLATE"
-    if not live:
-        log(f"[DRY RUN] Would lock {len(qualifying)} legs above for {tomorrow_iso} (pass --live to write)")
-        if send_email:
-            send_locks_email(qualifying, live=False, label=label, to=to, date_str=tomorrow_iso)
-        return 0
-
-    if not qualifying:
-        if send_email:
-            send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to, date_str=tomorrow_iso)
-        else:
-            log("Locks email (CFB evening-prior) skipped -- already sent tonight")
-        return 0
-
-    result = _lock_qualifying_legs(page, qualifying, date_override=tomorrow_iso)
-    log(f"Locked {result.new} new, {result.already_locked} already locked, {result.failed} failed -- "
-        f"{result.confirmed}/{len(qualifying)} qualifying legs confirmed locked for {tomorrow_iso}")
-    if result.new > 0:
-        flush_to_supabase(page)
-        log("Flushed locks to Supabase")
-    if send_email and result.new == 0 and qualifying:
-        log(f"Locks email (CFB evening-prior) skipped -- all {len(qualifying)} qualifying "
-            f"leg(s) were already locked earlier tonight, nothing new to report")
-    elif send_email:
-        send_locks_email(qualifying, live=True, locked_count=result.confirmed, label=label, to=to, date_str=tomorrow_iso)
-    else:
-        log("Locks email (CFB evening-prior) skipped -- already sent tonight")
-    return result.new
+    return _run_rolling_pass(page, live, send_email, to, kind="cfb-evening", label="CFB — UPCOMING SLATE", title="CFB, EVENING-PRIOR",
+                             gather=gather_cfb_legs_for_dates, only_sports=frozenset({"CFB"}), dry_label="CFB evening-prior only", now=now)
 
 
-def run_hockey_evening_lock(page, live: bool, send_email: bool = True, to: list[str] | None = None) -> int:
+def run_hockey_evening_lock(page, live: bool, send_email: bool = True, to: list[str] | None = None, now=None) -> int:
     """Evening-prior lock for SHL/Liiga/NLA/Extraliga combined -- runs
     the NIGHT BEFORE gameday, not that morning. Same rationale as CFB/
     soccer's own evening-prior passes: european-lock-early.yml's own
@@ -2745,44 +3013,8 @@ def run_hockey_evening_lock(page, live: bool, send_email: bool = True, to: list[
     pass for less than a day (see EARLY_HOCKEY_SPORTS' own comment for
     the full history); now indistinguishable from SHL/Liiga here, same
     `to` recipient list (recipients_for("hockey"))."""
-    tomorrow_iso = (datetime.now(ZoneInfo("America/Denver")) + timedelta(days=1)).strftime("%Y-%m-%d")
-    log(f"=== AUTO-LOCK (PREMIUM/OPTIMAL) — SHL/LIIGA/NLA/EXTRALIGA, EVENING-PRIOR FOR {tomorrow_iso} ===")
-    result = gather_hockey_evening_legs_for_date(page, tomorrow_iso)
-    qualifying = build_qualifying(result, only_sports=EARLY_HOCKEY_SPORTS)
-    log(f"Gathered {len(result.get('gameLegs') or [])} games' worth of markets for {tomorrow_iso}")
-    log(f"{len(qualifying)} qualifying PREMIUM/OPTIMAL legs found (SHL/Liiga/NLA/Extraliga evening-prior only)")
-
-    for q in qualifying:
-        log(f"  [{q['sport']}] {q['label']} ({TIER_LABEL.get(q['tierN'], '?')})")
-
-    label = "HOCKEY — TOMORROW'S SLATE"
-    if not live:
-        log(f"[DRY RUN] Would lock {len(qualifying)} legs above for {tomorrow_iso} (pass --live to write)")
-        if send_email:
-            send_locks_email(qualifying, live=False, label=label, to=to, date_str=tomorrow_iso)
-        return 0
-
-    if not qualifying:
-        if send_email:
-            send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to, date_str=tomorrow_iso)
-        else:
-            log("Locks email (hockey evening-prior) skipped -- already sent tonight")
-        return 0
-
-    lock_result = _lock_qualifying_legs(page, qualifying, date_override=tomorrow_iso)
-    log(f"Locked {lock_result.new} new, {lock_result.already_locked} already locked, {lock_result.failed} failed -- "
-        f"{lock_result.confirmed}/{len(qualifying)} qualifying legs confirmed locked for {tomorrow_iso}")
-    if lock_result.new > 0:
-        flush_to_supabase(page)
-        log("Flushed locks to Supabase")
-    if send_email and lock_result.new == 0:
-        log(f"Locks email (hockey evening-prior) skipped -- all {len(qualifying)} qualifying "
-            f"leg(s) were already locked earlier tonight, nothing new to report")
-    elif send_email:
-        send_locks_email(qualifying, live=True, locked_count=lock_result.confirmed, label=label, to=to, date_str=tomorrow_iso)
-    else:
-        log("Locks email (hockey evening-prior) skipped -- already sent tonight")
-    return lock_result.new
+    return _run_rolling_pass(page, live, send_email, to, kind="hockey-evening", label="HOCKEY — UPCOMING SLATE", title="SHL/LIIGA/NLA/EXTRALIGA, EVENING-PRIOR",
+                             gather=gather_hockey_legs_for_dates, only_sports=EARLY_HOCKEY_SPORTS, dry_label="SHL/Liiga/NLA/Extraliga evening-prior only", now=now)
 
 
 def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
@@ -2821,7 +3053,15 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
     if prop_diag:
         log("  prop generation: " + ", ".join(f"{sp}={detail}" for sp, detail in prop_diag.items()))
     covered_sports: set[str] = set().union(*PRODUCT_SPORTS.values())
-    all_qualifying_raw = build_qualifying(result)
+    seg_guard: dict = {}
+    all_qualifying_raw = build_qualifying(result, guard_stats=seg_guard)
+    seg_analysis = analyze_games(result)
+    seg_rep = {"kind": "main", "label": "ALL PRODUCTS", "dates": [datetime.now(MT).strftime("%Y-%m-%d")],
+               "qualifying": len(all_qualifying_raw), "new": 0, "already": 0, "failed": 0,
+               "skipped": seg_guard.get("skipped", 0), "skippedDetail": seg_guard.get("detail", []), "failedLabels": [],
+               "games": seg_analysis["games"], "started": seg_analysis["started"], "upcoming": seg_analysis["upcoming"],
+               "nextStartMs": seg_analysis["nextStartMs"], "noPrice": seg_analysis["noPrice"], "live": live, "complete": False}
+    PASS_REPORTS.append(seg_rep)
     in_scope_sports = covered_sports | OTHER_ALLOWED_SPORTS
     all_qualifying = [q for q in all_qualifying_raw if q["sport"] in in_scope_sports]
     excluded = [q for q in all_qualifying_raw if q["sport"] not in in_scope_sports]
@@ -2879,9 +3119,14 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
             continue
         result = _lock_qualifying_legs(page, email_qualifying) if email_qualifying else LockResult(0, 0, 0)
         total_locked += result.new
+        seg_rep["new"] += result.new; seg_rep["already"] += result.already_locked; seg_rep["failed"] += result.failed
+        seg_rep["failedLabels"] += list(result.failed_labels); seg_rep["skipped"] += result.skipped
         if safety_net_qualifying:
             early_result = _lock_qualifying_legs(page, safety_net_qualifying)
             total_locked += early_result.new
+            seg_rep["new"] += early_result.new; seg_rep["already"] += early_result.already_locked
+            seg_rep["failed"] += early_result.failed; seg_rep["failedLabels"] += list(early_result.failed_labels)
+            seg_rep["skipped"] += early_result.skipped
             log(f"[{product}] SHL/Liiga/NLA/Extraliga safety-net: {early_result.new} new, "
                 f"{early_result.already_locked} already locked, {early_result.failed} failed -- "
                 f"{early_result.confirmed}/{len(safety_net_qualifying)} confirmed locked")
@@ -2910,6 +3155,11 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
                 f"pass with a better-timed email; this run still locked as a safety net ({result.new} new)")
         elif send_email and season_inactive:
             log(f"Locks email ({label}) skipped -- season inactive, nothing qualifying yet")
+        elif send_email and not email_qualifying and any(d.get("sport") in sports for d in seg_guard.get("detail", [])):
+            # Zero-pick email suppression (2026-10-02): this product HAD qualifying legs, but the pre-start guard dropped them
+            # because their games had already started -- a late pass, not "no picks". The owner is told via the pre-kickoff alert.
+            log(f"Locks email ({label}) suppressed (zero-pick): its qualifying legs were skipped because the games had "
+                f"already started (a late pass, not 'no picks')")
         elif send_email:
             # Real bug, found via audit: this used to pass `locked` (this
             # pass's NEW count only) -- see LockResult's own docstring
@@ -2939,12 +3189,126 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
     if live:
         result = _lock_qualifying_legs(page, other_qualifying) if other_qualifying else LockResult(0, 0, 0)
         total_locked += result.new
+        seg_rep["new"] += result.new; seg_rep["already"] += result.already_locked; seg_rep["failed"] += result.failed
         log(f"[other] {result.new} new, {result.already_locked} already locked, "
             f"{result.failed} failed -- {result.confirmed}/{len(other_qualifying)} confirmed locked")
 
+    seg_rep["complete"] = live and seg_rep["failed"] == 0 and not seg_analysis["noPrice"]
     if total_locked > 0:
         flush_to_supabase(page)
         log(f"Flushed {total_locked} total locks to Supabase")
+
+
+# ── PRE-KICKOFF WATCHDOG (owner only) ──────────────────────────────────────────────────────────────────────────────────────
+WATCHDOG_AHEAD_H = 4.0     # a qualifying-but-unlocked leg whose game starts within this many hours is "urgent"
+WATCHDOG_BEHIND_H = 3.0    # ... or started within this many hours (still worth knowing: a late manual lock may be wanted)
+
+
+def leg_locked_in_ledger(page, q: dict, date_key: str | None) -> bool:
+    """Read-only twin of lock_game_leg's dedupe pre-check: is this qualifying leg (or its market) already in the loaded ledger?"""
+    lock_type = SPORT_TO_LOCKPICK_TYPE.get(q["sport"])
+    if not lock_type:
+        return False
+    return bool(page.evaluate(
+        """
+        ({ hA, awA, type, betOn, dateKey, betTypeOverride }) => {
+          const key = dateKey || today();
+          const id = `${key}_${hA}_${awA}_${type}_${betOn.replace(/\\s/g,'')}`;
+          const preds = getP();
+          const marketDup = (typeof _findSameMarketLock === 'function') ? _findSameMarketLock(preds, key, hA, awA, betTypeOverride) : null;
+          return !!(preds.find(x => x.id === id) || preds.find(x => x.date === key && x.hA === hA && x.awA === awA && x.betOn === betOn) || marketDup);
+        }
+        """,
+        {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "dateKey": date_key,
+         "betTypeOverride": _market_type(q.get("side"))},
+    ))
+
+
+def run_watchdog(page, live: bool, now=None) -> list[dict]:
+    """READ-ONLY. For every product's slate (today via gather_legs, plus the rolling-horizon gatherers for today+tomorrow), list
+    qualifying legs that are NOT in the ledger and whose game starts within WATCHDOG_AHEAD_H hours (or started within the last
+    WATCHDOG_BEHIND_H). Emails the OWNER ONLY (never a subscriber list), deduped by the hash of the leg set. Returns the urgent list."""
+    log("=== PRE-KICKOFF WATCHDOG (read-only, owner-only) ===")
+    now_ms = _now_ms(now)
+    dates = horizon_dates(now)
+    gathered = [("main-today", gather_legs(page), None)]
+    gathered.append(("hockey", gather_hockey_legs_for_dates(page, dates), EARLY_HOCKEY_SPORTS))
+    gathered.append(("cfb", gather_cfb_legs_for_dates(page, dates), frozenset({"CFB"})))
+    gathered.append(("soccer", gather_soccer_legs_for_dates(page, dates), EURO_SOCCER_SPORTS))
+    seen: set = set()
+    unlocked: list[dict] = []
+    total = 0
+    for name, res, only in gathered:
+        # now=0: ignore the start guard here -- the watchdog WANTS to see legs of games that already started / are about to.
+        for q in build_qualifying(res, only_sports=only, now=0):
+            if q["kind"] != "GAME":
+                continue
+            key = (q["sport"], q["hA"], q["awA"], q["label"])
+            if key in seen:
+                continue
+            seen.add(key)
+            total += 1
+            st = parse_start_ms(q.get("startMs"))
+            if leg_locked_in_ledger(page, q, q.get("lockDate")):
+                continue
+            mins = None if st is None else (st - now_ms) / 60000.0
+            if mins is None or -WATCHDOG_BEHIND_H * 60 <= mins <= WATCHDOG_AHEAD_H * 60:
+                unlocked.append({"sport": q["sport"], "game": f"{q['awA']} @ {q['hA']}", "leg": q["label"], "startMs": st,
+                                 "why": ("kickoff unknown" if mins is None else
+                                         f"kicks off in {mins:.0f} min" if mins > 0 else f"started {-mins:.0f} min ago"),
+                                 "prob": q.get("prob"), "tier": TIER_LABEL.get(q.get("tierN"), "?")})
+    log(f"Watchdog: {total} qualifying game leg(s) across the slate, {len(unlocked)} NOT locked and within the watch window")
+    for u in unlocked:
+        log(f"  UNLOCKED [{u['sport']}] {u['game']} -- {u['leg']} ({u['why']})")
+    if not unlocked:
+        return unlocked
+    rep = {"live": True, "label": "WATCHDOG", "skippedDetail": unlocked, "failedLabels": []}
+    alert = owner_alert_for([rep])
+    if alert is None:
+        return unlocked
+    h, _subject, html = alert
+    first = min((u["startMs"] for u in unlocked if u["startMs"]), default=None)
+    subject = (f"Clairvoyance — WATCHDOG: {len(unlocked)} qualifying pick(s) still unlocked"
+               + (f", first kickoff {datetime.fromtimestamp(first / 1000.0, MT).strftime('%a %I:%M %p MT')}" if first else ""))
+    html = html.replace("A lock pass landed at", "The pre-kickoff watchdog ran at").replace(
+        "but could not lock them (game already started or within", "and found them still unlocked (kickoff within")
+    if not live:
+        log(f"[DRY RUN] Would email the owner: {subject}")
+        return unlocked
+    try:
+        seen_hashes = json.loads((ROOT / "docs" / "automation_status.json").read_text()).get("ownerAlerts", {})
+    except Exception:
+        seen_hashes = {}
+    if h in seen_hashes:
+        log(f"watchdog alert {h} already sent ({seen_hashes[h]}) -- not repeating")
+    elif send_owner_alert(subject, html):
+        write_automation_status("lastWatchdog", True, f"{len(unlocked)} unlocked qualifying leg(s) reported to the owner",
+                                owner_alert_hash=h)
+    return unlocked
+
+
+def start_local_site(directory: Path):
+    """Serve `directory` (the checkout's docs/) on 127.0.0.1 on a free port, in a daemon thread. -> (app_url, server).
+    GitHub Pages serves docs/ verbatim (pages-deploy.yml uploads path: docs), so this is byte-for-byte what the deployed site
+    serves -- except it is exactly the commit the workflow just refreshed, with no redeploy to wait for."""
+    import functools
+    import http.server
+    import socketserver
+    import threading
+
+    class _Handler(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, *a):  # quiet
+            pass
+
+        def end_headers(self):
+            self.send_header("Cache-Control", "no-store")
+            super().end_headers()
+
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
+    srv = socketserver.ThreadingTCPServer(("127.0.0.1", 0), functools.partial(_Handler, directory=str(directory)))
+    srv.daemon_threads = True
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return f"http://127.0.0.1:{srv.server_address[1]}/app.html", srv
 
 
 def main() -> None:
@@ -3022,6 +3386,19 @@ def main() -> None:
                           "day's real lock pass, not standalone. Does not touch the browser's other "
                           "lock/settle logic -- combine with --lock or run as its own invocation.")
     ap.add_argument("--app-url", default=APP_URL, help="Override the app URL (e.g. a local server for testing).")
+    ap.add_argument("--serve-local", action="store_true",
+                     help="Serve THIS checkout's docs/ on a local port and drive the app from it instead of the deployed GitHub "
+                          "Pages copy. The lock then reads the schedule/odds JSON exactly as committed (including whatever "
+                          "scripts/lock_prep.py just refreshed), with no dependence on a Pages redeploy having finished. Falls "
+                          "back to the deployed URL if the local server cannot start.")
+    ap.add_argument("--result-file", default=None,
+                     help="Write this lock pass's machine-readable result (complete/ok + per-pass report) to this JSON path. The "
+                          "lock workflows read `complete` from it to decide whether to record their success marker.")
+    ap.add_argument("--watchdog", action="store_true",
+                     help="READ-ONLY pre-kickoff watchdog: gathers today's + tomorrow's slate for every product, finds qualifying "
+                          "legs that are still NOT locked and start soon, and emails the OWNER ONLY. Never locks, never emails "
+                          "subscribers; the only thing it writes (with --live) is the owner-alert dedupe hash in "
+                          "docs/automation_status.json.")
     args = ap.parse_args()
 
     if args.alert_lock_missed:
@@ -3032,9 +3409,9 @@ def main() -> None:
         today_mt = datetime.now(ZoneInfo("America/Denver")).strftime("%Y-%m-%d")
         body = (f"{_EMAIL_WRAP_OPEN}"
                 f'<div style="font-size:16px;color:#ff9090;font-weight:700">⚠ Lock did not run today ({today_mt})</div>'
-                f'<div style="margin-top:10px;font-size:14px;color:#ccc">The dedicated 7:07am MT lock check did '
-                f'not produce a real lock pass today, and none of the day\'s settle-only fires (4:44pm/10:27pm MT) '
-                f'land inside the old 9am-12pm MT catch-up window to auto-retry it -- no new picks were locked, '
+                f'<div style="margin-top:10px;font-size:14px;color:#ccc">None of the main lock slots (pre-dawn 11:27 PM MT nominal, '
+                f'the 3:07 AM backup, the 7:07 AM check) produced a real lock pass today, and none of the day\'s settle-only fires '
+                f'(4:44pm MT) land inside the old 9am-12pm MT catch-up window to auto-retry it -- no new picks were locked, '
                 f'and no locks email went out. This is a same-day alert so it gets noticed today, not whenever '
                 f'someone happens to check the app. Run a manual workflow_dispatch with mode=catch-up to recover '
                 f'today\'s lock now.</div>'
@@ -3044,7 +3421,7 @@ def main() -> None:
         return
 
     do_lock, do_settle = (args.lock, args.settle) if (args.lock or args.settle) else (True, True)
-    if args.daily_digest or args.adaptive_recalibration or args.top_picks_digest:
+    if args.daily_digest or args.adaptive_recalibration or args.top_picks_digest or args.watchdog:
         do_lock = do_settle = False
     if sum([args.only_soccer, args.only_cfb, args.only_soccer_tomorrow, args.only_cfb_tomorrow,
             args.only_euro_early, args.only_hockey_tomorrow]) > 1:
@@ -3062,6 +3439,17 @@ def main() -> None:
     early_to = recipients_for("soccer") if args.only_soccer else recipients_for("cfb") if args.only_cfb else None
 
     from playwright.sync_api import sync_playwright
+
+    local_srv = None
+    if args.serve_local:
+        try:
+            args.app_url, local_srv = start_local_site(ROOT / "docs")
+            log(f"Serving this checkout's docs/ locally: {args.app_url} (the lock reads exactly the committed schedule/odds JSON)")
+        except Exception as exc:
+            log(f"WARNING: could not start the local site ({exc}) -- falling back to the deployed copy {args.app_url}")
+
+    is_main_run = not (args.only_soccer or args.only_cfb or args.only_soccer_tomorrow or args.only_cfb_tomorrow
+                       or args.only_euro_early or args.only_hockey_tomorrow)
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
@@ -3106,15 +3494,20 @@ def main() -> None:
         bet_count = load_bet_ledger(page)
         log(f"Loaded {bet_count} real bets from Supabase into headless session")
 
-        try:
-            backed_up = write_ledger_backup(page)
-            log(f"Wrote docs/picks_backup.json ({backed_up} bets)")
-        except Exception as exc:
-            log(f"WARNING: ledger backup write failed: {exc}")
-        try:
-            write_landing_performance(page)
-        except Exception as exc:
-            log(f"WARNING: landing performance snapshot failed: {exc}")
+        # Only the MAIN workflow (auto-lock-settle.yml) commits these files. The dedicated early/evening lock passes used to write
+        # them too -- uncommitted -- which left tracked files dirty, and a dirty tree makes the `git rebase origin/main` fallback in
+        # their marker-commit steps (and in _commit_and_push) refuse to run ("unstaged changes"), silently skipping the marker write
+        # whenever the first push was rejected by a concurrent bot commit. Skipping the writes here removes that failure mode.
+        if is_main_run and not args.watchdog:
+            try:
+                backed_up = write_ledger_backup(page)
+                log(f"Wrote docs/picks_backup.json ({backed_up} bets)")
+            except Exception as exc:
+                log(f"WARNING: ledger backup write failed: {exc}")
+            try:
+                write_landing_performance(page)
+            except Exception as exc:
+                log(f"WARNING: landing performance snapshot failed: {exc}")
 
         if do_settle:
             # No email here by design -- intraday settle passes exist to
@@ -3131,86 +3524,59 @@ def main() -> None:
                 if args.live:
                     write_automation_status("lastSettle", False, f"error: {exc}")
                 raise
-        if do_lock:
+        if args.watchdog:
+            try:
+                run_watchdog(page, args.live)
+            except Exception as exc:
+                log(f"watchdog failed: {exc}")
+                raise
+        elif do_lock:
             today_mt = datetime.now(ZoneInfo("America/Denver")).strftime("%Y-%m-%d")
+            n_reports_before = len(PASS_REPORTS)
+
+            def _evening(label: str, status_key: str, runner, product: str) -> None:
+                """Rolling-horizon evening-prior pass (see _run_rolling_pass): locks every not-yet-started game on today's AND
+                tomorrow's Mountain dates, however late GitHub ran the workflow. Catch-up gating lives in the workflow's own
+                marker step (which now reads this pass's `complete` flag from --result-file), not here."""
+                dates = horizon_dates()
+                try:
+                    locked_this_pass = runner(page, args.live, send_email=True, to=recipients_for(product))
+                    verified_count = verify_locks_for_dates(page, dates) if args.live else None
+                    if args.live:
+                        ok = not (locked_this_pass > 0 and (verified_count or 0) == 0)
+                        detail = (f"{label} rolling-horizon pass completed, {locked_this_pass} locked this pass, "
+                                  f"{verified_count} pick(s) verified for {' + '.join(dates)}{guard_note()}")
+                        finish_live_pass(status_key, ok, detail, PASS_REPORTS[n_reports_before:], args.result_file)
+                except Exception as exc:
+                    log(f"{label} evening-prior lock step failed: {exc}")
+                    if args.live:
+                        write_automation_status(status_key, False, f"error: {exc}")
+                    raise
+
             if args.only_soccer_tomorrow:
-                # Evening-prior pass -- entirely separate from the
-                # today()-based flow below (different gather function,
-                # different verify target date: tomorrow, not today).
-                # Catch-up dedup lives in soccer-lock-evening.yml's own
-                # marker-file check (same pattern as soccer-lock-
-                # early.yml), not here, so this always locks+verifies+
-                # emails when invoked.
-                tomorrow_mt = (datetime.now(ZoneInfo("America/Denver")) + timedelta(days=1)).strftime("%Y-%m-%d")
-                try:
-                    locked_this_pass = run_soccer_evening_lock(page, args.live, send_email=True,
-                                                                 to=recipients_for("soccer"))
-                    verified_count = verify_locks_for_date(page, tomorrow_mt) if args.live else None
-                    if args.live:
-                        ok = not (locked_this_pass > 0 and (verified_count or 0) == 0)
-                        detail = f"evening-prior lock pass completed, {verified_count} pick(s) verified for {tomorrow_mt}{guard_note()}"
-                        write_automation_status("lastSoccerEveningLock", ok, detail)
-                except Exception as exc:
-                    log(f"soccer evening-prior lock step failed: {exc}")
-                    if args.live:
-                        write_automation_status("lastSoccerEveningLock", False, f"error: {exc}")
-                    raise
+                # Evening-prior pass -- different gather function than the today()-based flow below, but rolling-horizon since
+                # 2026-10-02 (today AND tomorrow), so it is correct whether the delayed run lands before or after midnight MT.
+                _evening("soccer", "lastSoccerEveningLock", run_soccer_evening_lock, "soccer")
             elif args.only_cfb_tomorrow:
-                # Evening-prior pass for CFB -- same shape as the soccer
-                # branch above. Runs every day regardless of day-of-week
-                # (Thursday/Friday CFB games get evening-prior locked
-                # too, not just Saturday's -- gather_cfb_legs_for_date
-                # just targets "tomorrow", whatever day that is); weekday
-                # games already had comfortable same-day margin (evening
-                # kickoffs), Saturday's 10am MT cluster was the one real
-                # risk this exists to fix.
-                tomorrow_mt = (datetime.now(ZoneInfo("America/Denver")) + timedelta(days=1)).strftime("%Y-%m-%d")
-                try:
-                    locked_this_pass = run_cfb_evening_lock(page, args.live, send_email=True,
-                                                              to=recipients_for("cfb"))
-                    verified_count = verify_locks_for_date(page, tomorrow_mt) if args.live else None
-                    if args.live:
-                        ok = not (locked_this_pass > 0 and (verified_count or 0) == 0)
-                        detail = f"evening-prior lock pass completed, {verified_count} pick(s) verified for {tomorrow_mt}{guard_note()}"
-                        write_automation_status("lastCfbEveningLock", ok, detail)
-                except Exception as exc:
-                    log(f"CFB evening-prior lock step failed: {exc}")
-                    if args.live:
-                        write_automation_status("lastCfbEveningLock", False, f"error: {exc}")
-                    raise
+                # Same shape for CFB: gather_cfb_legs_for_dates reads docs/cfb_schedule.json (whole season, twice-daily refresh).
+                _evening("CFB", "lastCfbEveningLock", run_cfb_evening_lock, "cfb")
             elif args.only_hockey_tomorrow:
-                # Evening-prior pass for SHL/Liiga combined -- same shape
-                # as the soccer/CFB branches above. Runs every day (both
-                # leagues play close to daily); NHL excluded, it never
-                # needs this.
-                tomorrow_mt = (datetime.now(ZoneInfo("America/Denver")) + timedelta(days=1)).strftime("%Y-%m-%d")
-                try:
-                    locked_this_pass = run_hockey_evening_lock(page, args.live, send_email=True,
-                                                                 to=recipients_for("hockey"))
-                    verified_count = verify_locks_for_date(page, tomorrow_mt) if args.live else None
-                    if args.live:
-                        ok = not (locked_this_pass > 0 and (verified_count or 0) == 0)
-                        detail = f"evening-prior lock pass completed, {verified_count} pick(s) verified for {tomorrow_mt}{guard_note()}"
-                        write_automation_status("lastHockeyEveningLock", ok, detail)
-                except Exception as exc:
-                    log(f"SHL/Liiga evening-prior lock step failed: {exc}")
-                    if args.live:
-                        write_automation_status("lastHockeyEveningLock", False, f"error: {exc}")
-                    raise
+                # Same shape for SHL/Liiga/NLA/Extraliga; NHL excluded, it never plays this early.
+                _evening("SHL/Liiga/NLA/Extraliga", "lastHockeyEveningLock", run_hockey_evening_lock, "hockey")
             elif args.only_euro_early:
-                # Combined early pass -- soccer (6 leagues) + SHL/Liiga,
-                # one gather_legs() pull, two separately-addressed
-                # emails. See run_euro_early_lock's own docstring.
+                # Combined early pass -- soccer (4 leagues) + SHL/Liiga/NLA/Extraliga, one gather_legs() pull, two
+                # separately-addressed emails. See run_euro_early_lock's own docstring.
                 try:
                     locked_this_pass = run_euro_early_lock(page, args.live, send_email=True)
                     verified_count = verify_todays_locks(page) if args.live else None
                     if args.live:
                         write_failed = locked_this_pass > 0 and not verified_count
-                        write_automation_status(
+                        finish_live_pass(
                             "lastLock", not write_failed,
                             f"EURO EARLY lock pass completed, {locked_this_pass} locked this pass, "
                             f"{verified_count} pick(s) verified for {today_mt}{guard_note()}"
-                            + (" -- WRITE MAY HAVE SILENTLY FAILED" if write_failed else ""))
+                            + (" -- WRITE MAY HAVE SILENTLY FAILED" if write_failed else ""),
+                            PASS_REPORTS[n_reports_before:], args.result_file)
                 except Exception as exc:
                     log(f"EURO EARLY lock step failed: {exc}")
                     if args.live:
@@ -3234,10 +3600,7 @@ def main() -> None:
                 email_marker_path = ROOT / "data" / "last_lock_email_date.txt"
                 already_emailed_today = False
                 if args.live:
-                    try:
-                        already_emailed_today = email_marker_path.read_text().strip() == today_mt
-                    except Exception:
-                        already_emailed_today = False
+                    already_emailed_today = read_marker_from_origin("data/last_lock_email_date.txt") == today_mt
                 want_email = args.final_lock_check and not already_emailed_today
                 try:
                     run_lock_segmented(page, args.live, send_email=want_email)
@@ -3247,7 +3610,7 @@ def main() -> None:
                     verified_count = verify_todays_locks(page) if args.live else None
                     if args.live:
                         detail = f"lock pass completed, {verified_count} pick(s) verified for {today_mt}{guard_note()}"
-                        write_automation_status("lastLock", True, detail)
+                        finish_live_pass("lastLock", True, detail, PASS_REPORTS[n_reports_before:], args.result_file)
                         if want_email:
                             try:
                                 email_marker_path.write_text(today_mt)
@@ -3261,11 +3624,8 @@ def main() -> None:
                         write_automation_status("lastLock", False, f"error: {exc}")
                     raise
             else:
-                # Early single-product pass (soccer 6am / CFB 9am) -- its
-                # own dedicated once-daily run at a time chosen for that
-                # sport's earliest kickoffs, not part of the main flow's
-                # "wait for the final check" pattern -- always emails
-                # immediately, same as before.
+                # Early single-product pass (soccer / CFB) -- its own dedicated run at a time chosen for that sport's earliest
+                # kickoffs, not part of the main flow's "wait for the final check" pattern -- always emails immediately.
                 try:
                     locked_this_pass = run_lock(page, args.live, only_sports=only_sports, label=label,
                                                  to=early_to, send_email=True)
@@ -3275,21 +3635,17 @@ def main() -> None:
                         # "Locked 17/19 legs" + "Flushed locks to Supabase"
                         # and still reported lastLock ok=True, but a fresh
                         # Supabase re-pull showed 0 of those 17 actually
-                        # persisted (root cause still under investigation --
-                        # see the new browser console-forwarding above).
-                        # verify_todays_locks existed specifically to catch
-                        # this class of silent write failure, but its count
-                        # was only ever logged as text, never acted on.
-                        # locked_this_pass > 0 with verified_count still 0
-                        # means every leg this pass locked failed to
+                        # persisted. locked_this_pass > 0 with verified_count
+                        # still 0 means every leg this pass locked failed to
                         # persist -- surface that as ok=False instead of a
                         # false "completed" status.
                         write_failed = locked_this_pass > 0 and not verified_count
-                        write_automation_status(
+                        finish_live_pass(
                             "lastLock", not write_failed,
                             f"{label} lock pass completed, {locked_this_pass} locked this pass, "
                             f"{verified_count} pick(s) verified for {today_mt}{guard_note()}"
-                            + (" -- WRITE MAY HAVE SILENTLY FAILED" if write_failed else ""))
+                            + (" -- WRITE MAY HAVE SILENTLY FAILED" if write_failed else ""),
+                            PASS_REPORTS[n_reports_before:], args.result_file)
                 except Exception as exc:
                     log(f"{label} lock step failed: {exc}")
                     if args.live:
@@ -3324,6 +3680,13 @@ def main() -> None:
                 raise
 
         browser.close()
+
+    if local_srv is not None:
+        try:
+            local_srv.shutdown()
+            local_srv.server_close()
+        except Exception:
+            pass
 
     log("Done." if args.live else "Done (dry-run — nothing was written).")
 
