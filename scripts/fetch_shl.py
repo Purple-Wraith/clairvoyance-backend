@@ -42,6 +42,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 from _flashscore_odds import fetch_match_ou_line
+from _scraper_health import log_scrape
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "shl_schedule.json"
@@ -408,6 +409,11 @@ def run() -> dict:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(out, indent=2))
     log(f"Wrote {OUT} -- {len(teams)} teams, {len(games)} games")
+    try:
+        results_count = sum(1 for g in games if g.get("state") == "post")
+        log_scrape("SHL", fixtures_count, results_count)
+    except Exception:
+        pass
     return out
 
 
