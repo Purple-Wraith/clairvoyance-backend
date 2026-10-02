@@ -5761,7 +5761,13 @@ function renderNHLTonight(){
         {label:`UNDER ${gh.ou}`,prob:1-ouP,evVal:ev(1-ouP,_nhlOuDec),dec:_nhlOuDec,side:'under'},
       ]);
       const topTier=_nm1.tierN,topTierLabel=_nm1.lbl,topTierCol=_nm1.col;
-      const _bm1=_nm1.best,evPct=(_bm1.evVal*100).toFixed(1),_bp1=(_bm1.prob*100).toFixed(1);
+      // evPct carries its own sign now -- real bug, found persisting this
+      // text into the ledger's `reasoning` field: every "EV +${evPct}%"
+      // call site below hardcodes the '+', so a negative EV (a market
+      // this card still displays, just doesn't recommend) printed as the
+      // broken "EV +-0.1%". Baking the sign into the value itself here
+      // fixes every call site at once without touching their own text.
+      const _bm1=_nm1.best,evPct=(_bm1.evVal>=0?'+':'')+(_bm1.evVal*100).toFixed(1),_bp1=(_bm1.prob*100).toFixed(1);
       // ── NHL analytics context ─────────────────────────────────────────────
       const _mc1=ens.mcD;
       // Real bug fixed 2026-09-29: h.xgf5/aw.xgf5 are never set anywhere
@@ -5865,7 +5871,9 @@ function renderNHLTonight(){
       {label:`UNDER ${g.ou||5.5}`,prob:1-ouP,evVal:ev(1-ouP,_nhlOuDec2),dec:_nhlOuDec2,side:'under'},
     ]);
     const topTier=_nm2.tierN,topTierLabel=_nm2.lbl,topTierCol=_nm2.col;
-    const _bm2=_nm2.best,evPct=(_bm2.evVal*100).toFixed(1),_bp2=(_bm2.prob*100).toFixed(1);
+    // evPct carries its own sign -- see renderNHLTonight's live-data loop
+    // just above for the full rationale (same real bug, same fix).
+    const _bm2=_nm2.best,evPct=(_bm2.evVal>=0?'+':'')+(_bm2.evVal*100).toFixed(1),_bp2=(_bm2.prob*100).toFixed(1);
     let explanation='';
     if(topTier===0){explanation=`Model finds no qualifying edge (best prob ${(favP*100).toFixed(1)}%). Series pressure creates inefficiency — skip or watch live line movement before ${g.time}.`;}
     else if(_bm2.side==='mlFav'){explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${favTeam} ML</strong> graded ${topTierLabel} (${_bp2}%, EV +${evPct}%) — top-tier edge against current market pricing. Goaltending heavily favors ${favTeam} (${_g2gsax}). ${_ensStr2} all align. ${_nm2.size}-unit play${_nm2.secStr}.`;}
@@ -8506,7 +8514,11 @@ function _nhlGameCard(espnEv){
       else if(live){explanation=`IN PROGRESS · P${c.status?.period||'?'} ${c.status?.displayClock||''} · ${an} ${as2}–${hs} ${hn}. Live model suspended during game.`;}
       else if(topTier===0){explanation=`Model finds no qualifying edge (best prob ${(_topP3*100).toFixed(1)}%). ${seriesNote||'Monitor line movement.'}`;}
       else{
-        const _bp3=(_bm3.prob*100).toFixed(1),_ep3=(_bm3.evVal*100).toFixed(1);
+        // _ep3 carries its own sign -- real bug, found persisting this
+        // text into the ledger's `reasoning` field: every "EV +${_ep3}%"
+        // call site below hardcodes the '+', so a negative EV printed as
+        // the broken "EV +-0.1%". Same fix as evPct elsewhere in this file.
+        const _bp3=(_bm3.prob*100).toFixed(1),_ep3=(_bm3.evVal>=0?'+':'')+(_bm3.evVal*100).toFixed(1);
         const _sn=seriesNote?' in '+seriesNote:'';
         // Part 2 content cleanup, 2026-10-02: every branch below used to end
         // with "${_ensStr3}." (the MC/xGF/ELO ensemble split) -- genuinely
@@ -8686,7 +8698,9 @@ function renderNHLGamesOffline(){
       {label:`UNDER ${_ouLOff}`,prob:1-ouP,evVal:ev(1-ouP,_nhlOuDec3),dec:_nhlOuDec3,side:'under'},
     ]);
     const topTier=_nmOff.tierN,topTierLabel=_nmOff.lbl,topTierCol=_nmOff.col;
-    const _bmOff=_nmOff.best,evPct=(_bmOff.evVal*100).toFixed(1);
+    // evPct carries its own sign -- see renderNHLTonight's live-data loop
+    // (near the top of this file) for the full rationale.
+    const _bmOff=_nmOff.best,evPct=(_bmOff.evVal>=0?'+':'')+(_bmOff.evVal*100).toFixed(1);
     let explanation='';
     if(topTier===0){explanation=`Model finds no qualifying edge (best prob ${(_nhlFavPOff*100).toFixed(1)}%). Skip or monitor line movement before ${g.time}.`;}
     else{
@@ -8803,7 +8817,9 @@ function _nhlUpcomingCard(g,dayIdx){
     {label:`UNDER ${ouLine}`,prob:1-ouP,evVal:ev(1-ouP,ouDec),dec:ouDec,side:'under'},
   ]);
   const topTier=nm.tierN,topTierLabel=nm.lbl,topTierCol=nm.col;
-  const bm=nm.best,evPct=(bm.evVal*100).toFixed(1),bp=(bm.prob*100).toFixed(1);
+  // evPct carries its own sign -- see renderNHLTonight's live-data loop
+  // (near the top of this file) for the full rationale.
+  const bm=nm.best,evPct=(bm.evVal>=0?'+':'')+(bm.evVal*100).toFixed(1),bp=(bm.prob*100).toFixed(1);
   const favGsax=hP>=.5?(h.gsax||0):(aw.gsax||0),dogGsax=hP>=.5?(aw.gsax||0):(h.gsax||0);
   const gsaxStr=`GSAx: ${favGsax>=0?'+':''}${favGsax.toFixed(1)} vs ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)}`;
   const stStr=mc?.stEdge!=null?` / ST ${(mc.stEdge>=0?'+':'')+mc.stEdge.toFixed(1)}pp`:'';
@@ -11847,7 +11863,9 @@ function _nbaGameCard(espnEv){
       ];
       const _nmNBA=_evalMkts(_nbaMkts);
       const topTier=_nmNBA.tierN,topTierLabel=_nmNBA.lbl,topTierCol=_nmNBA.col;
-      const _bmNBA=_nmNBA.best,evPct=(_bmNBA.evVal*100).toFixed(1);
+      // evPct carries its own sign -- see renderNHLTonight's live-data loop
+      // (near the top of this file) for the full rationale.
+      const _bmNBA=_nmNBA.best,evPct=(_bmNBA.evVal>=0?'+':'')+(_bmNBA.evVal*100).toFixed(1);
       let explanation='';
       if(pre){
         // ── NBA analytics context ──────────────────────────────────────────
@@ -15743,13 +15761,85 @@ function renderCrossDeviceSync(){
 
 // ── Engine Health — glanceable automation + CI status (added 2026-10-02) ───
 // New Overall sub-tab, built to replace manually checking email + the
-// GitHub Actions tab separately. Shell commit: nav entry + tab pane wired
-// through T()'s sport==='ovr' dispatch, with a placeholder render so the
-// tab never shows a blank/broken pane before the real data rendering
-// (automation status, then GitHub Actions) lands in follow-up commits.
+// GitHub Actions tab separately. This commit adds the automation_status.json
+// rendering (lock/settle/evening-lock pass health) + version.json build
+// info; the GitHub Actions run-history integration lands in a follow-up
+// commit. Fetched ONLY on tab-open or explicit REFRESH click -- no
+// setInterval here, deliberately, after this session's own removal of an
+// always-on background CLV-polling engine that burned real compute with
+// no opt-in (see that commit) -- never reintroducing that pattern.
+// Reuses the header auto-health widget's own staleness logic/thresholds
+// (see renderAutomationStatus's comment above) for lastLock/lastSettle;
+// the 3 evening-lock passes are also daily jobs so get the same ~30h
+// buffer-over-24h treatment as lastLock's 26h, judgment call since
+// there's no prior precedent for those 3 keys specifically.
+const _EH_STALE_HOURS={lastLock:26,lastSettle:8,lastSoccerEveningLock:30,lastCfbEveningLock:30,lastHockeyEveningLock:30};
+const _EH_LABEL={lastLock:'LOCK',lastSettle:'SETTLE',lastSoccerEveningLock:'SOCCER EVENING LOCK',lastCfbEveningLock:'CFB EVENING LOCK',lastHockeyEveningLock:'HOCKEY EVENING LOCK'};
+function _ehEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function _ehAgo(ms){
+  const h=ms/3600000;
+  if(h<1)return Math.max(1,Math.round(ms/60000))+'m ago';
+  if(h<48)return Math.round(h)+'h ago';
+  return Math.round(h/24)+'d ago';
+}
 async function renderEngineHealth(){
   const el=document.getElementById('ovr-health');if(!el)return;
   el.innerHTML='<div class="loading"><span class="spi"></span> LOADING ENGINE HEALTH…</div>';
+  let status=null,ver=null;
+  try{
+    const r=await fetch('automation_status.json?_v='+Date.now(),{cache:'no-store'});
+    if(r.ok)status=await r.json();
+  }catch(e){}
+  try{
+    const r=await fetch('version.json?_v='+Date.now(),{cache:'no-store'});
+    if(r.ok)ver=await r.json();
+  }catch(e){}
+
+  const now=Date.now();
+  const keys=['lastLock','lastSettle','lastSoccerEveningLock','lastCfbEveningLock','lastHockeyEveningLock'];
+
+  const chips=keys.map(k=>{
+    const s=status&&status[k];
+    const label=_EH_LABEL[k];
+    if(!s)return`<div class="card" style="flex:1;min-width:130px;text-align:center;padding:8px;border-top:2px solid var(--t3)"><div style="font-family:var(--orb);font-size:20px;font-weight:700;color:var(--t3)">—</div><div style="font-family:var(--mono);font-size:12px;color:var(--t3);letter-spacing:1px;margin-top:2px">${label}</div></div>`;
+    const ageHrs=(now-new Date(s.tsUTC).getTime())/3600000;
+    const stale=ageHrs>_EH_STALE_HOURS[k];
+    const failed=s.ok===false;
+    const color=failed?'#ff1a1a':stale?'#ff9000':'#00e644';
+    const icon=failed?'✗':stale?'⚠':'✓';
+    return`<div class="card" style="flex:1;min-width:130px;text-align:center;padding:8px;border-top:2px solid ${color}">
+      <div style="font-family:var(--orb);font-size:20px;font-weight:700;color:${color}">${icon}</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--t2);letter-spacing:1px;margin-top:2px">${label}</div>
+    </div>`;
+  }).join('');
+
+  const details=keys.map(k=>{
+    const s=status&&status[k];
+    const label=_EH_LABEL[k];
+    if(!s)return`<div class="card" style="margin-bottom:8px;padding:10px 12px"><div style="font-family:var(--mono);font-size:15px;color:var(--t3)">${label}: NO DATA</div></div>`;
+    const ageMs=now-new Date(s.tsUTC).getTime();
+    const stale=(ageMs/3600000)>_EH_STALE_HOURS[k];
+    const failed=s.ok===false;
+    const color=failed?'#ff1a1a':stale?'#ff9000':'#00e644';
+    const staleTag=(stale&&!failed)?`<span style="color:#ff9000;margin-left:6px">⚠ STALE (${_ehAgo(ageMs)})</span>`:'';
+    return`<div class="card" style="margin-bottom:8px;padding:10px 12px;border-left:3px solid ${color}">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <div style="font-family:var(--mono);font-size:15px;letter-spacing:1px;color:var(--t2)">${label}</div>
+        <div style="font-family:var(--mono);font-size:14px;color:${color}">${failed?'✗ FAILED':'✓ OK'}${staleTag}</div>
+      </div>
+      <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:4px">${_ehEsc(s.tsMT||'?')}</div>
+      <div style="font-family:var(--mono);font-size:14px;color:var(--t2);margin-top:2px">${_ehEsc(s.detail||'')}</div>
+    </div>`;
+  }).join('');
+
+  const deployLine=(ver&&ver.built)?`<div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:10px">LAST BUILD: ${_ehEsc(ver.built)}</div>`:'';
+
+  el.innerHTML=`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${chips}</div>
+    ${deployLine}
+    <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin-bottom:8px">// AUTOMATION DETAIL</div>
+    ${details}
+  `;
 }
 
 
