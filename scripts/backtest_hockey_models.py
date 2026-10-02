@@ -4,6 +4,8 @@
   python3 scripts/backtest_hockey_models.py form        # NHL recent-form term  -> NHL_FORM_* constants
   python3 scripts/backtest_hockey_models.py blend       # model-vs-market blend -> HOCKEY_MKT_BLEND_* constants
   python3 scripts/backtest_hockey_models.py dispersion  # Poisson dispersion / margin / empty-net shape
+  python3 scripts/backtest_hockey_models.py tiers       # qualification cutoffs (tier floors + high-probability lane)
+                                                        #   -> HOCKEY_TIER_* constants in docs/app.html / scripts/auto_lock_settle.py
 
 Data (cached under --cache, default /tmp/cv_hockey_bt): NHL regular-season results from the public NHL API
 (api-web.nhle.com club-schedule-season) and, for `blend`, closing DraftKings/ESPN BET prices from ESPN's public
@@ -176,8 +178,14 @@ def load_odds(cache: Path) -> dict:
         items = (j or {}).get("items") or []
         if not items:
             return None
-        it = items[-1]
-        for i in items:
+        # ESPN now appends an "ESPN Bet - Live Odds" item (the post-game in-play price: ML -10000/+2500 for a finished game)
+        # AFTER the pre-game one -- taking items[-1] used to silently feed settled prices into the market column
+        # (market log loss 0.40 instead of ~0.66). Only pre-game providers are eligible; DraftKings preferred.
+        pre = [i for i in items if "live" not in (i.get("provider") or {}).get("name", "").lower()]
+        if not pre:
+            return None
+        it = pre[-1]
+        for i in pre:
             if (i.get("provider") or {}).get("name", "").lower().startswith("draft"):
                 it = i
         return dict(ou=it.get("overUnder"), overOdds=it.get("overOdds"), underOdds=it.get("underOdds"),
@@ -372,10 +380,196 @@ def cmd_dispersion(results):
         _dispersion_report("EURO pooled", pool)
 
 
+# ───────────────────────── tiers ─────────────────────────
+# Which legs should qualify (PREMIUM/OPTIMAL + the high-probability lane) when graded on REAL prices? Replays the live
+# qualification rules on 2024-25 + 2025-26 NHL games that have real closing DraftKings/ESPN BET prices for ML, O/U and the
+# +/-1.5 puck line: proxy model (point-in-time Poisson from goal rates, same family as the live euro models; NO xG / goalie /
+# special-teams terms -> weaker than the live NHL model) -> margin calibration on the puck line -> logit blend toward the
+# no-vig market with the app's own alphas (ML .75 / O/U .65 / PL .70, ramping to .95 for <10 GP) -> EV at the REAL price ->
+# tier()'s floors -> build_qualifying's per-game dedupe (one leg per market, max 2 legs, only ML+O/U or PL+O/U pairs).
+# Hit rate / ROI are ALWAYS measured at the real closing price (what a subscriber could actually have bet).
+# Honest limits: (1) the proxy is weaker than the live model, and since the blended probability is ~market-anchored,
+# EV-based selection mostly selects noise -- expect ROI ~ -(bookmaker margin) for ANY scheme; what the cutoffs really control
+# is volume, hit rate and calibration. (2) closing prices, not the earlier price the lock sees. (3) NHL only -- there is no
+# real-price history for SHL/LIIGA/NLA/EXTRALIGA.
+T_ALPHA = {"ML": .75, "OU": .65, "PL": .70}
+T_ALPHA_EARLY, T_FULL_GP, T_MARGIN_SHIFT = .95, 10, .18
+
+
+def _t_blend(pm, mk, kind, n):
+    a0 = T_ALPHA[kind]
+    a = a0 + (max(a0, T_ALPHA_EARLY) - a0) * (1 - min(1.0, n / T_FULL_GP))
+    pm = min(1 - 1e-4, max(1e-4, pm))
+    return min(.95, max(.05, _sig((1 - a) * _logit(pm) + a * _logit(mk))))
+
+
+def tier_legs(results, odds, season, prior, min_gp=5):
+    """All candidate legs (ML both sides, O/U both sides at the book line, +/-1.5 puck line both sides) for every game with
+    real closing prices. Each leg: game key, market, p (blended), dec (REAL closing price), y (1/0), n (lesser team GP),
+    fav (is this the favorite / -1.5 side), legacy_dec (the old ASSUMED tier-input price)."""
+    games = {(g["home"], g["away"], g["date"][:10]): g for g in odds[season]}
+    legs = []
+    for r in pointintime(results, season, prior, min_gp):
+        g = r["g"]
+        og = None
+        for dd in (0, 1, -1):
+            og = games.get((g["home"], g["away"], (date.fromisoformat(g["date"]) + timedelta(days=dd)).isoformat()))
+            if og:
+                break
+        o = og and og.get("odds")
+        if not o or o.get("hML") is None or o.get("aML") is None:
+            continue
+        key, n = (g["id"],), min(r["bh"][2], r["ba"][2])
+        base = dict(game=g["id"], date=g["date"], n=n)
+        ks = range(30)
+        ph, pa = pois_pmf(r["lam_h"]), pois_pmf(r["lam_a"])
+        hw = sum(ph[i] * pa[j] for i in ks for j in ks if i > j) + 0.5 * sum(ph[i] * pa[i] for i in ks)
+        dh, da = _am2dec(o["hML"]), _am2dec(o["aML"])
+        mk_h = _novig(dh, da)
+        p_h = _t_blend(min(.98, max(.02, hw)), mk_h, "ML", n)
+        home_wins = og["hs"] > og["as_"]
+        home_fav = p_h >= .5
+        legs.append(dict(base, mkt="ML", side="home", fav=home_fav, p=p_h, dec=dh, ldec=dh, y=1.0 if home_wins else 0.0))
+        legs.append(dict(base, mkt="ML", side="away", fav=not home_fav, p=1 - p_h, dec=da, ldec=da, y=0.0 if home_wins else 1.0))
+        line = o.get("ou")
+        if line is not None and o.get("overOdds") is not None and o.get("underOdds") is not None:
+            tot = og["hs"] + og["as_"] - (1 if og.get("period") == 5 else 0)
+            if tot != line:
+                tl = r["lam_h"] + r["lam_a"]
+                cdf = sum(math.exp(-tl) * tl ** k / math.factorial(k) for k in range(int(math.floor(line)) + 1))
+                dov, dun = _am2dec(o["overOdds"]), _am2dec(o["underOdds"])
+                p_o = _t_blend(min(.98, max(.02, 1 - cdf)), _novig(dov, dun), "OU", n)
+                over_hit = tot > line
+                legs.append(dict(base, mkt="OU", side="over", fav=False, p=p_o, dec=dov, ldec=1.91, y=1.0 if over_hit else 0.0))
+                legs.append(dict(base, mkt="OU", side="under", fav=False, p=1 - p_o, dec=dun, ldec=1.91, y=0.0 if over_hit else 1.0))
+        hl = o.get("spread")
+        if hl is not None and o.get("hSpreadOdds") is not None and o.get("aSpreadOdds") is not None and abs(abs(hl) - 1.5) < .01:
+            hm2 = sum(ph[i] * pa[j] for i in ks for j in ks if i - j >= 2)
+            am2 = sum(ph[i] * pa[j] for i in ks for j in ks if j - i >= 2)
+            hm2s = _sig(_logit(min(.98, max(.02, hm2))) + T_MARGIN_SHIFT)
+            am2s = _sig(_logit(min(.98, max(.02, am2))) + T_MARGIN_SHIFT)
+            pm_home_cover = hm2s if hl < 0 else 1 - am2s  # home -1.5 covers = wins by 2+; home +1.5 covers = does not lose by 2+
+            dhc, dac = _am2dec(o["hSpreadOdds"]), _am2dec(o["aSpreadOdds"])
+            p_hc = _t_blend(min(.98, max(.02, pm_home_cover)), _novig(dhc, dac), "PL", n)
+            home_cov = (og["hs"] - og["as_"]) + hl > 0
+            home_is_fav_line = hl < 0
+            legs.append(dict(base, mkt="PL", side="home", fav=home_is_fav_line, p=p_hc, dec=dhc, ldec=1.87 if home_is_fav_line else 2.05, y=1.0 if home_cov else 0.0))
+            legs.append(dict(base, mkt="PL", side="away", fav=not home_is_fav_line, p=1 - p_hc, dec=dac, ldec=2.05 if home_is_fav_line else 1.87, y=0.0 if home_cov else 1.0))
+    return legs
+
+
+def _t_tier(p, ev, P, E):
+    if p >= P[2] and ev >= E[2]: return 3
+    if p >= P[1] and ev >= E[1]: return 2
+    if p >= P[0] and ev >= E[0]: return 1
+    return 0
+
+
+def qualify_legs(legs, sch):
+    """Apply scheme `sch` the way build_qualifying does: tier/lane/high-hit qualification per leg, then per-game dedupe
+    (best of each market) and the 2-leg complementary-pair cap. Returns the legs kept (with tier + lane tags)."""
+    by_game = defaultdict(list)
+    for L in legs:
+        price = L["dec"] if sch["real"] else L["ldec"]
+        ev = L["p"] * price - 1
+        t = _t_tier(L["p"], ev, sch["P"], sch["E"])
+        lane = False
+        ln = sch.get("lane")
+        if ln and L["mkt"] in ln["mkts"] and L["p"] >= ln["p"] and (L["p"] * L["dec"] - 1) >= ln["ev"]:
+            if not ln.get("dog_pl_only") or L["mkt"] != "PL" or not L["fav"]:
+                lane = True
+        hh = sch.get("highhit") and L["mkt"] == "ML" and L["p"] >= .75
+        if t in (2, 3) or lane or hh:
+            by_game[L["game"]].append(dict(L, tier=t, lane=lane and t not in (2, 3), ev_t=ev, ev_real=L["p"] * L["dec"] - 1))
+    out = []
+    for gl in by_game.values():
+        best_per_mkt = {}
+        for L in sorted(gl, key=lambda x: (x["tier"], x["ev_t"]), reverse=True):
+            best_per_mkt.setdefault(L["mkt"], L)
+        cands = sorted(best_per_mkt.values(), key=lambda x: (x["tier"], x["ev_t"]), reverse=True)
+        picked = cands[:1]
+        for c in cands[1:]:
+            if {picked[0]["mkt"], c["mkt"]} in ({"ML", "OU"}, {"PL", "OU"}):
+                picked.append(c)
+                break
+        out += picked
+    return out
+
+
+def _t_stats(kept, ngames, label, ndays=None):
+    n = len(kept)
+    if not n:
+        return f"  {label:<46} legs 0"
+    hit = sum(L["y"] for L in kept) / n
+    pr = [(L["dec"] - 1) if L["y"] else -1.0 for L in kept]
+    roi = sum(pr) / n
+    sd = (sum((x - roi) ** 2 for x in pr) / max(1, n - 1)) ** .5
+    se = sd / n ** .5
+    mp = sum(L["p"] for L in kept) / n
+    mkts = {m: sum(1 for L in kept if L["mkt"] == m) for m in ("ML", "PL", "OU")}
+    lane = sum(1 for L in kept if L["lane"])
+    per68 = n / ngames * 68
+    return (f"  {label:<46} legs/68g {per68:5.1f} | n={n:<5} hit {hit * 100:5.1f}% (mean p {mp * 100:5.1f}%) | "
+            f"ROI {roi * 100:+5.1f}% +-{1.96 * se * 100:3.1f} | avg dec {sum(L['dec'] for L in kept) / n:4.2f} | "
+            f"ML {mkts['ML']} PL {mkts['PL']} OU {mkts['OU']} lane {lane}")
+
+
+def cmd_tiers(results, odds):
+    legs = tier_legs(results, odds, "20252026", "20242025") + tier_legs(results, odds, "20242025", "20232024")
+    ngames = len({L["game"] for L in legs})
+    print(f"{len(legs)} candidate legs over {ngames} NHL games with real closing prices (2024-25 + 2025-26, >=5 GP)")
+    P0, E0 = (.55, .62, .67), (.01, .03, .05)
+    print("\nDoes the blended probability's EV (at the real price) predict anything? ROI by EV bucket, all legs:")
+    for lo, hi in ((-1, -.08), (-.08, -.05), (-.05, -.03), (-.03, -.01), (-.01, .01), (.01, .03), (.03, .06), (.06, 1)):
+        b = [L for L in legs if lo <= L["p"] * L["dec"] - 1 < hi]
+        if len(b) >= 30:
+            print(f"   EV [{lo * 100:+.0f}%,{hi * 100:+.0f}%): n={len(b):<5} hit {sum(L['y'] for L in b) / len(b) * 100:5.1f}% "
+                  f"mean p {sum(L['p'] for L in b) / len(b) * 100:5.1f}%  ROI {sum((L['dec'] - 1) if L['y'] else -1 for L in b) / len(b) * 100:+5.1f}%")
+    sch = lambda name, real, P=P0, E=E0, lane=None, highhit=False: dict(name=name, real=real, P=P, E=E, lane=lane, highhit=highhit)
+    L = lambda p, ev, mk=("ML", "PL"), dog=False: dict(p=p, ev=ev, mkts=set(mk), dog_pl_only=dog)
+    print("\nSCHEME TABLE (legs per 68-game slate, hit%, ROI at REAL closing prices):")
+    base = [
+        sch("A  before: assumed-price tiers + ML>=75% rule", False, highhit=True),
+        sch("B  real-price tiers + ML>=75% rule (flip only)", True, highhit=True),
+        sch("B2 real-price tiers, no high-hit rule", True),
+    ]
+    for s in base:
+        print(_t_stats(qualify_legs(legs, s), ngames, s["name"]))
+    print("  -- lower (vig-aware) EV floors, no lane")
+    for E in ((.0, .01, .03), (-.01, .0, .02), (-.02, -.01, .01), (-.03, -.02, .0)):
+        s = sch(f"C  EV floors {E[0] * 100:+.0f}/{E[1] * 100:+.0f}/{E[2] * 100:+.0f}%", True, E=E)
+        print(_t_stats(qualify_legs(legs, s), ngames, s["name"]))
+    print("  -- B2 + high-probability lane (ML + PL, p>=X, EV>=-Y at the real price)")
+    for X in (.62, .65, .68, .70, .72, .75):
+        for Y in (.02, .03, .04, .06):
+            s = sch(f"D  lane ML+PL p>={X:.2f} EV>=-{Y * 100:.0f}%", True, lane=L(X, -Y))
+            print(_t_stats(qualify_legs(legs, s), ngames, s["name"]))
+    print("  -- lane floor grid actually considered for the final choice (ML p>=X, +1.5 dog p>=X, EV>=-Y; value tiers unchanged)")
+    for X, Y in ((.62, .04), (.65, .04), (.65, .05), (.65, .06), (.65, .07), (.65, .08), (.67, .07), (.68, .07), (.70, .07)):
+        s = sch(f"F  lane ML + PL dog  p>={X:.2f} EV>=-{Y * 100:.0f}%", True, lane=L(X, -Y, ("ML", "PL"), True))
+        print(_t_stats(qualify_legs(legs, s), ngames, s["name"]))
+    chosen = sch("CHOSEN  lane ML+PLdog p>=.65 EV>=-7%", True, lane=L(.65, -.07, ("ML", "PL"), True))
+    print("\nCHOSEN scheme by season (shows how much the +1.5 dog cover rate swings year to year):")
+    for sn, pr in (("20252026", "20242025"), ("20242025", "20232024")):
+        lg = tier_legs(results, odds, sn, pr)
+        print(_t_stats(qualify_legs(lg, chosen), len({x["game"] for x in lg}), f"  {sn}"))
+    kept = qualify_legs(legs, chosen)
+    print("CHOSEN calibration (observed hit rate vs mean blended probability, by probability bucket):")
+    for lo, hi in ((.65, .68), (.68, .70), (.70, .75), (.75, 1.0)):
+        b = [x for x in kept if lo <= x["p"] < hi]
+        if b:
+            print(f"   p[{lo:.2f},{hi:.2f}) n={len(b):<4} hit {sum(x['y'] for x in b) / len(b) * 100:5.1f}%  mean p {sum(x['p'] for x in b) / len(b) * 100:5.1f}%")
+    print("  -- lane variants (X=.68, Y=.04)")
+    for name, ln in (("ML only", L(.68, -.04, ("ML",))), ("PL dog +1.5 only", L(.68, -.04, ("PL",), True)),
+                     ("ML + PL dog only", L(.68, -.04, ("ML", "PL"), True)), ("ML+PL+OU", L(.68, -.04, ("ML", "PL", "OU")))):
+        s = sch(f"E  lane {name}", True, lane=ln)
+        print(_t_stats(qualify_legs(legs, s), ngames, s["name"]))
+
+
 # ───────────────────────── main ─────────────────────────
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["form", "blend", "dispersion"])
+    ap.add_argument("cmd", choices=["form", "blend", "dispersion", "tiers"])
     ap.add_argument("--cache", default="/tmp/cv_hockey_bt")
     a = ap.parse_args()
     cache = Path(a.cache)
@@ -384,5 +578,7 @@ if __name__ == "__main__":
         cmd_form(res)
     elif a.cmd == "blend":
         cmd_blend(res, load_odds(cache))
+    elif a.cmd == "tiers":
+        cmd_tiers(res, load_odds(cache))
     else:
         cmd_dispersion(res)
