@@ -2045,7 +2045,7 @@ _INJURY_KEYWORDS = [
 ]
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Soccer (Champions League / Premier League / La Liga / Bundesliga / MLS)
+# Soccer (Champions League / Premier League / La Liga / Bundesliga / Serie A)
 # ═══════════════════════════════════════════════════════════════════════════════
 # FBref scraping (fbref.com, part of the Sports-Reference family) was retired
 # 2026-08-22: its Cloudflare bot-check 403s every request from both
@@ -2054,7 +2054,19 @@ _INJURY_KEYWORDS = [
 # fallback source in practice, just a guaranteed-403 request plus a 2-second
 # rate-limit sleep on every run before falling through to fetch_espn_soccer_
 # league() anyway. See that function for the actual live data path.
-_SOCCER_LEAGUES: tuple[str, ...] = ("cl", "pl", "liga", "bl", "mls", "ita")
+# "mls" removed 2026-10-01 -- real bug found + fixed alongside the dedicated
+# fetch_mls_team_stats()/fetch_mls_standings()/fetch_mls_schedule()/
+# fetch_mls_rosters() calls near the bottom of main(): MLS was fully retired
+# 2026-09-27, but this tuple still fed fetch_soccer_team_stats_all() a live
+# ESPN fetch for MLS every "soccer"/"all" run and wrote the result into
+# soccer_fbref["mls"]/docs/soccer_fbref.json, a second independent live-fetch
+# path for the same retired league the dedicated-feed removal alone didn't
+# touch. "bl" (Bundesliga) stays -- also retired as its own product/tab, but
+# its ESPN data is still a real, needed input to the Champions League
+# domestic-form blend for German clubs (see _clDomesticContext/
+# _CL_DOMESTIC_LEAGUES in docs/app.html), unlike MLS which no MLS club plays
+# in UEFA competitions and therefore never consumes.
+_SOCCER_LEAGUES: tuple[str, ...] = ("cl", "pl", "liga", "bl", "ita")
 
 # World Cup country name -> 3-letter code, ported directly from the frontend's
 # WC26_GROUPS (docs/app.html) so it stays a single source of truth for the
@@ -2438,10 +2450,11 @@ def fetch_espn_soccer_league(key: str) -> dict:
 
 def fetch_soccer_team_stats_all() -> dict:
     """
-    Fetch all 6 tracked soccer leagues' team stats via fetch_espn_soccer_
+    Fetch every league in _SOCCER_LEAGUES' team stats via fetch_espn_soccer_
     league() -- see that function's docstring for the season-blend logic and
     why FBref (formerly tried first here) was retired entirely rather than
-    kept as a dead-weight first attempt.
+    kept as a dead-weight first attempt. (5 leagues as of 2026-10-01 -- MLS
+    removed from _SOCCER_LEAGUES itself; see that tuple's own comment.)
     """
     result: dict = {}
     for key in _SOCCER_LEAGUES:
@@ -4694,40 +4707,40 @@ def main() -> None:
     if S in ("soccer","all"):
         for _lkey, _lcfg in ESPN_SOCCER_LEAGUES.items():
             if _lkey == "mls":
-                continue  # MLS rosters already fetched separately (fetch_mls_rosters)
+                continue  # MLS fully retired 2026-09-27 -- no roster fetch at all
+                          # anymore (fetch_mls_rosters() itself is no longer called
+                          # either, see the mls_rosters comment near the bottom of
+                          # main()), this isn't "fetched elsewhere" like it used to be
             _rosters = fetch_espn_soccer_rosters(_lcfg["espn"], _lcfg["name"])
             if _rosters:
                 soccer_fbref.setdefault(_lkey, {"league": _lcfg["name"], "fetchedAt": TODAY_ISO, "teams": {}})
                 soccer_fbref[_lkey]["rosters"] = _rosters
             time.sleep(0.3)
-    # MLS gets its own first-party feed straight from mlssoccer.com's stats
-    # API — real xG per club (not the goals-per-game proxy the ESPN fallback
-    # uses for the other leagues), so it takes priority over whatever
-    # fetch_soccer_team_stats_all() put in soccer_fbref["mls"] above.
-    mls_stats     = fetch_mls_team_stats() if S in ("soccer","all") else {}
-    mls_standings = fetch_mls_standings()  if S in ("soccer","all") else []
-    mls_schedule  = fetch_mls_schedule()   if S in ("soccer","all") else []
-    mls_rosters   = fetch_mls_rosters()    if S in ("soccer","all") else {}
-    if S in ("soccer","all"):
-        # MLS always has 30 clubs in-season — unlike a daily schedule, this
-        # should never legitimately be 0, so it's safe to alert on.
-        _check_source_health("MLS club stats (mlssoccer.com)", len(mls_stats.get("teams", {})))
-        _check_source_health("MLS standings (mlssoccer.com)", len(mls_standings))
-        _check_source_health("MLS rosters (ESPN)", len(mls_rosters))
+    # MLS fully retired 2026-09-27 (see auto_lock_settle.py's PRODUCT_SPORTS
+    # comment) -- real bug found + fixed here 2026-10-01: this block kept
+    # calling fetch_mls_team_stats()/fetch_mls_standings()/fetch_mls_schedule()/
+    # fetch_mls_rosters() live against mlssoccer.com/ESPN on every single
+    # "soccer"/"all" scoped run, then wrote the results straight to
+    # docs/mls_stats.json and docs/mls_schedule.json -- MLS had been removed
+    # from app.html's nav/tabs/products/news feeds, but nobody had actually
+    # stopped fetching or publishing its live data here. Hardcoded empty the
+    # same way WNBA/NCAA baseball/MLB are elsewhere in this function, so the
+    # bundle shape below is unchanged for any downstream .get() reader, and
+    # the two JSON files simply stop being refreshed (the file-write blocks
+    # below are already gated on these being non-empty, and the old
+    # _check_source_health calls that used to assume MLS always has 30
+    # in-season clubs were removed with the fetch, so retirement doesn't
+    # trip a false "scraper may be broken" alert on every run).
+    mls_stats: dict = {}
+    mls_standings: list = []
+    mls_schedule: list = []
+    mls_rosters: dict = {}
 
-    # Weather for MLS home clubs — same rationale as MLB: open-air stadiums,
-    # wind/rain measurably suppress O/U goal totals. Keyed by lowercase club
-    # name (matching mls_schedule.json's "home" field) rather than abbreviation.
+    # Weather for MLS home clubs -- removed alongside the fetch above (same
+    # retirement); mls_schedule is now always empty so this loop would never
+    # have run anyway, but skipping the log()/fetch_soccer_weather() calls
+    # entirely avoids a misleading "Fetching MLS weather…" log line every run.
     soccer_weather: dict = {}
-    if S in ("soccer","all"):
-        log("Fetching MLS weather…")
-        for m in mls_schedule:
-            home = (m.get("home") or "").strip()
-            key = home.lower()
-            if key and key not in soccer_weather:
-                w = fetch_soccer_weather(home)
-                if w: soccer_weather[key] = w
-                time.sleep(0.3)
     if mls_stats.get("teams"):
         # soccer_fbref["mls"] keeps the slim xg/npxg/xag/poss schema the
         # frontend's _socXGFromFBref() already reads for every league, so
