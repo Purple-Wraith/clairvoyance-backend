@@ -44,6 +44,11 @@ JOBS: dict[str, tuple[list[str], list[str]]] = {
     "liiga": (["scripts/fetch_liiga.py"], ["docs/liiga_schedule.json"]),
     "nla": (["scripts/fetch_nla.py"], ["docs/nla_schedule.json"]),
     "extraliga": (["scripts/fetch_extraliga.py"], ["docs/extraliga_schedule.json"]),
+    # RESULTS-ONLY re-scrape of the four hockey leagues' /results/ pages, merged into their schedule files (finals only; fixtures,
+    # odds and standings untouched). Run by the settle-capable slots of auto-lock-settle.yml right before the settle logic, so the
+    # settle pass reads scores minutes old instead of whatever the last full refresh + Pages redeploy left. ~1-3 min, one browser.
+    "hockey-results": (["scripts/refresh_hockey_results.py"],
+                       ["docs/shl_schedule.json", "docs/liiga_schedule.json", "docs/nla_schedule.json", "docs/extraliga_schedule.json"]),
     "nhl": (["scripts/fetch_nhl.py", "--flashscore-odds"], ["docs/nhl_schedule.json"]),
     "soccer": (["scripts/scrape_soccer_schedule.py"], ["docs/soccer_schedule.json"]),
     "soccer-tomorrow": (["scripts/scrape_soccer_schedule.py", "--tomorrow"], ["docs/soccer_schedule_tomorrow.json"]),
@@ -136,7 +141,8 @@ def commit_and_push(jobs: list[str]) -> None:
     if subprocess.run(GIT + ["diff", "--cached", "--quiet"]).returncode == 0:
         log("no schedule/odds change to commit")
         return
-    msg = f"chore: pre-lock odds refresh ({', '.join(jobs)}) {datetime.now(timezone.utc).strftime('%H:%MZ')}"
+    kind = "pre-settle results refresh" if jobs == ["hockey-results"] else "pre-lock odds refresh"
+    msg = f"chore: {kind} ({', '.join(jobs)}) {datetime.now(timezone.utc).strftime('%H:%MZ')}"
     if subprocess.run(GIT + ["commit", "-q", "-m", msg], capture_output=True).returncode != 0:
         log("commit failed -- continuing (the lock reads the working tree, not origin)")
         return

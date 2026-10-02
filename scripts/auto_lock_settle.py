@@ -872,6 +872,13 @@ def write_ledger_backup(page) -> int:
     return len(preds) if isinstance(preds, list) else 0
 
 
+def ledger_fingerprint(page) -> str:
+    """Hash of the page's whole in-memory ledger (getP()), to detect whether a pass changed it. No network."""
+    import hashlib
+    raw = page.evaluate("() => JSON.stringify(getP())")
+    return hashlib.sha256((raw or "").encode("utf-8")).hexdigest()
+
+
 def write_landing_performance(page) -> None:
     """Same 3 JSON files landing-performance-refresh.yml used to produce
     via its OWN fully separate browser launch + Supabase pull -- folded
@@ -3504,6 +3511,7 @@ def main() -> None:
         # them too -- uncommitted -- which left tracked files dirty, and a dirty tree makes the `git rebase origin/main` fallback in
         # their marker-commit steps (and in _commit_and_push) refuse to run ("unstaged changes"), silently skipping the marker write
         # whenever the first push was rejected by a concurrent bot commit. Skipping the writes here removes that failure mode.
+        ledger_fp_before = None
         if is_main_run and not args.watchdog:
             try:
                 backed_up = write_ledger_backup(page)
@@ -3514,6 +3522,7 @@ def main() -> None:
                 write_landing_performance(page)
             except Exception as exc:
                 log(f"WARNING: landing performance snapshot failed: {exc}")
+            ledger_fp_before = ledger_fingerprint(page) if args.live else None
 
         if do_settle:
             # No email here by design -- intraday settle passes exist to
@@ -3684,6 +3693,20 @@ def main() -> None:
             except Exception as exc:
                 log(f"top picks digest failed: {exc}")
                 raise
+
+        # The backup/landing JSON above were written BEFORE this run settled/locked anything, so a settle or lock that changed the
+        # ledger left picks_backup.json (and the public Live Track Record JSON) one full pass behind -- and the cheap settle gate
+        # (scripts/settle_gate.py, which reads only that file) would see just-settled picks as still pending and fire a redundant
+        # heavy run. Rewrite them now, from the same in-page ledger (no extra Supabase read), but only for a LIVE run that really
+        # changed it. The workflow's "Commit ledger backup + landing performance JSON" step commits whatever is on disk.
+        if is_main_run and not args.watchdog and ledger_fp_before is not None:
+            try:
+                if ledger_fingerprint(page) != ledger_fp_before:
+                    backed_up = write_ledger_backup(page)
+                    log(f"Ledger changed during this pass -- rewrote docs/picks_backup.json ({backed_up} bets)")
+                    write_landing_performance(page)
+            except Exception as exc:
+                log(f"WARNING: post-pass ledger backup refresh failed: {exc}")
 
         browser.close()
 

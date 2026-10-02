@@ -117,3 +117,51 @@ def carry_over_missing(games: list[dict], prev_doc: dict, now: datetime, max_day
     if out["carried"]:
         games.sort(key=lambda x: x.get("date") or "")
     return out
+
+
+def merge_results_only(prev_doc: dict, results: list[dict], now: datetime) -> tuple[dict, dict]:
+    """RESULTS-ONLY refresh (scripts/refresh_hockey_results.py): fold a fresh /results/ scrape into the previous committed file
+    WITHOUT touching anything else -- fixtures, odds, teams/standings and every other game stay byte-identical.  Used by the settle
+    passes so they can read final scores minutes old instead of waiting for the next full refresh.
+
+    For each scraped final result:
+      * the game is already in the file  -> its row becomes {**previous row, **result row}: the fresh state/scores/date win, the
+        previous row's odds/ou survive (the results page carries none), and carried/lastSeen are cleared (it is seen again);
+      * the game is not in the file       -> appended (a game that started and finished between two full refreshes).
+    A result without numeric scores is ignored (never create a 'post' without a score).  Returns (new_doc, stats); new_doc is a
+    deep-enough copy (prev_doc is never mutated) and equals prev_doc exactly when nothing changed -- the caller then skips the
+    write so an idle refresh commits nothing.  stats = {"updated": [ids pre->post or score change], "added": [ids], "unchanged": n}.
+    On changes `resultsRefreshedAt` is stamped; `generated_at` (the full-refresh time other code reads) is left alone."""
+    doc = json.loads(json.dumps(prev_doc or {}))
+    games = doc.get("games")
+    if not isinstance(games, list):
+        games = []
+    by_id = {g.get("id"): i for i, g in enumerate(games) if isinstance(g, dict) and g.get("id")}
+    stats = {"updated": [], "added": [], "unchanged": 0}
+    for r in results or []:
+        if not isinstance(r, dict) or not r.get("id") or r.get("state") != "post" or not _has_scores(r):
+            continue
+        i = by_id.get(r["id"])
+        if i is None:
+            games.append(dict(r))
+            by_id[r["id"]] = len(games) - 1
+            stats["added"].append(r["id"])
+            continue
+        old = games[i]
+        new = {**old, **r}
+        new.pop("carried", None)
+        new.pop("lastSeen", None)
+        if new == old:
+            stats["unchanged"] += 1
+            continue
+        games[i] = new
+        stats["updated"].append(r["id"])
+    if stats["updated"] or stats["added"]:
+        games.sort(key=lambda x: x.get("date") or "")
+        doc["games"] = games
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        doc["resultsRefreshedAt"] = now.strftime("%Y-%m-%d %H:%M UTC")
+    else:
+        doc = json.loads(json.dumps(prev_doc or {}))
+    return doc, stats
