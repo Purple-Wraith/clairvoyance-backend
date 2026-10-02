@@ -6,7 +6,20 @@ name: Send Demo Locks Emails
 # header regardless of which leagues are actually in-season today.
 # No Playwright needed (unlike auto-lock-settle.yml) since this never
 # touches the live app or Supabase, just sends email.
-
+#
+# Real bug, found auditing this workflow 2026-10-02 (confirmed via a
+# real triggered run failing outright): this had NO dependency-install
+# step at all, and send_demo_emails.py imports send_locks_email/
+# PRODUCT_LABEL from auto_lock_settle.py, which does a module-level
+# `import requests` -- added 2026-08-26 (commit ae9aa127), after this
+# workflow was created and after its last real successful run
+# (2026-08-24). Every run since has died immediately with
+# "ModuleNotFoundError: No module named 'requests'" -- this workflow has
+# been completely broken, silently, for over 5 weeks, because nobody
+# had triggered it since the import was added. requests is the only
+# missing piece -- auto_lock_settle.py's `from playwright.sync_api import
+# sync_playwright` is a lazy import inside main(), never reached by this
+# script's own call path, so Playwright genuinely isn't needed here.
 on:
   workflow_dispatch:
     inputs:
@@ -30,6 +43,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -q requests
 
       - name: Send demo emails
         env:
