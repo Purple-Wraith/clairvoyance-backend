@@ -96,7 +96,18 @@ on:
     # These keep bets accurate but never email -- see the 18:21 UTC
     # digest+recalibration above for the one daily email.
     - cron: '44 22 * * *'
-    - cron: '27 4 * * *'
+    # RETIMED 2026-10-02 (GitHub delay audit, see european-lock-early.yml / hockey-lock-evening.yml headers for the full data).
+    # The only daily lock slot used to be 13:07 UTC = 7:07 AM MT nominal, which really landed 16:59-20:03Z = 10:59 AM-2:03 PM MT
+    # (+3.9..6.9h). That is AFTER NFL's 11:00 AM MT Sunday kickoffs (the late-lock audit found 36 NFL picks locked during games and
+    # 7 after) and hours after the early European/CFB games. Nominal 03:50-05:45Z slots land +4.2..6.7h later = 3-6 AM MT, so the
+    # primary daily lock now rides a 05:27Z slot (11:27 PM MT nominal -> lands ~4:30-6:10 AM MT): settle yesterday, then lock today
+    # for every product and send the one daily subscriber email (--final-lock-check) while NFL/CFB/NHL games are still hours away.
+    # It replaces the old 04:27Z settle-only slot (same settle work, plus the lock). NHL/NFL schedule + odds are re-scraped inside the
+    # job first (lock_prep.py), so the 18h hockey odds-age cap is no longer cron-order luck.
+    - cron: '27 5 * * *'
+    # Backup main lock, gated: runs only if no main lock is recorded for today's MT date yet (data/last_lock_date.txt), so a
+    # dropped/very late 05:27Z slot is retried before NFL's 11 AM MT kickoffs. A no-op slot costs one bash check.
+    - cron: '7 9 * * *'
   workflow_dispatch:
     inputs:
       live:
@@ -114,26 +125,29 @@ on:
 permissions:
   contents: write
 
+# Lock-capable slots (05:27Z, 09:07Z, 13:07Z and manual dispatch) run one at a time so two of them landing together (GitHub delays
+# cluster) cannot both lock + email; the digest and settle slots share a second group so they are never cancelled in favour of a lock.
+# A queued run waits; GitHub keeps only the newest pending run per group, which is fine -- every lock slot is idempotent.
+concurrency:
+  group: auto-lock-settle-${{ (github.event.schedule == '21 18 * * *' || github.event.schedule == '44 22 * * *') && 'other' || 'lock' }}
+  cancel-in-progress: false
+
 jobs:
   auto-lock-settle:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Was 15. A lock slot now also runs the in-workflow NHL/NFL odds refresh (lock_prep.py, up to ~10 min) before the pass.
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          pip install -q playwright requests
-          for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
       - name: Determine step flags from trigger
         id: flags
         run: |
+          # Landing-time log (nominal slot vs when GitHub really ran it) -- grep these to re-fit the delay model.
+          echo "LANDED $(date -u +%Y-%m-%dT%H:%M:%SZ) ($(TZ=America/Denver date '+%a %m-%d %H:%M') MT) schedule='${{ github.event.schedule }}' event=${{ github.event_name }}"
+          echo "LANDED $(date -u +%Y-%m-%dT%H:%M:%SZ) ($(TZ=America/Denver date '+%a %m-%d %H:%M') MT) schedule='${{ github.event.schedule }}'" >> "$GITHUB_STEP_SUMMARY"
+          echo "should_run=1" >> "$GITHUB_OUTPUT"
           # Scheduled runs now honor LIVE_MODE directly, same as
           # workflow_dispatch -- the dry-run gate that held scheduled runs
           # to dry-run through 2026-08-29 regardless of LIVE_MODE has been
@@ -165,6 +179,26 @@ jobs:
             # Cron retimed 2026-09-23 from 15 14 * * * (8:15am MT) to this
             # (12:21pm MT) -- match string updated to match.
             echo "step_flags=--daily-digest --adaptive-recalibration" >> "$GITHUB_OUTPUT"
+            echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "27 5 * * *" ]; then
+            # PRIMARY pre-dawn lock (2026-10-02 retime, see the cron comment above): settle yesterday's results, lock today for every
+            # product, and send the one daily subscriber email (--final-lock-check, deduped by data/last_lock_email_date.txt).
+            echo "step_flags=--settle --lock --final-lock-check" >> "$GITHUB_OUTPUT"
+            echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "7 9 * * *" ]; then
+            # BACKUP lock slot: only if no main lock is recorded for today yet (marker read from origin/main -- this run's checkout
+            # can predate a marker pushed by a slot that finished while this one was queued).
+            TODAY_MT=$(TZ=America/Denver date +%Y-%m-%d)
+            git fetch --quiet --depth=1 origin main 2>/dev/null || true
+            LAST_LOCK_DATE=$(git show origin/main:data/last_lock_date.txt 2>/dev/null || cat data/last_lock_date.txt 2>/dev/null || echo "")
+            if [ "$LAST_LOCK_DATE" = "$TODAY_MT" ]; then
+              echo "::notice::main lock already recorded for $TODAY_MT -- skipping the backup slot."
+              echo "should_run=0" >> "$GITHUB_OUTPUT"
+              echo "step_flags=" >> "$GITHUB_OUTPUT"
+            else
+              echo "::notice::main lock NOT recorded for $TODAY_MT yet -- running the backup lock slot."
+              echo "step_flags=--lock --final-lock-check" >> "$GITHUB_OUTPUT"
+            fi
             echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event.schedule }}" = "7 13 * * *" ]; then
             # The single daily lock check (cut from 3 dedicated attempts
@@ -227,9 +261,36 @@ jobs:
             echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run auto-lock / auto-settle
+      - name: Set up Python
+        if: ${{ steps.flags.outputs.should_run != '0' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        if: ${{ steps.flags.outputs.should_run != '0' }}
+        run: |
+          pip install -q playwright requests
+          for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
+      - name: Pre-lock odds refresh (fail-open)
+        # Lock slots only (any step_flags containing --lock): re-scrape NHL (Flashscore real prices, 18h age cap) and NFL lines right
+        # now, so the pass reads what it just refreshed instead of whatever the separate refresh workflow (delayed 5-12h) last
+        # committed + deployed. Best effort; pushes only when live. See scripts/lock_prep.py.
+        if: ${{ steps.flags.outputs.should_run != '0' && contains(steps.flags.outputs.step_flags, '--lock') }}
+        continue-on-error: true
+        timeout-minutes: 12
         env:
           TZ: America/Denver
+        run: |
+          PUSH_FLAG=""
+          if [ "${{ steps.flags.outputs.live_flag }}" != "--live" ]; then PUSH_FLAG="--no-push"; fi
+          python3 scripts/lock_prep.py --jobs nhl,nfl $PUSH_FLAG
+
+      - name: Run auto-lock / auto-settle
+        if: ${{ steps.flags.outputs.should_run != '0' }}
+        env:
+          TZ: America/Denver
+          LOCK_RESULT: ${{ runner.temp }}/lock_pass.json
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           # Personal daily locked-picks breakdown -- separate secret from
           # SOCIAL_CARD_EMAIL_TO on purpose (this is a private betting
@@ -242,7 +303,12 @@ jobs:
           if [ -n "${{ steps.flags.outputs.catchup }}" ]; then
             echo "::notice::Today's dedicated 7:07am MT lock check didn't fire -- running a catch-up lock+settle pass (this one emails, since it's the last realistic chance today)."
           fi
-          python3 scripts/auto_lock_settle.py ${{ steps.flags.outputs.step_flags }} ${{ steps.flags.outputs.live_flag }}
+          # Lock slots read THIS checkout's docs/ (incl. the JSON refreshed above) instead of the deployed Pages copy.
+          EXTRA=""
+          case "${{ steps.flags.outputs.step_flags }}" in
+            *--lock*) EXTRA="--serve-local --result-file $LOCK_RESULT" ;;
+          esac
+          python3 scripts/auto_lock_settle.py ${{ steps.flags.outputs.step_flags }} $EXTRA ${{ steps.flags.outputs.live_flag }}
 
       - name: Commit ledger backup + landing performance JSON
         # docs/picks_backup.json (revived 2026-09-15 as a rename of the
@@ -269,7 +335,7 @@ jobs:
         # committing whatever these files WERE written before that
         # failure -- decoupled from that step's reliability, not
         # inheriting it.
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flags.outputs.should_run != '0' }}
         run: |
           git add docs/picks_backup.json docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
           if git diff --cached --quiet; then
@@ -278,7 +344,7 @@ jobs:
             git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: refresh ledger backup + landing perf $(TZ=America/Denver date +%H:%M) MT"
             if ! git push origin main; then
               git fetch origin main
-              if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase origin/main; then
+              if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase --autostash origin/main; then
                 git push origin main || echo "::warning::ledger backup/landing-perf: push still failed after rebase, will retry next run"
               else
                 git rebase --abort
@@ -331,7 +397,7 @@ jobs:
             git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: record lock for $TODAY_MT"
             if ! git push origin main; then
               git fetch origin main
-              if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase origin/main; then
+              if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase --autostash origin/main; then
                 git push origin main || echo "::warning::record lock: push still failed after rebase, will retry next run"
               else
                 git rebase --abort

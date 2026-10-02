@@ -1,35 +1,34 @@
 name: CFB Auto Lock (Early)
 
-# Dedicated early lock+email pass for just CFB -- confirmed real kickoff
-# times of 10:00 AM MT and later (per the user directly), which the main
-# auto-lock-settle.yml run (10:15 AM MT) would already be cutting it
-# close on, or missing outright for the earliest games. Same idea as
-# soccer-lock-early.yml, one sport at a time.
+# Same-morning CFB lock -- the late catch-up behind cfb-lock-evening.yml. Old slots (15:00-16:00Z = 9:00-10:00 AM MT nominal)
+# actually landed 17:28-21:36Z = 11:28 AM-3:36 PM MT: after the 10:00 AM MT Saturday kickoff cluster, so by the time it ran it could
+# only ever lock afternoon/evening games. Slots moved ~4.5h earlier so the pass lands ~8 AM-1 PM MT, and it now scrapes fresh
+# lines first and reads the refreshed checkout (see lock_prep.py). Marker semantics as in hockey-lock-evening.yml.
 #
-# Same safety convention as the other lock workflows: dry-run by
-# default, reads the same LIVE_MODE repo variable (Settings -> Secrets
-# and variables -> Actions -> Variables) so this goes live/dry-run
-# together with the rest, not independently.
+# RETIMED 2026-10-02 (GitHub delay audit, 300 real runs per workflow, `gh run list --json createdAt`): scheduled workflows in
+# this repo land LATE and the lateness depends on the nominal UTC time of day --
+#   nominal 17:00-23:00 UTC  -> lands +2.0 to +5.3 h later   (e.g. 20:00-21:00Z +2.4..4.2h, 22:44Z +2.0..3.5h, 21:13Z +3.1..3.6h)
+#   nominal 03:50-05:45 UTC  -> lands +4.2 to +6.7 h later   (the old evening slots: landed 08:20-12:01Z = 2:20-6:01 AM MT)
+#   nominal 11:30-13:00 UTC  -> lands +3.1 to +7.4 h later   (the old same-morning slots: landed 15:08-19:49Z = 9:08 AM-1:49 PM MT)
+# and the delay has GROWN ~2h over the last 3 weeks (the 04:00Z evening slots landed at +4.4h on 09-12, +6.7h on 10-01), with the
+# worst days on Mondays. So one slot per window, timed from the nominal clock, is not safe: the old 6:00 AM MT same-morning pass
+# really ran 9 AM-1:49 PM MT, after every SHL (7:15 AM MT) and Liiga (9:30 AM MT) game -- which is why ~55 of 174 settled European
+# hockey picks were locked after the game started. The fix is layers, not one lucky slot: an EVENING batch (lands ~5-8:40 PM MT the
+# day before), a MID-NIGHT batch, and a PRE-DAWN batch (lands ~3-6 AM MT), plus a late same-day catch-up workflow. Each slot is
+# gated by a cheap bash check, so only the first COMPLETE pass of each MT calendar day pays for a runner + browser.
+#
+# Slots: 10:30Z=4:30AM, 11:30Z=5:30AM, 12:30Z=6:30AM, 13:30Z=7:30AM MT nominal -> observed +3.1..7.4h -> ~7:40 AM-2:30 PM MT.
 
 on:
   schedule:
-    # 9:00 AM MT = 15:00 UTC (MDT) / 16:00 UTC (MST) -- an hour ahead of
-    # the earliest confirmed CFB kickoffs.
-    - cron: '0 15 * * *'
-    # 3 catch-up slots, 20 min apart. Real GitHub Actions scheduling
-    # unreliability (same class already found and fixed for the main
-    # lock workflow -- confirmed live 2026-08-29: BOTH the 9:00 and the
-    # single 9:20 catch-up that used to be here failed to fire at all,
-    # not just late -- a single extra slot wasn't enough headroom against
-    # how often this platform drops a given scheduled trigger entirely).
-    # Each one only actually runs the lock pass if today's real lock
-    # hasn't already succeeded (see the should_run check below, which
-    # treats the FIRST slot above as the only unconditional one and
-    # every other cron entry as a catch-up needing the marker check) --
-    # still all ahead of the earliest confirmed 10:00am kickoffs.
-    - cron: '20 15 * * *'
-    - cron: '40 15 * * *'
-    - cron: '0 16 * * *'
+    # 4:30 AM MT
+    - cron: '30 10 * * *'
+    # 5:30 AM MT
+    - cron: '30 11 * * *'
+    # 6:30 AM MT
+    - cron: '30 12 * * *'
+    # 7:30 AM MT
+    - cron: '30 13 * * *'
   workflow_dispatch:
     inputs:
       live:
@@ -41,56 +40,49 @@ on:
 permissions:
   contents: write
 
+# One run at a time per workflow (several slots can land within the same minute after a GitHub delay). A queued run waits for the
+# running one; GitHub keeps only the newest pending run, which is fine -- every slot is idempotent and gated.
+concurrency:
+  group: cfb-lock-early
+  cancel-in-progress: false
+
 jobs:
   cfb-lock-early:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Was 10 min. Now includes the in-workflow odds refresh (lock_prep.py: ~1-5 min) before the lock pass.
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Determine live flag from trigger
-        # Moved ahead of Set up Python / Install dependencies (2026-09-15,
-        # explicit request to cut Actions waste): 3 of these 4 scheduled
-        # slots are catch-up checks that skip the real lock pass on any
-        # day the first slot already succeeded (the common case) -- but
-        # they used to pay for a full Playwright+Chromium install first
-        # regardless, just to then immediately skip the one step that
-        # needed it. This step is pure bash (reads a marker file already
-        # in the checkout), so it can run before either heavy step and
-        # gate both of them -- a no-op catch-up now costs one fast git-
-        # native check, not a full runner + browser install.
+      - name: Determine live flag + whether to run
+        # Pure bash (no Python/Playwright yet): a slot that finds today's pass already COMPLETE costs one fast check instead of a
+        # runner + browser install. The marker is written (below) only by a pass that finished complete, so an incomplete pass
+        # (e.g. an upcoming game still has no real price) lets the next slot try again.
         id: flags
         run: |
-          # Scheduled runs now honor LIVE_MODE directly, same as
-          # workflow_dispatch -- the one-week dry-run gate that held
-          # scheduled runs to dry-run through 2026-08-29 regardless of
-          # LIVE_MODE has been removed (monitoring period judged
-          # sufficient; explicitly requested to go live immediately
-          # rather than waiting for 2026-08-30).
+          NOW_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          TODAY_MT=$(TZ=America/Denver date +%Y-%m-%d)
+          NOW_MT=$(TZ=America/Denver date '+%a %m-%d %H:%M')
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "live_flag=${{ inputs.live == true && '--live' || '' }}" >> "$GITHUB_OUTPUT"
             echo "should_run=1" >> "$GITHUB_OUTPUT"
           else
             echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
-            # The first slot (9:00am) always runs unconditionally; every
-            # other cron entry above is a catch-up that only runs if
-            # today's real lock hasn't already succeeded -- this way
-            # adding/removing catch-up slots never needs a matching
-            # change here, just the schedule list above.
-            if [ "${{ github.event.schedule }}" != "0 15 * * *" ]; then
-              TODAY_MT=$(TZ=America/Denver date +%Y-%m-%d)
-              LAST_CFB_LOCK=$(cat data/last_cfb_lock_date.txt 2>/dev/null || echo "")
-              if [ "$LAST_CFB_LOCK" = "$TODAY_MT" ]; then
-                echo "should_run=0" >> "$GITHUB_OUTPUT"
-              else
-                echo "should_run=1" >> "$GITHUB_OUTPUT"
-                echo "::notice::CFB lock hasn't recorded success yet today -- running this catch-up slot (schedule=${{ github.event.schedule }})."
-              fi
+            # Read the marker from origin/main, not just the checked-out commit: a run queued behind another slot of this workflow
+            # (concurrency group) was checked out BEFORE that slot pushed its marker.
+            git fetch --quiet --depth=1 origin main 2>/dev/null || true
+            LAST=$(git show origin/main:data/last_cfb_lock_date.txt 2>/dev/null || cat data/last_cfb_lock_date.txt 2>/dev/null || echo "")
+            if [ "$LAST" = "$TODAY_MT" ]; then
+              echo "should_run=0" >> "$GITHUB_OUTPUT"
+              echo "::notice::CFB lock: a complete pass is already recorded for $TODAY_MT -- skipping this slot (schedule=${{ github.event.schedule }})."
             else
               echo "should_run=1" >> "$GITHUB_OUTPUT"
             fi
           fi
+          # Landing-time log: nominal slot vs when GitHub really ran it. Grep these lines to re-fit the delay model.
+          echo "LANDED $NOW_UTC ($NOW_MT MT) schedule='${{ github.event.schedule }}' event=${{ github.event_name }}"
+          echo "LANDED $NOW_UTC ($NOW_MT MT) schedule='${{ github.event.schedule }}'" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up Python
         if: ${{ steps.flags.outputs.should_run == '1' }}
@@ -103,6 +95,21 @@ jobs:
         run: |
           pip install -q playwright requests
           for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
+
+      - name: Pre-lock odds refresh (fail-open)
+        # Deterministic freshness: scrape what the lock is about to read, right now, instead of hoping the separate refresh
+        # workflows (delayed 5-12h) happened to run first. Best effort -- a failure leaves the previous JSON and the lock behaves
+        # exactly as before. Pushes only when live (a dry run must not commit anything). See scripts/lock_prep.py.
+        if: ${{ steps.flags.outputs.should_run == '1' }}
+        continue-on-error: true
+        timeout-minutes: 12
+        env:
+          TZ: America/Denver
+        run: |
+          PUSH_FLAG=""
+          if [ "${{ steps.flags.outputs.live_flag }}" != "--live" ]; then PUSH_FLAG="--no-push"; fi
+          python3 scripts/lock_prep.py --jobs cfb $PUSH_FLAG
+
       - name: Run CFB-only auto-lock
         if: ${{ steps.flags.outputs.should_run == '1' }}
         env:
@@ -110,15 +117,25 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           LOCKS_EMAIL_TO: ${{ secrets.LOCKS_EMAIL_TO }}
           SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
+          LOCK_RESULT: ${{ runner.temp }}/lock_pass.json
+        # --serve-local: the pass reads THIS checkout's docs/ (incl. the JSON refreshed above), not the deployed Pages copy.
+        # (The python3 command stays the FIRST line of the script: verify_lock_workflows.py finds it via the "##[group]Run" header.)
         run: |
-          python3 scripts/auto_lock_settle.py --lock --only-cfb ${{ steps.flags.outputs.live_flag }}
+          python3 scripts/auto_lock_settle.py --lock --only-cfb --serve-local --result-file "$LOCK_RESULT" ${{ steps.flags.outputs.live_flag }}
 
-      - name: Record successful CFB lock date
-        # Only after a run that actually included a LIVE lock pass -- a
-        # dry-run must never mark today as locked, or the 9:20 catch-up
-        # would wrongly skip itself.
+      - name: Record successful CFB early lock date
+        # Only after a LIVE pass that finished COMPLETE (see _run_rolling_pass/_zero_pick_decision: nothing failed and every
+        # upcoming game it saw had a real price). An incomplete pass records nothing, so the next slot tries again; a dry run
+        # never records.
         if: ${{ steps.flags.outputs.should_run == '1' && steps.flags.outputs.live_flag == '--live' }}
+        env:
+          LOCK_RESULT: ${{ runner.temp }}/lock_pass.json
         run: |
+          COMPLETE=$(python3 -c "import json,os; print(json.load(open(os.environ['LOCK_RESULT'])).get('complete'))" 2>/dev/null || echo "False")
+          if [ "$COMPLETE" != "True" ]; then
+            echo "::notice::pass not complete (or no result file) -- marker NOT recorded; a later slot will run again."
+            exit 0
+          fi
           TODAY_MT=$(TZ=America/Denver date +%Y-%m-%d)
           echo "$TODAY_MT" > data/last_cfb_lock_date.txt
           git add data/last_cfb_lock_date.txt
@@ -126,7 +143,8 @@ jobs:
             git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: record CFB early lock for $TODAY_MT"
             if ! git push origin main; then
               git fetch origin main
-              if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase origin/main; then
+              # --autostash: a dirty tracked file must not make the rebase refuse to run (it silently skipped marker writes before)
+              if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase --autostash origin/main; then
                 git push origin main || echo "::warning::record lock: push still failed after rebase, will retry next run"
               else
                 git rebase --abort

@@ -1,0 +1,95 @@
+name: Pre-Kickoff Lock Watchdog (owner only)
+
+# READ-ONLY safety net for the lock passes. Every slot first asks (bash-cost, from the committed schedule JSON) whether ANY game starts
+# within the next 4 hours or started within the last 3; if not, it stops there. If so, it re-scrapes hockey/NHL odds, gathers the
+# slate for every product, finds qualifying legs that are still NOT in the ledger, and emails the OWNER ONLY (LOCKS_EMAIL_TO /
+# SOCIAL_CARD_EMAIL_TO -- never a subscriber list) listing them with minutes to kickoff, so the owner knows whether a manual lock is
+# needed. It never locks anything and never emails subscribers (scripts/auto_lock_settle.py --watchdog -> run_watchdog). The alert is
+# deduped by the hash of the leg set (stored in docs/automation_status.json "ownerAlerts"), so a persistent gap is reported once.
+#
+# Why it exists: the lock workflows run 5-7h after their cron time (GitHub delay audit 2026-10-02, headers of
+# hockey-lock-evening.yml / european-lock-early.yml). A pass that lands late, finds no odds yet, or fails can leave qualifying picks
+# unlocked until after kickoff, and nothing told the owner until the games had started (~127 picks were locked late by hand).
+#
+# Slots every ~2 hours (nominal UTC; MDT = UTC-6). Delays for nominal 11:30-13:00Z are +3..7h and for 17-23Z +2..5h, so these land
+# roughly 3 AM - 11 PM MT; a slot that lands when no game is near is a ~15-second no-op. It is also dispatched by nothing else.
+# Dry-run by default like every lock workflow (LIVE_MODE repo variable): not live -> it only logs what it WOULD email.
+
+on:
+  schedule:
+    - cron: '50 5 * * *'
+    - cron: '30 7 * * *'
+    - cron: '30 9 * * *'
+    - cron: '30 11 * * *'
+    - cron: '30 13 * * *'
+    - cron: '30 15 * * *'
+    - cron: '30 17 * * *'
+    - cron: '30 19 * * *'
+  workflow_dispatch:
+    inputs:
+      live:
+        description: 'Actually email the owner (unchecked = log only)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lock-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Decide whether a kickoff is near
+        id: gate
+        run: |
+          echo "LANDED $(date -u +%Y-%m-%dT%H:%M:%SZ) ($(TZ=America/Denver date '+%a %m-%d %H:%M') MT) schedule='${{ github.event.schedule }}' event=${{ github.event_name }}"
+          echo "LANDED $(date -u +%Y-%m-%dT%H:%M:%SZ) ($(TZ=America/Denver date '+%a %m-%d %H:%M') MT) schedule='${{ github.event.schedule }}'" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "live_flag=${{ inputs.live == true && '--live' || '' }}" >> "$GITHUB_OUTPUT"
+            echo "near=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
+            if python3 scripts/lock_prep.py --kickoff-window 4 --kickoff-behind 3; then
+              echo "near=1" >> "$GITHUB_OUTPUT"
+            else
+              echo "near=0" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Install dependencies
+        if: ${{ steps.gate.outputs.near == '1' }}
+        run: |
+          pip install -q playwright requests
+          for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed -- retrying in 20s..."; sleep 20; done
+
+      - name: Refresh hockey + NHL odds (fail-open, local only)
+        # Evaluate against fresh prices, like the lock passes do. --no-push: the watchdog never commits odds data.
+        if: ${{ steps.gate.outputs.near == '1' }}
+        continue-on-error: true
+        timeout-minutes: 8
+        env:
+          TZ: America/Denver
+        run: python3 scripts/lock_prep.py --jobs hockey,nhl --no-push --per-job-timeout 240 --total-timeout 300
+
+      - name: Run watchdog (read-only; owner-only email)
+        if: ${{ steps.gate.outputs.near == '1' }}
+        env:
+          TZ: America/Denver
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          LOCKS_EMAIL_TO: ${{ secrets.LOCKS_EMAIL_TO }}
+          SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
+        run: python3 scripts/auto_lock_settle.py --watchdog --serve-local ${{ steps.gate.outputs.live_flag }}
