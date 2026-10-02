@@ -3005,7 +3005,14 @@ function _gradeChipHtml(p){
 // NBA); only the ones whose raw tag is genuinely unclear out of context
 // (club soccer leagues, where 'PL'/'LIGA'/'BL'/'CH' mean nothing next to
 // 'MLB'/'NHL') get an explicit full-name override here.
-const _LEAGUE_LABEL_OVERRIDES={PL:'Premier League',LIGA:'La Liga',BUND:'Bundesliga',CL:'Champions League',SERIEA:'Ser. A',SOC:'World Cup',WC:'World Cup',WORLD_CUP:'World Cup',NCAAB:'CBB',NCAAH:'NHL',WORLDCUP:'World Cup'};
+// Real bug, found 2026-10-02 retiring NCAAH: this silently relabeled
+// every NCAAH (College Hockey) badge as "NHL" -- not a display nuance,
+// an actual identity collision risk for anything that groups/counts by
+// this label (Analytics' by-league breakdowns, bet history badges), as
+// it would merge a retired sport's historical record into NHL's real
+// one. Removed; NCAAH now falls through to its own raw tag like every
+// other non-overridden league already does.
+const _LEAGUE_LABEL_OVERRIDES={PL:'Premier League',LIGA:'La Liga',BUND:'Bundesliga',CL:'Champions League',SERIEA:'Ser. A',SOC:'World Cup',WC:'World Cup',WORLD_CUP:'World Cup',NCAAB:'CBB',WORLDCUP:'World Cup'};
 function _leagueDisplayLabel(sportTag){
   const t=(sportTag||'').toUpperCase().trim();
   if(!t)return{sub:null,label:'—'};
