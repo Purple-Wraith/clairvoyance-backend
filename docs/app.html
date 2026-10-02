@@ -27654,25 +27654,20 @@ async function _clvOpenSnapshot(){
   return _clvScanAllSports();
 }
 
-/* ── Poll: re-scan every 5 min (keeps live book lines fresh for game
-   cards -- NOT CLV-tracker-specific, that feature was cut) ──────── */
-var _clvPollInterval=null;
-async function _clvPoll(){
-  await _clvScanAllSports();
-}
-
-/* ── Boot sequence ───────────────────────────────────────────── */
-function _clvBoot(){
-  /* Initial scan after 4s (page/data settled) */
-  setTimeout(function(){_clvScanAllSports().catch(function(){});},4000);
-  /* Poll/scan every 5 min for live line movement + closes */
-  if(_clvPollInterval)clearInterval(_clvPollInterval);
-  _clvPollInterval=setInterval(function(){_clvPoll().catch(function(){});},5*60*1000);
-  /* Second scan at 20s — picks up any events that loaded late */
-  setTimeout(function(){_clvPoll().catch(function(){});},20000);
-}
-if(document.readyState==='complete'){_clvBoot();}
-else{window.addEventListener('load',_clvBoot);}
+/* ── Background polling REMOVED entirely, 2026-10-02, explicit request ──
+   This used to auto-start on every single page load (no tab visit, no
+   opt-in) and poll forever every 5 minutes via setInterval -- real,
+   confirmed ongoing compute/network cost for every open session,
+   regardless of what the user was actually looking at. _clvScanAllSports/
+   _clvGetLiveOdds are left defined (not deleted) since NHL/NBA game
+   cards still reference _clvGetLiveOdds as an optional live-odds
+   enhancement -- every call site already guards with
+   `typeof _clvGetLiveOdds==='function'` or a truthy check and falls back
+   to ESPN's own odds or the model's own price when it returns nothing,
+   so leaving the functions in place with no auto-boot is a safe, clean
+   no-op: the events store simply never gets populated, every consumer's
+   existing fallback chain takes over, nothing crashes or degrades beyond
+   losing the (already rarely-populated) live-book-line enhancement. */
 window._clvScanAllSports=_clvScanAllSports;
 
 function saveParlayToTracker(legs,sport){
