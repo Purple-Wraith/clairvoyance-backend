@@ -16903,6 +16903,30 @@ function _ehAgo(ms){
   if(h<48)return Math.round(h)+'h ago';
   return Math.round(h/24)+'d ago';
 }
+// ── LOCK PASSES — when each pass LANDED vs the next kickoff (added 2026-10-02) ───────────────────────────────────────────
+// GitHub runs scheduled workflows 3-7h after their cron time, so a "pre-game" lock pass can really land after kickoff. Every live lock
+// pass (scripts/auto_lock_settle.py finish_live_pass) appends an entry to docs/automation_status.json "lockPasses": when it landed
+// (MT), how many qualifying legs it locked, the NEXT kickoff it saw and the margin to it, and `late` = it REFUSED qualifying legs
+// because their game had already started (the red flag). INCOMPLETE = upcoming games it saw still had no real price, so a later pass
+// should lock more. Newest first; the most recent 14 are shown.
+function _lockPassesHTML(status){
+  const arr=(status&&Array.isArray(status.lockPasses))?status.lockPasses.slice().reverse().slice(0,14):[];
+  const alerts=status&&status.ownerAlerts?Object.keys(status.ownerAlerts).length:0;
+  if(!arr.length)return`<div class="empty" style="font-size:15px">NO PASS HISTORY YET — filled in by the first live lock pass after the 2026-10-02 retime</div>`;
+  const rows=arr.map(p=>{
+    const red=!!p.late,amber=!red&&(!p.complete||(p.noPriceGames||0)>0);
+    const col=red?'#ff1a1a':amber?'#ff9000':'#00e644';
+    const flag=red?`✗ LATE — ${p.skippedStarted} qualifying leg(s) refused: game already started`
+      :amber?`⚠ INCOMPLETE — ${p.noPriceGames||0} upcoming game(s) with no real price yet`:'✓ ON TIME';
+    const m=p.marginMin;
+    const marg=(p.nextStartMT)?`NEXT KICKOFF ${_ehEsc(p.nextStartMT)}`+(m!=null?` · ${m>=120?Math.round(m/6)/10+'h':m+'m'} MARGIN`:''):'NO UPCOMING GAME SEEN';
+    return`<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);font-family:var(--mono);font-size:14px;border-left:3px solid ${col};padding-left:8px">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span style="color:var(--t2)">${_ehEsc(p.label||p.kind||p.key)} · LANDED ${_ehEsc(p.tsMT||'?')}</span><span style="color:${col}">${flag}</span></div>
+      <div style="color:var(--t3);margin-top:2px">${_ehEsc(marg)} · ${p.games||0} GAMES (${p.started||0} STARTED) · ${p.qualifying||0} QUALIFYING · ${p.new||0} NEW / ${p.already||0} ALREADY / ${p.failed||0} FAILED</div>
+    </div>`;
+  }).join('');
+  return`<div class="card" style="padding:8px 12px">${rows}<div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:6px">RED = the pass landed after the game started and could not lock legs that qualified (owner e-mail sent, deduped; ${alerts} alert hash(es) on file). Amber = odds not posted yet; a later slot retries.</div></div>`;
+}
 // ── Scraper health — rows-captured-per-scrape trend, per hockey league ──
 // Added 2026-10-02 as the direct detection mechanism for a real incident
 // this session: the SHL/Liiga/NLA/Extraliga Flashscore scrapers silently
@@ -17271,6 +17295,8 @@ async function renderEngineHealth(){
     ${deployLine}
     <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin-bottom:8px">// AUTOMATION DETAIL</div>
     ${details}
+    <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin:14px 0 8px">// LOCK PASSES — LANDED vs NEXT KICKOFF</div>
+    ${_lockPassesHTML(status)}
     <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin:14px 0 8px">// RECENT GITHUB ACTIONS RUNS</div>
     <div class="card" style="padding:8px 10px">${ghHtml}</div>
     <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin:14px 0 8px">// SCRAPER HEALTH — HOCKEY RESULTS CAPTURED/SCRAPE</div>
