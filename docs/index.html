@@ -102,13 +102,13 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
    with leftover empty space on the right -- falls back cleanly to the
    existing horizontal-scroll behavior on viewports too narrow to fit
    them all, since overflow-x:auto still applies once content overflows. */
-#sbar{flex:0 0 38px;background:rgba(6,0,15,.95);border-bottom:1px solid rgba(77,121,255,.2);display:flex;justify-content:space-evenly;overflow-x:auto;overflow-y:hidden;padding:0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+#sbar{flex:0 0 38px;background:rgba(6,0,15,.95);border-bottom:1px solid rgba(77,121,255,.2);display:flex;justify-content:space-evenly;overflow-x:auto;overflow-y:hidden;padding:0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;gap:2px}
 #sbar::-webkit-scrollbar{display:none}
 .sp{font-family:var(--orb);font-size:17px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--pc);padding:5px 14px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;flex:0 1 auto}
 .sp.act{color:var(--pc);border-bottom-color:var(--pc);text-shadow:0 0 8px rgba(240,0,255,.7)}
 .spane{display:none;flex:1;flex-direction:column;overflow:hidden}.spane.act{display:flex}
 /* SUB/INNER NAV */
-.snav{flex:0 0 31px;background:rgba(2,0,8,.95);border-bottom:1px solid rgba(77,121,255,.15);display:flex;overflow-x:auto;overflow-y:hidden;padding:0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.snav{flex:0 0 31px;background:rgba(2,0,8,.95);border-bottom:1px solid rgba(77,121,255,.15);display:flex;overflow-x:auto;overflow-y:hidden;padding:0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;gap:2px}
 .snav::-webkit-scrollbar{display:none}
 .sb2{font-family:var(--mono);font-size:17px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);padding:4px 10px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s}
 .sb2.act{color:var(--pc);border-bottom-color:var(--pc)}
@@ -121,7 +121,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
    order alone decides it, no !important needed. */
 [id^="cfb-innav-"].act,[id^="nfl2-innav-"].act{color:var(--nc);border-bottom-color:var(--nc)}
 .subp{display:none;flex:1;flex-direction:column;overflow:hidden}.subp.act{display:flex}
-.inav{flex:0 0 35px;background:rgba(6,0,15,.95);border-bottom:1px solid rgba(77,121,255,.15);display:flex;overflow-x:auto;overflow-y:hidden;padding:0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.inav{flex:0 0 35px;background:rgba(6,0,15,.95);border-bottom:1px solid rgba(77,121,255,.15);display:flex;overflow-x:auto;overflow-y:hidden;padding:0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;gap:2px}
 .inav::-webkit-scrollbar{display:none}
 .nb{font-family:var(--mono);font-size:17px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);padding:7px 11px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s}
 .nb:active{background:rgba(77,121,255,.06)}.nb.act{color:var(--nc);border-bottom-color:var(--nc)}.nb.ai{color:var(--ic);border-bottom-color:var(--ic)}.nb.ap{color:var(--pc);border-bottom-color:var(--pc)}
@@ -205,9 +205,19 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   /* ── Buttons ── */
   html .btn{font-size:8px!important;min-height:28px!important;padding:4px 8px!important}.btn-n,.btn-p{padding:4px 8px!important}.btn-sm{padding:2px 5px!important;font-size:8px!important;min-height:22px!important}
   html .btn-fw{width:100%}
-  html .nb{font-size:10px!important;padding:7px 9px!important;letter-spacing:.2px;min-height:38px!important}
-  html .sb2{font-size:10px!important;padding:5px 8px!important}
-  html .sp{padding:7px 10px!important;font-size:10px!important}
+  /* Touch-target audit, 2026-10-02: .nb/.sb2 sub-nav buttons sat
+     edge-to-edge with zero gap between adjacent buttons (confirmed live —
+     getBoundingClientRect showed one button's right edge exactly equal to
+     the next button's left edge, e.g. Overall's ENGINE OPS/ENGINE HEALTH
+     row) and .nb's 38px height / .sb2's unset height both sat under the
+     ~44pt iOS HIG touch-target floor. A real tap aimed at one button
+     reliably lands on its neighbor at these widths. .inav/.snav (the
+     shared flex containers both classes live in) now carry gap:2px of
+     their own — min-height alone can't fix a zero-gap row, the row needs
+     real space between targets, not just a taller box. */
+  html .nb{font-size:10px!important;padding:7px 9px!important;letter-spacing:.2px;min-height:44px!important}
+  html .sb2{font-size:10px!important;padding:8px 8px!important;min-height:44px!important;display:inline-flex!important;align-items:center}
+  html .sp{padding:7px 10px!important;font-size:10px!important;min-height:44px;display:inline-flex;align-items:center}
   html .mb{flex:0 0 54px;font-size:9px!important;min-height:56px!important}.mbi{font-size:17px!important}
   /* LAST LOCK/SETTLE header status -- see renderAutomationStatus's own
      comment. Font alone (15px, sized for desktop's much wider hdr-r
@@ -680,16 +690,16 @@ body{line-height:1.5}
   </div>
 </header>
 <nav id="sbar">
-  <button class="sp act" onclick="SS('home');showND(this,'home')" onmouseenter="showND(this,'home')" onmouseleave="startHideND()">HOME</button>
-  <button class="sp" onclick="SS('toppicks');showND(this,'toppicks')" onmouseenter="showND(this,'toppicks')" onmouseleave="startHideND()">TOP PICKS</button>
-  <button class="sp" onclick="SS('ovr');showND(this,'ovr')" onmouseenter="showND(this,'ovr')" onmouseleave="startHideND()">OVERALL</button>
-  <button class="sp" onclick="SS('analytics');showND(this,'analytics')" onmouseenter="showND(this,'analytics')" onmouseleave="startHideND()">ANALYTICS</button>
-  <button class="sp" onclick="SS('nba');showND(this,'nba')" onmouseenter="showND(this,'nba')" onmouseleave="startHideND()">BASKETBALL</button>
-  <button class="sp" onclick="SS('fb');showND(this,'fb')" onmouseenter="showND(this,'fb')" onmouseleave="startHideND()">FOOTBALL</button>
-  <button class="sp" onclick="SS('hk');showND(this,'hk')" onmouseenter="showND(this,'hk')" onmouseleave="startHideND()">HOCKEY</button>
-  <button class="sp" onclick="SS('soc');showND(this,'soc')" onmouseenter="showND(this,'soc')" onmouseleave="startHideND()">SOCCER</button>
-  <button class="sp" onclick="SS('sim');showND(this,'sim')" onmouseenter="showND(this,'sim')" onmouseleave="startHideND()">SIMULATOR</button>
-  <button class="sp" onclick="SS('news');showND(this,'news')" onmouseenter="showND(this,'news')" onmouseleave="startHideND()">NEWS</button>
+  <button class="sp act" onclick="navTap(this,'home')" onmouseenter="showND(this,'home')" onmouseleave="startHideND()">HOME</button>
+  <button class="sp" onclick="navTap(this,'toppicks')" onmouseenter="showND(this,'toppicks')" onmouseleave="startHideND()">TOP PICKS</button>
+  <button class="sp" onclick="navTap(this,'ovr')" onmouseenter="showND(this,'ovr')" onmouseleave="startHideND()">OVERALL</button>
+  <button class="sp" onclick="navTap(this,'analytics')" onmouseenter="showND(this,'analytics')" onmouseleave="startHideND()">ANALYTICS</button>
+  <button class="sp" onclick="navTap(this,'nba')" onmouseenter="showND(this,'nba')" onmouseleave="startHideND()">BASKETBALL</button>
+  <button class="sp" onclick="navTap(this,'fb')" onmouseenter="showND(this,'fb')" onmouseleave="startHideND()">FOOTBALL</button>
+  <button class="sp" onclick="navTap(this,'hk')" onmouseenter="showND(this,'hk')" onmouseleave="startHideND()">HOCKEY</button>
+  <button class="sp" onclick="navTap(this,'soc')" onmouseenter="showND(this,'soc')" onmouseleave="startHideND()">SOCCER</button>
+  <button class="sp" onclick="navTap(this,'sim')" onmouseenter="showND(this,'sim')" onmouseleave="startHideND()">SIMULATOR</button>
+  <button class="sp" onclick="navTap(this,'news')" onmouseenter="showND(this,'news')" onmouseleave="startHideND()">NEWS</button>
 </nav>
 
 <!-- HOME -->
@@ -3131,35 +3141,16 @@ function propMC(mu,sigma,line,n){
   return{overP:over/n,hitRate:Math.round(over/n*100),avgStat:+(sumS/n).toFixed(2)};
 }
 
-/* Multi-book line comparison row for game cards */
-function _bookLinesHTML(bookLines,homeAbbr,awayAbbr){
-  if(!bookLines||!bookLines.length)return'';
-  var bookLabel={'draftkings':'DK','fanduel':'FD','betmgm':'MGM','caesars':'CZR','pointsbetus':'PB','betrivers':'BR','barstool':'BST','bet365':'B365','bovada':'BOV'};
-  var rows=bookLines.map(function(b){
-    var lbl=bookLabel[b.book]||(b.book||'').toUpperCase().slice(0,4);
-    var hML=b.homeML!=null?(b.homeML>0?'+'+b.homeML:''+b.homeML):'—';
-    var aML=b.awayML!=null?(b.awayML>0?'+'+b.awayML:''+b.awayML):'—';
-    var sprd=b.spread!=null?(b.spread>0?'+'+b.spread:''+b.spread):'—';
-    var ou=b.ou!=null?''+b.ou:'—';
-    return'<div style="display:flex;gap:4px;align-items:center;border-bottom:1px solid rgba(255,255,255,.04);padding:2px 0">'
-      +'<span style="font-family:var(--mono);font-size:13px;color:var(--t3);min-width:30px">'+lbl+'</span>'
-      +'<span style="font-family:var(--mono);font-size:14px;color:var(--nc);flex:1">'+hML+'</span>'
-      +'<span style="font-family:var(--mono);font-size:14px;color:var(--t2);flex:1">'+aML+'</span>'
-      +'<span style="font-family:var(--mono);font-size:14px;color:var(--vc);flex:1">'+sprd+'</span>'
-      +'<span style="font-family:var(--mono);font-size:14px;color:var(--ic);flex:1">'+ou+'</span>'
-    +'</div>';
-  }).join('');
-  return'<details style="margin-top:4px"><summary style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:4px">▶ BOOK LINES ('+bookLines.length+' books)</summary>'
-    +'<div style="margin-top:4px;padding:4px 6px;background:rgba(0,0,0,.3);border-radius:3px;border:1px solid rgba(255,255,255,.06)">'
-    +'<div style="display:flex;gap:4px;padding-bottom:3px;margin-bottom:2px;border-bottom:1px solid rgba(255,255,255,.08)">'
-    +'<span style="font-family:var(--mono);font-size:13px;color:var(--t3);min-width:30px">BOOK</span>'
-    +'<span style="font-family:var(--mono);font-size:13px;color:var(--t3);flex:1">'+homeAbbr+'</span>'
-    +'<span style="font-family:var(--mono);font-size:13px;color:var(--t3);flex:1">'+awayAbbr+'</span>'
-    +'<span style="font-family:var(--mono);font-size:13px;color:var(--t3);flex:1">SPRD</span>'
-    +'<span style="font-family:var(--mono);font-size:13px;color:var(--t3);flex:1">O/U</span>'
-    +'</div>'
-    +rows+'</div></details>';
-}
+// _bookLinesHTML (multi-book line comparison row) removed 2026-10-02 --
+// its only call site (NBA cards) fed it exclusively from _clvGetLiveOdds,
+// whose events store (cv_clv_events) has been permanently empty since the
+// CLV background-polling engine was removed earlier the same day -- no
+// remaining code path ever writes to that store, so this was unreachable
+// dead weight (always rendered '') rather than a real live feature, on
+// NBA or anywhere else. Never existed on NHL cards to begin with.
+// _clvGetLiveOdds/_clvScanAllSports themselves stay (explicit prior
+// decision -- other consumers like _augmentWithLiveOdds's ML/spread
+// fallback chain still reference them safely even while unpopulated).
 
 // ── Matchup comparison radar — shared across all sport game cards ────────────
 // Hand-drawn SVG, smoothed via a closed Catmull-Rom spline (converted to
@@ -3596,8 +3587,24 @@ function _whyThisPickHTML(pick){
   const body=pick.reasoning
     ?_escHtml(pick.reasoning).replace(/\n/g,'<br>')
     :'<span style="color:var(--t3)">No detailed reasoning captured for this pick.</span>';
+  // Touch target fix, 2026-10-02: this toggle shipped as a bare
+  // inline-flex text row (no padding), which laid out as a ~72x12px hit
+  // box once the mobile font-cap JS pass (capMobileFontSizes, see its own
+  // comment) clamped its 14px inline font-size down to its 8px mobile
+  // ceiling -- confirmed live via getBoundingClientRect. 12px tall is far
+  // under any real fingertip and well under the ~44pt touch-target floor
+  // used elsewhere in this app (.nb/.sb2 just got the same floor applied).
+  // Padding is a separate inline declaration from font-size, so adding it
+  // here is untouched by that JS pass (which only rewrites font-size on
+  // non-button elements) -- this grows the actual tappable box without
+  // fighting or changing the font-cap system. touch-action:manipulation
+  // drops the ~300ms double-tap-to-zoom delay some mobile browsers apply
+  // to plain divs; -webkit-tap-highlight gives real tap feedback since
+  // the global reset (see "*{...-webkit-tap-highlight-color:transparent}"
+  // near the top of this file) otherwise makes taps on a non-.chip/.btn
+  // element look like they did nothing even when they worked.
   return`<div style="margin-top:4px">`
-    +`<div onclick="event.stopPropagation();_toggleWhyPick('${uid}')" style="cursor:pointer;font-family:var(--mono);font-size:14px;color:var(--nc);letter-spacing:.5px;-webkit-user-select:none;user-select:none;display:inline-flex;align-items:center;gap:4px">`
+    +`<div onclick="event.stopPropagation();_toggleWhyPick('${uid}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();_toggleWhyPick('${uid}')}" style="cursor:pointer;font-family:var(--mono);font-size:14px;color:var(--nc);letter-spacing:.5px;-webkit-user-select:none;user-select:none;display:inline-flex;align-items:center;gap:4px;padding:8px 6px;margin:-8px -6px;min-height:34px;box-sizing:border-box;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,240,255,.25)">`
     +`<span id="${uid}_arrow">▶</span> WHY THIS PICK</div>`
     +`<div id="${uid}" style="display:none;margin-top:4px;padding:6px 8px;background:rgba(0,0,0,.35);border:1px solid rgba(0,240,255,.2);border-radius:3px;font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${body}</div>`
     +`</div>`;
@@ -12035,7 +12042,6 @@ function _nbaGameCard(espnEv){
   </div>
   <div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px">
     <span class="mono" style="font-size:16px;color:var(--t3)">MC:${(ens.mc*100).toFixed(0)}% BAY:${(ens.bay*100).toFixed(0)}% ELO:${(ens.elo*100).toFixed(0)}%${espnHL?' ESPN:blended':''}</span>
-    ${(()=>{const liveEv=_clvGetLiveOdds&&_clvGetLiveOdds('NBA',hn,an);return liveEv&&liveEv.bookLines?_bookLinesHTML(liveEv.bookLines,hn,an):'';})()}
     ${pre?parlayBtn:''}
   </div>
 </div>`;
@@ -26103,18 +26109,71 @@ function showND(el,sport){
   drop.style.left=Math.max(2,Math.min(rect.left,window.innerWidth-170))+'px';
   drop.style.display='block';
 }
+// Coarse-pointer check (no real hover, e.g. touchscreens) -- shared by
+// startHideND below and by navTap, which is the actual nav redesign (see
+// its own comment). Extracted into one place instead of the inline
+// matchMedia check startHideND used to carry alone.
+function _coarsePointer(){return!!(window.matchMedia&&!window.matchMedia('(hover:hover) and (pointer:fine)').matches);}
 function startHideND(){
   // Touch devices synthesize a mouseenter→mouseleave pair right after a
   // tap (no real hover), which used to auto-close the dropdown ~200ms
   // after it opened — before a follow-up tap on a league could land.
   // Real hover-capable pointers still get the leave-to-close behavior;
-  // touch relies on the existing tap-outside-to-close listener instead.
-  if(window.matchMedia&&!window.matchMedia('(hover:hover) and (pointer:fine)').matches)return;
+  // touch no longer opens this dropdown from a tap at all (see navTap),
+  // so there's nothing here for it to auto-close in the first place.
+  if(_coarsePointer())return;
   _ndHideT=setTimeout(hideAllND,200);
 }
 function cancelHideND(){clearTimeout(_ndHideT);}
 function hideAllND(){document.querySelectorAll('.nav-drop-fixed').forEach(d=>d.style.display='none');}
 document.addEventListener('click',e=>{if(!e.target.closest('#sbar')&&!e.target.closest('.nav-drop-fixed'))hideAllND();},{passive:true});
+// Nav redesign, 2026-10-02 mobile audit: every top-nav button's onclick
+// used to run `SS(sport);showND(this,sport)` unconditionally -- switch
+// the tab AND open that sport's quick-nav flyout -- on every tap, not
+// just every mouse click. That's fine on desktop, where showND is also
+// fired by onmouseenter and the flyout is a hover convenience layered on
+// top of a click that already switches tabs. On touch there's no hover,
+// so startHideND intentionally no-ops (see its own comment, and the
+// standing project note that scroll-vs-tap timing heuristics on this nav
+// have already failed 2-3 times) -- meaning the flyout opened by a tap
+// had NO path to close itself except the document-level tap-outside
+// listener above. Confirmed live: tapping a top-nav item opens its
+// flyout and it then sits on top of the newly-rendered tab content
+// (e.g. OVERALL's flyout covering its own just-switched-to Dashboard)
+// until an unrelated extra tap happens to land outside it. Swipe the nav
+// bar to reveal an off-screen item first (bug first reported against
+// FOOTBALL/HOCKEY/SOCCER after scrolling) and the flyout's position --
+// computed once from the tapped button's getBoundingClientRect at open
+// time -- goes stale against the nav's new scroll offset too, so it can
+// end up visually overlapping the nav itself rather than the button that
+// opened it.
+//
+// Per the standing instruction to redesign this interaction rather
+// than add another scroll-vs-tap heuristic: on a coarse (touch)
+// pointer, tapping a top-nav item now ONLY switches tabs. It never
+// opens the quick-nav flyout at all, so there is nothing to leave
+// stuck open or stale-positioned after a swipe. This isn't a loss of
+// capability -- every sport this flyout drills into (NBA/NFL/CFB/NHL/
+// SHL/LIIGA/NLA/EXTRALIGA/soccer's 4 leagues/Overall's sub-tabs/
+// Analytics' sub-tabs) already has its own in-page sub-nav (.inav/.nb
+// or .snav/.sb2, both just given a real touch-target pass above) that
+// covers the exact same destinations once you're on that sport's tab.
+// Fine (mouse/trackpad) pointers keep the original click-opens-it-too
+// behavior unchanged, since those devices already had a working close
+// path (hover-out via startHideND, or a real click elsewhere).
+function navTap(el,sport){
+  SS(sport);
+  if(!_coarsePointer())showND(el,sport);
+}
+// Swiping the nav itself is an "unrelated nav interaction" by
+// definition -- no dropdown should still be showing once the row
+// underneath it has visibly moved. Closes immediately on the first
+// scroll tick rather than waiting for a subsequent tap to land outside
+// it (the actual mechanism behind the originally-reported bug).
+(function(){
+  const sbarEl=document.getElementById('sbar');
+  if(sbarEl)sbarEl.addEventListener('scroll',hideAllND,{passive:true});
+})();
 function calcNHLP(){
   if(!PAR||PAR.length<2){const r=document.getElementById('nhl-p-res');if(r)r.innerHTML='';return;}
   const wEl=document.getElementById('nhl-p-w');const w=parseFloat(wEl?.value||100)||100;
