@@ -130,6 +130,147 @@ def cmd_form(results):
               f"dLL(k=.05,cap6%)={l05 - l0:+.2f}  dLL(k_MLE)={mx - l0:+.2f}")
 
 
+# ───────────────────────── blend ─────────────────────────
+def _am2dec(a):
+    return 1 + a / 100 if a > 0 else 1 + 100 / abs(a)
+
+
+def _novig(da, db):
+    ia, ib = 1 / da, 1 / db
+    return ia / (ia + ib)
+
+
+def _logit(p):
+    return math.log(p / (1 - p))
+
+
+def _sig(z):
+    return 1 / (1 + math.exp(-z))
+
+
+def load_odds(cache: Path) -> dict:
+    """Closing DraftKings / ESPN BET prices for every completed regular-season NHL game (ESPN core API)."""
+    f = cache / "nhl_odds_hist.json"
+    if f.exists():
+        return json.loads(f.read_text())
+    seasons = {"20242025": (date(2024, 10, 4), date(2025, 4, 18)), "20252026": (date(2025, 10, 7), date(2026, 4, 17))}
+
+    def day(d):
+        j = _get("https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard",
+                 {"dates": d.strftime("%Y%m%d"), "limit": 50})
+        out = []
+        for e in (j or {}).get("events", []):
+            c = e["competitions"][0]
+            if c["status"]["type"]["state"] != "post" or (e.get("season") or {}).get("type") != 2:
+                continue
+            hm = [x for x in c["competitors"] if x["homeAway"] == "home"][0]
+            aw = [x for x in c["competitors"] if x["homeAway"] == "away"][0]
+            out.append(dict(eid=e["id"], date=e["date"], period=c["status"].get("period"),
+                            home=ESPN_FIX.get(hm["team"]["abbreviation"], hm["team"]["abbreviation"]),
+                            away=ESPN_FIX.get(aw["team"]["abbreviation"], aw["team"]["abbreviation"]),
+                            hs=int(hm["score"]), as_=int(aw["score"])))
+        return out
+
+    def odds(eid):
+        j = _get(f"https://sports.core.api.espn.com/v2/sports/hockey/leagues/nhl/events/{eid}/competitions/{eid}/odds")
+        items = (j or {}).get("items") or []
+        if not items:
+            return None
+        it = items[-1]
+        for i in items:
+            if (i.get("provider") or {}).get("name", "").lower().startswith("draft"):
+                it = i
+        return dict(ou=it.get("overUnder"), overOdds=it.get("overOdds"), underOdds=it.get("underOdds"),
+                    hML=it["homeTeamOdds"].get("moneyLine"), aML=it["awayTeamOdds"].get("moneyLine"),
+                    hSpreadOdds=it["homeTeamOdds"].get("spreadOdds"), aSpreadOdds=it["awayTeamOdds"].get("spreadOdds"),
+                    spread=it.get("spread"))
+
+    out = {}
+    for s, (a, b) in seasons.items():
+        days, d = [], a
+        while d <= b:
+            days.append(d); d += timedelta(days=1)
+        with ThreadPoolExecutor(8) as ex:
+            games = [g for l in ex.map(day, days) for g in l]
+        with ThreadPoolExecutor(8) as ex:
+            for g, o in zip(games, ex.map(lambda g: odds(g["eid"]), games)):
+                g["odds"] = o
+        out[s] = games
+        print(f"  odds {s}: {len(games)} games", file=sys.stderr)
+    cache.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(out))
+    return out
+
+
+def blend_rows(results, odds, season, prior, min_gp):
+    """One row per game with a model prob (point-in-time Poisson from goal rates), the no-vig market prob and the outcome."""
+    games = {(g["home"], g["away"], g["date"][:10]): g for g in odds[season]}
+    rows = []
+    for r in pointintime(results, season, prior, min_gp):
+        g = r["g"]
+        # NHL API dates are local game dates; ESPN's are UTC timestamps -> match on teams + a +-1 day window
+        og = None
+        for dd in (0, 1, -1):
+            d = (date.fromisoformat(g["date"]) + timedelta(days=dd)).isoformat()
+            og = games.get((g["home"], g["away"], d))
+            if og:
+                break
+        o = og and og.get("odds")
+        if not o or o.get("hML") is None or o.get("aML") is None:
+            continue
+        ks = range(30)
+        ph, pa = pois_pmf(r["lam_h"]), pois_pmf(r["lam_a"])
+        hw = sum(ph[i] * pa[j] for i in ks for j in ks if i > j) + 0.5 * sum(ph[i] * pa[i] for i in ks)
+        row = dict(n=min(r["bh"][2], r["ba"][2]), y=1.0 if og["hs"] > og["as_"] else 0.0,
+                   pm=min(.98, max(.02, hw)), mk=_novig(_am2dec(o["hML"]), _am2dec(o["aML"])), ou=None, pl=None)
+        line = o.get("ou")
+        if line is not None and o.get("overOdds") is not None and o.get("underOdds") is not None:
+            tot = og["hs"] + og["as_"] - (1 if og.get("period") == 5 else 0)  # books exclude the shootout goal
+            if tot != line:
+                tl = r["lam_h"] + r["lam_a"]
+                cdf = sum(math.exp(-tl) * tl ** k / math.factorial(k) for k in range(int(math.floor(line)) + 1))
+                row["ou"] = (min(.98, max(.02, 1 - cdf)), _novig(_am2dec(o["overOdds"]), _am2dec(o["underOdds"])),
+                             1.0 if tot > line else 0.0)
+        hl = o.get("spread")
+        if hl is not None and o.get("hSpreadOdds") is not None and o.get("aSpreadOdds") is not None and abs(abs(hl) - 1.5) < .01:
+            phc = sum(ph[i] * pa[j] for i in ks for j in ks if (i - j) + hl > 0)
+            row["pl"] = (min(.98, max(.02, phc)), _novig(_am2dec(o["hSpreadOdds"]), _am2dec(o["aSpreadOdds"])),
+                         1.0 if (og["hs"] - og["as_"]) + hl > 0 else 0.0)
+        rows.append(row)
+    return rows
+
+
+def _ll(ys, ps):
+    return -sum(y * math.log(min(1 - 1e-6, max(1e-6, p))) + (1 - y) * math.log(min(1 - 1e-6, max(1e-6, 1 - p)))
+                for y, p in zip(ys, ps)) / len(ys)
+
+
+def _study(name, ys, pm, mk):
+    def llb(a):
+        return _ll(ys, [_sig((1 - a) * _logit(m) + a * _logit(k)) for m, k in zip(pm, mk)])
+    grid = [i / 100 for i in range(0, 101)]
+    lls = [llb(a) * len(ys) for a in grid]
+    mx = min(lls); ab = grid[lls.index(mx)]
+    ok = [a for a, v in zip(grid, lls) if v <= mx + 1.92]
+    print(f"  {name:<34} n={len(ys):<5} logloss model {_ll(ys, pm):.4f} | market {_ll(ys, mk):.4f} | "
+          f"alpha_MLE {ab:.2f}  95% CI [{min(ok):.2f},{max(ok):.2f}]")
+
+
+def cmd_blend(results, odds):
+    print("Logit-blend weight on the no-vig market that minimizes log loss (1.0 = market only); NHL closing lines")
+    rows = blend_rows(results, odds, "20252026", "20242025", 10) + blend_rows(results, odds, "20242025", "20232024", 10)
+    _study("ML (>=10 GP)", [r["y"] for r in rows], [r["pm"] for r in rows], [r["mk"] for r in rows])
+    ro = [r for r in rows if r["ou"]]
+    _study("O/U over (>=10 GP)", [r["ou"][2] for r in ro], [r["ou"][0] for r in ro], [r["ou"][1] for r in ro])
+    rp = [r for r in rows if r["pl"]]
+    _study("Puck line home covers (>=10 GP)", [r["pl"][2] for r in rp], [r["pl"][0] for r in rp], [r["pl"][1] for r in rp])
+    early = blend_rows(results, odds, "20252026", "20242025", 1) + blend_rows(results, odds, "20242025", "20232024", 1)
+    early = [r for r in early if r["n"] < 10]
+    _study("ML (lesser team <10 GP)", [r["y"] for r in early], [r["pm"] for r in early], [r["mk"] for r in early])
+    eo = [r for r in early if r["ou"]]
+    _study("O/U over (lesser team <10 GP)", [r["ou"][2] for r in eo], [r["ou"][0] for r in eo], [r["ou"][1] for r in eo])
+
+
 # ───────────────────────── main ─────────────────────────
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -140,5 +281,7 @@ if __name__ == "__main__":
     res = load_results(cache)
     if a.cmd == "form":
         cmd_form(res)
+    elif a.cmd == "blend":
+        cmd_blend(res, load_odds(cache))
     else:
         sys.exit(f"{a.cmd}: not implemented in this revision")

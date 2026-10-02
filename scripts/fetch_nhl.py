@@ -130,11 +130,26 @@ def fetch_full_schedule() -> dict:
                         away_ml = int(away_ml_raw) if away_ml_raw not in (None, "") else None
                     except (TypeError, ValueError):
                         away_ml = None
+                    # Real O/U prices (2026-10-03): the total line alone says nothing about the market's no-vig
+                    # P(over) -- ESPN also carries the over/under prices (odds.total.over/under.close.odds, American
+                    # strings like "+105"/"-125", same single book as the moneyline). docs/app.html's nhlEns uses
+                    # them (with the ML) to blend the model toward the market (HOCKEY_MKT_BLEND_ALPHA).
+                    tot = odds.get("total") or {}
+
+                    def _am(side):
+                        raw = ((tot.get(side) or {}).get("close") or {}).get("odds")
+                        try:
+                            return int(raw) if raw not in (None, "") else None
+                        except (TypeError, ValueError):
+                            return None
+
                     game.update({
                         "homeML":    home_ml,
                         "awayML":    away_ml,
                         "spread":    odds.get("spread"),
                         "overUnder": odds.get("overUnder"),
+                        "ouOver":    _am("over"),
+                        "ouUnder":   _am("under"),
                     })
                 games.append(game)
                 day_count += 1

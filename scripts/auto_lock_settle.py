@@ -1505,6 +1505,14 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
                     # HOCKEY_MKT_PRICE_TIERING -- so this changes nothing
                     # about WHICH legs qualify.
                     "priceSource": m.get("priceSource"),
+                    # Market-blend audit trail (2026-10-03): docs/app.html blends the model probability toward the
+                    # no-vig market probability when real prices exist (HOCKEY_MKT_BLEND_ALPHA). `prob` above is the
+                    # FINAL blended number (it becomes the pick's winProb); modelProb/marketProb are the two inputs
+                    # and blendAlpha the weight used, persisted via lock_game_leg's extraMeta so alpha can later be
+                    # refit on real results. None for every leg that had no market to blend with.
+                    "modelProb": m.get("modelProb"),
+                    "marketProb": m.get("marketProb"),
+                    "blendAlpha": m.get("blendAlpha"),
                     # "Why this pick" persistence, added 2026-10-02: the
                     # plain-text reasoning string app.html's _attachReasoning
                     # already computed for THIS specific market (not the
@@ -1627,9 +1635,13 @@ def lock_game_leg(page, q: dict, date_override: str | None = None) -> str:
     # price ("market") or the model-assumed one ("assumed"); None for every
     # sport/card that doesn't price from a market yet -- left off the pick.
     price_source = q.get("priceSource")
+    # 2026-10-03: market-blend inputs (see build_qualifying) -- model prob / no-vig market prob / alpha used.
+    model_prob = q.get("modelProb")
+    market_prob = q.get("marketProb")
+    blend_alpha = q.get("blendAlpha")
     return page.evaluate(
         """
-        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors, reasoning, priceSource }) => {
+        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors, reasoning, priceSource, modelProb, marketProb, blendAlpha }) => {
           // Real gap, found auditing the locks-email "X of Y legs actually
           // locked" line: this used to return a single 'dup-or-failed' for
           // BOTH "this exact leg was already locked by an earlier pass
@@ -1672,13 +1684,15 @@ def lock_game_leg(page, q: dict, date_override: str | None = None) -> str:
                       marketDup;
           if (dup) return 'already-locked';
           const before = getP().length;
-          const extraMeta = (socFactors || reasoning || priceSource) ? { ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}) } : null;
+          const hasBlend = (modelProb != null && marketProb != null);
+          const extraMeta = (socFactors || reasoning || priceSource || hasBlend) ? { ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}), ...(hasBlend ? { modelProb, marketProb, ...(blendAlpha != null ? { blendAlpha } : {}) } : {}) } : null;
           await lockPick(hA, awA, type, betOn, prob, ml != null ? ml : '-110', dec || 1.91, dateKey, 'manual', betTypeOverride, extraMeta);
           const after = getP().length;
           return after > before ? 'locked' : 'failed';
         }
         """,
-        {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "prob": q["prob"], "ml": ml, "dec": dec, "dateOverride": date_override, "betTypeOverride": bet_type_override, "socFactors": sock_factors, "reasoning": reasoning_text, "priceSource": price_source},
+        {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "prob": q["prob"], "ml": ml, "dec": dec, "dateOverride": date_override, "betTypeOverride": bet_type_override, "socFactors": sock_factors, "reasoning": reasoning_text, "priceSource": price_source,
+         "modelProb": model_prob, "marketProb": market_prob, "blendAlpha": blend_alpha},
     )
 
 
