@@ -15951,7 +15951,18 @@ async function runLedgerIntegrityCheck(btn){
     // recently enough that it's still actionable rather than ancient
     // settled history from a sport that was active back when it locked.
     const ACTIVE=new Set(['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','FB','PL','LIGA','CL','SERIEA']);
-    const RECENT_MS=30*24*3600*1000; // "recently locked" -- judgment call, 30 days
+    // "Recently locked" -- judgment call, tightened after a live test run
+    // against the real ~3700-bet ledger: a 30-day window matched 295
+    // picks, almost all old already-SETTLED history from leagues that
+    // were still active when they locked (totally normal, not a bug) --
+    // exactly the noisy "vague N problems" this report is supposed to
+    // avoid. 3 days instead matched only 2, and both were real: two
+    // MLB picks locked TODAY despite MLB not being in the active-league
+    // allowlist, meaning whatever's supposed to block new locks in a
+    // retired league didn't. That's the actual signal this check exists
+    // to surface -- a lock guard failing right now -- not a month of
+    // ordinary settled history from before a league's retirement date.
+    const RECENT_MS=3*24*3600*1000;
     const now=Date.now();
     const orphans=preds.filter(p=>{
       const sp=window._normSport(p);
