@@ -26261,12 +26261,22 @@ var SIM_ESPN_TEAM_PATHS={
 // Sport → league options for the cascading #sim-sport / #sim-league pickers.
 // Mirrors the real nav structure (task #4/#5) so the simulator filters by
 // the same leagues every other tab uses, instead of the flat mixed
-// sport+league list it used to show under "SPORT".
+// sport+league list it used to show under "SPORT". (Comment below this one
+// is stale on basketball/hockey -- WNBA/CBB/KHL/College Hockey were already
+// cleaned out of those two buckets in an earlier pass; "bl"/"mls" in soccer
+// were missed until 2026-10-01 -- see that line's own comment.)
 var SIM_SPORT_LEAGUES={
   basketball:[{v:'nba',l:'NBA'}],
   football:[{v:'cfb',l:'CFB'},{v:'nfl',l:'NFL'}],
   hockey:[{v:'nhl',l:'NHL'},{v:'shl',l:'SHL'},{v:'liiga',l:'LIIGA'},{v:'nla',l:'NLA'},{v:'extraliga',l:'EXTRALIGA'}],
-  soccer:[{v:'bl',l:'BUNDESLIGA'},{v:'liga',l:'LA LIGA'},{v:'mls',l:'MLS'},{v:'pl',l:'PREMIER LEAGUE'},{v:'seriea',l:'SERIE A'},{v:'cl',l:'CHAMPIONS LEAGUE'}]
+  // "bl" (Bundesliga) and "mls" removed 2026-10-01 -- real bug found in this
+  // retired-league audit: both had been fully retired (Bundesliga
+  // 2026-09-23, MLS 2026-09-27) everywhere else in the app, but this
+  // cascading dropdown still offered them as selectable Simulator leagues,
+  // and picking either one triggered a real live ESPN team-list fetch
+  // (_simFetchTeams via SIM_ESPN_TEAM_PATHS) for a league that no longer
+  // has any other live surface in the app.
+  soccer:[{v:'liga',l:'LA LIGA'},{v:'pl',l:'PREMIER LEAGUE'},{v:'seriea',l:'SERIE A'},{v:'cl',l:'CHAMPIONS LEAGUE'}]
 };
 var _simTeamCache={};
 async function _simFetchTeams(sport){
