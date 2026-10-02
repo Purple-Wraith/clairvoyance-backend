@@ -42,6 +42,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 from _flashscore_odds import carry_over_odds, fetch_match_odds
+from _schedule_carry import carry_over_missing, load_previous
 from _scraper_health import log_scrape
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -380,12 +381,6 @@ def run() -> dict:
     # (esp. pre -> post: the results row carries no odds). Fail-open, additive.
     log(f"  odds carried over from previous file for {carry_over_odds(games, OUT)} games")
 
-    out = {
-        "generated_at": now.strftime("%Y-%m-%d %H:%M UTC"),
-        "season": f"{season_start_year}-{season_start_year+1}",
-        "teams": teams,
-        "games": games,
-    }
     # Real incident, 2026-09-23: a transient scrape failure (Flashscore
     # slow to hydrate the fixtures page, or a similar one-off network
     # hiccup) returned 0 upcoming fixtures for both Liiga and SHL during
@@ -397,7 +392,10 @@ def run() -> dict:
     # real data (and fail the workflow loudly, which is what raising here
     # does -- git_push in __main__ never runs) than to silently replace a
     # working schedule with a broken one on every transient flake.
+    # Counted on the SCRAPED rows, before carry-over below: carried (started, vanished) rows must not mask a failed
+    # fixtures scrape, and the scrape-health log should report what Flashscore really returned.
     fixtures_count = sum(1 for g in games if g.get("state") == "pre")
+    results_count = sum(1 for g in games if g.get("state") == "post")
     if fixtures_count == 0 and OUT.exists():
         try:
             prev_games = json.loads(OUT.read_text()).get("games") or []
@@ -412,11 +410,26 @@ def run() -> dict:
                 f"the next scheduled run."
             )
 
+    # Real bug, verified 2026-10-02 (see _schedule_carry.py's docstring for the evidence): a game that is IN PROGRESS when this
+    # scrape runs is on neither the fixtures page (gone once started) nor the results page (not final yet), so the merge above
+    # silently dropped it -- and the app can only settle a pick against a state:'post' game with scores, so picks sat 'pending'
+    # until a LATER refresh happened to catch the final. Re-add any already-started game from the previous committed file that
+    # this run saw nowhere (flagged carried:true + lastSeen, never promoted to 'post', dropped 3 days after its start).
+    carry = carry_over_missing(games, load_previous(OUT), now)
+    if carry["carried"] or carry["expired"]:
+        log(f"  carried over {len(carry['carried'])} started game(s) missing from fixtures+results: {carry['carried']}"
+            + (f"; dropped {len(carry['expired'])} unseen for >3 days: {carry['expired']}" if carry["expired"] else ""))
+
+    out = {
+        "generated_at": now.strftime("%Y-%m-%d %H:%M UTC"),
+        "season": f"{season_start_year}-{season_start_year+1}",
+        "teams": teams,
+        "games": games,
+    }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(out, indent=2))
     log(f"Wrote {OUT} -- {len(teams)} teams, {len(games)} games")
     try:
-        results_count = sum(1 for g in games if g.get("state") == "post")
         log_scrape("SHL", fixtures_count, results_count)
     except Exception:
         pass
