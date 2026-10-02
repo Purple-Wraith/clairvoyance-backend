@@ -304,13 +304,19 @@ PRODUCT_SPORTS: dict[str, frozenset[str]] = {
     # paid product is now exactly EURO_SOCCER_SPORTS (CL/PL/La Liga/Serie A).
     "soccer": EURO_SOCCER_SPORTS,
 }
-# NCAAH (College Hockey) stays owner-only/personal-use until it has a
-# real engine built the way Liiga/SHL/NLA/Extraliga now do (SHL removed
-# from this set 2026-09-16, joining Liiga; NLA/Extraliga removed
-# 2026-09-23 -- all 4 are paid PRODUCT_SPORTS members now, not "other"
-# personal-use sports, and a sport must never sit in both).
-# KHL is permanently owner-only -- see PRODUCT_SPORTS' own comment above.
-OTHER_ALLOWED_SPORTS: frozenset[str] = frozenset({"NCAAH"})
+# NCAAH (College Hockey) retired 2026-10-02, explicit decision -- this
+# set used to carry it as "owner-only/personal-use until it has a real
+# engine built" (SHL/Liiga/NLA/Extraliga all passed through that same
+# stage before being promoted into PRODUCT_SPORTS; NCAAH never got a real
+# engine and is being fully retired instead of promoted). No sport should
+# ever sit in both PRODUCT_SPORTS and here. autoSettleNCAAH stays wired
+# in docs/app.html's settle loop below (never remove a settle path for a
+# retired sport -- it may still have real pending bets to grade; see the
+# same convention already established for MLB/WNBA/CBB/World Cup), but
+# this set controls LOCKING eligibility, and NCAAH no longer qualifies
+# for any new lock. KHL is permanently owner-only -- see PRODUCT_SPORTS'
+# own comment above (KHL was never in this set to begin with).
+OTHER_ALLOWED_SPORTS: frozenset[str] = frozenset()
 PRODUCT_LABEL: dict[str, str] = {
     "nfl": "NFL", "cfb": "CFB", "nba": "NBA",
     "hockey": "HOCKEY", "soccer": "SOCCER",
@@ -2709,7 +2715,7 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
     # producing real qualifying legs, it'll still auto-lock as a safety
     # net, just without a report email.
     other_qualifying = [q for q in all_qualifying if q["sport"] in OTHER_ALLOWED_SPORTS]
-    log(f"[other] {len(other_qualifying)} qualifying legs (NCAAH, personal-use, no longer emailed)")
+    log(f"[other] {len(other_qualifying)} qualifying legs (OTHER_ALLOWED_SPORTS is now empty -- NCAAH retired 2026-10-02)")
     if live:
         result = _lock_qualifying_legs(page, other_qualifying) if other_qualifying else LockResult(0, 0, 0)
         total_locked += result.new
