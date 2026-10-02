@@ -1708,6 +1708,14 @@ body{line-height:1.5}
     <button class="btn btn-o btn-sm" data-pb="assumed" onclick="setPriceBasis('assumed')" style="font-size:13px!important;padding:2px 8px!important">ASSUMED PRICES</button>
     <span id="pb-note" style="font-family:var(--mono);font-size:12px;color:var(--t3);letter-spacing:.5px"></span>
   </div>
+  <!-- LOCK TIMING: filters the WHOLE view (record, win%, units/ROI). Default ALL = nothing hidden. In-memory only. -->
+  <div id="tb-bar" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:4px 12px;background:rgba(4,0,12,.7);border-bottom:1px solid rgba(255,255,255,.06)">
+    <span style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:2px">LOCK TIMING</span>
+    <button class="btn btn-o btn-sm act" data-tb="all" onclick="setTimingBasis('all')" style="font-size:13px!important;padding:2px 8px!important">ALL PICKS</button>
+    <button class="btn btn-o btn-sm" data-tb="clean" onclick="setTimingBasis('clean')" style="font-size:13px!important;padding:2px 8px!important" title="Drops picks known to be locked after the game started; picks with no start data stay">PRE-START ONLY</button>
+    <button class="btn btn-o btn-sm" data-tb="strict" onclick="setTimingBasis('strict')" style="font-size:13px!important;padding:2px 8px!important" title="Only picks verified as locked before the game started; picks with no start data are dropped too">VERIFIED PRE-START</button>
+    <span id="tb-note" style="font-family:var(--mono);font-size:12px;color:var(--t3);letter-spacing:.5px"></span>
+  </div>
   <div id="analytics-bysport" class="subp act"><div class="sa"><div class="tab act" style="padding:12px 12px 82px">
     <div class="sh"><span class="ic"></span> ENGINE PERFORMANCE BY SPORT</div>
     <div id="bysport-filters">
@@ -2946,7 +2954,9 @@ const _PB_RENDERERS={'analytics-bysport':'renderBySportAnalytics','analytics-byt
 function _pbWrapRenderers(){
   Object.values(_PB_RENDERERS).forEach(fn=>{
     const o=window[fn];if(typeof o!=='function'||o._pbWrapped)return;
-    const w=function(){window._pbLast[fn]=Array.prototype.slice.call(arguments);return o.apply(this,arguments);};
+    // _aCtx>0 while an Analytics renderer runs: _aP() (below) then applies the lock-timing filter (window._TB). Sync
+    // renderers only, so a plain counter + finally is enough.
+    const w=function(){window._pbLast[fn]=Array.prototype.slice.call(arguments);try{_tbKick();}catch(e){}window._aCtx=(window._aCtx||0)+1;try{return o.apply(this,arguments);}finally{window._aCtx--;}};
     w._pbWrapped=true;window[fn]=w;
   });
 }
@@ -2969,6 +2979,87 @@ function setPriceBasis(m){
   }catch(e){}
 }
 window.setPriceBasis=setPriceBasis;
+// ── LOCK TIMING BASIS (added 2026-10-02) ──────────────────────────────────────────────────────────────────────────────
+// Real finding: picks locked AFTER the game started win far more often than pre-start locks (European hockey: 66% vs
+// ~93%) -- look-ahead contamination. Every pick's lock timing is classified from startMs (stored on new picks) or, for
+// history, derived by matching the pick to its game in the schedule files (teams either orientation + the game's
+// Mountain-time date == pick.date; hockey minors by name, NHL/CFB/NFL by abbreviation). Classes:
+//   pre      locked before the scheduled start          during   locked 0..dur min after start (game in progress)
+//   after    locked more than dur min after start (finished)   unknown  no start data (soccer/NBA history, props...)
+// window._TB (Analytics "LOCK TIMING" bar; in-memory only, default 'all' so nothing is hidden):
+//   'all'     every pick (default)
+//   'clean'   drops picks KNOWN to be locked after start; unknown-timing picks stay (counted separately in the note)
+//   'strict'  keeps only picks VERIFIED pre-start (unknown excluded)
+// Unlike the price-basis bar this filters the WHOLE view -- record, win% AND units/ROI -- via _aP().
+window._TB=window._TB||'all';
+window._tbIdx=null;window._tbLoading=null;
+const _TB_DUR_MIN={NHL:150,SHL:150,LIIGA:150,NLA:150,EXTRALIGA:150,NBA:150,NFL:195,CFB:210,PL:120,LIGA:120,CL:120,SERIEA:120,BUND:120,MLS:120};
+function _tbKey(date,a,b){return date+'|'+[a,b].sort().join('|');}
+async function _tbLoad(){
+  const idx={};
+  const add=(g,hk,ak)=>{if(!g||!g.date)return;const ms=_startMsOf(g.date);if(ms==null)return;const d=_mtDateOf(ms);if(!d||!g[hk]||!g[ak])return;idx[_tbKey(d,g[hk],g[ak])]=ms;};
+  const jobs=[];
+  const hk=[typeof loadShlScheduleData==='function'?loadShlScheduleData:null,typeof loadLiigaScheduleData==='function'?loadLiigaScheduleData:null,typeof loadNlaScheduleData==='function'?loadNlaScheduleData:null,typeof loadExtraligaScheduleData==='function'?loadExtraligaScheduleData:null];
+  hk.forEach(fn=>{if(fn)jobs.push(Promise.resolve().then(fn).then(d=>((d&&d.games)||[]).forEach(g=>add(g,'homeName','awayName'))).catch(()=>{}));});
+  if(typeof loadNHLScheduleData==='function')jobs.push(Promise.resolve().then(loadNHLScheduleData).then(d=>((d&&d.games)||[]).forEach(g=>add(g,'home','away'))).catch(()=>{}));
+  ['cfb_schedule.json','nfl_schedule.json'].forEach(f=>jobs.push(fetch(f).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.weeks)Object.values(j.weeks).forEach(w=>(w||[]).forEach(g=>add(g,'home','away')));}).catch(()=>{})));
+  await Promise.all(jobs);
+  window._tbIdx=idx;
+  return idx;
+}
+// Loads the schedule index once (cached on window); re-renders the active Analytics tab + bar when it lands.
+function _tbKick(){
+  if(window._tbIdx||window._tbLoading)return;
+  window._tbLoading=_tbLoad().then(function(){window._tbLoading=null;try{_tbUpdateBar();}catch(e){}if(window._TB!=='all')try{_tbRerender();}catch(e){}}).catch(function(){window._tbLoading=null;window._tbIdx={};});
+}
+function _pickStartMs(p){
+  if(p.startMs!=null&&isFinite(p.startMs)&&p.startMs>946684800000)return p.startMs;
+  const ix=window._tbIdx;if(!ix||!p.date||!p.hA||!p.awA)return null;
+  const v=ix[_tbKey(p.date,p.hA,p.awA)];return v==null?null:v;
+}
+// -> 'pre' | 'during' | 'after' | 'unknown'
+function _pickTiming(p){
+  const st=_pickStartMs(p);if(st==null||!p.lockedAt||!isFinite(p.lockedAt))return'unknown';
+  const lead=(st-p.lockedAt)/60000;
+  if(lead>0)return'pre';
+  const dur=_TB_DUR_MIN[window._normSport?window._normSport(p):'']||150;
+  return lead>-dur?'during':'after';
+}
+function _tbIn(p){
+  const m=window._TB;if(m==='all')return true;
+  const t=_pickTiming(p);
+  return m==='strict'?t==='pre':(t==='pre'||t==='unknown');
+}
+// Analytics data source: getP() unless an Analytics renderer is running with a timing filter active.
+function _aP(){return(window._TB==='all'||!window._aCtx)?getP():getP().filter(_tbIn);}
+// Count picks per timing class (settled only) for a pick list.
+function _tbCounts(preds){
+  const c={pre:{n:0,w:0},during:{n:0,w:0},after:{n:0,w:0},unknown:{n:0,w:0}};
+  (preds||getP()).forEach(p=>{if(p.outcome!=='win'&&p.outcome!=='loss')return;const t=_pickTiming(p);c[t].n++;if(p.outcome==='win')c[t].w++;});
+  return c;
+}
+function _tbUpdateBar(){
+  const bar=document.getElementById('tb-bar');if(!bar)return;
+  bar.querySelectorAll('button[data-tb]').forEach(b=>b.classList.toggle('act',b.getAttribute('data-tb')===window._TB));
+  const note=document.getElementById('tb-note');if(!note)return;
+  const ACT=new Set(['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','FB','PL','LIGA','CL','SERIEA']);
+  const c=_tbCounts(getP().filter(p=>ACT.has(window._normSport(p))));
+  const f=x=>x.n+' ('+x.w+'-'+(x.n-x.w)+(x.n?', '+Math.round(x.w/x.n*100)+'%':'')+')';
+  const lbl=window._TB==='all'?'ALL PICKS':window._TB==='clean'?'PRE-START ONLY (KNOWN LATE LOCKS DROPPED, UNKNOWN KEPT)':'VERIFIED PRE-START ONLY (UNKNOWN DROPPED TOO)';
+  note.textContent=lbl+' · SETTLED: PRE-START '+f(c.pre)+' · IN-PROGRESS '+f(c.during)+' · AFTER-END '+f(c.after)+' · UNKNOWN '+f(c.unknown)+(window._tbIdx?'':' · LOADING SCHEDULES…');
+}
+function _tbRerender(){
+  try{
+    const act=document.querySelector('#sp-analytics .subp.act');
+    const fn=act&&_PB_RENDERERS[act.id];
+    if(fn&&typeof window[fn]==='function')window[fn].apply(null,window._pbLast[fn]||[]);
+  }catch(e){}
+}
+function setTimingBasis(m){
+  if(m!=='all'&&m!=='clean'&&m!=='strict')m='all';
+  window._TB=m;_tbUpdateBar();_tbKick();_tbRerender();
+}
+window.setTimingBasis=setTimingBasis;
 window.addEventListener('load',function(){try{_pbWrapRenderers();_pbUpdateBar();}catch(e){}});
 // ═══ REAL MARKET PRICES — European hockey leagues (SHL/LIIGA/NLA/EXTRALIGA) ═══
 // Added 2026-10-02. These four leagues' cards used to price every bet with
@@ -5395,8 +5486,10 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   // start comes from extraMeta.startMs (the Python pipeline passes it) or, for manual lock buttons, from the
   // _gameStartReg entry the card's own _autoLockCapture parked at render time. Unknown start -> no JS-side guard
   // (the Python pipeline fails closed on its own for hockey).
-  {const _stMs=(extraMeta&&extraMeta.startMs!=null)?extraMeta.startMs:_lookupGameStart(hA,awA,dateKey);
-   const _stBlk=_lockStartBlock(_stMs);
+  const _stMs=(extraMeta&&extraMeta.startMs!=null)?extraMeta.startMs:_lookupGameStart(hA,awA,dateKey);
+  // Lock timing recorded on every pick whose start is known (Part 2): startMs + leadMin (minutes before start at lock).
+  const _timingMeta=_stMs!=null?{startMs:_stMs,leadMin:Math.round((_stMs-Date.now())/60000)}:{};
+  {const _stBlk=_lockStartBlock(_stMs);
    if(_stBlk){try{toast(`// LOCK REFUSED: ${betOn} — ${_stBlk}`);}catch(e){}try{console.warn('[lockPick] refused:',hA,'vs',awA,betOn,_stBlk);}catch(e){}return;}}
   // ── Sport + league + bet-type detection — computed FIRST so both the
   // API path and the offline-fallback path below can use it. (Previously
@@ -5518,7 +5611,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
       const preds=getP();const localId=`api_${res.id}`;
       if(!preds.find(x=>x.id===localId)){
         _removeWipedIds([localId]); // see _removeWipedIds' own comment
-        preds.push({id:localId,_backendId:res.id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:100,outcome:'pending',lockedAt:Date.now(),source:_lockSource,...(extraMeta||{}),reasoning});
+        preds.push({id:localId,_backendId:res.id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:100,outcome:'pending',lockedAt:Date.now(),source:_lockSource,...(extraMeta||{}),..._timingMeta,reasoning});
       }
       saveP(preds);
       const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
@@ -5546,7 +5639,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   // with an explicit "already locked" toast instead.
   if(_dup){toast(`// ALREADY LOCKED: ${_dup.betOn} ${_dup.ml} (${_dup.outcome==='pending'?'still pending':_dup.outcome.toUpperCase()})`);return;}
   _removeWipedIds([id]); // see _removeWipedIds' own comment -- a deliberate new lock must never be silently swallowed by an old wipe of this same id
-  preds.push({id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:0,outcome:'pending',lockedAt:Date.now(),hScore:null,aScore:null,source:_lockSource,...(extraMeta||{}),reasoning});saveP(preds);
+  preds.push({id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:0,outcome:'pending',lockedAt:Date.now(),hScore:null,aScore:null,source:_lockSource,...(extraMeta||{}),..._timingMeta,reasoning});saveP(preds);
   const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
   if(!log[dateKey].locked.includes(betOn))log[dateKey].locked.push(betOn);
   const rec=log[dateKey].recs.find(r=>r.ha===hA&&r.awa===awA&&r.lb===betOn);if(rec)rec.locked=true;
@@ -15511,7 +15604,7 @@ function renderOverallTrends(){
   // in COLD SPOTS). Scoped to the same active-league allowlist Bet History
   // Analytics now uses.
   const _ACTIVE_LEAGUES=new Set(['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','FB','PL','LIGA','CL','SERIEA']);
-  const all=getP().filter(p=>p.outcome!=='pending'&&_ACTIVE_LEAGUES.has(window._normSport(p)))
+  const all=_aP().filter(p=>p.outcome!=='pending'&&_ACTIVE_LEAGUES.has(window._normSport(p)))
     .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
   if(all.length<5){el.innerHTML='<div class="empty">NOT ENOUGH DATA — SETTLE MORE PICKS TO SEE TRENDS</div>';return;}
 
@@ -16862,6 +16955,36 @@ function _ehSecHTML(title,items,renderItem){
     ${items.map(renderItem).join('')}
   </div>`;
 }
+// "LOCKED AFTER GAME START" section (Part 2, 2026-10-02): look-ahead contamination audit. Classifies every active-league
+// pick by lock timing (see _pickTiming) and shows the three-way split with records, per league, and every date/league that
+// has picks locked after the game began. Unknown = no start data (not an issue, just unverifiable).
+function _tbLedgerSectionHTML(preds){
+  const ACT=new Set(['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','FB','PL','LIGA','CL','SERIEA']);
+  const rec=(c)=>{const l=c.n-c.w;return c.n?`${c.w}-${l} (${(c.w/c.n*100).toFixed(1)}%) n=${c.n}`:'n=0';};
+  const mono='font-family:var(--mono);font-size:14px;color:var(--t2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)';
+  const act=preds.filter(p=>ACT.has(window._normSport(p)));
+  const tot=_tbCounts(act);
+  const lateSettled=tot.during.n+tot.after.n;
+  const byLg={};act.forEach(p=>{const l=window._normSport(p);(byLg[l]=byLg[l]||[]).push(p);});
+  const lgRows=Object.keys(byLg).sort().map(l=>{const c=_tbCounts(byLg[l]);return{l,c,late:c.during.n+c.after.n};}).filter(r=>r.c.pre.n+r.late+r.c.unknown.n>0);
+  const byDate={};act.forEach(p=>{const t=_pickTiming(p);if(t!=='during'&&t!=='after')return;const k=p.date+'|'+window._normSport(p);const o=byDate[k]=byDate[k]||{date:p.date,l:window._normSport(p),during:0,after:0,pending:0,w:0,n:0};o[t]++;if(p.outcome==='pending')o.pending++;else if(p.outcome==='win'){o.w++;o.n++;}else if(p.outcome==='loss')o.n++;});
+  const dRows=Object.values(byDate).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:a.l<b.l?-1:1);
+  const nLate=dRows.reduce((a,o)=>a+o.during+o.after,0);
+  const head=`<div style="${mono}">PRE-START: <b style="color:#00e644">${rec(tot.pre)}</b></div>
+    <div style="${mono}">IN PROGRESS (locked 0 to game-length after start): <b style="color:#ff9000">${rec(tot.during)}</b></div>
+    <div style="${mono}">AFTER END (locked later than that): <b style="color:#ff1a1a">${rec(tot.after)}</b></div>
+    <div style="${mono}">UNKNOWN (no start data for this pick, so not in the three lines above): <b>${rec(tot.unknown)}</b></div>`;
+  const lgHtml=lgRows.map(r=>`<div style="${mono}">${_ehEsc(r.l)} — pre ${rec(r.c.pre)} · in-progress ${rec(r.c.during)} · after-end ${rec(r.c.after)} · unknown ${rec(r.c.unknown)}</div>`).join('');
+  const dHtml=dRows.map(o=>`<div style="${mono}">${_ehEsc(o.date)} ${_ehEsc(o.l)} — ${o.during} in-progress, ${o.after} after-end${o.pending?` (${o.pending} still pending)`:''}${o.n?` · settled ${o.w}-${o.n-o.w}`:''}</div>`).join('');
+  const color=nLate?'#ff1a1a':'#00e644';
+  return`<div class="card" style="margin-bottom:8px;padding:10px 12px;border-left:3px solid ${color}">
+    <div style="font-family:var(--mono);font-size:15px;color:${color};margin-bottom:6px">${nLate?'✗':'✓'} LOCKED AFTER GAME START: ${nLate} PICK(S) (${lateSettled} SETTLED)</div>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-bottom:6px">Look-ahead contamination: a pick locked after kickoff is not a prediction. Start time = stored startMs, else matched to the schedule file (SHL/LIIGA/NLA/EXTRALIGA/NHL/CFB/NFL; soccer/NBA history has no start data in the app, so it shows as unknown). The pre-start guard (2026-10-02) stops new ones; Analytics > LOCK TIMING filters these out of every record.</div>
+    ${head}
+    <div style="font-family:var(--mono);font-size:13px;color:var(--pc);letter-spacing:1px;margin:8px 0 2px">BY LEAGUE</div>${lgHtml}
+    ${dRows.length?`<div style="font-family:var(--mono);font-size:13px;color:var(--pc);letter-spacing:1px;margin:8px 0 2px">BY DATE / LEAGUE (LATE LOCKS ONLY)</div>${dHtml}`:''}
+  </div>`;
+}
 async function runLedgerIntegrityCheck(btn){
   const out=document.getElementById('eh-ledger-report');if(!out)return;
   if(btn){btn.disabled=true;btn.textContent='⏳ SCANNING LEDGER…';}
@@ -16952,7 +17075,9 @@ async function runLedgerIntegrityCheck(btn){
       }
     }
 
-    out.innerHTML=
+    try{await _tbLoad();}catch(e){}
+    let _tbHtml='';try{_tbHtml=_tbLedgerSectionHTML(preds);}catch(e){_tbHtml=`<div class="empty">LOCK-TIMING AUDIT FAILED: ${_ehEsc(e.message||e)}</div>`;}
+    out.innerHTML=_tbHtml+
       _ehSecHTML('DATE MISMATCHES',mismatches,m=>`<div style="font-family:var(--mono);font-size:14px;color:var(--t2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">#${_ehEsc(m.id)} · ${_ehEsc(m.betOn||'?')} (${_ehEsc(m.sport)}) — stored ${_ehEsc(m.storedDate)}, real game date ${_ehEsc(m.realDate)}</div>`)+
       _ehSecHTML('SETTLED OUTCOME DISAGREES WITH SCHEDULE SCORE',badGrades,m=>`<div style="font-family:var(--mono);font-size:14px;color:var(--t2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">#${_ehEsc(m.id)} · ${_ehEsc(m.betOn||'?')} (${_ehEsc(m.sport)}) — stored ${_ehEsc(m.stored)}, schedule score says ${_ehEsc(m.regraded)} (${_ehEsc(m.score)})</div>`)+
       _ehSecHTML('ORPHANED / RETIRED-LEAGUE PICKS',orphans,p=>`<div style="font-family:var(--mono);font-size:14px;color:var(--t2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">#${_ehEsc(p.id)} · ${_ehEsc(p.betOn||'?')} — sport "${_ehEsc(p.sport||'?')}" not in active-league allowlist (outcome: ${_ehEsc(p.outcome)})</div>`)+
@@ -17073,7 +17198,7 @@ async function renderEngineHealth(){
     ${calHtml}
     <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin:14px 0 8px">// LEDGER INTEGRITY CHECK</div>
     <div class="card" style="padding:10px 12px;margin-bottom:8px">
-      <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:8px">On-demand only — scans the full ledger for date mismatches, orphaned/retired-league picks and duplicate IDs. Not run automatically on tab load.</div>
+      <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:8px">On-demand only — scans the full ledger for picks locked after the game started, date mismatches, orphaned/retired-league picks and duplicate IDs. Not run automatically on tab load.</div>
       <button class="btn btn-p" style="padding:9px 18px;font-size:15px;background:var(--pc);color:#fff" onclick="runLedgerIntegrityCheck(this)">RUN LEDGER INTEGRITY CHECK</button>
     </div>
     <div id="eh-ledger-report"></div>
@@ -26389,7 +26514,7 @@ function renderAnalyticsByBet(){
   // active-league allowlist Bet History Analytics uses, so the record/
   // net units/ROI/high-hit% summary here reflects the current portfolio.
   var _ACTIVE_LEAGUES=new Set(['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','FB','PL','LIGA','CL','SERIEA']);
-  var all=getP().filter(function(p){return p.outcome!=='pending'&&_ACTIVE_LEAGUES.has(window._normSport(p));});
+  var all=_aP().filter(function(p){return p.outcome!=='pending'&&_ACTIVE_LEAGUES.has(window._normSport(p));});
   if(!all.length){el.innerHTML='<div class="empty">NO SETTLED BETS YET</div>';return;}
   var pnl=_pbPnl; // price-basis aware (Part C): record/win% below are unaffected
   var pC=function(r){return r>=.62?'var(--nc)':r>=.52?'var(--vc)':'var(--hc)';};
@@ -26594,7 +26719,7 @@ function renderBySportAnalytics(key){
   // a real 16-game streak. Same fix as adaptiveTick()/renderOverall's
   // own settledByDate (see their comments): sort by date (then lockedAt
   // as a same-day tiebreaker) once, up front.
-  const all=getP().filter(p=>p.outcome!=='pending')
+  const all=_aP().filter(p=>p.outcome!=='pending')
     .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
   if(!all.length){el.innerHTML='<div class="empty">NO SETTLED BETS YET</div>';return;}
   const pnl=_pbPnl; // price-basis aware (Part C)
@@ -26759,7 +26884,7 @@ function renderByTeamAnalytics(key){
   // to "LeBron James" and got tracked as if it were a team. Props already
   // have their own real home (renderByPlayerAnalytics, the BY PLAYER
   // sub-tab) -- excluded here so this tab only ever shows real teams.
-  const all=getP().filter(p=>p.outcome!=='pending'&&(p.betType||'').toUpperCase()!=='PROP');
+  const all=_aP().filter(p=>p.outcome!=='pending'&&(p.betType||'').toUpperCase()!=='PROP');
   let scopedBets;
   if(activeLeague){
     scopedBets=all.filter(p=>window._normSport(p)===activeLeague);
@@ -26876,7 +27001,7 @@ function renderByLeagueAnalytics(scope){
   });
   const el=document.getElementById('analytics-byleague-content');if(!el)return;
   const defs=scope==='ALL'?_BYLEAGUE_DEFS:_BYLEAGUE_DEFS.filter(d=>d.sport===scope);
-  const all=getP().filter(p=>p.outcome!=='pending');
+  const all=_aP().filter(p=>p.outcome!=='pending');
   const pnl=_pbPnl; // price-basis aware (Part C)
   const pC=r=>r>=.62?'var(--nc)':r>=.52?'var(--vc)':'var(--hc)';
   const uC=u=>u>=0?'var(--nc)':'var(--hc)';
@@ -26911,7 +27036,7 @@ window.renderByLeagueAnalytics=renderByLeagueAnalytics;
 // before the extraction — see the inline comments below for the real bugs
 // this parsing already had to fix.
 function _vzPlayerPropAggregates(){
-  const all=getP().filter(p=>p.outcome!=='pending'&&(p.betType||'').toUpperCase()==='PROP');
+  const all=_aP().filter(p=>p.outcome!=='pending'&&(p.betType||'').toUpperCase()==='PROP');
   // Real bug, found auditing By Player accuracy 2026-09-30: this only
   // handled the single order "{Player} {STAT} OVER {line}" -- real feeds
   // also produce "{Player} OVER {STAT} {line}" (stat after OVER/UNDER,
@@ -27059,7 +27184,7 @@ function renderAnalyticsBetHistory(filter){
   // an allowlist of the sports this app actually still locks picks for is
   // the durable fix.
   const _ACTIVE_LEAGUES=new Set(LEAGUE_CODES);
-  const all=getP().filter(p=>_ACTIVE_LEAGUES.has(window._normSport(p)));
+  const all=_aP().filter(p=>_ACTIVE_LEAGUES.has(window._normSport(p)));
   let bets=all;
   if(filter==='WIN')bets=all.filter(p=>p.outcome==='win');
   else if(filter==='LOSS')bets=all.filter(p=>p.outcome==='loss');
@@ -28213,7 +28338,7 @@ function _vzPnl(p){return _pbPnl(p);} // price-basis aware (Part C): 0 for picks
 // renderBySportAnalytics/adaptiveTick already established, needed here so
 // the equity curve and the player/streak sparklines read oldest→newest.
 function _vzSettled(){
-  return getP().filter(p=>p.outcome!=='pending'&&_VZ_LEAGUE_CODES.includes(window._normSport(p)))
+  return _aP().filter(p=>p.outcome!=='pending'&&_VZ_LEAGUE_CODES.includes(window._normSport(p)))
     .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
 }
 function _vzEmptyCardHTML(title,note,icon){
