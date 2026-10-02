@@ -21796,12 +21796,16 @@ async function renderGlobalLive(){
   const el=document.getElementById('live-games-list');const cntEl=document.getElementById('live-game-count');if(!el)return;
   el.innerHTML='<div class="loading"><span class="spi"></span> SCANNING ALL LEAGUES…</div>';
   const today=todayESPN();
+  // MLB scoreboard fetch removed 2026-10-01 -- real bug found in this
+  // retired-league audit: MLB was fully retired 2026-09-08, but this
+  // reachable "ALL LIVE EVENTS" tab still live-fetched and would have
+  // displayed any in-progress MLB games right alongside NBA/NHL every
+  // time it was opened or refreshed.
   const results=await Promise.allSettled([
-    fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=${today}&seasontype=2`,{cache:'no-cache'}).then(r=>r.json()),
     fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${today}&seasontype=3`,{cache:'no-cache'}).then(r=>r.json()),
     fetch(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${today}&seasontype=3`,{cache:'no-cache'}).then(r=>r.json()),
   ]);
-  const labels=['MLB','NBA','NHL'];
+  const labels=['NBA','NHL'];
   const liveGames=[];
   results.forEach((res,i)=>{
     if(res.status!=='fulfilled')return;
