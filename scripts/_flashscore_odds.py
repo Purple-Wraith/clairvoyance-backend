@@ -302,6 +302,7 @@ def fetch_match_odds(page, home_slug: str, home_id: str, away_slug: str, away_id
             args = (home_slug, home_id, away_slug, away_id, match_id)
             ou_rows = _load_rows(page, _odds_url(*args, market="over-under"))
             if not ou_rows:
+                log(f"odds {match_id}: no priced O/U rows (no market posted yet, or page timed out)")
                 return result
             result["ou"] = _main_line(ou_rows)
             ml_rows = _load_rows(page, _odds_url(*args, market="home-away"))
