@@ -93,8 +93,18 @@ jobs:
           TZ: America/Denver
         run: python3 scripts/fetch_nfl.py --mode schedule --push
 
-      - name: Refresh NHL schedule/lines
+      # Real NHL bookmaker prices (ML + O/U + puck line) from Flashscore, added 2026-10-03 (see fetch_nhl.py's
+      # attach_flashscore_odds + _flashscore_odds.py). Needs Playwright, which the rest of this workflow does not
+      # (everything above is plain `requests`) -- installed in its own continue-on-error step so a failed browser
+      # install just means the NHL step below falls back to ESPN-only data (exactly the pre-existing behavior).
+      - name: Install Playwright (NHL Flashscore odds)
+        continue-on-error: true
+        run: |
+          pip install -q playwright
+          for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient apt-mirror hiccup) -- retrying in 20s..."; sleep 20; done
+
+      - name: Refresh NHL schedule/lines + Flashscore odds
         continue-on-error: true
         env:
           TZ: America/Denver
-        run: python3 scripts/fetch_nhl.py --push
+        run: python3 scripts/fetch_nhl.py --flashscore-odds --push
