@@ -1669,17 +1669,32 @@ def lock_prop_leg(page, sport: str, leg: dict) -> str:
              "prob": leg.get("prob") or (leg.get("conf", 0) / 100), "ml": leg.get("ml"), "line": leg.get("line")},
         )
     if sport == "NBA":
+        # Real bug, found and fixed alongside this same audit: this used to
+        # call lockProp() with no `stat` arg at all, and lockProp()'s betOn
+        # template never included a stat token on its own either -- so
+        # every NBA prop this pipeline ever locked produced a betOn like
+        # "Victor Wembanyama OVER 26.5" with no PTS/REB/AST anywhere in it.
+        # autoSettlePropsESPN()'s parsePropBetOn() (docs/app.html) requires
+        # a stat token to parse a betOn at all, so every one of those props
+        # silently sat 'pending' forever -- live ledger evidence lines up:
+        # the propDiag work above this function was added specifically
+        # because real settled PROP counts were far below what gather_legs
+        # was locking. lockProp() now takes an optional trailing `stat` arg
+        # (docs/app.html) and _generateNBAProps' own pushed objects carry a
+        # real ESPN-abbreviation `statAbbr` field (PTS/REB/AST) for exactly
+        # this purpose -- passed through here as `leg.statAbbr`.
         return page.evaluate(
             """
-            ({ team, player, line, over, prob, ml, sport, opp }) => {
+            ({ team, player, line, over, prob, ml, sport, opp, stat }) => {
               const before = getP().length;
-              lockProp(team, player, line, over, prob, ml, sport, opp);
+              lockProp(team, player, line, over, prob, ml, sport, opp, stat);
               return getP().length > before ? 'locked' : 'already-locked';
             }
             """,
             {"team": leg.get("team"), "player": leg.get("player"), "line": leg.get("line"),
              "over": leg.get("over") is not False, "prob": leg.get("prob") or (leg.get("conf", 0) / 100),
-             "ml": leg.get("ml"), "sport": sport, "opp": leg.get("opp") or ""},
+             "ml": leg.get("ml"), "sport": sport, "opp": leg.get("opp") or "",
+             "stat": leg.get("statAbbr") or ""},
         )
     # NFL branch removed 2026-09-23 alongside NFL player props leaving
     # gather_legs() entirely (see its own comment) -- a leg tagged "NFL"

@@ -12153,8 +12153,22 @@ function _generateNBAProps(games,statsData){
         var conf=pick==='OVER'?mc.overP*100:(1-mc.overP)*100;
         var grade=(Math.abs(factor)<0.01&&Math.abs(conf-50)<4)?'SKIP':_propGradeByConf(conf);
         var ml=p2ml(pick==='OVER'?mc.overP:1-mc.overP);
+        // statAbbr is the real ESPN boxscore column abbreviation (PTS/REB/AST)
+        // for this prop -- distinct from statKey ('ppg'/'rpg'/'apg', this
+        // engine's own internal per-game-average field name). Real bug, found
+        // auditing settlement: the LOCK button below used to pass nothing but
+        // the bare line number through to lockProp(), so a locked NBA prop's
+        // betOn never recorded which stat it was ("Victor Wembanyama OVER
+        // 26.5", no PTS/REB/AST anywhere) -- autoSettlePropsESPN's
+        // parsePropBetOn() requires a stat token to parse a betOn string at
+        // all, so every single NBA prop locked this way (both the live LOCK
+        // button and the automated pipeline's lock_prop_leg(), which drives
+        // this exact same function's output) silently sat 'pending' forever,
+        // no matter how many settlement passes ran. statAbbr exists so the
+        // LOCK button can now pass a real parseable stat through.
+        var statAbbr=statKey==='ppg'?'PTS':statKey==='rpg'?'REB':statKey==='apg'?'AST':statKey.toUpperCase();
         props.push({player:pl.name,team:pl.team,opp:opp,hA:hn,awA:an,
-          stat:statKey,line:line,over:pick==='OVER',ml:mlStr(ml),prob:conf/100,
+          stat:statKey,statAbbr:statAbbr,line:line,over:pick==='OVER',ml:mlStr(ml),prob:conf/100,
           grade:grade,hitRate:Math.round(conf)+'%',adjustor:+(adjMu-baseN).toFixed(1),
           basis:pl.name+' averages '+baseN.toFixed(1)+' '+statKey+' across '+pl.gp+' games this season. '+oppNote+'No head-to-head history vs '+opp+' this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.'});
       }
@@ -12197,7 +12211,7 @@ async function renderNBADailyProps(){
       +'<div style="font-family:var(--mono);font-size:17px;color:var(--t2);margin-bottom:4px">'+p.basis+'</div>'
       +'<div style="display:flex;justify-content:space-between;align-items:center">'
       +'<span style="font-family:var(--mono);font-size:16px;color:var(--t3)">SRC: ESPN Stats + MC Sim (5k)</span>'
-      +'<button class="btn btn-o btn-sm" onclick="lockProp(\''+p.team+'\',\''+p.player+'\',\''+p.line+'\','+isOver+','+p.prob.toFixed(2)+',\''+p.ml+'\',\'NBA\',\''+p.opp+'\')">LOCK</button>'
+      +'<button class="btn btn-o btn-sm" onclick="lockProp(\''+p.team+'\',\''+p.player+'\',\''+p.line+'\','+isOver+','+p.prob.toFixed(2)+',\''+p.ml+'\',\'NBA\',\''+p.opp+'\',\''+(p.statAbbr||'')+'\')">LOCK</button>'
       +'</div>'
     +'</div>';
   }).join('');
@@ -15491,15 +15505,34 @@ async function autoSettlePropsESPN(targetDate){
     WNBA:'https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/summary?event='
   };
 
-  // Parse "Victor Wembanyama OVER PTS 26.5" (NBA/NHL/MLB: stat before
-  // line) OR "Josh Allen OVER 0.5 Passing TDs" (NFL model/Linemate
-  // props: line before stat, multi-word stat label) → {player,
-  // direction, stat, line}. Tries the original order first so
-  // NBA/NHL/MLB parsing is completely unchanged, only falls through to
-  // the NFL order when the first pattern doesn't match.
+  // Parse "Victor Wembanyama OVER PTS 26.5" (NBA/MLB: stat AFTER
+  // direction) OR "Josh Allen OVER 0.5 Passing TDs" (NFL model/Linemate
+  // props: line before stat, multi-word stat label) OR "Connor McDavid
+  // POINTS OVER 1.5" (lockNHLProp's own real betOn format: stat BEFORE
+  // direction) → {player, direction, stat, line}. Tries the original
+  // NBA/MLB order first so that parsing is completely unchanged, then the
+  // NHL stat-before-direction order, then falls through to the NFL order
+  // last. A trailing " (-120)"/" (+105)" moneyline parenthetical --
+  // lockNHLProp always appends one to its own betOn -- is stripped first;
+  // left in place it broke the end-anchor ($) on the NBA/MLB pattern
+  // outright and made the OLD NFL-fallback pattern below mis-fire on NHL
+  // strings instead (capturing the stat word into the PLAYER name and the
+  // odds label itself as the "stat" -- confirmed live: "Connor McDavid
+  // POINTS OVER 1.5 (-120)" parsed to player "Connor McDavid POINTS",
+  // stat "(-120)", which can never nameMatch() a real box score entry).
+  // Real bug, found auditing settlement: lockNHLProp's live LOCK buttons
+  // (_adjLockNHLO/_adjLockNHLU in docs/app.html) are the ONLY way an NHL
+  // prop ever gets locked, so every single NHL prop ever locked this way
+  // silently sat 'pending' forever, regardless of how many settlement
+  // passes ran -- same observable shape ("0 settled PROP-type bets") as
+  // the NBA betOn-missing-stat bug fixed alongside this one, just a
+  // different root cause.
   function parsePropBetOn(bon){
+    bon=(bon||'').replace(/\s*\([^)]*\)\s*$/,'');
     let m=bon.match(/^(.+?)\s+(OVER|UNDER)\s+([A-Z+%]+)\s+([\d.]+)$/i);
     if(m)return{player:m[1].trim(),direction:m[2].toUpperCase(),stat:m[3].toUpperCase(),line:parseFloat(m[4])};
+    m=bon.match(/^(.+?)\s+([A-Za-z]+)\s+(OVER|UNDER)\s+([\d.]+)$/i);
+    if(m)return{player:m[1].trim(),direction:m[3].toUpperCase(),stat:m[2].toUpperCase(),line:parseFloat(m[4])};
     m=bon.match(/^(.+?)\s+(OVER|UNDER)\s+([\d.]+)\s+(.+)$/i);
     if(m)return{player:m[1].trim(),direction:m[2].toUpperCase(),stat:m[4].trim().toUpperCase(),line:parseFloat(m[3])};
     return null;
@@ -15600,6 +15633,47 @@ async function autoSettlePropsESPN(targetDate){
     return null;
   }
 
+  // Real bug, found auditing settlement (same audit that found the
+  // betOn-parsing issue fixed in parsePropBetOn above): even with a
+  // correctly-parsed stat label, NHL props could still never settle.
+  // ESPN's NHL summary boxscore (confirmed live, 2026-10-01) splits each
+  // team's players across SEVERAL statistics blocks per game --
+  // "forwards"/"defenses"/"skaters"/"goalies" -- not the single flat
+  // block NBA/MLB use, so the generic extractStat() path below (which
+  // only ever reads teamData.statistics?.[0]) would miss any defenseman
+  // or goalie outright, and never even reaches extractStat for them. On
+  // top of that, extractStat()'s whole vocabulary (PTS/REB/AST/BLK/STL/
+  // TO/3PM) is NBA/MLB-shaped -- real NHL skater columns are compact
+  // abbreviations (G/A/S/SOG), so even a forward prop would fail every
+  // `if` branch and return null. POINTS has no single ESPN field at all;
+  // it's derived here as goals+assists, the same definition this app's
+  // own lockNHLProp()/_generateNHLPropsLive() ppg label already uses.
+  const NHL_STAT_MAP={GOALS:'G',GOAL:'G',ASSISTS:'A',ASSIST:'A',SHOTS:'SOG',SOG:'SOG',SAVES:'SV'};
+  function extractNHLStat(teamData,propPlayer,statWordUpper){
+    const isPoints=statWordUpper==='POINTS'||statWordUpper==='POINT';
+    const key=NHL_STAT_MAP[statWordUpper];
+    if(!isPoints&&!key)return null; // unrecognized stat label -> don't guess
+    for(const statBlock of teamData.statistics||[]){
+      const names=statBlock.names||statBlock.labels||[];
+      const idx=n=>names.findIndex(s=>(s||'').toUpperCase()===n);
+      for(const ath of statBlock.athletes||[]){
+        const dName=ath.athlete?.displayName||'';
+        if(!nameMatch(dName,propPlayer))continue;
+        const stats=ath.stats||[];
+        const get=n=>{const i=idx(n);const raw=i>=0?stats[i]:null;const val=raw==null?NaN:parseFloat(raw);return val;};
+        if(isPoints){
+          const g=get('G'),a=get('A');
+          if(isNaN(g)||isNaN(a))continue; // matched by name but this block lacks G/A -- try other blocks
+          return{dName,val:g+a};
+        }
+        const v=get(key);
+        if(isNaN(v))continue;
+        return{dName,val:v};
+      }
+    }
+    return null; // player not found in any statistics block -- didn't play, or box score incomplete
+  }
+
   // Fuzzy player name match: "Victor Wembanyama" vs "V. Wembanyama" or "Wembanyama"
   function nameMatch(displayName,propPlayer){
     const dn=displayName.toLowerCase().replace(/['.]/g,'');
@@ -15672,12 +15746,21 @@ async function autoSettlePropsESPN(targetDate){
 
       // Build player stat lookup. NFL box scores split a team's stats
       // into several category blocks (passing/rushing/receiving) instead
-      // of one flat block, so it needs its own lookup (extractNFLStat)
-      // rather than the single-statBlock logic NBA/NHL/MLB share below.
+      // of one flat block, so it needs its own lookup (extractNFLStat).
+      // NHL box scores split a team's players across several blocks too
+      // (forwards/defenses/skaters/goalies) AND use compact abbreviations
+      // (G/A/SOG/SV) instead of PTS/REB/AST, so it also needs its own
+      // lookup (extractNHLStat) rather than the single-statBlock
+      // PTS/REB/AST logic NBA/MLB share below.
       let foundStat=null,foundPlayer=null;
       if(sport==='NFL'){
         outer:for(const teamData of bs.boxscore.players){
           const hit=extractNFLStat(teamData,parsed.player,parsed.stat);
+          if(hit){foundPlayer=hit.dName;foundStat=hit.val;break outer;}
+        }
+      }else if(sport==='NHL'){
+        outer:for(const teamData of bs.boxscore.players){
+          const hit=extractNHLStat(teamData,parsed.player,parsed.stat);
           if(hit){foundPlayer=hit.dName;foundStat=hit.val;break outer;}
         }
       }else{
@@ -17497,7 +17580,7 @@ function _adjLockO(inputId,team,player,stat,conf,ml,sport,opp){_adjLock(inputId,
 function _adjLockU(inputId,team,player,stat,conf,ml,sport,opp){_adjLock(inputId,team,player,stat,false,conf,ml,sport,opp);}
 function _adjLockNHLO(inputId,player,stat,conf,ml){_adjLockNHL(inputId,player,stat,'OVER',conf,ml);}
 function _adjLockNHLU(inputId,player,stat,conf,ml){_adjLockNHL(inputId,player,stat,'UNDER',conf,ml);}
-function lockProp(team,player,line,over,conf,ml,sport,opp){
+function lockProp(team,player,line,over,conf,ml,sport,opp,stat){
   // Prefer the sport the caller actually knows it's rendering (every
   // call site is itself sport-specific — the WNBA props tab knows it's
   // WNBA, the NBA tab knows it's NBA) over guessing from the team
@@ -17524,10 +17607,26 @@ function lockProp(team,player,line,over,conf,ml,sport,opp){
   // duplicate prop locks for the same prop, silently. Deterministic id
   // (date+sport+player+line+direction, mirroring lockPick()'s own
   // date+matchup+betOn convention) plus a real dup check before pushing.
-  const propId=`prop_${today()}_${sport}_${player}_${line}_${over?'O':'U'}`.replace(/\s/g,'');
+  // Real bug, found auditing settlement: betOn used to be just "{player}
+  // {OVER/UNDER} {line}" -- no stat token anywhere. autoSettlePropsESPN's
+  // parsePropBetOn() requires a stat token to produce a parseable result
+  // at all (every one of its patterns matches player+direction+STAT+line
+  // in some order); without it, parsePropBetOn always returned null and
+  // every NBA prop locked through this function -- both the live LOCK
+  // button and the automated pipeline's lock_prop_leg() -- sat 'pending'
+  // forever, no matter how many settlement passes ran. `stat` (now passed
+  // through from _generateNBAProps' own statAbbr field, e.g. "PTS") is
+  // folded into betOn in "{player} {OVER/UNDER} {STAT} {line}" order,
+  // matching parsePropBetOn's primary pattern exactly. Optional and
+  // appended only when present so any other/older caller that doesn't
+  // pass it keeps its prior (already-broken, but unchanged) behavior
+  // rather than silently shifting field positions under it.
+  const statTok=(stat||'').toString().trim().toUpperCase();
+  const betOnStr=statTok?`${player} ${over?'OVER':'UNDER'} ${statTok} ${line}`:`${player} ${over?'OVER':'UNDER'} ${line}`;
+  const propId=`prop_${today()}_${sport}_${player}_${statTok}_${line}_${over?'O':'U'}`.replace(/\s/g,'');
   if(LOCKED_PROPS.some(p=>p.id===propId)){toast(`// ALREADY LOCKED: ${player} ${over?'OVER':'UNDER'} ${line}`);return;}
   const prop={id:propId,team,player,line,over,conf,ml,lockedAt:Date.now(),outcome:'pending',date:today(),
-    sport,league:sport,betType:'PROP',betOn:`${player} ${over?'OVER':'UNDER'} ${line}`,winProb:conf||0.60,
+    sport,league:sport,betType:'PROP',betOn:betOnStr,winProb:conf||0.60,
     // awA falls back to team only when no opponent was passed through —
     // this used to be hardcoded to team (both sides), which is exactly
     // what produced "CHI at CHI" style matchup displays.
@@ -17536,7 +17635,7 @@ function lockProp(team,player,line,over,conf,ml,sport,opp){
   localStorage.setItem('locked_props',JSON.stringify(LOCKED_PROPS));
   // Also add to main picks store so it shows in bet history
   const preds=getP();preds.push(prop);saveP(preds);updHdr();
-  toast(`// PROP LOCKED: ${player} ${over?'OVER':'UNDER'} ${line}`);try{window.showBetPopup({type:'lock',betOn:`${player} ${over?'OVER':'UNDER'} ${line}`,sport,betType:'PROP',ml,prob:conf||0.60,decOdds:dec});}catch(ex){}
+  toast(`// PROP LOCKED: ${player} ${over?'OVER':'UNDER'} ${line}`);try{window.showBetPopup({type:'lock',betOn:betOnStr,sport,betType:'PROP',ml,prob:conf||0.60,decOdds:dec});}catch(ex){}
   renderPropsTracker();
 }
 function lockNHLProp(player,stat,dir,prob,ml,line){
