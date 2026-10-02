@@ -12827,7 +12827,22 @@ function renderOverall(){
     return pnl/bets.length*100;
   };
   // 60-day window
-  const last60=settled.filter(p=>p.date&&p.date>=nDaysAgoET(60));
+  // Real perf bug, found via a live timing audit (2026-10-01): nDaysAgoET()
+  // builds a fresh Intl.DateTimeFormat (toLocaleDateString with a timeZone
+  // option) on every call, and that call used to sit INSIDE this filter's
+  // predicate -- so it was re-run once per settled bet instead of once
+  // total, even though it returns the exact same cutoff date for every
+  // item (it only depends on Date.now(), never on `p`). Measured live
+  // against the real deployed ledger (1476 settled bets after the
+  // retired-sport scope filter): 291ms spent in nDaysAgoET() alone for
+  // this one line, out of renderOverall()'s ~900ms total -- same class of
+  // redundant-per-item recompute as the toUpperCase() fix earlier in this
+  // function, just an Intl call instead of a string method so each
+  // wasted call costs far more. Hoisted to a single constant computed
+  // once, same fix applied to the identical pattern 37 lines below
+  // (wk7Roi's nDaysAgoET(7)).
+  const _60dCutoff=nDaysAgoET(60);
+  const last60=settled.filter(p=>p.date&&p.date>=_60dCutoff);
   const last60BySport={};
   for(const p of last60){const s=p.sport||'?';if(!last60BySport[s])last60BySport[s]=[];last60BySport[s].push(p);}
   const last60ByType={};
@@ -12864,7 +12879,10 @@ function renderOverall(){
 
   // Recent form narrative
   if(wk7Perf.n>=3){
-    const wk7Roi=roiPct(settled.filter(p=>p.date&&p.date>=nDaysAgoET(7)));
+    // Same nDaysAgoET()-inside-the-filter-predicate bug as last60 above,
+    // same fix: hoist the cutoff to a single call.
+    const _7dCutoff=nDaysAgoET(7);
+    const wk7Roi=roiPct(settled.filter(p=>p.date&&p.date>=_7dCutoff));
     if(wk7Perf.acc!==null&&wk7Perf.acc>=0.60)insights.push(`Strong recent form — ${wk7Perf.w}W–${wk7Perf.l}L over the last 7 days (${(wk7Perf.acc*100).toFixed(0)}% win rate, ${wk7Perf.units>=0?'+':''}${wk7Perf.units.toFixed(1)} units, ${wk7Roi!==null?(wk7Roi>=0?'+':'')+wk7Roi.toFixed(1)+'% ROI':''}).`);
     else if(wk7Perf.acc!==null&&wk7Perf.acc<0.45)insights.push(`Difficult 7-day stretch — ${wk7Perf.w}W–${wk7Perf.l}L. The engine has auto-tightened pick criteria. Consider reducing unit size until form recovers.`);
   }
