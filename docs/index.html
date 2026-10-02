@@ -3800,6 +3800,42 @@ function _mfScore(p,e,edgePP,sigmaV,kFrac){
   const kS=kFrac>=.15?.5:kFrac>=.08?.25:0;
   return+(pS+eS+edS+alS+kS).toFixed(2);
 }
+// ── Pre-start lock guard (added 2026-10-02) ───────────────────────────
+// Real bug: picks were being locked AFTER the game started/finished (the European-hockey ledger showed 28% of
+// picks locked after kickoff, winning ~93% vs ~66% pre-start). The lock pipeline captured every schedule-file
+// game whose `state` wasn't 'post', but those files refresh only 2-3x/day and the lock workflows land hours after
+// their nominal time. Both the Python pipeline and lockPick now refuse a game whose scheduled start is within
+// LOCK_START_MARGIN_MIN minutes of now (or already past). KEEP IN SYNC with LOCK_START_MARGIN_MIN in
+// scripts/auto_lock_settle.py (scripts/verify_hockey_rules.py checks this).
+const LOCK_START_MARGIN_MIN=10;
+// ISO timestamp / epoch ms -> epoch ms, or null. Date-only strings ('2026-10-02') are rejected on purpose: they parse
+// as midnight UTC, which would be a wrong start time rather than an honest "unknown".
+function _startMsOf(v){
+  if(v==null||v==='')return null;
+  var t;
+  if(typeof v==='number')t=v;
+  else if(typeof v==='string'&&/\d{4}-\d{2}-\d{2}[T ]\d{1,2}:\d{2}/.test(v))t=Date.parse(v);
+  else return null;
+  return(typeof t==='number'&&isFinite(t)&&t>946684800000)?t:null;
+}
+// Returns null when OK to lock, else a short human reason. startMs==null/undefined -> no guard (caller decides).
+function _lockStartBlock(startMs,nowMs){
+  if(startMs==null)return null;
+  var now=nowMs!=null?nowMs:Date.now();
+  var mins=(startMs-now)/60000;
+  if(mins>=LOCK_START_MARGIN_MIN)return null;
+  return mins<=0?('game started '+Math.round(-mins)+'m ago'):('game starts in '+Math.round(mins)+'m (<'+LOCK_START_MARGIN_MIN+'m margin)');
+}
+// Real scheduled start per rendered game, filled by _autoLockCapture (every card calls it), read back by lockPick so
+// EVERY manual lock button -- lockH, _spreadLockDir, _ouLockDir, the hockey minors' direct lockPick chips -- is guarded
+// without editing ~40 onclick strings. Key: hA|awA|MT calendar date of the start (both orientations stored).
+window._gameStartReg=window._gameStartReg||{};
+function _mtDateOf(ms){try{return new Date(ms).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});}catch(e){return null;}}
+function _regGameStart(hA,awA,startMs){
+  if(startMs==null)return;var d=_mtDateOf(startMs);if(!d)return;
+  window._gameStartReg[hA+'|'+awA+'|'+d]=startMs;window._gameStartReg[awA+'|'+hA+'|'+d]=startMs;
+}
+function _lookupGameStart(hA,awA,dateKey){var v=window._gameStartReg[hA+'|'+awA+'|'+dateKey];return v==null?null:v;}
 // ── Auto-lock capture ──────────────────────────────────────────────────
 // Non-invasive hook: game-card render functions that already compute a
 // real _evalMkts() result call this right after, so the server-side
@@ -3843,9 +3879,14 @@ window._reasoningCache=window._reasoningCache||{};
 // straight through to the daily locks email so a pick isn't just a bare
 // "TEAM -3.5", it shows the real model output that produced it, same
 // transparency the live UI already gives a human looking at the card.
-function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors){
+// startRaw: the game's real scheduled start -- an ISO timestamp string or epoch ms (every card's own game
+// object carries it as g.date / espnEv.date). Parsed by _startMsOf into `startMs` on the captured entry so the
+// Python pipeline (build_qualifying / lock_game_leg) and lockPick can refuse any game that has already started
+// -- see LOCK_START_GUARD below and scripts/auto_lock_settle.py's LOCK_START_MARGIN_MIN. null when the card had no
+// parseable start time (the pipeline then fails CLOSED for NHL + the 4 European hockey leagues).
+function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors,startRaw){
   try{
-    var entry={sport,hA,awA,mcSummary:mcSummary||null,
+    var entry={sport,hA,awA,mcSummary:mcSummary||null,startMs:_startMsOf(startRaw),
       best:nm.best?{label:nm.best.label,side:nm.best.side,tierN:nm.tierN,lane:!!nm.best.hkLane&&nm.best.tierN<2}:null,
       // mfScore added 2026-09-30: _evalMkts already computes this per
       // market -- the same composite 0-10 confidence score (probability
@@ -3880,7 +3921,11 @@ function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors){
     // daily locks email and this file's own social-post generator. The
     // later capture is kept since it reflects the more complete data.
     var i=window._autoLockLegs.findIndex(function(l){return l.sport===sport&&l.hA===hA&&l.awA===awA;});
+    // A later re-capture of the same game that carries no start time (a fallback render path) must not erase a
+    // start time an earlier capture already had -- that would turn a guarded game into an unguarded one.
+    if(i>=0&&entry.startMs==null&&window._autoLockLegs[i].startMs!=null)entry.startMs=window._autoLockLegs[i].startMs;
     if(i>=0)window._autoLockLegs[i]=entry;else window._autoLockLegs.push(entry);
+    _regGameStart(hA,awA,entry.startMs);
     // Populate the manual-UI reasoning cache (see window._reasoningCache's
     // own comment above). Bucketed by market TYPE (ML/SPREAD/OU) since
     // that's the granularity lockPick's _betTypeNorm resolves to -- but
@@ -5346,6 +5391,13 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   // trying to cram both meanings into `type`.
   // Bet Journal: record reason (set via showBetJournalModal or skipped)
   const dateKey=date||today();
+  // Pre-start guard (see LOCK_START_MARGIN_MIN): refuse a game that has started or starts within the margin. The
+  // start comes from extraMeta.startMs (the Python pipeline passes it) or, for manual lock buttons, from the
+  // _gameStartReg entry the card's own _autoLockCapture parked at render time. Unknown start -> no JS-side guard
+  // (the Python pipeline fails closed on its own for hockey).
+  {const _stMs=(extraMeta&&extraMeta.startMs!=null)?extraMeta.startMs:_lookupGameStart(hA,awA,dateKey);
+   const _stBlk=_lockStartBlock(_stMs);
+   if(_stBlk){try{toast(`// LOCK REFUSED: ${betOn} — ${_stBlk}`);}catch(e){}try{console.warn('[lockPick] refused:',hA,'vs',awA,betOn,_stBlk);}catch(e){}return;}}
   // ── Sport + league + bet-type detection — computed FIRST so both the
   // API path and the offline-fallback path below can use it. (Previously
   // this lived after the API branch, so referencing sportTag/_betTypeNorm/
@@ -6462,7 +6514,7 @@ function renderNHLTonight(){
       // same matchup -- see its own comment).
       if(topTier>0)_attachReasoning(_nm1,side=>_mcLineScore(mc,side,gh.ou,{n:25000}),{[_bm1.side]:explanation});
       else _attachReasoning(_nm1,side=>_mcLineScore(mc,side,gh.ou,{n:25000}));
-      _autoLockCapture('NHL',gh.h,gh.a,_nm1,mc?`MC PROJ: ${gh.a} ${mc.avgA.toFixed(1)} – ${gh.h} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null);
+      _autoLockCapture('NHL',gh.h,gh.a,_nm1,mc?`MC PROJ: ${gh.a} ${mc.avgA.toFixed(1)} – ${gh.h} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null,undefined,lg.date);
       html+=`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)"><div class="gch"><div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${gh.a}</span><span style="color:var(--t3);font-size:15px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${gh.h}</span></div><div class="gsp">GOALIES: ${aw.g1} vs ${h.g1}</div><div class="gsp">${gh.ctx?'G'+gh.gn+' · '+gh.ctx+' · ':''}<span style="color:var(--vc)">O/U ${gh.ou}</span></div></div><div style="text-align:right"><div class="np mono" style="font-size:19px">${statusDot}${statusTxt}</div></div></div><div class="brow"><div class="${hCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.h}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},${_hkExtraMeta(_px1.ml.home,_tnML)})"><div class="cht">ML ${gh.h}</div><div class="cho">${_mlFmt(hML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px1.ml.home)}</div>${_hkBlendTag(_tnML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${hCS.pl}">${hCS.lb}</span></div></div><div class="${aCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.a}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},${_hkExtraMeta(_px1.ml.away,_hkBlComp(_tnML))})"><div class="cht">ML ${gh.a}</div><div class="cho">${_mlFmt(aML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px1.ml.away)}</div>${_hkBlendTag(_hkBlComp(_tnML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div style="margin-top:2px"><span class="pill ${aCS.pl}">${aCS.lb}</span></div></div><div style="flex:2;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.2);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="-1.5" id="sprd_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id);_hkPxRefresh(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','FAV','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.4);color:var(--gc);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.h:gh.a}</div><div id="fav_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">-1.5</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','DOG','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(80,120,255,.08);border:1px solid rgba(80,120,255,.3);color:var(--t2);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.a:gh.h}</div><div id="dog_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">+1.5</div></button></div>${_hkPxLabelHTML('sprd_nhl1_'+gh.h+'_'+gh.a,{kind:'pl',g:_pg1,favIsHome:hP>=aP,nhl:true})}${_hkBlendLabelHTML('sprd_nhl1_'+gh.h+'_'+gh.a,_tnPL,-1.5)}</div><div style="flex:2;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${gh.ou}" id="ouinp_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.4);color:var(--nc);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,32,144,.1);border:1px solid rgba(255,32,144,.4);color:var(--hc);border-radius:2px;cursor:pointer">▼ UNDER</button></div>${_hkPxLabelHTML('ouinp_nhl1_'+gh.h+'_'+gh.a,{kind:'ou',g:_pg1,line:gh.ou,nhl:true})}${_hkBlendLabelHTML('ouinp_nhl1_'+gh.h+'_'+gh.a,_tnOU,gh.ou)}</div></div><div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${topTierCol};color:${topTierCol};border-radius:2px">${topTierLabel}</span><span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span></div>${_mcProjBarHTML(mc,gh.ou||5.5,gh.h,gh.a,{dec:2})}${_bestMarketBoxHTML(_nm1.tierN,_nm1.col,_nm1.lbl,_nm1.best.label,_nm1.best.prob,_nm1.best.evVal)}<div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div><div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm1.mkts.map(_hkScanTxt).join(' · ')}</div></div><div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px"><span class="mono" style="font-size:16px;color:var(--t3)">MC:${(ens.mc*100).toFixed(0)}% xGF:${(ens.xgf*100).toFixed(0)}% ELO:${(ens.elo*100).toFixed(0)}% · PROJ ${mc?mc.avgH.toFixed(1)+'-'+mc.avgA.toFixed(1):'—'} · OT ${mc?(mc.otP*100).toFixed(0):0}%</span></div></div>`;
     }
     el.innerHTML=html||'<div class="empty">NO NHL GAMES TONIGHT</div>';
@@ -6531,7 +6583,7 @@ function renderNHLTonight(){
     // near-duplicate).
     if(topTier>0)_attachReasoning(_nm2,side=>_mcLineScore(mc,side,g.ou||5.5,{n:25000}),{[_bm2.side]:explanation});
     else _attachReasoning(_nm2,side=>_mcLineScore(mc,side,g.ou||5.5,{n:25000}));
-    _autoLockCapture('NHL',g.h,g.a,_nm2,mc?`MC PROJ: ${g.a} ${mc.avgA.toFixed(1)} – ${g.h} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null);
+    _autoLockCapture('NHL',g.h,g.a,_nm2,mc?`MC PROJ: ${g.a} ${mc.avgA.toFixed(1)} – ${g.h} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null,undefined,g.date);
     html+=`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)">
   <div class="gch">
     <div>
@@ -7754,7 +7806,7 @@ function _cfbGameCard(g){
   // behavior change to the guard itself (_cfbBothMajorConf), just later.
   _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverP,overP,ouL),
     {mlFav:mlReasoning,mlDog:mlReasoning,sprdFav:sprdReasoning,sprdDog:sprdReasoning,over:ouReasoning,under:ouReasoning});
-  if(_cfbBothMajorConf(D,g.home,g.away))_autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`);
+  if(_cfbBothMajorConf(D,g.home,g.away))_autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`,undefined,g.date);
   const gidSafe=(g.home+'_'+g.away).replace(/[^A-Za-z0-9_]/g,'');
   return`<div class="gc" style="border-left:2px solid rgba(255,110,20,.4)">
     <div class="gch">
@@ -8658,7 +8710,7 @@ function _nflGameCard2(g){
   // text, then _autoLockCapture reads nm.mkts' new .reasoning field.
   _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverP,overP,ouL),
     {mlFav:mlReasoning,mlDog:mlReasoning,sprdFav:sprdReasoning,sprdDog:sprdReasoning,over:ouReasoning,under:ouReasoning});
-  _autoLockCapture('NFL',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`);
+  _autoLockCapture('NFL',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`,undefined,g.date);
   return`<div class="gc" style="border-left:2px solid rgba(0,120,255,.4)">
     <div class="gch">
       <div>
@@ -9220,7 +9272,7 @@ function _nhlGameCard(espnEv){
       // other market gets the generic PICK/MODEL composition only.
       if(topTier>0&&!post&&!live)_attachReasoning(_nm3,side=>_mcLineScore(_nhlMcD,side,nhlOuL,{n:25000}),{[_bm3.side]:explanation});
       else _attachReasoning(_nm3,side=>_mcLineScore(_nhlMcD,side,nhlOuL,{n:25000}));
-      _autoLockCapture('NHL',hn,an,_nm3,_nhlEmailMc);
+      _autoLockCapture('NHL',hn,an,_nm3,_nhlEmailMc,undefined,espnEv.date);
       return`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)">
   <div class="gch">
     <div>
@@ -9393,7 +9445,7 @@ function renderNHLGamesOffline(){
     // TONIGHT last-resort fallback, another near-duplicate).
     if(topTier>0)_attachReasoning(_nmOff,side=>_mcLineScore(mc,side,_ouLOff,{n:25000}),{[_bmOff.side]:explanation});
     else _attachReasoning(_nmOff,side=>_mcLineScore(mc,side,_ouLOff,{n:25000}));
-    _autoLockCapture('NHL',g.h,g.a,_nmOff,mc?`MC PROJ: ${g.a} ${mc.avgA.toFixed(1)} – ${g.h} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null);
+    _autoLockCapture('NHL',g.h,g.a,_nmOff,mc?`MC PROJ: ${g.a} ${mc.avgA.toFixed(1)} – ${g.h} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null,undefined,g.date);
     html+=`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)">
   <div class="gch">
     <div>
@@ -9570,7 +9622,7 @@ function _nhlUpcomingCard(g,dayIdx){
   // "Why this pick" capture -- see _nhlGameCard's identical comment above.
   if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouLine,{n:25000}),{[bm.side]:explanation});
   else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouLine,{n:25000}));
-  _autoLockCapture('NHL',g.home,g.away,nm,mc?`MC PROJ: ${g.away} ${mc.avgA.toFixed(1)} – ${g.home} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null);
+  _autoLockCapture('NHL',g.home,g.away,nm,mc?`MC PROJ: ${g.away} ${mc.avgA.toFixed(1)} – ${g.home} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null,undefined,g.date);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.away} ${g.awayScore} – ${g.home} ${g.homeScore}`:''}`:timeStr;
@@ -11007,7 +11059,7 @@ function _liigaMatchCard(g){
   // sim count.
   if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}),{[bm.side]:explanation});
   else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}));
-  _autoLockCapture('LIIGA',g.homeName,g.awayName,nm,`EXACT-POISSON PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
+  _autoLockCapture('LIIGA',g.homeName,g.awayName,nm,`EXACT-POISSON PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`,undefined,g.date);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
@@ -11150,7 +11202,7 @@ function _nlaMatchCard(g){
   // (this is NLA, the same near-duplicate pattern).
   if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}),{[bm.side]:explanation});
   else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}));
-  _autoLockCapture('NLA',g.homeName,g.awayName,nm,`EXACT-POISSON PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
+  _autoLockCapture('NLA',g.homeName,g.awayName,nm,`EXACT-POISSON PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`,undefined,g.date);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
@@ -11289,7 +11341,7 @@ function _extraligaMatchCard(g){
   // (this is Extraliga, the same near-duplicate pattern).
   if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}),{[bm.side]:explanation});
   else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}));
-  _autoLockCapture('EXTRALIGA',g.homeName,g.awayName,nm,`EXACT-POISSON PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
+  _autoLockCapture('EXTRALIGA',g.homeName,g.awayName,nm,`EXACT-POISSON PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`,undefined,g.date);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
@@ -11609,7 +11661,7 @@ function _shlMatchCard(g){
   // (this is SHL, the same near-duplicate pattern).
   if(topTier>0)_attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}),{[bm.side]:explanation});
   else _attachReasoning(nm,side=>_mcLineScore(mc,side,ouL,{exact:true}));
-  _autoLockCapture('SHL',g.homeName,g.awayName,nm,`EXACT-POISSON PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`);
+  _autoLockCapture('SHL',g.homeName,g.awayName,nm,`EXACT-POISSON PROJ: ${g.awayName} ${mc.avgA.toFixed(1)} – ${g.homeName} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`,undefined,g.date);
   const dt=g.date?new Date(g.date):null;
   const timeStr=dt?dt.toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT':'TBD';
   const stateTxt=g.state==='post'?`FINAL${g.homeScore!=null?`: ${g.awayName} ${g.awayScore} – ${g.homeName} ${g.homeScore}`:''}`:timeStr;
@@ -12767,7 +12819,7 @@ function _nbaGameCard(espnEv){
       // topTier reflect a live model projection only while pre is true).
       if(pre&&topTier>0)_attachReasoning(_nmNBA,side=>_mcLineScore(nbaEnsD?.mcD,side,ouL,{n:25000}),{[_bmNBA.side]:explanation});
       else if(pre)_attachReasoning(_nmNBA,side=>_mcLineScore(nbaEnsD?.mcD,side,ouL,{n:25000}));
-      _autoLockCapture('NBA',hn,an,_nmNBA,_nbaEmailMc);
+      _autoLockCapture('NBA',hn,an,_nmNBA,_nbaEmailMc,undefined,espnEv.date);
       const parlayBtn='';
       const _nbaGidSafe=String(espnEv.id||(hn+'_'+an)).replace(/[^a-zA-Z0-9]/g,'');
       return`<div class="gc" style="border-left:2px solid rgba(240,0,255,.4)">
@@ -25783,7 +25835,7 @@ function _renderSocMatchCard(g,leagueKey){
   // honestly here.
   if(topT>0)_attachReasoning(_mkts,function(side){return _mcLineSoccer(mc,side,ouL);},(function(){var r={};r[_bm.side]=explanation;return r;})());
   else _attachReasoning(_mkts,function(side){return _mcLineSoccer(mc,side,ouL);});
-  _autoLockCapture('SOC_'+leagueKey.toUpperCase(),g.home,g.away,_mkts,'xG PROJ: '+g.home+' '+hxg.toFixed(2)+' – '+g.away+' '+axg.toFixed(2),_eg.factors);
+  _autoLockCapture('SOC_'+leagueKey.toUpperCase(),g.home,g.away,_mkts,'xG PROJ: '+g.home+' '+hxg.toFixed(2)+' – '+g.away+' '+axg.toFixed(2),_eg.factors,g.date);
   var isLive=g.status==='in',isFinal=g.status==='post';
   var scoreHtml='';
   if(isLive){scoreHtml='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="font-family:var(--orb);font-size:27px;font-weight:900;color:#ffdd00">'+(g.hScore||0)+'</span><span style="font-family:var(--mono);font-size:15px;color:#ffdd00;background:rgba(255,221,0,.12);padding:2px 7px;border-radius:2px;border:1px solid rgba(255,221,0,.4);animation:pulse 1.5s infinite">● LIVE '+(g.clock||'')+'</span><span style="font-family:var(--orb);font-size:27px;font-weight:900;color:#ffdd00">'+(g.aScore||0)+'</span></div>';}

@@ -341,6 +341,76 @@ HOCKEY_LANE_EV_MIN = -0.07         # high-probability lane: EV at the real price
 HOCKEY_ODDS_MAX_AGE_H = 18         # a posted price older than this is not trusted (mirrors HOCKEY_ODDS_MAX_AGE_H in app.html)
 HOCKEY_LANE_LABEL = "HIGH PROB"
 
+# ── PRE-START LOCK GUARD (2026-10-02) ────────────────────────────────────────────────────────────────────────────────────
+# Real bug: the European-hockey ledger showed 28% of picks locked AFTER the game started (those won ~93% vs ~66% for
+# pre-start locks -- look-ahead contamination). The pipeline captured every schedule-file game whose `state` wasn't 'post',
+# but those files refresh only 2-3x/day and GitHub Actions lock passes land hours after their nominal time, so a pass could
+# "lock" a game that was in progress or finished. build_qualifying()/lock_game_leg() now refuse any leg whose scheduled
+# start (startMs, epoch ms, threaded from docs/app.html's _autoLockCapture) is within LOCK_START_MARGIN_MIN of now or past.
+# Mirrors LOCK_START_MARGIN_MIN in docs/app.html (checked by scripts/verify_hockey_rules.py).
+LOCK_START_MARGIN_MIN = 10
+# Sports where an UNKNOWN/unparseable start fails CLOSED (leg refused). Every other sport fails OPEN when startMs is
+# missing (all current card call sites do pass g.date, so that only happens on a malformed schedule row) and is reported
+# in the guard summary line as "unguarded".
+START_GUARD_FAIL_CLOSED_SPORTS = HOCKEY_SPORTS
+# Per-process running totals so the lock-status detail text can say how many legs a pass skipped. Reset never needed:
+# each workflow run is its own short-lived process.
+START_GUARD_TOTALS = {"skipped": 0, "unguarded": 0}
+
+
+def guard_note() -> str:
+    """Suffix for the lock-status detail text: how many legs this process skipped because the game had already started.
+    Empty when none. A skip is the guard WORKING -- it must never flip a status to ok=False (see write_automation_status
+    callers: ok depends only on locked-vs-verified counts) or be read as a failed lock by verify_lock_workflows.py."""
+    n = START_GUARD_TOTALS["skipped"]
+    return f"; {n} leg(s) skipped: game already started" if n else ""
+
+
+def _now_ms(now=None) -> float:
+    """now: None (real clock), a datetime, or epoch milliseconds (int/float) -- injectable for tests."""
+    if now is None:
+        return datetime.now(timezone.utc).timestamp() * 1000.0
+    if isinstance(now, datetime):
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        return now.timestamp() * 1000.0
+    return float(now)
+
+
+def parse_start_ms(v):
+    """startMs as the card captured it (epoch ms) -> float epoch ms, or None if missing/unparseable. Also tolerates an
+    ISO-8601 string. Values that look like epoch SECONDS (< 1e11) or are absurd are rejected rather than guessed at."""
+    if v is None or isinstance(v, bool):
+        return None
+    if isinstance(v, str):
+        try:
+            v = datetime.fromisoformat(v.strip().replace("Z", "+00:00")).timestamp() * 1000.0
+        except ValueError:
+            return None
+    try:
+        t = float(v)
+    except (TypeError, ValueError):
+        return None
+    if t != t or not (946684800000 <= t <= 4102444800000):  # NaN, or outside 2000-01-01 .. 2100-01-01 in ms
+        return None
+    return t
+
+
+def start_guard(sport, start_ms, now=None, margin_min: float = LOCK_START_MARGIN_MIN):
+    """-> (ok, reason, minutes_until_start). ok=False means the leg must NOT be locked. reason is a short human string.
+    Unknown start: refused for START_GUARD_FAIL_CLOSED_SPORTS, allowed (reason 'no start time') otherwise."""
+    t = parse_start_ms(start_ms)
+    if t is None:
+        if (sport or "") in START_GUARD_FAIL_CLOSED_SPORTS:
+            return False, "no usable start time (fail closed)", None
+        return True, "no start time (unguarded)", None
+    mins = (t - _now_ms(now)) / 60000.0
+    if mins < margin_min:
+        if mins <= 0:
+            return False, f"game already started {-mins:.0f}m ago", mins
+        return False, f"game starts in {mins:.0f}m (< {margin_min:g}m margin)", mins
+    return True, "ok", mins
+
 
 def log(msg: str) -> None:
     ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
@@ -1482,18 +1552,30 @@ def _dedupe_opposite_sides(game_qualifying: list[dict]) -> list[dict]:
     return kept
 
 
-def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) -> list[dict]:
+def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, now=None,
+                     guard_stats: dict | None = None) -> list[dict]:
     """only_sports: if given, restricts to exactly these sport tags (e.g.
     PRODUCT_SPORTS["soccer"] for the soccer early pass, {"CFB"} for the
     CFB-only early pass) -- for the dedicated early lock runs timed ahead of
-    that sport/league's own earlier kickoffs."""
+    that sport/league's own earlier kickoffs.
+
+    now / guard_stats: the pre-start guard (see LOCK_START_MARGIN_MIN). A game whose scheduled start (gl["startMs"]) is
+    already past, or within the margin, contributes NO legs -- every leg that would otherwise have qualified is counted
+    as skipped and logged with its matchup. `now` is injectable (epoch ms or datetime) for tests; guard_stats, if given,
+    is filled with {"skipped": legs, "games": [...], "unguarded": legs}. Because the emails are built from this same
+    list, a skipped game never appears in a subscriber email either."""
     def _wanted(sport: str) -> bool:
         return only_sports is None or (sport or "") in only_sports
     qualifying: list[dict] = []
+    skipped_legs = 0
+    skipped_games: list[str] = []
+    unguarded_legs = 0
     for gl in result.get("gameLegs") or []:
         sport = gl.get("sport")
         if not _wanted(sport):
             continue
+        guard_ok, guard_reason, _guard_mins = start_guard(sport, gl.get("startMs"), now)
+        game_skipped = 0
         game_qualifying: list[dict] = []
         for m in gl.get("markets") or []:
             tier_n = m.get("tierN")
@@ -1520,6 +1602,11 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
                 qualifies = tier_n in QUALIFYING_TIERS or bool(m.get("hkLane"))
             else:
                 qualifies = tier_n in QUALIFYING_TIERS or is_high_hit
+            if qualifies and not guard_ok:
+                game_skipped += 1
+                continue
+            if qualifies and guard_reason.startswith("no start time"):
+                unguarded_legs += 1
             if qualifies:
                 game_qualifying.append({
                     "kind": "GAME", "sport": sport, "hA": gl.get("hA"), "awA": gl.get("awA"),
@@ -1569,7 +1656,15 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
                     # enough settled picks carry it. None for every other
                     # sport, which never passes this.
                     "socFactors": gl.get("socFactors"),
+                    # The game's real scheduled start (epoch ms) -- lock_game_leg re-checks it (defence in depth) and
+                    # passes it to lockPick, which stores startMs on the pick.
+                    "startMs": gl.get("startMs"),
                 })
+        if game_skipped:
+            skipped_legs += game_skipped
+            skipped_games.append(f"{sport} {gl.get('awA')} @ {gl.get('hA')}")
+            log(f"  skip: {guard_reason} -- [{sport}] {gl.get('awA')} @ {gl.get('hA')} "
+                f"({game_skipped} qualifying leg(s) not locked)")
         if len(game_qualifying) > 1:
             game_qualifying = _dedupe_opposite_sides(game_qualifying)
         # Same-game correlated-market cap: originally MLB-only (real ledger
@@ -1610,6 +1705,13 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
     # not left behind as dead code. Neither early pass (soccer, CFB)
     # needs or has any props to filter, so props are simply included
     # only on the unscoped (full) run.
+    START_GUARD_TOTALS["skipped"] += skipped_legs
+    START_GUARD_TOTALS["unguarded"] += unguarded_legs
+    if guard_stats is not None:
+        guard_stats.update({"skipped": skipped_legs, "games": skipped_games, "unguarded": unguarded_legs})
+    log(f"  start guard (margin {LOCK_START_MARGIN_MIN}m): {skipped_legs} legs skipped: game already started"
+        f"{' (' + str(len(skipped_games)) + ' game(s))' if skipped_games else ''}"
+        + (f"; {unguarded_legs} leg(s) had no start time and fail open" if unguarded_legs else ""))
     if only_sports is None:
         for p in result.get("propLegs") or []:
             if p.get("grade") not in ("PREMIUM", "OPTIMAL"):
@@ -1618,7 +1720,7 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
     return qualifying
 
 
-def lock_game_leg(page, q: dict, date_override: str | None = None) -> str:
+def lock_game_leg(page, q: dict, date_override: str | None = None, now=None) -> str:
     """Calls the real lockPick() directly with the explicit, correct sport
     tag (see module docstring on the type/betType tradeoff this mirrors
     from the app's own real lock buttons).
@@ -1635,6 +1737,11 @@ def lock_game_leg(page, q: dict, date_override: str | None = None) -> str:
     lock_type = SPORT_TO_LOCKPICK_TYPE.get(q["sport"])
     if not lock_type:
         return f"skip: no lockPick type mapping for sport {q['sport']}"
+    # Defence in depth for the pre-start guard (build_qualifying already filtered): never touch lockPick for a game that
+    # has started / starts within LOCK_START_MARGIN_MIN, or (hockey) whose start is unknown. `now` injectable for tests.
+    _ok, _why, _mins = start_guard(q["sport"], q.get("startMs"), now)
+    if not _ok:
+        return f"skip: {_why} ({q['sport']} {q.get('awA')} @ {q.get('hA')})"
     ml = q.get("ml")
     dec = q.get("dec")
     # Real bug, found auditing lock/settle across every sport: `type` here
@@ -1671,9 +1778,10 @@ def lock_game_leg(page, q: dict, date_override: str | None = None) -> str:
     model_prob = q.get("modelProb")
     market_prob = q.get("marketProb")
     blend_alpha = q.get("blendAlpha")
+    start_ms = parse_start_ms(q.get("startMs"))
     return page.evaluate(
         """
-        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors, reasoning, priceSource, modelProb, marketProb, blendAlpha }) => {
+        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors, reasoning, priceSource, modelProb, marketProb, blendAlpha, startMs }) => {
           // Real gap, found auditing the locks-email "X of Y legs actually
           // locked" line: this used to return a single 'dup-or-failed' for
           // BOTH "this exact leg was already locked by an earlier pass
@@ -1717,14 +1825,14 @@ def lock_game_leg(page, q: dict, date_override: str | None = None) -> str:
           if (dup) return 'already-locked';
           const before = getP().length;
           const hasBlend = (modelProb != null && marketProb != null);
-          const extraMeta = (socFactors || reasoning || priceSource || hasBlend) ? { ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}), ...(hasBlend ? { modelProb, marketProb, ...(blendAlpha != null ? { blendAlpha } : {}) } : {}) } : null;
+          const extraMeta = (socFactors || reasoning || priceSource || hasBlend || startMs != null) ? { ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}), ...(hasBlend ? { modelProb, marketProb, ...(blendAlpha != null ? { blendAlpha } : {}) } : {}), ...(startMs != null ? { startMs } : {}) } : null;
           await lockPick(hA, awA, type, betOn, prob, ml != null ? ml : '-110', dec || 1.91, dateKey, 'manual', betTypeOverride, extraMeta);
           const after = getP().length;
           return after > before ? 'locked' : 'failed';
         }
         """,
         {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "prob": q["prob"], "ml": ml, "dec": dec, "dateOverride": date_override, "betTypeOverride": bet_type_override, "socFactors": sock_factors, "reasoning": reasoning_text, "priceSource": price_source,
-         "modelProb": model_prob, "marketProb": market_prob, "blendAlpha": blend_alpha},
+         "modelProb": model_prob, "marketProb": market_prob, "blendAlpha": blend_alpha, "startMs": start_ms},
     )
 
 
@@ -2232,6 +2340,9 @@ class LockResult(NamedTuple):
     new: int
     already_locked: int
     failed: int
+    # Legs refused by the pre-start guard inside lock_game_leg (game already started / starts within the margin). NOT a
+    # failure: the pass did its job. Defaults to 0 so every existing LockResult(0, 0, 0) call site still works.
+    skipped: int = 0
 
     @property
     def confirmed(self) -> int:
@@ -2256,7 +2367,7 @@ def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | Non
     genuine lock failure and a completely normal same-day re-check
     dedup were indistinguishable in both the logs and the email. Now
     logged and counted separately."""
-    new = already_locked = failed = 0
+    new = already_locked = failed = skipped = 0
     for q in qualifying:
         try:
             outcome = lock_game_leg(page, q, date_override) if q["kind"] == "GAME" else lock_prop_leg(page, q["sport"], q["leg"])
@@ -2266,13 +2377,19 @@ def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | Non
             elif outcome == "already-locked":
                 already_locked += 1
                 log(f"  already locked (earlier pass today): {label}")
+            elif isinstance(outcome, str) and outcome.startswith(("skip: game", "skip: no usable start")):
+                skipped += 1
+                START_GUARD_TOTALS["skipped"] += 1
+                log(f"  skip: {outcome[6:]} -- {label}")
             else:
                 failed += 1
                 log(f"  FAILED to lock ({outcome}): {label}")
         except Exception as exc:
             failed += 1
             log(f"  FAILED to lock: {exc}")
-    return LockResult(new, already_locked, failed)
+    if skipped:
+        log(f"  {skipped} leg(s) skipped at lock time: game already started")
+    return LockResult(new, already_locked, failed, skipped)
 
 
 def verify_locks_for_date(page, date_iso: str | None = None) -> int:
@@ -3026,7 +3143,7 @@ def main() -> None:
                     verified_count = verify_locks_for_date(page, tomorrow_mt) if args.live else None
                     if args.live:
                         ok = not (locked_this_pass > 0 and (verified_count or 0) == 0)
-                        detail = f"evening-prior lock pass completed, {verified_count} pick(s) verified for {tomorrow_mt}"
+                        detail = f"evening-prior lock pass completed, {verified_count} pick(s) verified for {tomorrow_mt}{guard_note()}"
                         write_automation_status("lastSoccerEveningLock", ok, detail)
                 except Exception as exc:
                     log(f"soccer evening-prior lock step failed: {exc}")
@@ -3049,7 +3166,7 @@ def main() -> None:
                     verified_count = verify_locks_for_date(page, tomorrow_mt) if args.live else None
                     if args.live:
                         ok = not (locked_this_pass > 0 and (verified_count or 0) == 0)
-                        detail = f"evening-prior lock pass completed, {verified_count} pick(s) verified for {tomorrow_mt}"
+                        detail = f"evening-prior lock pass completed, {verified_count} pick(s) verified for {tomorrow_mt}{guard_note()}"
                         write_automation_status("lastCfbEveningLock", ok, detail)
                 except Exception as exc:
                     log(f"CFB evening-prior lock step failed: {exc}")
@@ -3068,7 +3185,7 @@ def main() -> None:
                     verified_count = verify_locks_for_date(page, tomorrow_mt) if args.live else None
                     if args.live:
                         ok = not (locked_this_pass > 0 and (verified_count or 0) == 0)
-                        detail = f"evening-prior lock pass completed, {verified_count} pick(s) verified for {tomorrow_mt}"
+                        detail = f"evening-prior lock pass completed, {verified_count} pick(s) verified for {tomorrow_mt}{guard_note()}"
                         write_automation_status("lastHockeyEveningLock", ok, detail)
                 except Exception as exc:
                     log(f"SHL/Liiga evening-prior lock step failed: {exc}")
@@ -3087,7 +3204,7 @@ def main() -> None:
                         write_automation_status(
                             "lastLock", not write_failed,
                             f"EURO EARLY lock pass completed, {locked_this_pass} locked this pass, "
-                            f"{verified_count} pick(s) verified for {today_mt}"
+                            f"{verified_count} pick(s) verified for {today_mt}{guard_note()}"
                             + (" -- WRITE MAY HAVE SILENTLY FAILED" if write_failed else ""))
                 except Exception as exc:
                     log(f"EURO EARLY lock step failed: {exc}")
@@ -3124,7 +3241,7 @@ def main() -> None:
                     # persisted, not just that lockPick() didn't throw.
                     verified_count = verify_todays_locks(page) if args.live else None
                     if args.live:
-                        detail = f"lock pass completed, {verified_count} pick(s) verified for {today_mt}"
+                        detail = f"lock pass completed, {verified_count} pick(s) verified for {today_mt}{guard_note()}"
                         write_automation_status("lastLock", True, detail)
                         if want_email:
                             try:
@@ -3166,7 +3283,7 @@ def main() -> None:
                         write_automation_status(
                             "lastLock", not write_failed,
                             f"{label} lock pass completed, {locked_this_pass} locked this pass, "
-                            f"{verified_count} pick(s) verified for {today_mt}"
+                            f"{verified_count} pick(s) verified for {today_mt}{guard_note()}"
                             + (" -- WRITE MAY HAVE SILENTLY FAILED" if write_failed else ""))
                 except Exception as exc:
                     log(f"{label} lock step failed: {exc}")
