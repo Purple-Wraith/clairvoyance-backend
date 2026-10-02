@@ -21147,9 +21147,13 @@ async function renderNewsAll(){
   // wnba/bl/mls removed 2026-09-30, explicit request -- all 3 are fully
   // retired (WNBA/Bundesliga/MLS), so their news/injuries/transactions no
   // longer need fetching into the aggregated feed. mlb removed same day,
-  // separate explicit request -- also fully retired.
-  const NEWS_LEAGUES=['nhl','nba','cbb','nfl','cfb','liga','pl','ita','cl'];
-  const INJ_LEAGUES=['nhl','nba','cbb','nfl','cfb'];
+  // separate explicit request -- also fully retired. cbb removed
+  // 2026-10-01 -- missed in that same 2026-09-30 pass (CBB has been fully
+  // retired since 2026-09-08, same day as WNBA), a real bug: this kept
+  // live-fetching College Basketball news/injuries into the News tab's
+  // aggregated feed every time it was opened.
+  const NEWS_LEAGUES=['nhl','nba','nfl','cfb','liga','pl','ita','cl'];
+  const INJ_LEAGUES=['nhl','nba','nfl','cfb'];
   const TXN_LEAGUES=['nhl','nba','nfl'];
   const [newsResults,injResults,txnResults]=await Promise.all([
     Promise.all(NEWS_LEAGUES.map(l=>fetchESPNNews('sports',l,l==='nhl'||l==='nba'?15:10))),
@@ -21163,7 +21167,7 @@ async function renderNewsAll(){
   let html='';
   html+=`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:8px 12px;background:rgba(0,240,255,.04);border:1px solid rgba(0,240,255,.15);border-radius:3px">
     <span style="font-family:var(--mono);font-size:15px;color:rgba(0,240,255,.7);letter-spacing:1px">LAST UPDATED: ${updStr} · ESPN LIVE</span>
-    <button onclick="['nhl','nba','cbb','nfl','cfb','liga','pl','ita','cl'].forEach(s=>{delete NEWS_CACHE['sports_'+s];delete NEWS_CACHE['injuries_'+s];delete NEWS_CACHE['transactions_'+s]});renderNewsAll()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(0,240,255,.08);border:1px solid rgba(0,240,255,.3);color:#00f0ff;border-radius:2px;cursor:pointer">↻ UPDATE ALL NEWS</button>
+    <button onclick="['nhl','nba','nfl','cfb','liga','pl','ita','cl'].forEach(s=>{delete NEWS_CACHE['sports_'+s];delete NEWS_CACHE['injuries_'+s];delete NEWS_CACHE['transactions_'+s]});renderNewsAll()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(0,240,255,.08);border:1px solid rgba(0,240,255,.3);color:#00f0ff;border-radius:2px;cursor:pointer">↻ UPDATE ALL NEWS</button>
   </div>`;
   html+=newsFilterBar('news-tab-all','#f000ff');
   if(latestTxn.length){
@@ -21181,7 +21185,7 @@ async function renderNewsInjuries(){
   const el=document.getElementById('news-injuries-content');if(!el)return;
   el.innerHTML=newsLoadingState('FETCHING INJURY REPORTS…');
   const now=new Date();
-  const INJ_LEAGUES=['nhl','nba','cbb','nfl','cfb']; // wnba/mlb removed 2026-09-30, retired
+  const INJ_LEAGUES=['nhl','nba','nfl','cfb']; // wnba/mlb removed 2026-09-30, cbb removed 2026-10-01, retired
   const all=(await Promise.all(INJ_LEAGUES.map(l=>fetchESPNInjuries(l)))).flat();
   if(!all.length){el.innerHTML=newsErrorState('injury');return;}
   const out=all.filter(i=>i.status.toLowerCase().includes('out')||i.status.toLowerCase().includes(' ir')||i.status.toLowerCase().includes('injured reserve'));
@@ -21194,7 +21198,7 @@ async function renderNewsInjuries(){
   const updStr=now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' · '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
   let html=`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:8px 12px;background:rgba(255,32,144,.04);border:1px solid rgba(255,32,144,.15);border-radius:3px">
     <span style="font-family:var(--mono);font-size:15px;color:rgba(255,32,144,.7);letter-spacing:1px">LAST UPDATED: ${updStr} · ESPN LIVE · ${all.length} PLAYERS</span>
-    <button onclick="['nhl','nba','cbb','nfl','cfb'].forEach(s=>delete NEWS_CACHE['injuries_'+s]);renderNewsInjuries()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(255,32,144,.08);border:1px solid rgba(255,32,144,.3);color:#ff2090;border-radius:2px;cursor:pointer">↻ UPDATE INJURIES</button>
+    <button onclick="['nhl','nba','nfl','cfb'].forEach(s=>delete NEWS_CACHE['injuries_'+s]);renderNewsInjuries()" style="font-family:var(--mono);font-size:15px;padding:4px 14px;background:rgba(255,32,144,.08);border:1px solid rgba(255,32,144,.3);color:#ff2090;border-radius:2px;cursor:pointer">↻ UPDATE INJURIES</button>
   </div>`;
   html+=newsFilterBar('news-tab-injuries','#ff2090');
   html+=buildSection('OUT / INJURED RESERVE','#ff2090',out);
