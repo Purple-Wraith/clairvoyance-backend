@@ -3548,6 +3548,43 @@ function _bestMarketBoxHTML(tierN,tierCol,tierLabel,bestLabel,bestProb,bestEvVal
     +`<span style="font-family:var(--mono);font-size:14px;color:var(--t2)">${Math.round(bestProb*100)}% · EV ${bestEvVal>=0?'+':''}${(bestEvVal*100).toFixed(1)}%</span>`
     +`</div>`;
 }
+// ── "Why this pick" expand/collapse row (Part 4 UI, added 2026-10-02) ────
+// Shared by Bet History (renderOverallHistory) and every sport's own
+// locked-bets list (renderNHLLockedBets/renderNBALockedBets/
+// renderHomeLockedBets/renderAllLockedBets) so the toggle behavior, empty-
+// state message, and HTML-escaping are written once instead of hand-
+// copied per list. `pick` is any locked-pick object from getP() --
+// `.reasoning` is only present on picks locked after the persistence
+// mechanism shipped (_attachReasoning/lockPick, see their own comments);
+// anything older, or a pick from a sport/lock-path not yet wired up, shows
+// a graceful "no detailed reasoning captured" message instead of a blank
+// or broken expand.
+function _escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function _toggleWhyPick(id){
+  const row=document.getElementById(id);if(!row)return;
+  const willOpen=row.style.display==='none';
+  row.style.display=willOpen?'block':'none';
+  const arrow=document.getElementById(id+'_arrow');
+  if(arrow)arrow.textContent=willOpen?'▼':'▶';
+}
+let _whyPickSeq=0;
+function _whyThisPickHTML(pick){
+  if(!pick)return'';
+  // Sequence counter + the pick's own id (sanitized) keeps this unique
+  // even when the exact same pick object is rendered into more than one
+  // list on the same page load (e.g. a home-page summary AND the sport's
+  // own tab) -- a shared, un-prefixed id would make both toggles fight
+  // over one DOM node.
+  const uid='whypick_'+(_whyPickSeq++)+'_'+String(pick.id||'').replace(/[^A-Za-z0-9]/g,'');
+  const body=pick.reasoning
+    ?_escHtml(pick.reasoning).replace(/\n/g,'<br>')
+    :'<span style="color:var(--t3)">No detailed reasoning captured for this pick.</span>';
+  return`<div style="margin-top:4px">`
+    +`<div onclick="event.stopPropagation();_toggleWhyPick('${uid}')" style="cursor:pointer;font-family:var(--mono);font-size:14px;color:var(--nc);letter-spacing:.5px;-webkit-user-select:none;user-select:none;display:inline-flex;align-items:center;gap:4px">`
+    +`<span id="${uid}_arrow">▶</span> WHY THIS PICK</div>`
+    +`<div id="${uid}" style="display:none;margin-top:4px;padding:6px 8px;background:rgba(0,0,0,.35);border:1px solid rgba(0,240,255,.2);border-radius:3px;font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${body}</div>`
+    +`</div>`;
+}
 function evGrd(evPct){if(evPct>=12)return{lbl:'EV A+',col:'var(--gc)'};if(evPct>=8)return{lbl:'EV A',col:'var(--nc)'};if(evPct>=4)return{lbl:'EV B',col:'var(--pc)'};if(evPct>=1)return{lbl:'EV C',col:'var(--t2)'};return{lbl:'EV D',col:'var(--t3)'};}
 function pois(l){const L=Math.exp(-l);let k=0,p=1;do{k++;p*=Math.random()}while(p>L);return k-1;}
 function today(){return new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'});}
@@ -9218,6 +9255,7 @@ function renderNHLLockedBets(){
         <div class="pkt2">BET: ${_expandBetOn(p.betOn||'',p.sport)} · ${p.ml||''}</div>
         <div class="pkd">WIN%: <strong>${p.winProb?(p.winProb*100).toFixed(1)+'%':'—'}</strong> · <strong style="color:${oColor}">${st}</strong>${p.date?' · '+p.date:''}</div>
         ${p.outcome==='pending'?`<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap"><button class="btn btn-n btn-sm" onclick="recR('${p.id}','win')">✓ WIN</button><button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss')">✗ LOSS</button><button class="btn btn-sm" style="color:var(--t3);border-color:var(--t3);font-size:16px;padding:2px 8px" onclick="removePick('${p.id}')">✕ REMOVE</button></div>`:''}
+        ${_whyThisPickHTML(p)}
       </div>
       <button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc);align-self:start;flex-shrink:0" onclick="removePick('${p.id}')">✕</button>
     </div>`;
@@ -11662,6 +11700,7 @@ function renderNBALockedBets(){
         <div class="pkt2">BET: ${_expandBetOn(p.betOn||'',p.sport)} · ${p.ml||''}</div>
         <div class="pkd">WIN%: <strong>${p.winProb?(p.winProb*100).toFixed(1)+'%':'—'}</strong> · <strong style="color:${oColor}">${st}</strong>${p.date?' · '+p.date:''}</div>
         ${p.outcome==='pending'?`<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap"><button class="btn btn-n btn-sm" onclick="recR('${p.id}','win')">✓ WIN</button><button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss')">✗ LOSS</button><button class="btn btn-sm" style="color:var(--t3);border-color:var(--t3);font-size:16px;padding:2px 8px" onclick="removePick('${p.id}')">✕ REMOVE</button></div>`:''}
+        ${_whyThisPickHTML(p)}
       </div>
       <button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc);align-self:start;flex-shrink:0" onclick="removePick('${p.id}')">✕</button>
     </div>`;
@@ -14201,6 +14240,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
           </div>
           <div style="font-family:var(--mono);font-size:17px;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_expandBetOn(p.betOn||p.betType,p.sport)}</div>
           <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:1px">${p.ml||''} · ${p.betType}${pConf?' · '+pConf:''}</div>
+          ${p.betType==='PARLAY'?'':_whyThisPickHTML(p)}
         </div>
         <div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;align-items:center">
           <button class="btn btn-win btn-sm" style="font-size:15px" onclick="recR('${p.id}','win');setTimeout(()=>{renderOverallHistory();try{renderHomeLockedBets();}catch(e){}try{updHdr();}catch(e){}},400)">✓ WIN</button>
@@ -14407,6 +14447,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
         <button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss');renderOverallHistory()">LOSS</button>`:''}
         <button class="btn btn-sm" style="color:rgba(220,190,255,.35);border-color:rgba(220,190,255,.2);font-size:14px;padding:2px 7px" onclick="removePick('${p.id}')" title="Remove this bet from record">× REMOVE</button>
       </div>
+      ${parlayLegs?'':_whyThisPickHTML(p)}
     </div>`;
   };
 
@@ -18192,6 +18233,7 @@ function renderHomeLockedBets(){
             </div>
             <div style="font-family:var(--orb);font-size:19px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${displayBetOn}</div>${legHtml}
             <div style="font-family:var(--mono);font-size:16px;color:var(--t3);margin-top:1px">${b.betType||''}${b.ml?' · '+b.ml:''}</div>
+            ${b.betType==='PARLAY'?'':_whyThisPickHTML(b)}
           </div>
           ${b.outcome==='pending'?`<div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap"><button class="btn btn-n btn-sm" style="padding:3px 7px;font-size:16px" onclick="recR('${b.id}','win');setTimeout(()=>{renderHomeLockedBets();try{renderOverall();}catch(e){}try{updHdr();}catch(e){}},100)">✓W</button><button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc);padding:3px 7px;font-size:16px" onclick="recR('${b.id}','loss');setTimeout(()=>{renderHomeLockedBets();try{renderOverall();}catch(e){}try{updHdr();}catch(e){}},100)">✗L</button><button class="btn btn-sm" style="color:var(--t3);border-color:var(--t3);padding:3px 7px;font-size:16px" onclick="removePick('${b.id}')">✕</button></div>`:`<span style="font-family:var(--mono);font-size:16px;padding:2px 5px;border:1px solid ${oc};color:${oc};border-radius:2px;flex-shrink:0">${st}</span>`}
         </div>
