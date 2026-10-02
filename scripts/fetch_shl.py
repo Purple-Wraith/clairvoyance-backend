@@ -41,7 +41,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from _flashscore_odds import fetch_match_ou_line
+from _flashscore_odds import carry_over_odds, fetch_match_odds
 from _scraper_health import log_scrape
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -278,8 +278,10 @@ def fetch_fixtures(page, season_start_year: int, team_names: dict, now: datetime
         game_dt = datetime.strptime(parsed["iso"], "%Y-%m-%dT%H:%MZ").replace(tzinfo=timezone.utc)
         if 0 <= (game_dt - now).days <= ODDS_LOOKAHEAD_DAYS:
             try:
-                parsed["ou"] = fetch_match_ou_line(
+                res = fetch_match_odds(
                     page, parsed["home_slug"], parsed["home"], parsed["away_slug"], parsed["away"], parsed["id"])
+                parsed["ou"] = res["ou"]
+                parsed["odds"] = res["odds"]  # real ML/O-U/puck-line prices (additive, 2026-10-02)
             except Exception as e:
                 log(f"  odds fetch failed for match {parsed['id']}: {e}")
                 parsed["ou"] = None
@@ -292,6 +294,7 @@ def fetch_fixtures(page, season_start_year: int, team_names: dict, now: datetime
         "away": p["away"], "awayName": team_names.get(p["away"], _slug_to_name(p["away_slug"])),
         "state": "pre", "homeScore": None, "awayScore": None,
         "ou": p["ou"],
+        **({"odds": p["odds"]} if p.get("odds") else {}),
     } for p in parsed_rows]
     return games
 
@@ -373,6 +376,9 @@ def run() -> dict:
     for g in results:
         by_id[g["id"]] = g
     games = sorted(by_id.values(), key=lambda g: g["date"])
+    # Keep a game's previously scraped real prices when this run has none for it
+    # (esp. pre -> post: the results row carries no odds). Fail-open, additive.
+    log(f"  odds carried over from previous file for {carry_over_odds(games, OUT)} games")
 
     out = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M UTC"),
