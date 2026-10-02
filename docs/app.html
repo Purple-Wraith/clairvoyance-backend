@@ -5686,6 +5686,56 @@ async function renderGoaliesFromBackend(){
 // goaltending nudges below -- centering points only, not claimed as
 // precise constants, same role _CFB_MEDIAN_CAPACITY plays for CFB.
 const _NHL_LG_PP=.205,_NHL_LG_PK=.795,_NHL_LG_GA60=2.9,_NHL_LG_GF60=2.9;
+// ── NHL recent-form term (added 2026-10-03, explicit request) ──────────────────────
+// A team's OWN scoring over its last NHL_FORM_N completed games vs its season-rate input (h.gf60), applied as a
+// multiplier on that team's OWN lambda only -- never the opponent's allowed-goals side -- the same convention
+// _hkFormFactor (SHL/LIIGA/NLA/EXTRALIGA) and soccer's _socFormFactor already use. Fail-open: no schedule data /
+// fewer than NHL_FORM_MIN_GP completed games -> factor exactly 1.0.
+//
+// EVIDENCE (point-in-time backtest, scripts/backtest_hockey_models.py form, 3 NHL regular seasons 2023-24..2025-26,
+// 6,868 team-games where both teams had >=10 GP; baseline = 75% current-season + 25% prior-season goals/game, exactly
+// the model's own gf60 blend; opponent-adjusted lambda0 = (own GF + opp GA)/2 * home-ice; Poisson likelihood):
+//   recent own-goals form, per-goal sensitivity k (lambda *= 1 + k*(recent - baseline)):
+//     L5 : k_MLE -0.010  95% CI [-0.025,+0.010]     L10: k_MLE -0.025  95% CI [-0.050,+0.005]
+//     L15: k_MLE -0.010  95% CI [-0.050,+0.025]     L20: k_MLE -0.025  95% CI [-0.075,+0.020]
+//   The European convention (k=+0.05, cap 6%) LOSES 10.6 log-likelihood units at L10 (14.6 at L5): recent scoring does
+//   not predict next-game scoring beyond the season rate in the NHL (a hot/cold L10 is almost pure noise: sd of the
+//   L10-minus-baseline delta is 0.45 goals/game). Same null for recent goal DIFFERENTIAL (k -0.015, CI [-0.03,0]) and for
+//   next-game wins (logit coef -0.02 +- 0.04). Therefore NHL_FORM_K ships at 0 (term wired, tested, fail-open, but
+//   mathematically a no-op) -- flip it only if a future re-run of the backtest supports a positive k.
+// Window 10 = ESPN's own "last ten" convention and the best-estimated window; floor 10 GP so the window is a strict,
+// meaningful subset of the season sample (with fewer games the window IS the season-to-date sample, which the 75%-current
+// gf60 already contains -- using it again would just double-count). Cap 4% (~0.12 goals) is ~1 sd of the L10 delta at
+// the largest plausible k.
+const NHL_FORM_N=10,NHL_FORM_MIN_GP=10,NHL_FORM_K=0,NHL_FORM_CAP=0.04;
+let _nhlFormCache={ref:null,by:null};
+function _nhlCompletedByTeam(){
+  const D=(typeof _NHL_SCHEDULE_DATA!=='undefined')?_NHL_SCHEDULE_DATA:null;
+  if(!D||!Array.isArray(D.games))return null;
+  if(_nhlFormCache.ref===D.games&&_nhlFormCache.by)return _nhlFormCache.by;
+  const by={};
+  D.games.forEach(g=>{
+    if(g.state!=='post'||g.homeScore==null||g.awayScore==null||!g.date||!isFinite(g.homeScore)||!isFinite(g.awayScore))return;
+    (by[g.home]=by[g.home]||[]).push({t:Date.parse(g.date),gf:+g.homeScore,ga:+g.awayScore});
+    (by[g.away]=by[g.away]||[]).push({t:Date.parse(g.date),gf:+g.awayScore,ga:+g.homeScore});
+  });
+  Object.values(by).forEach(a=>a.sort((x,y)=>y.t-x.t));
+  _nhlFormCache={ref:D.games,by};
+  return by;
+}
+// -> {mult,delta,n,gfL}: mult multiplies the team's own lambda; delta = recent goals/game minus the model's own rate.
+function _nhlFormFactor(abbr,baseGfPg){
+  const none={mult:1,delta:null,n:0,gfL:null};
+  try{
+    const by=_nhlCompletedByTeam();const a=by&&by[abbr];
+    if(!a||a.length<NHL_FORM_MIN_GP||baseGfPg==null||!isFinite(baseGfPg))return none;
+    const rec=a.slice(0,NHL_FORM_N);
+    const gfL=rec.reduce((s,x)=>s+x.gf,0)/rec.length;
+    const delta=gfL-baseGfPg;
+    const mult=1+Math.max(-NHL_FORM_CAP,Math.min(NHL_FORM_CAP,delta*NHL_FORM_K));
+    return{mult:isFinite(mult)?mult:1,delta,n:rec.length,gfL};
+  }catch(e){return none;}
+}
 function nhlMC(hA,awA,n=25000,marketOU){
   const h=NHL[hA],aw=NHL[awA];if(!h||!aw)return null;
   const hfa=.055;
@@ -5737,8 +5787,10 @@ function nhlMC(hA,awA,n=25000,marketOU){
   const gaAdj=v=>Math.max(.97,Math.min(1.03,1+v));
   const hGaAdj=gaAdj(((aw.ga60??_NHL_LG_GA60)-_NHL_LG_GA60)*-.03);
   const aGaAdj=gaAdj(((h.ga60??_NHL_LG_GA60)-_NHL_LG_GA60)*-.03);
-  const hLam=Math.max(.4,hOff*.55*hGlv*(1+hfa)*hZadj*hSadj*(1+mpAdj)*hStAdj*hSqAdj*hGaAdj);
-  const aLam=Math.max(.4,aOff*.55*aGlv*(1-hfa*.5)*aZadj*aSadj*(1-mpAdj)*aStAdj*aSqAdj*aGaAdj);
+  // Recent own-scoring form (see NHL_FORM_* above) -- each team's OWN lambda only. Exactly 1.0 today (NHL_FORM_K=0).
+  const hForm=_nhlFormFactor(hA,h.gf60),aForm=_nhlFormFactor(awA,aw.gf60);
+  const hLam=Math.max(.4,hOff*.55*hGlv*(1+hfa)*hZadj*hSadj*(1+mpAdj)*hStAdj*hSqAdj*hGaAdj*hForm.mult);
+  const aLam=Math.max(.4,aOff*.55*aGlv*(1-hfa*.5)*aZadj*aSadj*(1-mpAdj)*aStAdj*aSqAdj*aGaAdj*aForm.mult);
   // Real bug fixed 2026-09-29: this used to ONLY check the hardcoded
   // TONIGHT array (a single stale entry from last season's Cup Final),
   // so for every real 2026-27 matchup ouLine silently fell back to a
@@ -5781,7 +5833,7 @@ function nhlMC(hA,awA,n=25000,marketOU){
   const gpConf=Math.min(1,Math.min(h.gp||0,aw.gp||0)/MIN_GP_FOR_FULL_CONFIDENCE);
   const damp=p=>0.5+(p-0.5)*gpConf;
   const hwPD=damp(hw/n),overPD=damp(ov/n),rl15D=damp(rl15h/n),rl15AD=damp(rl15a/n);
-  return{hwP:hwPD,awP:1-hwPD,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:overPD,underP:1-overPD,otP:ot/n,ouLine,rl15:rl15D,rl15A:rl15AD,rlN:1-rl15D,stEdge,sqEdge,gpConf};
+  return{hwP:hwPD,awP:1-hwPD,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:overPD,underP:1-overPD,otP:ot/n,ouLine,rl15:rl15D,rl15A:rl15AD,rlN:1-rl15D,stEdge,sqEdge,gpConf,formH:hForm,formA:aForm};
 }
 function nhlEns(hA,awA,marketOU){
   const h=NHL[hA],aw=NHL[awA];if(!h||!aw)return{p:.5};
