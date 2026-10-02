@@ -3003,14 +3003,19 @@ async function _tbLoad(){
   hk.forEach(fn=>{if(fn)jobs.push(Promise.resolve().then(fn).then(d=>((d&&d.games)||[]).forEach(g=>add(g,'homeName','awayName'))).catch(()=>{}));});
   if(typeof loadNHLScheduleData==='function')jobs.push(Promise.resolve().then(loadNHLScheduleData).then(d=>((d&&d.games)||[]).forEach(g=>add(g,'home','away'))).catch(()=>{}));
   ['cfb_schedule.json','nfl_schedule.json'].forEach(f=>jobs.push(fetch(f).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.weeks)Object.values(j.weeks).forEach(w=>(w||[]).forEach(g=>add(g,'home','away')));}).catch(()=>{})));
+  // game_start_history.json (scripts/build_game_start_history.py): starts of older/soccer games recovered from the git history of
+  // the schedule snapshots -- a FALLBACK behind the live schedule files (same precedence as scripts/lock_timing.py).
+  let hist={};
+  jobs.push(fetch('game_start_history.json').then(r=>r.ok?r.json():null).then(j=>{if(j&&j.games)hist=j.games;}).catch(()=>{}));
   await Promise.all(jobs);
-  window._tbIdx=idx;
-  return idx;
+  const merged=Object.assign({},hist,idx);
+  window._tbIdx=merged;
+  return merged;
 }
 // Loads the schedule index once (cached on window); re-renders the active Analytics tab + bar when it lands.
 function _tbKick(){
   if(window._tbIdx||window._tbLoading)return;
-  window._tbLoading=_tbLoad().then(function(){window._tbLoading=null;try{_tbUpdateBar();}catch(e){}if(window._TB!=='all')try{_tbRerender();}catch(e){}if(window._ovrNeedsTiming){window._ovrNeedsTiming=false;try{if(typeof renderOverall==='function')renderOverall();}catch(e){}}}).catch(function(){window._tbLoading=null;window._tbIdx={};});
+  window._tbLoading=_tbLoad().then(function(){window._tbLoading=null;try{_tbUpdateBar();}catch(e){}if(window._TB!=='all')try{_tbRerender();}catch(e){}if(window._ovrNeedsTiming){window._ovrNeedsTiming=false;try{if(typeof renderOverall==='function')renderOverall();}catch(e){}}if(window._homeNeedsTiming){window._homeNeedsTiming=false;try{if(typeof renderHomePage==='function')renderHomePage();}catch(e){}}if(window._trNeedsTiming){window._trNeedsTiming=false;try{if(typeof renderTrackRecord==='function')renderTrackRecord();}catch(e){}}}).catch(function(){window._tbLoading=null;window._tbIdx={};});
 }
 function _pickStartMs(p){
   if(p.startMs!=null&&isFinite(p.startMs)&&p.startMs>946684800000)return p.startMs;
@@ -3019,11 +3024,51 @@ function _pickStartMs(p){
 }
 // -> 'pre' | 'during' | 'after' | 'unknown'
 function _pickTiming(p){
-  const st=_pickStartMs(p);if(st==null||!p.lockedAt||!isFinite(p.lockedAt))return'unknown';
+  const st=_pickStartMs(p);if(st==null||!p.lockedAt||!isFinite(p.lockedAt))return p.lockTiming==='late-manual'?'during':'unknown'; // a stored late-manual stamp is known-late even with no recoverable start
   const lead=(st-p.lockedAt)/60000;
   if(lead>0)return'pre';
   const dur=_TB_DUR_MIN[window._normSport?window._normSport(p):'']||150;
   return lead>-dur?'during':'after';
+}
+// ── PUBLIC FIGURES = PRE-START LOCKS ONLY (2026-10-02) ───────────────────────────────────────────────────────────────────
+// _pubDrop(p): true when a pick must NOT appear in any public/exported figure (the Social-tab cards: Track Record, Sport/League
+// Performance, Event) because it is KNOWN to have been locked after its game started. Unknown timing stays included.
+// The headless generators (scripts/generate_social_cards.py) set window._CV_PUBLIC_EXCLUDE_IDS to the verdict of the shared
+// Python classifier (scripts/lock_timing.py), which is authoritative there; in a normal browser the JS mirror (_pickTiming) decides.
+function _pubDrop(p){
+  const X=window._CV_PUBLIC_EXCLUDE_IDS;
+  if(X&&typeof X.has==='function')return X.has(p.id);
+  const t=_pickTiming(p);return t==='during'||t==='after';
+}
+// Exports must never run before the schedule index has loaded (an unloaded index would let late picks through).
+async function _pubEnsureTiming(){
+  if(window._CV_PUBLIC_EXCLUDE_IDS||window._tbIdx)return;
+  try{await _tbLoad();}catch(e){}
+}
+// Companion line for the Home / Overall headline tiles (which keep counting every pick for the owner): the same six periods on
+// PRE-START locks only -- the basis of every published figure. host = the render function to re-run once schedules load.
+function _preStartCompanionHTML(bets,host){
+  const box='font-family:var(--mono);margin:6px 0 10px;padding:7px 9px;border:1px solid rgba(0,240,255,.22);border-radius:3px;background:rgba(0,240,255,.04)';
+  if(!window._tbIdx){
+    if(host==='home')window._homeNeedsTiming=true;else if(host==='overall')window._ovrNeedsTiming=true;
+    try{_tbKick();}catch(e){}
+    return`<div style="${box};font-size:12px;color:var(--t3);letter-spacing:1px">PRE-START BASIS (PUBLISHED FIGURES) — LOADING SCHEDULES…</div>`;
+  }
+  const nowD=getMSTNow(),now=Date.now(),td=today(),yd=yesterday();
+  const fom=mstFirstOfMonth(nowD),folm=mstFirstOfMonth(new Date(nowD.getFullYear(),nowD.getMonth()-1,1));
+  const calc=bs=>{const s=bs.filter(p=>p.outcome!=='pending');const w=s.filter(p=>p.outcome==='win').length,l=s.filter(p=>p.outcome==='loss').length;
+    const u=s.reduce((a,p)=>p.outcome==='win'?a+(parseFloat(p.decOdds)||2)-1:p.outcome==='loss'?a-1:a,0);return{w,l,n:s.length,pct:s.length?w/s.length:null,u};};
+  const wins=[['TODAY',p=>p.date===td],['YESTERDAY',p=>p.date===yd],['7D',p=>p.lockedAt&&p.lockedAt>=now-7*86400000],
+    ['MONTH',p=>p.lockedAt&&p.lockedAt>=fom.getTime()],['LAST MO',p=>p.lockedAt&&p.lockedAt>=folm.getTime()&&p.lockedAt<fom.getTime()],['ALL TIME',()=>true]];
+  const kept=bets.filter(p=>!_pubDrop(p));
+  const settled=bets.filter(p=>p.outcome==='win'||p.outcome==='loss');
+  let nLate=0,nUnk=0;settled.forEach(p=>{const t=_pickTiming(p);if(t==='during'||t==='after')nLate++;else if(t==='unknown')nUnk++;});
+  const cells=wins.map(([lbl,f])=>{
+    const a=calc(kept.filter(f)),full=calc(bets.filter(f));const ex=full.n-a.n;
+    const rec=a.n?`${a.w}-${a.l} · ${(a.pct*100).toFixed(1)}% · ${a.u>=0?'+':''}${a.u.toFixed(1)}u`:'0-0';
+    return`<div style="min-width:0"><div style="font-size:11px;letter-spacing:1px;color:var(--t3)">${lbl}</div><div style="font-size:13px;color:var(--t1);white-space:nowrap">${rec}</div>${ex?`<div style="font-size:11px;color:#ffb300">−${ex} LATE</div>`:''}</div>`;
+  }).join('');
+  return`<div style="${box}"><div style="font-size:12px;letter-spacing:1.5px;color:#00f0ff;margin-bottom:5px">PRE-START LOCKS ONLY — THE BASIS OF EVERY PUBLISHED FIGURE · ${nLate} KNOWN-LATE SETTLED PICK${nLate===1?'':'S'} EXCLUDED · ${nUnk} UNKNOWN-TIMING INCLUDED</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:6px 10px">${cells}</div></div>`;
 }
 function _tbIn(p){
   const m=window._TB;if(m==='all')return true;
@@ -14484,6 +14529,7 @@ function renderOverall(){
     ${periodCard('LAST MONTH ('+moLbl+')',lastMoPerf,'var(--vc)')}
     ${periodCard('ALL TIME',allTimePerf,'rgba(255,221,0,.9)')}
   </div>
+  ${_preStartCompanionHTML(all,'overall')}
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
     <span style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--pc)">FILTER BY MONTH:</span>
     <select id="ovr-month-select" onchange="window._ovrSelectedMonth=this.value;renderOverall()" style="background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);color:var(--t);font-family:var(--mono);font-size:15px;padding:4px 8px;border-radius:2px">
@@ -18616,6 +18662,7 @@ function renderHomePage(){
       ${perfCard('LAST MONTH',rLMo,'rgba(240,0,255,.7)',lastMonthAbbr)}
       ${perfCard('ALL TIME',rAll,'rgba(255,221,0,.9)')}
     </div>
+    ${_preStartCompanionHTML(keptBets,'home')}
     ${momentumHtml}
     ${leaguePerfHtml}`;
   }
@@ -21663,6 +21710,13 @@ function _glowText(ctx,txt,x,y,font,col,blur,align){
   ctx.shadowBlur=blur*.4||6;ctx.fillText(txt,x,y);
   ctx.restore();
 }
+// Public-card basis footnote (2026-10-02): a tiny dim line in the empty bottom margin, BELOW the locked footer line (which stays
+// at H-46) -- adds text only, moves nothing. Every exported figure card counts pre-start locks only.
+function _pubBasisFootnote(ctx,W,H){
+  ctx.save();ctx.font='500 11px "Orbitron"';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='rgba(220,190,255,.42)';ctx.fillText('PRE-START LOCKS ONLY  ·  PICKS LOCKED AFTER GAME START ARE EXCLUDED',W/2,H-20);
+  ctx.restore();
+}
 // roundRect polyfill for older browsers
 if(!CanvasRenderingContext2D.prototype.roundRect){
   CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
@@ -21676,6 +21730,8 @@ if(!CanvasRenderingContext2D.prototype.roundRect){
   };
 }
 async function _genPerfGraphicByIdx(i){
+  await _pubEnsureTiming();
+  try{renderTrackRecord();}catch(e){}
   // Public/subscriber-scoped -- same reasoning as _genCombinedTrackGraphic
   // below (this produces the same kind of public-facing PNG, just one
   // period at a time instead of the full table).
@@ -21853,7 +21909,11 @@ function renderTrackRecord(){
   // function's own comment above) was silently showing only NHL's
   // results for a product sold as covering all 5 leagues. Added.
   const _PUB_SPORTS=new Set(['NHL','LIIGA','SHL','NLA','EXTRALIGA','NBA','NFL','CFB','PL','LIGA','SERIEA','CL']);
-  const pubBets=allBets.filter(b=>_PUB_SPORTS.has(_normSport(b)));
+  // 2026-10-02: PUBLIC figures are PRE-START LOCKS ONLY -- known-late manual locks are dropped here (and from the Event card below),
+  // so every exported PNG matches the published JSONs. The in-app preview (allBets) is unchanged and still shows everything.
+  if(!window._tbIdx&&!window._CV_PUBLIC_EXCLUDE_IDS){window._trNeedsTiming=true;try{_tbKick();}catch(e){}}
+  const pubBets=allBets.filter(b=>_PUB_SPORTS.has(_normSport(b))&&!_pubDrop(b));
+  const _pubLateN=allBets.filter(b=>_PUB_SPORTS.has(_normSport(b))&&_pubDrop(b)).length;
   const now=Date.now();
   const nowD=getMSTNow();
   const todayStr=today(),ydStr=yesterday();
@@ -21956,6 +22016,7 @@ function renderTrackRecord(){
   el.innerHTML=`
   <div style="font-family:'Orbitron',sans-serif;font-size:15px;letter-spacing:3px;color:#f000ff;margin-bottom:10px;text-shadow:0 0 8px #f000ff">// TRACK RECORD CARD — SOCIAL EXPORT</div>
   <div style="font-family:var(--mono);font-size:15px;color:rgba(220,190,255,.45);margin-bottom:12px">1080×1350 PNG · 4:5 · Fit for X & Instagram</div>
+  <div style="font-family:var(--mono);font-size:13px;color:#ffb300;margin-bottom:10px">EXPORT BASIS: PRE-START LOCKS ONLY — the exported PNGs drop ${_pubLateN} known-late manual lock${_pubLateN===1?'':'s'}${window._tbIdx||window._CV_PUBLIC_EXCLUDE_IDS?'':' (schedules loading…)'}; the preview below still shows every pick.</div>
 
   <!-- Date filter — pick a day to show only that day's data on all three cards -->
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:8px 10px;border:1px solid rgba(0,240,255,.25);border-radius:3px;background:rgba(0,240,255,.04)">
@@ -22362,7 +22423,7 @@ function renderTrackRecord(){
     // on lockedAt silently drops real historical bets. "date" is the
     // field every other part of the app treats as the source of truth
     // for which calendar day a bet belongs to.
-    const eventBets=(eStart&&eEnd)?allBets.filter(b=>b.date&&b.date>=eStart&&b.date<=eEnd):[];
+    const eventBets=(eStart&&eEnd)?allBets.filter(b=>b.date&&b.date>=eStart&&b.date<=eEnd&&!_pubDrop(b)):[]; // pre-start locks only (public Event card)
     const activeLDEFS3=eventFilters.length?LDEFS3.filter(lm=>eventFilters.includes(lm.lbl)):LDEFS3;
     // Real bug, found and fixed: with no league filter selected this used
     // to total every bet in the date range (eventBets, unscoped -- any
@@ -22436,6 +22497,7 @@ function renderTrackRecord(){
 }
 
 async function _genCombinedTrackGraphic(){
+  await _pubEnsureTiming(); // exports are pre-start-locks-only: the schedule index must be loaded first
   // Refresh so TODAY/YESTERDAY reflect the CURRENT date at save time — the
   // cached _cvPerfPeriodsPub can be a day stale if the tab was rendered earlier.
   try{renderTrackRecord();}catch(e){}
@@ -22535,11 +22597,13 @@ async function _genCombinedTrackGraphic(){
   fd.addColorStop(0,'transparent');fd.addColorStop(.5,'rgba(0,240,255,.35)');fd.addColorStop(1,'transparent');
   ctx.strokeStyle=fd;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(80,footY);ctx.lineTo(W-80,footY);ctx.stroke();ctx.restore();
   _glowText(ctx,'clairvoyanceengine.info  ·  𝕏 @clairvoyanceeng  ·  IG @clairvoyanceengine',W/2,H-46,'600 16px "Orbitron"','#f000ff',10,'center');
+  _pubBasisFootnote(ctx,W,H);
 
   _saveCanvas(cv,'cv-track-record-'+today().replace(/-/g,'')+'.png','TRACK RECORD');
 }
 
 async function _genSportPerfGraphic(){
+  await _pubEnsureTiming(); // exports are pre-start-locks-only: the schedule index must be loaded first
   try{renderTrackRecord();}catch(e){} // refresh dynamic dates/data at save time
   // Public/subscriber-scoped -- same reasoning as _genCombinedTrackGraphic
   // above. TENNIS is dropped entirely (100% personal-use); BASKETBALL/
@@ -22645,6 +22709,7 @@ async function _genSportPerfGraphic(){
   fd.addColorStop(0,'transparent');fd.addColorStop(.5,'rgba(240,0,255,.4)');fd.addColorStop(1,'transparent');
   ctx.strokeStyle=fd;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(80,footY);ctx.lineTo(W-80,footY);ctx.stroke();ctx.restore();
   _glowText(ctx,'clairvoyanceengine.info  ·  𝕏 @clairvoyanceeng  ·  IG @clairvoyanceengine',W/2,H-46,'600 16px "Orbitron"','#f000ff',10,'center');
+  _pubBasisFootnote(ctx,W,H);
 
   _saveCanvas(cv,'cv-sport-perf-'+today().replace(/-/g,'')+'.png','SPORT PERFORMANCE CARD');
 }
@@ -22653,6 +22718,7 @@ async function _genSportPerfGraphic(){
 // LEAGUE PERFORMANCE CARD — 1080×1800 PNG EXPORT
 // ═══════════════════════════════════════════════════════════════════════════
 async function _genLeaguePerfGraphic(){
+  await _pubEnsureTiming(); // exports are pre-start-locks-only: the schedule index must be loaded first
   try{renderTrackRecord();}catch(e){} // refresh dynamic dates/data at save time
   // Public/subscriber-scoped -- same reasoning as _genCombinedTrackGraphic
   // above. Only the 8 real subscriber-facing leagues (Bundesliga removed
@@ -22753,6 +22819,7 @@ async function _genLeaguePerfGraphic(){
   fd.addColorStop(0,'transparent');fd.addColorStop(.5,'rgba(240,0,255,.4)');fd.addColorStop(1,'transparent');
   ctx.strokeStyle=fd;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(80,footY);ctx.lineTo(W-80,footY);ctx.stroke();ctx.restore();
   _glowText(ctx,'clairvoyanceengine.info  ·  𝕏 @clairvoyanceeng  ·  IG @clairvoyanceengine',W/2,H-46,'600 16px "Orbitron"','#f000ff',10,'center');
+  _pubBasisFootnote(ctx,W,H);
 
   _saveCanvas(cv,'cv-league-perf-'+today().replace(/-/g,'')+'.png','LEAGUE PERFORMANCE CARD');
 }
@@ -22763,6 +22830,7 @@ async function _genLeaguePerfGraphic(){
 // LAST MONTH period buttons can't isolate it) — 1080×1350 PNG EXPORT
 // ═══════════════════════════════════════════════════════════════════════════
 async function _exportEventPerfCard(){
+  await _pubEnsureTiming(); // exports are pre-start-locks-only: the schedule index must be loaded first
   try{renderTrackRecord();}catch(e){} // refresh at save time
   const d=window._cvEventPeriodData;
   if(!d||!d.periodBets){toast('// SWITCH TO TRACK RECORD TAB FIRST');return;}
@@ -22864,6 +22932,7 @@ async function _exportEventPerfCard(){
   fd.addColorStop(0,'transparent');fd.addColorStop(.5,'rgba(240,0,255,.4)');fd.addColorStop(1,'transparent');
   ctx.strokeStyle=fd;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(80,footY);ctx.lineTo(W-80,footY);ctx.stroke();ctx.restore();
   _glowText(ctx,'clairvoyanceengine.info  ·  𝕏 @clairvoyanceeng  ·  IG @clairvoyanceengine',W/2,H-46,'600 16px "Orbitron"','#f000ff',10,'center');
+  _pubBasisFootnote(ctx,W,H);
 
   _saveCanvas(cv,'cv-event-perf-'+(eventName||'event').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png','EVENT PERFORMANCE CARD');
 }
