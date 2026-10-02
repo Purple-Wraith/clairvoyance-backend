@@ -199,11 +199,21 @@ def _extract_match_row(row) -> dict | None:
     elif home_name_txt and _matches(slug_b, home_name_txt):
         home_slug, home_id, away_slug, away_id = slug_b, id_b, slug_a, id_a
     else:
-        # Couldn't confidently match the DOM's home-team text against
-        # either URL slug (unexpected markup change) -- fall back to the
-        # old URL-order assumption rather than dropping the game. This is
-        # a degraded path that should never normally trigger.
-        home_slug, home_id, away_slug, away_id = slug_a, id_a, slug_b, id_b
+        # Real bug, found 2026-10-02 (explicit follow-up: "make sure the
+        # right score shows for the right team"): this used to fall back
+        # to the unverified URL-order assumption here -- the EXACT guess
+        # the 2026-09-22 fix above was written to eliminate (a real SHL
+        # result had Linkoping as home despite the URL slug order saying
+        # otherwise). Guessing home/away identity here would silently
+        # attach a correctly-read home/away SCORE to the WRONG team name
+        # (the score elements are read correctly either way via their own
+        # .event__score--home/--away markers -- only the team-name
+        # assignment was ever at risk). Dropping the row instead: this
+        # script's own fail-open philosophy already prefers a game
+        # missing for one cycle (self-heals on the next scheduled refresh,
+        # ~15 min later) over ever reporting a right score for the wrong
+        # team, which can't self-heal and corrupts a real settled result.
+        return None
     date_el = row.query_selector(".wcl-dateContent_eEChT") or row.query_selector(
         "[class*='event__stageTime']"
     )
