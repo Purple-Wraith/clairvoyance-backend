@@ -10953,7 +10953,10 @@ function showDotTip(el){
 }
 function hideDotTip(){
   if(_dotTipEl){_dotTipEl.remove();_dotTipEl=null;}
-  document.querySelectorAll('.form-dot').forEach(d=>d.style.transform='');
+  // .mom-bar (Home momentum sparkline, added 2026-10-02) reuses showDotTip's
+  // own hover-scale effect via the same onmouseenter wiring, so it needs
+  // resetting here too, same as .form-dot.
+  document.querySelectorAll('.form-dot,.mom-bar').forEach(d=>d.style.transform='');
 }
 
 // ── Mobile ↔ Desktop sync via clipboard export/import ──
@@ -17286,6 +17289,67 @@ function renderHomePage(){
     const rLMo = hCalc(keptBets.filter(p=>p.lockedAt&&p.lockedAt>=firstOfLastMonth.getTime()&&p.lockedAt<firstOfMonth.getTime()));
     const rAll = hCalc(keptBets);
 
+    // ── MOMENTUM WIDGET (added 2026-10-02, explicit request: "one
+    // glanceable trend arrow/sparkline showing whether the last 7-30 days
+    // are running hot or cold vs the all-time baseline") ───────────────
+    // Deliberately reuses r7 (ROLLING 7D) and rAll (ALL TIME), both
+    // already computed above for the existing stat cards, as the hot/cold
+    // comparison -- rather than a third, separately-scoped window -- so
+    // this widget can never silently disagree with the ROLLING 7D / ALL
+    // TIME cards sitting right next to it. 7-day (not 30) to match
+    // ROLLING 7D's own window exactly, and because this ledger locks picks
+    // daily -- a 30-day blend would dilute "is THIS WEEK hot" into "is
+    // roughly the last month," a slower, less glanceable signal than
+    // what's asked for. Win% (not units) to match ROLLING 7D/ALL TIME's
+    // own displayed metric, and so the comparison isn't skewed by a
+    // single big-odds outlier bet's unit swing.
+    const momDeltaPct=(r7.pct!=null&&rAll.pct!=null)?r7.pct-rAll.pct:null;
+    const MOM_HOT_THRESH=0.05; // 5 percentage points -- big enough that normal week-to-week noise doesn't flip the arrow, small enough to catch a real swing
+    const MOM_MIN_N=5; // below this, a week's win% is too noisy to call "hot" or "cold" with a straight face
+    let momArrow='▬',momColor='var(--t3)',momLbl='NOT ENOUGH DATA';
+    if(r7.n>=MOM_MIN_N&&momDeltaPct!=null){
+      if(momDeltaPct>=MOM_HOT_THRESH){momArrow='▲';momColor='#00e644';momLbl='RUNNING HOT';}
+      else if(momDeltaPct<=-MOM_HOT_THRESH){momArrow='▼';momColor='#ff2090';momLbl='RUNNING COLD';}
+      else{momArrow='▬';momColor='var(--t3)';momLbl='HOLDING STEADY';}
+    }else if(r7.n>0){
+      momLbl=`LOW SAMPLE (${r7.n} BET${r7.n===1?'':'S'})`;
+    }
+    // 14-day daily win% strip, oldest→newest left to right -- same
+    // dot-strip visual language as formDots/the per-league trend dots
+    // elsewhere on this page (small blocks, glow-free flat color, hover/
+    // tap tooltip via showDotTip), just bar HEIGHT encoding each day's win%
+    // instead of a single win/loss dot -- the ask specifically wants a
+    // win-rate TREND here, distinct from the binary win/loss dot strips
+    // already shown in PERIOD PERFORMANCE — LEAGUE just below.
+    const momDays=[];
+    for(let i=13;i>=0;i--){
+      const ds=new Date(now-i*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+      const db=keptBets.filter(p=>p.date===ds&&p.outcome!=='pending');
+      const w=db.filter(p=>p.outcome==='win').length;
+      momDays.push({ds,n:db.length,pct:db.length?w/db.length:null});
+    }
+    const momBarH=30;
+    const momBars=momDays.map(d=>{
+      const has=d.pct!=null;
+      const h=has?Math.max(3,Math.round(d.pct*momBarH)):2;
+      const bc=!has?'rgba(255,255,255,.1)':(d.pct>=(rAll.pct||0)?'#00e644':'#ff2090');
+      const dLbl=new Date(d.ds+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      const tip=has?`${dLbl} | ${d.n} bet${d.n===1?'':'s'} | ${(d.pct*100).toFixed(0)}% win`:`${dLbl} | no bets`;
+      return`<span class="mom-bar" data-tip="${tip.replace(/"/g,"'")}" style="display:inline-block;flex:1;height:${h}px;align-self:flex-end;background:${bc};border-radius:1px;cursor:pointer" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2000)"></span>`;
+    }).join('');
+    const momentumHtml=`<div class="card" style="padding:10px 12px;margin-top:8px;border-top:2px solid ${momColor}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+        <span style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc)">// MOMENTUM — LAST 7D VS ALL-TIME</span>
+        <span style="font-family:var(--orb);font-size:15px;font-weight:900;color:${momColor}">${momArrow} ${momLbl}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+        <span style="font-family:var(--mono);font-size:13px;color:var(--t2)">7D ${r7.pct!=null?(r7.pct*100).toFixed(1)+'%':'--'} (n${r7.n}) vs ALL-TIME ${rAll.pct!=null?(rAll.pct*100).toFixed(1)+'%':'--'}</span>
+        <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${momColor}">${momDeltaPct!=null?(momDeltaPct>=0?'+':'')+(momDeltaPct*100).toFixed(1)+'pp':'--'}</span>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:${momBarH}px">${momBars}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--t3);margin-top:4px">LAST 14 DAYS, DAILY WIN% · HOVER/TAP A BAR</div>
+    </div>`;
+
     // League performance — mirrors the Overall tab's BY LEAGUE grouping,
     // toggleable between the current month (time-relevant default) and
     // all-time (same scope as Overall's own all-time BY LEAGUE table).
@@ -17395,6 +17459,7 @@ function renderHomePage(){
       ${perfCard('LAST MONTH',rLMo,'rgba(240,0,255,.7)',lastMonthAbbr)}
       ${perfCard('ALL TIME',rAll,'rgba(255,221,0,.9)')}
     </div>
+    ${momentumHtml}
     ${leaguePerfHtml}`;
   }
 
