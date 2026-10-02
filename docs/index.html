@@ -4575,6 +4575,19 @@ function _mergeRemoteBetRows(rows){
         existing.hScore=remote.hScore??existing.hScore;
         existing.aScore=remote.aScore??existing.aScore;
         updated++;
+      }else if(remote.regradedNote&&existing.regradedNote!==remote.regradedNote&&row.outcome&&row.outcome!=='pending'){
+        // Explicit manual correction of an already-SETTLED result (marked
+        // by regradedNote, see 2026-10-03 LIIGA regrade of KooKoo/Pelicans
+        // +1.5). Without this a corrected outcome never reached other
+        // devices (the branch above only ever pulls pending->settled), and
+        // any stale device's next push -- pull-then-push, 21-day scope --
+        // would silently re-upload the old wrong result over the fix.
+        existing.outcome=row.outcome;
+        existing.settledAt=row.settled_at?new Date(row.settled_at).getTime():existing.settledAt;
+        existing.hScore=remote.hScore??existing.hScore;
+        existing.aScore=remote.aScore??existing.aScore;
+        existing.regradedNote=remote.regradedNote;
+        updated++;
       }
     }
     if(added||updated||removed){
