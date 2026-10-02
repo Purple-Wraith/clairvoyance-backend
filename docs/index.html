@@ -25233,6 +25233,21 @@ function _cvParGet(s){return window._cvPar[s]||(window._cvPar[s]=[]);}
 function cvParlayAddLeg(s,name,ml,prob,matchup,type){
   var legs=_cvParGet(s);
   if(legs.length>=8){toast('// MAX 8 LEGS');return;}
+  // Real gap, found auditing the parlay builders: this codebase's two
+  // older per-sport parlay builders (addLeg()/PAR for NHL, addNBALeg()/
+  // NBA_PAR for NBA) both cap a single game/matchup at 3 legs -- on top
+  // of the shared 8-leg total cap -- specifically to stop someone from
+  // stacking multiple correlated markets off the SAME game (e.g. a team's
+  // ML + its own spread + the game total) into one parlay, since the
+  // combined-probability math below (and in every sibling calc function)
+  // multiplies each leg's probability assuming independence, which
+  // badly overstates the parlay's real combined probability once legs
+  // share a game. cvParlayAddLeg -- the newer, shared cross-sport ("xp")
+  // builder every sport's own game/prop cards and parlay panel route
+  // through -- never got the same per-matchup cap, so it had no limit on
+  // same-game legs at all. Matches the established per-matchup cap here.
+  var sameGameCount=legs.filter(function(l){return l.matchup===matchup;}).length;
+  if(matchup&&sameGameCount>=3){toast('// MAX 3 LEGS PER GAME');return;}
   legs.push({name:name,ml:ml,prob:parseFloat(prob),dec:ml2d(ml),matchup:matchup,type:type||'GAME'});
   cvParlayRenderLegs(s);cvParlayCalc(s);toast('// +LEG: '+name);
 }
