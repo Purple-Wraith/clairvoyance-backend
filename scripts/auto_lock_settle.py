@@ -1495,6 +1495,18 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None) ->
                     "kind": "GAME", "sport": sport, "hA": gl.get("hA"), "awA": gl.get("awA"),
                     "side": m.get("side"), "label": m.get("label"), "prob": m.get("prob"),
                     "ml": m.get("ml"), "dec": m.get("dec"), "tierN": tier_n, "evVal": m.get("evVal"),
+                    # "Why this pick" persistence, added 2026-10-02: the
+                    # plain-text reasoning string app.html's _attachReasoning
+                    # already computed for THIS specific market (not the
+                    # whole card) -- see its own comment there. Threaded
+                    # through lock_game_leg's extraMeta the same way
+                    # socFactors already is, below, so it lands on the
+                    # locked pick's own `reasoning` field. None for any
+                    # sport/card not yet wired to _attachReasoning, or for a
+                    # market _evalMkts graded but this app.html build
+                    # predates this feature -- lockPick() handles a null
+                    # here the same as a missing manual-UI cache hit.
+                    "reasoning": m.get("reasoning"),
                     # Same for every qualifying market on this game -- carried
                     # per-leg (not de-duped) so build_locks_email_html can
                     # regroup by matchup without needing a second pass over
@@ -1594,9 +1606,16 @@ def lock_game_leg(page, q: dict, date_override: str | None = None) -> str:
     # was qualified -- reuse that instead of re-parsing q["label"] text.
     bet_type_override = _market_type(q.get("side"))
     sock_factors = q.get("socFactors")
+    # "Why this pick" persistence, added 2026-10-02: the plain-text
+    # reasoning string gather_legs() already copied onto this q dict from
+    # app.html's own _attachReasoning() call (see build_qualifying's own
+    # comment just above) -- threaded through the exact same extraMeta slot
+    # socFactors already uses, one line below, so lockPick() lands it on
+    # the locked pick's own `reasoning` field.
+    reasoning_text = q.get("reasoning")
     return page.evaluate(
         """
-        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors }) => {
+        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors, reasoning }) => {
           // Real gap, found auditing the locks-email "X of Y legs actually
           // locked" line: this used to return a single 'dup-or-failed' for
           // BOTH "this exact leg was already locked by an earlier pass
@@ -1639,13 +1658,13 @@ def lock_game_leg(page, q: dict, date_override: str | None = None) -> str:
                       marketDup;
           if (dup) return 'already-locked';
           const before = getP().length;
-          const extraMeta = socFactors ? { socFactors } : null;
+          const extraMeta = (socFactors || reasoning) ? { ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}) } : null;
           await lockPick(hA, awA, type, betOn, prob, ml != null ? ml : '-110', dec || 1.91, dateKey, 'manual', betTypeOverride, extraMeta);
           const after = getP().length;
           return after > before ? 'locked' : 'failed';
         }
         """,
-        {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "prob": q["prob"], "ml": ml, "dec": dec, "dateOverride": date_override, "betTypeOverride": bet_type_override, "socFactors": sock_factors},
+        {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "prob": q["prob"], "ml": ml, "dec": dec, "dateOverride": date_override, "betTypeOverride": bet_type_override, "socFactors": sock_factors, "reasoning": reasoning_text},
     )
 
 
