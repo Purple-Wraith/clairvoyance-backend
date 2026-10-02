@@ -80,6 +80,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _gmail_email import send_email as _send_gmail  # noqa: E402
 from _gmail_email import EMAIL_WRAP_OPEN as _EMAIL_WRAP_OPEN, EMAIL_WRAP_CLOSE as _EMAIL_WRAP_CLOSE  # noqa: E402
+import lock_timing as lt  # noqa: E402  -- the ONE known-late classifier every public figure shares (see its docstring)
 
 APP_URL = "https://purple-wraith.github.io/clairvoyance-backend/app.html"
 SOCIAL_CARD_EMAIL_TO = os.environ.get("SOCIAL_CARD_EMAIL_TO", "")
@@ -244,6 +245,62 @@ def _fmt_pct(pct: float | None) -> str:
     return f"{pct*100:.1f}%" if pct is not None else "N/A"
 
 
+# ── PUBLIC FIGURES = PRE-START LOCKS ONLY (2026-10-02) ─────────────────────────────────────────────────────────────────────
+# Every figure this script publishes (the 3 landing-page JSONs, the Track Record / Sport Performance / League Performance /
+# Event cards, the caption and video numbers) is computed on picks NOT known to have been locked after their game started.
+# The classifier is scripts/lock_timing.py (shared with auto_lock_settle.py, clairvoyance_update.py, the digests); this
+# module only asks it for the ids to drop and hands them to the in-page JS. Unknown-timing picks stay included.
+TALLY_NOTE = "Counts only picks locked before game start."
+
+
+def public_filter(page) -> dict:
+    """Classify the headless page's whole ledger. -> {"ids": [known-late pick ids], "rows": [picks], "idx_size": n}.
+    Raises if a known-late pick has no id (it could not be excluded), so a publish can never silently include one."""
+    rows = page.evaluate("() => getP()")
+    idx = lt.load_index()
+    late = [p for p in rows if lt.is_known_late(p, idx)]
+    if any(not p.get("id") for p in late):
+        raise RuntimeError("known-late pick without an id -- cannot exclude it from public figures")
+    ids = sorted(p["id"] for p in late)
+    log(f"Public-figure basis: {len(ids)} known-late pick(s) excluded of {len(rows)} ({lt.BASIS}); "
+        f"{lt.summarize(rows, idx)['settled_unknown_timing_included']} settled unknown-timing pick(s) included")
+    return {"ids": ids, "rows": rows, "idx": idx}
+
+
+def inject_public_exclusions(page, pf: dict) -> None:
+    """Make the in-app Social-tab renderer (renderTrackRecord -> every exported card) honour the Python verdict instead of
+    its own JS mirror: window._CV_PUBLIC_EXCLUDE_IDS is read by _pubDrop() in docs/app.html."""
+    page.evaluate("(ids) => { window._CV_PUBLIC_EXCLUDE_IDS = new Set(ids); }", pf["ids"])
+
+
+def _scoped_basis(pf: dict, keep) -> dict:
+    """basis fields for a JSON whose figures cover only the picks `keep(p)` accepts (its own scope)."""
+    scoped = [p for p in pf["rows"] if keep(p)]
+    return lt.basis_fields(scoped, pf["idx"])
+
+
+def basis_for_engine(pf):
+    return _scoped_basis(pf, lambda p: True)
+
+
+def basis_for_subscriber(pf):
+    return _scoped_basis(pf, lambda p: lt.norm_sport(p) in lt.BROAD_SPORT_CODES)
+
+
+def basis_for_sport(pf):
+    return _scoped_basis(pf, lambda p: lt.norm_sport(p) in lt.LEAGUE_MAP_CODES)
+
+
+def _tally_line(stats: dict | None) -> str:
+    """The "Final tally" caption line, shared by every caption builder, with the pre-start basis note."""
+    if stats and stats.get("w") is not None:
+        return (
+            f"Final tally: {stats['w']}W-{stats['l']}L · {_fmt_pct(stats.get('pct'))} win rate · "
+            f"{_fmt_units(stats.get('units'))}\n{TALLY_NOTE}\n\n"
+        )
+    return ""
+
+
 def generate_cards(page, out_dir: Path, period: str, prefix_extra: str = "") -> tuple[list[Path], dict | None]:
     """Generate the standard 3-card set for a given period ('YESTERDAY',
     'ROLLING 7D', 'LAST MONTH', etc). prefix_extra distinguishes filenames
@@ -267,7 +324,9 @@ def generate_cards(page, out_dir: Path, period: str, prefix_extra: str = "") -> 
     stats = page.evaluate(
         """
         () => {
-          const d = window._cvSportPeriodData;
+          // The PUBLIC (pre-start-only, _PUB_SPORTS-scoped) dataset -- the very data the exported cards are drawn from -- so a
+          // caption/video number can never disagree with the card it accompanies or include a late manual lock.
+          const d = window._cvSportPeriodDataPub;
           if (!d || !d.totalP) return null;
           // d.bySport[sport] is the RAW array of bet objects for that
           // sport, not a pre-computed summary — the card renderer computes
@@ -353,7 +412,7 @@ def get_event_stats(page) -> dict | None:
     )
 
 
-def get_year_stats(page, year: int) -> dict:
+def get_year_stats(page, year: int, pf: dict | None = None) -> dict:
     """Win/loss/pct/units for a full calendar year, computed directly from
     the real ledger's date field. The underlying app has no "calendar
     year" period option (only YESTERDAY/ROLLING 7D/LAST MONTH/etc via
@@ -362,11 +421,13 @@ def get_year_stats(page, year: int) -> dict:
     normalized pnl convention as everywhere else (win: decOdds-1, loss:
     -1) so the units figure is directly comparable to daily/weekly/
     monthly numbers."""
+    pf = pf or public_filter(page)
     return page.evaluate(
         """
-        (year) => {
+        ([year, lateIds]) => {
+          const L = new Set(lateIds || []);
           const start = year + '-01-01', end = year + '-12-31';
-          const inYear = getP().filter(p => p.date && p.date >= start && p.date <= end);
+          const inYear = getP().filter(p => p.date && p.date >= start && p.date <= end && !L.has(p.id));
           const settled = inYear.filter(p => p.outcome === 'win' || p.outcome === 'loss');
           const w = settled.filter(p => p.outcome === 'win').length;
           const l = settled.length - w;
@@ -412,22 +473,19 @@ def get_year_stats(page, year: int) -> dict:
           return { w, l, n: settled.length, pct: settled.length ? w / settled.length : null, units, lockedCount: settled.length, bySport };
         }
         """,
-        year,
+        [year, pf["ids"]],
     )
 
 
-def get_engine_performance(page) -> dict | None:
-    """Today/Yesterday/Rolling 7D/This Month/Last Month/All Time win-loss-
-    units, computed with the exact same hCalc() logic as the home page's
-    Engine Performance boxes (docs/app.html renderHomePage). Written to
-    docs/engine_performance.json so the landing page (a separate static
-    site with no Supabase access of its own) can mirror these numbers
-    without duplicating the whole ledger/auth setup — it just fetches this
-    JSON, which gets refreshed by this same daily automated run."""
-    return page.evaluate(
-        """
-        async () => {
-          const allBets = getP();
+# Shared by get_engine_performance / get_engine_performance_subscriber: the six period tiles on PRE-START picks only.
+# `lateIds` (from public_filter) are dropped from every period; each period also reports excluded_late = how many SETTLED
+# picks that dropped from it (so the JSON is auditable). Period windows are byte-for-byte what they were before the filter.
+_PERIOD_TILES_JS = """
+        async ({lateIds, subscriber}) => {
+          const L = new Set(lateIds || []);
+          const scope = p => !subscriber || window._broadSportOf(window._normSport(p)) !== null;
+          const allRaw = getP().filter(scope);
+          const allBets = allRaw.filter(p => !L.has(p.id));
           const now = Date.now();
           const yd = yesterday();
           const nowD = getMSTNow();
@@ -450,27 +508,39 @@ def get_engine_performance(page) -> dict | None:
           };
 
           const todayStr = today();
-          const periods = [
-            { key: 'TODAY', label: 'TODAY', sub: '',
-              perf: hCalc(allBets.filter(p => p.date === todayStr)) },
-            { key: 'YESTERDAY', label: 'YESTERDAY', sub: '',
-              perf: hCalc(allBets.filter(p => p.date === yd)) },
-            { key: 'ROLLING_7D', label: 'ROLLING 7D', sub: '',
-              perf: hCalc(allBets.filter(p => p.lockedAt && p.lockedAt >= wk7ts)) },
-            { key: 'THIS_MONTH', label: 'THIS MONTH', sub: thisMonthLbl,
-              perf: hCalc(allBets.filter(p => p.lockedAt && p.lockedAt >= firstOfMonth.getTime())) },
-            { key: 'LAST_MONTH', label: 'LAST MONTH', sub: lastMonthLbl,
-              perf: hCalc(allBets.filter(p => p.lockedAt && p.lockedAt >= firstOfLastMonth.getTime() && p.lockedAt < firstOfMonth.getTime())) },
-            { key: 'ALL_TIME', label: 'ALL TIME', sub: '',
-              perf: hCalc(allBets) },
+          const windows = [
+            ['TODAY', 'TODAY', '', p => p.date === todayStr],
+            ['YESTERDAY', 'YESTERDAY', '', p => p.date === yd],
+            ['ROLLING_7D', 'ROLLING 7D', '', p => p.lockedAt && p.lockedAt >= wk7ts],
+            ['THIS_MONTH', 'THIS MONTH', thisMonthLbl, p => p.lockedAt && p.lockedAt >= firstOfMonth.getTime()],
+            ['LAST_MONTH', 'LAST MONTH', lastMonthLbl, p => p.lockedAt && p.lockedAt >= firstOfLastMonth.getTime() && p.lockedAt < firstOfMonth.getTime()],
+            ['ALL_TIME', 'ALL TIME', '', p => true],
           ];
-          return periods.map(p => ({ key: p.key, label: p.label, sub: p.sub, w: p.perf.w, l: p.perf.l, n: p.perf.n, pct: p.perf.pct, units: p.perf.units }));
+          return windows.map(([key, label, sub, f]) => {
+            const perf = hCalc(allBets.filter(f));
+            const full = hCalc(allRaw.filter(f));
+            return { key, label, sub, w: perf.w, l: perf.l, n: perf.n, pct: perf.pct, units: perf.units,
+                     excluded_late: full.n - perf.n };
+          });
         }
         """
-    )
 
 
-def get_engine_performance_subscriber(page) -> dict | None:
+def get_engine_performance(page, pf: dict | None = None) -> dict | None:
+    """Today/Yesterday/Rolling 7D/This Month/Last Month/All Time win-loss-
+    units, computed with the exact same hCalc() logic as the home page's
+    Engine Performance boxes (docs/app.html renderHomePage), on PRE-START
+    picks only (known-late manual locks dropped -- see public_filter /
+    scripts/lock_timing.py). Written to docs/engine_performance.json so the
+    landing page (a separate static site with no Supabase access of its
+    own) can mirror these numbers without duplicating the whole
+    ledger/auth setup -- it just fetches this JSON, which gets refreshed by
+    this same automated run."""
+    pf = pf or public_filter(page)
+    return page.evaluate(_PERIOD_TILES_JS, {"lateIds": pf["ids"], "subscriber": False})
+
+
+def get_engine_performance_subscriber(page, pf: dict | None = None) -> dict | None:
     """Same Today/Yesterday/Rolling 7D/This Month/Last Month/All Time
     hCalc() logic as get_engine_performance() above, pre-filtered to match
     the home page's own "// ENGINE PERFORMANCE" card (docs/app.html
@@ -491,54 +561,15 @@ def get_engine_performance_subscriber(page) -> dict | None:
     two can never silently drift apart again the way they just did --
     whatever renderHomePage's keptBets counts, this now counts too, since
     it calls the exact same functions rather than a second copy of the
-    same logic."""
-    return page.evaluate(
-        """
-        async () => {
-          const allBets = getP().filter(p => window._broadSportOf(window._normSport(p)) !== null);
-          const now = Date.now();
-          const yd = yesterday();
-          const nowD = getMSTNow();
-          const wk7ts = now - 7 * 86400000;
-          const firstOfMonth = mstFirstOfMonth(nowD);
-          const firstOfLastMonth = mstFirstOfMonth(new Date(nowD.getFullYear(), nowD.getMonth() - 1, 1));
-          const thisMonthLbl = nowD.toLocaleDateString('en-US', {month:'short',year:'numeric'}).toUpperCase();
-          const lastMonthLbl = firstOfLastMonth.toLocaleDateString('en-US', {month:'short',year:'numeric'}).toUpperCase();
+    same logic.
 
-          const hCalc = bets => {
-            const s = bets.filter(p => p.outcome !== 'pending');
-            const w = s.filter(p => p.outcome === 'win').length;
-            const l = s.filter(p => p.outcome === 'loss').length;
-            const u = s.reduce((a, p) => {
-              if (p.outcome === 'win') return a + (parseFloat(p.decOdds) || 2) - 1;
-              if (p.outcome === 'loss') return a - 1;
-              return a;
-            }, 0);
-            return { w, l, n: s.length, pct: s.length ? w / s.length : null, units: u };
-          };
-
-          const todayStr = today();
-          const periods = [
-            { key: 'TODAY', label: 'TODAY', sub: '',
-              perf: hCalc(allBets.filter(p => p.date === todayStr)) },
-            { key: 'YESTERDAY', label: 'YESTERDAY', sub: '',
-              perf: hCalc(allBets.filter(p => p.date === yd)) },
-            { key: 'ROLLING_7D', label: 'ROLLING 7D', sub: '',
-              perf: hCalc(allBets.filter(p => p.lockedAt && p.lockedAt >= wk7ts)) },
-            { key: 'THIS_MONTH', label: 'THIS MONTH', sub: thisMonthLbl,
-              perf: hCalc(allBets.filter(p => p.lockedAt && p.lockedAt >= firstOfMonth.getTime())) },
-            { key: 'LAST_MONTH', label: 'LAST MONTH', sub: lastMonthLbl,
-              perf: hCalc(allBets.filter(p => p.lockedAt && p.lockedAt >= firstOfLastMonth.getTime() && p.lockedAt < firstOfMonth.getTime())) },
-            { key: 'ALL_TIME', label: 'ALL TIME', sub: '',
-              perf: hCalc(allBets) },
-          ];
-          return periods.map(p => ({ key: p.key, label: p.label, sub: p.sub, w: p.perf.w, l: p.perf.l, n: p.perf.n, pct: p.perf.pct, units: p.perf.units }));
-        }
-        """
-    )
+    2026-10-02: now also pre-start-locks-only (see get_engine_performance), so
+    it equals the Home tiles' PRE-START companion line, not the headline tiles."""
+    pf = pf or public_filter(page)
+    return page.evaluate(_PERIOD_TILES_JS, {"lateIds": pf["ids"], "subscriber": True})
 
 
-def get_sport_performance(page) -> dict | None:
+def get_sport_performance(page, pf: dict | None = None) -> dict | None:
     """Today / Last Month / This Month / All Time win-loss-units, broken
     down by league, computed with the exact same leagueMap categorization
     and calc logic as the home page's own "// PERIOD PERFORMANCE — LEAGUE"
@@ -551,11 +582,15 @@ def get_sport_performance(page) -> dict | None:
     get_engine_performance() above already uses for its own LAST_MONTH
     bucket. Written to docs/sport_performance.json for the same reason
     engine_performance.json exists -- so the landing page can mirror these
-    numbers without its own Supabase access."""
+    numbers without its own Supabase access. PRE-START picks only (2026-10-02,
+    see public_filter); each section reports excluded_late."""
+    pf = pf or public_filter(page)
     return page.evaluate(
         """
-        async () => {
-          const allBets = getP();
+        async (lateIds) => {
+          const L = new Set(lateIds || []);
+          const allRaw = getP();
+          const allBets = allRaw.filter(p => !L.has(p.id));
           const nowD = getMSTNow();
           const firstOfMonth = mstFirstOfMonth(nowD);
           const firstOfLastMonth = mstFirstOfMonth(new Date(nowD.getFullYear(), nowD.getMonth() - 1, 1));
@@ -614,24 +649,57 @@ def get_sport_performance(page) -> dict | None:
             }, 0);
             return { lbl: lm.lbl, w, l, n: lb.length, pct: lb.length ? w / lb.length : null, units: u };
           }).filter(Boolean).sort((a, b) => b.n - a.n);
+          // settled picks that fall in a covered league (what byLeague counts) -- for excluded_late
+          const nCovered = bets => bets.filter(p => leagueMap.some(lm => window._normSport(p) === lm.code)).length;
 
-          const settled = allBets.filter(p => p.outcome !== 'pending');
-          const thisMonthBets = settled.filter(p => p.lockedAt && p.lockedAt >= firstOfMonth.getTime());
-          const lastMonthBets = settled.filter(p => p.lockedAt && p.lockedAt >= firstOfLastMonth.getTime() && p.lockedAt < firstOfMonth.getTime());
-          // Matches p.date, not lockedAt -- same real-world game date the
-          // home page's own 'today' toggle and TODAY summary card use, not
-          // a "locked in the last 24h" count.
-          const todayBets = settled.filter(p => p.date === today());
-
+          const settledOf = bs => bs.filter(p => p.outcome !== 'pending');
+          const win = {
+            thisMonth: p => p.lockedAt && p.lockedAt >= firstOfMonth.getTime(),
+            lastMonth: p => p.lockedAt && p.lockedAt >= firstOfLastMonth.getTime() && p.lockedAt < firstOfMonth.getTime(),
+            // Matches p.date, not lockedAt -- same real-world game date the
+            // home page's own 'today' toggle and TODAY summary card use, not
+            // a "locked in the last 24h" count.
+            today: p => p.date === today(),
+            all: p => true,
+          };
+          const section = (label, f) => {
+            const kept = settledOf(allBets).filter(f), full = settledOf(allRaw).filter(f);
+            return { label, leagues: byLeague(kept), excluded_late: nCovered(full) - nCovered(kept) };
+          };
           return {
-            today: { label: 'TODAY', leagues: byLeague(todayBets) },
-            lastMonth: { label: lastMonthLbl, leagues: byLeague(lastMonthBets) },
-            thisMonth: { label: thisMonthLbl, leagues: byLeague(thisMonthBets) },
-            allTime: { label: 'ALL TIME', leagues: byLeague(settled) },
+            today: section('TODAY', win.today),
+            lastMonth: section(lastMonthLbl, win.lastMonth),
+            thisMonth: section(thisMonthLbl, win.thisMonth),
+            allTime: section('ALL TIME', win.all),
           };
         }
-        """
+        """,
+        pf["ids"],
     )
+
+
+def write_landing_json(page, now_mt: datetime, pf: dict | None = None, out_dir: Path | None = None) -> dict:
+    """Compute and write the 3 landing-page JSONs (engine_performance.json, engine_performance_subscriber.json,
+    sport_performance.json) on PRE-START picks only -- the ONE writer, called by both this script's run() and
+    auto_lock_settle.write_landing_performance(), so the two can never diverge. Each file carries a machine-readable
+    "basis" (+ basis_note and basis_detail counts: picks excluded as known-late, unknown-timing picks included, by league).
+    A failure in one file is logged and does not stop the others (same as before). Returns the pf dict for reuse."""
+    out_dir = out_dir or (ROOT / "docs")
+    stamp = now_mt.strftime("%Y-%m-%d %H:%M MT")
+    pf = pf or public_filter(page)
+    for name, fn, basis_fn, wrap in (
+        ("engine_performance.json", get_engine_performance, basis_for_engine, lambda r: {"periods": r}),
+        ("engine_performance_subscriber.json", get_engine_performance_subscriber, basis_for_subscriber, lambda r: {"periods": r}),
+        ("sport_performance.json", get_sport_performance, basis_for_sport, lambda r: dict(r)),
+    ):
+        try:
+            res = fn(page, pf)
+            if res:
+                (out_dir / name).write_text(json.dumps({"generated_at": stamp, **basis_fn(pf), **wrap(res)}, indent=2))
+                log(f"Wrote {out_dir / name}")
+        except Exception as e:
+            log(f"WARNING: {name} snapshot failed: {e}")
+    return pf
 
 
 def run(out_dir: Path, force: set[str] | None = None, json_only: bool = False) -> dict:
@@ -712,64 +780,30 @@ def run(out_dir: Path, force: set[str] | None = None, json_only: bool = False) -
             raise RuntimeError("Failed to load bet ledger from Supabase in-page — check SUPABASE_URL/KEY are still valid in app.html")
         log(f"Loaded {bet_count} real bets from Supabase into headless session")
 
+        # Pre-start-locks-only basis (2026-10-02): classify the whole ledger with the shared classifier, and hand the verdict to
+        # the in-page renderer BEFORE anything renders, so every exported card, caption number and JSON agrees.
+        pf = public_filter(page)
+        inject_public_exclusions(page, pf)
+
         page.evaluate("() => { try { renderTrackRecord(); } catch(e) {} }")
         page.wait_for_timeout(400)
         page.evaluate("async () => { if (document.fonts && document.fonts.ready) await document.fonts.ready; }")
 
-        # Engine Performance snapshot (Yesterday/Rolling 7D/This Month/Last
-        # Month/All Time) — feeds the landing page's own Engine Performance
-        # section via a plain fetch, so it stays in sync with the home
-        # page's own numbers on every daily run without needing its own
-        # Supabase access.
-        try:
-            engine_perf = get_engine_performance(page)
-            if engine_perf:
-                perf_path = ROOT / "docs" / "engine_performance.json"
-                perf_path.write_text(json.dumps({
-                    "generated_at": now_mt.strftime("%Y-%m-%d %H:%M MT"),
-                    "periods": engine_perf,
-                }, indent=2))
-                log(f"Wrote {perf_path}")
-        except Exception as e:
-            log(f"WARNING: engine performance snapshot failed: {e}")
-
-        # Subscriber-scoped Engine Performance snapshot -- same periods, but
-        # filtered to only the 5 real paid-product sports (was 6 until MLB
-        # was retired 2026-09-08). Explicit request, 2026-09-03: the
-        # landing page's public Live Track Record should not include
-        # personal-use-only WNBA/tennis/etc performance. Separate
-        # file so engine_performance.json (also read by nothing else, but
-        # kept as the "real, full" snapshot) stays the complete picture.
-        try:
-            engine_perf_sub = get_engine_performance_subscriber(page)
-            if engine_perf_sub:
-                perf_sub_path = ROOT / "docs" / "engine_performance_subscriber.json"
-                perf_sub_path.write_text(json.dumps({
-                    "generated_at": now_mt.strftime("%Y-%m-%d %H:%M MT"),
-                    "periods": engine_perf_sub,
-                }, indent=2))
-                log(f"Wrote {perf_sub_path}")
-        except Exception as e:
-            log(f"WARNING: subscriber-scoped engine performance snapshot failed: {e}")
-
-        # Sport performance snapshot (Today / This Month / All Time, by league) --
-        # feeds the landing page's own Sport Performance section, same
-        # rationale as engine_performance.json above.
-        try:
-            sport_perf = get_sport_performance(page)
-            if sport_perf:
-                sport_perf_path = ROOT / "docs" / "sport_performance.json"
-                sport_perf_path.write_text(json.dumps({
-                    "generated_at": now_mt.strftime("%Y-%m-%d %H:%M MT"),
-                    **sport_perf,
-                }, indent=2))
-                log(f"Wrote {sport_perf_path}")
-        except Exception as e:
-            log(f"WARNING: sport performance snapshot failed: {e}")
+        # Engine Performance / subscriber Engine Performance / Sport Performance JSON snapshots -- feed the landing page's
+        # Live Track Record + Sport Performance sections via a plain fetch (it has no Supabase access of its own). Pre-start
+        # locks only; see write_landing_json.
+        write_landing_json(page, now_mt, pf)
 
         if json_only:
             browser.close()
             return result
+
+        # Safety: the exported cards are drawn by the DEPLOYED app.html. If Pages still serves a version that predates the
+        # pre-start filter (_pubDrop), its cards would still count late locks while the JSONs above do not -- refuse to render
+        # (and email) public cards rather than publish figures on two different bases.
+        if not page.evaluate("() => typeof _pubDrop === 'function'"):
+            raise RuntimeError("deployed app.html predates the pre-start-locks-only filter (_pubDrop missing) -- refusing to "
+                               "render public cards; re-run once the Pages deploy of the new app.html has finished")
 
         # Daily (always)
         cards, stats = generate_cards(page, out_dir, "YESTERDAY")
@@ -787,7 +821,7 @@ def run(out_dir: Path, force: set[str] | None = None, json_only: bool = False) -
 
         # Year in review (Jan 1 — covers the year that just ended)
         if is_new_year:
-            year_stats = get_year_stats(page, now_mt.year - 1)
+            year_stats = get_year_stats(page, now_mt.year - 1, pf)
             result["yearly"] = {"stats": year_stats}
 
         # All Time (every 14 days) — a real period the app itself already
@@ -817,12 +851,7 @@ def build_daily_caption(stats: dict | None, date_ref: datetime) -> dict[str, str
     # the actual reporting date (not "today"), so this line stays accurate
     # regardless of when the workflow happens to fire.
     date_str = date_ref.strftime("%B %-d, %Y")
-    tally_line = ""
-    if stats and stats.get("w") is not None:
-        tally_line = (
-            f"Final tally: {stats['w']}W-{stats['l']}L · {_fmt_pct(stats.get('pct'))} win rate · "
-            f"{_fmt_units(stats.get('units'))}\n\n"
-        )
+    tally_line = _tally_line(stats)
     ig = (
         f"Yesterdays Performance\n\n{date_str}\n\nThis is Clairvoyance.\n\n{tally_line}"
         f"Every pick graded. Every line evaluated for edge. No guesswork.\n\n"
@@ -840,12 +869,7 @@ def build_daily_caption(stats: dict | None, date_ref: datetime) -> dict[str, str
 def build_weekly_caption(stats: dict | None, week_end: datetime) -> dict[str, str]:
     week_start = week_end - timedelta(days=6)
     range_str = _fmt_date_range(week_start, week_end)
-    tally_line = ""
-    if stats and stats.get("w") is not None:
-        tally_line = (
-            f"Final tally: {stats['w']}W-{stats['l']}L · {_fmt_pct(stats.get('pct'))} win rate · "
-            f"{_fmt_units(stats.get('units'))}\n\n"
-        )
+    tally_line = _tally_line(stats)
     ig = (
         f"This Week in Review — {range_str}\n\nThis is Clairvoyance.\n\n{tally_line}"
         f"Seven days. Every pick graded, every line evaluated for edge. No guesswork.\n\n"
@@ -862,12 +886,7 @@ def build_weekly_caption(stats: dict | None, week_end: datetime) -> dict[str, st
 
 
 def build_alltime_caption(stats: dict | None) -> dict[str, str]:
-    tally_line = ""
-    if stats and stats.get("w") is not None:
-        tally_line = (
-            f"Final tally: {stats['w']}W-{stats['l']}L · {_fmt_pct(stats.get('pct'))} win rate · "
-            f"{_fmt_units(stats.get('units'))}\n\n"
-        )
+    tally_line = _tally_line(stats)
     ig = (
         f"All Time — Every Pick, Every Result\n\nThis is Clairvoyance.\n\n{tally_line}"
         f"The full track record, public from day one. No cherry-picking, no deleted losses.\n\n"
@@ -886,12 +905,7 @@ def build_alltime_caption(stats: dict | None) -> dict[str, str]:
 def build_monthly_caption(stats: dict | None, month_ref: datetime) -> dict[str, str]:
     last_month = (month_ref.replace(day=1) - timedelta(days=1))
     month_str = last_month.strftime("%B %Y")
-    tally_line = ""
-    if stats and stats.get("w") is not None:
-        tally_line = (
-            f"Final tally: {stats['w']}W-{stats['l']}L · {_fmt_pct(stats.get('pct'))} win rate · "
-            f"{_fmt_units(stats.get('units'))}\n\n"
-        )
+    tally_line = _tally_line(stats)
     ig = (
         f"{month_str} in the Books\n\nThis is Clairvoyance.\n\n{tally_line}"
         f"A full month tracked, graded, and public. No cherry-picking, no deleted losses.\n\n"
@@ -908,12 +922,7 @@ def build_monthly_caption(stats: dict | None, month_ref: datetime) -> dict[str, 
 
 
 def build_yearly_caption(stats: dict | None, year: int) -> dict[str, str]:
-    tally_line = ""
-    if stats and stats.get("w") is not None:
-        tally_line = (
-            f"Final tally: {stats['w']}W-{stats['l']}L · {_fmt_pct(stats.get('pct'))} win rate · "
-            f"{_fmt_units(stats.get('units'))}\n\n"
-        )
+    tally_line = _tally_line(stats)
     ig = (
         f"{year} in the Books\n\nThis is Clairvoyance.\n\n{tally_line}"
         f"A full year tracked, graded, and public. Every pick, every result — no cherry-picking, no deleted losses.\n\n"
@@ -931,12 +940,7 @@ def build_yearly_caption(stats: dict | None, year: int) -> dict[str, str]:
 
 def build_event_caption(event: dict, stats: dict | None = None) -> dict[str, str]:
     event_hashtag = "#" + "".join(w.capitalize() for w in event["name"].split())
-    tally_line = ""
-    if stats and stats.get("w") is not None:
-        tally_line = (
-            f"Final tally: {stats['w']}W-{stats['l']}L · {_fmt_pct(stats.get('pct'))} win rate · "
-            f"{_fmt_units(stats.get('units'))}\n\n"
-        )
+    tally_line = _tally_line(stats)
     ig = (
         f"{event['name']} is in the books.\n\nThis is Clairvoyance.\n\n{tally_line}"
         f"Every pick tracked. Every result public. No guesswork.\n\n"

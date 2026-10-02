@@ -50,6 +50,7 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _gmail_email import send_email  # noqa: E402
+import lock_timing  # noqa: E402  -- shared known-late classifier (pre-start-locks-only basis)
 
 ROOT = Path(__file__).resolve().parent.parent
 REPO = "Purple-Wraith/clairvoyance-backend"
@@ -211,7 +212,7 @@ def stuck_pending(all_bets: list[dict], max_age_days: int = 3) -> list[dict]:
     return sorted(stuck, key=lambda p: -p["_ageDays"])
 
 
-def build_email_html(supabase_problem, wf_rates, cal_rows, stuck) -> str:
+def build_email_html(supabase_problem, wf_rates, cal_rows, stuck, late_excluded: int = 0) -> str:
     parts = ['<div style="font-family:monospace;font-size:14px;color:#1a1a2e;line-height:1.6">']
     parts.append("<h2>Clairvoyance — Weekly Health Digest</h2>")
 
@@ -233,6 +234,9 @@ def build_email_html(supabase_problem, wf_rates, cal_rows, stuck) -> str:
     parts.append("</ul>")
 
     parts.append("<h3>3. Model calibration</h3>")
+    if late_excluded:
+        parts.append(f"<p><em>Pre-start locks only: {late_excluded} settled pick(s) locked after their game started are excluded "
+                     f"(same basis as every published figure and the Dashboard's calibration).</em></p>")
     if supabase_problem:
         parts.append("<p><em>Unavailable — Supabase unreachable.</em></p>")
     elif not cal_rows:
@@ -272,10 +276,15 @@ def main() -> None:
 
     settled: list[dict] = []
     all_bets: list[dict] = []
+    late_excluded = 0
     if not supabase_problem:
         try:
             all_bets = load_ledger(url, key)
             settled = [p for p in all_bets if is_active_sport(p) and p.get("outcome") in ("win", "loss")]
+            # Calibration must not learn from picks whose result was known at lock (manual late locks) -- the Dashboard's own
+            # calibration already drops them (_calEligible); this digest now agrees. Shared classifier, unknown timing kept.
+            settled, _late = lock_timing.split_picks(settled, lock_timing.load_index())
+            late_excluded = len(_late)
         except Exception as exc:
             supabase_problem = f"Reachable, but ledger pull failed: {exc}"
 
@@ -298,7 +307,7 @@ def main() -> None:
         print("No recipient configured (SOCIAL_CARD_EMAIL_TO/LOCKS_EMAIL_TO unset) -- can't email this.")
         return
 
-    body = build_email_html(supabase_problem, wf_rates, cal_rows, stuck)
+    body = build_email_html(supabase_problem, wf_rates, cal_rows, stuck, late_excluded)
     subject = "Clairvoyance — Weekly Health Digest" + (" — SUPABASE ISSUE" if supabase_problem else "")
     ok, msg = send_email(subject, ALERT_TO, body)
     print(f"Digest email sent to {ALERT_TO}" if ok else f"Digest email FAILED: {msg}")

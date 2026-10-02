@@ -3408,10 +3408,24 @@ def supabase_bets_to_history(bets: list[dict]) -> list[dict]:
     was silently running against zero real bets.
     """
     out = []
+    # 2026-10-02: this history feeds PUBLIC files (docs/data.json overallStats/betHistory, docs/bet_history.csv, data/
+    # bet_history.csv), so it is PRE-START LOCKS ONLY -- a pick KNOWN to have been locked after its game started (the owner's
+    # manual late locks) is dropped, via the same shared classifier every public figure uses (scripts/lock_timing.py).
+    # Unknown-timing picks stay. Retired-sport history (MLB/tennis/...) has no start data, so it is unfiltered by necessity.
+    import lock_timing as _lt
+    _lt_idx = _lt.load_index()
+    _late_dropped = 0
     for row in bets:
         if row.get("outcome") not in ("win", "loss", "push"):
             continue
         raw = row.get("raw") or {}
+        _pk = {**raw, "id": row.get("id") or raw.get("id")}
+        for _k in ("sport", "date"):
+            if not _pk.get(_k):
+                _pk[_k] = row.get(_k)
+        if _lt.is_known_late(_pk, _lt_idx):
+            _late_dropped += 1
+            continue
         settled_at = row.get("settled_at")
         if settled_at is not None and not isinstance(settled_at, str):
             # Supabase's settled_at column is a bigint (epoch ms) — every
@@ -3470,6 +3484,8 @@ def supabase_bets_to_history(bets: list[dict]) -> list[dict]:
             "wager":     row.get("wager", 100),
             "pnl":       pnl,
         })
+    if _late_dropped:
+        log(f"History: dropped {_late_dropped} known-late (locked after game start) settled pick(s) -- public figures are pre-start locks only")
     return out
 
 def fetch_injuries_all() -> dict:

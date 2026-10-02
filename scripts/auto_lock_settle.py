@@ -78,11 +78,8 @@ from _subscribers import recipients_for, OWNER_EMAIL, EMAIL_BANNER_URL  # noqa: 
 # Reused (not reimplemented) for the landing-perf JSON snapshot this
 # script now also writes on every run -- see the call site in main() for
 # why this replaced a second, fully independent browser+Supabase pull.
-from generate_social_cards import (  # noqa: E402
-    get_engine_performance as _get_engine_performance,
-    get_engine_performance_subscriber as _get_engine_performance_subscriber,
-    get_sport_performance as _get_sport_performance,
-)
+from generate_social_cards import write_landing_json as _write_landing_json  # noqa: E402
+import lock_timing  # noqa: E402  -- shared known-late classifier (public figures + digests are pre-start locks only)
 
 # _LOCKS_EMAIL_CLOSE (the disclaimer-bearing close, defined in
 # _gmail_email.py so _subscribers.py's receipt email can share the exact
@@ -707,35 +704,9 @@ def write_landing_performance(page) -> None:
     functions directly against THIS run's already-loaded page removes
     the second pull entirely -- one Supabase read per invocation, not
     two, for the exact same 3 output files."""
-    now_mt = datetime.now(ZoneInfo("America/Denver"))
-    out_dir = ROOT / "docs"
-    try:
-        engine_perf = _get_engine_performance(page)
-        if engine_perf:
-            (out_dir / "engine_performance.json").write_text(json.dumps({
-                "generated_at": now_mt.strftime("%Y-%m-%d %H:%M MT"),
-                "periods": engine_perf,
-            }, indent=2))
-    except Exception as e:
-        print(f"WARNING: engine performance snapshot failed: {e}")
-    try:
-        engine_perf_sub = _get_engine_performance_subscriber(page)
-        if engine_perf_sub:
-            (out_dir / "engine_performance_subscriber.json").write_text(json.dumps({
-                "generated_at": now_mt.strftime("%Y-%m-%d %H:%M MT"),
-                "periods": engine_perf_sub,
-            }, indent=2))
-    except Exception as e:
-        print(f"WARNING: subscriber-scoped engine performance snapshot failed: {e}")
-    try:
-        sport_perf = _get_sport_performance(page)
-        if sport_perf:
-            (out_dir / "sport_performance.json").write_text(json.dumps({
-                "generated_at": now_mt.strftime("%Y-%m-%d %H:%M MT"),
-                **sport_perf,
-            }, indent=2))
-    except Exception as e:
-        print(f"WARNING: sport performance snapshot failed: {e}")
+    # 2026-10-02: the 3 JSONs are PRE-START LOCKS ONLY (known-late manual locks excluded, with a machine-readable basis in
+    # each file) -- written by the one shared writer in generate_social_cards.py so run() there and this call cannot diverge.
+    _write_landing_json(page, datetime.now(ZoneInfo("America/Denver")))
 
 
 def flush_to_supabase(page) -> None:
@@ -901,7 +872,7 @@ def _settle_result_html(b: dict) -> str:
             f'{_esc(b.get("betOn"))} <span style="color:#bbb">({result})</span>{date_label}</div>')
 
 
-def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | None = None) -> str:
+def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | None = None, late_excluded: int = 0) -> str:
     by_sport: dict[str, list[dict]] = {}
     for b in settled:
         by_sport.setdefault(norm_sport_for_email(b.get("sport"), b.get("league")), []).append(b)
@@ -926,8 +897,14 @@ def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | No
                       f'real score/result not found. Will keep retrying automatically.<ul style="margin:6px 0 0;padding-left:18px">'
                       + "".join(f'<li>{_esc(SPORT_DISPLAY_NAME.get(norm_sport_for_email(b.get("sport"), b.get("league")), norm_sport_for_email(b.get("sport"), b.get("league"))))}: {_esc(b.get("betOn"))}</li>' for b in unresolved)
                       + '</ul></div>')
+    # Pre-start-locks-only basis (2026-10-02): picks KNOWN to have been locked after their game started (manual late locks) are
+    # not predictions and were never sent to subscribers pre-game -- they are left out of the lists and the totals above, and
+    # only COUNTED here (no names), so the record in this email matches every published figure.
+    late_note = (f'<div style="margin-top:14px;font-size:12px;color:#777">Pre-start locks only: {late_excluded} pick(s) locked '
+                 f'after their game started are not counted or listed.</div>') if late_excluded else ""
     if not settled:
         parts.append('<div style="padding:20px 0;color:#555;font-size:14px">No bets settled this run.</div>')
+        parts.append(late_note)
         parts.append(_EMAIL_WRAP_CLOSE)
         return "".join(parts)
 
@@ -941,12 +918,13 @@ def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | No
         parts.append('<div style="background:#14001f;border-radius:6px;padding:10px 14px">')
         parts.append("".join(_settle_result_html(b) for b in bets))
         parts.append('</div>')
+    parts.append(late_note)
     parts.append(_EMAIL_WRAP_CLOSE)
     return "".join(parts)
 
 
 def send_settlement_email(settled: list[dict], live: bool, forced_date: str | None = None,
-                           unresolved: list[dict] | None = None) -> None:
+                           unresolved: list[dict] | None = None, late_excluded: int = 0) -> None:
     """forced_date: used by the once-daily digest (see
     send_daily_settlement_digest) to assert exactly which date this email
     covers, rather than inferring it from whatever settled this run --
@@ -960,7 +938,7 @@ def send_settlement_email(settled: list[dict], live: bool, forced_date: str | No
     if not settled and not unresolved:
         log("Nothing settled this run — skipping settlement email")
         return
-    body_html = build_settlement_email_html(settled, unresolved=unresolved)
+    body_html = build_settlement_email_html(settled, unresolved=unresolved, late_excluded=late_excluded)
     if forced_date:
         date_str = forced_date
     else:
@@ -1010,20 +988,26 @@ def send_daily_settlement_digest(page, live: bool) -> None:
         """
         (targetDate) => getP().filter(p => p.date === targetDate)
           .map(p => ({
-            betOn: p.betOn, sport: p.sport, outcome: p.outcome, date: p.date,
+            id: p.id, betOn: p.betOn, sport: p.sport, league: p.league, outcome: p.outcome, date: p.date,
             hA: p.hA, awA: p.awA, hScore: p.hScore, aScore: p.aScore,
             playerResult: p.playerResult,
+            lockedAt: p.lockedAt, startMs: p.startMs, lockTiming: p.lockTiming,
           }))
         """,
         yesterday,
     )
+    # Pre-start-locks-only (2026-10-02): drop picks KNOWN to be locked after their game started (shared classifier). They stay
+    # in the ledger; they are just not listed or counted in this email, so its record matches every published figure.
+    rows, late_rows = lock_timing.split_picks(rows, lock_timing.load_index())
+    if late_rows:
+        log(f"Digest for {yesterday}: {len(late_rows)} known-late (locked after game start) pick(s) left out of the email")
     settled = [r for r in rows if r.get("outcome") != "pending"]
     unresolved = [r for r in rows if r.get("outcome") == "pending"]
     if unresolved:
         log(f"WARNING: {len(unresolved)} bet(s) from {yesterday} still unresolved after final digest check: "
             + ", ".join(r.get("betOn") or "?" for r in unresolved))
     log(f"Digest for {yesterday}: {len(settled)} settled, {len(unresolved)} unresolved")
-    send_settlement_email(settled, live, forced_date=yesterday, unresolved=unresolved)
+    send_settlement_email(settled, live, forced_date=yesterday, unresolved=unresolved, late_excluded=len(late_rows))
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -2183,7 +2167,13 @@ def gather_todays_locked_bets(page, date_iso: str | None = None) -> list[dict]:
     session."""
     target = date_iso or datetime.now(ZoneInfo("America/Denver")).strftime("%Y-%m-%d")
     load_bet_ledger(page)
-    return page.evaluate("(d) => getP().filter(p => p.date === d)", target)
+    bets = page.evaluate("(d) => getP().filter(p => p.date === d)", target)
+    # Pre-start locks only (2026-10-02): a pick locked after its game started (manual late lock) is not a "top pick" the model
+    # called in advance and may already carry a WON/LOST badge -- leave it out of the digest (shared classifier).
+    kept, late = lock_timing.split_picks(bets, lock_timing.load_index())
+    if late:
+        log(f"Top-picks digest: {len(late)} known-late (locked after game start) pick(s) left out")
+    return kept
 
 
 def _dec_to_american(dec: float) -> str:
