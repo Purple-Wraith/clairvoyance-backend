@@ -3043,6 +3043,26 @@ function _hkBlendCore(pModel,pMkt,kind,minGp){
     return isFinite(p)?{p,model:pModel,market:pMkt,alpha:a,kind}:null;
   }catch(e){return null;}
 }
+// ── Late-game empty-net margin calibration for the puck line (±1.5) -- added 2026-10-03 ─────────────────────────────────
+// Independent Poisson (nhlMC's sampler and the four euro exact-math functions) UNDERSTATES how often a game is decided by
+// 2+ goals: a team trailing by one pulls its goalie, so a 1-goal game late turns into a tie (trailing team scores) or a
+// 2-goal game (leader scores into the empty net) far more often than independent scoring implies. Measured on 3,434
+// point-in-time NHL games (2023-24..2025-26; scripts/backtest_hockey_models.py dispersion): the favorite covered -1.5
+// 36.4% of the time vs 32.4% Poisson-predicted (logit shift +0.180, 95% CI [+0.110,+0.245], uniform across the
+// probability range, same sign in all three seasons); regulation ties 22.2% observed vs 16.0% Poisson; 1-goal regulation
+// games 18% vs 29% -- the empty-net signature. The 193 completed 2026-27 European games point the same way (margin>=2:
+// 59% vs 52% Poisson; too few games to estimate a separate European shift, so the NHL value is used for them too).
+// Applied to P(home wins by 2+) and P(away wins by 2+) at the source; the dog's +1.5 is the complement, so it FALLS by about
+// the same amount. Win probability and totals are NOT touched (ties split 50/50 either way; goals/game already include
+// empty-net goals). Set to 0 to disable.
+// Per-team goal DISPERSION was tested in the same run and is NOT over-dispersed (NHL NB2 alpha -0.018 +- 0.005, Euro
+// pooled +0.011 +- 0.026), so no negative-binomial layer was added.
+const HOCKEY_PL_MARGIN_LOGIT_SHIFT=0.18;
+function _hkMarginCal(p){
+  if(!(p>0&&p<1))return p;
+  const z=Math.log(p/(1-p))+HOCKEY_PL_MARGIN_LOGIT_SHIFT;
+  return 1/(1+Math.exp(-z));
+}
 // Complement view of a blend record (the other side of a two-way market).
 function _hkBlComp(bl){return bl?{p:1-bl.p,model:1-bl.model,market:1-bl.market,alpha:bl.alpha,kind:bl.kind}:null;}
 // Fields every _evalMkts row carries so _autoLockCapture -> build_qualifying -> lock_game_leg can persist them.
@@ -3740,7 +3760,8 @@ function _mcLineScore(mc,side,ouLine,opts){
     // opts.homeFav===false: the favorite is the AWAY team, whose -1.5 cover
     // is rl15A (P(away wins by 2+)), not rl15; the dog's +1.5 is its complement.
     const favCov=(opts.homeFav===false&&mc.rl15A!=null)?mc.rl15A:mc.rl15;
-    extra=side==='plFav'?` — favorite covers -1.5 in ${(favCov*100).toFixed(1)}% of outcomes`:` — underdog covers +1.5 in ${((1-favCov)*100).toFixed(1)}% of outcomes`;
+    const _mgNote=HOCKEY_PL_MARGIN_LOGIT_SHIFT?' (incl. late-game empty-net margin calibration)':'';
+    extra=side==='plFav'?` — favorite covers -1.5 in ${(favCov*100).toFixed(1)}% of outcomes${_mgNote}`:` — underdog covers +1.5 in ${((1-favCov)*100).toFixed(1)}% of outcomes${_mgNote}`;
   }
   const otTxt=mc.otP!=null?` (OT/SO in ${(mc.otP*100).toFixed(0)}% of outcomes)`:'';
   return`Projected ${a.toFixed(1)}–${h.toFixed(1)} (total ${total.toFixed(1)})${otTxt}${extra}, from ${sampleTxt}.`;
@@ -5973,7 +5994,7 @@ function nhlMC(hA,awA,n=25000,marketOU){
   const MIN_GP_FOR_FULL_CONFIDENCE=5;
   const gpConf=Math.min(1,Math.min(h.gp||0,aw.gp||0)/MIN_GP_FOR_FULL_CONFIDENCE);
   const damp=p=>0.5+(p-0.5)*gpConf;
-  const hwPD=damp(hw/n),overPD=damp(ov/n),rl15D=damp(rl15h/n),rl15AD=damp(rl15a/n);
+  const hwPD=damp(hw/n),overPD=damp(ov/n),rl15D=damp(_hkMarginCal(rl15h/n)),rl15AD=damp(_hkMarginCal(rl15a/n)); // puck-line cover incl. empty-net margin calibration (see HOCKEY_PL_MARGIN_LOGIT_SHIFT)
   return{hwP:hwPD,awP:1-hwPD,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:overPD,underP:1-overPD,otP:ot/n,ouLine,rl15:rl15D,rl15A:rl15AD,rlN:1-rl15D,stEdge,sqEdge,gpConf,formH:hForm,formA:aForm};
 }
 function nhlEns(hA,awA,marketOU,mkt){
@@ -10028,8 +10049,8 @@ function liigaMC(homeId,awayId,marketOU){
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
   const overP=1-cdf;
-  const rl15=_socSpreadProb(hLam,aLam,-1.5); // P(home covers -1.5)
-  const rl15A=_socSpreadProb(aLam,hLam,-1.5); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
+  const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5)); // P(home covers -1.5), incl. empty-net margin calibration
+  const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
 }
 function liigaEns(homeId,awayId,marketOU,mktGame){
@@ -10185,8 +10206,8 @@ function nlaMC(homeId,awayId,marketOU){
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
   const overP=1-cdf;
-  const rl15=_socSpreadProb(hLam,aLam,-1.5);
-  const rl15A=_socSpreadProb(aLam,hLam,-1.5); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
+  const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5));
+  const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
 }
 function nlaEns(homeId,awayId,marketOU,mktGame){
@@ -10301,8 +10322,8 @@ function extraligaMC(homeId,awayId,marketOU){
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
   const overP=1-cdf;
-  const rl15=_socSpreadProb(hLam,aLam,-1.5);
-  const rl15A=_socSpreadProb(aLam,hLam,-1.5); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
+  const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5));
+  const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
 }
 function extraligaEns(homeId,awayId,marketOU,mktGame){
@@ -11166,8 +11187,8 @@ function shlMC(homeId,awayId,marketOU){
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
   const overP=1-cdf;
-  const rl15=_socSpreadProb(hLam,aLam,-1.5); // P(home covers -1.5)
-  const rl15A=_socSpreadProb(aLam,hLam,-1.5); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
+  const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5)); // P(home covers -1.5), incl. empty-net margin calibration
+  const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
 }
 function shlEns(homeId,awayId,marketOU,mktGame){

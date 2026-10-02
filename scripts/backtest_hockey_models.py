@@ -271,6 +271,107 @@ def cmd_blend(results, odds):
     _study("O/U over (lesser team <10 GP)", [r["ou"][2] for r in eo], [r["ou"][0] for r in eo], [r["ou"][1] for r in eo])
 
 
+# ───────────────────────── dispersion ─────────────────────────
+def _margin_stats(lh, la, kmax=25):
+    ph, pa = pois_pmf(lh, kmax), pois_pmf(la, kmax)
+    hw = aw = tie = hm2 = am2 = 0.0
+    for i, a in enumerate(ph):
+        for j, b in enumerate(pa):
+            pr = a * b
+            if i > j: hw += pr
+            elif j > i: aw += pr
+            else: tie += pr
+            if i - j >= 2: hm2 += pr
+            if j - i >= 2: am2 += pr
+    return dict(hw=hw, aw=aw, tie=tie, hm2=hm2, am2=am2, m2=hm2 + am2)
+
+
+def _alpha_nb2(ys, ls):
+    """Method-of-moments NB2 dispersion: Var = mu + alpha*mu^2  ->  alpha = sum((y-mu)^2 - mu) / sum(mu^2)."""
+    return sum((y - l) ** 2 - l for y, l in zip(ys, ls)) / sum(l * l for l in ls)
+
+
+def _boot_alpha(games, n_boot=300):
+    import random
+    rnd = random.Random(1)
+    out = []
+    for _ in range(n_boot):
+        samp = [games[rnd.randrange(len(games))] for _ in games]
+        out.append(_alpha_nb2([g["hs"] for g in samp] + [g["as_"] for g in samp],
+                              [g["lh"] for g in samp] + [g["la"] for g in samp]))
+    m = sum(out) / len(out)
+    return (sum((x - m) ** 2 for x in out) / len(out)) ** 0.5
+
+
+def _dispersion_report(label, games, regulation=False):
+    """games: dicts with lh, la (point-in-time lambdas), hs, as_, ot (bool: went to OT/SO, or None)."""
+    if regulation:  # an OT/SO game was tied after 60 min at the loser's score
+        games = [dict(g, hs=min(g["hs"], g["as_"]) if g["ot"] else g["hs"],
+                      as_=min(g["hs"], g["as_"]) if g["ot"] else g["as_"]) for g in games]
+    ys = [g["hs"] for g in games] + [g["as_"] for g in games]
+    ls = [g["lh"] for g in games] + [g["la"] for g in games]
+    n = len(games)
+    ms = [_margin_stats(g["lh"], g["la"]) for g in games]
+    print(f"  {label}: n={n} Pearson chi2/df={sum((y - l) ** 2 / l for y, l in zip(ys, ls)) / len(ys):.3f}  "
+          f"NB2 alpha={_alpha_nb2(ys, ls):+.4f} (boot se {_boot_alpha(games):.4f})  |  "
+          f"ties obs {sum(1 for g in games if g['hs'] == g['as_']) / n:.3f} vs Poisson {sum(m['tie'] for m in ms) / n:.3f}  |  "
+          f"margin>=2 obs {sum(1 for g in games if abs(g['hs'] - g['as_']) >= 2) / n:.3f} vs Poisson {sum(m['m2'] for m in ms) / n:.3f}")
+
+
+def cmd_dispersion(results):
+    pairs = [("20232024", "20222023"), ("20242025", "20232024"), ("20252026", "20242025")]
+    allg = []
+    print("NHL (point-in-time Poisson lambdas, >=10 GP): is per-team scoring over-dispersed vs Poisson? (alpha>0 = yes)")
+    for s, p in pairs:
+        gs = [dict(lh=r["lam_h"], la=r["lam_a"], hs=r["g"]["hs"], as_=r["g"]["as_"], ot=r["g"]["ot"] in ("OT", "SO"))
+              for r in pointintime(results, s, p, 10)]
+        allg += gs
+        _dispersion_report(f"{s} final score", gs)
+    _dispersion_report("pooled final score", allg)
+    _dispersion_report("pooled regulation-equivalent", allg, regulation=True)
+    # favorite -1.5 cover (final score, OT games are always 1-goal margins): observed vs Poisson, and the logit shift
+    rows = []
+    for g in allg:
+        m = _margin_stats(g["lh"], g["la"])
+        home_fav = m["hw"] + m["tie"] / 2 >= .5
+        diff = g["hs"] - g["as_"]
+        rows.append((m["hm2"] if home_fav else m["am2"], 1.0 if (diff >= 2 if home_fav else diff <= -2) else 0.0))
+
+    def nll(s):
+        return -sum(y * math.log(_sig(_logit(p) + s)) + (1 - y) * math.log(1 - _sig(_logit(p) + s)) for p, y in rows)
+    grid = [i / 200 for i in range(-40, 81)]
+    lls = [nll(s) for s in grid]; mn = min(lls); sb = grid[lls.index(mn)]
+    ok = [s for s, v in zip(grid, lls) if v <= mn + 1.92]
+    print(f"  favorite -1.5 cover: Poisson {sum(r[0] for r in rows) / len(rows):.3f} vs observed "
+          f"{sum(r[1] for r in rows) / len(rows):.3f} (n={len(rows)}); logit shift MLE {sb:+.3f}  95% CI [{min(ok):+.3f},{max(ok):+.3f}]")
+    # European leagues: lambdas from PRIOR-season rates only (out of sample), completed 2026-27 games in docs/*_schedule.json
+    root = Path(__file__).resolve().parent.parent / "docs"
+    pool = []
+    print("European leagues (completed 2026-27 games; lambdas from prior-season rates only -> no look-ahead):")
+    for lg in ("liiga", "shl", "nla", "extraliga"):
+        f = root / f"{lg}_schedule.json"
+        if not f.exists():
+            continue
+        D = json.loads(f.read_text()); T = D["teams"]
+        pf = [t["prevSeason"]["gf"] / t["prevSeason"]["gp"] for t in T.values() if t.get("prevSeason") and t["prevSeason"].get("gp")]
+        avg = sum(pf) / len(pf)
+
+        def rt(tid):
+            pv = (T.get(tid) or {}).get("prevSeason")
+            return (pv["gf"] / pv["gp"], pv["ga"] / pv["gp"]) if pv and pv.get("gp") else (avg, avg)
+        gs = []
+        for g in D["games"]:
+            if g["state"] != "post" or g.get("homeScore") is None:
+                continue
+            hf, ha = rt(g["home"]); af, aa = rt(g["away"])
+            gs.append(dict(lh=(hf + aa) / 2 * (1 + HOME_ICE), la=(af + ha) / 2 * (1 - HOME_ICE / 2),
+                           hs=g["homeScore"], as_=g["awayScore"], ot=None))
+        if gs:
+            _dispersion_report(lg.upper(), gs); pool += gs
+    if pool:
+        _dispersion_report("EURO pooled", pool)
+
+
 # ───────────────────────── main ─────────────────────────
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -284,4 +385,4 @@ if __name__ == "__main__":
     elif a.cmd == "blend":
         cmd_blend(res, load_odds(cache))
     else:
-        sys.exit(f"{a.cmd}: not implemented in this revision")
+        cmd_dispersion(res)
