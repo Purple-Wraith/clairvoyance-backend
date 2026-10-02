@@ -508,6 +508,12 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 /* CHIPS */
 .chip{border-radius:3px;padding:9px 6px;text-align:center;cursor:pointer;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));-webkit-user-select:none;user-select:none;transition:filter .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(240,0,255,.15)}
 .chip:active{filter:brightness(1.4)}
+/* Every lock chip is a plain div (see _a11yTagChips JS retrofit below, near
+   the mobile font-cap observer) -- browsers don't draw a default focus ring
+   on a non-native-interactive element even once it's made keyboard-focusable,
+   so one has to be supplied here or tabbing through picks would be silently
+   invisible despite being functionally reachable. */
+.chip:focus-visible{outline:2px solid var(--nc);outline-offset:1px}
 .chip-n{background:var(--n3);border:1px solid var(--nc2);color:var(--nc)}.chip-v{background:var(--v3);border:1px solid var(--v2);color:var(--vc)}.chip-h{background:var(--h3);border:1px solid var(--h2);color:var(--hc)}.chip-g{background:var(--g3);border:1px solid var(--g2);color:var(--gc)}.chip-i{background:var(--i3);border:1px solid var(--i2);color:var(--ic)}.chip-p{background:var(--p3);border:1px solid var(--p2);color:var(--pc)}
 .cht{font-size:17px;letter-spacing:.5px;font-family:var(--mono);text-transform:uppercase;margin-bottom:2px}.cho{font-family:var(--mono);font-size:25px;font-weight:700}.chp{font-size:18px;margin-top:2px;font-family:var(--mono)}
 .pill{display:inline-block;font-size:16px;font-weight:700;letter-spacing:1px;padding:2px 6px;border-radius:1px;text-transform:uppercase;font-family:var(--mono)}
@@ -3901,6 +3907,53 @@ function _scheduleMobileFontCap(){
     });
     mo.observe(appEl,{childList:true,subtree:true});
     window.addEventListener('resize',()=>_scheduleMobileFontCap());
+  }catch(e){}
+})();
+
+// ── Keyboard accessibility retrofit for odds "chip" divs ───────────────────
+// Real gap, found auditing a11y 2026-10-01: the single most common action in
+// the whole app -- locking an ML/spread/puck-line/O-U pick -- is a plain
+// `<div class="... chip" onclick="...">` in every one of this app's 11+ sport
+// game-card generators (_cfbGameCard, _nflGameCard2, _nhlGameCard,
+// _nbaGameCard, _renderSocMatchCard, each minor hockey league card, etc),
+// never a real <button>. No tabindex, no role, no Enter/Space handling --
+// completely unreachable from a keyboard or screen-reader "activate"
+// gesture. Retrofitting that many independent card-generator functions
+// (re-verifying each one's own template-literal quoting) would be a much
+// larger, riskier change than the gap itself; since every one of them
+// already funnels through this same "chip" CSS class, the same
+// MutationObserver-retrofit pattern this file already uses for mobile font
+// capping (_initMobileFontCapObserver just above) is reused here instead --
+// one global pass that tags any clickable chip with the semantics it's
+// missing, re-run whenever the DOM changes (cards re-render constantly as
+// schedules/odds refresh).
+function _a11yTagChips(root){
+  (root||document).querySelectorAll('.chip[onclick]:not([data-a11y-chip])').forEach(el=>{
+    el.setAttribute('data-a11y-chip','1');
+    el.setAttribute('role','button');
+    if(!el.hasAttribute('tabindex'))el.setAttribute('tabindex','0');
+    el.addEventListener('keydown',e=>{
+      if(e.key==='Enter'||e.key===' '||e.key==='Spacebar'){
+        e.preventDefault();
+        el.click();
+      }
+    });
+  });
+}
+let _a11yChipT=null;
+function _scheduleA11yChipTag(){
+  clearTimeout(_a11yChipT);
+  _a11yChipT=setTimeout(()=>{try{_a11yTagChips();}catch(e){}},120);
+}
+(function _initA11yChipObserver(){
+  try{
+    const appEl=document.getElementById('app');
+    if(!appEl)return;
+    _a11yTagChips(appEl);
+    const mo=new MutationObserver(muts=>{
+      if(muts.some(m=>m.type==='childList'))_scheduleA11yChipTag();
+    });
+    mo.observe(appEl,{childList:true,subtree:true});
   }catch(e){}
 })();
 // Broadened from /^test-\d+$/ after a real audit found 4 leftover test
