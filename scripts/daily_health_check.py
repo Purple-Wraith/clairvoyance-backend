@@ -53,7 +53,12 @@ ALERT_TO = os.environ.get("SOCIAL_CARD_EMAIL_TO", "") or os.environ.get("LOCKS_E
 # ran" apart from "ran, found 0 qualifying legs, correctly wrote today's
 # date anyway" -- both look the same to the marker file.
 MONITORED = [
-    ("auto-lock-settle.yml", "Main Auto-Lock (all 8 products)", 26),
+    # Label corrected 2026-10-02 (was "all 8 products", stale from before
+    # MLB/WNBA/CBB/tennis/World Cup were retired) -- there are only 5 real
+    # paid products now (nfl/cfb/nba/hockey/soccer, see PRODUCT_SPORTS in
+    # auto_lock_settle.py). Cosmetic only -- this is a human-readable
+    # label, not a check condition.
+    ("auto-lock-settle.yml", "Main Auto-Lock (5 products)", 26),
     ("european-lock-early.yml", "European Early Lock (Soccer + SHL/Liiga)", 26),
     ("cfb-lock-early.yml", "CFB Early Lock", 26),
     ("send-expiry-reminders.yml", "Expiry Reminders", 26),

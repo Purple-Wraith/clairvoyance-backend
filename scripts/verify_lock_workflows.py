@@ -249,8 +249,19 @@ def check_main_lock() -> str | None:
             if problem:
                 return problem
             email_count = log.count("Locks email (")
+            # Real bug, found auditing this file 2026-10-02: the message
+            # here said "expected ~9 (8 products + OTHER)" -- stale from
+            # before MLB/WNBA/CBB/tennis/World Cup were retired. There
+            # are only 5 real paid products now (nfl/cfb/nba/hockey/
+            # soccer, see PRODUCT_SPORTS in auto_lock_settle.py), and the
+            # owner-only OTHER pass stopped emailing entirely 2026-09-03
+            # (OTHER_ALLOWED_SPORTS is now empty) -- run_lock_segmented()
+            # logs exactly one "Locks email (...)" line per product, so 5
+            # is the real expected count, not ~9. The actual threshold
+            # (`< 5`) already matched reality and never needed changing --
+            # only this user-facing message was wrong.
             if email_count < 5:
-                return f"Main Lock: run {run['databaseId']} only shows {email_count} 'Locks email' line(s), expected ~9 (8 products + OTHER)"
+                return f"Main Lock: run {run['databaseId']} only shows {email_count} 'Locks email' line(s), expected 5 (one per paid product: NFL/CFB/NBA/HOCKEY/SOCCER)"
             return None
 
     return "Main Lock: today's schedule runs exist but none was identifiable as the lock pass (all settle, or none completed)"
