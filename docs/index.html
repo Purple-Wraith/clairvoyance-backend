@@ -1535,6 +1535,7 @@ body{line-height:1.5}
     <button class="nb" onclick="T('ovr','adaptive')">ADAPTIVE</button>
     <button class="nb" onclick="T('ovr','sync')">SYNC</button>
     <button class="nb" onclick="T('ovr','ops');renderEngineOps()">ENGINE OPS</button>
+    <button class="nb" onclick="T('ovr','health')">ENGINE HEALTH</button>
     <!-- TRACK RECORD nav entry removed from Overall's sub-nav, explicit
          request, 2026-09-16 -- the tab pane, renderTrackRecord(), and the
          3 PNG export functions (_genCombinedTrackGraphic/_genSportPerfGraphic/
@@ -1631,6 +1632,14 @@ body{line-height:1.5}
         <div id="rebuild-status" style="font-family:var(--mono);font-size:13px;color:var(--t3);min-height:14px"></div>
       </div>
       <div class="sg"><div class="sgt">// ESPN + API STATUS</div><div id="api-status" style="font-family:var(--mono);font-size:17px;color:var(--t2);line-height:2"></div></div>
+    </div>
+    <div id="ovr-tab-health" class="tab">
+      <div class="sh"><span class="gc"></span> ENGINE HEALTH</div>
+      <div style="background:rgba(10,0,24,.8);border:1px solid rgba(102,144,255,.3);border-radius:2px;padding:9px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2);line-height:1.8">AUTOMATION STATUS · GITHUB ACTIONS · BUILD INFO<br>ONE GLANCE INSTEAD OF CHECKING EMAIL + GITHUB SEPARATELY</div>
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn btn-p" style="padding:10px 22px;font-size:16px;letter-spacing:2px;background:var(--pc);color:#fff" onclick="renderEngineHealth()">↻ REFRESH</button>
+      </div>
+      <div id="ovr-health"><div class="loading"><span class="spi"></span></div></div>
     </div>
     <div id="ovr-tab-trackrecord" class="tab">
       <div class="sh"><span class="n"></span> TRACK RECORD — PUBLIC BETTING LOG</div>
@@ -15732,6 +15741,17 @@ function renderCrossDeviceSync(){
   el.innerHTML=html;
 }
 
+// ── Engine Health — glanceable automation + CI status (added 2026-10-02) ───
+// New Overall sub-tab, built to replace manually checking email + the
+// GitHub Actions tab separately. Shell commit: nav entry + tab pane wired
+// through T()'s sport==='ovr' dispatch, with a placeholder render so the
+// tab never shows a blank/broken pane before the real data rendering
+// (automation status, then GitHub Actions) lands in follow-up commits.
+async function renderEngineHealth(){
+  const el=document.getElementById('ovr-health');if(!el)return;
+  el.innerHTML='<div class="loading"><span class="spi"></span> LOADING ENGINE HEALTH…</div>';
+}
+
 
 
 // NBA auto-settlement from ESPN
@@ -17483,7 +17503,7 @@ function T(sport,tabId){const D=window.__CV_DATA||{};
     try{if(tabId==='model')renderHockeyLeagueModel(sport);else if(tabId==='config')renderHockeyLeagueConfig(sport);else if(tabId==='matches'&&_hkMatchesFn)_hkMatchesFn();}catch(e){}
   }
   if(sport==='fut'){renderFuturesPanes(tabId);}
-  if(sport==='ovr'){if(tabId==='dash')renderOverall();if(tabId==='history')renderOverallHistory();if(tabId==='adaptive')renderAdaptiveLearning();if(tabId==='sync')renderCrossDeviceSync();if(tabId==='ops')renderEngineOps();if(tabId==='trackrecord')renderTrackRecord();}
+  if(sport==='ovr'){if(tabId==='dash')renderOverall();if(tabId==='history')renderOverallHistory();if(tabId==='adaptive')renderAdaptiveLearning();if(tabId==='sync')renderCrossDeviceSync();if(tabId==='ops')renderEngineOps();if(tabId==='trackrecord')renderTrackRecord();if(tabId==='health')renderEngineHealth();}
   if(sport==='news'){if(tabId==='all')renderNewsAll();if(tabId==='injuries')renderNewsInjuries();if(tabId==='trades')renderNewsTrades();}
   if(sport==='live'){if(tabId==='games')renderGlobalLive();if(tabId==='bets')renderGlobalLiveBets();}
   document.getElementById(saId)?.scrollTo(0,0);
