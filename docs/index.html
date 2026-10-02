@@ -728,6 +728,8 @@ body{line-height:1.5}
   <div class="sa" style="padding:16px">
     <div id="toppicks-date-row" style="margin-bottom:12px;display:flex;justify-content:flex-end"></div>
     <div id="toppicks-content"></div>
+    <!-- Historical Top Picks calendar heatmap, additive -- see renderTopPicksHeatmap -->
+    <div id="toppicks-heatmap" style="margin-top:16px"></div>
   </div>
 </div>
 
@@ -10953,10 +10955,11 @@ function showDotTip(el){
 }
 function hideDotTip(){
   if(_dotTipEl){_dotTipEl.remove();_dotTipEl=null;}
-  // .mom-bar (Home momentum sparkline, added 2026-10-02) reuses showDotTip's
-  // own hover-scale effect via the same onmouseenter wiring, so it needs
-  // resetting here too, same as .form-dot.
-  document.querySelectorAll('.form-dot,.mom-bar').forEach(d=>d.style.transform='');
+  // .mom-bar (Home momentum sparkline) / .tp-heat-cell (Top Picks calendar
+  // heatmap) added 2026-10-02 -- both reuse showDotTip's own hover-scale
+  // effect via the same onmouseenter wiring, so both need resetting here
+  // too, same as .form-dot.
+  document.querySelectorAll('.form-dot,.mom-bar,.tp-heat-cell').forEach(d=>d.style.transform='');
 }
 
 // ── Mobile ↔ Desktop sync via clipboard export/import ──
@@ -17070,16 +17073,18 @@ function _topPickRowHTML(e){
   </div>`;
 }
 // Shared by both the live (today) and historical (ledger-backed) render
-// paths -- everything past "here are some graded legs" is identical:
-// filter to real qualifying picks, rank, group top-3-per-league, and
-// build the top-10-overall list.
-function _topPicksBodyHTML(legs,header,emptyMsg){
+// paths, AND by the Top Picks calendar heatmap below (renderTopPicksHeatmap)
+// -- filters raw legs down to real qualifying picks (tierN>=1) and ranks
+// them by tier then mfScore. Pulled out of _topPicksBodyHTML 2026-10-02 so
+// the heatmap can compute "what would that day's top 10 have been" using
+// the EXACT same selection criteria this tab already shows, instead of a
+// second, divergently-defined notion of "top pick."
+function _topPicksRankLegs(legs){
   const qualifying=(legs||[]).filter(l=>l.best&&l.best.tierN>=1).map(l=>{
     const mkt=(l.markets||[]).find(m=>m.side===l.best.side)||{};
     const settledOutcome=l.settledOutcome!==undefined?l.settledOutcome:_gradeSettledPick(l);
     return{...l,leagueTag:l.sport,leagueLabel:_topPicksLeagueLabel(l.sport),matchup:`${l.awA} @ ${l.hA}`,tierN:l.best.tierN,marketInfo:mkt,settledOutcome};
   });
-  if(!qualifying.length)return header+`<div class="empty">${emptyMsg}</div>`;
   // Ranked by tier first (PREMIUM beats OPTIMAL beats LEAN, always), then
   // by mfScore -- the app's own existing composite 0-10 confidence score
   // (probability band + EV band + edge + Kelly fraction, see _mfScore()),
@@ -17090,6 +17095,12 @@ function _topPicksBodyHTML(legs,header,emptyMsg){
   // "how good is this bet" the rest of the app already trusts, not a
   // second, different opinion invented just for this list.
   const rank=e=>e.tierN*100+(e.marketInfo.mfScore||0);
+  const top10=qualifying.slice().sort((a,b)=>rank(b)-rank(a)).slice(0,10);
+  return{qualifying,rank,top10};
+}
+function _topPicksBodyHTML(legs,header,emptyMsg){
+  const{qualifying,rank,top10}=_topPicksRankLegs(legs);
+  if(!qualifying.length)return header+`<div class="empty">${emptyMsg}</div>`;
   // Explicit request, 2026-09-30: show each section's own real W-L record
   // (wins green, losses red) next to its header -- computed from
   // settledOutcome, which is null for anything not finished yet, so an
@@ -17109,7 +17120,6 @@ function _topPicksBodyHTML(legs,header,emptyMsg){
       ${top3.map(e=>_topPickRowHTML(e)).join('')}
     </div>`;
   }).join('');
-  const top10=qualifying.slice().sort((a,b)=>rank(b)-rank(a)).slice(0,10);
   const top10Html=`<div style="margin-bottom:14px">
     <div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--pc);margin-bottom:6px">★ TOP ${top10.length} OF THE DAY — ALL SPORTS${_recordHTML(top10)}</div>
     ${top10.map(e=>_topPickRowHTML(e)).join('')}
@@ -17133,10 +17143,17 @@ function _renderTopPicksHTML(legs,dateStr){
 // approximation). The real ledger is the only trustworthy record of what
 // this app actually recommended on a past day, so this reads getP()
 // instead of touching computeTopPicksToday() at all.
-function _renderTopPicksHistoryHTML(dateStr){
-  const header=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP PICKS — ${_topPicksDateLabel(dateStr)}</div>`;
-  const bets=getP().filter(p=>p.date===dateStr&&!['PROP','PARLAY'].includes((p.betType||'').toUpperCase()));
-  const legs=bets.map(p=>{
+//
+// Pulled out of _renderTopPicksHistoryHTML 2026-10-02 so the calendar
+// heatmap (renderTopPicksHeatmap) can build the exact same per-day leg set
+// this dropdown already uses for a single date, across many dates, without
+// a second definition of "what counts as that day's picks." `allBets`
+// is optional -- pass the already-fetched getP() array when calling this
+// in a loop (the heatmap does, once per render) to avoid re-parsing the
+// whole ledger out of localStorage on every single day.
+function _topPicksLegsForDate(dateStr,allBets){
+  const bets=(allBets||getP()).filter(p=>p.date===dateStr&&!['PROP','PARLAY'].includes((p.betType||'').toUpperCase()));
+  return bets.map(p=>{
     const dec=parseFloat(p.decOdds)||(p.ml?ml2d(p.ml):2);
     const wp=p.winProb!=null?p.winProb:0.5;
     const evVal=ev(wp,dec);
@@ -17156,7 +17173,113 @@ function _renderTopPicksHistoryHTML(dateStr){
       settledOutcome,
     };
   });
+}
+function _renderTopPicksHistoryHTML(dateStr){
+  const header=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP PICKS — ${_topPicksDateLabel(dateStr)}</div>`;
+  const legs=_topPicksLegsForDate(dateStr);
   return _topPicksBodyHTML(legs,header,'NO PICKS LOCKED THIS DAY');
+}
+// Real win/loss record of that day's TOP 10 (the exact same selection
+// _topPicksRankLegs produces for the headline "★ TOP 10 OF THE DAY — ALL
+// SPORTS" list) -- the per-day datapoint the calendar heatmap colors each
+// cell with. Returns pct:null (render as empty/neutral, never "0%") when
+// there were no qualifying top picks that day, or none have a real
+// finished-game outcome yet.
+function _topPicksDayWinRate(dateStr,allBets){
+  const legs=_topPicksLegsForDate(dateStr,allBets);
+  const{top10}=_topPicksRankLegs(legs);
+  const graded=top10.filter(e=>e.settledOutcome==='win'||e.settledOutcome==='loss');
+  const w=graded.filter(e=>e.settledOutcome==='win').length;
+  return{n:top10.length,graded:graded.length,w,l:graded.length-w,pct:graded.length?w/graded.length:null};
+}
+// ── Top Picks calendar heatmap (added 2026-10-02) ──────────────────────
+// GitHub-contribution-graph-style grid: weeks as columns, Sun-Sat as rows,
+// each real day colored by that day's real Top Picks win rate (continuous
+// red->green gradient, not binary hot/cold) via _topPicksDayWinRate above
+// -- which reuses _topPicksRankLegs/_topPicksLegsForDate, the EXACT same
+// "top 10 of the day" selection already shown by the dropdown above this
+// section, rather than a separately-invented definition of "top pick."
+// Capped to the most recent ~17 weeks (CAP_DAYS) even when the ledger goes
+// back further -- a full year+ of history squeezed into a 375px-wide phone
+// grid would shrink each cell well under a usable tap target (confirmed by
+// the math: 52+ weekly columns at 375px is <7px/cell), so this trades total
+// history shown for cells that are actually readable/tappable on mobile,
+// which is what this widget is for ("hot/cold days visible at a glance").
+// All computed from the real ledger on tab-open -- no polling/setInterval.
+function renderTopPicksHeatmap(){
+  const el=document.getElementById('toppicks-heatmap');if(!el)return;
+  try{
+    const allBets=getP();
+    const allDates=Array.from(new Set(allBets.map(p=>p.date).filter(Boolean))).sort();
+    if(!allDates.length){
+      el.innerHTML=`<div class="card" style="margin-top:4px"><div class="sh" style="font-size:17px!important;margin-top:0"><span class="nc"></span> TOP PICKS — DAILY WIN RATE</div><div class="empty">NO LEDGER HISTORY YET</div></div>`;
+      return;
+    }
+    const toUTC=ds=>new Date(ds+'T00:00:00Z'); // UTC-anchored -- pure calendar-day math (weekday + day-count), never shifted by the viewer's own local timezone or a DST transition
+    const toDS=d=>d.toISOString().slice(0,10);
+    const todayStr=today();
+    const CAP_DAYS=119; // ~17 weeks, see function comment above
+    const earliestD=toUTC(allDates[0]);
+    const todayD=toUTC(todayStr);
+    const capStartD=new Date(todayD.getTime()-CAP_DAYS*86400000);
+    const rangeStartD=earliestD.getTime()>capStartD.getTime()?earliestD:capStartD;
+    const gridStartD=new Date(rangeStartD.getTime()-rangeStartD.getUTCDay()*86400000); // back up to the Sunday on/before rangeStartD
+    const gridEndD=new Date(todayD.getTime()+(6-todayD.getUTCDay())*86400000); // forward to the Saturday on/after today
+    const totalDays=Math.round((gridEndD.getTime()-gridStartD.getTime())/86400000)+1;
+    const cells=[];
+    for(let i=0;i<totalDays;i++){
+      const ds=toDS(new Date(gridStartD.getTime()+i*86400000));
+      cells.push(ds>todayStr?null:{ds,..._topPicksDayWinRate(ds,allBets)}); // null = genuinely future (grid week-alignment padding only), not "no data"
+    }
+    const weeks=Math.ceil(totalDays/7);
+    const fmtShort=d=>d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'});
+    const cellsHtml=cells.map(c=>{
+      if(!c)return`<div></div>`;
+      const dLbl=`${fmtShort(toUTC(c.ds))}, ${toUTC(c.ds).getUTCFullYear()}`;
+      const bg=c.pct!=null?_tpHeatColor(c.pct):'rgba(255,255,255,.05)';
+      const tip=c.pct!=null?`${dLbl} | Top Picks: ${c.w}W-${c.l}L | ${(c.pct*100).toFixed(0)}% win (n=${c.graded})`
+        :c.n>0?`${dLbl} | ${c.n} top pick${c.n===1?'':'s'}, not settled yet`
+        :`${dLbl} | no top picks`;
+      return`<div class="tp-heat-cell" data-tip="${tip.replace(/"/g,"'")}" style="aspect-ratio:1;border-radius:2px;background:${bg};cursor:pointer" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2500)"></div>`;
+    }).join('');
+    const cappedNote=earliestD.getTime()<capStartD.getTime()?' (ledger goes back further -- showing the most recent stretch for readability)':'';
+    const rangeLbl=`${fmtShort(rangeStartD)} – ${fmtShort(todayD)}, ${todayD.getUTCFullYear()}`;
+    el.innerHTML=`<div class="card" style="margin-top:4px">
+      <div class="sh" style="font-size:17px!important;margin-top:0"><span class="nc"></span> TOP PICKS — DAILY WIN RATE</div>
+      <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:10px;line-height:1.5">Each cell is one real day's Top Picks (the exact ★ TOP 10 OF THE DAY selection above, re-graded against the real ledger) — green runs hot, pink runs cold, dim means no data. ${rangeLbl}${cappedNote}. Hover (or tap) a day for its real record.</div>
+      <div style="display:flex;gap:4px">
+        <div style="display:grid;grid-template-rows:repeat(7,1fr);gap:3px;flex:0 0 14px">
+          ${['S','M','T','W','T','F','S'].map(d=>`<div style="font-family:var(--mono);font-size:9px;color:var(--t3);display:flex;align-items:center">${d}</div>`).join('')}
+        </div>
+        <div style="flex:1;min-width:0;display:grid;grid-template-rows:repeat(7,1fr);grid-auto-flow:column;grid-auto-columns:1fr;gap:3px">
+          ${cellsHtml}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--t3)">
+        <span>COLD</span>
+        <span style="display:inline-block;width:70px;height:8px;border-radius:4px;background:linear-gradient(to right,rgb(255,32,144),rgb(0,230,68))"></span>
+        <span>HOT</span>
+        <span style="margin-left:6px;display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(255,255,255,.05)"></span>NO DATA</span>
+      </div>
+    </div>`;
+  }catch(e){
+    console.error('renderTopPicksHeatmap',e);
+    el.innerHTML=`<div class="card" style="margin-top:4px"><div class="empty">COULD NOT BUILD TOP PICKS HEATMAP</div></div>`;
+  }
+}
+window.renderTopPicksHeatmap=renderTopPicksHeatmap;
+// Continuous red(cold)->green(hot) blend for a 0-1 win rate, same color
+// language (loss pink #ff2090 / win green #00e644) every other win/loss
+// indicator on this page already uses -- just interpolated instead of
+// binary, since the heatmap needs to show DEGREE of hot/cold, not just
+// which side of 50% a day landed on. null (no data) is handled by the
+// caller, never passed here.
+function _tpHeatColor(pct){
+  const p=Math.max(0,Math.min(1,pct));
+  const r=Math.round(255+(0-255)*p);
+  const g=Math.round(32+(230-32)*p);
+  const b=Math.round(144+(68-144)*p);
+  return`rgb(${r},${g},${b})`;
 }
 // Date dropdown -- lists TODAY plus every distinct date with at least one
 // real locked bet, most recent first, so a past selection always has real
@@ -17834,7 +17957,7 @@ function SS(s){
   const mn11=document.getElementById('mn11');if(mn11)mn11.style.display=s==='fut'?'flex':'none';
   const _t=(fn)=>{try{fn();}catch(e){console.warn('SS render',e);}};
   if(s==='home'){_t(renderHomePage);}
-  if(s==='toppicks'){_t(renderTopPicksToday);}
+  if(s==='toppicks'){_t(renderTopPicksToday);_t(renderTopPicksHeatmap);}
   if(s==='hk'){_t(()=>setSub('hk','nhl'));_t(()=>T('nhl','games'));_t(renderNHLGames);_t(renderNHLTonight);_t(renderGoalies);_t(renderMoneyPuck);}
   if(s==='nba'){_t(()=>{setSub('nba','nba');});_t(()=>{T('nba','games');renderNBATonightGames();renderNBAGames();renderNBABracket();});}
   if(s==='live'){_t(()=>T('live','games'));_t(startNHLLive);_t(startNBALive);}
