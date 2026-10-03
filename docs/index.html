@@ -549,16 +549,22 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .prow2{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,.05);border-left:3px solid var(--pc)}
 .prow2-main{flex:1 1 280px;min-width:0;display:flex;flex-direction:column;gap:6px}
 .prow2-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.prow2-top .ptag,.prow2-top .pill{box-sizing:border-box;width:104px;height:26px;padding:0 6px!important;display:inline-flex!important;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px!important;font-weight:400;letter-spacing:.5px;line-height:1;border-radius:2px!important;white-space:nowrap;text-transform:uppercase}
+.prow2-top .pill{font-weight:700!important}
+.ptag-sub{border:1px solid rgba(240,0,255,.6);color:#f000ff;text-shadow:0 0 6px rgba(240,0,255,.8)}
+.ptag-lg{border:1px solid var(--nc);color:var(--nc)}
+.ptag-date{border:1px solid rgba(255,255,255,.15);color:var(--nc)}
+.prow2-side{display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex:0 0 auto}
 .prow2-match{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:15px;color:var(--t2);flex-wrap:wrap}
 .prow2-match em{font-style:normal;color:var(--t3)}
 .prow2-pick{font-family:var(--mono);font-size:18px;color:var(--t)}
 .prow2-meta{font-family:var(--mono);font-size:15px;color:var(--t3)}
-.prow2-fin{font-family:var(--mono);font-size:15px;color:var(--t2)}.prow2-fin.dim{color:var(--t3)}
+.prow2-fin{font-family:var(--mono);font-size:15px;color:var(--t2);text-align:right}@media(max-width:560px){.prow2-fin{text-align:left}}.prow2-fin.dim{color:var(--t3)}
 .prow2.card{margin-bottom:7px}
 .prow2-act .btn-sm:not(.btn-win):not(.btn-o){background:transparent;box-shadow:inset 0 0 0 1px currentColor}
 .prow2-act{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
 .prow2-st{font-family:var(--mono);font-size:15px;padding:2px 10px;border:1px solid;border-radius:2px;min-height:30px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:1.5px;white-space:nowrap}
-@media(max-width:560px){.prow2-act{width:100%;display:grid;grid-template-columns:repeat(3,1fr)}.prow2-act.two{grid-template-columns:1fr 1fr}.prow2-act .btn,.prow2-act .prow2-st{width:100%;justify-content:center}}
+@media(max-width:560px){.prow2-side{width:100%;align-items:stretch}.prow2-act{width:100%;display:grid;grid-template-columns:repeat(3,1fr)}.prow2-act.two{grid-template-columns:1fr 1fr}.prow2-act .btn,.prow2-act .prow2-st{width:100%;justify-content:center}}
 /* PICK CARD */
 .pk{background:rgba(10,0,24,.7);border:1px solid var(--w2);border-radius:3px;padding:12px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%);backdrop-filter:blur(4px)}
 .pkb{flex:0 0 44px;height:44px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:var(--orb);font-size:17px;font-weight:900;letter-spacing:1px;text-align:center;line-height:1.2}
@@ -3768,11 +3774,20 @@ function _gradeChipHtml(p){
 // One layout for every locked pick, pending or settled (2026-10-03): league tag + grade tag, matchup, the pick, price/type/probability, then the
 // final score (or AWAITING FINAL), with the result controls in the same slot on the right (full width under the text on a phone).
 // o: {mode:'pending'|'settled', actions:html (pending buttons), removeHtml:html (settled), dateLbl, why:bool, title, legHtml, wrapClass}
+const _PICK_LOGO_SPORT={NHL:'nhl',NBA:'nba',NFL:'nfl',MLB:'mlb',WNBA:'wnba',CFB:'cfb',PL:'soccer',LIGA:'soccer',SERIEA:'soccer',BUND:'soccer',MLS:'soccer',CL:'soccer',LIIGA:'liiga',SHL:'shl',NLA:'nla',EXTRALIGA:'extraliga',WORLDCUP:'countries',WORLD_CUP:'countries'};
 function _pickLogo(p,side){
-  try{const sp=String(window._normSport(p)||'').toUpperCase();
-    if(sp!=='NHL'&&sp!=='NBA'&&sp!=='NFL')return'';
-    const k=String(side==='a'?p.awA:p.hA||'').toUpperCase();if(!k)return'';
-    return _teamLogoHTML(sp.toLowerCase(),k,side,22);}catch(e){return'';}
+  try{
+    const sp=_PICK_LOGO_SPORT[String(window._normSport(p)||'').toUpperCase()];if(!sp)return'';
+    const raw=String((side==='a'?p.awA:p.hA)||'').trim();if(!raw||raw==='PARLAY'||raw==='NBA-PARLAY')return'';
+    return _teamLogoHTML(sp,raw,side,22,{name:_teamName(raw,p.sport)});
+  }catch(e){return'';}
+}
+// Title text with both team logos in front -- for lists that still print the matchup as one string.
+function _titleWithLogos(p,sportOverride){
+  try{
+    const q=sportOverride?Object.assign({},p,{sport:sportOverride}):p;
+    return`<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${_pickLogo(q,'a')}${_pickLogo(q,'h')}<span>${_gameTitle(p.hA,p.awA,sportOverride||p.sport)}</span></span>`;
+  }catch(e){return _gameTitle(p.hA,p.awA,sportOverride||p.sport);}
 }
 function _pickRowHTML(p,o){
   o=o||{};
@@ -3792,14 +3807,13 @@ function _pickRowHTML(p,o){
     :`<div class="prow2-act">${o.actions||''}</div>`;
   return`<div class="prow2 ${o.wrapClass||''}" style="border-left-color:${oc}">
     <div class="prow2-main">
-      <div class="prow2-top">${_sportBadgeHtml(window._normSport(p),()=>'')}${_gradeChipHtml(p)}${o.dateLbl?`<span style="font-family:var(--mono);font-size:13px;color:var(--nc);border:1px solid rgba(255,255,255,.15);padding:0 4px;border-radius:2px">${o.dateLbl}</span>`:''}</div>
+      <div class="prow2-top">${(()=>{const d=_leagueDisplayLabel(window._normSport(p));return(d.sub?`<span class="ptag ptag-sub">${d.sub}</span>`:'')+`<span class="ptag ptag-lg">${d.label}</span>`;})()}${_gradeChipHtml(p)}${o.dateLbl?`<span class="ptag ptag-date">${o.dateLbl}</span>`:''}</div>
       <div class="prow2-match">${match}</div>
       <div class="prow2-pick">${o.legHtml||_expandBetOn(p.betOn||p.betType||'',p.sport)}</div>
       <div class="prow2-meta">${p.ml||''} · ${p.betType||''}${conf}</div>
-      ${fin}
       ${o.why&&p.betType!=='PARLAY'?_whyThisPickHTML(p):''}
     </div>
-    ${act}
+    <div class="prow2-side">${act}${fin}</div>
   </div>`;
 }
 // Universal league-label + sport-sub-label pair for every pick, across
@@ -3957,13 +3971,34 @@ function _tlSrc(u){
   var m=/^https:\/\/a\.espncdn\.com(\/i\/teamlogos\/[A-Za-z0-9_\/.\-]+)$/.exec(u);
   return m?'https://a.espncdn.com/combiner/i?img='+m[1]+'&w=96&h=96':u;
 }
+var _TL_ABBR={nhl:1,nba:1,nfl:1,mlb:1,wnba:1,countries:1};
+// Fuzzy name index (per sport, built once): accents/punctuation/case stripped, plus each key minus its last word (the mascot) when that
+// prefix is unique -- so a pick's "Georgia" / "Manchester United" finds "Georgia Bulldogs" / the ESPN displayName without a hand-kept alias list.
+function _tlNorm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();}
+function _tlFuzzy(sport,name){
+  try{
+    var t=_TL.map&&_TL.map[sport];if(!t)return null;
+    _TL.idx=_TL.idx||{};
+    if(!_TL.idx[sport]){
+      var ix={},cnt={},k,n,parts;
+      for(k in t){n=_tlNorm(k);if(n)ix[n]=t[k];}
+      for(k in t){parts=_tlNorm(k).split(' ');if(parts.length>1){n=parts.slice(0,-1).join(' ');cnt[n]=(cnt[n]||0)+1;if(cnt[n]===1&&!ix[n])ix[n]=t[k];else if(cnt[n]>1&&ix[n]===t[k])delete ix[n];}}
+      _TL.idx[sport]=ix;
+    }
+    return _TL.idx[sport][_tlNorm(name)]||null;
+  }catch(e){return null;}
+}
 function _tlResolve(sport,key,o){
   if(o&&o.url&&_TL_URL_OK.test(o.url))return o.url;
   var m=_TL.map;if(!m)return null;
   var t=m[sport];if(!t||typeof t!=='object')return null;
-  var u=null;
-  if(sport==='nhl'||sport==='nba'||sport==='nfl')u=t[String(key||'').toUpperCase()];
-  else u=(o&&o.name&&t[o.name])||t[key];
+  var u=null,k=String(key||'');
+  if(_TL_ABBR[sport])u=t[k.toUpperCase()];
+  else{
+    u=(o&&o.name&&t[o.name])||t[k];
+    if(!u&&sport==='cfb'&&m.cfbAbbr)u=m.cfbAbbr[k.toUpperCase()];
+    if(!u)u=_tlFuzzy(sport,(o&&o.name)||k);
+  }
   return(u&&_TL_URL_OK.test(u))?u:null;
 }
 function _tlBadge(key,o){
@@ -4012,7 +4047,7 @@ function _tlHydrate(){
 }
 function _tlLoad(){
   if(_tlOff()||_TL.p)return _TL.p;
-  _TL.p=fetch('team_logos.json').then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){
+  _TL.p=fetch('team_logos.json?h='+Math.floor(Date.now()/3600000)).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){
     _TL.map=(d&&typeof d==='object')?d:{};_tlHydrate();
   });
   return _TL.p;
@@ -10435,7 +10470,7 @@ function renderNHLLockedBets(){
     const st=p.outcome==='pending'?'PENDING':p.outcome?.toUpperCase()||'PENDING';
     return`<div class="pk" style="border-left:2px solid ${oColor}">
       <div style="flex:1">
-        <div class="pkt">${_gameTitle(p.hA,p.awA,p.sport)}</div>
+        <div class="pkt">${_titleWithLogos(p)}</div>
         <div class="pkt2">BET: ${_expandBetOn(p.betOn||'',p.sport)} · ${p.ml||''}</div>
         <div class="pkd">WIN%: <strong>${p.winProb?(p.winProb*100).toFixed(1)+'%':'—'}</strong> · <strong style="color:${oColor}">${st}</strong>${p.date?' · '+p.date:''}</div>
         ${p.outcome==='pending'?`<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap"><button class="btn btn-n btn-sm" onclick="recR('${p.id}','win')">✓ WIN</button><button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss')">✗ LOSS</button><button class="btn btn-sm" style="color:var(--t3);border-color:var(--t3);font-size:16px;padding:2px 8px" onclick="removePick('${p.id}')">✕ REMOVE</button></div>`:''}
@@ -12987,7 +13022,7 @@ function renderNBALockedBets(){
     const st=p.outcome==='pending'?'PENDING':p.outcome?.toUpperCase()||'PENDING';
     return`<div class="pk" style="border-left:2px solid ${oColor}">
       <div style="flex:1">
-        <div class="pkt">${_gameTitle(p.hA,p.awA,p.sport)}</div>
+        <div class="pkt">${_titleWithLogos(p)}</div>
         <div class="pkt2">BET: ${_expandBetOn(p.betOn||'',p.sport)} · ${p.ml||''}</div>
         <div class="pkd">WIN%: <strong>${p.winProb?(p.winProb*100).toFixed(1)+'%':'—'}</strong> · <strong style="color:${oColor}">${st}</strong>${p.date?' · '+p.date:''}</div>
         ${p.outcome==='pending'?`<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap"><button class="btn btn-n btn-sm" onclick="recR('${p.id}','win')">✓ WIN</button><button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss')">✗ LOSS</button><button class="btn btn-sm" style="color:var(--t3);border-color:var(--t3);font-size:16px;padding:2px 8px" onclick="removePick('${p.id}')">✕ REMOVE</button></div>`:''}
@@ -14018,7 +14053,7 @@ function renderHistoryForSport(sport,summId,listId){
             const oLabel=p.outcome==='pending'?'PENDING':p.outcome.toUpperCase();
             return`<div class="ar">
               <div class="ab ${p.outcome==='win'?'ab-w':p.outcome==='loss'?'ab-l':p.outcome==='push'?'ab-p':'ab-s'}">${p.outcome==='win'?'✓':p.outcome==='loss'?'✗':p.outcome==='push'?'=':'⏳'}</div>
-              <div style="flex:1;min-width:0"><div style="font-family:var(--orb);font-size:22px;font-weight:700">${_gameTitle(p.hA,p.awA,p.sport)}</div><div style="font-family:var(--mono);font-size:18px;color:var(--t2)">${p.betType||''} · ${_expandBetOn(p.betOn||'',p.sport)} · ${p.ml||''}${p.outcome==='pending'&&p.date?' · '+p.date:''}</div>${p.outcome!=='pending'&&p.hScore!=null?`<div style="font-family:var(--mono);font-size:17px;color:var(--gc);margin-top:2px">FINAL: ${_teamName(p.hA,p.sport)} ${p.hScore} – ${p.aScore} ${_teamName(p.awA,p.sport)}</div>`:''}</div>
+              <div style="flex:1;min-width:0"><div style="font-family:var(--orb);font-size:22px;font-weight:700">${_titleWithLogos(p)}</div><div style="font-family:var(--mono);font-size:18px;color:var(--t2)">${p.betType||''} · ${_expandBetOn(p.betOn||'',p.sport)} · ${p.ml||''}${p.outcome==='pending'&&p.date?' · '+p.date:''}</div>${p.outcome!=='pending'&&p.hScore!=null?`<div style="font-family:var(--mono);font-size:17px;color:var(--gc);margin-top:2px">FINAL: ${_teamName(p.hA,p.sport)} ${p.hScore} – ${p.aScore} ${_teamName(p.awA,p.sport)}</div>`:''}</div>
               <div style="text-align:right;flex-shrink:0">
                 <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:${oColor}">${oLabel}</div>
                 ${p.outcome==='pending'?`<div style="display:flex;gap:3px;margin-top:4px"><button class="btn btn-o btn-sm" style="color:var(--nc);border-color:var(--nc)" onclick="recR('${p.id}','win')">W</button><button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss')">L</button><button class="btn btn-sm" style="font-size:16px;color:var(--t3);border-color:var(--t3);padding:2px 6px" onclick="removePick('${p.id}')">X</button></div>`:''}
@@ -19901,8 +19936,8 @@ async function renderNHLPropsLive(filter){
 }
 window.renderNHLPropsLive=renderNHLPropsLive;
 
-function renderNHLLiveBets(){const el=document.getElementById('nhl-live-bets');if(!el)return;const bets=getP().filter(p=>p.sport==='NHL'&&p.outcome==='pending');if(!bets.length){el.innerHTML='<div class="empty">NO ACTIVE NHL BETS</div>';return;}el.innerHTML=bets.map(p=>`<div class="card" style="margin-bottom:7px;border-left:2px solid var(--pc)"><div style="font-family:var(--orb);font-size:22px;font-weight:700">${_gameTitle(p.hA,p.awA,'NHL')}</div><div style="font-family:var(--mono);font-size:18px;color:var(--gc);margin-top:3px">${p.betType} · ${_expandBetOn(p.betOn,'NHL')}</div><div style="font-family:var(--mono);font-size:17px;color:var(--t3);margin-top:2px">${p.ml} · ${(p.winProb*100).toFixed(1)}% · $${p.wager||'--'}</div></div>`).join('');}
-function renderNBALiveBets(){const el=document.getElementById('nba-live-bets');if(!el)return;const bets=getP().filter(p=>p.sport==='NBA'&&p.outcome==='pending');if(!bets.length){el.innerHTML='<div class="empty">NO ACTIVE NBA BETS</div>';return;}el.innerHTML=bets.map(p=>`<div class="card" style="margin-bottom:7px;border-left:2px solid var(--ic)"><div style="font-family:var(--orb);font-size:22px;font-weight:700">${_gameTitle(p.hA,p.awA,'NBA')}</div><div style="font-family:var(--mono);font-size:18px;color:var(--gc);margin-top:3px">${p.betType} · ${_expandBetOn(p.betOn,'NBA')}</div><div style="font-family:var(--mono);font-size:17px;color:var(--t3);margin-top:2px">${p.ml} · ${(p.winProb*100).toFixed(1)}% · $${p.wager||'--'}</div></div>`).join('');}
+function renderNHLLiveBets(){const el=document.getElementById('nhl-live-bets');if(!el)return;const bets=getP().filter(p=>p.sport==='NHL'&&p.outcome==='pending');if(!bets.length){el.innerHTML='<div class="empty">NO ACTIVE NHL BETS</div>';return;}el.innerHTML=bets.map(p=>`<div class="card" style="margin-bottom:7px;border-left:2px solid var(--pc)"><div style="font-family:var(--orb);font-size:22px;font-weight:700">${_titleWithLogos(p,'NHL')}</div><div style="font-family:var(--mono);font-size:18px;color:var(--gc);margin-top:3px">${p.betType} · ${_expandBetOn(p.betOn,'NHL')}</div><div style="font-family:var(--mono);font-size:17px;color:var(--t3);margin-top:2px">${p.ml} · ${(p.winProb*100).toFixed(1)}% · $${p.wager||'--'}</div></div>`).join('');}
+function renderNBALiveBets(){const el=document.getElementById('nba-live-bets');if(!el)return;const bets=getP().filter(p=>p.sport==='NBA'&&p.outcome==='pending');if(!bets.length){el.innerHTML='<div class="empty">NO ACTIVE NBA BETS</div>';return;}el.innerHTML=bets.map(p=>`<div class="card" style="margin-bottom:7px;border-left:2px solid var(--ic)"><div style="font-family:var(--orb);font-size:22px;font-weight:700">${_titleWithLogos(p,'NBA')}</div><div style="font-family:var(--mono);font-size:18px;color:var(--gc);margin-top:3px">${p.betType} · ${_expandBetOn(p.betOn,'NBA')}</div><div style="font-family:var(--mono);font-size:17px;color:var(--t3);margin-top:2px">${p.ml} · ${(p.winProb*100).toFixed(1)}% · $${p.wager||'--'}</div></div>`).join('');}
 function _adjParLine(inputId,sport,player,stat,dir,ml,prob,matchup){
   var inp=document.getElementById(inputId);
   var line=inp?inp.value:'';
@@ -24249,7 +24284,7 @@ function renderGlobalLiveBets(){
         <div style="display:flex;justify-content:space-between;align-items:start;gap:6px">
           <div>
             <span style="font-family:var(--mono);font-size:16px;padding:1px 5px;border:1px solid ${sc};color:${sc};border-radius:2px;margin-right:5px">${p.sport||'?'}</span>
-            <span style="font-family:var(--orb);font-size:22px;font-weight:700">${_gameTitle(p.hA,p.awA,p.sport)}</span>
+            <span style="font-family:var(--orb);font-size:22px;font-weight:700">${_titleWithLogos(p)}</span>
             <div style="font-family:var(--mono);font-size:17px;color:var(--t2);margin-top:2px">${p.betType} · ${_expandBetOn(p.betOn,p.sport)} · ${p.ml}</div>
             <div style="font-family:var(--mono);font-size:17px;color:var(--t3);margin-top:1px">LOCKED: ${lockedAt} · MODEL: ${p.winProb?(p.winProb*100).toFixed(1)+'%':'—'}</div>
             ${gameStatusLine}
@@ -29801,7 +29836,7 @@ function renderLockedTracker() {
                 +parlayBadge
               +'</div>'
               +'<div class="gtm" style="font-size:23px">'+p.betOn+'</div>'
-              +'<div class="gsp">'+_gameTitle(p.hA,p.awA,p.sport)+' &middot; '+mlStr+'</div>'
+              +'<div class="gsp">'+_titleWithLogos(p)+' &middot; '+mlStr+'</div>'
             +'</div>'
             +'<div style="text-align:right">'
               +'<div style="font-family:var(--orb);font-size:24px;font-weight:900;color:'+probCol+'">'+prob+'%</div>'

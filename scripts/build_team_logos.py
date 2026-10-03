@@ -11,8 +11,12 @@ Keys (what each card already has in hand):
   cfb             : ESPN team displayName         (e.g. "Ohio State Buckeyes") -- abbreviations are ambiguous in college
                     football (OSU = Ohio State AND Ohio State Newark), full names are unique
   soccer          : ESPN team displayName         (e.g. "Arsenal"), merged across PL / La Liga / Serie A / Bundesliga / MLS / UCL
-The four European hockey leagues are NOT here: their logo URLs are scraped from Flashscore into
-docs/{liiga,shl,nla,extraliga}_schedule.json (teams[id].logo) by scripts/_flashscore_logos.py.
+  cfbAbbr         : ESPN college abbreviation -> logo, unambiguous abbreviations only (picks store the abbreviation)
+  mlb / wnba      : ESPN team abbreviation        (locked-pick rows and history, 2026-10-03)
+  countries       : ESPN national-team abbreviation (World Cup picks)
+  liiga / shl / nla / extraliga : team NAME -> Flashscore logo URL, copied from docs/{liiga,shl,nla,extraliga}_schedule.json teams[id].logo
+                    (scraped by scripts/_flashscore_logos.py) so locked-pick rows can resolve a logo by the name a pick stores, without
+                    loading the league schedule file.
 
     python3 scripts/build_team_logos.py            # rewrite docs/team_logos.json
     python3 scripts/build_team_logos.py --check    # fetch + print coverage, write nothing
@@ -102,7 +106,9 @@ def build(prev: dict) -> dict:
                      "European hockey logo URLs live in docs/*_schedule.json teams[id].logo instead.",
            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}
     plan = [("nhl", "hockey/nhl", "abbreviation", False), ("nba", "basketball/nba", "abbreviation", False),
-            ("nfl", "football/nfl", "abbreviation", False), ("cfb", "football/college-football", "displayName", True)]
+            ("nfl", "football/nfl", "abbreviation", False), ("cfb", "football/college-football", "displayName", True),
+            ("mlb", "baseball/mlb", "abbreviation", False), ("wnba", "basketball/wnba", "abbreviation", False),
+            ("countries", "soccer/fifa.world", "abbreviation", False)]
     for key, path, field, paged in plan:
         try:
             m = {}
@@ -118,9 +124,29 @@ def build(prev: dict) -> dict:
                         m[alias] = m[real]
             out[key] = dict(sorted(m.items()))
             log(f"{key}: {len(m)} entries")
+            if key == "cfb":
+                # locked picks store the ESPN abbreviation (e.g. "WAKE"); only unambiguous ones are usable as a key
+                ab: dict = {}
+                for t in teams_of(path, paged):
+                    u, a_ = logo_of(t), (t.get("abbreviation") or "").upper()
+                    if u and a_:
+                        ab[a_] = None if (a_ in ab and ab[a_] != u) else u
+                out["cfbAbbr"] = dict(sorted((k, v) for k, v in ab.items() if v))
+                log(f"cfbAbbr: {len(out['cfbAbbr'])} unambiguous abbreviations")
         except Exception as exc:
             log(f"{key}: FAILED ({exc}) -- keeping previous entries")
             out[key] = prev.get(key, {})
+    for lg in ("liiga", "shl", "nla", "extraliga"):
+        try:
+            d = json.loads((ROOT / "docs" / f"{lg}_schedule.json").read_text())
+            m = {t["name"]: t["logo"] for t in (d.get("teams") or {}).values() if t.get("name") and t.get("logo")}
+            if not m:
+                raise RuntimeError("0 logos")
+            out[lg] = dict(sorted(m.items()))
+            log(f"{lg}: {len(m)} entries")
+        except Exception as exc:
+            log(f"{lg}: FAILED ({exc}) -- keeping previous entries")
+            out[lg] = prev.get(lg, {})
     soc, ok = {}, False
     for lg in SOCCER:
         try:
