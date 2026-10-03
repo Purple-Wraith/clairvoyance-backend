@@ -1691,7 +1691,12 @@ def gather_legs(page) -> dict:
               if (!g.date) return;
               const d = new Date(g.date);
               const localIso = isNaN(d) ? g.date.slice(0, 10) : d.toLocaleDateString('sv-SE', { timeZone: 'America/Denver' });
-              if (localIso !== todayIso || g.state === 'post') return;
+              // seasonType 1 = preseason (nba.today carries ESPN's season type since
+              // 2026-10-03). Same exclusion NFL's block above has: without it an NBA
+              // exhibition game that gets odds would be auto-locked + emailed to
+              // subscribers like a real regular-season pick. Rolls over by itself --
+              // ESPN labels games seasonType 2 from opening night (~Oct 21).
+              if (localIso !== todayIso || g.state === 'post' || g.seasonType === 1) return;
               const espnEv = {
                 id: g.id, date: g.date,
                 competitions: [{

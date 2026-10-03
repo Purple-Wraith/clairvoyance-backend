@@ -341,6 +341,12 @@ def _espn_game(event: dict, sport: str) -> dict:
         "venue":       (comp.get("venue") or {}).get("fullName", ""),
         "date":        event.get("date", ""),
         "network":     ((comp.get("broadcasts") or [{}])[0].get("names") or [""])[0],
+        # ESPN season type of this event: 1=preseason, 2=regular, 3=postseason,
+        # 5=play-in (None if ESPN omits it). Lets consumers tell NBA preseason
+        # games (Oct 2026: ~Sep 30-Oct 20) from real regular-season games --
+        # the rollover happens by itself, no code change on Oct 21.
+        "seasonType":  (event.get("season") or {}).get("type"),
+        "seasonYear":  (event.get("season") or {}).get("year"),
     }
     g.update(_espn_odds(comp, sport=espn_sport, league=espn_league, event_id=event_id))
     for note_obj in comp.get("notes") or []:
@@ -497,156 +503,511 @@ def fetch_wnba_roster() -> dict:
         log(f"WNBA rosters: {exc}", "WARN")
     return result
 
+# ══════════════════════════════════════════════════════════════════════════════
+# NBA season rollover — season derivation, Basketball-Reference team table,
+# team ratings / Elo seed.   (added 2026-10-03 for the 2026-27 rollover)
+#
+# Background (verified live 2026-10-03):
+#   * fetch_nba_team_advanced()/fetch_nba_four_factors() returned 0 teams on
+#     EVERY run with no WARN. Root cause: Basketball-Reference renamed its
+#     tables. The old code looked up `<td data-stat="team_id|team_name">`
+#     (abbreviation text) in `advanced-team` and a `four_factors` table. The
+#     live `advanced-team` table now carries `data-stat="team"` (full name,
+#     "*" suffix for playoff teams, abbreviation only inside the <a href>) and
+#     the four-factor columns (efg_pct/tov_pct/orb_pct/ft_rate/opp_*) live in
+#     that SAME table -- there is no `four_factors` table any more. The
+#     playoffs-page `misc_stats` table was renamed `advanced-team` as well.
+#     Every row therefore hit `if not tm: continue` and the function logged
+#     "0 teams" at INFO level only.
+#   * BBRef team abbreviations (BRK/CHO/PHO/WAS/NOP/UTA...) differ from the
+#     ESPN abbreviations the whole app keys on (BKN/CHA/PHX/WSH/NO/UTAH, plus
+#     NY/GS/SA), and the old 4-entry ABBR_MAP did not cover them.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Min games played per team before the CURRENT season's Basketball-Reference
+# page replaces last season's as the model prior (see select_nba_team_stats).
+NBA_MIN_GAMES_FOR_CURRENT = 5
+NBA_MIN_TEAMS_FOR_CURRENT = 24      # of 30 -- tolerate a few teams with a light early schedule
+
+# Elo / rating seed parameters (see build_nba_team_ratings)
+NBA_ELO_MEAN        = 1550   # == the app's own `NBA_ELO[x] || 1550` default
+NBA_ELO_PER_POINT   = 28     # Elo points per point of scoring margin (538-style)
+NBA_PRIOR_CARRY     = 0.75   # share of last season's margin carried into a new season
+NBA_PRIOR_GAMES     = 20     # pseudo-games of weight the regressed prior gets vs current results
+NBA_BBREF_DELAY     = 2      # seconds between Basketball-Reference requests (be polite); tests set 0
+
+# Basketball-Reference full team name -> ESPN abbreviation (what data.json / app.html key on)
+_NBA_NAME_TO_ESPN: dict[str, str] = {
+    "Atlanta Hawks":"ATL","Boston Celtics":"BOS","Brooklyn Nets":"BKN","Charlotte Hornets":"CHA",
+    "Chicago Bulls":"CHI","Cleveland Cavaliers":"CLE","Dallas Mavericks":"DAL","Denver Nuggets":"DEN",
+    "Detroit Pistons":"DET","Golden State Warriors":"GS","Houston Rockets":"HOU","Indiana Pacers":"IND",
+    "Los Angeles Clippers":"LAC","LA Clippers":"LAC","Los Angeles Lakers":"LAL","Memphis Grizzlies":"MEM",
+    "Miami Heat":"MIA","Milwaukee Bucks":"MIL","Minnesota Timberwolves":"MIN","New Orleans Pelicans":"NO",
+    "New York Knicks":"NY","Oklahoma City Thunder":"OKC","Orlando Magic":"ORL","Philadelphia 76ers":"PHI",
+    "Phoenix Suns":"PHX","Portland Trail Blazers":"POR","Sacramento Kings":"SAC","San Antonio Spurs":"SA",
+    "Toronto Raptors":"TOR","Utah Jazz":"UTAH","Washington Wizards":"WSH",
+}
+# Basketball-Reference team abbreviation (from /teams/XXX/2026.html hrefs) -> ESPN abbreviation
+_NBA_BBREF_TO_ESPN: dict[str, str] = {
+    "ATL":"ATL","BOS":"BOS","BRK":"BKN","BKN":"BKN","CHO":"CHA","CHA":"CHA","CHI":"CHI","CLE":"CLE",
+    "DAL":"DAL","DEN":"DEN","DET":"DET","GSW":"GS","GS":"GS","HOU":"HOU","IND":"IND","LAC":"LAC",
+    "LAL":"LAL","MEM":"MEM","MIA":"MIA","MIL":"MIL","MIN":"MIN","NOP":"NO","NO":"NO","NYK":"NY","NY":"NY",
+    "OKC":"OKC","ORL":"ORL","PHI":"PHI","PHO":"PHX","PHX":"PHX","POR":"POR","SAC":"SAC","SAS":"SA","SA":"SA",
+    "TOR":"TOR","UTA":"UTAH","UTAH":"UTAH","WAS":"WSH","WSH":"WSH",
+}
+
+
+def nba_season_end_year(today=None, override=None) -> int:
+    """
+    The NBA season's ending calendar year (2026-27 -> 2027). This is also the
+    value ESPN uses for `season=` and Basketball-Reference for `NBA_<year>.html`.
+
+    A season Y-1..Y starts in October: month >= 10 -> year+1, else year. So from
+    Jul-Sep (offseason) this still returns the season that just ended, and flips
+    on Oct 1 (preseason). Override with env var NBA_SEASON_END_YEAR (or the
+    `override` argument) -- e.g. to pin the old season, or to flip early/late.
+    """
+    ov = override if override is not None else os.environ.get("NBA_SEASON_END_YEAR")
+    if ov not in (None, ""):
+        try:
+            y = int(str(ov).strip())
+            if 2000 <= y <= 2100:
+                return y
+        except ValueError:
+            pass
+        log(f"NBA_SEASON_END_YEAR={ov!r} is not a valid 4-digit year -- ignoring override", "WARN")
+    d = today if today is not None else NOW_MT
+    if isinstance(d, datetime):
+        d = d.date()
+    return d.year + 1 if d.month >= 10 else d.year
+
+
+def nba_bbref_url(end_year: int) -> str:
+    return f"https://www.basketball-reference.com/leagues/NBA_{end_year}.html"
+
+
+def _bb_float(s):
+    """Parse a Basketball-Reference cell ('+11.2', '.599', '1,234', '') -> float | None."""
+    if s is None:
+        return None
+    s = str(s).strip().replace(",", "")
+    if s in ("", "-", "—"):
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _bbref_looks_blocked(text: str) -> bool:
+    low = text[:6000].lower()
+    return ("just a moment" in low or "cf-chl" in low or "challenge-platform" in low
+            or "attention required" in low or "verify you are human" in low)
+
+
+def _bbref_get(url: str, timeout: int = 25) -> tuple[str | None, str]:
+    """GET a Basketball-Reference page. Returns (html | None, reason). Never raises."""
+    try:
+        r = _ref_session.get(url, timeout=timeout)
+    except Exception as exc:
+        return None, f"request failed: {exc}"
+    status = getattr(r, "status_code", 0)
+    if status != 200:
+        cf = "cloudflare" in str((getattr(r, "headers", {}) or {}).get("server", "")).lower()
+        return None, f"HTTP {status}" + (" (Cloudflare block/rate-limit)" if cf and status in (403, 429, 503) else "")
+    text = r.text or ""
+    if _bbref_looks_blocked(text):
+        return None, "HTTP 200 but anti-bot challenge page"
+    return text, "ok"
+
+
+def _bb_find_table(soup, table_ids):
+    """Find a table by id, including tables Sports-Reference wraps in HTML comments."""
+    for tid in table_ids:
+        t = soup.find("table", id=tid)
+        if t is not None:
+            return t, tid
+    for cmt in soup.find_all(string=lambda t: isinstance(t, Comment)):
+        for tid in table_ids:
+            if tid in cmt:
+                tbl = BeautifulSoup(cmt, "lxml").find("table", id=tid)
+                if tbl is not None:
+                    return tbl, tid
+    return None, None
+
+
+def parse_nba_advanced_team(soup) -> tuple[dict, str]:
+    """
+    Parse Basketball-Reference's league-page `advanced-team` table (also the
+    playoffs page's) into {espn_abbr: row}. Returns (rows, diagnostic) --
+    diagnostic is "" on success, otherwise the specific reason nothing parsed.
+
+    Row keys: name, w, l, gp, mov, sos, srs, ortg, drtg, net_rtg, pace, ts_pct,
+    efg_pct, tov_pct, orb_pct, ft_rate, opp_efg_pct, opp_tov_pct, drb_pct,
+    opp_ft_rate. Values are floats or None (a new season's page has the table
+    with empty stat cells until games are played -- those rows still parse,
+    with w=l=0 and ortg=None).
+    """
+    tbl, tid = _bb_find_table(soup, ("advanced-team", "advanced_team"))
+    if tbl is None:
+        ids = [t.get("id") for t in soup.find_all("table") if t.get("id")]
+        title = (soup.title.get_text(strip=True) if soup.title else "no <title>")[:80]
+        return {}, f"no advanced-team table (page title {title!r}; table ids present: {ids[:12]})"
+    body = tbl.find("tbody") or tbl
+    out: dict = {}
+    unmapped: list[str] = []
+    n_rows = 0
+    for tr in body.find_all("tr"):
+        if "thead" in (tr.get("class") or []):
+            continue
+        cells = {}
+        for td in tr.find_all(["td", "th"]):
+            ds = td.get("data-stat")
+            if ds and ds not in cells:
+                cells[ds] = td
+        tcell = cells.get("team") or cells.get("team_name") or cells.get("team_id")
+        if tcell is None:
+            continue
+        name = re.sub(r"[*\s]+$", "", tcell.get_text(" ", strip=True)).strip()
+        if not name or name.lower() in ("team", "league average"):
+            continue
+        n_rows += 1
+        abbr = None
+        a = tcell.find("a", href=True)
+        if a:
+            m = re.search(r"/teams/([A-Z]{2,4})/", a["href"])
+            if m:
+                abbr = _NBA_BBREF_TO_ESPN.get(m.group(1))
+        if not abbr:
+            abbr = _NBA_NAME_TO_ESPN.get(name) or _NBA_BBREF_TO_ESPN.get(name.upper())
+        if not abbr:
+            unmapped.append(name)
+            continue
+        g = lambda k: _bb_float(cells[k].get_text(strip=True)) if k in cells else None
+        w, l = g("wins"), g("losses")
+        ortg, drtg = g("off_rtg"), g("def_rtg")
+        net = g("net_rtg")
+        if net is None and ortg is not None and drtg is not None:
+            net = round(ortg - drtg, 2)
+        out[abbr] = {
+            "name": name,
+            "w": int(w) if w is not None else 0, "l": int(l) if l is not None else 0,
+            "mov": g("mov"), "sos": g("sos"), "srs": g("srs"),
+            "ortg": ortg, "drtg": drtg, "net_rtg": net, "pace": g("pace"),
+            "ts_pct": g("ts_pct"), "efg_pct": g("efg_pct"), "tov_pct": g("tov_pct"),
+            "orb_pct": g("orb_pct"), "ft_rate": g("ft_rate"),
+            "opp_efg_pct": g("opp_efg_pct"), "opp_tov_pct": g("opp_tov_pct"),
+            "drb_pct": g("drb_pct"), "opp_ft_rate": g("opp_ft_rate"),
+        }
+        out[abbr]["gp"] = out[abbr]["w"] + out[abbr]["l"]
+    if unmapped:
+        log(f"BBRef advanced-team: {len(unmapped)} team name(s) not in ESPN map: {unmapped[:5]}", "WARN")
+    if not out:
+        return {}, (f"table {tid!r} found but {n_rows} row(s) yielded no mappable team "
+                    f"(unmapped: {unmapped[:5]}) -- column names likely changed")
+    return out, ""
+
+
+_NBA_STATS_CACHE: dict = {}      # (end_year) -> (rows, info);  (sel, cur, prior) -> selection
+
+
+def fetch_nba_bbref_season(end_year: int) -> tuple[dict, dict]:
+    """
+    Fetch + parse one season's Basketball-Reference league page, once per run
+    (cached -- teamAdv, fourFactors and teamRatings all share it). Returns
+    (rows_by_espn_abbr, info). Always logs a WARN with the reason on failure.
+    """
+    key = ("page", end_year)
+    if key in _NBA_STATS_CACHE:
+        return _NBA_STATS_CACHE[key]
+    url = nba_bbref_url(end_year)
+    if NBA_BBREF_DELAY:
+        time.sleep(NBA_BBREF_DELAY)
+    html, reason = _bbref_get(url)
+    info = {"year": end_year, "url": url, "ok": False, "reason": reason, "teams": 0}
+    rows: dict = {}
+    if html is None:
+        log(f"NBA BBRef {end_year}: FETCH FAILED -- {reason} ({url})", "WARN")
+    else:
+        rows, diag = parse_nba_advanced_team(BeautifulSoup(html, "lxml"))
+        if not rows:
+            info["reason"] = diag
+            log(f"NBA BBRef {end_year}: 0 teams parsed -- {diag} ({url})", "WARN")
+        else:
+            info.update(ok=True, reason="ok", teams=len(rows))
+            if len(rows) != 30:
+                log(f"NBA BBRef {end_year}: parsed {len(rows)} teams (expected 30)", "WARN")
+    _NBA_STATS_CACHE[key] = (rows, info)
+    return rows, info
+
+
+def select_nba_team_stats(cur_rows: dict, prior_rows: dict, cur_year: int, prior_year: int,
+                          min_games: int | None = None, min_teams: int | None = None) -> dict:
+    """
+    Decide which season's team stats the model should read. Pure function.
+
+    Current season is used only once at least `min_teams` teams (default 24 of
+    30) have >= `min_games` (default 5) games played AND carry real ratings;
+    before that the whole league stays on last season's page as the prior. Once
+    the current season is active, a team still under `min_games` keeps its own
+    prior row. Returns {"teams": {abbr: row + season}, "seasonUsed", "mode"
+    ("current"|"prior"|"mixed"|"none"), "curReady", "reason"}.
+    """
+    min_games = NBA_MIN_GAMES_FOR_CURRENT if min_games is None else min_games
+    min_teams = NBA_MIN_TEAMS_FOR_CURRENT if min_teams is None else min_teams
+    ready = {a: r for a, r in (cur_rows or {}).items()
+             if (r.get("gp") or 0) >= min_games and r.get("ortg") is not None and r.get("drtg") is not None}
+    teams: dict = {}
+    if len(ready) >= min_teams:
+        mode = "current"
+        for a, r in cur_rows.items():
+            if a in ready:
+                teams[a] = {**r, "season": cur_year}
+            elif prior_rows.get(a):
+                teams[a] = {**prior_rows[a], "season": prior_year}
+                mode = "mixed"
+        for a, r in prior_rows.items():       # team missing from current page entirely
+            if a not in teams:
+                teams[a] = {**r, "season": prior_year}
+                mode = "mixed"
+        return {"teams": teams, "seasonUsed": cur_year if mode == "current" else f"{cur_year}/{prior_year}",
+                "mode": mode, "curReady": len(ready),
+                "reason": f"{len(ready)}/{len(cur_rows)} current-season teams have >= {min_games} GP"}
+    why = (f"current-season page has only {len(ready)} team(s) with >= {min_games} GP "
+           f"(need {min_teams}); using {prior_year} as prior")
+    if prior_rows:
+        teams = {a: {**r, "season": prior_year} for a, r in prior_rows.items()}
+        return {"teams": teams, "seasonUsed": prior_year, "mode": "prior",
+                "curReady": len(ready), "reason": why}
+    if ready:   # prior page failed but a thin current sample exists -- better than nothing
+        teams = {a: {**r, "season": cur_year} for a, r in ready.items()}
+        return {"teams": teams, "seasonUsed": cur_year, "mode": "current",
+                "curReady": len(ready), "reason": why + f"; prior {prior_year} UNAVAILABLE, using thin current sample"}
+    return {"teams": {}, "seasonUsed": None, "mode": "none", "curReady": 0,
+            "reason": why + f"; prior {prior_year} UNAVAILABLE -- no team stats at all"}
+
+
+def get_nba_team_stats_selection() -> dict:
+    """Fetch current + prior BBRef pages (cached per run) and apply select_nba_team_stats()."""
+    cur = nba_season_end_year()
+    prior = cur - 1
+    key = ("sel", cur)
+    if key in _NBA_STATS_CACHE:
+        return _NBA_STATS_CACHE[key]
+    cur_rows, cur_info = fetch_nba_bbref_season(cur)
+    # The prior page is only needed until the current season has enough games, but
+    # teamRatings wants last season's final numbers either way, so always fetch it.
+    prior_rows, prior_info = fetch_nba_bbref_season(prior)
+    sel = select_nba_team_stats(cur_rows, prior_rows, cur, prior)
+    sel.update(curYear=cur, priorYear=prior, curRows=cur_rows, priorRows=prior_rows,
+               curInfo=cur_info, priorInfo=prior_info)
+    lvl = "INFO" if sel["teams"] else "WARN"
+    log(f"NBA team stats: using season {sel['seasonUsed']} [{sel['mode']}] -- {sel['reason']}", lvl)
+    _NBA_STATS_CACHE[key] = sel
+    return sel
+
+
 def fetch_nba_team_advanced() -> dict:
     """
-    Fetch team-level NBA advanced stats from Basketball Reference.
-    Returns dict keyed by team abbreviation with ortg, drtg, pace, efg_pct, ts_pct.
-    Used for probability adjustment in calculate_best_bets.
-
-    Two-phase, like fetch_wnba_team_stats(): the regular-season leagues
-    page's advanced-team table covers all 30 teams (BBRef's real full-
-    season numbers), scraped first as the base. The playoffs page's
-    misc_stats table -- previously the ONLY source here, hardcoded to an
-    18-team ABBR_MAP of "common playoff teams" -- is then overlaid on
-    top for whichever teams it has, since in-progress playoff performance
-    is a fresher signal than full-season averages for those specific
-    teams. Any of the other ~12 teams simply keep their real regular-
-    season numbers instead of having no live data at all.
+    Team-level NBA advanced stats from Basketball Reference, keyed by ESPN
+    abbreviation: ortg, drtg, pace, efg_pct, ts_pct, net_rtg (+ additive
+    `season` and `gp` so the model/UI can tell which season a team's row is
+    from). Which season is chosen by get_nba_team_stats_selection(): the
+    current season once >= 24 teams have >= 5 GP, else last season as the prior.
+    Used by calculate_best_bets and (via data.json nba.teamAdv) by the app's nbaMC.
     """
     log("NBA team advanced stats…")
+    sel = get_nba_team_stats_selection()
     result: dict = {}
-    # BBRef abbreviation → ESPN abbreviation mapping (differs for a few teams)
-    ABBR_MAP = {
-        "NYK":"NY","GSW":"GS","PHX":"PHX","SAS":"SA",
-    }
-    try:
-        time.sleep(2)
-        soup0 = fetch_html(
-            "https://www.basketball-reference.com/leagues/NBA_2026.html",
-            timeout=25, ref=True
-        )
-        if soup0:
-            tbl0 = soup0.find("table", {"id": "advanced-team"})
-            if not tbl0:
-                from bs4 import Comment
-                for cmt in soup0.find_all(string=lambda t: isinstance(t, Comment)):
-                    if "advanced-team" in cmt:
-                        frag = BeautifulSoup(cmt, "lxml")
-                        tbl0 = frag.find("table", {"id": "advanced-team"})
-                        if tbl0: break
-            if tbl0:
-                for tr in tbl0.find_all("tr"):
-                    cells = {td.get("data-stat",""): td.get_text(strip=True)
-                             for td in tr.find_all(["td","th"])}
-                    tm = (cells.get("team_id") or cells.get("team_name") or "").strip().upper()
-                    if not tm or tm in ("TEAM","",):
-                        continue
-                    espn_abbr = ABBR_MAP.get(tm, tm)
-                    try:
-                        ortg = float(cells.get("off_rtg","") or 0)
-                        drtg = float(cells.get("def_rtg","") or 0)
-                        pace = float(cells.get("pace","") or 0)
-                        efg  = float(cells.get("efg_pct","") or 0)
-                        ts   = float(cells.get("ts_pct","") or 0)
-                        if ortg > 0:
-                            result[espn_abbr] = {
-                                "ortg": ortg, "drtg": drtg, "pace": pace,
-                                "efg_pct": efg, "ts_pct": ts,
-                                "net_rtg": ortg - drtg,
-                            }
-                    except (ValueError, TypeError):
-                        continue
-        log(f"  NBA advanced (full season): {len(result)} teams")
-    except Exception as exc:
-        log(f"NBA team advanced (full season): {exc}", "WARN")
-
-    try:
-        time.sleep(2)
-        soup = fetch_html(
-            "https://www.basketball-reference.com/playoffs/NBA_2026.html",
-            timeout=25, ref=True
-        )
-        if not soup:
-            return result
-        # Team misc stats table: team_misc
-        tbl = soup.find("table", {"id": "misc_stats"})
-        if not tbl:
-            # Sometimes embedded in HTML comments
-            from bs4 import Comment
-            for cmt in soup.find_all(string=lambda t: isinstance(t, Comment)):
-                if "misc_stats" in cmt:
-                    frag = BeautifulSoup(cmt, "lxml")
-                    tbl = frag.find("table", {"id": "misc_stats"})
-                    if tbl: break
-        if tbl:
-            headers = [th.get("data-stat","") for th in tbl.find_all("th") if th.get("data-stat")]
-            for tr in tbl.find_all("tr"):
-                cells = {td.get("data-stat",""): td.get_text(strip=True)
-                         for td in tr.find_all(["td","th"])}
-                tm = cells.get("team_id","").upper()
-                if not tm or tm in ("TEAM","",): continue
-                espn_abbr = ABBR_MAP.get(tm, tm)
-                try:
-                    ortg = float(cells.get("off_rtg","") or 0)
-                    drtg = float(cells.get("def_rtg","") or 0)
-                    pace = float(cells.get("pace","") or 0)
-                    efg  = float(cells.get("efg_pct","") or 0)
-                    ts   = float(cells.get("ts_pct","") or 0)
-                    if ortg > 0:
-                        result[espn_abbr] = {
-                            "ortg": ortg, "drtg": drtg, "pace": pace,
-                            "efg_pct": efg, "ts_pct": ts,
-                            "net_rtg": ortg - drtg,
-                        }
-                except (ValueError, TypeError):
-                    continue
-    except Exception as exc:
-        log(f"NBA team advanced: {exc}", "WARN")
-    log(f"NBA team advanced: {len(result)} teams")
+    for abbr, r in sel["teams"].items():
+        if r.get("ortg") is None or r.get("drtg") is None:
+            continue
+        result[abbr] = {
+            "ortg": r["ortg"], "drtg": r["drtg"], "pace": r.get("pace") or 0.0,
+            "efg_pct": r.get("efg_pct") or 0.0, "ts_pct": r.get("ts_pct") or 0.0,
+            "net_rtg": r["net_rtg"] if r.get("net_rtg") is not None else r["ortg"] - r["drtg"],
+            "season": r["season"], "gp": r.get("gp", 0),
+        }
+    if len(result) < 30:
+        log(f"NBA team advanced: only {len(result)}/30 teams (season {sel['seasonUsed']}, mode {sel['mode']})", "WARN")
+    else:
+        log(f"NBA team advanced: {len(result)} teams (season {sel['seasonUsed']}, mode {sel['mode']})")
     return result
+
 
 def fetch_nba_four_factors() -> dict:
     """
-    Additive: Dean Oliver's "Four Factors" (eFG%, TOV%, ORB%, FT/FGA) for
-    both offense and defense, from Basketball Reference's four_factors
-    table — complements fetch_nba_team_advanced()'s misc_stats data with
-    the specific factors most predictive of pace-adjusted win probability.
-    Works for both NBA and WNBA by passing the appropriate Sports-Reference
-    season URL.
+    Dean Oliver's Four Factors (eFG%, TOV%, ORB%, FT/FGA, offense + defense),
+    keyed by ESPN abbreviation. These columns live in the same Basketball-
+    Reference `advanced-team` table as the ratings (there is no separate
+    `four_factors` table any more) -- so this reuses the cached page fetch.
+    Same season-selection rule as fetch_nba_team_advanced().
     """
-    log("NBA/WNBA four factors…")
+    log("NBA four factors…")
+    sel = get_nba_team_stats_selection()
     result: dict = {}
-    ABBR_MAP = {
-        "NYK":"NY","GSW":"GS","PHX":"PHX","SAS":"SA",
-    }
-    try:
-        time.sleep(2)
-        soup = fetch_html("https://www.basketball-reference.com/leagues/NBA_2026.html", timeout=25, ref=True)
-        if not soup:
-            return result
-        rows = _table_to_rows(soup, "four_factors", limit=40)
-        for row in rows:
-            tm = (row.get("team_name") or row.get("team") or "").strip().upper()
-            if not tm or tm in ("", "TEAM", "LEAGUE AVERAGE"):
-                continue
-            espn_abbr = ABBR_MAP.get(tm, tm)
-            try:
-                result[espn_abbr] = {
-                    "efg_pct":  float(row.get("efg_pct") or 0),
-                    "tov_pct":  float(row.get("tov_pct") or 0),
-                    "orb_pct":  float(row.get("orb_pct") or 0),
-                    "ft_rate":  float(row.get("ft_rate") or 0),
-                    "opp_efg_pct": float(row.get("opp_efg_pct") or 0),
-                    "opp_tov_pct": float(row.get("opp_tov_pct") or 0),
-                    "drb_pct":  float(row.get("drb_pct") or 0),
-                    "opp_ft_rate": float(row.get("opp_ft_rate") or 0),
-                }
-            except (ValueError, TypeError):
-                continue
-        log(f"NBA four factors: {len(result)} teams")
-    except Exception as exc:
-        log(f"NBA four factors: {exc}", "WARN")
+    keys = ("efg_pct", "tov_pct", "orb_pct", "ft_rate", "opp_efg_pct", "opp_tov_pct", "drb_pct", "opp_ft_rate")
+    for abbr, r in sel["teams"].items():
+        if any(r.get(k) is None for k in keys):
+            continue
+        result[abbr] = {k: r[k] for k in keys}
+        result[abbr].update(season=r["season"], gp=r.get("gp", 0))
+    if len(result) < 30:
+        log(f"NBA four factors: only {len(result)}/30 teams (season {sel['seasonUsed']}, mode {sel['mode']})", "WARN")
+    else:
+        log(f"NBA four factors: {len(result)} teams (season {sel['seasonUsed']}, mode {sel['mode']})")
     return result
+
+
+def _nba_mov_prior(prior_row: dict | None, espn_prior: dict | None) -> float | None:
+    """Last season's strength (points of margin): BBRef SRS > MOV > net rating > ESPN avg differential."""
+    if prior_row:
+        for k in ("srs", "mov", "net_rtg"):
+            if prior_row.get(k) is not None:
+                return float(prior_row[k])
+    if espn_prior and espn_prior.get("diff") is not None:
+        return float(espn_prior["diff"])
+    return None
+
+
+def build_nba_team_ratings(prior_rows: dict, cur_rows: dict, espn_prior: dict, espn_cur: dict,
+                           cur_year: int, prior_year: int, stats_sel: dict | None = None) -> dict:
+    """
+    All-30-teams rating block for the app (data.json `nba.teamRatings`, plus a
+    flat `nba.eloSeed`). Pure function of its inputs.
+
+    strength (pts of margin) = (gp*cur_mov + K*carry*prior_mov) / (gp + K)
+        prior_mov = last season's SRS (fallback MOV / net rtg / ESPN avg diff)
+        cur_mov   = ESPN standings avg point differential this season (fallback BBRef MOV)
+        carry = NBA_PRIOR_CARRY (0.75), K = NBA_PRIOR_GAMES (20)
+    elo = NBA_ELO_MEAN + NBA_ELO_PER_POINT * strength, clamped 1300..1850.
+    A team with no data from any source gets elo = NBA_ELO_MEAN (source "default").
+    """
+    abbrs = sorted(set(prior_rows) | set(cur_rows) | set(espn_prior) | set(espn_cur))
+    teams: dict = {}
+    elo_seed: dict = {}
+    for a in abbrs:
+        pr, cr = prior_rows.get(a), cur_rows.get(a)
+        ep, ec = espn_prior.get(a), espn_cur.get(a)
+        # current record/margin: ESPN standings are real-time; BBRef lags a day
+        cw = _bb_float((ec or {}).get("w"))
+        cl = _bb_float((ec or {}).get("l"))
+        if cw is None and cr:
+            cw, cl = float(cr["w"]), float(cr["l"])
+        cw, cl = int(cw or 0), int(cl or 0)
+        gp = cw + cl
+        cur_mov = _bb_float((ec or {}).get("diff"))
+        if cur_mov is None and cr and cr.get("mov") is not None:
+            cur_mov = cr["mov"]
+        prior_mov = _nba_mov_prior(pr, ep)
+        pw = pl = None
+        if pr:
+            pw, pl = pr["w"], pr["l"]
+        elif ep:
+            pw, pl = int(_bb_float(ep.get("w")) or 0), int(_bb_float(ep.get("l")) or 0)
+        regressed = NBA_PRIOR_CARRY * prior_mov if prior_mov is not None else None
+        if gp > 0 and cur_mov is not None and regressed is not None:
+            strength, src = (gp * cur_mov + NBA_PRIOR_GAMES * regressed) / (gp + NBA_PRIOR_GAMES), "prior+current"
+        elif gp > 0 and cur_mov is not None:
+            strength, src = cur_mov * gp / (gp + NBA_PRIOR_GAMES), "current-only"
+        elif regressed is not None:
+            strength, src = regressed, "prior"
+        else:
+            strength, src = None, "default"
+        elo = NBA_ELO_MEAN if strength is None else int(round(max(1300, min(1850, NBA_ELO_MEAN + NBA_ELO_PER_POINT * strength))))
+        prior_pct = (pw / (pw + pl)) if (pw is not None and pl is not None and (pw + pl) > 0) else None
+        teams[a] = {
+            "name": (pr or cr or {}).get("name"),
+            "prior": {
+                "season": prior_year, "w": pw, "l": pl,
+                "winPct": round(prior_pct, 3) if prior_pct is not None else None,
+                "mov": (pr or {}).get("mov") if pr else _bb_float((ep or {}).get("diff")),
+                "srs": (pr or {}).get("srs"),
+                "netRtg": (pr or {}).get("net_rtg"), "ortg": (pr or {}).get("ortg"),
+                "drtg": (pr or {}).get("drtg"), "pace": (pr or {}).get("pace"),
+            },
+            "current": {"season": cur_year, "w": cw, "l": cl, "gp": gp, "mov": cur_mov,
+                        "netRtg": (cr or {}).get("net_rtg")},
+            # last season's win% pulled halfway-plus to .500 -- a sane Bayes prior for a new season
+            "priorWinPct": round(0.5 + NBA_PRIOR_CARRY * (prior_pct - 0.5), 3) if prior_pct is not None else None,
+            "strength": round(strength, 2) if strength is not None else None,
+            "elo": elo, "source": src,
+        }
+        elo_seed[a] = elo
+    block = {
+        "seasonCurrent": cur_year, "seasonPrior": prior_year,
+        "statsSeasonUsed": (stats_sel or {}).get("seasonUsed"),
+        "statsMode": (stats_sel or {}).get("mode"),
+        "params": {"eloMean": NBA_ELO_MEAN, "eloPerPoint": NBA_ELO_PER_POINT, "priorCarry": NBA_PRIOR_CARRY,
+                   "priorGames": NBA_PRIOR_GAMES, "minGamesForCurrent": NBA_MIN_GAMES_FOR_CURRENT},
+        "generated": TODAY_ISO,
+        "teams": teams,
+    }
+    return {"teamRatings": block, "eloSeed": elo_seed}
+
+
+def _nba_carry_forward(label: str, fresh, prev_nba: dict, key: str):
+    """If a fresh fetch came back empty, keep the previous data.json value (loudly)
+    instead of publishing an empty block -- write_data_json() overwrites the file
+    wholesale each run, so one blocked BBRef request used to blank the model's
+    team ratings until the next good run."""
+    if fresh:
+        return fresh
+    old = (prev_nba or {}).get(key)
+    if old:
+        log(f"NBA {label}: fresh fetch EMPTY -- carrying forward previous data.json nba.{key} "
+            f"({len(old)} entries)", "WARN")
+        return old
+    log(f"NBA {label}: fresh fetch EMPTY and no previous data.json value to carry forward", "WARN")
+    return fresh
+
+
+def collect_nba_season_data(no_reference: bool = False, prev_nba: dict | None = None) -> dict:
+    """
+    Everything season-dependent the NBA model needs, in one place (called from
+    main()). Returns {season, standings, players, roster, teamAdv, fourFactors,
+    teamRatings, eloSeed}. All season numbers derive from nba_season_end_year().
+    """
+    cur = nba_season_end_year()
+    prior = cur - 1
+    log(f"NBA season in use: {prior}-{str(cur)[2:]} (season end year {cur}; "
+        f"override with env NBA_SEASON_END_YEAR)")
+    if prev_nba is None:
+        try:
+            prev_nba = json.loads(FE_DATA.read_text()).get("nba") or {}
+        except Exception:
+            prev_nba = {}
+    standings = fetch_nba_standings(cur)
+    standings_prior = fetch_nba_standings(prior)
+    players = fetch_nba_player_stats(nba_player_stats_season(standings, cur))
+    roster = fetch_nba_roster()
+    tagged = apply_nba_player_tiers(roster, players)
+    log(f"  NBA roster: {len(roster)} players, {tagged} tiered (PREMIUM/OPTIMAL/GOOD) for injury weighting")
+    if roster and not tagged:
+        log("NBA roster: 0 players tiered -- ESPN player-stats fetch produced nothing usable", "WARN")
+
+    adv: dict = {}
+    four: dict = {}
+    sel = None
+    if not no_reference:
+        adv = _nba_carry_forward("teamAdv", fetch_nba_team_advanced(), prev_nba, "teamAdv")
+        four = _nba_carry_forward("fourFactors", fetch_nba_four_factors(), prev_nba, "fourFactors")
+        sel = get_nba_team_stats_selection()
+    ratings = build_nba_team_ratings(
+        (sel or {}).get("priorRows", {}), (sel or {}).get("curRows", {}),
+        standings_prior, standings, cur, prior, sel)
+    real = sum(1 for t in ratings["teamRatings"]["teams"].values() if t["source"] != "default")
+    if real < 28:
+        log(f"NBA teamRatings: only {real}/30 teams have real data (rest default to Elo {NBA_ELO_MEAN})", "WARN")
+        if real == 0:
+            ratings = {"teamRatings": _nba_carry_forward("teamRatings", {}, prev_nba, "teamRatings"),
+                       "eloSeed": _nba_carry_forward("eloSeed", {}, prev_nba, "eloSeed")}
+    else:
+        log(f"NBA teamRatings: {real} teams, season {cur} (prior {prior}), "
+            f"stats season used {ratings['teamRatings']['statsSeasonUsed']}")
+    return {"season": cur, "standings": standings, "players": players, "roster": roster,
+            "teamAdv": adv, "fourFactors": four,
+            "teamRatings": ratings["teamRatings"], "eloSeed": ratings["eloSeed"]}
 
 
 _TEAM_NAME_TO_ABBR: dict[str, str] = {
@@ -828,13 +1189,23 @@ def fetch_nba_scoreboard(date: str = TODAY_ET) -> tuple[list, list]:
     vlog(f"  NBA: {len(games)} today, {len(tomorrow)} tomorrow")
     return games, tomorrow
 
-def fetch_nba_standings() -> dict:
-    log("NBA standings…")
+def fetch_nba_standings(season: int | None = None) -> dict:
+    """
+    ESPN NBA regular-season standings for `season` (ESPN's season = the year the
+    season ENDS: 2026-27 is 2027). Defaults to nba_season_end_year(), so it rolls
+    over on Oct 1 automatically. Before a team's first regular-season game every
+    value is 0-0 (preseason games do not count) -- that is real, not an error.
+    Entry keys: w, l, pct, gb, rs, ra, diff (avg point differential, "+8.2").
+    """
+    season = season if season is not None else nba_season_end_year()
+    log(f"NBA standings (ESPN season={season})…")
     data = fetch_json(
         "https://site.web.api.espn.com/apis/v2/sports/basketball/nba/standings"
-        "?region=us&lang=en&season=2026&type=2"
+        f"?region=us&lang=en&season={season}&type=2"
     )
-    if not data: return {}
+    if not data:
+        log(f"NBA standings season={season}: no response from ESPN", "WARN")
+        return {}
     out: dict = {}
     for conf in data.get("children") or []:
         for entry in (conf.get("standings") or {}).get("entries") or []:
@@ -846,79 +1217,188 @@ def fetch_nba_standings() -> dict:
                 "w": stats.get("wins","0"), "l": stats.get("losses","0"),
                 "pct": stats.get("winPercent",".000"), "gb": stats.get("gamesBehind","—"),
                 "rs": stats.get("avgPointsFor","0"), "ra": stats.get("avgPointsAgainst","0"),
+                "diff": stats.get("differential","0"),
             }
+    if len(out) != 30:
+        log(f"NBA standings season={season}: {len(out)} teams (expected 30)", "WARN")
     vlog(f"  NBA standings: {len(out)} teams")
     return out
 
-def fetch_nba_playoff_bracket() -> dict:
-    """Fetch NBA playoff bracket from ESPN."""
-    log("NBA playoff bracket…")
-    data = fetch_json(f"{ESPN_BASE}/basketball/nba/playoffs?season=2026")
-    if not data: return {}
-    return {"raw": data, "fetchedAt": TODAY_ISO}
 
-def fetch_nba_player_stats() -> list[dict]:
-    log("NBA player stats…")
-    players: dict[str, dict] = {}
-    data = fetch_json(
-        f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
-        f"/leaders?season=2026&seasontype=3&limit=20"
-    )
-    if not data: return []
-    for cat in data.get("categories") or []:
-        for leader in cat.get("leaders") or []:
-            ath  = leader.get("athlete") or {}
+def nba_playoffs_year(today=None) -> int:
+    """Year of the playoffs the NBA 'current' postseason pages should show: this
+    season's once April arrives, otherwise the most recent completed one."""
+    end = nba_season_end_year(today)
+    d = today if today is not None else NOW_MT
+    if isinstance(d, datetime):
+        d = d.date()
+    return end if (d.year, d.month) >= (end, 4) else end - 1
+
+
+def fetch_nba_playoff_bracket() -> dict:
+    """Fetch NBA playoff bracket from ESPN (most recent playoffs, see nba_playoffs_year)."""
+    yr = nba_playoffs_year()
+    log(f"NBA playoff bracket (ESPN season={yr})…")
+    data = fetch_json(f"{ESPN_BASE}/basketball/nba/playoffs?season={yr}")
+    if not data: return {}
+    return {"raw": data, "fetchedAt": TODAY_ISO, "season": yr}
+
+
+def nba_player_stats_season(espn_cur: dict, cur_year: int, min_games: int | None = None) -> int:
+    """Season whose per-player numbers should feed injury-impact tiers: the current
+    one once the median team has >= min_games played (ESPN standings), else last season."""
+    min_games = NBA_MIN_GAMES_FOR_CURRENT if min_games is None else min_games
+    gps = sorted((int(_bb_float(v.get("w")) or 0) + int(_bb_float(v.get("l")) or 0)) for v in (espn_cur or {}).values())
+    if gps and gps[len(gps) // 2] >= min_games:
+        return cur_year
+    return cur_year - 1
+
+
+def fetch_nba_player_stats(season: int | None = None, pages: int = 2) -> list[dict]:
+    """
+    Top NBA scorers (by points per game) for `season`: [{name, team, gp, mpg, ppg}].
+
+    The old source (site.api.espn.com/.../nba/leaders?season=2026&seasontype=3)
+    404s -- that path does not exist on ESPN any more, so this returned [] on
+    every run. ESPN's common/v3 `statistics/byathlete` endpoint is the working
+    equivalent. `season` defaults to last season until the current one is
+    underway (callers pass nba_player_stats_season()). Regular season only
+    (seasontype=2). Used to tier players for the app's injury weighting.
+    """
+    season = season if season is not None else nba_season_end_year() - 1
+    log(f"NBA player stats (ESPN byathlete season={season})…")
+    players: list[dict] = []
+    for page in range(1, pages + 1):
+        data = fetch_json(
+            "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/statistics/byathlete",
+            params={"region": "us", "lang": "en", "contentorigin": "espn", "isqualified": "false",
+                    "page": page, "limit": 75, "sort": "offensive.avgPoints:desc",
+                    "season": season, "seasontype": 2},
+        )
+        if not data:
+            log(f"NBA player stats season={season} page {page}: no response from ESPN", "WARN")
+            break
+        cats = {c.get("name"): c.get("names") or [] for c in data.get("categories") or []}
+        for row in data.get("athletes") or []:
+            ath = row.get("athlete") or {}
+            vals = {}
+            for c in row.get("categories") or []:
+                for nm, v in zip(cats.get(c.get("name"), []), c.get("values") or []):
+                    vals.setdefault(nm, v)
             name = ath.get("displayName", "")
-            team = (ath.get("team") or {}).get("abbreviation", "")
-            if name not in players:
-                players[name] = {"name": name, "team": team}
-            players[name][(cat.get("name","")).upper()[:3]] = leader.get("displayValue","—")
-    return list(players.values())
+            if not name or vals.get("avgPoints") is None:
+                continue
+            players.append({"name": name, "team": ath.get("teamShortName", ""),
+                            "gp": int(vals.get("gamesPlayed") or 0),
+                            "mpg": round(float(vals.get("avgMinutes") or 0), 1),
+                            "ppg": round(float(vals.get("avgPoints") or 0), 1),
+                            "season": season})
+        time.sleep(0.3)
+    if not players:
+        log(f"NBA player stats season={season}: 0 players parsed", "WARN")
+    return players
+
+
+NBA_TIER_PPG = ((24.0, "PREMIUM"), (18.0, "OPTIMAL"), (12.0, "GOOD"))   # ppg -> tier used by app's computeInjuryImpact
+NBA_TIER_MIN_GP = 15
+
+
+def apply_nba_player_tiers(roster: dict, players: list[dict]) -> int:
+    """Add `rating` (PREMIUM/OPTIMAL/GOOD) and `ppg` to roster entries (in place) for
+    players whose last/current-season scoring clears a tier. Returns how many were tagged."""
+    n = 0
+    for p in players or []:
+        ent = roster.get((p.get("name") or "").lower())
+        if not ent or (p.get("gp") or 0) < NBA_TIER_MIN_GP:
+            continue
+        for thr, tier in NBA_TIER_PPG:
+            if (p.get("ppg") or 0) >= thr:
+                ent["rating"] = tier
+                ent["ppg"] = p["ppg"]
+                n += 1
+                break
+    return n
+
+
+def _bb_table_rows(soup, table_ids, limit: int = 60) -> list[dict]:
+    """Rows of a Basketball-Reference table (also if comment-wrapped) keyed by each
+    cell's data-stat -- robust to multi-row headers, unlike _table_to_rows()."""
+    tbl, _ = _bb_find_table(soup, table_ids)
+    if tbl is None:
+        return []
+    rows = []
+    for tr in (tbl.find("tbody") or tbl).find_all("tr"):
+        if "thead" in (tr.get("class") or []):
+            continue
+        row: dict = {}
+        for td in tr.find_all(["td", "th"]):
+            ds = td.get("data-stat")
+            if ds and ds != "DUMMY" and ds not in row:
+                row[ds] = td.get_text(strip=True)
+        if any(v for v in row.values()):
+            rows.append(row)
+        if len(rows) >= limit:
+            break
+    return rows
+
 
 def fetch_basketball_reference() -> dict:
-    """Scrape NBA playoff stats: per-game, per-100 possessions, advanced, shooting."""
-    log("Basketball Reference playoff stats…")
-    result: dict = {"perGame": [], "per100": [], "advanced": [], "shooting": [], "opponentPerGame": [], "fetchedAt": TODAY_ISO}
-    base = "https://www.basketball-reference.com/playoffs/NBA_2026.html"
+    """
+    Scrape Basketball-Reference's most recent NBA PLAYOFF team tables (see
+    nba_playoffs_year). Table ids were renamed by BBRef (old `playoffs_per_game`
+    / `playoffs_advanced` ... no longer exist -> every list came back empty with
+    no warning); current ids are per_game-team, per_poss-team, advanced-team,
+    shooting-team, per_game-opponent. Logs a WARN naming each table that is empty.
+    """
+    yr = nba_playoffs_year()
+    log(f"Basketball Reference playoff stats ({yr})…")
+    result: dict = {"perGame": [], "per100": [], "advanced": [], "shooting": [], "opponentPerGame": [],
+                    "fetchedAt": TODAY_ISO, "season": yr}
+    base = f"https://www.basketball-reference.com/playoffs/NBA_{yr}.html"
     table_map = [
-        ("perGame",        "playoffs_per_game"),
-        ("per100",         "playoffs_per_poss"),
-        ("advanced",       "playoffs_advanced"),
-        ("shooting",       "playoffs_shooting"),
-        ("opponentPerGame","playoffs_opponent_per_game"),
+        ("perGame",        ("per_game-team",)),
+        ("per100",         ("per_poss-team",)),
+        ("advanced",       ("advanced-team",)),
+        ("shooting",       ("shooting-team",)),
+        ("opponentPerGame",("per_game-opponent",)),
     ]
-    try:
-        time.sleep(2)
-        soup = fetch_html(base, ref=True)
-        if soup:
-            for key, tbl_id in table_map:
-                rows = _table_to_rows(soup, tbl_id, limit=60)
-                result[key] = rows
-                vlog(f"  BBRef {key}: {len(rows)} rows")
-    except Exception as exc:
-        log(f"Basketball Reference: {exc}", "WARN")
+    if NBA_BBREF_DELAY:
+        time.sleep(NBA_BBREF_DELAY)
+    html, reason = _bbref_get(base)
+    if html is None:
+        log(f"Basketball Reference playoffs {yr}: FETCH FAILED -- {reason} ({base})", "WARN")
+    else:
+        soup = BeautifulSoup(html, "lxml")
+        for key, ids in table_map:
+            rows = _bb_table_rows(soup, ids, limit=60)
+            result[key] = rows
+            vlog(f"  BBRef {key}: {len(rows)} rows")
+            if not rows:
+                log(f"Basketball Reference playoffs {yr}: table {ids[0]!r} missing/empty (layout change?)", "WARN")
 
-    # Series-level stats
+    # Series-level stats: these two URLs are specific 2026 series pages (no way to
+    # derive future series URLs), so they are only fetched while the playoffs shown are 2026's.
+    result["series"] = {}
     series_urls = [
         ("east_finals", "https://www.basketball-reference.com/playoffs/2026-nba-eastern-conference-finals-cavaliers-vs-knicks.html"),
         ("west_finals", "https://www.basketball-reference.com/playoffs/2026-nba-western-conference-finals-spurs-vs-thunder.html"),
-    ]
-    result["series"] = {}
+    ] if yr == 2026 else []
     for label, url in series_urls:
-        try:
-            time.sleep(2)
-            soup2 = fetch_html(url, ref=True)
-            if soup2:
-                series_data: dict = {}
-                for key, tbl_id in [("perGame","per_game"),("advanced","advanced")]:
-                    rows = _table_to_rows(soup2, tbl_id, limit=20)
-                    if rows: series_data[key] = rows
-                result["series"][label] = series_data
-                vlog(f"  BBRef series {label}: {len(series_data)} tables")
-        except Exception as exc:
-            log(f"Basketball Reference series {label}: {exc}", "WARN")
-
+        if NBA_BBREF_DELAY:
+            time.sleep(NBA_BBREF_DELAY)
+        html2, reason2 = _bbref_get(url)
+        if html2 is None:
+            log(f"Basketball Reference series {label}: FETCH FAILED -- {reason2}", "WARN")
+            continue
+        soup2 = BeautifulSoup(html2, "lxml")
+        series_data: dict = {}
+        for key, tbl_id in [("perGame", "per_game"), ("advanced", "advanced")]:
+            rows = _bb_table_rows(soup2, (tbl_id,), limit=20)
+            if rows: series_data[key] = rows
+        result["series"][label] = series_data
+        vlog(f"  BBRef series {label}: {len(series_data)} tables")
     return result
+
 
 def _fetch_nhl_game_odds(event_id: str) -> dict:
     """Fetch NHL game odds from ESPN Core API (returns ML, puck line, O/U)."""
@@ -3095,6 +3575,7 @@ def fetch_week_schedule(sport_path: str, sport_key: str, limit_per_day: int = 8)
                     "ou": odds.get("overUnder"),
                     "state": ev.get("status",{}).get("type",{}).get("state","pre"),
                     "venue": (comp.get("venue") or {}).get("fullName",""),
+                    "seasonType": (ev.get("season") or {}).get("type"),
                 })
             time.sleep(0.15)
         except Exception as e:
@@ -3650,8 +4131,16 @@ def calculate_best_bets(
         return adj, "  ".join(parts)
 
     # NBA moneylines
+    _nba_pre_skipped = 0
     for g in nba_today:
         if g.get("state") != "pre": continue
+        # Preseason (ESPN seasonType 1, ~Sep 30-Oct 20): the model is not built for
+        # exhibition games (rotations, minutes limits) and they must not become
+        # graded picks -- same exclusion NFL preseason already gets. Flips off by
+        # itself when ESPN labels the games seasonType 2 on opening night.
+        if g.get("seasonType") == 1:
+            _nba_pre_skipped += 1
+            continue
         hml, aml  = g.get("homeML"), g.get("awayML")
         hprob_raw, aprob_raw = _ml_to_prob(hml), _ml_to_prob(aml)
         home, away = g.get("home",""), g.get("away","")
@@ -3684,6 +4173,9 @@ def calculate_best_bets(
                 "note":f"Line: {home} {hml} / {away} {aml}" + (f"  {pace_note}" if pace_note else ""),
                 "date":TODAY_ISO,
             })
+
+    if _nba_pre_skipped:
+        log(f"  NBA best bets: skipped {_nba_pre_skipped} preseason game(s) (seasonType=1)")
 
     # ── MLB sabermetric lookup helpers ──────────────────────────────────────
     _sabre = mlb_sabre or {}
@@ -4652,13 +5144,23 @@ def main() -> None:
     mlb_nrfi: list       = []
 
     nba_today, nba_tom   = fetch_nba_scoreboard()         if S in ("nba","all") else ([],[])
-    nba_standings        = fetch_nba_standings()          if S in ("nba","all") else {}
-    nba_players          = fetch_nba_player_stats()       if S in ("nba","all") else []
+    if S in ("nba","all"):
+        _by_type: dict = {}
+        for _g in nba_today + nba_tom:
+            _by_type[_g.get("seasonType")] = _by_type.get(_g.get("seasonType"), 0) + 1
+        log(f"NBA games today+tomorrow by ESPN seasonType (1=pre 2=reg 3=post 5=play-in): {_by_type or 'none'}")
+    # Season-dependent NBA data (standings, player tiers, roster, BBRef team stats,
+    # team ratings / Elo seed) -- all keyed off nba_season_end_year(), see above.
+    _nba_sd = collect_nba_season_data(no_reference=args.no_reference) if S in ("nba","all") else {}
+    nba_standings        = _nba_sd.get("standings", {})
+    nba_players          = _nba_sd.get("players", [])
     nba_bracket          = fetch_nba_playoff_bracket()    if S in ("nba","all") else {}
     nba_ref              = (fetch_basketball_reference()  if not args.no_reference else {}) if S in ("nba","all") else {}
-    nba_adv              = (fetch_nba_team_advanced()     if not args.no_reference else {}) if S in ("nba","all") else {}
-    nba_four_factors     = (fetch_nba_four_factors()      if not args.no_reference else {}) if S in ("nba","all") else {}
-    nba_roster           = fetch_nba_roster()             if S in ("nba","all") else {}
+    nba_adv              = _nba_sd.get("teamAdv", {})
+    nba_four_factors     = _nba_sd.get("fourFactors", {})
+    nba_roster           = _nba_sd.get("roster", {})
+    nba_team_ratings     = _nba_sd.get("teamRatings", {})
+    nba_elo_seed         = _nba_sd.get("eloSeed", {})
 
     nhl_today, nhl_tom   = fetch_nhl_today()               if S in ("nhl","all") else ([],[])
     nhl_standings        = fetch_nhl_standings()          if S in ("nhl","all") else {}
@@ -4822,7 +5324,10 @@ def main() -> None:
 
     # Week schedules
     mlb_week_schedule: list = []  # MLB retired 2026-09-08
-    nba_week_schedule = fetch_week_schedule("basketball/nba","nba",8)      if S in ("nba","all") else []
+    # limit 15, not 8: a full NBA regular-season slate is up to 15 games and the
+    # old cap of 8 silently truncated busy nights (preseason slates are small,
+    # so this only bites from Oct 21).
+    nba_week_schedule = fetch_week_schedule("basketball/nba","nba",15)     if S in ("nba","all") else []
     nhl_week_schedule = fetch_week_schedule("hockey/nhl","nhl",8)          if S in ("nhl","all") else []
 
     # News + injuries + transactions — all now cover every tracked league,
@@ -4982,6 +5487,12 @@ def main() -> None:
             "fourFactors":  nba_four_factors,
             "weekSchedule": nba_week_schedule,
             "roster":       nba_roster,
+            # Season rollover (2026-10-03). season = ESPN/BBRef season-end year.
+            # teamRatings: all-30-team prior/current record+margin+Elo; eloSeed: flat
+            # {ESPN_abbr: elo} the app should load into NBA_ELO. See build_nba_team_ratings().
+            "season":       _nba_sd.get("season"),
+            "teamRatings":  nba_team_ratings,
+            "eloSeed":      nba_elo_seed,
         },
         "nhl": {
             "today":        nhl_today,
