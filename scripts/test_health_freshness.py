@@ -417,5 +417,27 @@ class PlayerStatsWorkflow(unittest.TestCase):
         self.assertEqual(doc["jobs"]["refresh-player-stats"]["steps"][-1]["name"], "Fail loudly if any step failed")
 
 
+class RunLinkTests(unittest.TestCase):
+    def test_every_stamped_refresh_file_maps_to_a_workflow_link(self):
+        for fname, _label, _key, _w, _s in H.FRESHNESS_FILES:
+            if fname in H.WORKFLOW_FOR_FILE:
+                link = H.run_link(H.WORKFLOW_FOR_FILE[fname])
+                self.assertIn("/actions/workflows/", link)
+                self.assertIn(H.REPO, link)
+
+    def test_stale_message_carries_the_run_now_link(self):
+        from datetime import datetime, timezone, timedelta
+        now = datetime(2026, 10, 3, 12, 0, tzinfo=timezone.utc)
+        import json, tempfile, pathlib
+        with tempfile.TemporaryDirectory() as d:
+            pathlib.Path(d, "data.json").write_text(json.dumps({"generated": (now - timedelta(hours=30)).isoformat()}))
+            out = H.check_data_freshness(pathlib.Path(d), now=now, files=[("data.json", "Engine data", "generated", 14, 26)])
+        self.assertEqual(out[0][0], "alert")
+        self.assertIn("scheduled-refresh.yml", out[0][1])
+
+    def test_unknown_workflow_gives_no_link(self):
+        self.assertEqual(H.run_link(None), "")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

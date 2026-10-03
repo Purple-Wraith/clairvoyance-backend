@@ -551,7 +551,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .bmk2.pg{background:linear-gradient(90deg,var(--gc),var(--g2))}.bmk2.pp{background:var(--pc)}.bmk2.pn{background:var(--nc)}.bmk2.pq{background:#39ff14}.bmk2.ph{background:var(--hc)}
 .fresh{font-family:var(--mono);font-size:12px;letter-spacing:.6px;white-space:nowrap;line-height:1.2;min-height:14px;text-align:center}.fresh.ok{color:rgba(0,230,68,.62)}.fresh.warn{color:#ffb020}.fresh.bad{color:#ff3b6b;text-shadow:0 0 8px rgba(255,59,107,.55);animation:blink 1.6s infinite}
 #cv-ticker{flex:0 0 auto;background:rgba(6,0,15,.97);border-bottom:1px solid rgba(77,121,255,.2);overflow:hidden;position:relative;font-family:var(--mono);font-size:14px;color:var(--t2)}
-#cv-ticker{contain:layout paint}#cv-ticker .tk-track{display:inline-flex;align-items:center;white-space:nowrap;padding:4px 0;will-change:transform;transform:translate3d(0,0,0)}#cv-ticker .tkgrp{display:inline-flex;align-items:center}#cv-ticker .tkf{animation:tkflash 1.6s ease-out}@keyframes tkflash{0%{background:rgba(255,230,0,.45)}100%{background:transparent}}
+#cv-ticker{contain:layout paint}#cv-ticker .tk-track{display:inline-flex;align-items:center;white-space:nowrap;padding:4px 0;will-change:transform;transform:translate3d(0,0,0)}#cv-ticker .tkgrp{display:inline-flex;align-items:center}#cv-ticker .tkf .tkn{animation:tkflash3 .5s ease-in-out 3;border-radius:2px}@keyframes tkflash3{0%,100%{background:transparent;color:var(--t)}50%{background:#ffe600;color:#0b0612}}
 #cv-ticker .tk-track.go{animation:tkscroll var(--tkdur,60s) linear infinite}
 #cv-ticker:hover .tk-track.go,#cv-ticker:active .tk-track.go{animation-play-state:paused}
 #cv-ticker .tk{display:inline-flex;align-items:center;gap:7px;padding:0 18px;border-right:1px solid rgba(255,255,255,.08)}
@@ -1711,6 +1711,12 @@ body{line-height:1.5}
           <button class="btn btn-n btn-sm" onclick="triggerFullRebuild()" id="rebuild-btn">↻ TRIGGER FULL REBUILD</button>
         </div>
         <div id="rebuild-status" style="font-family:var(--mono);font-size:13px;color:var(--t3);min-height:14px"></div>
+      </div>
+      <div class="sg">
+        <div class="sgt">// LIVE RELAY — EUROPEAN HOCKEY LIVE SCORES</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-bottom:6px;line-height:1.5">Liiga / SHL / NLA / Extraliga live scores need the small relay in <b>relay/</b> (see relay/README.md). Paste its URL; stored on this device.</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"><input id="relay-url-input" placeholder="https://clairvoyance-live-relay.<you>.workers.dev" style="flex:1;min-width:220px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:13px;padding:6px 8px;border-radius:2px"><button class="btn btn-p btn-sm" onclick="saveRelayUrl()">SAVE</button></div>
+        <div id="relay-url-status" style="font-family:var(--mono);font-size:13px;color:var(--t3);min-height:14px"></div>
       </div>
       <div class="sg"><div class="sgt">// ESPN + API STATUS</div><div id="api-status" style="font-family:var(--mono);font-size:17px;color:var(--t2);line-height:2"></div></div>
     </div>
@@ -22038,14 +22044,15 @@ async function refreshFreshness(){
       }catch(e){return{...src,err:true};}
     }));
     // live scores now come from the browser-side ESPN/Flashscore layer (live_data.json is only a fallback): flag it only when that layer itself has gone quiet while games are live
-    try{if(typeof _LV!=='undefined'&&_LV.games.some(g=>g.state==='in'))res.push({f:'live',l:'LIVE SCORES',warn:0.17,bad:0.5,age:(now-_LV.ts)/3600000});}catch(e){}
+    try{if(typeof _LV!=='undefined'){const lt=Object.keys(_LV.lg).filter(k=>k!=='__relay'&&_LV.games.some(g=>g.k===k&&g.state==='in')).map(k=>_LV.lg[k].ts);if(lt.length)res.push({f:'live',l:'LIVE SCORES',warn:0.17,bad:0.5,age:(now-Math.min(...lt))/3600000});}}catch(e){}
     const ok=res.filter(x=>!x.err);
     if(!ok.length){el.textContent='';el.className='fresh';return;}
+    window._freshState=res;
     const bad=ok.filter(x=>x.age>=x.bad),warn=ok.filter(x=>x.age>=x.warn&&x.age<x.bad),errs=res.filter(x=>x.err);
     const stats=ok.find(x=>x.f==='data.json');
     const worst=a=>a.slice().sort((x,y)=>y.age/y.bad-x.age/x.bad).slice(0,3).map(x=>x.l+' '+_fmtAge(x.age)).join(' · ');
-    if(bad.length){el.className='fresh bad';el.textContent='⚠ STALE DATA · '+worst(bad);}
-    else if(warn.length){el.className='fresh warn';el.textContent='⚠ DATA AGING · '+worst(warn);}
+    if(bad.length){el.className='fresh bad';el.textContent='⚠ STALE DATA · '+worst(bad)+' · TAP TO UPDATE';}
+    else if(warn.length){el.className='fresh warn';el.textContent='⚠ DATA AGING · '+worst(warn)+' · TAP TO UPDATE';}
     else{el.className='fresh ok';el.textContent='DATA FRESH'+(stats?' · STATS '+_fmtAge(stats.age)+' AGO':'');}
     el.title=ok.map(x=>x.l+': '+_fmtAge(x.age)+' old (warn '+x.warn+'h / stale '+x.bad+'h)').join('\n')+(errs.length?'\nunreadable: '+errs.map(x=>x.l).join(', '):'');
   }catch(e){}
@@ -22065,7 +22072,7 @@ const _LV_ESPN=[
   {k:'pl',tag:'PL',path:'soccer/eng.1'},{k:'liga',tag:'LA LIGA',path:'soccer/esp.1'},{k:'seriea',tag:'SERIE A',path:'soccer/ita.1'},{k:'cl',tag:'UCL',path:'soccer/uefa.champions'}
 ];
 const _LV_ALIAS={PL:['PL','PL_SOC','SOC_PL'],'LA LIGA':['LIGA','SOC_LIGA'],'SERIE A':['SERIEA','SOC_ITA','ITA'],UCL:['CL','SOC_CL']};   // ticker tag -> the sport tags picks carry
-let _LV={ts:0,games:[],timer:0};
+let _LV={ts:0,games:[],timer:0,lg:{},relay:{ts:0,games:[],ok:false}};
 async function _lvEspn(def){
   const out=[];
   try{
@@ -22082,24 +22089,106 @@ async function _lvEspn(def){
     return out;
   }catch(e){return null;}
 }
-async function refreshLive(){
-  let wait=600000;
-  try{
-    const parts=await Promise.all(_LV_ESPN.map(_lvEspn));
-    const games=[];let any=false;
-    parts.forEach(p=>{if(p){any=true;games.push(...p);}});
-    if(any){_LV.ts=Date.now();_LV.games=games;window.__LV=_LV;}
-    const now=Date.now();
-    if(_LV.games.some(g=>g.state==='in'))wait=45000;
-    else if(_LV.games.some(g=>g.state==='pre'&&g.startMs&&g.startMs-now<2400000&&g.startMs-now>-600000))wait=120000;
-    try{_lvApplyToCards();}catch(e){}
-    renderTicker();
-    try{_tpRefreshResults();}catch(e){}
-  }catch(e){}
-  clearTimeout(_LV.timer);_LV.timer=setTimeout(()=>{if(document.hidden){_LV.timer=setTimeout(refreshLive,60000);}else refreshLive();},wait);
+// When may a league be polled again? Only leagues with something happening are pulled:
+//   a game in progress -> 180 s;  a game starting within 40 min -> 120 s;  a game later today -> not until 2 min before it starts (re-checked at most hourly);  nothing live or upcoming -> hourly check only.
+function _lvNext(games,now){
+  if(games.some(g=>g.state==='in'))return now+180000;
+  const pre=games.filter(g=>g.state==='pre'&&g.startMs>now-600000).sort((a,b)=>a.startMs-b.startMs);
+  if(pre.length){
+    const dt=pre[0].startMs-now;
+    if(dt<=2400000)return now+120000;
+    return Math.min(pre[0].startMs-120000,now+3600000);
+  }
+  return now+3600000;
 }
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-_LV.ts>60000)refreshLive();});
-setTimeout(refreshLive,2000);
+// ── European hockey relay (relay/worker.js on Cloudflare; URL stored per device, set in Overall -> SYNC) ──
+const LIVE_RELAY_URL='';   // bake in the deployed worker URL here to make it the default on every device
+function _lvRelayUrl(){try{return (localStorage.getItem('cv_relay_url')||LIVE_RELAY_URL||'').replace(/\/+$/,'');}catch(e){return LIVE_RELAY_URL;}}
+function saveRelayUrl(){
+  const inp=document.getElementById('relay-url-input');const v=(inp&&inp.value||'').trim();
+  try{if(v)localStorage.setItem('cv_relay_url',v.replace(/\/+$/,''));else localStorage.removeItem('cv_relay_url');}catch(e){}
+  _lvRelayStatus(v?'SAVED — CHECKING…':'CLEARED');
+  _LV.relay={ts:0,games:[],ok:false};
+  if(v)refreshRelay(true).then(ok=>_lvRelayStatus(ok?'✓ RELAY OK — EUROPEAN HOCKEY LIVE SCORES ON':'✗ COULD NOT READ THE RELAY (check the URL / that it is deployed)'));
+}
+function _lvRelayStatus(msg){const el=document.getElementById('relay-url-status');if(el)el.textContent=msg;}
+function _lvRelayPeriodNote(g){
+  if(g.state==='post')return'Final';
+  if(g.state!=='in')return'';
+  if(g.period==null)return'LIVE';
+  const mins=g.periodStart?Math.max(0,Math.floor((Date.now()-g.periodStart*1000)/60000)):null;
+  const lbl=g.period==='OT'?'OT':g.period==='SO'?'SO':'P'+g.period;
+  return mins==null||g.period==='SO'?lbl:lbl+' '+Math.min(mins,g.period==='OT'?5:20)+"'";
+}
+function _lvEuroSchedGames(){
+  const out=[];
+  [['LIIGA',typeof _LIIGA_DATA!=='undefined'?_LIIGA_DATA:null],['SHL',typeof _SHL_DATA!=='undefined'?_SHL_DATA:null],['NLA',typeof _NLA_DATA!=='undefined'?_NLA_DATA:null],['EXTRALIGA',typeof _EXTRALIGA_DATA!=='undefined'?_EXTRALIGA_DATA:null]].forEach(([tag,lgData])=>{
+    ((lgData&&lgData.games)||[]).forEach(g=>{const t=_startMsOf(g.date);if(t!=null)out.push({tag,home:g.homeName||g.home,away:g.awayName||g.away,startMs:t,final:g.state==='post'&&g.homeScore!=null});});
+  });
+  return out;
+}
+// the relay is only called while a European hockey game is inside its live window (start - 2 min ... start + 3.5 h) and not already final
+function _lvRelayNext(now){
+  const sched=_lvEuroSchedGames();
+  const relayFinal=g=>_LV.relay.games.some(r=>r.state==='post'&&r.tag===g.tag&&_tkMatch(r.home,g.home)&&_tkMatch(r.away,g.away));
+  const open=sched.filter(g=>!g.final&&!relayFinal(g)&&now>=g.startMs-120000&&now<=g.startMs+3.5*3600000);
+  if(open.length)return now+180000;
+  const nxt=sched.filter(g=>g.startMs>now).sort((a,b)=>a.startMs-b.startMs)[0];
+  return nxt?Math.min(nxt.startMs-120000,now+3600000):now+3600000;
+}
+async function refreshRelay(force){
+  const url=_lvRelayUrl();if(!url)return false;
+  try{
+    const tz=-new Date().getTimezoneOffset()/60;
+    const r=await fetch(url+'/hockey?tz='+tz);
+    if(!r.ok){_LV.relay.ok=false;return false;}
+    const j=await r.json();
+    const games=(j.games||[]).map(g=>({k:g.lg.toLowerCase(),tag:g.lg,id:g.id,home:g.home,away:g.away,homeScore:g.homeScore,awayScore:g.awayScore,state:g.state,period:g.period,periodStart:g.periodStart,startMs:g.startMs}));
+    _LV.relay={ts:Date.now(),games,ok:true};
+    _lvRelaySettle(games);
+    return true;
+  }catch(e){_LV.relay.ok=false;return false;}
+}
+// Settle sooner: a game the relay reports final settles any pending pick on it right away (no waiting for the next results refresh); same grading as the schedule-file path.
+function _lvRelaySettle(games){
+  try{
+    const td=today();const pend=getP().filter(p=>p&&p.outcome==='pending'&&p.date===td);if(!pend.length)return;
+    ['LIIGA','SHL','NLA','EXTRALIGA'].forEach(tag=>{
+      if(!pend.some(p=>_normSport(p)===tag))return;
+      const finals=games.filter(g=>g.tag===tag&&g.state==='post'&&g.homeScore!=null&&g.awayScore!=null).map(g=>({state:'post',homeScore:g.homeScore,awayScore:g.awayScore,date:new Date(g.startMs).toISOString(),homeName:g.home,awayName:g.away}));
+      if(finals.length)_autoSettleFlashscoreHockey(td,async()=>({games:finals}),tag);
+    });
+  }catch(e){}
+}
+async function refreshLive(force){
+  const now=Date.now();
+  try{
+    const due=_LV_ESPN.filter(d=>force||!_LV.lg[d.k]||_LV.lg[d.k].next<=now);
+    const res=await Promise.all(due.map(d=>_lvEspn(d).then(r=>[d,r])));
+    res.forEach(([d,r])=>{
+      const st=_LV.lg[d.k]=_LV.lg[d.k]||{ts:0,next:0};
+      if(r){
+        _LV.games=_LV.games.filter(g=>g.k!==d.k).concat(r);st.ts=Date.now();st.next=_lvNext(r,Date.now());_LV.ts=st.ts;window.__LV=_LV;
+      }else st.next=Date.now()+60000;        // a failed league keeps its last games and retries in a minute
+    });
+    // relay (European hockey): its own gate
+    if(_lvRelayUrl()){
+      const rs=_LV.lg.__relay=_LV.lg.__relay||{ts:0,next:0};
+      if(force||rs.next<=now){const ok=await refreshRelay(true);rs.ts=Date.now();rs.next=ok?_lvRelayNext(Date.now()):Date.now()+120000;}
+    }
+    if(res.length||force){try{_lvApplyToCards();}catch(e){}renderTicker();try{_tpRefreshResults();}catch(e){}}
+  }catch(e){}
+  _lvSchedule();
+}
+function _lvSchedule(){
+  clearTimeout(_LV.timer);
+  const nexts=Object.values(_LV.lg).map(x=>x.next).filter(Boolean);
+  const when=nexts.length?Math.min(...nexts):Date.now()+60000;
+  const wait=Math.max(5000,Math.min(when-Date.now(),3600000));
+  _LV.timer=setTimeout(()=>{if(document.hidden){_LV.timer=setTimeout(_lvSchedule,60000);}else refreshLive();},wait);
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLive();});
+setTimeout(()=>refreshLive(true),2000);
 // Overlay ESPN's numbers onto window.__CV_LIVE (live_data.json shape) so the live game cards / football LOCKS CLOSED status / auto-settle see real-time scores too.
 function _lvOverlay(d){
   if(!d||!_LV.ts||Date.now()-_LV.ts>300000)return d;
@@ -22136,19 +22225,26 @@ function _tkItemHTML(it){
   return`<span class="tks">${_escHtml(it.tag)}</span><span class="tkn">${_escHtml(g.away)} ${sc(g.awayScore)} @ ${_escHtml(g.home)} ${sc(g.homeScore)}</span><span class="tkc${it.state==='in'?' lv':''}">${it.state==='in'?'● ':''}${_escHtml(it.state==='post'?(g.pending?'RESULT PENDING':'FINAL'):(g.note||'LIVE'))}</span>${lk}`;
 }
 function _tkEuroGames(){
-  const out=[],now=Date.now(),td=today();
+  const out=[],now=Date.now();
+  const relay=(_LV.relay&&_LV.relay.ok&&now-_LV.relay.ts<600000)?_LV.relay.games:[];
+  const used=new Set();
   [['LIIGA',typeof _LIIGA_DATA!=='undefined'?_LIIGA_DATA:null],['SHL',typeof _SHL_DATA!=='undefined'?_SHL_DATA:null],['NLA',typeof _NLA_DATA!=='undefined'?_NLA_DATA:null],['EXTRALIGA',typeof _EXTRALIGA_DATA!=='undefined'?_EXTRALIGA_DATA:null]].forEach(([tag,lgData])=>{
     ((lgData&&lgData.games)||[]).forEach(g=>{
-      const t=_startMsOf(g.date);if(t==null||t>now)return;
-      if(new Date(t).toLocaleDateString('sv-SE',{timeZone:'America/Denver'})!==td&&now-t>8*3600000)return;
-      if(now-t>8*3600000)return;
+      const t=_startMsOf(g.date);if(t==null||t>now||now-t>8*3600000)return;
+      const home=g.homeName||g.home,away=g.awayName||g.away;
+      const rg=relay.find(r=>r.tag===tag&&_tkMatch(r.home,home)&&_tkMatch(r.away,away));
+      if(rg){used.add(rg.id);if(rg.state==='pre')return;
+        out.push({k:tag.toLowerCase(),tag,id:g.id||rg.id,home,away,homeScore:rg.homeScore,awayScore:rg.awayScore,state:rg.state==='post'?'post':'in',note:_lvRelayPeriodNote(rg),startMs:t,pending:false,live:true});return;}
       const fin=g.state==='post'&&g.homeScore!=null;
-      // a hockey game lasts ~2.5-3 h: inside 3.2 h of the start it is shown as in progress (score unknown until the next results refresh), after that as finished-awaiting-result
+      // no relay data: a hockey game lasts ~2.5-3 h -- inside 3.2 h of the start it is shown as in progress (score unknown until the next results refresh), after that as awaiting its result
       const over=!fin&&now-t>3.2*3600000;
-      out.push({k:tag.toLowerCase(),tag,id:g.id,home:g.homeName||g.home,away:g.awayName||g.away,homeScore:fin?g.homeScore:null,awayScore:fin?g.awayScore:null,state:(fin||over)?'post':'in',
+      out.push({k:tag.toLowerCase(),tag,id:g.id,home,away,homeScore:fin?g.homeScore:null,awayScore:fin?g.awayScore:null,state:(fin||over)?'post':'in',
         note:fin?'Final':over?'RESULT PENDING':'IN PROGRESS · SCORE PENDING',startMs:t,pending:!fin});
     });
   });
+  // relay games the schedule files do not list yet (new fixtures)
+  relay.forEach(r=>{if(used.has(r.id)||r.state==='pre')return;
+    out.push({k:r.tag.toLowerCase(),tag:r.tag,id:r.id,home:r.home,away:r.away,homeScore:r.homeScore,awayScore:r.awayScore,state:r.state==='post'?'post':'in',note:_lvRelayPeriodNote(r),startMs:r.startMs,pending:false,live:true});});
   return out;
 }
 function renderTicker(){
@@ -22176,8 +22272,10 @@ function renderTicker(){
     const byKey={};keep.forEach(x=>{byKey[x.key]=x;});
     const order=_TKM.order.filter(k=>byKey[k]);
     keep.slice().sort((a,b)=>a.rank-b.rank).forEach(x=>{if(order.indexOf(x.key)<0)order.push(x.key);});
-    const ageMin=_LV.ts?(Date.now()-_LV.ts)/60000:0;
-    const chipHtml=`<span class="tks" style="${ageMin>5?'color:#ffb020':''}">${liveN?liveN+' LIVE':'SCORES'}</span><span class="tkc${liveN&&ageMin<=5?' lv':''}" style="${ageMin>5?'color:#ffb020':''}">${ageMin>5?'⚠ '+_fmtAge(ageMin/60)+' OLD':new Date(_LV.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Denver'})+' MT'}${_LV.fsFail>=3?'':''}</span>`;
+    // data age = the oldest fetch among leagues that currently have a game in progress (idle leagues are deliberately not polled, so their age means nothing)
+    const liveTs=Object.keys(_LV.lg).filter(k=>k!=='__relay'&&_LV.games.some(g=>g.k===k&&g.state==='in')).map(k=>_LV.lg[k].ts);
+    const ageMin=liveTs.length?(Date.now()-Math.min(...liveTs))/60000:0;
+    const chipHtml=`<span class="tks" style="${ageMin>8?'color:#ffb020':''}">${liveN?liveN+' LIVE':'SCORES'}</span><span class="tkc${liveN&&ageMin<=8?' lv':''}" style="${ageMin>8?'color:#ffb020':''}">${ageMin>8?'⚠ '+_fmtAge(ageMin/60)+' OLD':new Date(Math.max(_LV.ts,(_LV.relay&&_LV.relay.ts)||0)).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Denver'})+' MT'}${_LV.fsFail>=3?'':''}</span>`;
     const sig=order.join('|');
     el.style.display='block';
     if(sig!==_TKM.sig||!_TKM.track||!el.contains(_TKM.track)){
@@ -22227,6 +22325,57 @@ function _tkLoop(t){
   window.addEventListener('resize',()=>{try{_tkMeasure(el);}catch(e){}});
 })();
 setInterval(()=>{try{renderTicker();}catch(e){}},30000);   // picks / outcomes change independently of scores
+// the ticker needs the European schedule/results files before the hockey tab has been opened; relay URL field shows the saved value
+setTimeout(async function(){
+  for(const n of ['loadLiigaScheduleData','loadShlScheduleData','loadNlaScheduleData','loadExtraligaScheduleData']){try{if(typeof window[n]==='function')await window[n]();}catch(e){}}
+  try{const inp=document.getElementById('relay-url-input');if(inp)inp.value=_lvRelayUrl();}catch(e){}
+  try{renderTicker();}catch(e){}
+},5000);
+// ── Stale data: UPDATE NOW ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Click the header freshness line when it is amber/red: lists the aging files with a button that dispatches the workflow that refreshes each (GitHub API, needs the owner token with
+// "Actions: Read and write" -- if the token cannot, the GitHub page of that workflow opens so "Run workflow" is one click). Nothing is ever triggered automatically.
+const _FRESH_WF={'data.json':'scheduled-refresh.yml','nhl_schedule.json':'daily-schedules-refresh.yml','cfb_schedule.json':'daily-schedules-refresh.yml','nfl_schedule.json':'daily-schedules-refresh.yml',
+  'soccer_schedule.json':'daily-schedules-refresh.yml','liiga_schedule.json':'liiga-schedule-refresh.yml','shl_schedule.json':'shl-schedule-refresh.yml','nla_schedule.json':'nla-schedule-refresh.yml',
+  'extraliga_schedule.json':'extraliga-schedule-refresh.yml'};
+async function dispatchWorkflow(file){
+  const tok=getGHToken();
+  const page='https://github.com/'+GH_RELAY_REPO+'/actions/workflows/'+file;
+  if(!tok){window.open(page,'_blank');return{ok:false,msg:'NO TOKEN — opened the workflow page: press "Run workflow"'};}
+  try{
+    const r=await fetch('https://api.github.com/repos/'+GH_RELAY_REPO+'/actions/workflows/'+file+'/dispatches',{method:'POST',headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({ref:'main'})});
+    if(r.status===204)return{ok:true,msg:'✓ TRIGGERED '+file+' — fresh data lands in a few minutes'};
+    window.open(page,'_blank');
+    return{ok:false,msg:(r.status===403||r.status===404?'TOKEN LACKS "Actions: Read and write" ('+r.status+')':'GITHUB '+r.status)+' — opened the workflow page: press "Run workflow"'};
+  }catch(e){window.open(page,'_blank');return{ok:false,msg:'NETWORK ERROR — opened the workflow page'};}
+}
+function openFreshPanel(){
+  const st=window._freshState||[];const rows=st.filter(x=>!x.err&&x.age>=x.warn);
+  let el=document.getElementById('fresh-panel');if(el)el.remove();
+  el=document.createElement('div');el.id='fresh-panel';
+  el.style.cssText='position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9999;width:min(520px,94vw);background:rgba(10,0,24,.97);border:1px solid var(--pc);border-radius:4px;padding:12px;font-family:var(--mono);box-shadow:0 0 30px rgba(240,0,255,.35)';
+  const wfs=[...new Set(rows.map(x=>_FRESH_WF[x.f]).filter(Boolean))];
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="color:var(--pc);letter-spacing:2px;font-size:14px">// STALE DATA</span><button class="btn btn-o btn-sm" onclick="document.getElementById('fresh-panel').remove()">CLOSE</button></div>`
+    +(rows.length?rows.map(x=>{const wf=_FRESH_WF[x.f];return`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px"><span style="color:${x.age>=x.bad?'#ff3b6b':'#ffb020'}">${_escHtml(x.l)} · ${_fmtAge(x.age)} old</span>${wf?`<button class="btn btn-p btn-sm" onclick="_freshUpdate('${wf}',this)">UPDATE NOW</button>`:'<span style="color:var(--t3)">no manual refresh</span>'}</div>`;}).join('')
+      :'<div style="color:var(--t3);font-size:13px">Everything is within its normal refresh window.</div>')
+    +(wfs.length>1?`<div style="margin-top:10px"><button class="btn btn-n btn-sm" onclick="_freshUpdateAll(${JSON.stringify(wfs).replace(/"/g,'&quot;')},this)">UPDATE ALL STALE (${wfs.length} workflows)</button></div>`:'')
+    +`<div id="fresh-msg" style="margin-top:8px;font-size:12px;color:var(--t2);min-height:14px"></div><div style="margin-top:6px;font-size:11px;color:var(--t3)">Uses your GitHub token (Overall → SYNC). It needs <b>Actions: Read and write</b> on the repo for one-tap dispatch; without it the workflow page opens instead.</div>`;
+  document.body.appendChild(el);
+}
+async function _freshUpdate(file,btn){
+  if(btn){btn.disabled=true;btn.textContent='…';}
+  const r=await dispatchWorkflow(file);
+  const m=document.getElementById('fresh-msg');if(m){m.textContent=r.msg;m.style.color=r.ok?'#00e644':'#ffb020';}
+  if(btn){btn.disabled=false;btn.textContent=r.ok?'TRIGGERED':'UPDATE NOW';}
+  if(r.ok)setTimeout(refreshFreshness,180000);
+}
+async function _freshUpdateAll(files,btn){
+  if(btn)btn.disabled=true;let okN=0;
+  for(const f of files){const r=await dispatchWorkflow(f);if(r.ok)okN++;const m=document.getElementById('fresh-msg');if(m)m.textContent=r.msg;}
+  if(okN)setTimeout(refreshFreshness,180000);
+  if(btn){btn.disabled=false;}
+}
+(function(){const el=document.getElementById('hdr-fresh');if(el){el.style.cursor='pointer';el.addEventListener('click',()=>{if(/warn|bad/.test(el.className))openFreshPanel();});}})();
+
 
 // ═══ LIVE DATA BOOTSTRAP (live_data.json — written by live_tracker.py every 45s) ═══
 window.__CV_LIVE=null;

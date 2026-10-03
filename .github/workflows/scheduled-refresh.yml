@@ -78,7 +78,9 @@ jobs:
               # reported SUCCESS, leaving data.json hours stale. Park those byproducts first (they are regenerated every run, nothing needs them kept).
               git stash --include-untracked -q || true
               git fetch origin main
-              if git rebase origin/main && git push; then
+              # 2026-10-03: the lock slots now also commit docs/data.json (lock_prep's data-nhl job refreshes its NHL pieces right before a lock pass), so this full refresh's rebase can
+              # conflict on that one file. `-X theirs` during a rebase means THIS run's side wins -- the full refresh regenerates every key, so its data.json is the complete one.
+              if git rebase -X theirs origin/main && git push; then
                 echo "changed=true" >> "$GITHUB_OUTPUT"
               else
                 git rebase --abort 2>/dev/null || true

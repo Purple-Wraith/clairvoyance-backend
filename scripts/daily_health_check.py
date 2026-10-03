@@ -278,6 +278,25 @@ def parse_stamp(v) -> datetime | None:
         return None
 
 
+# Which workflow refreshes each stamped file -- used to put a one-click "Run workflow" link next to every stale / aging item in the alert email (2026-10-03, owner's request: when
+# something is stale, offer a way to trigger the update).  Opening the link lands on the workflow's page, where GitHub's own "Run workflow" button starts it; nothing is triggered by the email.
+WORKFLOW_FOR_FILE = {
+    "data.json": "scheduled-refresh.yml",
+    "nhl_schedule.json": "daily-schedules-refresh.yml", "cfb_schedule.json": "daily-schedules-refresh.yml",
+    "nfl_schedule.json": "daily-schedules-refresh.yml", "soccer_schedule.json": "daily-schedules-refresh.yml",
+    "shl_schedule.json": "shl-schedule-refresh.yml", "liiga_schedule.json": "liiga-schedule-refresh.yml",
+    "nla_schedule.json": "nla-schedule-refresh.yml", "extraliga_schedule.json": "extraliga-schedule-refresh.yml",
+    "live_data.json": "live-tracker.yml",
+}
+
+
+def run_link(workflow: str | None) -> str:
+    """HTML 'Run workflow now' link for a workflow file, '' when unknown."""
+    if not workflow:
+        return ""
+    return f' -- <a href="https://github.com/{REPO}/actions/workflows/{workflow}">Run workflow now</a>'
+
+
 def _fmt_age(h: float) -> str:
     return f"{max(1, round(h * 60))}m" if h < 1 else (f"{round(h)}h" if h < 48 else f"{round(h / 24)}d")
 
@@ -311,9 +330,9 @@ def check_data_freshness(docs_dir: Path | None = None, now: datetime | None = No
                 warn_h, stale_h = LIVE_IDLE_WARN_H, LIVE_IDLE_STALE_H
         age_h = (now - stamp).total_seconds() / 3600
         if age_h >= stale_h:
-            out.append(("alert", f"{label}: STALE -- {fname} stamp is {_fmt_age(age_h)} old (stale at {_fmt_age(stale_h)})"))
+            out.append(("alert", f"{label}: STALE -- {fname} stamp is {_fmt_age(age_h)} old (stale at {_fmt_age(stale_h)})" + run_link(WORKFLOW_FOR_FILE.get(fname))))
         elif age_h >= warn_h:
-            out.append(("note", f"{label}: aging -- {fname} stamp is {_fmt_age(age_h)} old (warn at {_fmt_age(warn_h)})"))
+            out.append(("note", f"{label}: aging -- {fname} stamp is {_fmt_age(age_h)} old (warn at {_fmt_age(warn_h)})" + run_link(WORKFLOW_FOR_FILE.get(fname))))
     return out
 
 
@@ -348,7 +367,7 @@ def check_refresh_workflow(filename: str, label: str, max_success_age_h: float, 
             age_h = (now - stamp).total_seconds() / 3600
             if age_h > max_success_age_h:
                 msgs.append(f"last SUCCESS was {_fmt_age(age_h)} ago (limit {_fmt_age(max_success_age_h)})")
-    return ("alert", f"{label}: " + "; ".join(msgs)) if msgs else None
+    return ("alert", f"{label}: " + "; ".join(msgs) + run_link(filename)) if msgs else None
 
 
 def check_refresh_health(now: datetime | None = None, api_get=None) -> list[tuple[str, str]]:
