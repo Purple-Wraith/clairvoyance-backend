@@ -13449,11 +13449,21 @@ async function renderNBAGames(day){
     const r=await fetch(url,{mode:'cors',cache:'no-cache'});const d=await r.json();
     const events=d.events||[];
     if(!events.length){el.innerHTML='<div class="empty">NO NBA GAMES TODAY</div>';return;}
-    await Promise.allSettled([fetchESPNInjuries('nba'),_nbaPrefetchRest(dateStr)]);
+    await Promise.allSettled([_nbaPrefetchInj(),_nbaPrefetchRest(dateStr)]);
     el.innerHTML=events.map(e=>_nbaGameCard(e)).join('');
   }catch(e){el.innerHTML='<div class="empty">ESPN UNAVAILABLE — CHECK CONNECTION</div>';}
 }
 // NBA info row: players OUT / day-to-day (live ESPN injuries, matched on team displayName) + back-to-back (a team that played yesterday).
+var _NBA_INJ={ts:0,by:{}};
+async function _nbaPrefetchInj(){
+  try{
+    if(Date.now()-_NBA_INJ.ts<300000)return;
+    const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries?limit=100',{mode:'cors',cache:'no-cache'});
+    if(!r.ok)return;const d=await r.json(),by={};
+    (d.injuries||[]).forEach(t=>{const nm=String(t.displayName||'').toLowerCase();if(nm)by[nm]=(t.injuries||[]).map(i=>({player:(i.athlete&&i.athlete.displayName)||'',status:i.status||''}));});
+    _NBA_INJ={ts:Date.now(),by:by};
+  }catch(e){}
+}
 var _NBA_YDAY={},_NBA_YDAY_CUR={};
 async function _nbaPrefetchRest(dateStr){
   try{
@@ -13467,13 +13477,12 @@ async function _nbaPrefetchRest(dateStr){
     _NBA_YDAY[dateStr]=set;_NBA_YDAY_CUR=set;
   }catch(e){}
 }
-function _nbaInfoRowHTML(hFull,aFull,hn,an,dateStr){
+function _nbaInfoRowHTML(hFull,aFull,hn,an){
   try{
-    const inj=(NEWS_CACHE['injuries_nba']&&NEWS_CACHE['injuries_nba'].data)||[];
     const items=[];
     const addTeam=(full,abbr,side)=>{
-      const rows=inj.filter(i=>String(i.team||'').toLowerCase()===String(full||'').toLowerCase());
-      const out=rows.filter(i=>/^out/i.test(i.status||'')),dtd=rows.filter(i=>!/^out/i.test(i.status||''));
+      const rows=(_NBA_INJ.by[String(full||'').toLowerCase()])||[];
+      const out=rows.filter(i=>/^out/i.test(i.status)),dtd=rows.filter(i=>!/^out/i.test(i.status));
       const list=[...out.map(i=>({i,tag:'OUT'})),...dtd.map(i=>({i,tag:'DTD'}))];
       list.slice(0,3).forEach(x=>items.push({team:abbr,side,text:String(x.i.player||'').replace(/</g,'&lt;'),tag:x.tag,ok:0}));
       if(list.length>3)items.push({team:abbr,side,text:`+${list.length-3} more`});
