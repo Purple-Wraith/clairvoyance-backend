@@ -71,6 +71,11 @@ jobs:
               # uses, since this repo gets pushed to from many concurrent
               # scheduled workflows and a plain push failing once is
               # usually just that, not a real problem worth paging on.
+              #
+              # 2026-10-03: the update script also rewrites files this step never stages (card.png, bet_history.csv, version.json), and `git rebase`
+              # refuses a dirty tree ("cannot rebase: You have unstaged changes") -- that killed the retry in 3 of the last 14 runs while the run still
+              # reported SUCCESS, leaving data.json hours stale. Park those byproducts first (they are regenerated every run, nothing needs them kept).
+              git stash --include-untracked -q || true
               git fetch origin main
               if git rebase origin/main && git push; then
                 echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -84,7 +89,10 @@ jobs:
 
       - name: Alert on push failure
         if: steps.push.outputs.push_failed == 'true'
-        run: echo "::error::Scheduled refresh's git push to main failed."
+        # Fail the run (it used to only echo an annotation, so a dropped push still showed green): a stale data.json feeds every sim and every lock pass.
+        run: |
+          echo "::error::Scheduled refresh's git push to main failed -- docs/data.json on main is NOT updated."
+          exit 1
 
       # Post-deploy verification: same safety net as the local git_push() path
       # (verify_deployment() in clairvoyance_update.py) — GitHub Pages needs a

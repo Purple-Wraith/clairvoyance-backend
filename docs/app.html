@@ -21459,6 +21459,11 @@ function patchNHLStandings(standings){
     NHL[abbr].w=s.w;NHL[abbr].l=s.l;NHL[abbr].otl=s.otl;NHL[abbr].pts=s.pts;
     NHL[abbr].gp=(s.w||0)+(s.l||0)+(s.otl||0);
   }
+  // Wiring fix, 2026-10-03: the Edge data (current-season/prior blend of gf60/ga60/pp/pk, goalie sv/gaa, zone starts) was applied BEFORE this function created the 28
+  // synthetic team entries (loadRemoteData ran applyNHLEdgeData first, _applyFreshData never ran it), and applyNHLEdgeData skips teams that do not exist yet -- so on the
+  // first load every team ran on raw goals-per-game (a 7-0 team read gf60=7) until the next 8-minute refresh. Applying it here, right after the entries exist, makes the first
+  // load correct. Idempotent: it writes absolute values from the Edge file.
+  try{if(window.__CV_DATA?.nhl?.edge)applyNHLEdgeData(window.__CV_DATA.nhl.edge);}catch(e){}
 }
 // Backfills NHL[abbr].gsax/.hdsv for every real team from MONEYPUCK.goalies
 // -- explicit request, 2026-09-16: goalieComposite() (the model's
