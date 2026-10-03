@@ -416,7 +416,7 @@ jobs:
         # inheriting it.
         if: ${{ !cancelled() && steps.flags.outputs.should_run != '0' && steps.presettle.outputs.run_heavy != 'skip' }}
         run: |
-          git add docs/picks_backup.json docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
+          git add docs/picks_backup.json docs/picks_backup_meta.json docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
           if git diff --cached --quiet; then
             echo "No change"
           else

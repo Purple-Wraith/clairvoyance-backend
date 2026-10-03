@@ -822,126 +822,373 @@ def install_espn_relay(page) -> None:
     page.route("**/*", _route_relay_espn)
 
 
-# ── Supabase-unavailable ("degraded") mode, added 2026-10-03 ──────────────────────────────────────────────────────────
-# The free tier reached 96% of its egress cycle; a breach restricts the whole project (HTTP 402 on every request, as on 2026-09-13), and every CI session
-# used to die in load_bet_ledger() the moment the ledger could not be read -- so no lock or settle could run at all. Now, when the Supabase pull fails, the
-# session loads the ledger from docs/picks_backup.json (the committed copy the main workflow refreshes after every pass) and keeps going. The cost of
-# that: the backup can lag by a pass, and nothing reaches Supabase, so at the end of the run the changed picks are merged into the backup on origin and
-# committed (persist_degraded_ledger) -- that file is then the source of truth until Supabase is back (the app already falls back to it).
+# ── Ledger source + backup (rewritten 2026-10-03: Supabase free-tier egress hit 96% of its cycle) ──────────────────────────────────────────────
+# One place decides where a CI session's ledger comes from and how the committed backup (docs/picks_backup.json + docs/picks_backup_meta.json) is kept
+# current, consistent and usable when Supabase is unavailable:
+#   FULL      complete Supabase pull (~3,900 rows, ~2-3 MB). Needed rarely: at most once per ~20h (meta.last_full_supabase_sync), after any degraded
+#             period (reconcile), or when the backup is missing/unreadable.
+#   HYBRID    committed backup as the base + only the last HYBRID_WINDOW_DAYS days and every pending pick from Supabase (a few hundred KB). Used by every
+#             other run, so egress per run drops ~85-90%.
+#   DEGRADED  Supabase could not be read at all (quota restriction, outage): the backup alone. Nothing reaches Supabase; at the end of the run the changes are
+#             merged into the backup and committed, and meta.needs_reconcile is set so the next healthy run pushes them back (reconcile_from_backup).
+# Every live run that changes the ledger writes the backup through a THREE-WAY merge (what this run loaded / what it ended with / newest on origin), so two
+# overlapping workflows can never erase each other's locks, and a validation gate refuses to commit a backup that lost rows.
+BACKUP_PATH = lambda: ROOT / "docs" / "picks_backup.json"      # noqa: E731  (lambdas: tests re-point ROOT)
+META_PATH = lambda: ROOT / "docs" / "picks_backup_meta.json"   # noqa: E731
+FULL_SYNC_MAX_AGE_H = 20
+HYBRID_WINDOW_DAYS = 14
+BACKUP_MIN_KEEP_RATIO = 0.97   # a new backup smaller than this share of origin's is refused (a bad pull must not shrink the safety net)
+
 LEDGER_DEGRADED = False
-_DEGRADED_INITIAL: dict[str, str] = {}
+LEDGER_MODE = "none"                    # none | full | hybrid | degraded
+_FULL_PULL_THIS_RUN = False
+_RECONCILED_THIS_RUN = False
+_LEDGER_LOADED_AT: datetime | None = None
+_DEGRADED_INITIAL: dict[str, str] = {}  # id -> canonical JSON of every pick as this run LOADED it (all modes; name kept for the tests)
+
+
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _canon(p: dict) -> str:
+    return json.dumps(p, sort_keys=True)
+
+
+def _ids(preds) -> dict[str, dict]:
+    return {p["id"]: p for p in preds if isinstance(p, dict) and p.get("id")}
+
+
+def _read_meta(path: Path | None = None) -> dict:
+    try:
+        d = json.loads((path or META_PATH()).read_text())
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _read_backup_file() -> list | None:
+    try:
+        d = json.loads(BACKUP_PATH().read_text())
+        return d if isinstance(d, list) and d else None
+    except Exception:
+        return None
+
+
+def _parse_iso(s) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def _snapshot_initial(page) -> None:
+    """Remember every pick exactly as this run loaded it, so the end-of-run backup write can tell what THIS run changed."""
+    global _DEGRADED_INITIAL, _LEDGER_LOADED_AT
+    preds = page.evaluate("() => getP()")
+    _DEGRADED_INITIAL = {p["id"]: _canon(p) for p in (preds or []) if isinstance(p, dict) and p.get("id")}
+    _LEDGER_LOADED_AT = _now_utc()
 
 
 def _load_ledger_from_backup(page) -> int:
-    global LEDGER_DEGRADED, _DEGRADED_INITIAL
-    path = ROOT / "docs" / "picks_backup.json"
-    try:
-        preds = json.loads(path.read_text())
-    except Exception as exc:
-        raise RuntimeError(f"Supabase ledger unavailable AND docs/picks_backup.json unreadable: {exc}")
-    if not isinstance(preds, list) or not preds:
-        raise RuntimeError("Supabase ledger unavailable AND docs/picks_backup.json is empty")
+    """Degraded mode: the ledger is the committed backup (Supabase unreadable)."""
+    global LEDGER_DEGRADED, LEDGER_MODE
+    preds = _read_backup_file()
+    if preds is None:
+        raise RuntimeError("Supabase ledger unavailable AND docs/picks_backup.json missing/empty/unreadable")
     page.evaluate("(preds) => { saveP(preds); }", preds)
     LEDGER_DEGRADED = True
-    _DEGRADED_INITIAL = {p["id"]: json.dumps(p, sort_keys=True) for p in preds if isinstance(p, dict) and p.get("id")}
+    LEDGER_MODE = "degraded"
+    _snapshot_initial(page)
     log(f"WARNING: DEGRADED MODE -- Supabase ledger unavailable; loaded {len(preds)} bets from docs/picks_backup.json instead. "
         "Locks/settles this run are persisted by committing the merged backup, not to Supabase.")
-    return len(preds)
+    try:
+        merge_manual_locks(page)
+    except Exception as exc:
+        log(f"WARNING: manual-lock relay merge failed: {exc}")
+    return page.evaluate("() => getP().length")
 
 
-def load_bet_ledger(page) -> int:
-    """Same paginated Supabase pull generate_social_cards.py already uses
-    (PostgREST caps a single response at 1000 rows), loaded straight into
-    the page's own getP()/saveP() store so every real client function
-    (settlement, dedup checks, sync) operates on the real live ledger.
-    Uses docs/app.html's OWN already-declared SUPABASE_URL/SUPABASE_KEY
-    consts (the anon key, safe client-side by RLS design, same one every
-    other Supabase call in the app already uses) rather than injecting a
-    separate credential from Python.
+_JS_FULL_PULL = """
+async () => {
+  const rows = []; let offset = 0; const page_size = 1000;
+  while (true) {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/bets?select=raw&order=date.desc&outcome=neq._removed', {
+      headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, Range: offset + '-' + (offset + page_size - 1) } });
+    if (!r.ok) return -1;
+    const batch = await r.json(); rows.push(...batch);
+    if (batch.length < page_size) break;
+    offset += page_size;
+  }
+  const preds = rows.map(x => x.raw).filter(Boolean);
+  saveP(preds);
+  return preds.length;
+}
+"""
 
-    If Supabase cannot be read (quota restriction, outage) the ledger is loaded from docs/picks_backup.json instead (degraded mode, see above).
-    Once degraded, later calls keep the in-page state rather than reloading the (older) backup over this run's changes."""
+_JS_WINDOW_PULL = """
+async (cutoff) => {
+  const rows = []; let offset = 0; const page_size = 1000;
+  while (true) {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/bets?select=id,outcome,raw&or=(date.gte.' + cutoff + ',outcome.eq.pending)&order=id', {
+      headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, Range: offset + '-' + (offset + page_size - 1) } });
+    if (!r.ok) return null;
+    const batch = await r.json(); rows.push(...batch);
+    if (batch.length < page_size) break;
+    offset += page_size;
+  }
+  return rows;
+}
+"""
+
+
+def _hybrid_allowed(meta: dict) -> bool:
+    last = _parse_iso(meta.get("last_full_supabase_sync"))
+    if last is None or (_now_utc() - last) > timedelta(hours=FULL_SYNC_MAX_AGE_H):
+        return False
+    if meta.get("needs_reconcile"):
+        return False
+    return _read_backup_file() is not None
+
+
+def _load_hybrid(page) -> int | None:
+    """Backup as the base, Supabase only for the recent window + every pending pick (tombstones drop their id). None if Supabase failed."""
+    base = _read_backup_file()
+    cutoff = (datetime.now(ZoneInfo("America/Denver")) - timedelta(days=HYBRID_WINDOW_DAYS)).strftime("%Y-%m-%d")
+    try:
+        rows = page.evaluate(_JS_WINDOW_PULL, cutoff)
+    except Exception as exc:
+        log(f"Supabase window pull raised: {str(exc)[:200]}")
+        rows = None
+    if rows is None or base is None:
+        return None
+    merged = _ids(base)
+    for r in rows:
+        if r.get("outcome") == "_removed":
+            merged.pop(r.get("id"), None)
+        elif isinstance(r.get("raw"), dict) and r["raw"].get("id"):
+            merged[r["raw"]["id"]] = r["raw"]
+    page.evaluate("(preds) => { saveP(preds); }", list(merged.values()))
+    return len(merged)
+
+
+def load_bet_ledger(page, force_full: bool = False) -> int:
+    """Put the real ledger into the page's getP()/saveP() store so every client function (settlement, dedup checks, sync) operates on it.
+    See the block comment above for FULL / HYBRID / DEGRADED. Uses docs/app.html's own SUPABASE_URL/SUPABASE_KEY consts (the anon key, safe client-side by
+    RLS design). Once degraded, later calls keep the in-page state rather than reloading the (older) backup over this run's changes."""
+    global LEDGER_MODE, _FULL_PULL_THIS_RUN
     if LEDGER_DEGRADED:
         return page.evaluate("() => getP().length")
+    meta = _read_meta()
+    if not force_full and _hybrid_allowed(meta):
+        n = _load_hybrid(page)
+        if n is not None:
+            LEDGER_MODE = "hybrid"
+            _snapshot_initial(page)
+            return n
+        log("Hybrid (window) pull failed -- trying a full pull")
     try:
-        count = page.evaluate(
-            """
-            async () => {
-              const rows = [];
-              let offset = 0;
-              const page_size = 1000;
-              while (true) {
-                const r = await fetch(SUPABASE_URL + '/rest/v1/bets?select=raw&order=date.desc&outcome=neq._removed', {
-                  headers: {
-                    apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY,
-                    Range: offset + '-' + (offset + page_size - 1),
-                  }
-                });
-                if (!r.ok) return -1;
-                const batch = await r.json();
-                rows.push(...batch);
-                if (batch.length < page_size) break;
-                offset += page_size;
-              }
-              const preds = rows.map(x => x.raw).filter(Boolean);
-              saveP(preds);
-              return preds.length;
-            }
-            """
-        )
+        count = page.evaluate(_JS_FULL_PULL)
     except Exception as exc:
         log(f"Supabase ledger pull raised: {str(exc)[:200]}")
         count = None
     if count is None or count < 0:
         return _load_ledger_from_backup(page)
-    return count
+    LEDGER_MODE = "full"
+    _FULL_PULL_THIS_RUN = True
+    _snapshot_initial(page)
+    if meta.get("needs_reconcile"):
+        try:
+            reconcile_from_backup(page)
+        except Exception as exc:
+            log(f"WARNING: reconcile from backup failed (will retry next run): {exc}")
+    return page.evaluate("() => getP().length")
 
 
-def _read_origin_backup() -> list | None:
-    """The newest committed docs/picks_backup.json on origin/main (another workflow may have refreshed it since this run started)."""
+def reconcile_from_backup(page) -> int:
+    """Supabase is readable again after a degraded period: push what only the backup knows. A pick is pushed when it is missing from Supabase, or the
+    backup has it settled while Supabase still has it pending. The page ledger is updated first (so the run continues on the merged truth), then ONLY
+    those rows are upserted (id-keyed, return=minimal). Clears meta.needs_reconcile through the next backup write."""
+    global _RECONCILED_THIS_RUN
+    backup = _read_backup_file() or []
+    # what Supabase itself holds (taken BEFORE anything is merged in) -- the comparison base for "missing" / "settled in the backup only"
+    cur = {p["id"]: p for p in (page.evaluate("() => getP()") or []) if isinstance(p, dict) and p.get("id")}
+    try:
+        merge_manual_locks(page)           # manual locks made during the outage join the ledger and are pushed below
+    except Exception as exc:
+        log(f"WARNING: manual-lock relay merge failed: {exc}")
+    # backup picks plus the relay's, so both get pushed
+    try:
+        backup = list(backup) + [p for p in ((json.loads((ROOT / "docs" / "manual_locks.json").read_text()) or {}).get("picks") or [])
+                                 if isinstance(p, dict) and p.get("id") and p["id"] not in {b.get("id") for b in backup}]
+    except Exception:
+        pass
+    push = []
+    for p in backup:
+        if not (isinstance(p, dict) and p.get("id")):
+            continue
+        c = cur.get(p["id"])
+        if c is None or (c.get("outcome") == "pending" and p.get("outcome") not in (None, "pending")):
+            push.append(p)
+    if push:
+        page.evaluate("(ps) => { const m = new Map(getP().map(x => [x.id, x])); ps.forEach(x => m.set(x.id, x)); saveP(Array.from(m.values())); }", push)
+        ok = page.evaluate(
+            """
+            async (ids) => {
+              const rows = getP().filter(p => ids.includes(p.id)).map(_supabaseBetRow);
+              for (let i = 0; i < rows.length; i += 200) {
+                const r = await fetch(SUPABASE_URL + '/rest/v1/bets', { method: 'POST',
+                  headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json',
+                             Prefer: 'resolution=merge-duplicates,return=minimal' },
+                  body: JSON.stringify(rows.slice(i, i + 200)) });
+                if (!r.ok) return false;
+              }
+              return true;
+            }
+            """,
+            [p["id"] for p in push],
+        )
+        if not ok:
+            raise RuntimeError("upsert of backup-only picks to Supabase failed")
+    _RECONCILED_THIS_RUN = True
+    log(f"RECONCILE: Supabase is back -- pushed {len(push)} pick(s) that only the backup had")
+    return len(push)
+
+
+def merge_manual_locks(page) -> int:
+    """docs/manual_locks.json is written by the owner's browser (manual-lock relay in app.html) while Supabase is unreachable. Used ONLY in degraded mode and
+    during the reconcile after one (in healthy mode the app pushes manual locks to Supabase itself, and a pick the owner later removed there must not be
+    resurrected from this file). Adds picks the ledger lacks, and takes the relay's settled result over a pending ledger copy."""
+    try:
+        picks = (json.loads((ROOT / "docs" / "manual_locks.json").read_text()) or {}).get("picks") or []
+    except Exception:
+        return 0
+    cur = {p["id"]: p for p in (page.evaluate("() => getP()") or []) if isinstance(p, dict) and p.get("id")}
+    add = []
+    for p in picks:
+        if not (isinstance(p, dict) and p.get("id")):
+            continue
+        c = cur.get(p["id"])
+        if c is None or (c.get("outcome") == "pending" and p.get("outcome") not in (None, "pending")):
+            add.append(p)
+    if add:
+        page.evaluate("(ps) => { const m = new Map(getP().map(x => [x.id, x])); ps.forEach(x => m.set(x.id, x)); saveP(Array.from(m.values())); }", add)
+        log(f"Manual-lock relay: merged {len(add)} manual lock(s) from docs/manual_locks.json into the ledger")
+    return len(add)
+
+
+def _read_origin_state() -> tuple[list | None, dict]:
+    """Newest committed backup + meta on origin/main (another workflow may have refreshed them since this run started)."""
     try:
         subprocess.run(["git", "-C", str(ROOT), "fetch", "origin", "main"], capture_output=True, timeout=60)
-        res = subprocess.run(["git", "-C", str(ROOT), "show", "origin/main:docs/picks_backup.json"], capture_output=True, text=True, timeout=60)
-        if res.returncode != 0:
-            return None
-        data = json.loads(res.stdout)
-        return data if isinstance(data, list) and data else None
+        b = subprocess.run(["git", "-C", str(ROOT), "show", "origin/main:docs/picks_backup.json"], capture_output=True, text=True, timeout=60)
+        m = subprocess.run(["git", "-C", str(ROOT), "show", "origin/main:docs/picks_backup_meta.json"], capture_output=True, text=True, timeout=60)
+        preds = json.loads(b.stdout) if b.returncode == 0 else None
+        meta = json.loads(m.stdout) if m.returncode == 0 else {}
+        return (preds if isinstance(preds, list) and preds else None), (meta if isinstance(meta, dict) else {})
     except Exception:
-        return None
+        return None, {}
 
 
-def _merge_degraded_backup(final: list) -> list:
-    """origin's backup + ONLY the picks this run added or changed (compared with what it loaded). Two workflows that overlap in degraded mode
-    each start from an older backup; writing a full snapshot would let the later one erase the earlier one's locks, so only the diff is applied."""
-    changed = {p["id"]: p for p in final
-               if isinstance(p, dict) and p.get("id") and _DEGRADED_INITIAL.get(p["id"]) != json.dumps(p, sort_keys=True)}
-    base = _read_origin_backup()
-    if base is None:
-        return final
-    merged = {p["id"]: p for p in base if isinstance(p, dict) and p.get("id")}
-    merged.update(changed)
-    return list(merged.values())
+def _three_way_merge(final: list, origin: list | None, origin_newer: bool) -> list:
+    """final = this run's ledger, _DEGRADED_INITIAL = what it loaded, origin = newest committed backup.
+    A pick this run added or changed always takes this run's version. A pick it did NOT touch takes origin's version when origin was written after this run
+    loaded its ledger (someone else's newer change), otherwise this run's (Supabase truth, which can be newer than a stale backup).
+    A pick that only origin has is kept -- unless this run did a COMPLETE Supabase pull and origin is not newer than that pull: then Supabase no longer has
+    it (the owner removed it), so it is dropped; otherwise a removed pick would live in the backup forever."""
+    f = _ids(final)
+    if origin is None:
+        return list(f.values())
+    o = _ids(origin)
+    authoritative = _FULL_PULL_THIS_RUN and not LEDGER_DEGRADED
+    out: dict[str, dict] = {}
+    for pid in list(o) + [k for k in f if k not in o]:
+        mine = f.get(pid)
+        if mine is None:
+            if not (authoritative and not origin_newer):
+                out[pid] = o[pid]
+            continue
+        touched = _DEGRADED_INITIAL.get(pid) != _canon(mine)
+        if touched:
+            out[pid] = mine
+        elif origin_newer and pid in o:
+            out[pid] = o[pid]
+        else:
+            out[pid] = mine
+    return list(out.values())
+
+
+def _validate_backup(preds: list, origin: list | None) -> str | None:
+    """None if the backup is safe to commit, else the reason it is not."""
+    if not preds:
+        return "empty"
+    ids = [p.get("id") if isinstance(p, dict) else None for p in preds]
+    if any(i is None for i in ids):
+        return "a pick without an id"
+    if len(set(ids)) != len(ids):
+        return "duplicate ids"
+    if any(not isinstance(p.get("date"), str) or not p.get("outcome") for p in preds):
+        return "a pick missing date/outcome"
+    if origin and len(preds) < BACKUP_MIN_KEEP_RATIO * len(origin):
+        return f"would shrink the backup from {len(origin)} to {len(preds)} picks"
+    return None
 
 
 def write_ledger_backup(page) -> int:
-    """Revives the old, dead docs/picks.json (dead since 2026-06-10, 240
-    stale rows) as docs/picks_backup.json -- a real, current backup of
-    the Supabase ledger, independent of Supabase itself, so a future
-    outage like the 2026-09-13 egress-quota lockout doesn't leave the
-    app with zero fallback data source. Named distinctly from picks.json
-    (still the separate, older owner-token GitHub-sync file -- untouched
-    here) so the two are never confused: this one specifically means
-    "read-only Supabase fallback," not "the owner's personal sync
-    target." Reuses the ledger load_bet_ledger() already pulled into
-    this same page's getP() a moment ago -- no second Supabase round
-    trip. Committed by the workflow right after this call;
-    loadPicksFromBackupJSON() in app.html reads this exact flat-array
-    shape."""
-    preds = page.evaluate("() => getP()")
-    if LEDGER_DEGRADED:
-        preds = _merge_degraded_backup(preds)
-    (ROOT / "docs" / "picks_backup.json").write_text(json.dumps(preds, indent=2))
-    return len(preds) if isinstance(preds, list) else 0
+    """docs/picks_backup.json (+ docs/picks_backup_meta.json): a real, current backup of the ledger, independent of Supabase, read by app.html's
+    loadPicksFromBackupJSON() when Supabase is unreachable and used as the base of every HYBRID CI load. Written through a three-way merge with origin's
+    newest copy (see the block comment above), validated before it replaces anything, sorted by id so diffs stay small, and the meta file records where
+    the ledger came from (full / hybrid / degraded), when the last COMPLETE Supabase pull happened, and whether a degraded period still has to be pushed
+    back to Supabase (needs_reconcile). Committed by the workflow right after this call (main run) or by persist_ledger_backup (lock-only passes).
+    Returns the pick count now on disk."""
+    final = page.evaluate("() => getP()")
+    origin, ometa = _read_origin_state()
+    old_meta = _read_meta()
+    origin_gen = _parse_iso(ometa.get("generated_at"))
+    origin_newer = bool(origin_gen and _LEDGER_LOADED_AT and origin_gen > _LEDGER_LOADED_AT)
+    merged = _three_way_merge(final, origin, origin_newer)
+    reason = _validate_backup(merged, origin)
+    if reason:
+        log(f"ERROR: ledger backup NOT written ({reason}) -- keeping the committed copy")
+        return len(origin or [])
+    merged.sort(key=lambda p: str(p.get("id")))
+    body = json.dumps(merged, indent=2)
+    path = BACKUP_PATH()
+    changed = (not path.exists()) or path.read_text() != body
+    if changed:
+        path.write_text(body)
+    base_meta = ometa or old_meta
+    meta = {
+        "count": len(merged),
+        "source": LEDGER_MODE,
+        "last_full_supabase_sync": _now_utc().strftime("%Y-%m-%dT%H:%M:%SZ") if _FULL_PULL_THIS_RUN else base_meta.get("last_full_supabase_sync"),
+        "needs_reconcile": True if LEDGER_DEGRADED else (False if _RECONCILED_THIS_RUN else bool(base_meta.get("needs_reconcile", False))),
+        "last_degraded_at": _now_utc().strftime("%Y-%m-%dT%H:%M:%SZ") if LEDGER_DEGRADED else base_meta.get("last_degraded_at"),
+        "last_reconcile_at": _now_utc().strftime("%Y-%m-%dT%H:%M:%SZ") if _RECONCILED_THIS_RUN else base_meta.get("last_reconcile_at"),
+    }
+    strip = lambda d: {k: v for k, v in d.items() if k != "generated_at"}  # noqa: E731
+    if changed or strip(meta) != strip(old_meta):
+        meta["generated_at"] = _now_utc().strftime("%Y-%m-%dT%H:%M:%SZ")
+        META_PATH().write_text(json.dumps(meta, indent=2) + "\n")
+    return len(merged)
+
+
+def _ledger_changed(page) -> bool:
+    cur = {p["id"]: _canon(p) for p in (page.evaluate("() => getP()") or []) if isinstance(p, dict) and p.get("id")}
+    return cur != _DEGRADED_INITIAL
+
+
+def persist_ledger_backup(page, commit: bool) -> bool:
+    """End-of-run: write the backup if this run changed the ledger, did a complete pull, ran degraded or reconciled; commit it when `commit` (every pass
+    except the main workflow, whose own step commits the files). Keeps the backup current after EVERY lock pass, not only the main workflow's."""
+    if not (LEDGER_DEGRADED or _FULL_PULL_THIS_RUN or _RECONCILED_THIS_RUN or _ledger_changed(page)):
+        return False
+    n = write_ledger_backup(page)
+    log(f"Ledger backup updated ({n} bets, source={LEDGER_MODE})")
+    if commit:
+        _commit_and_push(["docs/picks_backup.json", "docs/picks_backup_meta.json"],
+                         f"chore: ledger backup ({LEDGER_MODE}, {n} bets)")
+    return True
 
 
 def ledger_fingerprint(page) -> str:
@@ -3803,15 +4050,12 @@ def main() -> None:
             except Exception as exc:
                 log(f"WARNING: post-pass ledger backup refresh failed: {exc}")
 
-        if LEDGER_DEGRADED and args.live and not args.watchdog:
+        if args.live and not args.watchdog:
             try:
-                n = write_ledger_backup(page)
-                log(f"DEGRADED MODE: merged this run's changes into docs/picks_backup.json ({n} bets)")
-                if not is_main_run:
-                    # the main workflow's own step commits the file; every other lock pass has to commit it itself
-                    _commit_and_push(["docs/picks_backup.json"], "chore: ledger backup (Supabase unavailable, degraded lock pass)")
+                # the main workflow's own step commits the files it wrote; every other pass has to commit them itself
+                persist_ledger_backup(page, commit=not is_main_run)
             except Exception as exc:
-                log(f"WARNING: degraded-mode backup persist failed: {exc}")
+                log(f"WARNING: ledger backup persist failed: {exc}")
 
         browser.close()
 

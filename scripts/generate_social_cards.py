@@ -778,8 +778,17 @@ def run(out_dir: Path, force: set[str] | None = None, json_only: bool = False) -
             """
         )
         if bet_count is None or bet_count < 0:
-            raise RuntimeError("Failed to load bet ledger from Supabase in-page — check SUPABASE_URL/KEY are still valid in app.html")
-        log(f"Loaded {bet_count} real bets from Supabase into headless session")
+            # Supabase unreadable (quota restriction / outage): use the committed backup (docs/picks_backup.json, kept current by the lock/settle workflows)
+            # so the cards, captions and landing JSON still build from the last known ledger instead of the whole run failing.
+            try:
+                backup = json.loads((ROOT / "docs" / "picks_backup.json").read_text())
+            except Exception as exc:
+                raise RuntimeError(f"Failed to load bet ledger from Supabase in-page AND docs/picks_backup.json unreadable: {exc}")
+            page.evaluate("(preds) => { saveP(preds); }", backup)
+            bet_count = len(backup)
+            log(f"WARNING: Supabase unavailable -- built from docs/picks_backup.json ({bet_count} bets)")
+        else:
+            log(f"Loaded {bet_count} real bets from Supabase into headless session")
 
         # Pre-start-locks-only basis (2026-10-02): classify the whole ledger with the shared classifier, and hand the verdict to
         # the in-page renderer BEFORE anything renders, so every exported card, caption number and JSON agrees.

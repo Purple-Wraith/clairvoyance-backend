@@ -279,7 +279,12 @@ def main() -> None:
     late_excluded = 0
     if not supabase_problem:
         try:
-            all_bets = load_ledger(url, key)
+            try:
+                all_bets = load_ledger(url, key)
+            except Exception as sb_exc:
+                # Supabase unreadable (quota restriction / outage): the committed backup is the next-best ledger for a weekly summary
+                all_bets = json.loads((ROOT / "docs" / "picks_backup.json").read_text())
+                print(f"WARNING: Supabase ledger unavailable ({sb_exc}); using docs/picks_backup.json ({len(all_bets)} bets)")
             settled = [p for p in all_bets if is_active_sport(p) and p.get("outcome") in ("win", "loss")]
             # Calibration must not learn from picks whose result was known at lock (manual late locks) -- the Dashboard's own
             # calibration already drops them (_calEligible); this digest now agrees. Shared classifier, unknown timing kept.

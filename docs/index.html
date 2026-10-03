@@ -2249,6 +2249,7 @@ async function _doSupabaseSync(){
   }catch(e){console.warn('[CV] Supabase sync failed (offline?):',e.message);}
 }
 function syncBetsToSupabase(){
+  try{relayManualLocks();}catch(e){}
   // Debounced — saveP() can fire many times in a row (bulk imports,
   // migrations, settle sweeps); coalesce into one upload 2.5s after the
   // last change instead of one request per call.
@@ -5756,6 +5757,45 @@ async function syncPicksFromSupabase(full){
 // visitor, and feeds it through the exact same merge logic a real
 // Supabase pull uses, so a device recovering from this fallback
 // converges identically to one that pulled from Supabase directly.
+// ── Manual-lock relay (2026-10-03) ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// While Supabase is unreachable (free-tier egress quota) a manual lock only exists on the device that made it, and the CI settle/lock sessions never see it.
+// With a GitHub token set (Config -> SYNC -- GITHUB TOKEN; fine-grained, Contents: read+write on this repo) every manual lock / manual settlement is also
+// written to docs/manual_locks.json. The CI sessions merge that file into their ledger in degraded mode (and after Supabase returns), and another device that
+// falls back to the GitHub backup merges it too. Only picks stamped lockOrigin:'manual' are relayed (the 100+ automatic locks a day are not), pruned to
+// 45 days; removed picks are dropped. No token = silently off. ?nosb=1 turns it off with the rest of the Supabase traffic.
+const GH_RELAY_REPO='Purple-Wraith/clairvoyance-backend',GH_RELAY_PATH='docs/manual_locks.json';
+let _relayTimer=null,_relayLastHash='';
+function _relayPicks(){
+  const cut=Date.now()-45*86400000,wiped=_getWipedIds();
+  return getP().filter(p=>p&&p.id&&p.lockOrigin==='manual'&&p.outcome!=='_removed'&&!wiped.has(p.id)&&(p.lockedAt||0)>=cut);
+}
+function relayManualLocks(){clearTimeout(_relayTimer);_relayTimer=setTimeout(_relayPush,8000);}
+async function _relayPush(){
+  try{
+    if(_sbOff())return;
+    const tok=getGHToken();if(!tok)return;
+    const mine=_relayPicks();
+    const hash=JSON.stringify(mine.map(p=>[p.id,p.outcome,p.settledAt||0]));
+    if(hash===_relayLastHash)return;
+    const url='https://api.github.com/repos/'+GH_RELAY_REPO+'/contents/'+GH_RELAY_PATH;
+    for(let attempt=0;attempt<3;attempt++){
+      const g=await fetch(url+'?t='+Date.now(),{headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'}});
+      let sha,remote=[];
+      if(g.ok){const m=await g.json();sha=m.sha;try{remote=(JSON.parse(decodeURIComponent(escape(atob(m.content.replace(/\n/g,'')))))||{}).picks||[];}catch(e){}}
+      else if(g.status!==404)return;
+      const by=new Map(remote.filter(p=>p&&p.id).map(p=>[p.id,p]));
+      _getWipedIds().forEach(id=>by.delete(id));
+      mine.forEach(p=>{const o=by.get(p.id);if(!o||(o.outcome==='pending'&&p.outcome!=='pending')||(p.outcome===o.outcome&&(p.settledAt||0)>=(o.settledAt||0)))by.set(p.id,p);});
+      const cut=Date.now()-45*86400000,picks=[...by.values()].filter(p=>(p.lockedAt||0)>=cut);
+      const body={message:'manual locks: relay '+new Date().toISOString().slice(0,16)+' UTC',branch:'main',
+        content:btoa(unescape(encodeURIComponent(JSON.stringify({updated_at:new Date().toISOString(),picks},null,1))))};
+      if(sha)body.sha=sha;
+      const r=await fetch(url,{method:'PUT',headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(r.ok){_relayLastHash=hash;return;}
+      if(r.status!==409&&r.status!==422)return;
+    }
+  }catch(e){console.warn('[CV] manual-lock relay:',e.message);}
+}
 async function loadPicksFromBackupJSON(){
   const r=await fetch('picks_backup.json?t='+Date.now());
   if(!r.ok)throw new Error('backup fetch HTTP '+r.status);
@@ -5768,6 +5808,15 @@ async function loadPicksFromBackupJSON(){
   }));
   _mergeRemoteBetRows(rows);
   console.log(`[CV] Loaded ${rows.length} bets from GitHub backup (Supabase unreachable)`);
+  // manual locks made on another device while Supabase was down (see the relay above): add the ones this device lacks
+  try{
+    const mr=await fetch('manual_locks.json?t='+Date.now());
+    if(mr.ok){
+      const md=await mr.json(),have=new Set(getP().map(p=>p.id)),wiped=_getWipedIds();
+      const add=(md.picks||[]).filter(p=>p&&p.id&&!have.has(p.id)&&!wiped.has(p.id));
+      if(add.length){_mergeRemoteBetRows(add.map(p=>({id:p.id,raw:p,outcome:p.outcome,settled_at:p.settledAt?new Date(p.settledAt).toISOString():null,locked_at:p.lockedAt?new Date(p.lockedAt).toISOString():null})));console.log(`[CV] Added ${add.length} manual lock(s) from the relay`);}
+    }
+  }catch(e){}
 }
 async function syncPicksFromBackend(){
   if(!API_ONLINE())return;
@@ -6053,7 +6102,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
       const preds=getP();const localId=`api_${res.id}`;
       if(!preds.find(x=>x.id===localId)){
         _removeWipedIds([localId]); // see _removeWipedIds' own comment
-        preds.push({id:localId,_backendId:res.id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:100,outcome:'pending',lockedAt:Date.now(),source:_lockSource,...(extraMeta||{}),..._timingMeta,reasoning});
+        preds.push({id:localId,_backendId:res.id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:100,outcome:'pending',lockedAt:Date.now(),source:_lockSource,lockOrigin:'manual',...(extraMeta||{}),..._timingMeta,reasoning});
       }
       saveP(preds);
       const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
@@ -6081,7 +6130,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   // with an explicit "already locked" toast instead.
   if(_dup){toast(`// ALREADY LOCKED: ${_dup.betOn} ${_dup.ml} (${_dup.outcome==='pending'?'still pending':_dup.outcome.toUpperCase()})`);return;}
   _removeWipedIds([id]); // see _removeWipedIds' own comment -- a deliberate new lock must never be silently swallowed by an old wipe of this same id
-  preds.push({id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:0,outcome:'pending',lockedAt:Date.now(),hScore:null,aScore:null,source:_lockSource,...(extraMeta||{}),..._timingMeta,reasoning});saveP(preds);
+  preds.push({id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:0,outcome:'pending',lockedAt:Date.now(),hScore:null,aScore:null,source:_lockSource,lockOrigin:'manual',...(extraMeta||{}),..._timingMeta,reasoning});saveP(preds);
   const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
   if(!log[dateKey].locked.includes(betOn))log[dateKey].locked.push(betOn);
   const rec=log[dateKey].recs.find(r=>r.ha===hA&&r.awa===awA&&r.lb===betOn);if(rec)rec.locked=true;
