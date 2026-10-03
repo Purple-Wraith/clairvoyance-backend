@@ -22410,7 +22410,12 @@ async function dispatchWorkflow(file){
     if(r.status===204)return{ok:true,msg:'✓ TRIGGERED '+file+' — fresh data lands in a few minutes'};
     window.open(page,'_blank');
     return{ok:false,msg:(r.status===403||r.status===404?'TOKEN LACKS "Actions: Read and write" ('+r.status+')':'GITHUB '+r.status)+' — opened the workflow page: press "Run workflow"'};
-  }catch(e){window.open(page,'_blank');return{ok:false,msg:'NETWORK ERROR — opened the workflow page'};}
+  }catch(e){
+    console.warn('dispatchWorkflow',file,e);
+    window.open(page,'_blank');
+    // the browser's own reason ("Failed to fetch" = request never reached GitHub: offline / blocked / a content blocker; "Invalid value" = a stray character in the saved token)
+    return{ok:false,msg:'NETWORK ERROR ('+String(e&&e.message||e).slice(0,90)+') — opened the workflow page; press "Run workflow"'};
+  }
 }
 function openFreshPanel(){
   const st=window._freshState||[];const rows=st.filter(x=>!x.err&&x.age>=x.warn);
