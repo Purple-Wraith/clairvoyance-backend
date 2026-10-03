@@ -225,10 +225,14 @@ _session.headers.update(HEADERS)
 _ref_session = requests.Session()
 _ref_session.headers.update(REF_HEADERS)
 
-def fetch_json(url: str, timeout: int = 15, retries: int = 2, params: dict | None = None) -> dict | list | None:
+def fetch_json(url: str, timeout: int = 15, retries: int = 2, params: dict | None = None, quiet_404: bool = False) -> dict | list | None:
+    """quiet_404: for requests where "not found" is an ordinary answer (e.g. a newly promoted club has no prior top-flight season): one INFO line, no retries, no WARN."""
     for attempt in range(retries + 1):
         try:
             r = _session.get(url, timeout=timeout, params=params)
+            if quiet_404 and r.status_code == 404:
+                log(f"not found (expected): {url}")
+                return None
             r.raise_for_status()
             return r.json()
         except Exception as e:
@@ -1368,11 +1372,24 @@ def nba_playoffs_year(today=None) -> int:
     return end if (d.year, d.month) >= (end, 4) else end - 1
 
 
+def nba_in_playoff_window(today=None) -> bool:
+    """True April-June (NBA play-in + playoffs).  NBA_PLAYOFFS_FORCE=1 forces a fetch attempt."""
+    if os.environ.get("NBA_PLAYOFFS_FORCE") == "1":
+        return True
+    d = today if today is not None else NOW_MT
+    if isinstance(d, datetime):
+        d = d.date()
+    return 4 <= d.month <= 6
+
+
 def fetch_nba_playoff_bracket() -> dict:
     """Fetch NBA playoff bracket from ESPN (most recent playoffs, see nba_playoffs_year)."""
     yr = nba_playoffs_year()
+    if not nba_in_playoff_window():
+        log(f"NBA playoff bracket: outside the playoff window (April-June) -- not requested (set NBA_PLAYOFFS_FORCE=1 to force)")
+        return {}
     log(f"NBA playoff bracket (ESPN season={yr})…")
-    data = fetch_json(f"{ESPN_BASE}/basketball/nba/playoffs?season={yr}")
+    data = fetch_json(f"{ESPN_BASE}/basketball/nba/playoffs?season={yr}", quiet_404=True)
     if not data: return {}
     return {"raw": data, "fetchedAt": TODAY_ISO, "season": yr}
 
@@ -2731,7 +2748,8 @@ def _espn_team_season_stats(espn_league: str, tid: str, season_year: int) -> tup
     indistinguishable from a team that's actually played exactly 1 game.
     """
     stats = fetch_json(
-        f"https://sports.core.api.espn.com/v2/sports/soccer/leagues/{espn_league}/seasons/{season_year}/types/1/teams/{tid}/statistics"
+        f"https://sports.core.api.espn.com/v2/sports/soccer/leagues/{espn_league}/seasons/{season_year}/types/1/teams/{tid}/statistics",
+        quiet_404=True,   # 404 = this club has no record that season (newly promoted / season not started): documented above, not a failure
     )
     cats = ((stats or {}).get("splits") or {}).get("categories") or []
     flat: dict = {}
@@ -3684,12 +3702,20 @@ ESPN_LEAGUE_PATHS: dict[str, str] = {
     "ita":      "soccer/ita.1",
 }
 
+# Leagues the product no longer covers (MLB + WNBA 2026-09-08, college baseball purged, MLS 2026-09-27): their ESPN news / injuries / transactions feeds were still being called on every
+# run (and returned 500s / dead data nothing reads). The keys stay in the bundle, empty, so any defensive reader of them keeps working.  Bundesliga ("bl") is NOT here: its data still feeds
+# the Champions League domestic-form blend for German clubs.
+RETIRED_ESPN_KEYS = frozenset({"mlb", "wnba", "ncaab", "mls"})
+
 def fetch_sports_news() -> dict:
     """Fetch latest news articles for all sports/leagues from ESPN."""
     news: dict = {}
     sport_map = dict(ESPN_LEAGUE_PATHS)
     sport_map["football"] = sport_map.pop("nfl")  # keep the pre-existing "football" key the frontend already reads
     for sport_key, espn_path in sport_map.items():
+        if sport_key in RETIRED_ESPN_KEYS:
+            news[sport_key] = []
+            continue
         try:
             url = f"https://site.api.espn.com/apis/site/v2/sports/{espn_path}/news"
             articles = (fetch_json(url) or {}).get("articles", [])
@@ -4069,6 +4095,9 @@ def fetch_injuries_all() -> dict:
     for key, path in ESPN_LEAGUE_PATHS.items():
         if key == "f1":
             continue
+        if key in RETIRED_ESPN_KEYS:
+            result[key] = []
+            continue
         result[key] = fetch_espn_injuries(path, key)
     return result
 
@@ -4083,6 +4112,9 @@ def fetch_transactions_all() -> dict:
     result: dict = {}
     for key, path in ESPN_LEAGUE_PATHS.items():
         if key == "f1":
+            continue
+        if key in RETIRED_ESPN_KEYS:
+            result[key] = []
             continue
         result[key] = fetch_espn_transactions(path, key)
     return result
@@ -5352,7 +5384,8 @@ def main() -> None:
     # products (see auto_lock_settle.py's PRODUCT_SPORTS comment).
     ncaa_baseball: dict = {}
     wnba: dict          = {}
-    pwhl          = fetch_pwhl()          if S in ("nhl","all") else {}
+    # PWHL: no reader anywhere (docs/app.html, scripts/, workflows) -- the scoreboard/standings calls only produced 400/500 WARNs. Bundle key kept (empty); fetch_pwhl() stays defined.
+    pwhl: dict          = {}
 
     # Soccer — Champions League / Premier League / La Liga / Bundesliga / MLS
     # / Serie A. Written to its own file (docs/soccer_fbref.json) rather than
