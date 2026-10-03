@@ -22111,7 +22111,7 @@ async function refreshFreshness(){
     const worst=a=>a.slice().sort((x,y)=>y.age/y.bad-x.age/x.bad).slice(0,3).map(x=>x.l+' '+_fmtAge(x.age)).join(' · ');
     if(bad.length){el.className='fresh bad';el.textContent='⚠ STALE DATA · '+worst(bad)+' · TAP TO UPDATE';}
     else if(warn.length){el.className='fresh warn';el.textContent='⚠ DATA AGING · '+worst(warn)+' · TAP TO UPDATE';}
-    else{el.className='fresh ok';el.textContent='DATA FRESH'+(stats?' · STATS '+_fmtAge(stats.age)+' AGO':'');}
+    else{el.className='fresh ok';el.textContent='DATA FRESH'+(stats?' · STATS '+_fmtAge(stats.age)+' AGO':'')+' · TAP FOR DETAILS';}
     el.title=ok.map(x=>x.l+': '+_fmtAge(x.age)+' old (warn '+x.warn+'h / stale '+x.bad+'h)').join('\n')+(errs.length?'\nunreadable: '+errs.map(x=>x.l).join(', '):'');
   }catch(e){}
 }
@@ -22425,16 +22425,22 @@ async function dispatchWorkflow(file){
   }
 }
 function openFreshPanel(){
-  const st=window._freshState||[];const rows=st.filter(x=>!x.err&&x.age>=x.warn);
-  let el=document.getElementById('fresh-panel');if(el)el.remove();
+  const st=(window._freshState||[]).slice();
+  const ok=st.filter(x=>!x.err).sort((x,y)=>(y.age/y.bad)-(x.age/x.bad));      // worst first
+  const errs=st.filter(x=>x.err);
+  const level=x=>x.age>=x.bad?'bad':x.age>=x.warn?'warn':'ok';
+  const col={bad:'#ff3b6b',warn:'#ffb020',ok:'#00e644'};
+  let el=document.getElementById('fresh-panel');if(el){el.remove();return;}      // tapping the line again closes it
   el=document.createElement('div');el.id='fresh-panel';
-  el.style.cssText='position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9999;width:min(520px,94vw);background:rgba(10,0,24,.97);border:1px solid var(--pc);border-radius:4px;padding:12px;font-family:var(--mono);box-shadow:0 0 30px rgba(240,0,255,.35)';
-  const wfs=[...new Set(rows.map(x=>_FRESH_WF[x.f]).filter(Boolean))];
-  el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="color:var(--pc);letter-spacing:2px;font-size:14px">// STALE DATA</span><button class="btn btn-o btn-sm" onclick="document.getElementById('fresh-panel').remove()">CLOSE</button></div>`
-    +(rows.length?rows.map(x=>{const wf=_FRESH_WF[x.f];return`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px"><span style="color:${x.age>=x.bad?'#ff3b6b':'#ffb020'}">${_escHtml(x.l)} · ${_fmtAge(x.age)} old</span>${wf?`<button class="btn btn-p btn-sm" onclick="_freshUpdate('${wf}',this)">UPDATE NOW</button>`:'<span style="color:var(--t3)">no manual refresh</span>'}</div>`;}).join('')
-      :'<div style="color:var(--t3);font-size:13px">Everything is within its normal refresh window.</div>')
+  el.style.cssText='position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9999;width:min(540px,94vw);max-height:80vh;overflow-y:auto;background:rgba(10,0,24,.97);border:1px solid var(--pc);border-radius:4px;padding:12px;font-family:var(--mono);box-shadow:0 0 30px rgba(240,0,255,.35)';
+  const stale=ok.filter(x=>level(x)!=='ok');
+  const wfs=[...new Set(stale.map(x=>_FRESH_WF[x.f]).filter(Boolean))];
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="color:var(--pc);letter-spacing:2px;font-size:14px">// DATA STATUS</span><button class="btn btn-o btn-sm" onclick="document.getElementById('fresh-panel').remove()">CLOSE</button></div>`
+    +ok.map(x=>{const lv=level(x),wf=_FRESH_WF[x.f];
+      return`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px"><span style="color:${col[lv]}">${lv==='ok'?'●':'⚠'} ${_escHtml(x.l)} · ${_fmtAge(x.age)} old <span style="color:var(--t3);font-size:11px">(aging ${x.warn}h · stale ${x.bad}h)</span></span>${wf?`<button class="btn ${lv==='ok'?'btn-o':'btn-p'} btn-sm" onclick="_freshUpdate('${wf}',this)">${lv==='ok'?'REFRESH':'UPDATE NOW'}</button>`:'<span style="color:var(--t3);font-size:11px">no manual refresh</span>'}</div>`;}).join('')
+    +(errs.length?`<div style="padding:6px 0;font-size:12px;color:var(--t3)">Could not read: ${errs.map(x=>_escHtml(x.l)).join(', ')}</div>`:'')
     +(wfs.length>1?`<div style="margin-top:10px"><button class="btn btn-n btn-sm" onclick="_freshUpdateAll(${JSON.stringify(wfs).replace(/"/g,'&quot;')},this)">UPDATE ALL STALE (${wfs.length} workflows)</button></div>`:'')
-    +`<div id="fresh-msg" style="margin-top:8px;font-size:12px;color:var(--t2);min-height:14px"></div><div style="margin-top:6px;font-size:11px;color:var(--t3)">Uses your GitHub token (Overall → SYNC). It needs <b>Actions: Read and write</b> on the repo for one-tap dispatch; without it the workflow page opens instead.</div>`;
+    +`<div id="fresh-msg" style="margin-top:8px;font-size:12px;color:var(--t2);min-height:14px"></div><div style="margin-top:6px;font-size:11px;color:var(--t3)">REFRESH / UPDATE NOW starts that data workflow on GitHub (about 2-6 min) using your token (Overall → Sync → SYNC KEY): needs <b>Actions: Read and write</b>; without it the workflow page opens instead. Nothing runs automatically.</div>`;
   document.body.appendChild(el);
 }
 async function _freshUpdate(file,btn){
@@ -22450,7 +22456,7 @@ async function _freshUpdateAll(files,btn){
   if(okN)setTimeout(refreshFreshness,180000);
   if(btn){btn.disabled=false;}
 }
-(function(){const el=document.getElementById('hdr-fresh');if(el){el.style.cursor='pointer';el.addEventListener('click',()=>{if(/warn|bad/.test(el.className))openFreshPanel();});}})();
+(function(){const el=document.getElementById('hdr-fresh');if(el){el.style.cursor='pointer';el.addEventListener('click',()=>openFreshPanel());}})();
 
 
 // ═══ LIVE DATA BOOTSTRAP (live_data.json — written by live_tracker.py every 45s) ═══
