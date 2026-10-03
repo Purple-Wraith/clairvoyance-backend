@@ -533,11 +533,11 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .gc:active{background:rgba(20,0,46,.8)}.gch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
 .gtm{font-family:var(--orb);font-size:26px;font-weight:700;letter-spacing:2px;color:var(--t)}.gsp{font-family:var(--mono);font-size:18px;color:var(--t2);margin-top:3px;line-height:1.5}.brow{display:flex;gap:4px}
 .nhlgk{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:0;padding:6px 10px;font-family:var(--mono);font-size:13px;color:var(--t2);border-bottom:1px solid rgba(255,255,255,.06)}.nhlgk.in{padding:0;margin-top:4px;border:0}.nhlgk-l{font-size:11px;letter-spacing:.14em;color:var(--t3)}.nhlgk-i small{color:var(--t3);font-size:11px}.nhlgk-t{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid rgba(255,255,255,.2);border-radius:2px;font-size:10px;letter-spacing:.1em;color:var(--t3)}.nhlgk-t.c{border-color:#00f0ff;color:#00f0ff}.nhlgk-n{flex-basis:100%;font-size:11px;color:var(--t3)}
-/* TEAM LOGO (see _teamLogoHTML): dark disc + thin ring, cyan = away / magenta + faint glow = home; badge text shows until the image loads (or forever on failure) */
-.tlg{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;box-sizing:border-box;border-radius:50%;border:1.5px solid;background:rgba(0,0,0,.5);overflow:hidden;vertical-align:middle;font-family:var(--orb);font-weight:700;letter-spacing:0;line-height:1;white-space:nowrap}
-.tlg.a{border-color:var(--nc);color:var(--nc)}.tlg.h{border-color:var(--pc);color:var(--pc);box-shadow:0 0 8px rgba(240,0,255,.3)}
-.tlg.s44{width:44px;height:44px;font-size:12px}.tlg.s28{width:28px;height:28px;font-size:9px}.tlg.s22{width:22px;height:22px;font-size:7px;border-width:1px;margin-right:4px}
-.tlg img{position:absolute;inset:0;width:100%;height:100%;padding:13%;box-sizing:border-box;object-fit:contain;opacity:0}
+/* TEAM LOGO (see _teamLogoHTML): just the image, no ring or disc; badge text shows until the image loads (or forever on failure) */
+.tlg{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;box-sizing:border-box;border:0;background:transparent;overflow:hidden;vertical-align:middle;font-family:var(--orb);font-weight:700;letter-spacing:0;line-height:1;white-space:nowrap;color:var(--t2)}
+/* no ring, no disc: just the logo (the badge text only shows while the image loads or when a team has no logo) */
+.tlg.s44{width:44px;height:44px;font-size:12px}.tlg.s28{width:28px;height:28px;font-size:9px}.tlg.s22{width:22px;height:22px;font-size:7px;margin-right:4px}
+.tlg img{position:absolute;inset:0;width:100%;height:100%;padding:0;box-sizing:border-box;object-fit:contain;opacity:0}
 .tlg.ok img{opacity:1}.tlg.ok .tlt{visibility:hidden}
 @media(max-width:480px){.tlg.s44{width:30px;height:30px;font-size:9px}}
 /* PICK CARD */
@@ -3739,9 +3739,12 @@ function _gradeLabel(p){
   return['SKIP','LEAN','OPTIMAL','PREMIUM'][t]||null;
 }
 function _gradeChipHtml(p){
+  // Same tag as the game cards (chipC/_hkChipFor): the shared .pill + pg/pp/pn classes and the same label text, so a locked pick's grade on
+  // the pending / settled rows can never drift from the card it came from. SKIP is not shown on a pick row (nothing was locked on a SKIP).
   const g=_gradeLabel(p);if(!g||g==='SKIP')return'';
-  const col=(g==='PREMIUM'||g===HOCKEY_LANE_LABEL)?'var(--gc)':g==='OPTIMAL'?'var(--pc)':'var(--nc)';
-  return`<span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${col}66;color:${col};border-radius:2px;letter-spacing:1px">${g}</span>`;
+  const cls=g==='PREMIUM'?'pg':g==='OPTIMAL'?'pp':'pn';
+  const lbl=g==='PREMIUM'?'PREMIUM':'// '+g;
+  return`<span class="pill ${cls}">${lbl}</span>`;
 }
 // Universal league-label + sport-sub-label pair for every pick, across
 // every sport — not just soccer. Label = the specific league (MLB, NFL,
@@ -3926,9 +3929,9 @@ function _tlErr(img){
 }
 // sport: 'nhl'|'nba'|'nfl'|'cfb'|'soccer' (ESPN, via team_logos.json or opts.url) or 'liiga'|'shl'|'nla'|'extraliga' (opts.url from
 // the schedule JSON's teams[id].logo).  key: the card's own team id (abbreviation / Flashscore id / name).  side: 'a'|'h'.
-// size: 44 (card header) | 28 (reserved) | 22 (legend/compact rows).  opts: {url, name, abbr, ring:'cyan'|'magenta'}.  `ring` overrides
-// the side colour -- the COMPARE legend uses it so each ring matches the radar series colour it labels (the radar draws the home
-// team cyan and the away team magenta).  Returns '' in automation.
+// size: 44 (card header) | 28 (reserved) | 22 (legend/compact rows).  opts: {url, name, abbr}.  `ring` is accepted
+// but no longer draws anything: logos have no ring or disc (just the image). Away vs home is told by the team-name colour in the
+// header and by the coloured swatch in the COMPARE legend (away cyan / home magenta, same as the radar series).  Returns '' in automation.
 function _teamLogoHTML(sport,key,side,size,opts){
   try{
     if(_tlOff())return'';
@@ -3980,7 +3983,7 @@ function _catmullRomPath(pts){
   return d+'Z';
 }
 function _matchupRadarSVG(labels,seriesA,seriesB,uid){
-  const colA='#00f0ff',colB='#f000ff';
+  const colA='#f000ff',colB='#00f0ff'; // colA = home (magenta), colB = away (cyan): same as the card header rings
   const ax=labels.length,CX=140,CY=140,R=96;
   const pts=r=>Array.from({length:ax},(_,i)=>{const a=-Math.PI/2+(i/ax)*2*Math.PI;return[CX+r*Math.cos(a),CY+r*Math.sin(a)];});
   const polyStr=ps=>ps.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
@@ -8154,7 +8157,7 @@ function _cfbGameCard(g){
     </div>
     <div id="radar_cfb_${gidSafe}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,110,20,.1)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
-        <span style="color:#00f0ff">${_teamLogoHTML('cfb',g.home,'h',22,{ring:'cyan',name:g.homeName})}■ ${g.home}</span><span style="color:#f000ff">${_teamLogoHTML('cfb',g.away,'a',22,{ring:'magenta',name:g.awayName})}■ ${g.away}</span>
+        <span style="color:#00f0ff">${_teamLogoHTML('cfb',g.away,'a',22,{ring:'cyan',name:g.awayName})}■ ${g.away}</span><span style="color:#f000ff">${_teamLogoHTML('cfb',g.home,'h',22,{ring:'magenta',name:g.homeName})}■ ${g.home}</span>
       </div>
       ${_radarTabPanelHTML('cfb_'+gidSafe,[
         {label:'MATCHUP',svg:_cfbMatchupRadarSVG(g,facts)},
@@ -9059,7 +9062,7 @@ function _nflGameCard2(g){
     </div>
     <div id="radar_nfl2_${gidSafe}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(0,120,255,.1)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
-        <span style="color:#00f0ff">${_teamLogoHTML('nfl',g.home,'h',22,{ring:'cyan',name:g.homeName})}■ ${g.home}</span><span style="color:#f000ff">${_teamLogoHTML('nfl',g.away,'a',22,{ring:'magenta',name:g.awayName})}■ ${g.away}</span>
+        <span style="color:#00f0ff">${_teamLogoHTML('nfl',g.away,'a',22,{ring:'cyan',name:g.awayName})}■ ${g.away}</span><span style="color:#f000ff">${_teamLogoHTML('nfl',g.home,'h',22,{ring:'magenta',name:g.homeName})}■ ${g.home}</span>
       </div>
       ${(()=>{try{
         return _radarTabPanelHTML('nfl2_'+gidSafe,[
@@ -9621,7 +9624,7 @@ function _nhlGameCard(espnEv){
   ${_nhlGoalieRowHTML(hn,an,espnEv.date,espnEv)}
   <div id="radar_nhl_${hn}_${an}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
     <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
-      <span style="color:#00f0ff">${_teamLogoHTML('nhl',hn,'h',22,{ring:'cyan',url:hE?.team?.logo,name:hE?.team?.displayName})}■ ${hn}</span><span style="color:#f000ff">${_teamLogoHTML('nhl',an,'a',22,{ring:'magenta',url:aE?.team?.logo,name:aE?.team?.displayName})}■ ${an}</span>
+      <span style="color:#00f0ff">${_teamLogoHTML('nhl',an,'a',22,{ring:'cyan',url:aE?.team?.logo,name:aE?.team?.displayName})}■ ${an}</span><span style="color:#f000ff">${_teamLogoHTML('nhl',hn,'h',22,{ring:'magenta',url:hE?.team?.logo,name:hE?.team?.displayName})}■ ${hn}</span>
     </div>
     ${(()=>{try{
       return _radarTabPanelHTML('nhl_'+hn+'_'+an,[
@@ -9965,7 +9968,7 @@ function _nhlUpcomingCard(g,dayIdx){
     ${_nhlGoalieRowHTML(g.home,g.away,g.date)}
     <div id="radar_nhlu_${uid}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
-        <span style="color:#00f0ff">${_teamLogoHTML('nhl',g.home,'h',22,{ring:'cyan',name:g.homeName})}■ ${g.home}</span><span style="color:#f000ff">${_teamLogoHTML('nhl',g.away,'a',22,{ring:'magenta',name:g.awayName})}■ ${g.away}</span>
+        <span style="color:#00f0ff">${_teamLogoHTML('nhl',g.away,'a',22,{ring:'cyan',name:g.awayName})}■ ${g.away}</span><span style="color:#f000ff">${_teamLogoHTML('nhl',g.home,'h',22,{ring:'magenta',name:g.homeName})}■ ${g.home}</span>
       </div>
       ${(()=>{try{
         return _radarTabPanelHTML('nhlu_'+uid,[
@@ -11403,7 +11406,7 @@ function _liigaMatchCard(g){
     </div>
     <div id="radar_liiga_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
-        <span style="color:#00f0ff">${_teamLogoHTML('liiga',g.home,'h',22,{ring:'cyan',url:h.logo,name:g.homeName})}■ ${g.homeName}</span><span style="color:#f000ff">${_teamLogoHTML('liiga',g.away,'a',22,{ring:'magenta',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span>
+        <span style="color:#00f0ff">${_teamLogoHTML('liiga',g.away,'a',22,{ring:'cyan',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span><span style="color:#f000ff">${_teamLogoHTML('liiga',g.home,'h',22,{ring:'magenta',url:h.logo,name:g.homeName})}■ ${g.homeName}</span>
       </div>
       ${(()=>{try{
         return _hkCompareRadarHTML('liiga_'+g.id,g.homeName,g.awayName,'LIIGA',h,aw,hR,aR);
@@ -11546,7 +11549,7 @@ function _nlaMatchCard(g){
     </div>
     <div id="radar_nla_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
-        <span style="color:#00f0ff">${_teamLogoHTML('nla',g.home,'h',22,{ring:'cyan',url:h.logo,name:g.homeName})}■ ${g.homeName}</span><span style="color:#f000ff">${_teamLogoHTML('nla',g.away,'a',22,{ring:'magenta',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span>
+        <span style="color:#00f0ff">${_teamLogoHTML('nla',g.away,'a',22,{ring:'cyan',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span><span style="color:#f000ff">${_teamLogoHTML('nla',g.home,'h',22,{ring:'magenta',url:h.logo,name:g.homeName})}■ ${g.homeName}</span>
       </div>
       ${(()=>{try{
         return _hkCompareRadarHTML('nla_'+g.id,g.homeName,g.awayName,'NLA',h,aw,hR,aR);
@@ -11685,7 +11688,7 @@ function _extraligaMatchCard(g){
     </div>
     <div id="radar_extraliga_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
-        <span style="color:#00f0ff">${_teamLogoHTML('extraliga',g.home,'h',22,{ring:'cyan',url:h.logo,name:g.homeName})}■ ${g.homeName}</span><span style="color:#f000ff">${_teamLogoHTML('extraliga',g.away,'a',22,{ring:'magenta',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span>
+        <span style="color:#00f0ff">${_teamLogoHTML('extraliga',g.away,'a',22,{ring:'cyan',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span><span style="color:#f000ff">${_teamLogoHTML('extraliga',g.home,'h',22,{ring:'magenta',url:h.logo,name:g.homeName})}■ ${g.homeName}</span>
       </div>
       ${(()=>{try{
         return _hkCompareRadarHTML('extraliga_'+g.id,g.homeName,g.awayName,'EXTRALIGA',h,aw,hR,aR);
@@ -12005,7 +12008,7 @@ function _shlMatchCard(g){
     </div>
     <div id="radar_shl_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
-        <span style="color:#00f0ff">${_teamLogoHTML('shl',g.home,'h',22,{ring:'cyan',url:h.logo,name:g.homeName})}■ ${g.homeName}</span><span style="color:#f000ff">${_teamLogoHTML('shl',g.away,'a',22,{ring:'magenta',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span>
+        <span style="color:#00f0ff">${_teamLogoHTML('shl',g.away,'a',22,{ring:'cyan',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span><span style="color:#f000ff">${_teamLogoHTML('shl',g.home,'h',22,{ring:'magenta',url:h.logo,name:g.homeName})}■ ${g.homeName}</span>
       </div>
       ${(()=>{try{
         return _hkCompareRadarHTML('shl_'+g.id,g.homeName,g.awayName,'SHL',h,aw,hR,aR);
@@ -13169,7 +13172,7 @@ function _nbaGameCard(espnEv){
   </div>
   <div id="radar_nba_${_nbaGidSafe}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(240,0,255,.1)">
     <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
-      <span style="color:#00f0ff">${_teamLogoHTML('nba',hn,'h',22,{ring:'cyan',url:h?.team?.logo,name:hFull})}■ ${hn}</span><span style="color:#f000ff">${_teamLogoHTML('nba',an,'a',22,{ring:'magenta',url:a?.team?.logo,name:aFull})}■ ${an}</span>
+      <span style="color:#00f0ff">${_teamLogoHTML('nba',an,'a',22,{ring:'cyan',url:a?.team?.logo,name:aFull})}■ ${an}</span><span style="color:#f000ff">${_teamLogoHTML('nba',hn,'h',22,{ring:'magenta',url:h?.team?.logo,name:hFull})}■ ${hn}</span>
     </div>
     ${(()=>{try{
       return _radarTabPanelHTML('nba_'+_nbaGidSafe,[
@@ -26318,7 +26321,7 @@ function _renderSocMatchCard(g,leagueKey){
     +'</div>'
     +'<div id="radar_soc_'+leagueKey+'_'+(g.hAbbr||g.home)+'_'+(g.aAbbr||g.away)+'" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">'
     +'<div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">'
-    +'<span style="color:#00f0ff">'+_teamLogoHTML('soccer',g.home,'h',22,{ring:'cyan',url:g.hLogo,name:g.home,abbr:g.hAbbr})+'■ '+g.home+'</span><span style="color:#f000ff">'+_teamLogoHTML('soccer',g.away,'a',22,{ring:'magenta',url:g.aLogo,name:g.away,abbr:g.aAbbr})+'■ '+g.away+'</span></div>'
+    +'<span style="color:#00f0ff">'+_teamLogoHTML('soccer',g.away,'a',22,{ring:'cyan',url:g.aLogo,name:g.away,abbr:g.aAbbr})+'■ '+g.away+'</span><span style="color:#f000ff">'+_teamLogoHTML('soccer',g.home,'h',22,{ring:'magenta',url:g.hLogo,name:g.home,abbr:g.hAbbr})+'■ '+g.home+'</span></div>'
     +(function(){try{
       var socUid='soc_'+leagueKey+'_'+(g.hAbbr||g.home)+'_'+(g.aAbbr||g.away);
       var socClamp=function(v,lo,hi){return v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));};
