@@ -734,7 +734,8 @@ def run(out_dir: Path, force: set[str] | None = None, json_only: bool = False) -
         context = browser.new_context(viewport={"width": 1400, "height": 1000}, accept_downloads=True)
         page = context.new_page()
         log(f"Loading {APP_URL} …")
-        page.goto(APP_URL, wait_until="load", timeout=60000)
+        # ?nologo=1: the in-app team-logo feature (docs/app.html _teamLogoHTML) must never reach an exported/public graphic.
+        page.goto(APP_URL + ("&" if "?" in APP_URL else "?") + "nologo=1", wait_until="load", timeout=60000)
         page.wait_for_timeout(3000)
 
         bet_count = page.evaluate(

@@ -41,7 +41,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from auto_lock_settle import (  # noqa: E402
-    APP_URL, load_bet_ledger, gather_legs, build_qualifying,
+    APP_URL, load_bet_ledger, gather_legs, build_qualifying, with_nologo,
     SPORT_DISPLAY_NAME, TIER_LABEL, _prop_matchup_key, log,
     OTHER_ALLOWED_SPORTS,
 )
@@ -321,7 +321,7 @@ def main() -> None:
         context = browser.new_context(viewport={"width": 1400, "height": 1000})
         page = context.new_page()
         log(f"Loading {args.app_url} …")
-        page.goto(args.app_url, wait_until="load", timeout=60000)
+        page.goto(with_nologo(args.app_url), wait_until="load", timeout=60000)  # ?nologo=1 -- exported graphics are logo-free
         page.wait_for_timeout(3000)
 
         bet_count = load_bet_ledger(page)

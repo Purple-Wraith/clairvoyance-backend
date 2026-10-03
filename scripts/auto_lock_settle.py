@@ -90,6 +90,14 @@ import lock_timing  # noqa: E402  -- shared known-late classifier (public figure
 
 ROOT = Path(__file__).resolve().parent.parent
 APP_URL = "https://purple-wraith.github.io/clairvoyance-backend/app.html"
+# Every headless page this pipeline (and the social-card generators) opens carries ?nologo=1: docs/app.html's _teamLogoHTML() then
+# renders NO team-logo markup and never fetches docs/team_logos.json, so the card HTML is byte-identical to the pre-logo app and
+# the passes add zero image requests (logos are an interactive-UI feature only; navigator.webdriver is a second, independent guard).
+NOLOGO_QS = "nologo=1"
+
+
+def with_nologo(url: str) -> str:
+    return url if NOLOGO_QS in url else url + ("&" if "?" in url else "?") + NOLOGO_QS
 # Separate from SOCIAL_CARD_EMAIL_TO on purpose -- this is a personal daily
 # betting reference, not public social content, so it can (and probably
 # should) go to a different inbox. Falls back to the social recipient only
@@ -3501,7 +3509,7 @@ def main() -> None:
         # interval variables one at a time.
         page.add_init_script("window.setInterval = () => 0;")
         log(f"Loading {args.app_url} …")
-        page.goto(args.app_url, wait_until="load", timeout=60000)
+        page.goto(with_nologo(args.app_url), wait_until="load", timeout=60000)
         page.wait_for_timeout(3000)
 
         bet_count = load_bet_ledger(page)

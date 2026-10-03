@@ -141,7 +141,7 @@ class SettlePassSim(unittest.TestCase):
         page.route("**/*", gate)
         page.clock.set_fixed_time(datetime.fromisoformat(now_iso.replace("Z", "+00:00")))
         page.add_init_script("window.setInterval = () => 0;")  # same as the headless pass
-        page.goto(url, wait_until="load", timeout=60000)
+        page.goto(A.with_nologo(url), wait_until="load", timeout=60000)
         page.wait_for_timeout(2500)
         ledger = copy.deepcopy(picks if picks is not None else self.ledger)
         page.evaluate("(l) => saveP(l)", ledger)
@@ -256,7 +256,7 @@ class SettlePassSim(unittest.TestCase):
         page.route("**/*", lambda r: r.continue_() if r.request.url.startswith("http://127.0.0.1") else r.abort())
         page.clock.set_fixed_time(datetime(2026, 10, 2, 22, 20, tzinfo=timezone.utc))
         page.add_init_script("window.setInterval = () => 0;")
-        page.goto(url, wait_until="load", timeout=60000)
+        page.goto(A.with_nologo(url), wait_until="load", timeout=60000)
         page.wait_for_timeout(2500)
         page.evaluate("(l) => saveP(l)", copy.deepcopy(self.ledger))
         fp0 = A.ledger_fingerprint(page)
