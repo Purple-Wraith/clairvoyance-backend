@@ -36,6 +36,8 @@ APP = (DOCS / "app.html").read_text()
 ALLOWED_CALLERS = {
     "renderNHLTonight", "renderNHLGamesOffline", "_nhlGameCard", "_nhlUpcomingCard", "_nbaGameCard", "_cfbGameCard", "_nflGameCard2",
     "_renderSocMatchCard", "_liigaMatchCard", "_shlMatchCard", "_nlaMatchCard", "_extraligaMatchCard",
+    # the same card renderers under the wrapper that closes the lock row for live/final games (see _closeLocksHTML in docs/app.html)
+    "_nhlUpcomingCardRaw", "_renderSocMatchCardRaw", "_liigaMatchCardRaw", "_shlMatchCardRaw", "_nlaMatchCardRaw", "_extraligaMatchCardRaw",
     "_pickLogo",  # in-app locked-pick rows (pending/settled lists) -- in-app only, never an export or email
 }
 LOGO_HOSTS = ("a.espncdn.com", "static.flashscore.com")

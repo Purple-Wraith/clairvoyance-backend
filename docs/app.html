@@ -8466,6 +8466,25 @@ function _footballLocksDisabledHTML(liveStatus){
     +(liveStatus.isLive?'● GAME IN PROGRESS — LOCKS CLOSED (INFO ONLY)':'FINAL — LOCKS CLOSED (INFO ONLY)')
     +`</div>`;
 }
+// All other sports (2026-10-03): a live or finished game keeps its lock row and ADJ. LINE row on screen -- info only: dimmed, inert, under the same LOCKS CLOSED line the football
+// cards use. 'live' = a feed says in progress, or the scheduled start has passed without a final; 'final' = state post.
+function _gameLocksOff(g){
+  try{
+    if(!g)return null;
+    const st=g.state||g.status;
+    if(st==='post'||st==='final')return'final';
+    if(st==='in'||st==='live')return'live';
+    const t=_startMsOf(g.date||g.startMs||g.start);
+    return(t!=null&&t<=Date.now())?'live':null;
+  }catch(e){return null;}
+}
+function _closeLocksHTML(html,off){
+  if(!off||!html)return html;
+  const banner=_footballLocksDisabledHTML({isLive:off==='live'});
+  let first=true;
+  return html.replace(/<div class="brow">/g,()=>{const r=(first?banner:'')+'<div class="brow lockoff" inert aria-disabled="true">';first=false;return r;})
+    .replace(/<div class="altrow">/g,'<div class="altrow lockoff" inert aria-disabled="true">');
+}
 // Explicit request, 2026-09-10: only feed the automated locking pipeline
 // games where BOTH teams are in one of these 9 conferences -- after a
 // real Saturday (Sep 5) locked 127 CFB picks across ~65 games (nearly
@@ -10092,12 +10111,12 @@ function _nhlGameCard(espnEv){
     }catch(e){return'';}})()}
     <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real input this app already has for this team (GF/60, PP%/PK%, Corsi, high-danger chances, save%, GSAx, Edge speed/zone) normalized 0-100. Missing data defaults to the 50 midpoint.</div>
   </div>
-  ${pre?`<div class="brow">
+  ${pre?'':_footballLocksDisabledHTML({isLive:live})}${`<div class="brow${pre?'':' lockoff'}"${pre?'':' inert aria-disabled="true"'}>
     <div class="${hCS.c} chip" style="flex:1" onclick="lockH('${hn}','${an}','ML','${hn}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},${_hkExtraMeta(_px.ml.home,_gcML)})"><div class="cht">ML ${hn}</div><div class="cho">${_mlFmt(hML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px.ml.home)}</div>${_hkBlendTag(_gcML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${hCS.pl}">${hCS.lb}</span></div></div>
     <div class="${aCS.c} chip" style="flex:1" onclick="lockH('${hn}','${an}','ML','${an}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},${_hkExtraMeta(_px.ml.away,_hkBlComp(_gcML))})"><div class="cht">ML ${an}</div><div class="cho">${_mlFmt(aML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px.ml.away)}</div>${_hkBlendTag(_hkBlComp(_gcML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${aCS.pl}">${aCS.lb}</span></div></div>
     <div class="gbox" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nhl3_${hn}_${an}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="-1.5" id="sprd_nhl3_${hn}_${an}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id);_hkPxRefresh(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nhl3_${hn}_${an}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?hn:an}','${hP>=.5?an:hn}','${hn}','${an}',null,${plP.toFixed(3)},'-1.5','sprd_nhl3_${hn}_${an}','FAV','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?hn:an}</div><div id="fav_sprd_nhl3_${hn}_${an}" style="font-size:11px;opacity:.85">-1.5</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?hn:an}','${hP>=.5?an:hn}','${hn}','${an}',null,${plP.toFixed(3)},'-1.5','sprd_nhl3_${hn}_${an}','DOG','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?an:hn}</div><div id="dog_sprd_nhl3_${hn}_${an}" style="font-size:11px;opacity:.85">+1.5</div></button></div>${_hkPxLabelHTML('sprd_nhl3_'+hn+'_'+an,{kind:'pl',g:_pg,favIsHome:hP>=aP,nhl:true})}${_hkBlendLabelHTML('sprd_nhl3_'+hn+'_'+an,_bPL3,-1.5)}${typeof _nm3!=='undefined'?_boxGradeHTML(_nm3,['plFav','sprdFav','ahFav'],['plDog','sprdDog','ahDog']):''}</div>
     <div class="${ouCS.c} chip" style="flex:1" onclick="lockH('${hn}','${an}','OU','${ouP>=.5?'OVER':'UNDER'} ${nhlOuL}',${(ouP>=.5?ouP:1-ouP).toFixed(3)},'${(ouP>=.5?_px.ou.over:_px.ou.under).ml}',${(ouP>=.5?_px.ou.over:_px.ou.under).dec.toFixed(3)},${_hkExtraMeta(ouP>=.5?_px.ou.over:_px.ou.under,ouP>=.5?_gcOU:_hkBlComp(_gcOU))})"><div class="cht">${ouP>=.5?'OVER':'UNDER'} ${nhlOuL}</div><div class="cho">${_mlFmt((ouP>=.5?_px.ou.over:_px.ou.under).ml)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(ouP>=.5?_px.ou.over:_px.ou.under)}</div><div class="chp">${((ouP>=.5?ouP:1-ouP)*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${ouCS.pl}">${ouCS.lb}</span></div></div>
-  </div>`:''}
+  </div>`}
   <div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
       <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
@@ -10112,7 +10131,7 @@ function _nhlGameCard(espnEv){
         mktOU:_liveNHL?.ou!=null?parseFloat(_liveNHL.ou).toFixed(1):(_espnOdds?.overUnder!=null?parseFloat(_espnOdds.overUnder).toFixed(1):null),
       });
     }catch(e){return'';}})()}
-    ${_bestMarketBoxHTML(_nm3.tierN,_nm3.col,_nm3.lbl,_nm3.best.label,_nm3.best.prob,_nm3.best.evVal)}${_mvmBarHTML(_nm3.best)}${_altRowFor('NHL',hn,an,espnEv.date,_nm3)}
+    ${_bestMarketBoxHTML(_nm3.tierN,_nm3.col,_nm3.lbl,_nm3.best.label,_nm3.best.prob,_nm3.best.evVal)}${_mvmBarHTML(_nm3.best)}${_altRowFor('NHL',hn,an,espnEv.date,_nm3,!pre)}
     <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
     <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm3.mkts.map(_hkScanTxt).join(' · ')}</div>
   </div>
@@ -10334,7 +10353,8 @@ function loadNHLScheduleData(){
 // game's puck-line/O-U input element ids unique across the 3-day list
 // (the same two teams could in principle appear on more than one of the
 // 3 days shown, e.g. a back-to-back).
-function _nhlUpcomingCard(g,dayIdx){
+function _nhlUpcomingCard(g,dayIdx){return _closeLocksHTML(_nhlUpcomingCardRaw(g,dayIdx),_gameLocksOff(g));}
+function _nhlUpcomingCardRaw(g,dayIdx){
   const h=NHL[g.home],aw=NHL[g.away];
   if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${g.away} @ ${g.home}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
   const ens=nhlEns(g.home,g.away,_nhlOuLineFor(g),_nhlMktFromSched(g)),mc=ens.mcD;
@@ -11754,7 +11774,8 @@ function _hkBasicRadarValues(team,rates){
     clamp(rates.gm,4.5,7.0),
   ];
 }
-function _liigaMatchCard(g){
+function _liigaMatchCard(g){return _closeLocksHTML(_liigaMatchCardRaw(g),_gameLocksOff(g));}
+function _liigaMatchCardRaw(g){
   const D=_LIIGA_DATA;
   const h=D.teams[g.home],aw=D.teams[g.away];
   if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${_teamLogoHTML('liiga',g.away,'a',22,{url:(aw||{}).logo,name:g.awayName})}${g.awayName} @ ${_teamLogoHTML('liiga',g.home,'h',22,{url:(h||{}).logo,name:g.homeName})}${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
@@ -11922,7 +11943,8 @@ async function renderLiigaMatches(){
   html+=dayGames.length?dayGames.map(g=>_liigaMatchCard(g)).join(''):'<div class="empty" style="padding:14px">NO GAMES SCHEDULED</div>';
   el.innerHTML=html;
 }
-function _nlaMatchCard(g){
+function _nlaMatchCard(g){return _closeLocksHTML(_nlaMatchCardRaw(g),_gameLocksOff(g));}
+function _nlaMatchCardRaw(g){
   const D=_NLA_DATA;
   const h=D.teams[g.home],aw=D.teams[g.away];
   if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${_teamLogoHTML('nla',g.away,'a',22,{url:(aw||{}).logo,name:g.awayName})}${g.awayName} @ ${_teamLogoHTML('nla',g.home,'h',22,{url:(h||{}).logo,name:g.homeName})}${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
@@ -12060,7 +12082,8 @@ async function renderNlaMatches(){
   html+=dayGames.length?dayGames.map(g=>_nlaMatchCard(g)).join(''):'<div class="empty" style="padding:14px">NO GAMES SCHEDULED</div>';
   el.innerHTML=html;
 }
-function _extraligaMatchCard(g){
+function _extraligaMatchCard(g){return _closeLocksHTML(_extraligaMatchCardRaw(g),_gameLocksOff(g));}
+function _extraligaMatchCardRaw(g){
   const D=_EXTRALIGA_DATA;
   const h=D.teams[g.home],aw=D.teams[g.away];
   if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${_teamLogoHTML('extraliga',g.away,'a',22,{url:(aw||{}).logo,name:g.awayName})}${g.awayName} @ ${_teamLogoHTML('extraliga',g.home,'h',22,{url:(h||{}).logo,name:g.homeName})}${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
@@ -12372,7 +12395,8 @@ function _shlPopulateDayFilter(games){
   const target=cur&&dates.includes(cur)?cur:(dates.includes(todayIso)?todayIso:dates[0]);
   if(target)sel.value=target;
 }
-function _shlMatchCard(g){
+function _shlMatchCard(g){return _closeLocksHTML(_shlMatchCardRaw(g),_gameLocksOff(g));}
+function _shlMatchCardRaw(g){
   const D=_SHL_DATA;
   const h=D.teams[g.home],aw=D.teams[g.away];
   if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${_teamLogoHTML('shl',g.away,'a',22,{url:(aw||{}).logo,name:g.awayName})}${g.awayName} @ ${_teamLogoHTML('shl',g.home,'h',22,{url:(h||{}).logo,name:g.homeName})}${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
@@ -13608,12 +13632,12 @@ function _nbaGameCard(espnEv){
     }catch(e){return'';}})()}
     <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real stat normalized 0-100 (missing data defaults to the 50 midpoint, not guessed). Built from NBA_BBREF, currently populated for the active playoff/Finals teams -- other teams read as neutral until the regular-season dataset is rebuilt.</div>
   </div>
-  ${pre?`<div class="brow">
+  ${pre?'':_footballLocksDisabledHTML({isLive:live})}${`<div class="brow${pre?'':' lockoff'}"${pre?'':' inert aria-disabled="true"'}>
     <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${hn}','${an}','NBA','${hn}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${today()}')"><div class="cht">ML ${hn}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
     <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${hn}','${an}','NBA','${an}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},'${today()}')"><div class="cht">ML ${an}</div><div class="cho">${_mlFmt(aML)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
     <div class="gbox" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">SPREAD</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nba_${hn}_${an}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${espnSprdNum}" id="sprd_nba_${hn}_${an}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nba_${hn}_${an}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=aP?hn:an}','${hP>=aP?an:hn}','${hn}','${an}','${today()}',${sprdP.toFixed(3)},'${espnSprdNum}','sprd_nba_${hn}_${an}','FAV','NBA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=aP?hn:an}</div><div id="fav_sprd_nba_${hn}_${an}" style="font-size:11px;opacity:.85">-1.5</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=aP?hn:an}','${hP>=aP?an:hn}','${hn}','${an}','${today()}',${sprdP.toFixed(3)},'${espnSprdNum}','sprd_nba_${hn}_${an}','DOG','NBA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=aP?an:hn}</div><div id="dog_sprd_nba_${hn}_${an}" style="font-size:11px;opacity:.85">+1.5</div></button></div>${typeof _nmNBA!=='undefined'?_boxGradeHTML(_nmNBA,['plFav','sprdFav','ahFav'],['plDog','sprdDog','ahDog']):''}</div>
     ${ouL?`<div class="gbox gbox2" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nba_${hn}_${an}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${ouL}" id="ouinp_nba_${hn}_${an}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nba_${hn}_${an}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_ouLockDir('${hn}','${an}','${today()}',${ouP.toFixed(3)},'${ouL}','ouinp_nba_${hn}_${an}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_ouLockDir('${hn}','${an}','${today()}',${ouP.toFixed(3)},'${ouL}','ouinp_nba_${hn}_${an}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▼ UNDER</button></div>${typeof _nmNBA!=='undefined'?_boxGradeHTML(_nmNBA,['over'],['under']):''}</div>`:''}
-  </div>`:''}
+  </div>`}
   <div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
       <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
@@ -13625,7 +13649,7 @@ function _nbaGameCard(espnEv){
       mktSpreadFav:espnSprdNum!=null?(espnSprdNum<0?hn:an):null,mktSpreadNum:espnSprdNum!=null?Math.abs(espnSprdNum).toFixed(1):null,
       mktOU:ouL!=null?parseFloat(ouL).toFixed(1):null,
     }):''}
-    ${pre?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,_bmNBA.label,_bmNBA.prob,_bmNBA.evVal):''}${pre?_altRowFor('NBA',hn,an,espnEv.date,_nmNBA):''}
+    ${pre?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,_bmNBA.label,_bmNBA.prob,_bmNBA.evVal):''}${_altRowFor('NBA',hn,an,espnEv.date,_nmNBA,!pre)}
     <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
     <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nmNBA.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
   </div>
@@ -26540,7 +26564,8 @@ function loadSoccerScheduleSnapshot(){
 
 
 function _socGC(p){var e=ev(p,1.909);var t=tier(p,e);if(t===3)return{c:'chip-g',pl:'pg',lb:'PREMIUM'};if(t===2)return{c:'chip-p',pl:'pp',lb:'OPTIMAL'};if(t===1)return{c:'chip-n',pl:'pn',lb:'LEAN'};return{c:'chip-h',pl:'ph',lb:'SKIP'};}
-function _renderSocMatchCard(g,leagueKey){
+function _renderSocMatchCard(g,leagueKey){return _closeLocksHTML(_renderSocMatchCardRaw(g,leagueKey),_gameLocksOff(g));}
+function _renderSocMatchCardRaw(g,leagueKey){
   // Same "gc" card system MLB (mlbCard) and World Cup (_renderWCMatchCard)
   // use — 3-way ML chip row, adjustable O/U line, O/U analysis grid, tiered
   // engine-reasoning footer, +PAR button — powered by the xG-based
