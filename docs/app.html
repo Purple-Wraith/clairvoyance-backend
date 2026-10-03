@@ -14338,6 +14338,23 @@ async function _fetchBundledPlayerStats(sport){
   }
   return _CV_BUNDLED_PLAYER_STATS[sport]||null;
 }
+// Server-side ESPN player feed (clairvoyance_update.py -> data.json nba.playerProps, 2026-10-03): top-150 players by minutes with season per-game averages (last season's until the median
+// team has 5 games, so it is NOT empty in the preseason like the browser's season-current leaderboard fetch), last-5 form, per-stat standard deviations from the game logs, and status
+// (Out / Day-To-Day). Browser-fetched rows keep their own averages; this fills missing players and adds form / stdev / status. ESPN publishes no player prop lines, so the engine's
+// lines remain model-generated from these averages.
+function _mergeNBAPlayerProps(byName){
+  try{
+    var pp=window.__CV_DATA&&window.__CV_DATA.nba&&window.__CV_DATA.nba.playerProps;
+    if(!pp||!pp.players||!pp.players.length)return byName;
+    pp.players.forEach(function(p){
+      if(!p||!p.name)return;
+      var e=byName[p.name];
+      if(!e){e=byName[p.name]={name:p.name,team:p.team,gp:p.gp,ppg:p.ppg,rpg:p.rpg,apg:p.apg,tpg:p.tpm,mpg:p.mpg};}
+      e.pos=e.pos||p.pos;e.last5=p.last5||null;e.stdev=p.stdev||null;e.status=p.status||'';e.espnId=p.id;
+    });
+  }catch(x){}
+  return byName;
+}
 async function _fetchNBAPlayerStats(){
   var td=today();
   if(_nbaStatsCacheDate===td&&_nbaStatsCache)return _nbaStatsCache;
@@ -14346,12 +14363,15 @@ async function _fetchNBAPlayerStats(){
     var r=await fetch('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/statistics?limit=300',{signal:ctrl.signal});
     var d=await r.json();
     var byName=_basketballStatsFromLeaders(d);
+    byName=_mergeNBAPlayerProps(byName);
     if(!Object.keys(byName).length){var bundled=await _fetchBundledPlayerStats('nba');if(bundled)byName=bundled;}
     _nbaStatsCache=byName;_nbaStatsCacheDate=td;
     console.log('[CV] NBA stats loaded: '+Object.keys(byName).length+' players');
     return byName;
   }catch(e){
     console.warn('[CV] NBA stats fetch err:',e);
+    var viaServer=_mergeNBAPlayerProps({});
+    if(Object.keys(viaServer).length){_nbaStatsCache=viaServer;_nbaStatsCacheDate=td;return viaServer;}
     var bundled=await _fetchBundledPlayerStats('nba');
     if(bundled){_nbaStatsCache=bundled;_nbaStatsCacheDate=td;return bundled;}
     return null;
@@ -14465,6 +14485,7 @@ function _generateNBAProps(games,statsData){
   (games||[]).forEach(function(g){
     var hn=g.h||g.hA||g.home,an=g.a||g.awA||g.away;if(!hn||!an)return;
     var gamePlayers=players.filter(function(p){
+      if(p.status&&/^out/i.test(p.status))return false;   // ESPN injury status from nba.playerProps: an Out player gets no prop
       return(p.team===hn||p.team===an)&&p.gp>=10;
     }).sort(function(a,b){return b.ppg-a.ppg;}).slice(0,6);
     var seen=new Set();
@@ -14480,8 +14501,13 @@ function _generateNBAProps(games,statsData){
         seen.add(pKey);
         var baseN=base;
         var line=parseFloat(_forceHalfLine(baseN));
-        var adjMu=Math.max(0.1,baseN*(1+factor));
-        var sigma=Math.max(minAvg*0.3,baseN*cv);
+        // recent form (last 5 games, ESPN game logs) moves the PROJECTION by 25% of the gap; the LINE stays the season average, as a book would post it
+        var formV=pl.last5&&({ppg:pl.last5.ppg,rpg:pl.last5.rpg,apg:pl.last5.apg})[statKey];
+        var muBase=(formV!=null&&pl.last5.n>=3)?baseN*0.75+formV*0.25:baseN;
+        var adjMu=Math.max(0.1,muBase*(1+factor));
+        // the player's own game-to-game standard deviation (game logs) replaces the generic coefficient-of-variation guess when we have it
+        var sdV=pl.stdev&&({ppg:pl.stdev.pts,rpg:pl.stdev.reb,apg:pl.stdev.ast})[statKey];
+        var sigma=Math.max(minAvg*0.3,(sdV!=null&&sdV>0)?sdV:baseN*cv);
         var mc=propMC(adjMu,sigma,line,5000);
         var pick=adjMu>=line?'OVER':'UNDER';
         var conf=pick==='OVER'?mc.overP*100:(1-mc.overP)*100;
