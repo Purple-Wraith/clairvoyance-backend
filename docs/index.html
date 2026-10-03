@@ -2044,6 +2044,12 @@ body{line-height:1.5}
       <button class="btn btn-o" style="padding:9px 14px" onclick="clearTokenFromModal()">CLEAR</button>
       <button class="btn btn-o" style="padding:9px 14px" onclick="closeTokenModal()">CLOSE</button>
     </div>
+    <div style="margin-bottom:10px"><button class="btn btn-n" style="width:100%;padding:9px;letter-spacing:1px" onclick="testSavedTokenFromModal()">TEST SAVED TOKEN (UPDATE + RELAY PERMISSIONS)</button></div>
+    <div style="border-top:1px solid rgba(240,0,255,.2);padding-top:10px;margin-bottom:10px">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--t3);margin-bottom:6px">LIVE RELAY URL — EUROPEAN HOCKEY LIVE SCORES (Cloudflare worker, see relay/README.md)</div>
+      <div style="display:flex;gap:6px"><input id="relay-url-input-m" class="fi" placeholder="https://clairvoyance-live-relay.<you>.workers.dev" style="flex:1;font-size:13px"><button class="btn btn-p" style="padding:6px 14px" onclick="saveRelayUrl('relay-url-input-m','relay-url-status-m')">SAVE</button></div>
+      <div id="relay-url-status-m" style="font-family:'Share Tech Mono',monospace;font-size:13px;min-height:14px;margin-top:6px;color:var(--t3)"></div>
+    </div>
     <div style="border-top:1px solid rgba(240,0,255,.2);padding-top:12px">
       <button class="btn btn-n" style="width:100%;padding:11px;font-size:17px;letter-spacing:2px" id="modal-rebuild-btn" onclick="triggerFullRebuild(true)">↻ TRIGGER FULL REBUILD NOW</button>
       <div id="modal-rebuild-status" style="font-family:'Share Tech Mono',monospace;font-size:13px;min-height:14px;margin-top:8px;color:var(--t3);text-align:center"></div>
@@ -22150,12 +22156,14 @@ function _lvNext(games,now){
 // ── European hockey relay (relay/worker.js on Cloudflare; URL stored per device, set in Overall -> SYNC) ──
 const LIVE_RELAY_URL='';   // bake in the deployed worker URL here to make it the default on every device
 function _lvRelayUrl(){try{return (localStorage.getItem('cv_relay_url')||LIVE_RELAY_URL||'').replace(/\/+$/,'');}catch(e){return LIVE_RELAY_URL;}}
-function saveRelayUrl(){
-  const inp=document.getElementById('relay-url-input');const v=(inp&&inp.value||'').trim();
+function saveRelayUrl(inId,stId){
+  inId=inId||'relay-url-input';stId=stId||'relay-url-status';
+  const inp=document.getElementById(inId);const v=(inp&&inp.value||'').trim();
+  const say=msg=>{const el=document.getElementById(stId);if(el)el.textContent=msg;};
   try{if(v)localStorage.setItem('cv_relay_url',v.replace(/\/+$/,''));else localStorage.removeItem('cv_relay_url');}catch(e){}
-  _lvRelayStatus(v?'SAVED — CHECKING…':'CLEARED');
+  say(v?'SAVED — CHECKING…':'CLEARED');
   _LV.relay={ts:0,games:[],ok:false};
-  if(v)refreshRelay(true).then(ok=>_lvRelayStatus(ok?'✓ RELAY OK — EUROPEAN HOCKEY LIVE SCORES ON':'✗ COULD NOT READ THE RELAY (check the URL / that it is deployed)'));
+  if(v)refreshRelay(true).then(ok=>say(ok?'✓ RELAY OK — EUROPEAN HOCKEY LIVE SCORES ON':'✗ COULD NOT READ THE RELAY (check the URL / that it is deployed)'));
 }
 function _lvRelayStatus(msg){const el=document.getElementById('relay-url-status');if(el)el.textContent=msg;}
 function _lvRelayPeriodNote(g){
@@ -25686,6 +25694,7 @@ function initGHTokenUI(){
 function openTokenModal(){
   const m=document.getElementById('token-modal');if(!m)return;
   m.style.display='flex';
+  try{const ri=document.getElementById('relay-url-input-m');if(ri&&!ri.value)ri.value=_lvRelayUrl();}catch(e){}
   const st=document.getElementById('gh-token-modal-status');
   if(st)st.innerHTML=getGHToken()
     ?'<span style="color:var(--nc)">✓ TOKEN SET — PICKS AUTO-SAVE TO GITHUB PERMANENTLY</span>'
@@ -25709,6 +25718,13 @@ function saveTokenFromModal(){
     toast(res.ok?'// GITHUB TOKEN SAVED — MANUAL-LOCK RELAY READY':'// TOKEN SAVED BUT RELAY CHECK FAILED');
     if(res.ok){try{_relayLastHash='';relayManualLocks();}catch(e){}setTimeout(closeTokenModal,ac.ok?2500:9000);}
   });
+}
+async function testSavedTokenFromModal(){
+  const st=document.getElementById('gh-token-modal-status');
+  if(!getGHToken()){if(st)st.innerHTML='<span style="color:var(--hc)">NO TOKEN SAVED YET — paste it above and press SAVE TOKEN</span>';return;}
+  if(st)st.innerHTML='<span style="color:var(--t3)">TESTING…</span>';
+  const rc=await relayCheck(),ac=await actionsCheck();
+  if(st)st.innerHTML=(rc.ok?'<span style="color:var(--nc)">✓ '+rc.msg+'</span>':'<span style="color:var(--hc)">✗ '+rc.msg+'</span>')+'<br>'+(ac.ok?'<span style="color:var(--nc)">'+ac.msg+'</span>':'<span style="color:var(--gc)">'+ac.msg+'</span>');
 }
 function clearTokenFromModal(){
   localStorage.removeItem('cv_gh_token');
