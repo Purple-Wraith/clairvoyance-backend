@@ -66,39 +66,71 @@ jobs:
           git config user.email "bot@clairvoyance"
 
       - name: Refresh player stats (was player-stats-daily.yml)
+        id: player_stats
         continue-on-error: true
         env:
           TZ: America/Denver
         run: python3 scripts/scrape_player_stats.py --push
 
       - name: Refresh Opta soccer stats (was opta-soccer-stats-daily.yml's 16:00 UTC run)
+        id: opta
         continue-on-error: true
         env:
           TZ: America/Denver
         run: python3 scripts/scrape_opta_stats.py --push
 
       - name: Refresh NBA props (was nba-props-daily.yml)
+        id: nba_props
         continue-on-error: true
         env:
           TZ: America/Denver
         run: python3 scripts/clairvoyance_update.py --mode props --sport nba --push
 
       - name: Refresh NHL props (was nhl-props-daily.yml)
+        id: nhl_props
         continue-on-error: true
         env:
           TZ: America/Denver
         run: python3 scripts/clairvoyance_update.py --mode props --sport nhl --push
 
       - name: Refresh NFL props (was nfl-props-daily.yml)
+        id: nfl_props
         continue-on-error: true
         env:
           TZ: America/Denver
         run: python3 scripts/clairvoyance_update.py --mode props --sport nfl --push
 
       - name: Refresh NFL injuries + transactions (was nfl-injuries-daily.yml)
+        id: nfl_inj
         continue-on-error: true
         env:
           TZ: America/Denver
         run: |
           python3 scripts/fetch_nfl.py --mode injuries --push
           python3 scripts/fetch_nfl.py --mode transactions --push
+
+      # 2026-10-03: every step above is continue-on-error so one failing scraper cannot stop the ones after it -- but that also made the
+      # RUN always green, so a scraper that had been failing for days was invisible (daily_health_check.py only sees run conclusions).
+      # Steps stay tolerant; THIS step runs last (always), lists every step whose outcome was `failure`, writes it to the job summary
+      # and fails the job so the run shows red and daily_health_check.py's "last run failed" alert fires.
+      - name: Fail loudly if any step failed
+        if: always()
+        env:
+          RESULTS: |
+            player_stats=${{ steps.player_stats.outcome }}
+            opta=${{ steps.opta.outcome }}
+            nba_props=${{ steps.nba_props.outcome }}
+            nhl_props=${{ steps.nhl_props.outcome }}
+            nfl_props=${{ steps.nfl_props.outcome }}
+            nfl_inj=${{ steps.nfl_inj.outcome }}
+        run: |
+          failed=$(printf '%s\n' "$RESULTS" | grep -E '=(failure|cancelled)$' | cut -d= -f1 | tr '\n' ' ' || true)
+          {
+            echo "### Daily player & prop stats refresh"
+            printf '%s\n' "$RESULTS" | sed 's/^/- /'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$failed" ]; then
+            echo "::error::Refresh step(s) failed: $failed(see each step's log above; the other steps still ran)"
+            exit 1
+          fi
+          echo "All refresh steps succeeded."

@@ -312,12 +312,13 @@ jobs:
       - name: Install dependencies
         if: ${{ steps.flags.outputs.should_run != '0' }}
         run: |
-          pip install -q playwright requests
+          pip install -q playwright requests beautifulsoup4 lxml
           for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
       - name: Pre-lock odds refresh (fail-open)
         # Lock slots only (any step_flags containing --lock): re-scrape NHL (Flashscore real prices, 18h age cap) and NFL lines right
         # now, so the pass reads what it just refreshed instead of whatever the separate refresh workflow (delayed 5-12h) last
         # committed + deployed. Best effort; pushes only when live. See scripts/lock_prep.py.
+        # data-nhl: also refreshes the fast NHL parts of docs/data.json (standings/edge/MoneyPuck/skaterValue/injuries; ~5-15 s) -- the 3x/day full refresh lands 3-6h late.
         if: ${{ steps.flags.outputs.should_run != '0' && contains(steps.flags.outputs.step_flags, '--lock') }}
         continue-on-error: true
         timeout-minutes: 12
@@ -326,7 +327,7 @@ jobs:
         run: |
           PUSH_FLAG=""
           if [ "${{ steps.flags.outputs.live_flag }}" != "--live" ]; then PUSH_FLAG="--no-push"; fi
-          python3 scripts/lock_prep.py --jobs nhl,nfl $PUSH_FLAG
+          python3 scripts/lock_prep.py --jobs nhl,nfl,data-nhl $PUSH_FLAG
 
       - name: Pre-settle results refresh + settle gate (fail-open)
         # Every settle-capable slot (gated, 22:44Z, 05:27Z, 18:21Z digest, manual settle/catch-up): re-scrape the four European

@@ -71,6 +71,13 @@ MONITORED = [
     ("social-cards-daily.yml", "Social Cards Daily"),
     ("pick-of-day-social-daily.yml", "Pick-of-Day Social"),
 ]
+# The data REFRESH workflows (added 2026-10-03: they were unmonitored). Same list the daily check watches, so the weekly success rate
+# shows a refresh job that "mostly" works but keeps dropping runs.
+try:
+    from daily_health_check import REFRESH_MONITORED as _REFRESH_MONITORED  # noqa: E402
+    MONITORED += [(f, l) for f, l, *_rest in _REFRESH_MONITORED]
+except Exception:  # fail-open: the digest still goes out with the original list
+    pass
 
 # Same scope renderOverall()'s _broadSportOf() enforces client-side --
 # retired/personal-only sports (MLB, WNBA, tennis, World Cup, CBB)

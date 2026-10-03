@@ -45,6 +45,7 @@ from playwright.sync_api import sync_playwright
 from _flashscore_logos import attach_logos, carry_over_logos
 from _flashscore_odds import carry_over_odds, fetch_match_odds
 from _schedule_carry import carry_over_missing, load_previous
+from _scraper_health import commit_and_push as commit_and_push_health
 from _scraper_health import log_scrape
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -457,3 +458,9 @@ if __name__ == "__main__":
 
     if args.push:
         git_push(["docs/extraliga_schedule.json"], "chore: refresh Extraliga schedule/standings")
+        # docs/scraper_health.json is written by log_scrape() above but was never committed (git_push only adds the schedule file).
+        # Separate best-effort commit -- the four leagues share that file, so a push race must never fail the schedule push itself.
+        try:
+            commit_and_push_health("chore: scraper health log (Extraliga)")
+        except Exception:
+            pass

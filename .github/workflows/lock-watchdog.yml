@@ -73,7 +73,7 @@ jobs:
       - name: Install dependencies
         if: ${{ steps.gate.outputs.near == '1' }}
         run: |
-          pip install -q playwright requests
+          pip install -q playwright requests beautifulsoup4 lxml
           for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed -- retrying in 20s..."; sleep 20; done
 
       - name: Refresh hockey + NHL odds (fail-open, local only)
@@ -83,7 +83,7 @@ jobs:
         timeout-minutes: 8
         env:
           TZ: America/Denver
-        run: python3 scripts/lock_prep.py --jobs hockey,nhl --no-push --per-job-timeout 240 --total-timeout 300
+        run: python3 scripts/lock_prep.py --jobs hockey,nhl,data-nhl --no-push --per-job-timeout 240 --total-timeout 300
 
       - name: Run watchdog (read-only; owner-only email)
         if: ${{ steps.gate.outputs.near == '1' }}

@@ -19,7 +19,7 @@ docs/ verbatim -- pages-deploy.yml uploads `path: docs` -- so the local copy is 
 FAIL-OPEN BY DESIGN: every step is best effort and the script always exits 0. A scraper that times out or errors leaves the previous
 file in place (the lock then behaves exactly as it did before this script existed); the freshness report says so in the job log.
 
-    python3 scripts/lock_prep.py --jobs hockey,nhl            # which scrapers (see JOBS / GROUPS below)
+    python3 scripts/lock_prep.py --jobs hockey,nhl,data-nhl   # which scrapers (see JOBS / GROUPS below)
     python3 scripts/lock_prep.py --jobs hockey --dry-run      # print what would run, touch nothing
 """
 from __future__ import annotations
@@ -54,6 +54,11 @@ JOBS: dict[str, tuple[list[str], list[str]]] = {
     "soccer-tomorrow": (["scripts/scrape_soccer_schedule.py", "--tomorrow"], ["docs/soccer_schedule_tomorrow.json"]),
     "cfb": (["scripts/fetch_cfb.py", "--mode", "schedule"], ["docs/cfb_schedule.json"]),
     "nfl": (["scripts/fetch_nfl.py", "--mode", "schedule"], ["docs/nfl_schedule.json"]),
+    # The FAST NHL pieces of docs/data.json (standings, edge, MoneyPuck, skaterValue, NHL injuries), merged into the committed file
+    # (read-modify-write, every other key untouched, atomic, fail-open) -- scheduled-refresh.yml lands 3x/day and 3-6h late, so without
+    # this a lock pass inherits standings that can miss a quarter of the finished games. ~5-15 s, no browser. Writes data.json only
+    # (never version.json / app.html), and stamps top-level `nhlCoreAt`; the full refresh's `generated` is left alone.
+    "data-nhl": (["scripts/clairvoyance_update.py", "--only-nhl-core"], ["docs/data.json"]),
 }
 # Earliest-kickoff league first: if the total budget runs out, the leagues that matter soonest were refreshed.
 GROUPS: dict[str, list[str]] = {
@@ -139,7 +144,7 @@ def commit_and_push(jobs: list[str]) -> None:
     files = sorted({f for j in jobs for f in JOBS[j][1]})
     subprocess.run(GIT + ["add", *files], capture_output=True)
     if subprocess.run(GIT + ["diff", "--cached", "--quiet"]).returncode == 0:
-        log("no schedule/odds change to commit")
+        log("no schedule/odds/data change to commit")
         return
     kind = "pre-settle results refresh" if jobs == ["hockey-results"] else "pre-lock odds refresh"
     msg = f"chore: {kind} ({', '.join(jobs)}) {datetime.now(timezone.utc).strftime('%H:%MZ')}"
@@ -162,6 +167,14 @@ def commit_and_push(jobs: list[str]) -> None:
 def freshness_report(jobs: list[str]) -> None:
     """What the lock is about to see: per league, upcoming games, how many have a real price, newest scrape age."""
     now = datetime.now(timezone.utc)
+    if "data-nhl" in jobs:
+        try:
+            d = json.loads((ROOT / "docs" / "data.json").read_text())
+            at = datetime.fromisoformat(str(d.get("nhlCoreAt") or d.get("generated")).replace("Z", "+00:00"))
+            log(f"freshness data.json NHL core: stamped {(now - at).total_seconds() / 60:.0f} min ago "
+                f"({'nhlCoreAt' if d.get('nhlCoreAt') else 'generated -- core refresh did not land'})")
+        except Exception as exc:
+            log(f"freshness data.json NHL core: unreadable ({exc})")
     for j in jobs:
         path = ODDS_FILES.get(j)
         if not path:

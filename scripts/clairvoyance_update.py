@@ -115,7 +115,7 @@ ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports"
 NHL_API   = "https://api-web.nhle.com/v1"
 NHL_STATS = "https://api.nhle.com/stats/rest/en"
 MP_BASE = "https://moneypuck.com/moneypuck/playerData/seasonSummary"
-YEAR      = 2026
+YEAR      = 2026  # legacy/unused -- the WNBA fns derive their own from NOW_MT.year
 
 # Explicit request, 2026-09-03: WNBA's real regular season has ended
 # (confirmed live: zero real games 2026-09-01 through 09-05 on ESPN's
@@ -1292,114 +1292,21 @@ _TEAM_NAME_TO_ABBR: dict[str, str] = {
     "Tennessee Titans":"TEN","Washington Commanders":"WSH",
 }
 
-def _name_to_abbr(name: str) -> str:
-    """Convert Odds API team name → ESPN abbreviation. Falls back to first 3 chars."""
-    return _TEAM_NAME_TO_ABBR.get(name, name[:3].upper())
-
 def fetch_best_odds(sport: str, game_list: list, name_resolver=None) -> dict:
     """
-    Fetch best available moneyline + O/U odds from The Odds API (free tier).
-    Falls back to ESPN odds already in game_list if no API key.
-    Returns dict keyed by 'home_key:away_key' → {homeML, awayML, ou, book}.
+    Per-game odds map keyed 'home_key:away_key' -> {homeML, awayML, ou, book} built from the ESPN odds already attached to
+    game_list (the NBA/NHL scoreboard objects).
 
-    name_resolver: full team/country name -> the key this sport actually
-    identifies teams by elsewhere in the engine. Defaults to _name_to_abbr
-    (ESPN 3-letter abbreviations, used by mlb/nba/nhl/wnba/nfl/cfb). Soccer
-    callers pass _wc_name_to_abbr (World Cup 3-letter country codes) or
-    _soccer_club_key (club leagues, which key by normalized full name, not
-    an abbreviation — see _soccer_club_key's docstring for why).
+    The Odds API path was REMOVED 2026-10-03: the key returned 401 (free tier = 500 credits/month, ~20 credits/run x 3 runs/day),
+    the workflows no longer pass ODDS_API_KEY, and every consumer is covered by ESPN / Flashscore prices.  Nothing in this
+    pipeline makes a the-odds-api.com request any more.  `sport` / `name_resolver` are kept only so the call sites and the
+    data.json bestOdds/bestOddsExt shape stay unchanged; sports whose game_list is empty simply yield {}.
     """
-    resolver = name_resolver or _name_to_abbr
-    api_key = os.environ.get("ODDS_API_KEY", "")
     best: dict = {}
-    if not api_key:
-        for g in game_list:
-            key = f"{g.get('home','')}:{g.get('away','')}"
-            best[key] = {"homeML": g.get("homeML"), "awayML": g.get("awayML"),
-                         "ou": g.get("ou"), "book": "ESPN"}
-        return best
-
-    sport_key = {"mlb": "baseball_mlb", "nba": "basketball_nba",
-                 "nhl": "icehockey_nhl", "wnba": "basketball_wnba",
-                 "nfl": "americanfootball_nfl", "cfb": "americanfootball_ncaaf",
-                 "pl": "soccer_epl", "liga": "soccer_spain_la_liga",
-                 "bl": "soccer_germany_bundesliga", "mls": "soccer_usa_mls",
-                 "wc": "soccer_fifa_world_cup_2026"}.get(sport, "")
-    if not sport_key:
-        return best
-
-    try:
-        url  = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/"
-        params = {
-            "apiKey": api_key, "regions": "us",
-            "markets": "h2h,totals",       # moneyline + over/under
-            "oddsFormat": "american", "dateFormat": "iso",
-        }
-        # Soccer markets settle draws too — h2h alone still returns 3-way
-        # (home/draw/away) prices from The Odds API for these sport keys,
-        # no separate market needed.
-        data = fetch_json(url, params=params) or []
-
-        remaining = None
-        log(f"Odds API {sport}: {len(data)} events")
-
-        for event in data:
-            home_name = event.get("home_team", "")
-            away_name = event.get("away_team", "")
-            home_abbr = resolver(home_name)
-            away_abbr = resolver(away_name)
-            key = f"{home_abbr}:{away_abbr}"
-
-            best_home_ml: int | None = None
-            best_away_ml: int | None = None
-            best_draw_ml: int | None = None
-            best_home_book = ""
-            best_away_book = ""
-            best_ou: float | None  = None
-
-            for bk in (event.get("bookmakers") or []):
-                bk_title = bk.get("title", "")
-                for market in (bk.get("markets") or []):
-                    mkey = market.get("key", "")
-                    for outcome in (market.get("outcomes") or []):
-                        p   = outcome.get("price")
-                        nm  = outcome.get("name", "")
-                        pt  = outcome.get("point")          # for totals
-                        if p is None: continue
-
-                        if mkey == "h2h":
-                            if nm == home_name:
-                                if best_home_ml is None or int(p) > best_home_ml:
-                                    best_home_ml   = int(p)
-                                    best_home_book = bk_title
-                            elif nm == away_name:
-                                if best_away_ml is None or int(p) > best_away_ml:
-                                    best_away_ml   = int(p)
-                                    best_away_book = bk_title
-                            elif nm == "Draw":
-                                if best_draw_ml is None or int(p) > best_draw_ml:
-                                    best_draw_ml = int(p)
-                        elif mkey == "totals" and nm == "Over" and pt is not None:
-                            # Take the highest (most favorable) total line
-                            if best_ou is None or float(pt) > best_ou:
-                                best_ou = float(pt)
-
-            if best_home_ml or best_away_ml:
-                book_str = best_home_book or best_away_book or "Odds API"
-                best[key] = {
-                    "homeML":   best_home_ml,
-                    "awayML":   best_away_ml,
-                    "drawML":   best_draw_ml,
-                    "ou":       best_ou,
-                    "book":     book_str,
-                    "homeBook": best_home_book,
-                    "awayBook": best_away_book,
-                }
-                vlog(f"  {key}: home {best_home_ml} ({best_home_book}) / "
-                     f"away {best_away_ml} ({best_away_book}) draw {best_draw_ml} O/U {best_ou}")
-
-    except Exception as exc:
-        log(f"Odds API fetch ({sport}): {exc}", "WARN")
+    for g in game_list:
+        key = f"{g.get('home','')}:{g.get('away','')}"
+        best[key] = {"homeML": g.get("homeML"), "awayML": g.get("awayML"),
+                     "ou": g.get("ou"), "book": "ESPN"}
     return best
 
 
@@ -1754,12 +1661,62 @@ def fetch_nhl_standings() -> dict:
     vlog(f"  NHL standings: {len(out)} teams")
     return out
 
-def fetch_nhl_playoff_bracket() -> dict:
-    """Fetch NHL playoff bracket from ESPN."""
-    log("NHL playoff bracket…")
-    data = fetch_json(f"{ESPN_BASE}/hockey/nhl/playoffs?season=2026")
-    if not data: return {}
-    return {"raw": data, "fetchedAt": TODAY_ISO}
+def nhl_season_end_year(today=None, override=None) -> int:
+    """
+    The NHL season's ending calendar year (2026-27 -> 2027), same style as nba_season_end_year(): a season Y-1..Y starts in
+    Oct, so month >= 9 -> year+1 else year (Jul-Aug still name the season that just ended).  Override with env NHL_SEASON_END_YEAR.
+    """
+    ov = override if override is not None else os.environ.get("NHL_SEASON_END_YEAR")
+    if ov not in (None, ""):
+        try:
+            y = int(str(ov).strip())
+            if 2000 <= y <= 2100:
+                return y
+        except ValueError:
+            pass
+        log(f"NHL_SEASON_END_YEAR={ov!r} is not a valid 4-digit year -- ignoring override", "WARN")
+    d = today if today is not None else NOW_MT
+    if isinstance(d, datetime):
+        d = d.date()
+    return d.year + 1 if d.month >= 9 else d.year
+
+
+def nhl_in_playoff_window(today=None) -> bool:
+    """True April-June (NHL postseason runs ~mid-April to mid-June).  NHL_PLAYOFFS_FORCE=1 forces a fetch attempt."""
+    if os.environ.get("NHL_PLAYOFFS_FORCE") == "1":
+        return True
+    d = today if today is not None else NOW_MT
+    if isinstance(d, datetime):
+        d = d.date()
+    return 4 <= d.month <= 6
+
+
+def fetch_nhl_playoff_bracket(today=None) -> dict:
+    """
+    NHL playoff bracket from ESPN for the CURRENT season (was hardcoded season=2026, which 404s and logged a FAILED-WARN storm
+    all year).  Only fetched inside the playoff window (April-June); otherwise one INFO line and the present-but-empty {} the bundle
+    key (nhl.bracket) has always carried.  A single non-retrying request: a 404 (no bracket published yet) is a quiet INFO, not a WARN.
+    Display-only data: nothing in docs/app.html reads nhl.bracket (renderBracket() is a static placeholder) and no simulation uses it.
+    """
+    if not nhl_in_playoff_window(today):
+        log("NHL playoff bracket: skipped (outside the April-June playoff window)", "INFO")
+        return {}
+    yr = nhl_season_end_year(today)
+    url = f"{ESPN_BASE}/hockey/nhl/playoffs?season={yr}"
+    log(f"NHL playoff bracket (ESPN season={yr})…")
+    try:
+        r = _session.get(url, timeout=15)
+        if r.status_code == 404:
+            log(f"NHL playoff bracket: ESPN has no bracket for season={yr} yet (404) -- leaving it empty", "INFO")
+            return {}
+        r.raise_for_status()
+        data = r.json()
+    except Exception as exc:
+        log(f"NHL playoff bracket season={yr}: {exc} -- leaving it empty", "INFO")
+        return {}
+    if not data:
+        return {}
+    return {"raw": data, "fetchedAt": TODAY_ISO, "season": yr}
 
 
 def _nhl_api_stats(endpoint: str, cayenne: str, limit: int = 50) -> list[dict]:
@@ -1793,6 +1750,9 @@ def _nhl_current_season_id() -> str:
     "20252026"). New season year-cycle begins ~August (draft/preseason
     ramp-up), matching the same boundary docs/app.html's own
     _nhlCurrentSeasonId() uses."""
+    ov = os.environ.get("NHL_SEASON_START_YEAR", "").strip()
+    if ov.isdigit() and 2000 <= int(ov) <= 2100:
+        return f"{int(ov)}{int(ov) + 1}"
     now = datetime.now(timezone.utc)
     start_year = now.year if now.month >= 8 else now.year - 1
     return f"{start_year}{start_year + 1}"
@@ -2182,53 +2142,10 @@ def fetch_nhl_skater_value() -> dict:
 
 def fetch_futures_odds() -> dict:
     """
-    Fetch championship futures odds from The Odds API.
-    Covers: MLB WS, NBA Title, NHL Cup, golf majors.
-    Returns {mlb, nba, nhl, golf} — each a list of {team/player, ml, book}.
+    RETIRED 2026-10-03 (The Odds API removed: 401 / free-tier quota; the futures panel is unused).  Makes NO network request.
+    Returns the present-but-empty shape docs/app.html's renderFuturesOdds() reads defensively (source "none").
     """
-    api_key = os.environ.get("ODDS_API_KEY", "")
-    result: dict = {"mlb": [], "nba": [], "nhl": [], "golf": [], "source": "none"}
-    if not api_key:
-        return result
-    markets = [
-        ("baseball_mlb_world_series_winner", "mlb", "World Series"),
-        ("basketball_nba_championship_winner", "nba", "NBA Championship"),
-        ("icehockey_nhl_championship_winner", "nhl", "Stanley Cup"),
-        ("golf_us_open_winner", "golf", "US Open"),
-    ]
-    any_found = False
-    for sport_key, sport_cat, label in markets:
-        try:
-            resp = fetch_json(
-                f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/",
-                params={"apiKey": api_key, "regions": "us", "markets": "outrights",
-                        "oddsFormat": "american", "dateFormat": "iso"},
-            )
-            if not isinstance(resp, list) or not resp:
-                continue
-            # Take first event (the futures market)
-            ev = resp[0]
-            picks: dict[str, dict] = {}  # name → {ml, book}
-            for bk in (ev.get("bookmakers") or []):
-                for mkt in (bk.get("markets") or []):
-                    if mkt.get("key") != "outrights": continue
-                    for o in (mkt.get("outcomes") or []):
-                        nm, p = o.get("name",""), o.get("price")
-                        if not nm or p is None: continue
-                        ml = int(p)
-                        if nm not in picks or ml > picks[nm]["ml"]:
-                            picks[nm] = {"ml": ml, "book": bk.get("title",""), "label": label}
-            # Sort by best odds (ascending ml = biggest favorite first)
-            sorted_picks = sorted(picks.items(), key=lambda x: x[1]["ml"])
-            result[sport_cat] = [{"name": k, **v} for k, v in sorted_picks[:20]]
-            log(f"Futures {label}: {len(sorted_picks)} picks")
-            any_found = True
-        except Exception as exc:
-            log(f"Futures odds {sport_key}: {exc}", "WARN")
-    if any_found:
-        result["source"] = "The Odds API"
-    return result
-
+    return {"mlb": [], "nba": [], "nhl": [], "golf": [], "source": "none"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -3399,7 +3316,7 @@ def fetch_wnba_player_stats() -> list:
     """
     if WNBA_OFFSEASON:
         return []
-    YEAR = 2026
+    YEAR = NOW_MT.year  # WNBA season year (retired via WNBA_OFFSEASON; derived so reactivating needs no edit)
     players: dict[str, dict] = {}
 
     def _parse_wnba_table(soup, tbl_id: str) -> list[dict]:
@@ -3521,7 +3438,7 @@ def fetch_wnba_team_stats() -> dict:
     """
     if WNBA_OFFSEASON:
         return {}
-    YEAR = 2026
+    YEAR = NOW_MT.year  # WNBA season year (retired via WNBA_OFFSEASON)
     result: dict = {}
     try:
         log("WNBA team stats (BBRef 2026)…")
@@ -5243,6 +5160,62 @@ def run_live_window(push: bool = True, interval_sec: int = 120) -> None:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Main orchestrator
 # ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# NHL core refresh (--only-nhl-core) -- the fast NHL pieces of docs/data.json, for scripts/lock_prep.py's "data-nhl" job
+# ═══════════════════════════════════════════════════════════════════════════════
+# The full run above lands 3x/day and GitHub delays it 3-6h, so a lock pass could read NHL standings that miss a quarter of the
+# finished games.  This entry point re-fetches ONLY standings / edge / MoneyPuck / skaterValue / NHL injuries with the SAME fetch
+# functions and merges them into the existing docs/data.json (read-modify-write, every other key untouched, atomic replace).
+# Fail-open: any error (or a suspiciously small/empty fetch) leaves the corresponding part -- or the whole file -- as it was.
+# merge rules + atomic write live in scripts/_nhl_core.py (pure, unit-tested in test_lock_prep_data.py)
+
+
+def run_nhl_core_refresh(path: Path | None = None, dry_run: bool = False) -> int:
+    """Refresh the fast NHL parts of `path` (default docs/data.json).  ALWAYS returns 0 (fail-open, like lock_prep's other jobs)."""
+    from concurrent.futures import ThreadPoolExecutor
+    from _nhl_core import atomic_write_text, merge_nhl_core
+    path = path or FE_DATA
+    t0 = time.time()
+    try:
+        data = json.loads(path.read_text())
+        if not isinstance(data, dict):
+            raise ValueError("not a JSON object")
+    except Exception as exc:
+        log(f"NHL core: cannot read {path} ({exc}) -- leaving it untouched", "WARN")
+        return 0
+    jobs = {"standings": fetch_nhl_standings, "edge": fetch_nhl_edge, "mp": fetch_moneypuck,
+            "skater_value": fetch_nhl_skater_value,
+            "injuries": lambda: fetch_espn_injuries(ESPN_LEAGUE_PATHS["nhl"], "nhl")}
+    res: dict = {}
+    with ThreadPoolExecutor(max_workers=len(jobs)) as ex:
+        futs = {k: ex.submit(fn) for k, fn in jobs.items()}
+        for k, f in futs.items():
+            try:
+                res[k] = f.result()
+            except Exception as exc:
+                log(f"NHL core: {k} failed ({exc}) -- keeping the existing value", "WARN")
+                res[k] = None
+    try:
+        data, changed = merge_nhl_core(data, res.get("standings") or {}, res.get("edge") or {}, res.get("mp") or {},
+                                       res.get("skater_value") or {}, res.get("injuries") or [], NOW.isoformat())
+    except Exception as exc:
+        log(f"NHL core: merge failed ({exc}) -- {path.name} untouched", "WARN")
+        return 0
+    if not changed:
+        log(f"NHL core: nothing usable fetched -- {path.name} untouched ({time.time() - t0:.0f}s)", "WARN")
+        return 0
+    if dry_run:
+        log(f"NHL core: dry run -- would replace {', '.join(changed)} in {path} ({time.time() - t0:.0f}s)")
+        return 0
+    try:
+        atomic_write_text(path, json.dumps(data, indent=2))
+    except Exception as exc:
+        log(f"NHL core: write failed ({exc}) -- {path.name} untouched", "WARN")
+        return 0
+    log(f"NHL core: refreshed {', '.join(changed)} in {path} in {time.time() - t0:.0f}s")
+    return 0
+
+
 def main() -> None:
     global _verbose
 
@@ -5254,8 +5227,15 @@ def main() -> None:
     parser.add_argument("--mode",          choices=["full","live","props"], default="full")
     parser.add_argument("--sport",         choices=["nba","nhl","nfl","soccer","all"], default="all")
     parser.add_argument("--verbose","-v",  action="store_true")
+    parser.add_argument("--only-nhl-core", action="store_true",
+                        help="Refresh ONLY the fast NHL pieces (standings/edge/MoneyPuck/skaterValue/NHL injuries) inside the existing "
+                             "data.json and exit 0 even on failure (scripts/lock_prep.py's data-nhl job). Writes nothing else.")
+    parser.add_argument("--data-json", default=None, help="With --only-nhl-core: the data.json to merge into (default docs/data.json)")
     args    = parser.parse_args()
     _verbose = args.verbose
+
+    if args.only_nhl_core:
+        sys.exit(run_nhl_core_refresh(Path(args.data_json) if args.data_json else None, dry_run=args.dry_run))
 
     # ── live-window short-circuit ────────────────────────────────────────────
     if args.mode == "live":
@@ -5506,7 +5486,7 @@ def main() -> None:
     transactions = fetch_transactions_all()
 
     # Best bets + auto-settle
-    # Best odds per sport (Odds API if key set, ESPN fallback)
+    # Best odds per sport (ESPN odds only -- The Odds API removed 2026-10-03)
     mlb_best_odds: dict = {}  # MLB retired 2026-09-08
     nba_best_odds = fetch_best_odds("nba", nba_today) if S in ("nba","all") else {}
     nhl_best_odds = fetch_best_odds("nhl", nhl_today) if S in ("nhl","all") else {}
@@ -5520,15 +5500,16 @@ def main() -> None:
     # visitor per page load. Soccer leagues aren't covered yet — their team
     # names need their own name->abbr map, tracked as a follow-up.
     wnba_best_odds: dict = {}  # WNBA retired 2026-09-08
-    nfl_best_odds  = fetch_best_odds("nfl", []) if S in ("all",) else {}
-    cfb_best_odds  = fetch_best_odds("cfb", []) if S in ("all",) else {}
+    # nfl/cfb/pl/liga were Odds-API-only (game_list=[] => always {} on the ESPN path) -- retired 2026-10-03 with the API; keys stay present-but-empty.
+    nfl_best_odds: dict  = {}
+    cfb_best_odds: dict  = {}
     # Soccer leagues — the piece explicitly deferred in the last odds pass.
     # Club leagues (PL/La Liga/Bundesliga/MLS) key by normalized full club
     # name (_soccer_club_key) to match how soccer_fbref.json already keys
     # its team data; World Cup keys by the same 3-letter country codes
     # WC26_SCHEDULE already uses (_wc_name_to_abbr).
-    pl_best_odds   = fetch_best_odds("pl",   [], name_resolver=_soccer_club_key) if S in ("soccer","all") else {}
-    liga_best_odds = fetch_best_odds("liga", [], name_resolver=_soccer_club_key) if S in ("soccer","all") else {}
+    pl_best_odds: dict   = {}
+    liga_best_odds: dict = {}
     # bl_best_odds/mls_best_odds hardcoded empty 2026-10-01 -- real bug found
     # in this retired-league audit, same class as mls_stats/mls_standings/
     # mls_schedule/mls_rosters above: both Bundesliga (2026-09-23) and MLS

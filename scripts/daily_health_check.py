@@ -14,6 +14,15 @@ watching casually would otherwise have to notice themselves:
   2. FAILED -- the most recent run happened, but its conclusion wasn't
      "success".
 
+Added 2026-10-03 (data-freshness audit): the DATA REFRESH workflows used to be unmonitored -- a refresh could fail or land 17h late
+with every dashboard still green.  Two new checks (both fail-open, unit-tested offline in test_health_freshness.py):
+
+  3. REFRESH WORKFLOWS (REFRESH_MONITORED): last-SUCCESS age + consecutive failures per refresh workflow (scheduled-refresh,
+     daily-schedules-refresh, the four hockey refreshes, opta, cfb/nfl stats, live-tracker, daily-player-stats-refresh...).
+  4. DATA FILE STAMPS (FRESHNESS_FILES): reads the generated-at stamp inside the key docs/*.json files and compares it with
+     warn/stale thresholds = refresh cadence + the 3-6h GitHub cron delay (same numbers as docs/app.html's _FRESH_SRC header line).
+     STALE emails; AGING is logged (and shown in the email when one is sent anyway) but a warn-only day sends nothing.
+
 Deliberately silent on a clean day (matches "hands-off" -- nobody wants a
 daily "all good" email); only sends anything when there's a real finding.
 Uses the repo's own default GITHUB_TOKEN (Actions API read access), not a
@@ -21,6 +30,7 @@ personal one -- nothing extra to configure.
 """
 from __future__ import annotations
 import os
+import re
 import sys
 import urllib.request
 import json
@@ -198,16 +208,184 @@ def check_workflow(filename: str, label: str, max_age_hours: int) -> str | None:
     return None
 
 
+# ── Refresh-workflow monitoring (2026-10-03) ──────────────────────────────────────────────────────────────────────────────
+# (workflow file, label, max hours since the last SUCCESSFUL run, consecutive failed runs that count as "failing").
+# Limits = cadence + the 3-6h GitHub cron delay observed in the 2026-10-02 run-history audit.  cancelled/skipped runs (concurrency
+# groups) are ignored, they are normal.
+REFRESH_MONITORED = [
+    ("scheduled-refresh.yml", "Main data refresh (data.json) 3x/day", 20, 1),
+    ("daily-schedules-refresh.yml", "Daily schedules refresh", 20, 1),
+    ("soccer-schedule-tomorrow.yml", "Soccer tomorrow-slate schedule", 36, 1),
+    ("shl-schedule-refresh.yml", "SHL schedule refresh", 20, 1),
+    ("liiga-schedule-refresh.yml", "Liiga schedule refresh", 20, 1),
+    ("nla-schedule-refresh.yml", "NLA schedule refresh", 20, 1),
+    ("extraliga-schedule-refresh.yml", "Extraliga schedule refresh", 20, 1),
+    ("opta-soccer-stats-daily.yml", "Opta soccer stats", 36, 1),
+    ("daily-player-stats-refresh.yml", "Daily player & prop stats refresh", 36, 1),
+    ("cfb-stats-weekly.yml", "CFB team stats", 36, 1),
+    ("cfb-rankings-weekly.yml", "CFB power rankings (weekly)", 9 * 24, 1),
+    ("cfb-roster-monthly.yml", "CFB rosters (monthly)", 35 * 24, 1),
+    ("nfl-stats-weekly.yml", "NFL stats (weekly)", 9 * 24, 1),
+    ("nfl-roster-weekly.yml", "NFL rosters (weekly)", 9 * 24, 1),
+    # Runs every 30 min 12:00-05:00 UTC only (7h nightly gap + delay) and flakes are cheap there: alert on 3 in a row.
+    ("live-tracker.yml", "Live tracker (live_data.json)", 14, 3),
+]
+
+# (docs file, label, stamp key, warn hours, stale hours).  data.json / schedules / euro hockey = the app header line's _FRESH_SRC
+# numbers.  Daily producers get 30/54h; weekly / monthly producers get cadence + slack.
+FRESHNESS_FILES = [
+    ("data.json", "Engine data (data.json)", "generated", 14, 26),
+    ("nhl_schedule.json", "NHL schedule/odds", "generated_at", 20, 36),
+    ("cfb_schedule.json", "CFB schedule", "generated_at", 20, 36),
+    ("nfl_schedule.json", "NFL schedule", "generated_at", 20, 36),
+    ("soccer_schedule.json", "Soccer schedule", "generated_at", 20, 36),
+    ("shl_schedule.json", "SHL schedule/odds", "generated_at", 12, 28),
+    ("liiga_schedule.json", "Liiga schedule/odds", "generated_at", 12, 28),
+    ("nla_schedule.json", "NLA schedule/odds", "generated_at", 12, 28),
+    ("extraliga_schedule.json", "Extraliga schedule/odds", "generated_at", 12, 28),
+    ("live_data.json", "Live feed (live_data.json)", "ts", 1.5, 4),           # special-cased in check_data_freshness
+    ("cfb_team_stats.json", "CFB team stats", "generated_at", 30, 54),
+    ("nfl_injuries.json", "NFL injuries", "generated_at", 30, 54),
+    ("nfl_transactions.json", "NFL transactions", "generated_at", 30, 54),
+    ("player_stats.json", "Player stats", "generatedAt", 30, 54),
+    ("cfb_power.json", "CFB power rankings", "generated_at", 9 * 24, 16 * 24),
+    ("nfl_team_stats.json", "NFL team stats", "generated_at", 9 * 24, 16 * 24),
+    ("nfl_standings.json", "NFL standings", "generated_at", 9 * 24, 16 * 24),
+    ("nfl_player_stats.json", "NFL player stats", "generated_at", 9 * 24, 16 * 24),
+]
+# live_data.json is only rewritten while the live-tracker cron runs (12:00-05:00 UTC); off-window it is legitimately idle.
+LIVE_TRACKER_IDLE_UTC_HOURS = range(6, 12)
+# When no game is live the feed is only a deadman for the tracker itself.
+LIVE_IDLE_WARN_H, LIVE_IDLE_STALE_H = 14, 26
+
+
+def parse_stamp(v) -> datetime | None:
+    """A file stamp -> aware UTC datetime.  Understands ISO-8601 (with Z / offset) and 'YYYY-MM-DD HH:MM UTC' (same tolerance as
+    docs/app.html's _parseGenAt: any 'YYYY-MM-DD HH:MM' is read as UTC).  None if unusable."""
+    if not v or not isinstance(v, str):
+        return None
+    try:
+        d = datetime.fromisoformat(v.strip().replace("Z", "+00:00"))
+        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    except ValueError:
+        pass
+    m = re.search(r"(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})", v)
+    if not m:
+        return None
+    try:
+        return datetime.strptime(f"{m.group(1)} {m.group(2)}", "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _fmt_age(h: float) -> str:
+    return f"{max(1, round(h * 60))}m" if h < 1 else (f"{round(h)}h" if h < 48 else f"{round(h / 24)}d")
+
+
+def check_data_freshness(docs_dir: Path | None = None, now: datetime | None = None, files=None) -> list[tuple[str, str]]:
+    """-> [(level, message)], level 'alert' (older than the stale threshold) or 'note' (older than warn, or unreadable).
+    Pure file reads (the checkout's docs/), never raises."""
+    docs_dir = docs_dir or (ROOT / "docs")
+    now = now or datetime.now(timezone.utc)
+    out: list[tuple[str, str]] = []
+    for fname, label, key, warn_h, stale_h in (files if files is not None else FRESHNESS_FILES):
+        try:
+            raw = (docs_dir / fname).read_text()
+        except Exception as exc:
+            out.append(("note", f"{label}: {fname} unreadable ({exc.__class__.__name__})"))
+            continue
+        try:
+            obj = json.loads(raw)
+            val = obj.get(key) if isinstance(obj, dict) else None
+        except Exception:
+            m = re.search(r'"' + re.escape(key) + r'"\s*:\s*"([^"]+)"', raw[:4000])
+            obj, val = {}, (m.group(1) if m else None)
+        stamp = parse_stamp(val)
+        if stamp is None:
+            out.append(("note", f"{label}: no readable '{key}' stamp in {fname}"))
+            continue
+        if fname == "live_data.json":
+            if now.hour in LIVE_TRACKER_IDLE_UTC_HOURS:
+                continue
+            if not (isinstance(obj, dict) and obj.get("hasLiveGames")):
+                warn_h, stale_h = LIVE_IDLE_WARN_H, LIVE_IDLE_STALE_H
+        age_h = (now - stamp).total_seconds() / 3600
+        if age_h >= stale_h:
+            out.append(("alert", f"{label}: STALE -- {fname} stamp is {_fmt_age(age_h)} old (stale at {_fmt_age(stale_h)})"))
+        elif age_h >= warn_h:
+            out.append(("note", f"{label}: aging -- {fname} stamp is {_fmt_age(age_h)} old (warn at {_fmt_age(warn_h)})"))
+    return out
+
+
+def check_refresh_workflow(filename: str, label: str, max_success_age_h: float, failures_to_alert: int = 1,
+                           api_get=None, now: datetime | None = None) -> tuple[str, str] | None:
+    """Last-success age + consecutive-failure check for one refresh workflow.  -> (level, message) or None when healthy.
+    Looks at the last 10 COMPLETED runs, ignoring cancelled/skipped ones.  An API error is only a 'note' (a transient 5xx must not
+    email), a missing/old success or failing streak is an 'alert'."""
+    api_get = api_get or _api_get
+    now = now or datetime.now(timezone.utc)
+    try:
+        data = api_get(f"/repos/{REPO}/actions/workflows/{filename}/runs?status=completed&per_page=10")
+    except Exception as exc:
+        return ("note", f"{label}: couldn't check runs ({exc})")
+    runs = [r for r in (data.get("workflow_runs") or []) if r.get("conclusion") not in ("cancelled", "skipped", "neutral", None)]
+    if not runs:
+        return ("alert", f"{label}: no completed runs found at all")
+    msgs: list[str] = []
+    streak = 0
+    for r in runs:
+        if r.get("conclusion") == "success":
+            break
+        streak += 1
+    if streak >= failures_to_alert:
+        msgs.append(f"last {streak} run(s) FAILED ({runs[0].get('html_url')})")
+    success = next((r for r in runs if r.get("conclusion") == "success"), None)
+    if success is None:
+        msgs.append(f"no successful run among the last {len(runs)}")
+    else:
+        stamp = parse_stamp(success.get("updated_at") or success.get("created_at"))
+        if stamp is not None:
+            age_h = (now - stamp).total_seconds() / 3600
+            if age_h > max_success_age_h:
+                msgs.append(f"last SUCCESS was {_fmt_age(age_h)} ago (limit {_fmt_age(max_success_age_h)})")
+    return ("alert", f"{label}: " + "; ".join(msgs)) if msgs else None
+
+
+def check_refresh_health(now: datetime | None = None, api_get=None) -> list[tuple[str, str]]:
+    out = []
+    for fname, label, max_h, fails in REFRESH_MONITORED:
+        try:
+            res = check_refresh_workflow(fname, label, max_h, fails, api_get=api_get, now=now)
+        except Exception as exc:  # fail-open
+            res = ("note", f"{label}: check crashed ({exc})")
+        if res:
+            out.append(res)
+    return out
+
+
 def main() -> None:
     problems = check_lock_markers()
+    notes: list[str] = []
 
     if not GITHUB_TOKEN:
         print("GITHUB_TOKEN not set -- can't check Actions API, skipping workflow-run checks.")
     else:
         problems += [p for p in (check_workflow(f, l, h) for f, l, h in MONITORED) if p]
+        for level, msg in check_refresh_health():
+            (problems if level == "alert" else notes).append(msg)
 
+    # Data-file stamps need no token: they read the checked-out docs/.
+    try:
+        for level, msg in check_data_freshness():
+            (problems if level == "alert" else notes).append(msg)
+    except Exception as exc:  # fail-open
+        notes.append(f"data freshness check crashed ({exc})")
+
+    for n in notes:
+        print(f"::warning::{n}")
     if not problems:
-        print("All monitored workflows healthy -- no alert sent.")
+        print("All monitored workflows and data files healthy -- no alert sent." if not notes else
+              f"No alert-level issue ({len(notes)} watch item(s) logged above) -- no alert sent.")
         return
 
     print(f"{len(problems)} issue(s) found:")
@@ -222,7 +400,8 @@ def main() -> None:
         '<div style="font-family:monospace;font-size:14px;color:#1a1a2e">'
         '<p><strong>Daily health check found issue(s):</strong></p>'
         '<ul>' + "".join(f"<li>{p}</li>" for p in problems) + '</ul>'
-        '</div>'
+        + ('<p>Also watching (not alert-level yet):</p><ul>' + "".join(f"<li>{n}</li>" for n in notes) + '</ul>' if notes else '')
+        + '</div>'
     )
     ok, msg = send_email("Clairvoyance -- daily health check found an issue", ALERT_TO, body)
     print(f"Alert email sent to {ALERT_TO}" if ok else f"Alert email FAILED: {msg}")

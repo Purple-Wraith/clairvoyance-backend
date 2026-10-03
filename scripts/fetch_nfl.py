@@ -31,6 +31,7 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _espn_injuries  # pure ESPN injuries parser (athlete-level team abbreviation + athlete id)
+from _season import football_season_year  # NFL season year derived from today's date (env NFL_SEASON_YEAR / FOOTBALL_SEASON_YEAR)
 
 ROOT = Path(__file__).resolve().parent.parent
 TEAMS_OUT = ROOT / "docs" / "nfl_teams.json"
@@ -719,8 +720,11 @@ if __name__ == "__main__":
     ap.add_argument("--mode", choices=["roster", "schedule", "standings", "stats", "player_stats", "injuries", "transactions", "all"], default="all")
     ap.add_argument("--push", action="store_true")
     ap.add_argument("--stats-season", type=int, default=None)
-    ap.add_argument("--schedule-year", type=int, default=2026)
+    ap.add_argument("--schedule-year", type=int, default=None,
+                    help="default: derived from today's date (football_season_year; env NFL_SEASON_YEAR / FOOTBALL_SEASON_YEAR)")
     args = ap.parse_args()
+    if args.schedule_year is None:
+        args.schedule_year = football_season_year("nfl")
 
     did_roster = did_schedule = False
     roster_teams: list[dict] = []
@@ -763,7 +767,7 @@ if __name__ == "__main__":
                 stats_season = args.stats_season
                 stats = fetch_all_team_stats(roster_teams, stats_season)
             else:
-                current_year = int(time.strftime("%Y", time.gmtime()))
+                current_year = football_season_year("nfl")  # NOT the calendar year: Jan-Feb 2027 is still the 2026 season
                 stats = fetch_all_team_stats(roster_teams, current_year)
                 if len(stats) < len(roster_teams) * 0.5:
                     _log(f"  season={current_year} returned stats for only "
@@ -798,7 +802,7 @@ if __name__ == "__main__":
                 # week 4+ blends 70% current-season / 30% last-season per
                 # player. See _current_nfl_week/_blend_stats/
                 # fetch_all_player_stats_blended's own docstrings.
-                current_year = int(time.strftime("%Y", time.gmtime()))
+                current_year = football_season_year("nfl")
                 current_week = _current_nfl_week()
                 player_stats = fetch_all_player_stats_blended(roster_teams, current_year, current_week)
                 blended = current_week >= 4

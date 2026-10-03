@@ -40,15 +40,25 @@ Usage:
   python3 scripts/scrape_opta_stats.py --dry-run  # print, no file writes
 """
 from __future__ import annotations
-import argparse, json, re, subprocess, sys
+import argparse, json, os, re, subprocess, sys
 from pathlib import Path
 import requests
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # `import _season` however this is launched
+from _season import soccer_season_start_year
 
 ROOT = Path(__file__).parent.parent
 APP = ROOT / "docs" / "app.html"
 INDEX = ROOT / "docs" / "index.html"
 REF_DIR = ROOT / "data" / "opta_reference"
 REF_DIR.mkdir(parents=True, exist_ok=True)
+
+# The season the tmcl ids in LEAGUES below were captured for (2026 = the 2026/27 season).  tmcl ids are OPAQUE per-season ids on
+# theanalyst.com, so they cannot be derived from the date -- but the rollover can no longer be silent: main() compares this with
+# soccer_season_start_year() (derived from today's date) and prints a loud ::warning:: once the real season has moved on, so the
+# stale-frozen-totals symptom is announced instead of discovered weeks later.  Bump this together with the tmcls (re-derive them as
+# the module docstring describes), or pin a single league without editing code via env OPTA_TMCL_<LEAGUE KEY> (e.g. OPTA_TMCL_PL).
+TMCL_SEASON_START = 2026
 
 API_BASE = "https://theanalyst.com/wp-json/sdapi/v1/soccerdata"
 API = f"{API_BASE}/tournamentstats"
@@ -448,6 +458,18 @@ def main() -> None:
     ap.add_argument("--push", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
+
+    real_season = soccer_season_start_year()
+    if real_season != TMCL_SEASON_START:
+        print(f"::warning::scrape_opta_stats.py tmcl ids are pinned to the {TMCL_SEASON_START}/{(TMCL_SEASON_START + 1) % 100:02d} season but "
+              f"today's soccer season is {real_season}/{(real_season + 1) % 100:02d} -- re-derive each league's tmcl (see this file's "
+              f"docstring) and bump TMCL_SEASON_START, or the Opta stats/power rankings stay frozen on last season's totals.",
+              file=sys.stderr)
+    for _k, _cfg in LEAGUES.items():
+        _ov = os.environ.get(f"OPTA_TMCL_{_k.upper()}", "").strip()
+        if _ov:
+            _cfg["tmcl"] = _ov
+            print(f"[INFO] {_k}: tmcl overridden from env OPTA_TMCL_{_k.upper()}")
 
     html = APP.read_text(encoding="utf-8")
     original_html = html

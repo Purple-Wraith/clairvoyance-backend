@@ -12,14 +12,22 @@ real conference.
 from __future__ import annotations
 
 import json
+import sys
 import time
 from pathlib import Path
 
 import requests
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # `import _season` however this is launched
+from _season import football_season_year, roll_prior_snapshot
+
 ROOT = Path(__file__).resolve().parent.parent
 OUT_PATH = ROOT / "docs" / "cfb_teams.json"
 POWER_OUT_PATH = ROOT / "docs" / "cfb_power.json"
+STATS_OUT_PATH = ROOT / "docs" / "cfb_team_stats.json"
+# Previous season's FINAL team stats (same schema as cfb_team_stats.json), derived automatically by roll_prior_snapshot() the moment the
+# new season's stats start replacing it -- replaces the hand-made, permanent cfb_team_stats_2025.json (docs/app.html loadCFBData's 15% blend).
+PRIOR_STATS_PATH = ROOT / "docs" / "cfb_team_stats_prior.json"
 
 ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/football/college-football"
 # ESPN's site.api.espn.com now 403s any request carrying a custom
@@ -242,14 +250,12 @@ def fetch_team_stats(team_id: str, season: int) -> dict | None:
         return None
 
 
-def fetch_all_team_stats(roster: dict, season: int = 2025) -> dict:
-    """season=2025 (last completed season) until 2026 games actually post
-    stats — the /statistics endpoint returns an empty categories list for
-    a season with zero games played, confirmed by direct testing, not a
-    bug. Automatically has real current-season numbers once games start;
-    no code change needed when that happens, just re-run with
-    season=2026 (or leave it: main() below already tries the current
-    year first and falls back)."""
+def fetch_all_team_stats(roster: dict, season: int | None = None) -> dict:
+    """season=None -> football_season_year("cfb") (derived from today's date, env CFB_SEASON_YEAR overrides). The /statistics endpoint
+    returns an empty categories list for a season with zero games played, confirmed by direct testing, not a bug -- write_stats()
+    below tries the current season first and falls back to the previous one while it has no games."""
+    if season is None:
+        season = football_season_year("cfb")
     out = {}
     all_teams = [t for teams in roster.values() for t in teams]
     _log(f"Fetching stats for {len(all_teams)} teams (season={season})…")
@@ -437,7 +443,7 @@ def fetch_power_ratings() -> dict:
     return out
 
 
-def write_power(year: int = 2026) -> None:
+def write_power(year: int | None = None) -> None:
     rankings = fetch_rankings()
     power = fetch_power_ratings()
     POWER_OUT_PATH.write_text(json.dumps({
@@ -448,7 +454,8 @@ def write_power(year: int = 2026) -> None:
     _log(f"wrote {POWER_OUT_PATH}")
 
 
-def write_schedule(year: int = 2026) -> None:
+def write_schedule(year: int | None = None) -> None:
+    year = football_season_year("cfb") if year is None else year
     if not OUT_PATH.exists():
         _log("No roster on disk yet (docs/cfb_teams.json) — run --mode roster first")
         return
@@ -489,7 +496,7 @@ def write_stats(year: int | None = None) -> None:
     if year is not None:
         stats = fetch_all_team_stats(roster, season=year)
     else:
-        current_year = int(time.strftime("%Y", time.gmtime()))
+        current_year = football_season_year("cfb")  # NOT the calendar year: Jan-Jun 2027 is still the 2026 season
         stats = fetch_all_team_stats(roster, season=current_year)
         # Majority of teams with real stats = the season has genuinely
         # started; a handful of early-week partial results is still a
@@ -502,7 +509,11 @@ def write_stats(year: int | None = None) -> None:
         else:
             year = current_year
 
-    stats_path = ROOT / "docs" / "cfb_team_stats.json"
+    stats_path = STATS_OUT_PATH
+    # Before replacing last season's file with a newer season's stats, keep it as the prior-season snapshot (once; see _season.py).
+    rolled = roll_prior_snapshot(stats_path, PRIOR_STATS_PATH, int(year))
+    if rolled == "rolled":
+        _log(f"rolled the season-{int(year) - 1} stats into {PRIOR_STATS_PATH.name} (new season {year} stats are replacing them)")
     stats_path.write_text(json.dumps({
         "generated_at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
         "season": year,
@@ -513,6 +524,9 @@ def write_stats(year: int | None = None) -> None:
 
 def git_push(paths: list[str], message: str) -> None:
     import subprocess
+    # `git add` of ANY missing path fails the whole pathspec (adds nothing) -- only add files that exist (e.g. the prior-season
+    # snapshot does not exist until the first season rollover, or until the owner seeds it).
+    paths = [p for p in paths if (ROOT / p).exists()]
     subprocess.run(["git", "-C", str(ROOT), "add", *paths], check=False, capture_output=True)
     diff = subprocess.run(["git", "-C", str(ROOT), "diff", "--cached", "--quiet"], capture_output=True)
     if diff.returncode == 0:
@@ -544,7 +558,8 @@ if __name__ == "__main__":
     # explicitly only to force a specific season (e.g. regenerating a
     # historical snapshot).
     parser.add_argument("--stats-season", type=int, default=None)
-    parser.add_argument("--schedule-year", type=int, default=2026)
+    parser.add_argument("--schedule-year", type=int, default=None,
+                        help="default: derived from today's date (football_season_year; env CFB_SEASON_YEAR / FOOTBALL_SEASON_YEAR)")
     args = parser.parse_args()
 
     if args.mode in ("roster", "all"):
@@ -558,7 +573,7 @@ if __name__ == "__main__":
     if args.mode in ("stats", "all"):
         write_stats(args.stats_season)
         if args.push:
-            git_push(["docs/cfb_team_stats.json"], "cfb: refresh team stats")
+            git_push(["docs/cfb_team_stats.json", "docs/cfb_team_stats_prior.json"], "cfb: refresh team stats")
     if args.mode in ("schedule", "all"):
         write_schedule(args.schedule_year)
         if args.push:

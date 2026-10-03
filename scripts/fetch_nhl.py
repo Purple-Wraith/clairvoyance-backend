@@ -95,6 +95,10 @@ def _nhl_current_season_id() -> str:
     _nhl_current_season_id() use, kept in sync by convention since these
     are 3 independent small functions across 2 languages, not a shared
     import."""
+    import os
+    ov = os.environ.get("NHL_SEASON_START_YEAR", "").strip()      # same override as clairvoyance_update.py's twin
+    if ov.isdigit() and 2000 <= int(ov) <= 2100:
+        return f"{int(ov)}{int(ov) + 1}"
     now = datetime.now(timezone.utc)
     start_year = now.year if now.month >= 8 else now.year - 1
     return f"{start_year}{start_year + 1}"

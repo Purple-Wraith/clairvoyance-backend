@@ -72,7 +72,12 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 
-SEASON = "2026-27"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _season import hockey_season_label  # noqa: E402
+
+# Derived from today's date ("2026-27" from Sep 2026 until Aug 2027; env QUANTHOCKEY_SEASON overrides) -- was a hand-edited constant.
+# A brand-new season page that has no team table yet raises "parsed 0 teams" below and leaves the previous file in place.
+SEASON = hockey_season_label()
 LEAGUE_URLS = {
     "liiga": f"https://www.quanthockey.com/liiga/en/seasons/{SEASON}/",
     "shl": f"https://www.quanthockey.com/shl/en/seasons/{SEASON}/",
