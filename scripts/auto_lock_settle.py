@@ -2112,6 +2112,95 @@ def _cfb_select(legs: list[dict]) -> list[dict]:
     return [best_non] if best_non is not None else []
 
 
+# ── Alternate-line shift (2026-10-03) ────────────────────────────────────────────────────────────
+# Sportsbooks offer the same total / spread at other numbers (alternate lines), so a pick on a posted line L can instead be locked at a safer
+# L' = L +/- k for a shorter price. For the sides this engine already qualifies (spread, O/U) the lock is moved to the line that reaches
+# ALT_TARGET_P calibrated win probability, bounded by a per-sport/market band [kmin, kmax] (the fixed band) -- the target picks k inside it.
+# The probability is NOT the card's own model number: on the settled ledger the stated O/U / spread probability carried no information about the
+# margin (CFB O/U: fitted slope on the stated probability was negative), so the cushion is priced purely from the empirical margin spread.
+# Backtest on 151 settled CFB O/U picks / 94 spread picks, margin cushion k -> actual win rate:
+#     O/U    k=0 55.0%   k=4 68.9%   k=7 74.2%   k=10 80.1%       (this curve: Phi((k + 1.9) / 14.7): 54%, 65%, 72%, 78%)
+#     spread k=0 52.1%   k=4 63.8%   k=7 70.2%   k=10 75.5%       (this curve: Phi((k + 0.8) / 15.7): 52%, 60%, 68%, 74%)
+# so the curve is slightly conservative. The price is estimated (fair price + ALT_VIG), never a real quote -> priceSource "estimated".
+ALT_TARGET_P = 0.75
+ALT_FLOOR_P = 0.70            # if even the cap cannot reach this, leave the posted-line pick alone
+ALT_VIG = 0.045
+ALT_STEP = 1.0
+ALT_LINE_CFG = {
+    # sport: {market: (sigma of actual margin vs line, offset a at k=0, kmin, kmax)}
+    "CFB": {"OU": (14.7, 1.9, 3.0, 9.0), "SPREAD": (15.7, 0.8, 3.0, 10.0)},
+    "NFL": {"OU": (13.0, 0.0, 3.0, 8.0), "SPREAD": (13.4, 0.0, 3.0, 8.0)},
+}
+_ND = None
+
+
+def _alt_cdf(x: float) -> float:
+    global _ND
+    if _ND is None:
+        from statistics import NormalDist
+        _ND = NormalDist()
+    return _ND.cdf(x)
+
+
+def _fmt_line(x: float, signed: bool) -> str:
+    return f"{x:+.1f}" if signed else f"{x:.1f}"
+
+
+def _ml_from_dec(dec: float) -> str:
+    return f"-{round(100 / (dec - 1))}" if dec < 2 else f"+{round((dec - 1) * 100)}"
+
+
+def _alt_shift_leg(leg: dict) -> dict | None:
+    """Alternate-line version of one OU / SPREAD leg, or None to keep it as posted."""
+    cfg = ALT_LINE_CFG.get(leg.get("sport") or "")
+    mkt = _market_type(leg.get("side"))
+    if not cfg or mkt not in cfg or leg.get("altLine"):
+        return None
+    sigma, a, kmin, kmax = cfg[mkt]
+    label = leg.get("label") or ""
+    if mkt == "OU":
+        m = re.match(r"^(OVER|UNDER)\s+([0-9]+(?:\.[0-9]+)?)$", label.strip(), re.I)
+        if not m:
+            return None
+        direction, posted = m.group(1).upper(), float(m.group(2))
+        sign = -1.0 if direction == "OVER" else 1.0       # over wants a LOWER number, under a HIGHER one
+    else:
+        m = re.match(r"^(.+?)\s+([+-][0-9]+(?:\.[0-9]+)?)$", label.strip())
+        if not m:
+            return None
+        team, posted = m.group(1), float(m.group(2))
+        sign = 1.0                                          # a spread is safer as the number goes up (-5.5 -> -1.5, +5.5 -> +9.5)
+    # Whole-point steps keep a half-point line on a half-point (no push); a whole-number posted line is moved onto a half-point instead.
+    k = kmin + (0.5 if posted == int(posted) else 0.0)
+    while k + ALT_STEP <= kmax + 0.5 and _alt_cdf((k + a) / sigma) < ALT_TARGET_P - 1e-9:
+        k += ALT_STEP
+    p_alt = _alt_cdf((k + a) / sigma)
+    if p_alt < ALT_FLOOR_P:
+        return None
+    new_line = posted + sign * k
+    if mkt == "OU":
+        if new_line <= 0:
+            return None
+        new_label = f"{direction} {_fmt_line(new_line, False)}"
+    else:
+        new_label = f"{team} {_fmt_line(new_line, True)}"
+    dec = 1.0 / (p_alt + ALT_VIG)
+    out = dict(leg)
+    out.update({"label": new_label, "prob": round(p_alt, 4), "dec": round(dec, 3), "ml": _ml_from_dec(dec),
+                "evVal": round(p_alt * dec - 1, 4), "priceSource": "estimated",
+                "altLine": {"posted": posted, "line": new_line, "shift": k, "postedLabel": label, "postedProb": leg.get("prob")}})
+    return out
+
+
+def _apply_alt_lines(legs: list[dict]) -> list[dict]:
+    """Moves every spread / O-U leg of a covered sport to its alternate line (see block above); moneylines pass through."""
+    res: list[dict] = []
+    for leg in legs:
+        alt = _alt_shift_leg(leg)
+        res.append(alt if alt else leg)
+    return res
+
+
 def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, now=None,
                      guard_stats: dict | None = None) -> list[dict]:
     """only_sports: if given, restricts to exactly these sport tags (e.g.
@@ -2269,6 +2358,13 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                     picked.append(cand)
                     break
             game_qualifying = picked
+        if game_qualifying and sport in ALT_LINE_CFG:
+            shifted = _apply_alt_lines(game_qualifying)
+            for old, new in zip(game_qualifying, shifted):
+                if new is not old:
+                    log(f"  alt line: [{sport}] {gl.get('awA')} @ {gl.get('hA')} {old['label']} ({(old.get('prob') or 0)*100:.0f}%) -> "
+                        f"{new['label']} ({new['prob']*100:.0f}%, est. {new['ml']})")
+            game_qualifying = shifted
         qualifying.extend(game_qualifying)
     # Props only exist for NBA/NHL now -- NFL player props removed from
     # generation entirely 2026-09-23 (see gather_legs()'s own comment),
@@ -2353,9 +2449,10 @@ def lock_game_leg(page, q: dict, date_override: str | None = None, now=None) -> 
     market_prob = q.get("marketProb")
     blend_alpha = q.get("blendAlpha")
     start_ms = parse_start_ms(q.get("startMs"))
+    alt_line = q.get("altLine")
     return page.evaluate(
         """
-        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors, reasoning, priceSource, modelProb, marketProb, blendAlpha, startMs }) => {
+        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors, reasoning, priceSource, modelProb, marketProb, blendAlpha, startMs, altLine }) => {
           // Real gap, found auditing the locks-email "X of Y legs actually
           // locked" line: this used to return a single 'dup-or-failed' for
           // BOTH "this exact leg was already locked by an earlier pass
@@ -2399,14 +2496,14 @@ def lock_game_leg(page, q: dict, date_override: str | None = None, now=None) -> 
           if (dup) return 'already-locked';
           const before = getP().length;
           const hasBlend = (modelProb != null && marketProb != null);
-          const extraMeta = { lockOrigin: 'auto', ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}), ...(hasBlend ? { modelProb, marketProb, ...(blendAlpha != null ? { blendAlpha } : {}) } : {}), ...(startMs != null ? { startMs } : {}) };
+          const extraMeta = { lockOrigin: 'auto', ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}), ...(altLine ? { altLine } : {}), ...(hasBlend ? { modelProb, marketProb, ...(blendAlpha != null ? { blendAlpha } : {}) } : {}), ...(startMs != null ? { startMs } : {}) };
           await lockPick(hA, awA, type, betOn, prob, ml != null ? ml : '-110', dec || 1.91, dateKey, 'manual', betTypeOverride, extraMeta);
           const after = getP().length;
           return after > before ? 'locked' : 'failed';
         }
         """,
         {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "prob": q["prob"], "ml": ml, "dec": dec, "dateOverride": date_override, "betTypeOverride": bet_type_override, "socFactors": sock_factors, "reasoning": reasoning_text, "priceSource": price_source,
-         "modelProb": model_prob, "marketProb": market_prob, "blendAlpha": blend_alpha, "startMs": start_ms},
+         "modelProb": model_prob, "marketProb": market_prob, "blendAlpha": blend_alpha, "startMs": start_ms, "altLine": alt_line},
     )
 
 
