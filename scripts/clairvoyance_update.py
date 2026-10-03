@@ -70,6 +70,7 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # `import _espn_injuries` however this is launched
 import _espn_injuries  # pure ESPN injuries/roster parsers (see that module's docstring for the 2 silent bugs it fixes)
 import _nhl_skaters    # pure NHL skater points/game table for the app's injury adjustment
+import _nba_espn       # ESPN-sourced NBA team ratings + player-prop inputs (retry/health helpers, parsers, possession math)
 
 # ── paths & config ────────────────────────────────────────────────────────────
 ROOT     = Path(__file__).parent.parent
@@ -536,6 +537,9 @@ NBA_ELO_PER_POINT   = 28     # Elo points per point of scoring margin (538-style
 NBA_PRIOR_CARRY     = 0.75   # share of last season's margin carried into a new season
 NBA_PRIOR_GAMES     = 20     # pseudo-games of weight the regressed prior gets vs current results
 NBA_BBREF_DELAY     = 2      # seconds between Basketball-Reference requests (be polite); tests set 0
+# Where team ratings come from: "espn" (default: ESPN primary, Basketball-Reference only fills teams ESPN lacks),
+# "espn-only" (never touch Basketball-Reference), "bbref" (the pre-2026-10-03 behaviour: Basketball-Reference only).
+NBA_TEAM_STATS_SOURCE = os.environ.get("NBA_TEAM_STATS_SOURCE", "espn").strip().lower() or "espn"
 
 # Basketball-Reference full team name -> ESPN abbreviation (what data.json / app.html key on)
 _NBA_NAME_TO_ESPN: dict[str, str] = {
@@ -788,13 +792,27 @@ def select_nba_team_stats(cur_rows: dict, prior_rows: dict, cur_year: int, prior
             "reason": why + f"; prior {prior_year} UNAVAILABLE -- no team stats at all"}
 
 
-def get_nba_team_stats_selection() -> dict:
-    """Fetch current + prior BBRef pages (cached per run) and apply select_nba_team_stats()."""
+def _nba_http_get(url, params=None, timeout=20):
+    """The one HTTP call every ESPN NBA fetch added 2026-10-03 goes through (tests patch this)."""
+    return _session.get(url, params=params, timeout=timeout)
+
+
+_NBA_CTX: "_nba_espn.Ctx | None" = None
+
+
+def _nba_ctx(reset: bool = False) -> "_nba_espn.Ctx":
+    """Per-run ESPN NBA context: retry/backoff (3 tries, 1s then 2s between), per-endpoint timing/health, logging via log()."""
+    global _NBA_CTX
+    if _NBA_CTX is None or reset:
+        _NBA_CTX = _nba_espn.Ctx(lambda url, params=None, timeout=20: _nba_http_get(url, params=params, timeout=timeout),
+                                 log=lambda m, lvl="INFO": log(m, lvl), sleep=lambda s: time.sleep(s))
+    return _NBA_CTX
+
+
+def _bbref_team_stats_selection() -> dict:
+    """Basketball-Reference-only selection (the original behaviour; NBA_TEAM_STATS_SOURCE=bbref)."""
     cur = nba_season_end_year()
     prior = cur - 1
-    key = ("sel", cur)
-    if key in _NBA_STATS_CACHE:
-        return _NBA_STATS_CACHE[key]
     cur_rows, cur_info = fetch_nba_bbref_season(cur)
     # The prior page is only needed until the current season has enough games, but
     # teamRatings wants last season's final numbers either way, so always fetch it.
@@ -802,8 +820,92 @@ def get_nba_team_stats_selection() -> dict:
     sel = select_nba_team_stats(cur_rows, prior_rows, cur, prior)
     sel.update(curYear=cur, priorYear=prior, curRows=cur_rows, priorRows=prior_rows,
                curInfo=cur_info, priorInfo=prior_info)
+    sel["origin"] = {"prior": {"season": prior, "espn": 0, "bbref": len(prior_rows)},
+                     "current": {"season": cur, "espn": 0, "bbref": len(cur_rows)}}
+    sel["bbref"] = "primary" if (prior_info["ok"] or cur_info["ok"]) else "blocked"
+    sel["bbrefReason"] = "; ".join(f"{i['year']}: {i['reason']}" for i in (cur_info, prior_info) if not i["ok"])
+    return sel
+
+
+def _nba_fill_from_bbref(year: int, rows: dict, usable, label: str) -> tuple[dict, dict]:
+    """Fill teams `usable(row)` rejects (or that are absent) from the Basketball-Reference page of `year`.
+    Returns (rows, {"fetched": bool, "ok": bool, "filled": [abbr...], "reason": str}). Never replaces a usable ESPN row."""
+    all30 = set(_NBA_NAME_TO_ESPN.values())
+    need = sorted(a for a in all30 if not usable(rows.get(a)))
+    info = {"fetched": False, "ok": False, "filled": [], "reason": "not needed"}
+    if not need:
+        return rows, info
+    info["fetched"] = True
+    bb_rows, bb_info = fetch_nba_bbref_season(year)
+    info.update(ok=bb_info["ok"], reason=bb_info["reason"])
+    if not bb_rows:
+        log(f"NBA team stats {year}: ESPN missing {len(need)} team(s) {need[:6]} and Basketball-Reference fallback "
+            f"unavailable ({bb_info['reason']})", "WARN")
+        return rows, info
+    rows = dict(rows)
+    for a in need:
+        if usable(bb_rows.get(a)):
+            rows[a] = bb_rows[a]
+            info["filled"].append(a)
+    if info["filled"]:
+        log(f"NBA team stats {year} ({label}): {len(info['filled'])} team(s) filled from Basketball-Reference because ESPN "
+            f"lacked them: {info['filled'][:8]}", "WARN")
+    return rows, info
+
+
+def get_nba_team_stats_selection(standings_cur: dict | None = None, standings_prior: dict | None = None,
+                                 allow_bbref: bool = True) -> dict:
+    """
+    Pick which season's team stats the model reads.  ESPN is PRIMARY (one `statistics/byteam` request per season ->
+    ortg/drtg/pace/four factors for all 30 teams, see _nba_espn); Basketball-Reference is only consulted to fill a team ESPN could
+    not supply (and never when NBA_TEAM_STATS_SOURCE=espn-only).  The pure selection rule is unchanged (select_nba_team_stats: last
+    season is the prior until >= 24 teams have >= 5 games).  Cached per run.  The optional standings fill each row's w/l.
+
+    Returns select_nba_team_stats' dict plus curYear/priorYear/curRows/priorRows/curInfo/priorInfo and
+      origin  {"prior"|"current": {"season", "espn": n_teams, "bbref": n_teams_filled}}
+      bbref   "skipped" (ESPN complete) | "ok" | "blocked" | "disabled" | "primary"     (+ bbrefReason)
+    """
+    cur = nba_season_end_year()
+    prior = cur - 1
+    key = ("sel", cur)
+    if key in _NBA_STATS_CACHE:
+        return _NBA_STATS_CACHE[key]
+    if NBA_TEAM_STATS_SOURCE == "bbref":
+        sel = _bbref_team_stats_selection()
+        log(f"NBA team stats: using season {sel['seasonUsed']} [{sel['mode']}] (Basketball-Reference only) -- {sel['reason']}",
+            "INFO" if sel["teams"] else "WARN")
+        _NBA_STATS_CACHE[key] = sel
+        return sel
+    ctx = _nba_ctx()
+    cur_rows, cur_espn = _nba_espn.fetch_team_rows(ctx, cur)
+    prior_rows, prior_espn = _nba_espn.fetch_team_rows(ctx, prior)
+    _nba_espn.attach_records(cur_rows, standings_cur)
+    _nba_espn.attach_records(prior_rows, standings_prior)
+    n_espn = {"prior": len(prior_rows), "current": len(cur_rows)}
+    bb_state, bb_note = "skipped", ""
+    if NBA_TEAM_STATS_SOURCE == "espn-only" or not allow_bbref:
+        bb_state = "disabled"
+    else:
+        usable_prior = lambda r: bool(r) and r.get("ortg") is not None and r.get("drtg") is not None
+        prior_rows, bb_p = _nba_fill_from_bbref(prior, prior_rows, usable_prior, "prior")
+        # Before game 1 ESPN legitimately has no current-season table ("not_found") and neither does BBRef -- only ask BBRef
+        # about the current season when ESPN really failed, or came back with a partial table.
+        if cur_espn["hardFail"] or (cur_rows and len(cur_rows) < 30):
+            cur_rows, bb_c = _nba_fill_from_bbref(cur, cur_rows, lambda r: bool(r), "current")
+        else:
+            bb_c = {"fetched": False, "ok": False, "filled": [], "reason": "not needed"}
+        fetched = [b for b in (bb_p, bb_c) if b["fetched"]]
+        if fetched:
+            bb_state = "ok" if any(b["filled"] for b in fetched) else "blocked"
+            bb_note = "; ".join(b["reason"] for b in fetched if not b["filled"])
+    sel = select_nba_team_stats(cur_rows, prior_rows, cur, prior)
+    sel.update(curYear=cur, priorYear=prior, curRows=cur_rows, priorRows=prior_rows, curInfo=cur_espn, priorInfo=prior_espn,
+               origin={"prior": {"season": prior, "espn": n_espn["prior"], "bbref": len(prior_rows) - n_espn["prior"]},
+                       "current": {"season": cur, "espn": n_espn["current"], "bbref": len(cur_rows) - n_espn["current"]}},
+               bbref=bb_state, bbrefReason=bb_note)
     lvl = "INFO" if sel["teams"] else "WARN"
-    log(f"NBA team stats: using season {sel['seasonUsed']} [{sel['mode']}] -- {sel['reason']}", lvl)
+    log(f"NBA team stats: using season {sel['seasonUsed']} [{sel['mode']}] from ESPN "
+        f"(prior {n_espn['prior']}/30, current {n_espn['current']}/30; BBRef {bb_state}) -- {sel['reason']}", lvl)
     _NBA_STATS_CACHE[key] = sel
     return sel
 
@@ -963,52 +1065,175 @@ def _nba_carry_forward(label: str, fresh, prev_nba: dict, key: str):
     return fresh
 
 
+def _nba_roster_with_carry(fresh: dict, prev: dict | None) -> tuple[dict, bool]:
+    """fetch_nba_roster() logs and skips a team whose roster call failed (and returns {} if the team list failed), which used to
+    drop that team's players from data.json.  Teams with NO fresh player are filled from the previous data.json roster
+    (loudly).  Returns (roster, carried_any)."""
+    if not prev:
+        return fresh, False
+    present = {v.get("team") for v in fresh.values()}
+    missing = sorted(set(_NBA_NAME_TO_ESPN.values()) - present)
+    if not missing:
+        return fresh, False
+    merged = dict(fresh)
+    n = 0
+    for name, v in prev.items():
+        if v.get("team") in missing and name not in merged:
+            merged[name] = v
+            n += 1
+    if n:
+        log(f"NBA roster: no fresh players for {len(missing)} team(s) {missing[:8]} -- carried {n} player(s) forward "
+            f"from the previous data.json", "WARN")
+    return merged, n > 0
+
+
 def collect_nba_season_data(no_reference: bool = False, prev_nba: dict | None = None) -> dict:
     """
     Everything season-dependent the NBA model needs, in one place (called from
     main()). Returns {season, standings, players, roster, teamAdv, fourFactors,
-    teamRatings, eloSeed}. All season numbers derive from nba_season_end_year().
+    teamRatings, eloSeed, playerProps, sources, health}. All season numbers derive
+    from nba_season_end_year().
+
+    ESPN is the primary source for everything (team ratings via statistics/byteam, rosters, player averages, game logs,
+    injuries); Basketball-Reference is only an optional fallback for teams ESPN could not supply.  Each step is isolated
+    (`safe`) and carries the previous data.json value forward, loudly, when its fresh result is empty, so one failing endpoint
+    cannot blank another field.  `sources` records where each field came from; `health` the request/retry/timing/stale summary.
     """
+    t_run = time.monotonic()
+    ctx = _nba_ctx(reset=True)
     cur = nba_season_end_year()
     prior = cur - 1
     log(f"NBA season in use: {prior}-{str(cur)[2:]} (season end year {cur}; "
-        f"override with env NBA_SEASON_END_YEAR)")
+        f"override with env NBA_SEASON_END_YEAR); team stats source: {NBA_TEAM_STATS_SOURCE}")
     if prev_nba is None:
         try:
             prev_nba = json.loads(FE_DATA.read_text()).get("nba") or {}
         except Exception:
             prev_nba = {}
-    standings = fetch_nba_standings(cur)
-    standings_prior = fetch_nba_standings(prior)
-    players = fetch_nba_player_stats(nba_player_stats_season(standings, cur))
-    roster = fetch_nba_roster()
+    stale: list[str] = []          # sources whose value this run is a carried-forward copy (or empty)
+    src: dict = {}                 # per-field provenance -> data.json nba.sources
+
+    def safe(label, fn, default):
+        """One failing step must not blank the other NBA fields: log loudly, return `default`."""
+        try:
+            return fn()
+        except Exception as exc:
+            log(f"NBA {label}: step crashed -- {type(exc).__name__}: {exc}", "WARN")
+            return default
+
+    # standings: a real 0-0 table is normal in the preseason; carried forward only when the fetch is empty AND last run was this season
+    standings = safe("standings", lambda: fetch_nba_standings(cur), {})
+    src["standings"] = "espn"
+    if not standings:
+        if prev_nba.get("standings") and prev_nba.get("season") == cur:
+            log("NBA standings: fresh fetch EMPTY -- carrying forward previous data.json nba.standings (same season)", "WARN")
+            standings, src["standings"] = prev_nba["standings"], "carried"
+        else:
+            src["standings"] = "none"
+        stale.append("standings")
+    standings_prior = safe("standings(prior)", lambda: fetch_nba_standings(prior), {})
+    stats_season = nba_player_stats_season(standings, cur)
+    players = safe("players", lambda: fetch_nba_player_stats(stats_season), [])
+    src["players"] = "espn"
+    if not players:
+        players = _nba_carry_forward("players", players, prev_nba, "players")
+        src["players"] = "carried" if players else "none"
+        stale.append("players")
+    roster_fresh = safe("roster", fetch_nba_roster, {})
+    roster, roster_carried = _nba_roster_with_carry(roster_fresh, prev_nba.get("roster"))
+    src["roster"] = "espn" if roster_fresh and not roster_carried else ("carried" if roster_carried and not roster_fresh else
+                                                                          ("espn+carried" if roster_carried else "none"))
+    if roster_carried or not roster:
+        stale.append("roster")
     tagged = apply_nba_player_tiers(roster, players)
     log(f"  NBA roster: {len(roster)} players, {tagged} tiered (PREMIUM/OPTIMAL/GOOD) for injury weighting")
     if roster and not tagged:
         log("NBA roster: 0 players tiered -- ESPN player-stats fetch produced nothing usable", "WARN")
 
+    # team ratings: ESPN primary (byteam), Basketball-Reference only fills teams ESPN lacks.  --no-reference stops BBRef, not ESPN.
     adv: dict = {}
     four: dict = {}
     sel = None
-    if not no_reference:
-        adv = _nba_carry_forward("teamAdv", fetch_nba_team_advanced(), prev_nba, "teamAdv")
-        four = _nba_carry_forward("fourFactors", fetch_nba_four_factors(), prev_nba, "fourFactors")
-        sel = get_nba_team_stats_selection()
+    if not (no_reference and NBA_TEAM_STATS_SOURCE == "bbref"):
+        sel = safe("team stats", lambda: get_nba_team_stats_selection(standings, standings_prior, allow_bbref=not no_reference), None)
+    if sel is not None:
+        adv = _nba_carry_forward("teamAdv", safe("teamAdv", fetch_nba_team_advanced, {}), prev_nba, "teamAdv")
+        four = _nba_carry_forward("fourFactors", safe("fourFactors", fetch_nba_four_factors, {}), prev_nba, "fourFactors")
+        if adv is (prev_nba or {}).get("teamAdv") and adv:
+            stale.append("teamAdv")
+        if four is (prev_nba or {}).get("fourFactors") and four:
+            stale.append("fourFactors")
     ratings = build_nba_team_ratings(
         (sel or {}).get("priorRows", {}), (sel or {}).get("curRows", {}),
         standings_prior, standings, cur, prior, sel)
     real = sum(1 for t in ratings["teamRatings"]["teams"].values() if t["source"] != "default")
+    ratings_carried = False
     if real < 28:
         log(f"NBA teamRatings: only {real}/30 teams have real data (rest default to Elo {NBA_ELO_MEAN})", "WARN")
         if real == 0:
             ratings = {"teamRatings": _nba_carry_forward("teamRatings", {}, prev_nba, "teamRatings"),
                        "eloSeed": _nba_carry_forward("eloSeed", {}, prev_nba, "eloSeed")}
+            ratings_carried = True
+            stale.append("teamRatings")
     else:
         log(f"NBA teamRatings: {real} teams, season {cur} (prior {prior}), "
             f"stats season used {ratings['teamRatings']['statsSeasonUsed']}")
+    origin = (sel or {}).get("origin") or {}
+    n_bb = sum(v.get("bbref", 0) for v in origin.values())
+    n_es = sum(v.get("espn", 0) for v in origin.values())
+    src["teamRatings"] = ("carried" if ratings_carried else "none" if real == 0 else
+                          "bbref" if n_es == 0 and n_bb else "espn+bbref" if n_bb else "espn")
+    src["teamStats"] = origin
+    src["bbref"] = (sel or {}).get("bbref", "disabled")
+    if (sel or {}).get("bbrefReason") and src["bbref"] == "blocked":
+        src["bbrefReason"] = sel["bbrefReason"]
+
+    # player-prop inputs (ESPN only): season averages + last-5 form + stdev from game logs + injury status
+    injuries: list = []
+
+    def _inj():
+        data, st = ctx.get_json(_nba_espn.INJURIES_URL, None, "espn.injuries")
+        return _espn_injuries.parse_injuries(data, "nba") if data else []
+    injuries = safe("injuries", _inj, [])
+    src["injuries"] = "espn" if injuries else "none"
+    props_info: dict = {}
+
+    def _props():
+        return _nba_espn.fetch_player_props(ctx, stats_season, roster, injuries, prev_nba.get("playerProps"), TODAY_ISO)
+    props, props_info = safe("playerProps", _props, ({}, {}))
+    src["playerProps"] = "espn"
+    if not props:
+        old = prev_nba.get("playerProps")
+        if old and old.get("players"):
+            log(f"NBA playerProps: fresh build EMPTY -- carrying forward previous data.json nba.playerProps "
+                f"({len(old['players'])} players)", "WARN")
+            props, src["playerProps"] = old, "carried"
+        else:
+            props, src["playerProps"] = {}, "none"
+        stale.append("playerProps")
+    elif props_info.get("gamelogFailed") or props_info.get("gamelogSkippedBudget"):
+        stale.append("playerProps.form(partial)")
+    props_kb = round(len(json.dumps(props, separators=(",", ":"))) / 1024, 1) if props else 0
+    if props_kb > 150:
+        log(f"NBA playerProps: {props_kb} KB exceeds the 150 KB budget", "WARN")
+
+    gps = sorted(int(_bb_float(v.get("w")) or 0) + int(_bb_float(v.get("l")) or 0) for v in (standings or {}).values())
+    src["generatedAt"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    tot = ctx.totals()
+    health = {"teams_with_ratings": real, "games_played_median": gps[len(gps) // 2] if gps else None,
+              "stale_sources": sorted(set(stale)), "playerPropsKB": props_kb,
+              "requests": tot["requests"], "retries": tot["retries"], "failures": tot["failures"],
+              "seconds": round(time.monotonic() - t_run, 1), "endpoints": ctx.summary()}
+    log(f"NBA collect: {tot['requests']} ESPN requests ({tot['retries']} retries, {tot['failures']} failed), "
+        f"{health['seconds']}s; teams with ratings {real}/30; stale: {health['stale_sources'] or 'none'}; "
+        f"BBRef {src['bbref']}; playerProps {props.get('n', 0)} players ({props_kb} KB)",
+        "WARN" if health["stale_sources"] else "INFO")
+    for label, v in ctx.summary().items():
+        log(f"  NBA source {label}: {v['req']} req, {v['retries']} retries, {v['sec']}s -- {v['last']}")
     return {"season": cur, "standings": standings, "players": players, "roster": roster,
             "teamAdv": adv, "fourFactors": four,
-            "teamRatings": ratings["teamRatings"], "eloSeed": ratings["eloSeed"]}
+            "teamRatings": ratings["teamRatings"], "eloSeed": ratings["eloSeed"],
+            "playerProps": props, "sources": src, "health": health}
 
 
 _TEAM_NAME_TO_ABBR: dict[str, str] = {
@@ -5437,6 +5662,11 @@ def main() -> None:
             "season":       _nba_sd.get("season"),
             "teamRatings":  nba_team_ratings,
             "eloSeed":      nba_elo_seed,
+            # ESPN-sourced (2026-10-03): playerProps = per-player season avgs + last-5 form + stdev + injury status (the
+            # inputs the app's model-generated NBA prop lines need); sources = per-field provenance; health = run health.
+            "playerProps":  _nba_sd.get("playerProps", {}),
+            "sources":      _nba_sd.get("sources", {}),
+            "health":       _nba_sd.get("health", {}),
         },
         "nhl": {
             "today":        nhl_today,

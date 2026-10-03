@@ -328,6 +328,7 @@ class SelectionEndToEnd(unittest.TestCase):
         cu._NBA_STATS_CACHE.clear()
         self.logs = []
         self._p = [mock.patch.object(cu, "NBA_BBREF_DELAY", 0),
+                   mock.patch.object(cu, "NBA_TEAM_STATS_SOURCE", "bbref"),     # these tests are about the Basketball-Reference path (ESPN-primary: test_nba_espn.py)
                    mock.patch.object(cu, "log", lambda m, lvl="INFO": self.logs.append((lvl, m))),
                    mock.patch.dict(os.environ, {"NBA_SEASON_END_YEAR": "2027"})]
         for p in self._p:
@@ -541,6 +542,8 @@ class CarryForward(unittest.TestCase):
         with mock.patch.object(cu, "fetch_json", lambda *a, **k: None), \
                 mock.patch.object(cu, "fetch_nba_roster", lambda: {}), \
                 mock.patch.object(cu, "NBA_BBREF_DELAY", 0), \
+                mock.patch.object(cu, "_nba_http_get", mock.Mock(side_effect=ConnectionError("ESPN down"))), \
+                mock.patch.object(cu.time, "sleep", lambda s: None), \
                 mock.patch.object(cu, "log", lambda *a, **k: None), \
                 mock.patch.object(cu, "_ref_session", FakeSession({"basketball-reference.com": FakeResp("x", status=503)})), \
                 mock.patch.dict(os.environ, {"NBA_SEASON_END_YEAR": "2027"}):
