@@ -532,6 +532,13 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .gc{background:rgba(10,0,24,.7);border:1px solid var(--w2);border-radius:3px;padding:12px;margin-bottom:7px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));backdrop-filter:blur(4px)}
 .gc:active{background:rgba(20,0,46,.8)}.gch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
 .gtm{font-family:var(--orb);font-size:26px;font-weight:700;letter-spacing:2px;color:var(--t)}.gsp{font-family:var(--mono);font-size:18px;color:var(--t2);margin-top:3px;line-height:1.5}.brow{display:flex;gap:4px}
+/* TEAM LOGO (see _teamLogoHTML): dark disc + thin ring, cyan = away / magenta + faint glow = home; badge text shows until the image loads (or forever on failure) */
+.tlg{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;box-sizing:border-box;border-radius:50%;border:1.5px solid;background:rgba(0,0,0,.5);overflow:hidden;vertical-align:middle;font-family:var(--orb);font-weight:700;letter-spacing:0;line-height:1;white-space:nowrap}
+.tlg.a{border-color:var(--nc);color:var(--nc)}.tlg.h{border-color:var(--pc);color:var(--pc);box-shadow:0 0 8px rgba(240,0,255,.3)}
+.tlg.s44{width:44px;height:44px;font-size:12px}.tlg.s28{width:28px;height:28px;font-size:9px}.tlg.s22{width:22px;height:22px;font-size:7px;border-width:1px;margin-right:4px}
+.tlg img{position:absolute;inset:0;width:100%;height:100%;padding:13%;box-sizing:border-box;object-fit:contain;opacity:0}
+.tlg.ok img{opacity:1}.tlg.ok .tlt{visibility:hidden}
+@media(max-width:480px){.tlg.s44{width:30px;height:30px;font-size:9px}}
 /* PICK CARD */
 .pk{background:rgba(10,0,24,.7);border:1px solid var(--w2);border-radius:3px;padding:12px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%);backdrop-filter:blur(4px)}
 .pkb{flex:0 0 44px;height:44px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:var(--orb);font-size:17px;font-weight:900;letter-spacing:1px;text-align:center;line-height:1.2}
@@ -3791,6 +3798,109 @@ function propMC(mu,sigma,line,n){
 // decision -- other consumers like _augmentWithLiveOdds's ML/spread
 // fallback chain still reference them safely even while unpopulated).
 
+// ── Team logos (IN-ENGINE game cards only) ──────────────────────────────────
+// ONE shared helper -- _teamLogoHTML(sport,key,side,size,opts) -- renders a team's real logo on a dark disc with a thin neon ring
+// (cyan = away, magenta + faint glow = home) next to a team name on game cards, the COMPARE radar legend and compact rows.
+//
+// NOT PUBLIC, by design: logos exist ONLY on the interactive in-app cards.  Nothing exported/public ever calls this: the social
+// graphics (renderTrackRecord, the sport/league/event cards, every _gen* canvas graphic), all emails (built server-side in
+// scripts/*.py from data, never from card HTML) and the landing-page JSONs have no code path into it
+// (scripts/test_team_logos.py greps for that and fails the build if one appears).
+//
+// NO IMAGE FILES LIVE IN THIS REPO (public repo + GitHub Pages): every <img> points at the logo's own host at display time --
+// ESPN's CDN (a.espncdn.com, URLs from docs/team_logos.json or the ESPN event payload's own team.logo) or Flashscore's static CDN
+// (static.flashscore.com, URL in docs/{liiga,shl,nla,extraliga}_schedule.json teams[id].logo).  Only those two hosts are ever
+// accepted (_TL_URL_OK), so a bad data file can never inject an arbitrary URL into an <img src>.
+//
+// AUTOMATION NO-OP: the lock/settle pipeline renders hundreds of cards in headless Chromium and must stay fast and deterministic,
+// so in that context _teamLogoHTML returns '' (the card HTML is byte-identical to before logos existed) and team_logos.json is
+// never fetched.  Detected via ?nologo=1 (scripts/auto_lock_settle.py and the social generators pass it explicitly) or
+// navigator.webdriver===true (every Playwright/Selenium-driven browser).  ?logos=1 forces them on (manual/dev testing only; the
+// pipeline never passes it and ?nologo=1 always wins).
+//
+// FAIL SOFT: a missing mapping, a blocked host or a failed load leaves the letter badge (abbreviation in the ring) -- never a
+// broken-image icon, never a hole.  Fixed width/height => no layout shift; loading=lazy + decoding=async; one 96px image per
+// team is shared by every size so the browser caches it once.
+var _TL={map:null,p:null,off:null,failed:{}};
+var _TL_URL_OK=/^https:\/\/(?:a\.espncdn\.com\/i\/teamlogos\/|static\.flashscore\.com\/res\/image\/data\/)[A-Za-z0-9_\/.\-]+$/;
+function _tlOff(){
+  if(_TL.off!==null)return _TL.off;
+  var off=true;
+  try{
+    var q=location.search||'';
+    if(/[?&]nologo=1(?:&|$)/.test(q))off=true;
+    else if(/[?&]logos=1(?:&|$)/.test(q))off=false;
+    else off=navigator.webdriver===true;
+  }catch(e){off=true;}
+  _TL.off=off;return off;
+}
+function _tlEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+// ESPN serves 40-75KB 500px PNGs (soccer ones with a 10s cache lifetime); its own combiner returns a ~5KB 96px copy that is
+// cached for hours.  Same host, same artwork -- on any failure _tlErr retries the original URL once before falling back to the badge.
+function _tlSrc(u){
+  var m=/^https:\/\/a\.espncdn\.com(\/i\/teamlogos\/[A-Za-z0-9_\/.\-]+)$/.exec(u);
+  return m?'https://a.espncdn.com/combiner/i?img='+m[1]+'&w=96&h=96':u;
+}
+function _tlResolve(sport,key,o){
+  if(o&&o.url&&_TL_URL_OK.test(o.url))return o.url;
+  var m=_TL.map;if(!m)return null;
+  var t=m[sport];if(!t||typeof t!=='object')return null;
+  var u=null;
+  if(sport==='nhl'||sport==='nba'||sport==='nfl')u=t[String(key||'').toUpperCase()];
+  else u=(o&&o.name&&t[o.name])||t[key];
+  return(u&&_TL_URL_OK.test(u))?u:null;
+}
+function _tlBadge(key,o){
+  var k=String(key==null?'':key),n=String(o&&o.name||'');
+  var b=(o&&o.abbr)||((k&&k.length<=4)?k:'')||(n||k).replace(/^(?:the|fc|ac|as|sc)\s+/i,'').replace(/[^A-Za-z0-9]/g,'').slice(0,3);
+  return String(b).toUpperCase().slice(0,4);
+}
+function _tlImgHTML(url,sz){
+  return '<img src="'+_tlEsc(_tlSrc(url))+'" data-raw="'+_tlEsc(url)+'" width="'+sz+'" height="'+sz+'" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="this.parentNode.classList.add(\'ok\')" onerror="_tlErr(this)">';
+}
+function _tlErr(img){
+  try{
+    var raw=img.getAttribute('data-raw');
+    if(raw&&!img.getAttribute('data-r')&&img.getAttribute('src')!==raw){img.setAttribute('data-r','1');img.setAttribute('src',raw);return;}
+    if(raw&&!_TL.failed[raw]){_TL.failed[raw]=1;console.warn('[CV] team logo failed to load, showing badge:',raw);}
+    img.parentNode&&img.parentNode.classList.remove('ok');
+    img.remove();
+  }catch(e){}
+}
+// sport: 'nhl'|'nba'|'nfl'|'cfb'|'soccer' (ESPN, via team_logos.json or opts.url) or 'liiga'|'shl'|'nla'|'extraliga' (opts.url from
+// the schedule JSON's teams[id].logo).  key: the card's own team id (abbreviation / Flashscore id / name).  side: 'a'|'h'.
+// size: 44 (card header) | 28 (reserved) | 22 (legend/compact rows).  opts: {url, name, abbr, ring:'cyan'|'magenta'}.  `ring` overrides
+// the side colour -- the COMPARE legend uses it so each ring matches the radar series colour it labels (the radar draws the home
+// team cyan and the away team magenta).  Returns '' in automation.
+function _teamLogoHTML(sport,key,side,size,opts){
+  try{
+    if(_tlOff())return'';
+    var o=opts||{};
+    var sz=size===44||size===28?size:22;
+    var cls='tlg '+(o.ring==='cyan'?'a':o.ring==='magenta'?'h':side==='h'?'h':'a')+' s'+sz;
+    var url=_tlResolve(sport,key,o);
+    if(!url&&!_TL.p)_tlLoad(); // team_logos.json is fetched lazily, only once a card actually needs the map
+    return '<span class="'+cls+'" data-tl="'+_tlEsc(sport)+'" data-tk="'+_tlEsc(key)+'" data-tn="'+_tlEsc(o.name||'')+'" aria-hidden="true"><span class="tlt">'+_tlEsc(_tlBadge(key,o))+'</span>'+(url?_tlImgHTML(url,sz):'')+'</span>';
+  }catch(e){return'';}
+}
+// Cards rendered before team_logos.json arrived hold badge-only discs; once the map is in, fill them in place (no re-render).
+function _tlHydrate(){
+  try{
+    document.querySelectorAll('.tlg[data-tl]').forEach(function(el){
+      if(el.querySelector('img'))return;
+      var sz=el.classList.contains('s44')?44:el.classList.contains('s28')?28:22;
+      var u=_tlResolve(el.getAttribute('data-tl'),el.getAttribute('data-tk'),{name:el.getAttribute('data-tn')});
+      if(u)el.insertAdjacentHTML('beforeend',_tlImgHTML(u,sz));
+    });
+  }catch(e){}
+}
+function _tlLoad(){
+  if(_tlOff()||_TL.p)return _TL.p;
+  _TL.p=fetch('team_logos.json').then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}).then(function(d){
+    _TL.map=(d&&typeof d==='object')?d:{};_tlHydrate();
+  });
+  return _TL.p;
+}
 // ── Matchup comparison radar — shared across all sport game cards ────────────
 // Hand-drawn SVG, smoothed via a closed Catmull-Rom spline (converted to
 // cubic bezier segments) instead of straight polygon edges, with a dual
@@ -11144,7 +11254,7 @@ function _hkBasicRadarValues(team,rates){
 function _liigaMatchCard(g){
   const D=_LIIGA_DATA;
   const h=D.teams[g.home],aw=D.teams[g.away];
-  if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${g.awayName} @ ${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
+  if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${_teamLogoHTML('liiga',g.away,'a',22,{url:(aw||{}).logo,name:g.awayName})}${g.awayName} @ ${_teamLogoHTML('liiga',g.home,'h',22,{url:(h||{}).logo,name:g.homeName})}${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
   const ens=liigaEns(g.home,g.away,g.ou,g),mc=ens.mcD;
   const bML=ens.mkt&&ens.mkt.ml,bPL=ens.mkt&&ens.mkt.pl,bOU=ens.mkt&&ens.mkt.ou; // market-blend records (null = pure model)
   const hP=ens.p,aP=1-hP;
@@ -11229,12 +11339,12 @@ function _liigaMatchCard(g){
   const dateStr=dt&&!isNaN(dt)?dt.toLocaleDateString('sv-SE',{timeZone:'America/Denver'}):today();
   return`<div class="gc" style="border-left:2px solid rgba(102,144,255,.4);margin-bottom:8px">
     <div class="gch">
-      <div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.homeName}</span></div><div class="gsp">LIIGA</div></div>
+      <div><div style="display:flex;align-items:center;gap:6px">${_teamLogoHTML('liiga',g.away,'a',44,{url:aw.logo,name:g.awayName})}<span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span>${_teamLogoHTML('liiga',g.home,'h',44,{url:h.logo,name:g.homeName})}<span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.homeName}</span></div><div class="gsp">LIIGA</div></div>
       <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('liiga_${g.id}')">COMPARE</button></div>
     </div>
     <div id="radar_liiga_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
-        <span style="color:#00f0ff">■ ${g.homeName}</span><span style="color:#f000ff">■ ${g.awayName}</span>
+        <span style="color:#00f0ff">${_teamLogoHTML('liiga',g.home,'h',22,{ring:'cyan',url:h.logo,name:g.homeName})}■ ${g.homeName}</span><span style="color:#f000ff">${_teamLogoHTML('liiga',g.away,'a',22,{ring:'magenta',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span>
       </div>
       ${(()=>{try{
         return _hkCompareRadarHTML('liiga_'+g.id,g.homeName,g.awayName,'LIIGA',h,aw,hR,aR);
@@ -11313,7 +11423,7 @@ async function renderLiigaMatches(){
 function _nlaMatchCard(g){
   const D=_NLA_DATA;
   const h=D.teams[g.home],aw=D.teams[g.away];
-  if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${g.awayName} @ ${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
+  if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${_teamLogoHTML('nla',g.away,'a',22,{url:(aw||{}).logo,name:g.awayName})}${g.awayName} @ ${_teamLogoHTML('nla',g.home,'h',22,{url:(h||{}).logo,name:g.homeName})}${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
   const ens=nlaEns(g.home,g.away,g.ou,g),mc=ens.mcD;
   const bML=ens.mkt&&ens.mkt.ml,bPL=ens.mkt&&ens.mkt.pl,bOU=ens.mkt&&ens.mkt.ou; // market-blend records (null = pure model)
   const hP=ens.p,aP=1-hP;
@@ -11372,12 +11482,12 @@ function _nlaMatchCard(g){
   const dateStr=dt&&!isNaN(dt)?dt.toLocaleDateString('sv-SE',{timeZone:'America/Denver'}):today();
   return`<div class="gc" style="border-left:2px solid rgba(255,0,60,.4);margin-bottom:8px">
     <div class="gch">
-      <div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.homeName}</span></div><div class="gsp">NLA</div></div>
+      <div><div style="display:flex;align-items:center;gap:6px">${_teamLogoHTML('nla',g.away,'a',44,{url:aw.logo,name:g.awayName})}<span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span>${_teamLogoHTML('nla',g.home,'h',44,{url:h.logo,name:g.homeName})}<span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.homeName}</span></div><div class="gsp">NLA</div></div>
       <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('nla_${g.id}')">COMPARE</button></div>
     </div>
     <div id="radar_nla_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
-        <span style="color:#00f0ff">■ ${g.homeName}</span><span style="color:#f000ff">■ ${g.awayName}</span>
+        <span style="color:#00f0ff">${_teamLogoHTML('nla',g.home,'h',22,{ring:'cyan',url:h.logo,name:g.homeName})}■ ${g.homeName}</span><span style="color:#f000ff">${_teamLogoHTML('nla',g.away,'a',22,{ring:'magenta',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span>
       </div>
       ${(()=>{try{
         return _hkCompareRadarHTML('nla_'+g.id,g.homeName,g.awayName,'NLA',h,aw,hR,aR);
@@ -11452,7 +11562,7 @@ async function renderNlaMatches(){
 function _extraligaMatchCard(g){
   const D=_EXTRALIGA_DATA;
   const h=D.teams[g.home],aw=D.teams[g.away];
-  if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${g.awayName} @ ${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
+  if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${_teamLogoHTML('extraliga',g.away,'a',22,{url:(aw||{}).logo,name:g.awayName})}${g.awayName} @ ${_teamLogoHTML('extraliga',g.home,'h',22,{url:(h||{}).logo,name:g.homeName})}${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
   const ens=extraligaEns(g.home,g.away,g.ou,g),mc=ens.mcD;
   const bML=ens.mkt&&ens.mkt.ml,bPL=ens.mkt&&ens.mkt.pl,bOU=ens.mkt&&ens.mkt.ou; // market-blend records (null = pure model)
   const hP=ens.p,aP=1-hP;
@@ -11511,12 +11621,12 @@ function _extraligaMatchCard(g){
   const dateStr=dt&&!isNaN(dt)?dt.toLocaleDateString('sv-SE',{timeZone:'America/Denver'}):today();
   return`<div class="gc" style="border-left:2px solid rgba(200,20,20,.4);margin-bottom:8px">
     <div class="gch">
-      <div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.homeName}</span></div><div class="gsp">EXTRALIGA</div></div>
+      <div><div style="display:flex;align-items:center;gap:6px">${_teamLogoHTML('extraliga',g.away,'a',44,{url:aw.logo,name:g.awayName})}<span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span>${_teamLogoHTML('extraliga',g.home,'h',44,{url:h.logo,name:g.homeName})}<span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.homeName}</span></div><div class="gsp">EXTRALIGA</div></div>
       <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('extraliga_${g.id}')">COMPARE</button></div>
     </div>
     <div id="radar_extraliga_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
-        <span style="color:#00f0ff">■ ${g.homeName}</span><span style="color:#f000ff">■ ${g.awayName}</span>
+        <span style="color:#00f0ff">${_teamLogoHTML('extraliga',g.home,'h',22,{ring:'cyan',url:h.logo,name:g.homeName})}■ ${g.homeName}</span><span style="color:#f000ff">${_teamLogoHTML('extraliga',g.away,'a',22,{ring:'magenta',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span>
       </div>
       ${(()=>{try{
         return _hkCompareRadarHTML('extraliga_'+g.id,g.homeName,g.awayName,'EXTRALIGA',h,aw,hR,aR);
@@ -11765,7 +11875,7 @@ function _shlPopulateDayFilter(games){
 function _shlMatchCard(g){
   const D=_SHL_DATA;
   const h=D.teams[g.home],aw=D.teams[g.away];
-  if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${g.awayName} @ ${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
+  if(!h||!aw)return`<div class="gc" style="border-left:2px solid rgba(255,255,255,.15);padding:10px"><div style="font-family:var(--orb);font-size:19px;font-weight:700">${_teamLogoHTML('shl',g.away,'a',22,{url:(aw||{}).logo,name:g.awayName})}${g.awayName} @ ${_teamLogoHTML('shl',g.home,'h',22,{url:(h||{}).logo,name:g.homeName})}${g.homeName}</div><div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px">No model data for this matchup yet.</div></div>`;
   const ens=shlEns(g.home,g.away,g.ou,g),mc=ens.mcD;
   const bML=ens.mkt&&ens.mkt.ml,bPL=ens.mkt&&ens.mkt.pl,bOU=ens.mkt&&ens.mkt.ou; // market-blend records (null = pure model)
   const hP=ens.p,aP=1-hP;
@@ -11831,12 +11941,12 @@ function _shlMatchCard(g){
   const dateStr=dt&&!isNaN(dt)?dt.toLocaleDateString('sv-SE',{timeZone:'America/Denver'}):today();
   return`<div class="gc" style="border-left:2px solid rgba(255,205,0,.4);margin-bottom:8px">
     <div class="gch">
-      <div><div style="display:flex;align-items:center;gap:6px"><span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span><span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.homeName}</span></div><div class="gsp">SHL</div></div>
+      <div><div style="display:flex;align-items:center;gap:6px">${_teamLogoHTML('shl',g.away,'a',44,{url:aw.logo,name:g.awayName})}<span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span>${_teamLogoHTML('shl',g.home,'h',44,{url:h.logo,name:g.homeName})}<span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${g.homeName}</span></div><div class="gsp">SHL</div></div>
       <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('shl_${g.id}')">COMPARE</button></div>
     </div>
     <div id="radar_shl_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
-        <span style="color:#00f0ff">■ ${g.homeName}</span><span style="color:#f000ff">■ ${g.awayName}</span>
+        <span style="color:#00f0ff">${_teamLogoHTML('shl',g.home,'h',22,{ring:'cyan',url:h.logo,name:g.homeName})}■ ${g.homeName}</span><span style="color:#f000ff">${_teamLogoHTML('shl',g.away,'a',22,{ring:'magenta',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span>
       </div>
       ${(()=>{try{
         return _hkCompareRadarHTML('shl_'+g.id,g.homeName,g.awayName,'SHL',h,aw,hR,aR);
