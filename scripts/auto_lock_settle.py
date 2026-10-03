@@ -1673,7 +1673,7 @@ def gather_legs(page) -> dict:
           // separately against the real ledger: NBA's own settled ML bets
           // show 0% real score capture across 130 real rows, the same
           // signature NHL had before its fix. Unlike NHL/Liiga/SHL, there
-          // is no dedicated nba_schedule.json -- NBA's real same-origin
+          // was no dedicated nba_schedule.json (added 2026-10-03, see below) -- NBA's real same-origin
           // data is docs/data.json's own nba.today (fetch_nba_scoreboard()
           // in clairvoyance_update.py, real ML/spread/O-U already
           // included). Fetched directly here (not assumed already loaded
@@ -1682,10 +1682,47 @@ def gather_legs(page) -> dict:
           // event shape _nbaGameCard() itself expects (competitions[0].
           // competitors/status/odds) -- reusing that real, already-correct
           // card function instead of duplicating its model/market logic.
+          //
+          // 2026-10-03: NBA now ALSO has a dedicated schedule file, docs/nba_schedule.json (scripts/fetch_nba.py -- states, scores,
+          // ESPN market lines for yesterday + 10 days; refreshed twice a day AND right before every lock pass by lock_prep.py's `nba`
+          // job). data.json's nba.today only lands 3x/day, 3-6h late. Per game the NEWER of the two files wins (schedule `generated_at`
+          // vs data.json `generated`); a line missing in the winner is filled from the other file; a game only one file has is used
+          // as-is. Fallback is unchanged: if nba_schedule.json is missing/unreadable the data.json list is used exactly as before.
+          // Preseason is excluded if EITHER file says so (seasonType 1 / preseason:true), carried or postponed schedule rows are
+          // ignored. No backslashes in this block: it lives inside a non-raw Python string. Unit-tested by extracting the markers
+          // below (scripts/test_nba_schedule.py).
           try {
             const dataResp = await fetch('data.json', { cache: 'no-store' });
             const cvData = dataResp.ok ? await dataResp.json() : null;
-            const nbaToday = cvData?.nba?.today || [];
+            let nbaSched = null;
+            try { const sr = await fetch('nba_schedule.json', { cache: 'no-store' }); nbaSched = sr.ok ? await sr.json() : null; } catch (e) {}
+            // NBA-MERGE-BEGIN
+            const _nbaStamp = (v) => {
+              if (!v) return NaN;
+              let s = String(v).trim();
+              if (s.endsWith(' UTC')) s = s.slice(0, -4).replace(' ', 'T') + 'Z';
+              return Date.parse(s);
+            };
+            const _nbaMerge = (cvData, nbaSched) => {
+              const A = Array.isArray(cvData && cvData.nba && cvData.nba.today) ? cvData.nba.today : [];
+              const B = Array.isArray(nbaSched && nbaSched.games) ? nbaSched.games.filter(g => g && !g.carried && !g.postponed) : [];
+              const tA = _nbaStamp(cvData && cvData.generated), tB = _nbaStamp(nbaSched && nbaSched.generated_at);
+              const schedWins = !isNaN(tB) && (isNaN(tA) || tB >= tA);
+              const aBy = new Map(A.map(g => [String(g.id), g])), bBy = new Map(B.map(g => [String(g.id), g]));
+              const hasLine = g => !!g && (g.homeML != null || g.awayML != null || g.ou != null);
+              const out = [];
+              new Set([...aBy.keys(), ...bBy.keys()]).forEach(id => {
+                const a = aBy.get(id), b = bBy.get(id);
+                let g = (a && b) ? (schedWins ? b : a) : (a || b);
+                const other = (a && b) ? (schedWins ? a : b) : null;
+                if (other && !hasLine(g) && hasLine(other)) g = Object.assign({}, g, { homeML: other.homeML, awayML: other.awayML, ou: other.ou });
+                if ([a, b].some(x => x && (x.seasonType === 1 || x.preseason === true))) g = Object.assign({}, g, { seasonType: 1 });
+                out.push(g);
+              });
+              return out;
+            };
+            // NBA-MERGE-END
+            const nbaToday = _nbaMerge(cvData, nbaSched);
             const todayIso = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
             nbaToday.forEach(g => {
               if (!g.date) return;

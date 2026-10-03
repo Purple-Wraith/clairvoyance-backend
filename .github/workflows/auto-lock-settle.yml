@@ -327,7 +327,7 @@ jobs:
         run: |
           PUSH_FLAG=""
           if [ "${{ steps.flags.outputs.live_flag }}" != "--live" ]; then PUSH_FLAG="--no-push"; fi
-          python3 scripts/lock_prep.py --jobs nhl,nfl,data-nhl $PUSH_FLAG
+          python3 scripts/lock_prep.py --jobs nhl,nfl,nba,data-nhl $PUSH_FLAG
 
       - name: Pre-settle results refresh + settle gate (fail-open)
         # Every settle-capable slot (gated, 22:44Z, 05:27Z, 18:21Z digest, manual settle/catch-up): re-scrape the four European

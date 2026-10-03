@@ -85,8 +85,8 @@ class LockPrepJob(unittest.TestCase):
     def test_workflows_run_the_job(self):
         a = (ROOT / ".github/workflows/auto-lock-settle.yml").read_text()
         w = (ROOT / ".github/workflows/lock-watchdog.yml").read_text()
-        self.assertIn("lock_prep.py --jobs nhl,nfl,data-nhl", a)
-        self.assertIn("lock_prep.py --jobs hockey,nhl,data-nhl", w)
+        self.assertIn("lock_prep.py --jobs nhl,nfl,nba,data-nhl", a)
+        self.assertIn("lock_prep.py --jobs hockey,nhl,nba,data-nhl", w)
         # clairvoyance_update.py imports bs4 at module level: the runner must install it (else a pip fallback costs time / can fail)
         self.assertIn("beautifulsoup4", a)
         self.assertIn("beautifulsoup4", w)

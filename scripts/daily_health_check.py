@@ -238,6 +238,7 @@ FRESHNESS_FILES = [
     ("nhl_schedule.json", "NHL schedule/odds", "generated_at", 20, 36),
     ("cfb_schedule.json", "CFB schedule", "generated_at", 20, 36),
     ("nfl_schedule.json", "NFL schedule", "generated_at", 20, 36),
+    ("nba_schedule.json", "NBA schedule/lines", "generated_at", 20, 36),
     ("soccer_schedule.json", "Soccer schedule", "generated_at", 20, 36),
     ("shl_schedule.json", "SHL schedule/odds", "generated_at", 12, 28),
     ("liiga_schedule.json", "Liiga schedule/odds", "generated_at", 12, 28),

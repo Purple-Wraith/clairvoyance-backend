@@ -54,6 +54,9 @@ JOBS: dict[str, tuple[list[str], list[str]]] = {
     "soccer-tomorrow": (["scripts/scrape_soccer_schedule.py", "--tomorrow"], ["docs/soccer_schedule_tomorrow.json"]),
     "cfb": (["scripts/fetch_cfb.py", "--mode", "schedule"], ["docs/cfb_schedule.json"]),
     "nfl": (["scripts/fetch_nfl.py", "--mode", "schedule"], ["docs/nfl_schedule.json"]),
+    # NBA rolling schedule (yesterday + next 10 days: states, scores, ESPN market lines; ~6 s, plain requests, no browser). Preseason
+    # games are in the file flagged seasonType 1 / preseason:true -- the lock pass skips those (auto_lock_settle.py NBA block).
+    "nba": (["scripts/fetch_nba.py"], ["docs/nba_schedule.json"]),
     # The FAST NHL pieces of docs/data.json (standings, edge, MoneyPuck, skaterValue, NHL injuries), merged into the committed file
     # (read-modify-write, every other key untouched, atomic, fail-open) -- scheduled-refresh.yml lands 3x/day and 3-6h late, so without
     # this a lock pass inherits standings that can miss a quarter of the finished games. ~5-15 s, no browser. Writes data.json only
@@ -66,7 +69,8 @@ GROUPS: dict[str, list[str]] = {
     "soccer-all": ["soccer", "soccer-tomorrow"],
 }
 ODDS_FILES = {"shl": "docs/shl_schedule.json", "liiga": "docs/liiga_schedule.json", "nla": "docs/nla_schedule.json",
-              "extraliga": "docs/extraliga_schedule.json", "nhl": "docs/nhl_schedule.json"}
+              "extraliga": "docs/extraliga_schedule.json", "nhl": "docs/nhl_schedule.json",
+              "nba": "docs/nba_schedule.json"}
 
 
 def log(msg: str) -> None:
@@ -185,11 +189,12 @@ def freshness_report(jobs: list[str]) -> None:
             log(f"freshness {j}: unreadable ({exc})")
             continue
         up = [g for g in games if g.get("state") == "pre"]
-        priced = [g for g in up if (g.get("odds") or {}).get("ml")]
+        # hockey files carry g["odds"]["ml"/"at"]; the NBA file carries flat homeML/awayML + oddsAt (ESPN single-book line)
+        priced = [g for g in up if (g.get("odds") or {}).get("ml") or (g.get("homeML") is not None and g.get("awayML") is not None)]
         ats = []
         for g in priced:
             try:
-                ats.append(datetime.fromisoformat(g["odds"]["at"].replace("Z", "+00:00")))
+                ats.append(datetime.fromisoformat((g.get("odds") or {}).get("at", g.get("oddsAt")).replace("Z", "+00:00")))
             except Exception:
                 pass
         newest = max(ats) if ats else None

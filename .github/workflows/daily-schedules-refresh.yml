@@ -93,6 +93,15 @@ jobs:
           TZ: America/Denver
         run: python3 scripts/fetch_nfl.py --mode schedule --push
 
+      # NBA rolling schedule (yesterday + next 10 days: dates, states, scores, ESPN market lines) -> docs/nba_schedule.json. Plain
+      # `requests`, ~6 s. Before this the NBA had no schedule file (only the 3x/day data.json scoreboard). Also refreshed right before
+      # every lock pass by scripts/lock_prep.py (job `nba`). Runs on BOTH cron slots like CFB/NFL/NHL.
+      - name: Refresh NBA schedule/lines
+        continue-on-error: true
+        env:
+          TZ: America/Denver
+        run: python3 scripts/fetch_nba.py --push
+
       # Real NHL bookmaker prices (ML + O/U + puck line) from Flashscore, added 2026-10-03 (see fetch_nhl.py's
       # attach_flashscore_odds + _flashscore_odds.py). Needs Playwright, which the rest of this workflow does not
       # (everything above is plain `requests`) -- installed in its own continue-on-error step so a failed browser
