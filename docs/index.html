@@ -3867,19 +3867,21 @@ function _pickLogo(p,side){
 function _titleWithLogos(p,sportOverride){
   try{
     const q=sportOverride?Object.assign({},p,{sport:sportOverride}):p;
-    return`<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${_pickLogo(q,'a')}${_pickLogo(q,'h')}<span>${_gameTitle(p.hA,p.awA,sportOverride||p.sport)}</span></span>`;
+    const on=_pickRecent(p);
+    return`<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${on?_pickLogo(q,'a'):''}${on?_pickLogo(q,'h'):''}<span>${_gameTitle(p.hA,p.awA,sportOverride||p.sport)}</span></span>`;
   }catch(e){return _gameTitle(p.hA,p.awA,sportOverride||p.sport);}
 }
-function _pickRecent(p){try{const c=new Date(Date.now()-3*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});return(p.date||'')>=c;}catch(e){return true;}}
+// Logos on pick rows only for games dated yesterday, today or tomorrow (Mountain): the Overall history renders ~1,900 rows and a logo on every one added
+// ~10k DOM nodes + ~3,300 images (history render 0.3s -> ~1s). Everything older keeps the plain team names.
+function _pickRecent(p){try{const fmt=ms=>new Date(ms).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});const d=p.date||'';return d>=fmt(Date.now()-86400000)&&d<=fmt(Date.now()+86400000);}catch(e){return true;}}
 function _pickRowHTML(p,o){
   o=o||{};
   const settled=o.mode==='settled';
   const oc=p.outcome==='win'?'#00e644':p.outcome==='loss'?'var(--hc)':p.outcome==='push'?'var(--vc)':'var(--pc)';
   const st=p.outcome==='push'?'PUSH':String(p.outcome||'pending').toUpperCase();
   const hasTeams=!!(p.hA&&p.awA);
-  // Logos on pending rows and on settled rows from the last 3 days only: the Overall history renders ~1,900 rows, and a logo on every one of them
-  // added ~10k DOM nodes + ~3,300 <img> elements (history render 0.3s -> ~1s, noticeable lag). Older settled rows keep the plain team names.
-  const lgOn=!settled||_pickRecent(p);
+  // logos only inside the yesterday..tomorrow window (see _pickRecent)
+  const lgOn=_pickRecent(p);
   const match=hasTeams
     ?`${lgOn?_pickLogo(p,'a'):''}<span>${_teamName(p.awA,p.sport)}</span><em>at</em>${lgOn?_pickLogo(p,'h'):''}<span>${_teamName(p.hA,p.sport)}</span>`
     :`<span>${o.title||_gameTitle(p.hA,p.awA,p.sport)||''}</span>`;
