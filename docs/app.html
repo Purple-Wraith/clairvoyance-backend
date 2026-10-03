@@ -7490,12 +7490,12 @@ function loadCFBData(){
     fetch('cfb_power.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch('cfb_team_stats.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch('cfb_schedule.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null),
-    // Permanent one-time 2025 snapshot (see scripts/snapshot_cfb_2025.py)
+    // Prior-season snapshot (docs/cfb_team_stats_prior.json: rolled over automatically by fetch_cfb.py when the new season's stats replace last season's; see scripts/snapshot_cfb_prior.py)
     // -- never refreshed, never overwritten. Used as a small 15%-weighted
     // historical signal in cfbMC() once 2026's roster/results are still
     // thin early in the season, same rationale as weighting a European
     // soccer league's prior season.
-    fetch('cfb_team_stats_2025.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch('cfb_team_stats_prior.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null),
   ]).then(([teams,power,stats,schedule,stats2025])=>{
     const conferences=teams?.conferences||{};
     const teamConf={};
@@ -7813,7 +7813,7 @@ function cfbMC(hA,awA,n,ouLine,g){
   // 2025 historical signal: own points-scored minus own points-allowed
   // per game from last season (same shape as scoringMargin above, and as
   // nflMC's real standings-differential margin), from the permanent
-  // snapshot in stats2025 (see scripts/snapshot_cfb_2025.py). Blended at
+  // snapshot in stats2025 (the prior-season file; see scripts/snapshot_cfb_prior.py). Blended at
   // a fixed 15% weight -- same rationale as weighting a prior European
   // soccer season: 2025's roster differs from 2026's, but the signal is
   // still informative, especially early in a season when 2026 data is
@@ -28614,7 +28614,7 @@ function renderFuturesOdds(){
   const D=window.__CV_DATA||{};
   const fut=D.futures||{};
   if(fut.source==='none'||!fut.source){
-    el.innerHTML='<div class="empty">NO ODDS API KEY<br><span style="font-size:13px;opacity:.6">Add ODDS_API_KEY to .env to enable futures odds</span></div>';
+    el.innerHTML='<div class="empty">FUTURES ODDS NOT AVAILABLE<br><span style="font-size:13px;opacity:.6">The odds feed was retired (2026-10-03); log futures bets manually below</span></div>';
     return;
   }
   const sections=[
