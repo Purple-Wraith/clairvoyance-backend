@@ -2141,6 +2141,9 @@ const API_ONLINE = () => !!API_BASE;
 // by design (Supabase's anon/publishable tier); write access is scoped by
 // RLS policies on the `bets` table (insert/update allowed, no delete).
 const SUPABASE_URL='https://vhwkbeblforpnliowpam.supabase.co';
+// ?nosb=1 turns every Supabase read AND write off for that page load (local testing / agent sessions). Added 2026-10-03 when the free-tier egress
+// reached 96% of the cycle: every page load does a full ledger pull, so repeated test loads (not just CI and real use) burn the quota. Never set by the pipeline.
+function _sbOff(){try{return /[?&]nosb=1(?:&|$)/.test(location.search||'');}catch(e){return false;}}
 const SUPABASE_KEY='sb_publishable_AEgqvpaIh0MWpDdXI35BYw_lD8HzBlM';
 function _supabaseBetRow(p){
   return{
@@ -2177,7 +2180,7 @@ let _supabaseSyncTimer=null;
 // allowed, and — unlike a real delete — is itself something every device
 // converges on the next time it pulls.
 async function _deleteBetsFromSupabase(ids){
-  if(!ids||!ids.length)return;
+  if(!ids||!ids.length||_sbOff())return;
   try{
     const list=ids.map(id=>encodeURIComponent(id)).join(',');
     const r=await fetch(`${SUPABASE_URL}/rest/v1/bets?id=in.(${list})`,{
@@ -2193,6 +2196,7 @@ async function _deleteBetsFromSupabase(ids){
 // just been scheduled) can call+await this directly, bypassing the
 // debounce entirely -- see _syncBetsToSupabaseNow's own comment.
 async function _doSupabaseSync(){
+  if(_sbOff())return;
   try{
     // Pull latest FIRST. Without this, a device with stale local state
     // (e.g. a bet it hasn't learned was settled elsewhere yet) would
@@ -5483,6 +5487,19 @@ window.applyBetClassificationFix=applyBetClassificationFix;
 // device had locked or settled — locking a pick on the phone never
 // reached the laptop. This closes that gap by reading the same `bets`
 // table back down and merging it into local state.
+// Page-load pull policy (2026-10-03, Supabase egress at 96% of the cycle): the boot pull used to be a COMPLETE ledger pull on every single load (~3,900 rows,
+// ~2-3 MB). It is now complete only when it has to be -- automation (the CI lock/settle sessions need the authoritative ledger), a new/empty device, or
+// no complete pull in the last 24h (same rule the foreground pull already used) -- otherwise the scoped 10-day pull, which is all a device that already
+// holds the ledger in localStorage needs. A change older than 10 days still reaches every device at least once a day.
+function _initNeedsFullPull(){
+  try{
+    if(navigator.webdriver===true)return true;
+    const last=parseInt(localStorage.getItem('cv_last_full_pull_ts')||'0',10);
+    if(!last||Date.now()-last>24*60*60*1000)return true;
+    if((typeof getP==='function'?getP().length:0)<200)return true;
+    return false;
+  }catch(e){return true;}
+}
 let _lastSupabasePullTs=0;
 // Paginated Range-header loop shared by syncPicksFromSupabase() -- same
 // limit and same fix documented there. Throws (rather than silently
@@ -5504,6 +5521,7 @@ let _lastSupabasePullTs=0;
 // button). Omit sinceDays (or pass null) for a real complete pull.
 async function _fetchSupabaseBetRows(sinceDays){
   const rows=[];
+  if(_sbOff())return rows;
   let offset=0;const pageSize=1000;
   const dateFilter=sinceDays?'&date=gte.'+new Date(Date.now()-sinceDays*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'}):'';
   while(true){
@@ -24145,7 +24163,7 @@ document.addEventListener('DOMContentLoaded',()=>{(async()=>{
       Promise.race([loadPicksFromGitHub(),new Promise(r=>setTimeout(r,4000))]),
       Promise.race([idbRecoverDailyLog(),new Promise(r=>setTimeout(r,2000))]),
       Promise.race([syncPicksFromBackend(),new Promise(r=>setTimeout(r,5000))]),
-      Promise.race([syncPicksFromSupabase(true),new Promise(r=>setTimeout(r,25000))]),
+      Promise.race([syncPicksFromSupabase(_initNeedsFullPull()),new Promise(r=>setTimeout(r,25000))]),
     ]);
   }catch(e){console.error('parallelSync',e);}
   try{_migrateMlbNhlMislabel();}catch(e){console.error('migrateMlbNhl',e);}

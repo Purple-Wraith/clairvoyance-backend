@@ -2634,6 +2634,34 @@ def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | Non
     return LockResult(new, already_locked, failed, skipped, tuple(failed_labels))
 
 
+def count_pending_for_dates(page, dates: list[str]) -> list[int]:
+    """Pending picks Supabase really holds per game date -- one tiny id-only query per date (a few hundred bytes), NOT another complete ledger
+    pull. The verify step used to re-pull the whole ~3,900-row ledger just to count a couple of dates, which on top of the session's initial pull
+    doubled the Supabase egress of every lock run (the free-tier quota reached 96% of its cycle on 2026-10-03). Falls back to the old full pull
+    only if the scoped query itself fails."""
+    counts = page.evaluate(
+        """
+        async (ds) => {
+          const out = [];
+          for (const d of ds) {
+            const r = await fetch(SUPABASE_URL + '/rest/v1/bets?select=id&date=eq.' + encodeURIComponent(d) + '&outcome=eq.pending', {
+              headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY },
+            });
+            if (!r.ok) return null;
+            out.push((await r.json()).length);
+          }
+          return out;
+        }
+        """,
+        list(dates),
+    )
+    if counts is None:
+        load_bet_ledger(page)
+        counts = page.evaluate(
+            "(ds) => ds.map(d => getP().filter(p => p.date === d && p.outcome === 'pending').length)", list(dates))
+    return counts
+
+
 def verify_locks_for_date(page, date_iso: str | None = None) -> int:
     """The actual TEST behind "make sure picks locked correctly": a fresh,
     independent re-pull straight from Supabase (not just trusting the
@@ -2649,22 +2677,16 @@ def verify_locks_for_date(page, date_iso: str | None = None) -> int:
     explicitly for the evening-prior soccer lock, which verifies
     TOMORROW's date, not today's."""
     target = date_iso or datetime.now(ZoneInfo("America/Denver")).strftime("%Y-%m-%d")
-    n = load_bet_ledger(page)
-    count = page.evaluate(
-        "(d) => getP().filter(p => p.date === d && p.outcome === 'pending').length",
-        target,
-    )
-    log(f"VERIFY: fresh Supabase pull ({n} total bets) shows {count} pick(s) locked for {target}")
+    count = count_pending_for_dates(page, [target])[0]
+    log(f"VERIFY: fresh Supabase count shows {count} pick(s) locked for {target}")
     return count
 
 
 def verify_locks_for_dates(page, dates: list[str]) -> int:
     """verify_locks_for_date over several dates with ONE ledger pull (the rolling-horizon passes lock picks dated today AND
     tomorrow). Returns the total number of pending picks found for those dates."""
-    n = load_bet_ledger(page)
-    counts = page.evaluate(
-        "(ds) => ds.map(d => getP().filter(p => p.date === d && p.outcome === 'pending').length)", list(dates))
-    log(f"VERIFY: fresh Supabase pull ({n} total bets) shows pending picks locked per date: "
+    counts = count_pending_for_dates(page, list(dates))
+    log("VERIFY: fresh Supabase count shows pending picks locked per date: "
         + ", ".join(f"{d}={c}" for d, c in zip(dates, counts)))
     return sum(counts)
 
