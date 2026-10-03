@@ -110,13 +110,25 @@ class AltLine(unittest.TestCase):
             self.assertNotEqual(table, A.HOCKEY_OU_NHL[6.5])
             out = A._alt_shift_leg(leg(sport, "under", "UNDER 5.5"))
             self.assertIn(out["prob"], table.values(), sport)
-        self.assertEqual(A._alt_shift_leg(leg("LIIGA", "over", "OVER 5.5"))["prob"], 0.593)
-        self.assertEqual(A._alt_shift_leg(leg("SHL", "under", "UNDER 5.5"))["prob"], 0.667)
+        self.assertEqual(A._alt_shift_leg(leg("LIIGA", "over", "OVER 5.5"))["prob"], 0.609)
+        self.assertEqual(A._alt_shift_leg(leg("NLA", "over", "OVER 5.5"))["prob"], 0.632)
+
+    def test_european_tables_put_the_over_one_goal_down_in_the_band(self):
+        # measured: OVER anchor-1 sits at 59-63% in every league, UNDER anchor+1 at 70-76% -> the over is always closest to 60-65%
+        for sport in A.HOCKEY_OU_EURO:
+            self.assertEqual(A._alt_shift_leg(leg(sport, "over", "OVER 5.5"))["label"], "OVER 4.5")
+            under = A._alt_shift_leg(leg(sport, "under", "UNDER 5.5"))
+            self.assertEqual(under["label"], "OVER 4.5")
+            self.assertTrue(under["altLine"]["flip"])
 
     def test_near_tie_goes_to_the_models_own_side(self):
-        # SHL: OVER 4.5 .666 vs UNDER 6.5 .667 are within 2 points -> the model's side wins, whichever it is
-        self.assertEqual(A._alt_shift_leg(leg("SHL", "over", "OVER 5.5"))["label"], "OVER 4.5")
-        self.assertEqual(A._alt_shift_leg(leg("SHL", "under", "UNDER 5.5"))["label"], "UNDER 6.5")
+        saved = dict(A.HOCKEY_OU_EURO["SHL"])
+        try:
+            A.HOCKEY_OU_EURO["SHL"] = {-3: 0.9, -2: 0.8, -1: 0.666, 1: 0.667, 2: 0.8, 3: 0.9}   # OVER 4.5 vs UNDER 6.5 within 2 points
+            self.assertEqual(A._alt_shift_leg(leg("SHL", "over", "OVER 5.5"))["label"], "OVER 4.5")
+            self.assertEqual(A._alt_shift_leg(leg("SHL", "under", "UNDER 5.5"))["label"], "UNDER 6.5")
+        finally:
+            A.HOCKEY_OU_EURO["SHL"] = saved
 
     def test_hockey_never_picks_below_the_floor(self):
         saved = A.HOCKEY_ALT_FLOOR

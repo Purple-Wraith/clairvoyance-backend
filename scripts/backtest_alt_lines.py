@@ -4,6 +4,7 @@
   python3 scripts/backtest_alt_lines.py nhl     # NHL totals: win rate of OVER L-1 / UNDER L+1 against the closing total L
   python3 scripts/backtest_alt_lines.py nba     # NBA totals + spreads: win rate vs cushion k, fitted sigma
   python3 scripts/backtest_alt_lines.py euro    # LIIGA / SHL / NLA / EXTRALIGA: each league's OWN total-goals distribution (2025-26 regular season + 2026-27 so far)
+  python3 scripts/backtest_alt_lines.py euro-archive [--refresh]   # same, but the REAL totals CDF scraped from Flashscore's per-team Over/Under standings tabs + NHL method check
 
 Closing DraftKings / ESPN BET lines and final scores come from ESPN's public site + core APIs (the NHL half reuses
 backtest_hockey_models.load_odds). Read-only; nothing touches the ledger or Supabase. Cached under --cache so reruns are free.
@@ -17,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import statistics
 import sys
 from collections import defaultdict
@@ -128,6 +130,182 @@ def cmd_euro(cache: Path) -> None:
         print(f"   table = {json.dumps({str(j): round(v, 3) for j, v in tab.items()})}\n")
 
 
+# --- euro-archive: real totals distributions from Flashscore's per-team Over/Under standings tabs ---------------------------------------------------
+# Flashscore standings -> Over/Under tab: per team, MP / games OVER / games UNDER a chosen goal threshold (URL ends .../over_under/overall/<x.5>/).
+# Every game involves two teams, so league-wide P(total > x) = sum(over) / sum(MP) over teams -- the full empirical CDF of regular-season totals
+# even though the archive /results/ page lists only the playoffs. Stage ids (CMVpiF7T etc.) are the ones the fetch_*.py scripts already use.
+FS = "https://www.flashscore.com/hockey"
+ARCHIVE = {  # league -> (country/slug path, last-season stage id, current-season stage id)
+    "liiga": ("finland/liiga", "SCI7qRwB", "C8KZXayI"),
+    "shl": ("sweden/shl", "CMVpiF7T", "tKxnwsZa"),
+    "nla": ("switzerland/national-league", "YwJVrFRr", "UmJLocZR"),
+    "extraliga": ("czech-republic/extraliga", "K0tmQWEr", "WOgC3lWQ"),
+}
+ARCHIVE_THRESH = [x + 0.5 for x in range(0, 12)]     # 0.5 .. 11.5 ; the page only offers 0.5..8.5 -- an unknown threshold silently falls back to the default 5.5 table, so
+#                                                     # _scrape_ou checks the threshold the page actually selected and the higher ones are dropped
+_TEAM_ID_RE = re.compile(r"/team/([a-z0-9-]+)/([A-Za-z0-9]+)/?")
+
+
+def _scrape_ou(page, url: str) -> dict:
+    """{teamId: [mp, over, under]} from one Over/Under standings page (same selectors as fetch_liiga.fetch_gm_rates). {} when the page has no table."""
+    page.goto(url, wait_until="networkidle", timeout=45000)
+    want = url.rstrip("/").rsplit("/", 1)[-1]
+    if page.url.rstrip("/").rsplit("/", 1)[-1] != want:      # redirected to the default threshold: this one does not exist
+        return {}
+    try:
+        page.wait_for_selector(".table__cell--value", timeout=10000)
+    except Exception:
+        pass
+    page.wait_for_timeout(800)
+    out = {}
+    for row in page.query_selector_all("[class*='ui-table__row']"):
+        link = row.query_selector(".table__cell--participant a")
+        m = _TEAM_ID_RE.search((link.get_attribute("href") if link else "") or "")
+        if not m:
+            continue
+        plain = row.query_selector_all(".table__cell--value:not(.table__cell--over):not(.table__cell--under):not(.table__cell--score)")
+        ov, un = row.query_selector(".table__cell--over"), row.query_selector(".table__cell--under")
+        if not plain or not ov or not un:
+            continue
+        try:
+            out[m.group(2)] = [int(plain[0].inner_text().strip()), int(ov.inner_text().strip()), int(un.inner_text().strip())]
+        except ValueError:
+            continue
+    return out
+
+
+def load_archive(cache: Path, refresh: bool = False) -> dict:
+    """{league: {"prev": {thr: {team: [mp, over, under]}}, "cur": {...}}}, cached per league/season under cache/euro_archive_<league>_<prev|cur>.json."""
+    from playwright.sync_api import sync_playwright
+    res: dict = {}
+    todo = [(lg, s) for lg in EURO for s in ("prev", "cur") if refresh or not (cache / f"euro_archive_{lg}_{s}.json").exists()]
+    if todo:
+        cache.mkdir(parents=True, exist_ok=True)
+        with sync_playwright() as p:
+            br = p.chromium.launch()
+            page = br.new_context(timezone_id="UTC").new_page()
+            for lg, s in todo:
+                path, prev_id, cur_id = ARCHIVE[lg]
+                base = f"{FS}/{path}-2025-2026" if s == "prev" else f"{FS}/{path}"
+                sid = prev_id if s == "prev" else cur_id
+                data = {}
+                for thr in ARCHIVE_THRESH:
+                    url = f"{base}/standings/{sid}/over_under/overall/{thr}/"
+                    for attempt in range(3):
+                        try:
+                            rows = _scrape_ou(page, url)
+                            if rows:
+                                break
+                        except Exception as e:  # noqa: BLE001
+                            print(f"  {lg} {s} {thr}: attempt {attempt + 1} failed: {e}", file=sys.stderr)
+                    n_g = sum(v[0] for v in rows.values()) / 2 if rows else 0
+                    print(f"  {lg} {s} thr {thr}: {len(rows)} teams, {n_g:.0f} games, over {sum(v[1] for v in rows.values())}", file=sys.stderr)
+                    if rows:
+                        data[str(thr)] = rows
+                (cache / f"euro_archive_{lg}_{s}.json").write_text(json.dumps({"base": base, "stage": sid, "thr": data}))
+            br.close()
+    for lg in EURO:
+        res[lg] = {s: json.loads((cache / f"euro_archive_{lg}_{s}.json").read_text()) for s in ("prev", "cur")}
+    return res
+
+
+def survival(thr: dict) -> tuple[float, dict]:
+    """(games, {x: P(total > x)}) pooled over teams from {thr: {team: [mp, over, under]}}. Games = sum(MP)/2; P = sum(over)/sum(MP)."""
+    S, mp = {}, None
+    for x, rows in thr.items():
+        tot_mp = sum(v[0] for v in rows.values())
+        S[float(x)] = sum(v[1] for v in rows.values()) / tot_mp
+        mp = tot_mp if mp is None else max(mp, tot_mp)
+    return mp / 2, S
+
+
+def pmf_from_survival(S: dict, tmax: int = 25) -> tuple[dict, list[str]]:
+    """pmf of integer totals from S[x] = P(total > x), x = 0.5, 1.5, ... (P(total >= x+0.5)). S(-0.5) = 1. pmf(t) = S(t-0.5) - S(t+0.5).
+    Thresholds the page does not offer (above the highest one) are extrapolated geometrically from the last two observed ones. Returns (pmf, notes)."""
+    notes = []
+    xs = sorted(S)
+    top = xs[-1]
+    r = min(0.9, S[top] / S[xs[-2]]) if len(xs) > 1 and S[xs[-2]] > 0 else 0.5
+    full = {-0.5: 1.0, **S}
+    x = top
+    while x + 1 <= tmax - 0.5:
+        x += 1
+        full[x] = full[x - 1] * r
+    if x > top:
+        notes.append(f"S above {top} extrapolated geometrically (ratio {r:.3f}); S({top + 1}) = {full[top + 1]:.4f}")
+    prev = 1.0
+    for xx in sorted(full):
+        if full[xx] > prev + 1e-12:
+            notes.append(f"non-monotone survival at {xx}: {full[xx]:.4f} > {prev:.4f}")
+        prev = full[xx]
+    pm = {t: max(0.0, full[t - 0.5] - full[t + 0.5]) for t in range(0, tmax)}
+    return pm, notes
+
+
+def table_at(p: dict, l0: float) -> dict:
+    """Same table as table_from() but at a FIXED anchor (e.g. 5.5, the line most European hockey books post) instead of the 50%-closest one."""
+    return {j: (over_under(p, l0 + j)[0] if j < 0 else over_under(p, l0 + j)[1]) for j in (-3, -2, -1, 1, 2, 3)}
+
+
+def _fmt_tab(l0: float, tab: dict) -> str:
+    return f"anchor {l0}: " + "  ".join(f"{j:+d}:{tab[j]:.3f}" for j in tab)
+
+
+def cmd_euro_archive(cache: Path, refresh: bool = False) -> None:
+    arch = load_archive(cache, refresh)
+    for lg in EURO:
+        print(f"=== {lg} ===")
+        sets, pooled = {}, {}
+        for s, label in (("prev", "2025-26 regular season"), ("cur", "2026-27 so far")):
+            thr = arch[lg][s]["thr"]
+            n, S = survival(thr)
+            # sanity: per threshold, over+under == MP for every team and the team set / MP identical across thresholds
+            bad = [x for x, rows in thr.items() if any(v[1] + v[2] != v[0] for v in rows.values())]
+            mps = {x: sum(v[0] for v in rows.values()) for x, rows in thr.items()}
+            teams = {x: len(rows) for x, rows in thr.items()}
+            pm, notes = pmf_from_survival(S)
+            mean = sum(t * q for t, q in pm.items())
+            sets[s] = (n, S, pm)
+            pooled[s] = thr
+            print(f"[{label}] n={n:.0f} games ({len(next(iter(thr.values())))} teams; thresholds {min(map(float, thr))}..{max(map(float, thr))}); pmf sums to {sum(pm.values()):.4f}; mean total {mean:.3f}")
+            if bad or len(set(mps.values())) > 1 or len(set(teams.values())) > 1:
+                print(f"   WARNING: over+under!=MP at {bad}; MP by thr {mps}; teams by thr {teams}")
+            for nt in notes:
+                print(f"   note: {nt}")
+            print("   P(over): " + "  ".join(f"{x}:{S[x]:.3f}" for x in (3.5, 4.5, 5.5, 6.5, 7.5) if x in S))
+            l0, tab = table_from(pm)
+            print(f"   {_fmt_tab(l0, tab)}")
+            print(f"   table = {json.dumps({str(j): round(v, 3) for j, v in tab.items()})}")
+            if l0 != 5.5:
+                print(f"   (fixed anchor) {_fmt_tab(5.5, table_at(pm, 5.5))}")
+        # combined: pool the two seasons' games (weights = games played)
+        (n1, S1, _), (n2, S2, _) = sets["prev"], sets["cur"]
+        Sc = {x: (n1 * S1[x] + n2 * S2[x]) / (n1 + n2) for x in S1 if x in S2}
+        pm, notes = pmf_from_survival(Sc)
+        mean = sum(t * q for t, q in pm.items())
+        l0, tab = table_from(pm)
+        print(f"[combined, n={n1 + n2:.0f} games, weights {n1 / (n1 + n2):.0%}/{n2 / (n1 + n2):.0%}] mean total {mean:.3f}")
+        print(f"   {_fmt_tab(l0, tab)}")
+        print(f"   table = {json.dumps({str(j): round(v, 3) for j, v in tab.items()})}\n")
+
+
+def cmd_nhl_check(cache: Path) -> None:
+    """Sanity check of the shift-invariant method on the NHL: build an UNCONDITIONAL totals pmf (all games, shootout goal removed), take table_from(), and compare to the
+    conditional closing-line hit rates cmd_nhl measures (posted 5.5 -> OVER4.5 / UNDER6.5; posted 6.5 -> OVER5.5 / UNDER7.5)."""
+    odds = json.loads((cache / "nhl_odds_hist.json").read_text())
+    tots = [g["hs"] + g["as_"] - (1 if g.get("period") == 5 else 0) for gs in odds.values() for g in gs]
+    n = len(tots)
+    pm = {k: sum(1 for t in tots if t == k) / n for k in range(0, 25)}
+    print(f"NHL unconditional totals (shootout goal removed): n={n} mean {statistics.mean(tots):.3f} sd {statistics.pstdev(tots):.3f}")
+    l0, tab = table_from(pm)
+    print(f"   {_fmt_tab(l0, tab)}")
+    known = {5.5: (0.731, 0.611), 6.5: (0.589, 0.736)}
+    for L, (ko, ku) in known.items():
+        o = over_under(pm, L - 1)[0]
+        u = over_under(pm, L + 1)[1]
+        print(f"   posted {L}: unconditional OVER {L - 1} {o:.3f} vs conditional {ko:.3f} (diff {o - ko:+.3f});  UNDER {L + 1} {u:.3f} vs conditional {ku:.3f} (diff {u - ku:+.3f})")
+
+
 def ncdf(z: float) -> float:
     return 0.5 * (1 + math.erf(z / math.sqrt(2)))
 
@@ -191,8 +369,13 @@ def cmd_nba(cache: Path) -> None:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["nhl", "nba", "euro"])
+    ap.add_argument("cmd", choices=["nhl", "nba", "euro", "euro-archive"])
     ap.add_argument("--cache", default="/tmp/cv_alt_bt")
+    ap.add_argument("--refresh", action="store_true", help="euro-archive: re-scrape Flashscore instead of using the cached JSON")
     a = ap.parse_args()
     cache = Path(a.cache)
-    {"nhl": cmd_nhl, "nba": cmd_nba, "euro": cmd_euro}[a.cmd](cache)
+    if a.cmd == "euro-archive":
+        cmd_euro_archive(cache, a.refresh)
+        cmd_nhl_check(cache)
+    else:
+        {"nhl": cmd_nhl, "nba": cmd_nba, "euro": cmd_euro}[a.cmd](cache)

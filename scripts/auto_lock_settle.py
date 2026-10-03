@@ -2140,9 +2140,11 @@ ALT_LINE_CFG = {
 # HOCKEY_ALT_BAND wins; nothing below HOCKEY_ALT_FLOOR is ever picked. Ties within 2 points go to the model's own side, then the smaller move. Puck lines are not shifted.
 #   NHL: conditional hit rates from 2,630 games of closing totals + results (2024-25 + 2025-26, scripts/backtest_alt_lines.py nhl), with the shootout-winning goal removed
 #        (ESPN's final includes it, sportsbooks do not settle totals on it). Posted totals <= 6.0 use the 5.5 table, higher ones the 6.5 table.
-#   LIIGA / SHL / NLA / EXTRALIGA: each league's OWN table (scripts/backtest_alt_lines.py euro): this season's finished games blended with a Poisson at the league's own two-season
-#        mean total (last season + this season from the teams' gf/gp). No NHL numbers. There are no closing-line histories for these leagues, so the posted line is assumed to be
-#        the game's median and one shift-invariant table applies at any posted line. Small samples (38-76 finished games) -> REFRESH THESE as the season fills in.
+#   LIIGA / SHL / NLA / EXTRALIGA: each league's OWN table (scripts/backtest_alt_lines.py euro-archive): the league's full 2025-26 regular season (364-480 games, from Flashscore's
+#        archive standings Over/Under pages: every team's over counts at each goal line, shootout goal excluded as books settle) combined with this season so far, weighted by
+#        games (85-90% last season). No NHL numbers. There are no closing-line histories for these leagues, so the posted line is assumed to be the game's median and one
+#        shift-invariant table applies at any posted line, anchored on 5.5 (the line most European books post). Measured on the NHL, where the true conditional rates are known,
+#        that shift-invariant method lands 1.6-3.4 points (mean 2.7) off: treat these as +/- 3 points. Refresh as the season fills in.
 # A whole-number posted line is anchored on the half-point below it, so a lock never lands on a push.
 HOCKEY_ALT_BAND = (0.60, 0.65)
 HOCKEY_ALT_FLOOR = 0.55
@@ -2153,10 +2155,10 @@ HOCKEY_OU_NHL = {
     6.5: {-3: 0.879, -2: 0.787, -1: 0.589, 1: 0.736, 2: 0.831, 3: 0.915},
 }
 HOCKEY_OU_EURO = {
-    "LIIGA": {-3: 0.981, -2: 0.940, -1: 0.758, 1: 0.593, 2: 0.745, 3: 0.838},
-    "SHL": {-3: 0.918, -2: 0.780, -1: 0.666, 1: 0.667, 2: 0.816, 3: 0.870},
-    "NLA": {-3: 0.947, -2: 0.854, -1: 0.755, 1: 0.590, 2: 0.783, 3: 0.876},
-    "EXTRALIGA": {-3: 0.908, -2: 0.804, -1: 0.676, 1: 0.663, 2: 0.812, 3: 0.893},
+    "LIIGA": {-3: 0.915, -2: 0.805, -1: 0.609, 1: 0.707, 2: 0.833, 3: 0.915},
+    "SHL": {-3: 0.911, -2: 0.770, -1: 0.590, 1: 0.714, 2: 0.840, 3: 0.916},
+    "NLA": {-3: 0.911, -2: 0.805, -1: 0.632, 1: 0.714, 2: 0.853, 3: 0.928},
+    "EXTRALIGA": {-3: 0.866, -2: 0.765, -1: 0.600, 1: 0.755, 2: 0.835, 3: 0.908},
 }
 ALT_SPORTS = frozenset(ALT_LINE_CFG) | HOCKEY_SPORTS
 _ND = None
@@ -2213,7 +2215,7 @@ def _hockey_pick_alt(posted: float, sport: str = "NHL", own_side: str = "over") 
             continue
         dist = 0.0 if lo <= p <= hi else (lo - p if p < lo else p - hi)
         # distances within HOCKEY_ALT_TIE of each other are a tie: prefer the model's own side, then the smaller move
-        key = (round(dist / HOCKEY_ALT_TIE), side != own_side, abs(j))
+        key = (int(dist / HOCKEY_ALT_TIE + 1e-9), side != own_side, abs(j))
         if best is None or key < best[0]:
             best = (key, side, line, j, p)
     return best[1], best[2], best[3], best[4]

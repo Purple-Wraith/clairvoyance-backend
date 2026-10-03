@@ -4637,8 +4637,8 @@ const _ALT_CFG={CFB:{OU:[['normal',14.7,1.9],3,9],SPREAD:[['normal',15.7,.8],3,1
 const _ALT_HK=new Set(['NHL','SHL','LIIGA','NLA','EXTRALIGA']);
 const _ALT_HK_BAND=[.60,.65],_ALT_HK_FLOOR=.55,_ALT_HK_TIE=.02;
 const _ALT_HK_NHL={'5.5':{'-3':.961,'-2':.848,'-1':.731,'1':.611,'2':.769,'3':.851},'6.5':{'-3':.879,'-2':.787,'-1':.589,'1':.736,'2':.831,'3':.915}};
-const _ALT_HK_EURO={LIIGA:{'-3':.981,'-2':.940,'-1':.758,'1':.593,'2':.745,'3':.838},SHL:{'-3':.918,'-2':.780,'-1':.666,'1':.667,'2':.816,'3':.870},
-  NLA:{'-3':.947,'-2':.854,'-1':.755,'1':.590,'2':.783,'3':.876},EXTRALIGA:{'-3':.908,'-2':.804,'-1':.676,'1':.663,'2':.812,'3':.893}};
+const _ALT_HK_EURO={LIIGA:{'-3':.915,'-2':.805,'-1':.609,'1':.707,'2':.833,'3':.915},SHL:{'-3':.911,'-2':.770,'-1':.590,'1':.714,'2':.840,'3':.916},
+  NLA:{'-3':.911,'-2':.805,'-1':.632,'1':.714,'2':.853,'3':.928},EXTRALIGA:{'-3':.866,'-2':.765,'-1':.600,'1':.755,'2':.835,'3':.908}};
 const _ALT_TARGET=.67,_ALT_FLOOR=.62,_ALT_VIG=.045;
 function _altProb(c,k){
   if(c[0]==='normal')return normalCDF((k+c[2])/c[1]);
@@ -4660,7 +4660,7 @@ function _altShift(sport,mkt,label){
       const j=+js,p=tab[js];if(p<_ALT_HK_FLOOR)continue;
       const side=j<0?'OVER':'UNDER',line=anchor+j;if(line<=0)continue;
       const dist=(p>=_ALT_HK_BAND[0]&&p<=_ALT_HK_BAND[1])?0:(p<_ALT_HK_BAND[0]?_ALT_HK_BAND[0]-p:p-_ALT_HK_BAND[1]);
-      const key=[Math.round(dist/_ALT_HK_TIE),side!==own?1:0,Math.abs(j)];
+      const key=[Math.floor(dist/_ALT_HK_TIE+1e-9),side!==own?1:0,Math.abs(j)];
       const better=!best||key[0]<best.key[0]||(key[0]===best.key[0]&&(key[1]<best.key[1]||(key[1]===best.key[1]&&key[2]<best.key[2])));
       if(better)best={key,side,line,j,p};
     }
