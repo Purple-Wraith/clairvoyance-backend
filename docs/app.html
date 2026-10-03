@@ -13223,7 +13223,10 @@ function nbaMC(hA,awA,n=25000,ouLine=220.5){
   // all 30 teams but was never consumed anywhere in the frontend until now.
   const liveAdv=window.__CV_DATA?.nba?.teamAdv||{};
   const h=NBA_BBREF[hA],aw=NBA_BBREF[awA];
-  const hLive=liveAdv[hA],aLive=liveAdv[awA];
+  // Second source, 2026-10-03: nba.teamRatings.teams[abbr].prior (last season's ortg/drtg/pace, all 30 teams) when teamAdv has no row for a team, so a team can never fall to the
+  // flat 50/50 "no data" return below just because the advanced-stats table was empty or hasn't got this season's rows yet.
+  const _trAdv=a=>{const pr=window.__CV_DATA?.nba?.teamRatings?.teams?.[a]?.prior;return(pr&&pr.ortg!=null&&pr.drtg!=null)?{ortg:pr.ortg,drtg:pr.drtg,pace:pr.pace}:undefined;};
+  const hLive=liveAdv[hA]||_trAdv(hA),aLive=liveAdv[awA]||_trAdv(awA);
   const ht=NBA_TEAMS[hA],awt=NBA_TEAMS[awA];
   if(!ht&&!awt&&!hLive&&!aLive)return null; // truly no data for either team from any source
   // League-average constants (honest neutral fallback) instead of the old
@@ -13264,8 +13267,14 @@ function nbaGetBayes(abbr){
   // real w/l records) was already being fetched and just never consumed here.
   const t=NBA_TEAMS[abbr];
   const liveStand=window.__CV_DATA?.nba?.standings?.[abbr];
-  if(!t&&!liveStand)return{m:.5};
-  let al=(t?t.pw:parseInt(liveStand?.w)||0)+1,bl=(t?t.pl:parseInt(liveStand?.l)||0)+1;
+  // Season rollover, 2026-10-03: nba.teamRatings (clairvoyance_update.py collect_nba_season_data) holds all 30 teams' last-season win% regressed toward .500 plus this season's record.
+  // 10 pseudo-games of that prior + the current record replaces the old playoff-record (NBA_TEAMS.pw/pl, 4 teams) / raw standings fallbacks, which read 0-0 -> flat 50% for everyone
+  // at the start of a season. Falls back to the previous logic when the block is absent.
+  const tr=window.__CV_DATA?.nba?.teamRatings?.teams?.[abbr];
+  if(!t&&!liveStand&&!tr)return{m:.5};
+  let al,bl;
+  if(tr&&tr.priorWinPct!=null){al=10*tr.priorWinPct+(tr.current?.w||0)+1;bl=10*(1-tr.priorWinPct)+(tr.current?.l||0)+1;}
+  else{al=(t?t.pw:parseInt(liveStand?.w)||0)+1;bl=(t?t.pl:parseInt(liveStand?.l)||0)+1;}
   for(const p of getP()){if(p.outcome==='pending'||_normSport(p)!=='NBA')continue;const iH=p.hA===abbr,iA=p.awA===abbr;if(!iH&&!iA)continue;const w=(iH&&(p.hScore||0)>(p.aScore||0))||(iA&&(p.aScore||0)>(p.hScore||0));if(w)al++;else bl++;}
   return{m:al/(al+bl)};
 }
@@ -13620,7 +13629,8 @@ function _nbaGameCard(espnEv){
       // topTier reflect a live model projection only while pre is true).
       if(pre&&topTier>0)_attachReasoning(_nmNBA,side=>_mcLineScore(nbaEnsD?.mcD,side,ouL,{n:25000}),{[_bmNBA.side]:explanation});
       else if(pre)_attachReasoning(_nmNBA,side=>_mcLineScore(nbaEnsD?.mcD,side,ouL,{n:25000}));
-      _autoLockCapture('NBA',hn,an,_nmNBA,_nbaEmailMc,undefined,espnEv.date);
+      // Preseason (ESPN season.type 1) games are never fed to the automated lock pass -- same exclusion NFL has; auto_lock_settle.py skips them too. Rolls over by itself on opening night.
+      if(!((espnEv.season&&espnEv.season.type===1)||espnEv.seasonType===1))_autoLockCapture('NBA',hn,an,_nmNBA,_nbaEmailMc,undefined,espnEv.date);
       const parlayBtn='';
       const _nbaGidSafe=String(espnEv.id||(hn+'_'+an)).replace(/[^a-zA-Z0-9]/g,'');
       return`<div class="gc" style="border-left:2px solid rgba(240,0,255,.4)">
@@ -21303,6 +21313,7 @@ async function loadRemoteData(force=false){
     if(!r.ok)throw new Error(r.status);
     const d=await r.json();
     window.__CV_DATA=d;
+    _applyNBARatings(d);
     localStorage.setItem(cacheKey,String(Date.now()));
     LAST_AUTO_UPDATE=d.generatedET||d.generated||'';
     if(d.nba?.today?.length)  patchNBATonight(d.nba.today);
@@ -21372,6 +21383,14 @@ function mergeSeededBets(seeded){
     try{renderNBAHistory();}catch(e){}
   }catch(e){console.warn('[CV] mergeSeededBets:',e);}
 }
+// NBA season rollover, 2026-10-03: nba.eloSeed (all 30 teams: last season's net rating regressed + this season's results, from clairvoyance_update.py) replaces the 4 hardcoded
+// finalists in NBA_ELO (every other team read 1550 = identical). Called from both data loaders; resets the cached injury roster so nba.roster is picked up.
+function _applyNBARatings(d){
+  try{
+    if(d&&d.nba&&d.nba.eloSeed&&typeof NBA_ELO==='object')Object.assign(NBA_ELO,d.nba.eloSeed);
+    window._injRoster=null;
+  }catch(e){}
+}
 function patchNBATonight(games){
   window._remoteNBAGames=games;
   if(games&&games.length){
@@ -21383,7 +21402,7 @@ function patchNBATonight(games){
         hML:g.homeML||-110,aML:g.awayML||110,
         ou:g.ou?parseFloat(_forceHalfLine(g.ou)):220.5,hL:g.spread||-1.5,
         ctx:g.seriesNote||g.away+' @ '+g.home,
-        state:g.state||'pre',id:g.id,
+        state:g.state||'pre',id:g.id,seasonType:g.seasonType,
         hScore:g.homeScore,aScore:g.awayScore});
     });
   }
@@ -24288,7 +24307,9 @@ async function renderNewsSport(sport){
 //     cosmetic badge.
 function buildInjuryRoster(){
   const r={};
-  for(const p of(window.NBA_PLAYERS||[])){r[p.n.toLowerCase()]={team:p.t,sport:'nba',rating:p.rating||'FAIR'};}
+  // nba.roster (all 30 teams' real players, rating from last/this season's scoring) first; the static NBA_PLAYERS list (last year's finalists) only fills what it adds.
+  for(const[n,p] of Object.entries(window.__CV_DATA?.nba?.roster||{})){if(n&&p&&p.team)r[n.toLowerCase()]={team:p.team,sport:'nba',rating:p.rating||'FAIR',pos:p.pos};}
+  for(const p of(window.NBA_PLAYERS||[])){const k=p.n.toLowerCase();if(!r[k])r[k]={team:p.t,sport:'nba',rating:p.rating||'FAIR'};}
   for(const[abbr,td] of Object.entries(window.NHL||{})){
     for(const k of(td.key||[])){const nm=k.replace(/\s*\(.*?\)/g,'').trim().toLowerCase();if(nm)r[nm]={team:abbr,sport:'nhl',rating:'PREMIUM'};}
     if(td.g1)r[td.g1.toLowerCase()]={team:abbr,sport:'nhl',rating:'G'};
@@ -25025,7 +25046,7 @@ async function _pollGHRun(tok,setSyncState){
   return false;
 }
 async function _applyFreshData(d){
-  window.__CV_DATA=d;localStorage.setItem('cv_data_ts',String(Date.now()));
+  window.__CV_DATA=d;_applyNBARatings(d);localStorage.setItem('cv_data_ts',String(Date.now()));
   LAST_AUTO_UPDATE=d.generatedMT||d.generated||'';
   const safe=(cond,fn)=>{if(cond)try{fn();}catch(e){}};
   safe(d.nba?.today?.length,  ()=>patchNBATonight(d.nba.today));
