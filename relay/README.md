@@ -18,6 +18,10 @@ Free tier is plenty: the response is edge-cached for 180 s (the app's live cycle
 3. Check it: open `https://clairvoyance-live-relay.<your-subdomain>.workers.dev/hockey?tz=-6` -- you should see JSON with a `games` array.
 4. Give the app the URL: in the app go to **Overall -> SYNC -> LIVE RELAY** and paste the URL (it is stored on that device), or tell Claude to bake it in as the default.
 
+## Deployed
+
+Live at `https://clairvoyance-live-relay.clairvoyance-reese.workers.dev` (Cloudflare account of the owner; workers.dev subdomain `clairvoyance-reese`). The app has it as its default (`LIVE_RELAY_URL` in docs/app.html). Redeploy after editing worker.js with `cd relay && npx wrangler deploy`.
+
 ## What the app does with it
 
 - Polls it only while a European hockey game is inside its live window (start - 2 min ... start + 3.5 h): every 180 s. No polling otherwise.

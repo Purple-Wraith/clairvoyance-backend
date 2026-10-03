@@ -22154,7 +22154,7 @@ function _lvNext(games,now){
   return now+3600000;
 }
 // ── European hockey relay (relay/worker.js on Cloudflare; URL stored per device, set in Overall -> SYNC) ──
-const LIVE_RELAY_URL='';   // bake in the deployed worker URL here to make it the default on every device
+const LIVE_RELAY_URL='https://clairvoyance-live-relay.clairvoyance-reese.workers.dev';   // deployed 2026-10-03 (Cloudflare Worker, relay/); a device can override it in the SYNC KEY dialog
 function _lvRelayUrl(){try{return (localStorage.getItem('cv_relay_url')||LIVE_RELAY_URL||'').replace(/\/+$/,'');}catch(e){return LIVE_RELAY_URL;}}
 function saveRelayUrl(inId,stId){
   inId=inId||'relay-url-input';stId=stId||'relay-url-status';
