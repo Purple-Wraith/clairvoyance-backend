@@ -39,7 +39,8 @@ jobs:
 
       - name: Run Clairvoyance update v7.0
         env:
-          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          # ODDS_API_KEY removed 2026-10-03: the key returns 401 (free tier = 500 credits/month, this job used ~20 per run x 3 runs/day), and its only consumer
+          # (a redundant odds backfill + an unused futures panel) is covered by ESPN / Flashscore prices; clairvoyance_update.py falls back to ESPN odds when it is unset.
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           TZ: America/Denver

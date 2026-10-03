@@ -549,6 +549,19 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 /* best-market strip: filled with the full colour of the grade, dark type */
 .bmk2{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 9px;border-radius:3px;flex-wrap:wrap;color:#0b0612;font-family:var(--mono)}
 .bmk2.pg{background:linear-gradient(90deg,var(--gc),var(--g2))}.bmk2.pp{background:var(--pc)}.bmk2.pn{background:var(--nc)}.bmk2.pq{background:#39ff14}.bmk2.ph{background:var(--hc)}
+.fresh{font-family:var(--mono);font-size:12px;letter-spacing:.6px;white-space:nowrap;line-height:1.2;min-height:14px;text-align:center}.fresh.ok{color:rgba(0,230,68,.62)}.fresh.warn{color:#ffb020}.fresh.bad{color:#ff3b6b;text-shadow:0 0 8px rgba(255,59,107,.55);animation:blink 1.6s infinite}
+#cv-ticker{flex:0 0 auto;background:rgba(6,0,15,.97);border-bottom:1px solid rgba(77,121,255,.2);overflow:hidden;position:relative;font-family:var(--mono);font-size:14px;color:var(--t2)}
+#cv-ticker .tk-track{display:inline-flex;align-items:center;white-space:nowrap;padding:4px 0;will-change:transform}
+#cv-ticker .tk-track.go{animation:tkscroll var(--tkdur,60s) linear infinite}
+#cv-ticker:hover .tk-track.go,#cv-ticker:active .tk-track.go{animation-play-state:paused}
+#cv-ticker .tk{display:inline-flex;align-items:center;gap:7px;padding:0 18px;border-right:1px solid rgba(255,255,255,.08)}
+#cv-ticker .tks{font-size:11px;padding:1px 5px;border:1px solid currentColor;border-radius:2px;color:var(--nc);letter-spacing:.5px}
+#cv-ticker .tkn{color:var(--t)}#cv-ticker .tkc{color:var(--t3);font-size:12px}#cv-ticker .tkc.lv{color:var(--hc);font-weight:700}
+#cv-ticker .tkl{font-size:12px;padding:1px 6px;border-radius:2px;border:1px solid rgba(0,240,255,.5);color:#00f0ff}
+#cv-ticker .tkl.w{border-color:#00e644;color:#00e644}#cv-ticker .tkl.l{border-color:#ff1a1a;color:#ff1a1a}
+@keyframes tkscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){#cv-ticker .tk-track.go{animation:none}#cv-ticker{overflow-x:auto}}
+@media (max-width:768px){.fresh{font-size:8px!important;letter-spacing:.2px}#cv-ticker{font-size:11px}#cv-ticker .tk{padding:0 12px}#hdr{flex:0 0 calc(48px + env(safe-area-inset-top,0px))!important}}
 .lockoff{pointer-events:none;opacity:.62;filter:saturate(.75)}.lockoff *{cursor:default!important}
 .altrow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin-bottom:8px;font-family:var(--mono)}.altrow .altk{flex:1 0 100%;font-size:13px;letter-spacing:1px;color:var(--t3)}.altrow .altc{flex:1 1 150px;display:flex;flex-direction:column;gap:2px;padding:6px 9px;border-radius:3px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);cursor:pointer;min-width:0}.altrow .altc .alt1{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.altrow .altc .altp{font-family:var(--orb);font-size:16px;font-weight:700;color:var(--t)}.altrow .altc .alts{font-size:13px;color:var(--t2)}.altrow .altc .altw{font-size:12px;color:var(--t3)}.altrow .altc .pill{font-size:12px}
 .bmk2 .bmk2t{font-size:14px;padding:1px 6px;background:#0b0612;color:#fff;border-radius:2px;flex-shrink:0;font-weight:700}.bmk2 .bmk2k{font-size:13px;letter-spacing:1px;font-weight:700}.bmk2 .bmk2p{font-family:var(--orb);font-size:16px;font-weight:700}.bmk2 .bmk2s{font-size:14px;font-weight:700}
@@ -735,11 +748,13 @@ body{line-height:1.5}
       <span id="hdr-dot-2" style="font-size:37px;color:var(--pc);text-shadow:0 0 12px rgba(240,0,255,.9),0 0 24px rgba(240,0,255,.4);padding:0 14px;line-height:1">·</span>
       <div id="hdr-clock-et" style="font-family:var(--mono);font-size:18px;color:rgba(240,0,255,.65);letter-spacing:.5px;white-space:nowrap"></div>
     </div>
+    <div id="hdr-fresh" class="fresh" title="Data freshness"></div>
   </div>
   <div class="hdr-r" style="display:flex;align-items:center;justify-content:flex-end">
     <div id="hdr-automation-status" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-family:var(--mono);font-size:15px;letter-spacing:.3px;line-height:1.3"></div>
   </div>
 </header>
+<div id="cv-ticker" style="display:none"></div>
 <nav id="sbar">
   <button class="sp act" onclick="navTap(this,'home')" onmouseenter="showND(this,'home')" onmouseleave="startHideND()">HOME</button>
   <button class="sp" onclick="navTap(this,'toppicks')" onmouseenter="showND(this,'toppicks')" onmouseleave="startHideND()">TOP PICKS</button>
@@ -18999,7 +19014,7 @@ function renderTopPicksHeatmap(){
       const tip=c.pct!=null?`${dLbl} | Top Picks: ${c.w}W-${c.l}L | ${(c.pct*100).toFixed(0)}% win (n=${c.graded})`
         :c.n>0?`${dLbl} | ${c.n} top pick${c.n===1?'':'s'}, not settled yet`
         :`${dLbl} | no top picks`;
-      return`<div class="tp-heat-cell" data-tip="${tip.replace(/"/g,"'")}" style="aspect-ratio:1;border-radius:2px;background:${bg};cursor:pointer" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2500)"></div>`;
+      return`<div class="tp-heat-cell" data-tip="${tip.replace(/"/g,"'")}" style="width:13px;height:13px;border-radius:2px;background:${bg};cursor:pointer" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2500)"></div>`;
     }).join('');
     const cappedNote=earliestD.getTime()<capStartD.getTime()?' (ledger goes back further -- showing the most recent stretch for readability)':'';
     const rangeLbl=`${fmtShort(rangeStartD)} – ${fmtShort(todayD)}, ${todayD.getUTCFullYear()}`;
@@ -19007,10 +19022,10 @@ function renderTopPicksHeatmap(){
       <div class="sh" style="font-size:17px!important;margin-top:0"><span class="nc"></span> TOP PICKS — DAILY WIN RATE</div>
       <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:10px;line-height:1.5">Each cell is one real day's Top Picks (the exact ★ TOP 10 OF THE DAY selection above, re-graded against the real ledger) — green runs hot, pink runs cold, dim means no data. ${rangeLbl}${cappedNote}. Hover (or tap) a day for its real record.</div>
       <div style="display:flex;gap:4px">
-        <div style="display:grid;grid-template-rows:repeat(7,1fr);gap:3px;flex:0 0 14px">
+        <div style="display:grid;grid-template-rows:repeat(7,13px);gap:2px;flex:0 0 14px">
           ${['S','M','T','W','T','F','S'].map(d=>`<div style="font-family:var(--mono);font-size:9px;color:var(--t3);display:flex;align-items:center">${d}</div>`).join('')}
         </div>
-        <div style="flex:1;min-width:0;display:grid;grid-template-rows:repeat(7,1fr);grid-auto-flow:column;grid-auto-columns:1fr;gap:3px">
+        <div style="min-width:0;max-width:100%;overflow-x:auto;display:grid;grid-template-rows:repeat(7,13px);grid-auto-flow:column;grid-auto-columns:13px;gap:2px;align-content:start">
           ${cellsHtml}
         </div>
       </div>
@@ -21692,6 +21707,141 @@ function renderOverallDashboard(){
   try{renderOverall();}catch(e){console.error('renderOverallDashboard',e);}
 }
 
+// ── Data freshness line (header, under the clocks) -- 2026-10-03 ──────────────────────────────────────────────────────────────────────────────────────────────
+// The refresh workflows can fail or land hours late without anything on screen changing (a dropped push left docs/data.json 17h old with the run still green). Reads each file's own
+// generated-at stamp from the first ~1 KB (Range request) and shows the worst state: FRESH (green) / AGING (amber) / STALE (red, blinking). Thresholds sit above each file's real
+// refresh cadence + the 3-6h GitHub Actions scheduling delay observed on the cron slots.
+const _FRESH_SRC=[
+  {f:'data.json',l:'STATS',k:'generated',warn:14,bad:26},
+  {f:'nhl_schedule.json',l:'NHL',k:'generated_at',warn:20,bad:36},
+  {f:'cfb_schedule.json',l:'CFB',k:'generated_at',warn:20,bad:36},
+  {f:'nfl_schedule.json',l:'NFL',k:'generated_at',warn:20,bad:36},
+  {f:'liiga_schedule.json',l:'LIIGA',k:'generated_at',warn:12,bad:28},
+  {f:'shl_schedule.json',l:'SHL',k:'generated_at',warn:12,bad:28},
+  {f:'nla_schedule.json',l:'NLA',k:'generated_at',warn:12,bad:28},
+  {f:'extraliga_schedule.json',l:'EXTRALIGA',k:'generated_at',warn:12,bad:28},
+  {f:'soccer_schedule.json',l:'SOCCER',k:'generated_at',warn:20,bad:36}
+];
+function _parseGenAt(v){
+  if(!v)return null;let t=Date.parse(v);
+  if(isNaN(t)){const m=String(v).match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);if(m)t=Date.parse(m[1]+'T'+m[2]+':00Z');}
+  return isNaN(t)?null:t;
+}
+function _fmtAge(h){return h<1?Math.max(1,Math.round(h*60))+'m':h<48?Math.round(h)+'h':Math.round(h/24)+'d';}
+async function refreshFreshness(){
+  const el=document.getElementById('hdr-fresh');if(!el)return;
+  try{
+    const now=Date.now();
+    const res=await Promise.all(_FRESH_SRC.map(async src=>{
+      try{
+        const r=await fetch(src.f+'?_='+now,{cache:'no-store',headers:{Range:'bytes=0-1500'}});
+        if(!r.ok&&r.status!==206)return{...src,err:true};
+        const txt=(await r.text()).slice(0,4000);
+        const m=txt.match(new RegExp('"'+src.k+'"\\s*:\\s*"([^"]+)"'));
+        const t=m?_parseGenAt(m[1]):null;
+        return t==null?{...src,err:true}:{...src,age:(now-t)/3600000};
+      }catch(e){return{...src,err:true};}
+    }));
+    try{const lv=window.__CV_LIVE;if(lv&&lv.hasLiveGames&&lv.ts){const t=_parseGenAt(lv.ts);if(t!=null)res.push({f:'live_data.json',l:'LIVE FEED',warn:1.5,bad:4,age:(now-t)/3600000});}}catch(e){}
+    const ok=res.filter(x=>!x.err);
+    if(!ok.length){el.textContent='';el.className='fresh';return;}
+    const bad=ok.filter(x=>x.age>=x.bad),warn=ok.filter(x=>x.age>=x.warn&&x.age<x.bad),errs=res.filter(x=>x.err);
+    const stats=ok.find(x=>x.f==='data.json');
+    const worst=a=>a.slice().sort((x,y)=>y.age/y.bad-x.age/x.bad).slice(0,3).map(x=>x.l+' '+_fmtAge(x.age)).join(' · ');
+    if(bad.length){el.className='fresh bad';el.textContent='⚠ STALE DATA · '+worst(bad);}
+    else if(warn.length){el.className='fresh warn';el.textContent='⚠ DATA AGING · '+worst(warn);}
+    else{el.className='fresh ok';el.textContent='DATA FRESH'+(stats?' · STATS '+_fmtAge(stats.age)+' AGO':'');}
+    el.title=ok.map(x=>x.l+': '+_fmtAge(x.age)+' old (warn '+x.warn+'h / stale '+x.bad+'h)').join('\n')+(errs.length?'\nunreadable: '+errs.map(x=>x.l).join(', '):'');
+  }catch(e){}
+}
+setTimeout(refreshFreshness,2500);setInterval(refreshFreshness,5*60*1000);
+
+// ── Live ticker (between the header and the tab bar) -- 2026-10-03 ───────────────────────────────────────────────────────────────────────────────────────────
+// Live and finished games from live_data.json (NBA / NHL / CFB / NFL; European hockey and soccer are not in that feed), each followed by the picks locked on that game: the line
+// and price the pick was locked at (an adjusted-line pick shows its adjusted line), coloured by result once settled. Games with locks come first.
+function _tkState(g){
+  const st=String(g.state||'').toLowerCase();
+  if(st==='in'||st==='live'||st==='crit')return'live';
+  if(st==='post'||st==='off'||st==='final')return'final';
+  return'pre';
+}
+function _tkStatus(sk,g,state){
+  if(state==='final')return'FINAL';
+  if(sk==='nhl')return'P'+(g.period||'?')+' '+(g.displayClock||'');
+  return g.note||(g.quarter?'Q'+g.quarter+' '+(g.displayClock||''):'LIVE');
+}
+// Scores come straight from ESPN's public scoreboards in the browser (same source live_tracker.py uses, no key, no quota) every 60 s. live_data.json is only the fallback: its GitHub Actions
+// cron lands 30 min to several hours apart, so on its own it can show scores hours behind.
+async function _tkESPN(){
+  const eps={nba:'basketball/nba',nhl:'hockey/nhl',cfb:'football/college-football',nfl:'football/nfl'};
+  const out={ok:false,ts:Date.now(),games:{nba:[],nhl:[],cfb:[],nfl:[]}};
+  await Promise.all(Object.entries(eps).map(async([sk,path])=>{
+    try{
+      const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/'+path+'/scoreboard'+(sk==='cfb'?'?groups=80&limit=300':''),{cache:'no-store'});
+      if(!r.ok)return;const j=await r.json();out.ok=true;
+      (j.events||[]).forEach(e=>{
+        const c=e.competitions&&e.competitions[0];if(!c)return;
+        const h=c.competitors.find(x=>x.homeAway==='home'),a=c.competitors.find(x=>x.homeAway==='away');if(!h||!a)return;
+        const stt=c.status||e.status||{},ty=stt.type||{};
+        out.games[sk].push({home:h.team.abbreviation,away:a.team.abbreviation,homeScore:+h.score,awayScore:+a.score,state:ty.state,period:stt.period,displayClock:stt.displayClock,note:ty.shortDetail});
+      });
+    }catch(e){}
+  }));
+  return out;
+}
+async function refreshTicker(){
+  try{const r=await _tkESPN();if(r.ok)window.__CV_TK=r;}catch(e){}
+  renderTicker();
+}
+setTimeout(refreshTicker,3000);setInterval(()=>{if(!document.hidden)refreshTicker();},60000);
+function renderTicker(){
+  const el=document.getElementById('cv-ticker');if(!el)return;
+  try{
+    const tk=window.__CV_TK,useEspn=!!(tk&&Date.now()-tk.ts<180000);
+    const file=window.__CV_LIVE;
+    if(!useEspn&&!file){el.style.display='none';return;}
+    const games=useEspn?tk.games:file;
+    const feedTs=useEspn?tk.ts:Date.parse(file.ts);
+    const feedAgeMin=isNaN(feedTs)?null:(Date.now()-feedTs)/60000;
+    const td=today();let picks=[];
+    try{picks=getP().filter(p=>p&&p.id&&p.hA&&p.outcome!=='_removed'&&p.date===td);}catch(e){}
+    const byGame={};
+    picks.forEach(p=>{const sp=String(window._normSport?window._normSport(p):(p.league||p.sport||'')).toUpperCase();(byGame[sp+'|'+p.hA+'|'+p.awA]=byGame[sp+'|'+p.hA+'|'+p.awA]||[]).push(p);});
+    const items=[];
+    ['nba','nhl','cfb','nfl'].forEach(sk=>{
+      (games[sk]||[]).forEach(g=>{
+        const state=_tkState(g);if(state==='pre')return;
+        const locks=byGame[sk.toUpperCase()+'|'+g.home+'|'+g.away]||[];
+        items.push({sk,g,state,locks,rank:(locks.length?0:2)+(state==='live'?0:1)});
+      });
+    });
+    if(!items.length){el.style.display='none';return;}
+    items.sort((a,b)=>a.rank-b.rank);
+    const finalsWithoutLocks=items.filter(x=>x.state==='final'&&!x.locks.length);
+    const keep=items.filter(x=>x.locks.length||x.state==='live').concat(finalsWithoutLocks.slice(0,10));
+    const stale=!useEspn&&feedAgeMin!=null&&feedAgeMin>20;
+    const chip=`<span class="tk"><span class="tks" style="${stale?'color:#ffb020':''}">${useEspn?'LIVE':'FEED'}</span><span class="tkc${stale?'':' lv'}" style="${stale?'color:#ffb020':''}">${useEspn?'ESPN · '+new Date(feedTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Denver'})+' MT':(stale?'⚠ SCORES MAY BE '+_fmtAge(feedAgeMin/60)+' BEHIND':'updated '+_fmtAge(feedAgeMin/60)+' ago')}</span></span>`;
+    const html=chip+keep.map(({sk,g,state,locks})=>{
+      const lk=locks.map(p=>{
+        const cls=p.outcome==='win'?' w':p.outcome==='loss'?' l':'';
+        const ml=p.ml!=null&&p.ml!==''?' '+_mlFmt(p.ml):'';
+        return`<span class="tkl${cls}" title="Locked ${_escHtml(p.betOn)}${p.altLine?' (adjusted from '+_escHtml(p.altLine.postedLabel)+')':''}">LOCKED ${_escHtml(p.betOn)}${ml}${p.altLine?' · ADJ':''}${p.outcome==='win'?' ✓':p.outcome==='loss'?' ✗':''}</span>`;
+      }).join('');
+      const status=state==='final'?'FINAL':(g.note||_tkStatus(sk,g,state));
+      return`<span class="tk"><span class="tks">${sk.toUpperCase()}</span><span class="tkn">${_escHtml(g.away)} ${g.awayScore==null||isNaN(g.awayScore)?'':g.awayScore} @ ${_escHtml(g.home)} ${g.homeScore==null||isNaN(g.homeScore)?'':g.homeScore}</span><span class="tkc${state==='live'?' lv':''}">${state==='live'?'● ':''}${_escHtml(status)}</span>${lk}</span>`;
+    }).join('');
+    el.style.display='block';
+    el.innerHTML=`<div class="tk-track">${html}</div>`;
+    const track=el.firstChild;
+    if(track.scrollWidth>el.clientWidth+4){
+      track.innerHTML=html+html;                                  // duplicated so the -50% loop is seamless
+      track.style.setProperty('--tkdur',Math.max(25,Math.round(track.scrollWidth/2/55))+'s');
+      track.classList.add('go');
+    }
+  }catch(e){el.style.display='none';}
+}
+setInterval(renderTicker,60000);
+
 // ═══ LIVE DATA BOOTSTRAP (live_data.json — written by live_tracker.py every 45s) ═══
 window.__CV_LIVE=null;
 let _liveInterval=null;
@@ -21724,6 +21874,7 @@ async function loadLiveData(){
     updateLiveGameCards(d);
     updateLiveProbabilities(d);
     try{renderHomeLiveGames();}catch(e){}
+    try{renderTicker();}catch(e){}
   }catch(e){/* live_data.json not yet generated */}
 }
 
