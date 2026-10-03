@@ -79,73 +79,20 @@ def load_nba(cache: Path) -> list[dict]:
     return out
 
 
-EURO = {  # league -> (fetch module, Flashscore archive slug of last season, regular-season games = sum of prevSeason gp / 2)
-    "liiga": ("fetch_liiga", "finland/liiga-2025-2026"),
-    "shl": ("fetch_shl", "sweden/shl-2025-2026"),
-    "nla": ("fetch_nla", "switzerland/national-league-2025-2026"),
-    "extraliga": ("fetch_extraliga", "czech-republic/extraliga-2025-2026"),
-}
+EURO = ("liiga", "shl", "nla", "extraliga")
 DOCS = Path(__file__).resolve().parent.parent / "docs"
+EURO_PRIOR_N = 60       # pseudo-games of weight given to the league's own Poisson (two-season scoring mean) next to this season's finished games
 
 
-def load_euro(cache: Path, league: str) -> list[dict]:
-    """Final scores of last season's regular season, scraped from Flashscore's archive with the league fetcher's own row parser (cached)."""
-    f = cache / f"euro_{league}_prev.json"
-    if f.exists():
-        return json.loads(f.read_text())
-    import importlib
-    from playwright.sync_api import sync_playwright
-    mod = importlib.import_module(EURO[league][0])
-    url = f"https://www.flashscore.com/hockey/{EURO[league][1]}/results/"
-    rows: list[dict] = []
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_context(timezone_id="UTC").new_page()
-        page.goto(url, wait_until="networkidle", timeout=45000)
-        page.wait_for_timeout(1500)
-        stall = 0
-        last = -1
-        for _ in range(400):
-            n = len(page.query_selector_all("[class*='event__match']"))
-            stall = stall + 1 if n == last else 0
-            if stall >= 4:
-                break
-            last = n
-            more = page.query_selector("a.event__more, .event__more")
-            if more:
-                try:
-                    more.scroll_into_view_if_needed()
-                    more.click()
-                except Exception:
-                    pass
-            page.wait_for_timeout(1500)
-        for row in page.query_selector_all("[class*='event__match']"):
-            parsed = mod._extract_match_row(row)
-            if not parsed or len(parsed["scores"]) < 2:
-                continue
-            iso = mod._date_txt_to_iso(parsed["dateTxt"], 2025)
-            if iso:
-                rows.append({"date": iso, "hs": int(parsed["scores"][0]), "as_": int(parsed["scores"][1])})
-        browser.close()
-    print(f"  {league}: {len(rows)} results scraped from {url}", file=sys.stderr)
-    cache.mkdir(parents=True, exist_ok=True)
-    f.write_text(json.dumps(rows))
-    return rows
+def _pois(k: int, mu: float) -> float:
+    return math.exp(-mu + k * math.log(mu) - math.lgamma(k + 1))
 
 
-def pmf(totals: list[int]) -> dict[int, float]:
-    n = len(totals)
-    out: dict[int, float] = defaultdict(float)
-    for t in totals:
-        out[t] += 1.0 / n
-    return dict(out)
-
-
-def over_under(p: dict[int, float], x: float) -> tuple[float, float]:
+def over_under(p: dict, x: float) -> tuple[float, float]:
     return sum(v for t, v in p.items() if t > x), sum(v for t, v in p.items() if t < x)
 
 
-def table_from(p: dict[int, float]) -> tuple[float, dict[int, float]]:
+def table_from(p: dict) -> tuple[float, dict]:
     """Shift-invariant table: anchor L0 = the half-line whose OVER probability is closest to 50%; j<0 -> P(OVER L0+j), j>0 -> P(UNDER L0+j)."""
     l0 = min((x + 0.5 for x in range(2, 10)), key=lambda x: abs(over_under(p, x)[0] - 0.5))
     tab = {}
@@ -156,28 +103,28 @@ def table_from(p: dict[int, float]) -> tuple[float, dict[int, float]]:
 
 
 def cmd_euro(cache: Path) -> None:
-    # 1) method check on the NHL, where the conditional (per-posted-line) table is known
-    odds = H.load_odds(cache)
-    nhl_tot = [g["hs"] + g["as_"] for s in odds.values() for g in s]
-    l0, tab = table_from(pmf(nhl_tot))
-    print(f"NHL check: unconditional table anchored on {l0} (n={len(nhl_tot)}, mean {statistics.mean(nhl_tot):.2f}):")
-    print("   j:  " + "  ".join(f"{j:+d}:{tab[j]:.3f}" for j in tab))
-    print("   conditional (posted 5.5):  -1:0.754  +1:0.585  +2:0.769 | (posted 6.5): -1:0.589  +1:0.736")
-    # 2) each European league: last season's regular season + this season so far
-    print()
+    """Each European league's OWN totals model: this season's finished games blended with a Poisson at the league's own two-season mean total
+    (last season + this season so far, from the teams' gf/gp in docs/<league>_schedule.json). No NHL numbers are borrowed. The archive results page of last
+    season only lists the playoffs on Flashscore, so last season enters through the team averages, not game by game."""
     for lg in EURO:
-        prev = load_euro(cache, lg)
         d = json.loads((DOCS / f"{lg}_schedule.json").read_text())
-        reg_n = sum(t["prevSeason"]["gp"] for t in d["teams"].values() if t.get("prevSeason")) // 2
-        prev = sorted(prev, key=lambda r: r["date"])[:reg_n]          # regular season only: the first reg_n games (playoffs come after)
-        cur = [g for g in d["games"] if g.get("state") == "post" and g.get("homeScore") is not None]
-        for name, rows in (("last season", [r["hs"] + r["as_"] for r in prev]),
-                           ("this season", [g["homeScore"] + g["awayScore"] for g in cur])):
-            if rows:
-                print(f"{lg:10s} {name}: n={len(rows)} mean {statistics.mean(rows):.2f} sd {statistics.pstdev(rows):.2f}")
-        allt = [r["hs"] + r["as_"] for r in prev] + [g["homeScore"] + g["awayScore"] for g in cur]
-        l0, tab = table_from(pmf(allt))
-        print(f"   COMBINED n={len(allt)} anchor {l0}:  " + "  ".join(f"{j:+d}:{tab[j]:.3f}" for j in tab))
+        teams = list(d["teams"].values())
+        cur_gp = sum(t["gp"] for t in teams) / 2
+        cur_goals = sum(t["gf"] for t in teams)
+        prv = [t["prevSeason"] for t in teams if t.get("prevSeason")]
+        prv_gp = sum(t["gp"] for t in prv) / 2
+        prv_goals = sum(t["gf"] for t in prv)
+        mean = (cur_goals + prv_goals) / (cur_gp + prv_gp)
+        fin = [g["homeScore"] + g["awayScore"] for g in d["games"] if g.get("state") == "post" and g.get("homeScore") is not None]
+        n = len(fin)
+        emp = defaultdict(float)
+        for t in fin:
+            emp[t] += 1.0 / n
+        pm = {k: (n * emp.get(k, 0.0) + EURO_PRIOR_N * _pois(k, mean)) / (n + EURO_PRIOR_N) for k in range(0, 25)}
+        l0, tab = table_from(pm)
+        print(f"{lg:10s} two-season mean total {mean:.2f} (last season {prv_goals / prv_gp:.2f} over {prv_gp:.0f} games, this season {cur_goals / cur_gp:.2f} over {cur_gp:.0f}); "
+              f"finished games n={n} mean {statistics.mean(fin):.2f} sd {statistics.pstdev(fin):.2f}")
+        print(f"   anchor {l0}: " + "  ".join(f"{j:+d}:{tab[j]:.3f}" for j in tab))
         print(f"   table = {json.dumps({str(j): round(v, 3) for j, v in tab.items()})}\n")
 
 
@@ -193,7 +140,8 @@ def cmd_nhl(cache: Path) -> None:
             o = g.get("odds") or {}
             if o.get("ou") is None:
                 continue
-            rows.append((float(o["ou"]), g["hs"] + g["as_"], g.get("period")))
+            # ESPN's final score includes the shootout-winning goal; sportsbooks settle totals WITHOUT it (period 5 = shootout)
+            rows.append((float(o["ou"]), g["hs"] + g["as_"] - (1 if g.get("period") == 5 else 0), g.get("period")))
     print(f"NHL games with a closing total: {len(rows)}")
     by = defaultdict(list)
     for line, tot, _ in rows:

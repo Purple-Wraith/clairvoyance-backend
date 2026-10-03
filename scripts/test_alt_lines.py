@@ -87,13 +87,12 @@ class AltLine(unittest.TestCase):
         self.assertAlmostEqual(A._alt_prob(curve, 9.0), (0.670 + 0.711) / 2, places=3)
         self.assertEqual(A._alt_prob(curve, 20), 0.711)
 
-    def test_hockey_total_picks_the_side_and_line_nearest_the_60_65_band(self):
-        for sport in ("NHL", "SHL", "LIIGA", "NLA", "EXTRALIGA"):
-            self.assertEqual(A._alt_shift_leg(leg(sport, "over", "OVER 5.5"))["label"], "UNDER 6.5")      # flips side
-            self.assertEqual(A._alt_shift_leg(leg(sport, "under", "UNDER 5.5"))["label"], "UNDER 6.5")
-            self.assertEqual(A._alt_shift_leg(leg(sport, "under", "UNDER 6.5"))["label"], "OVER 5.5")      # flips side
-            self.assertEqual(A._alt_shift_leg(leg(sport, "over", "OVER 6.5"))["label"], "OVER 5.5")
-            self.assertEqual(A._alt_shift_leg(leg(sport, "over", "OVER 4.5"))["label"], "UNDER 5.5")
+    def test_nhl_total_picks_the_side_and_line_nearest_the_60_65_band(self):
+        self.assertEqual(A._alt_shift_leg(leg("NHL", "over", "OVER 5.5"))["label"], "UNDER 6.5")      # flips side
+        self.assertEqual(A._alt_shift_leg(leg("NHL", "under", "UNDER 5.5"))["label"], "UNDER 6.5")
+        self.assertEqual(A._alt_shift_leg(leg("NHL", "under", "UNDER 6.5"))["label"], "OVER 5.5")      # flips side
+        self.assertEqual(A._alt_shift_leg(leg("NHL", "over", "OVER 6.5"))["label"], "OVER 5.5")
+        self.assertEqual(A._alt_shift_leg(leg("NHL", "over", "OVER 4.5"))["label"], "UNDER 5.5")
 
     def test_hockey_flip_updates_side_and_is_recorded(self):
         out = A._alt_shift_leg(leg("NHL", "over", "OVER 5.5"))
@@ -101,16 +100,30 @@ class AltLine(unittest.TestCase):
         self.assertTrue(out["altLine"]["flip"])
         self.assertFalse(A._alt_shift_leg(leg("NHL", "under", "UNDER 5.5"))["altLine"]["flip"])
 
-    def test_hockey_uses_the_nhl_closing_line_hit_rates(self):
-        self.assertEqual(A._alt_shift_leg(leg("NHL", "over", "OVER 5.5"))["prob"], 0.585)
+    def test_nhl_uses_the_shootout_corrected_closing_line_hit_rates(self):
+        self.assertEqual(A._alt_shift_leg(leg("NHL", "over", "OVER 5.5"))["prob"], 0.611)
         self.assertEqual(A._alt_shift_leg(leg("NHL", "under", "UNDER 6.5"))["prob"], 0.589)
+
+    def test_european_leagues_use_their_own_tables_not_the_nhl_ones(self):
+        for sport, table in A.HOCKEY_OU_EURO.items():
+            self.assertNotEqual(table, A.HOCKEY_OU_NHL[5.5])
+            self.assertNotEqual(table, A.HOCKEY_OU_NHL[6.5])
+            out = A._alt_shift_leg(leg(sport, "under", "UNDER 5.5"))
+            self.assertIn(out["prob"], table.values(), sport)
+        self.assertEqual(A._alt_shift_leg(leg("LIIGA", "over", "OVER 5.5"))["prob"], 0.593)
+        self.assertEqual(A._alt_shift_leg(leg("SHL", "under", "UNDER 5.5"))["prob"], 0.667)
+
+    def test_near_tie_goes_to_the_models_own_side(self):
+        # SHL: OVER 4.5 .666 vs UNDER 6.5 .667 are within 2 points -> the model's side wins, whichever it is
+        self.assertEqual(A._alt_shift_leg(leg("SHL", "over", "OVER 5.5"))["label"], "OVER 4.5")
+        self.assertEqual(A._alt_shift_leg(leg("SHL", "under", "UNDER 5.5"))["label"], "UNDER 6.5")
 
     def test_hockey_never_picks_below_the_floor(self):
         saved = A.HOCKEY_ALT_FLOOR
         try:
             A.HOCKEY_ALT_FLOOR = 0.99
             with self.assertRaises(TypeError):
-                A._hockey_pick_alt(5.5)       # nothing qualifies -> no candidate (callers only reach this with a real total)
+                A._hockey_pick_alt(5.5, "NHL", "over")       # nothing qualifies -> no candidate (callers only reach this with a real total)
         finally:
             A.HOCKEY_ALT_FLOOR = saved
 

@@ -4616,12 +4616,14 @@ function _mvmBarHTML(m){
 }
 // ── Alternate lines (2026-10-03): spread + O/U picks are LOCKED at a safer line (ALT_LINE_CFG in scripts/auto_lock_settle.py -- keep both in sync).
 // CFB/NFL: smallest whole-point cushion k in [kmin,kmax] whose empirical win curve reaches 67%; NBA totals use a table fitted on 2,470 closing lines (scripts/backtest_alt_lines.py);
-// hockey totals (NHL + SHL/LIIGA/NLA/EXTRALIGA) take the side+line nearest a 60-65% hit rate (may flip side) using the NHL closing-line hit rates. The price is an estimate, never a quote.
+// hockey totals (NHL + SHL/LIIGA/NLA/EXTRALIGA) take the side+line nearest a 60-65% hit rate (may flip side) using that league's own table (NHL: closing lines; European leagues: their own scoring data). The price is an estimate, never a quote.
 const _ALT_CFG={CFB:{OU:[['normal',14.7,1.9],3,9],SPREAD:[['normal',15.7,.8],3,10]},NFL:{OU:[['normal',13,0],3,8],SPREAD:[['normal',13.4,0],3,8]},
   NBA:{OU:[['table',[[0,.5],[2,.543],[3,.564],[4,.59],[5,.612],[6,.631],[7,.651],[8,.67],[10,.711]]],3,10]}};
 const _ALT_HK=new Set(['NHL','SHL','LIIGA','NLA','EXTRALIGA']);
-const _ALT_HK_BAND=[.60,.65],_ALT_HK_FLOOR=.55;
-const _ALT_HK_T={'5.5':{'-3':.970,'-2':.848,'-1':.754,'1':.585,'2':.769,'3':.835},'6.5':{'-3':.879,'-2':.804,'-1':.589,'1':.736,'2':.820,'3':.915}};
+const _ALT_HK_BAND=[.60,.65],_ALT_HK_FLOOR=.55,_ALT_HK_TIE=.02;
+const _ALT_HK_NHL={'5.5':{'-3':.961,'-2':.848,'-1':.731,'1':.611,'2':.769,'3':.851},'6.5':{'-3':.879,'-2':.787,'-1':.589,'1':.736,'2':.831,'3':.915}};
+const _ALT_HK_EURO={LIIGA:{'-3':.981,'-2':.940,'-1':.758,'1':.593,'2':.745,'3':.838},SHL:{'-3':.918,'-2':.780,'-1':.666,'1':.667,'2':.816,'3':.870},
+  NLA:{'-3':.947,'-2':.854,'-1':.755,'1':.590,'2':.783,'3':.876},EXTRALIGA:{'-3':.908,'-2':.804,'-1':.676,'1':.663,'2':.812,'3':.893}};
 const _ALT_TARGET=.67,_ALT_FLOOR=.62,_ALT_VIG=.045;
 function _altProb(c,k){
   if(c[0]==='normal')return normalCDF((k+c[2])/c[1]);
@@ -4637,14 +4639,15 @@ function _altShift(sport,mkt,label){
   if(_ALT_HK.has(sport)){
     if(mkt!=='OU')return null;
     const m=String(label).trim().match(/^(OVER|UNDER)\s+(\d+(?:\.\d+)?)$/i);if(!m)return null;
-    const posted=parseFloat(m[2]),anchor=posted===Math.floor(posted)?posted-.5:posted,tab=_ALT_HK_T[anchor<=6?'5.5':'6.5'];
+    const posted=parseFloat(m[2]),anchor=posted===Math.floor(posted)?posted-.5:posted,tab=_ALT_HK_EURO[sport]||_ALT_HK_NHL[anchor<=6?'5.5':'6.5'],own=m[1].toUpperCase();
     let best=null;
     for(const js of Object.keys(tab)){
       const j=+js,p=tab[js];if(p<_ALT_HK_FLOOR)continue;
       const side=j<0?'OVER':'UNDER',line=anchor+j;if(line<=0)continue;
       const dist=(p>=_ALT_HK_BAND[0]&&p<=_ALT_HK_BAND[1])?0:(p<_ALT_HK_BAND[0]?_ALT_HK_BAND[0]-p:p-_ALT_HK_BAND[1]);
-      const key=[Math.round(dist*1e6)/1e6,Math.abs(j)];
-      if(!best||key[0]<best.key[0]||(key[0]===best.key[0]&&key[1]<best.key[1]))best={key,side,line,j,p};
+      const key=[Math.round(dist/_ALT_HK_TIE),side!==own?1:0,Math.abs(j)];
+      const better=!best||key[0]<best.key[0]||(key[0]===best.key[0]&&(key[1]<best.key[1]||(key[1]===best.key[1]&&key[2]<best.key[2])));
+      if(better)best={key,side,line,j,p};
     }
     if(!best)return null;
     const r=_altFinish(label,best.side+' '+best.line.toFixed(1),best.p,posted,best.line,Math.abs(best.j),mkt);
