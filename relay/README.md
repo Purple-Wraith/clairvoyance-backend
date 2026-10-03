@@ -2,7 +2,7 @@
 
 A ~100-line Cloudflare Worker that gives the app **live scores for Liiga, SHL, National League and Extraliga**, which ESPN does not cover.
 Flashscore's live feed works from a server but refuses browsers on other domains, so the worker fetches it, keeps only these four leagues and serves a small JSON with CORS.
-Free tier is plenty: the response is edge-cached for 20 s, so one upstream request per 20 s however many people have the app open (Workers free plan = 100,000 requests/day).
+Free tier is plenty: the response is edge-cached for 180 s (the app's live cycle), so one upstream request per 3 minutes however many people have the app open (Workers free plan = 100,000 requests/day).
 
 ## Deploy (one time, ~3 minutes)
 

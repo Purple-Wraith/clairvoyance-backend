@@ -10,7 +10,7 @@
  *        periodStart : epoch seconds when the current period began (the app shows elapsed minutes from it)
  *   GET /health         ->  { ok: true }
  *
- * One upstream request per tz per CACHE_SECONDS no matter how many people have the app open (edge cache), so the load on Flashscore stays tiny.
+ * One upstream request per tz per CACHE_SECONDS (180 s, the app's live cycle) no matter how many people have the app open (edge cache), so the load on Flashscore stays tiny.
  * The X-Fsign header value is the public constant Flashscore's own web client sends; it is not a secret and not an account credential.
  *
  * Risk: this is an unofficial feed. If Flashscore changes it, the worker returns 502 and the app falls back to the schedule files (finals only, hours late).
@@ -18,7 +18,7 @@
 
 const FEED = tz => `https://local-global.flashscore.ninja/2/x/feed/f_4_0_${tz}_en_1`;
 const FSIGN = "SW9D1eZo";
-const CACHE_SECONDS = 20;
+const CACHE_SECONDS = 180;   // matches the app's 180 s live cycle: one upstream request per 3 minutes however many devices are open
 
 // Flashscore league header -> app league tag
 const LEAGUES = {

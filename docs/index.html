@@ -1708,6 +1708,7 @@ body{line-height:1.5}
         <div id="gh-token-status" style="font-family:var(--mono);font-size:13px;margin-bottom:8px;color:var(--t3)"></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
           <button class="btn btn-p btn-sm" onclick="openTokenModal()">SET TOKEN</button>
+          <button class="btn btn-o btn-sm" onclick="actionsCheck().then(r=>{const e=document.getElementById('rebuild-status');if(e){e.textContent=r.msg;e.style.color=r.ok?'var(--nc)':'var(--gc)';}})">TEST UPDATE PERMISSION</button>
           <button class="btn btn-n btn-sm" onclick="triggerFullRebuild()" id="rebuild-btn">↻ TRIGGER FULL REBUILD</button>
         </div>
         <div id="rebuild-status" style="font-family:var(--mono);font-size:13px;color:var(--t3);min-height:14px"></div>
@@ -2033,7 +2034,7 @@ body{line-height:1.5}
     <div style="font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--t2);line-height:1.8;margin-bottom:14px">
       TOKEN TRIGGERS FULL DATA REBUILD (new picks, scores, props).<br>
       TOKEN NEEDS: <span style="color:var(--gc)">workflow</span> SCOPE · Takes 2-4 min<br>
-      MANUAL-LOCK RELAY: fine-grained token with <span style="color:var(--gc)">Contents: read + write</span> on Purple-Wraith/clairvoyance-backend
+      MANUAL-LOCK RELAY + UPDATE NOW: fine-grained token on Purple-Wraith/clairvoyance-backend with <span style="color:var(--gc)">Contents: read + write</span> and <span style="color:var(--gc)">Actions: read + write</span>
     </div>
     <div style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--t3);margin-bottom:6px">GITHUB PERSONAL ACCESS TOKEN (ghp_...)</div>
     <input type="password" id="gh-token-modal-input" class="fi" placeholder="github_pat_… or ghp_…" style="width:100%;margin-bottom:10px;font-size:15px">
@@ -5879,6 +5880,18 @@ function _relayPicks(){
   return getP().filter(p=>p&&p.id&&(p.lockOrigin==='manual'||(!p.lockOrigin&&(p.lockedAt||0)>=since))&&p.outcome!=='_removed'&&!wiped.has(p.id)&&(p.lockedAt||0)>=cut);
 }
 // One-time check when a token is saved: can it read AND write this repo? Writes docs/relay_ping.json (a timestamp) and creates docs/manual_locks.json if it is missing.
+// Does the saved token have "Actions: Read and write"? Probe without starting anything: ask GitHub to dispatch a ref that does not exist -- an authorised token gets 422 ("No ref found"),
+// a token without the permission gets 403/404. Used by the SYNC token check and shown in the UPDATE NOW panel.
+async function actionsCheck(){
+  const tok=getGHToken();if(!tok)return{ok:false,msg:'NO TOKEN SAVED'};
+  try{
+    const r=await fetch('https://api.github.com/repos/'+GH_RELAY_REPO+'/actions/workflows/scheduled-refresh.yml/dispatches',{method:'POST',headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({ref:'cv-permission-probe-no-such-ref'})});
+    if(r.status===422)return{ok:true,msg:'✓ ACTIONS PERMISSION OK — UPDATE NOW can start refreshes'};
+    if(r.status===401)return{ok:false,msg:'✗ TOKEN REJECTED (401)'};
+    if(r.status===403||r.status===404)return{ok:false,msg:'✗ NO "Actions: Read and write" — UPDATE NOW will open the workflow page instead'};
+    return{ok:false,msg:'? UNEXPECTED '+r.status};
+  }catch(e){return{ok:false,msg:'? COULD NOT REACH GITHUB'};}
+}
 async function relayCheck(){
   const tok=getGHToken();if(!tok)return{ok:false,msg:'NO TOKEN SAVED'};
   const base='https://api.github.com/repos/'+GH_RELAY_REPO+'/contents/docs/';
@@ -22111,6 +22124,7 @@ async function _lvEspn(def){
     const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/'+def.path+'/scoreboard'+(def.q||''),{cache:'no-store'});
     if(!r.ok)return null;const j=await r.json();
     (j.events||[]).forEach(e=>{
+      if(def.k==='nba'&&e.season&&e.season.type===1)return;   // NBA preseason is not tracked anywhere (no locks, no ticker, no polling) -- regular season opens ~Oct 21
       const c=e.competitions&&e.competitions[0];if(!c)return;
       const h=c.competitors.find(x=>x.homeAway==='home'),a=c.competitors.find(x=>x.homeAway==='away');if(!h||!a)return;
       const stt=c.status||e.status||{},ty=stt.type||{};
@@ -22122,14 +22136,14 @@ async function _lvEspn(def){
   }catch(e){return null;}
 }
 // When may a league be polled again? Only leagues with something happening are pulled:
-//   a game in progress -> 180 s;  a game starting within 40 min -> 120 s;  a game later today -> not until 2 min before it starts (re-checked at most hourly);  nothing live or upcoming -> hourly check only.
+//   a game in progress -> 180 s;  a game starting within 10 min -> 180 s;  a game later today -> not until 10 min before it starts (re-checked at most hourly);  nothing live or upcoming -> hourly check only.
 function _lvNext(games,now){
   if(games.some(g=>g.state==='in'))return now+180000;
   const pre=games.filter(g=>g.state==='pre'&&g.startMs>now-600000).sort((a,b)=>a.startMs-b.startMs);
   if(pre.length){
     const dt=pre[0].startMs-now;
-    if(dt<=2400000)return now+120000;
-    return Math.min(pre[0].startMs-120000,now+3600000);
+    if(dt<=600000)return now+180000;
+    return Math.min(pre[0].startMs-600000,now+3600000);
   }
   return now+3600000;
 }
@@ -22159,14 +22173,14 @@ function _lvEuroSchedGames(){
   });
   return out;
 }
-// the relay is only called while a European hockey game is inside its live window (start - 2 min ... start + 3.5 h) and not already final
+// the relay is only called while a European hockey game is inside its live window (start - 10 min ... start + 3.5 h) and not already final
 function _lvRelayNext(now){
   const sched=_lvEuroSchedGames();
   const relayFinal=g=>_LV.relay.games.some(r=>r.state==='post'&&r.tag===g.tag&&_tkMatch(r.home,g.home)&&_tkMatch(r.away,g.away));
-  const open=sched.filter(g=>!g.final&&!relayFinal(g)&&now>=g.startMs-120000&&now<=g.startMs+3.5*3600000);
+  const open=sched.filter(g=>!g.final&&!relayFinal(g)&&now>=g.startMs-600000&&now<=g.startMs+3.5*3600000);
   if(open.length)return now+180000;
   const nxt=sched.filter(g=>g.startMs>now).sort((a,b)=>a.startMs-b.startMs)[0];
-  return nxt?Math.min(nxt.startMs-120000,now+3600000):now+3600000;
+  return nxt?Math.min(nxt.startMs-600000,now+3600000):now+3600000;
 }
 async function refreshRelay(force){
   const url=_lvRelayUrl();if(!url)return false;
@@ -22247,6 +22261,16 @@ function _lvApplyToCards(){
 function _tkNorm(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\b(fc|cf|afc|sc|hc|ik|if|ac|as|us|ssc|rcd|ud|cd|sv)\b/g,'').replace(/[^a-z0-9]/g,'');}
 function _tkMatch(a,b){a=_tkNorm(a);b=_tkNorm(b);return !!a&&!!b&&(a===b||(a.length>=4&&b.length>=4&&(a.includes(b)||b.includes(a))));}
 const _TKM={order:[],sig:'',html:{},score:{},track:null,x:0,half:0,raf:0,last:0,hover:false,run:false,speed:46};
+// live status text: NHL -> "P2 12:34" (period + game clock; OT / SO labelled; intermissions keep ESPN's own text), everything else keeps ESPN's / the relay's note
+function _tkLiveStatus(it){
+  const g=it.g;
+  if(it.g.k==='nhl'&&g.period){
+    if(/end of|intermission|final/i.test(g.note||''))return g.note;
+    const p=g.period>=5?'SO':g.period===4?'OT':'P'+g.period;
+    return g.displayClock&&p!=='SO'?p+' '+g.displayClock:p;
+  }
+  return g.note||'LIVE';
+}
 function _tkItemHTML(it){
   const lk=it.locks.map(p=>{
     const cls=p.outcome==='win'?' w':p.outcome==='loss'?' l':'';
@@ -22254,7 +22278,7 @@ function _tkItemHTML(it){
     return`<span class="tkl${cls}" title="Locked ${_escHtml(p.betOn)}${p.altLine?' (adjusted from '+_escHtml(p.altLine.postedLabel)+')':''}">LOCKED ${_escHtml(p.betOn)}${ml}${p.altLine?' · ADJ':''}${p.outcome==='win'?' ✓':p.outcome==='loss'?' ✗':''}</span>`;
   }).join('');
   const g=it.g,sc=v=>v==null||isNaN(v)?'':v;
-  return`<span class="tks">${_escHtml(it.tag)}</span><span class="tkn">${_escHtml(g.away)} ${sc(g.awayScore)} @ ${_escHtml(g.home)} ${sc(g.homeScore)}</span><span class="tkc${it.state==='in'?' lv':''}">${it.state==='in'?'● ':''}${_escHtml(it.state==='post'?(g.pending?'RESULT PENDING':'FINAL'):(g.note||'LIVE'))}</span>${lk}`;
+  return`<span class="tks">${_escHtml(it.tag)}</span><span class="tkn">${_escHtml(g.away)} ${sc(g.awayScore)} @ ${_escHtml(g.home)} ${sc(g.homeScore)}</span><span class="tkc${it.state==='in'?' lv':''}">${it.state==='in'?'● ':''}${_escHtml(it.state==='post'?(g.pending?'RESULT PENDING':'FINAL'):_tkLiveStatus(it))}</span>${lk}`;
 }
 function _tkEuroGames(){
   const out=[],now=Date.now();
@@ -25679,10 +25703,11 @@ function saveTokenFromModal(){
   document.getElementById('gh-token-modal-input').value='';
   if(st)st.innerHTML='<span style="color:var(--t3)">TOKEN SAVED — CHECKING ACCESS TO '+GH_RELAY_REPO+'…</span>';
   try{initGHTokenUI();}catch(e){}
-  relayCheck().then(res=>{
-    if(st)st.innerHTML=res.ok?'<span style="color:var(--nc)">✓ '+res.msg+'</span>':'<span style="color:var(--hc)">✗ '+res.msg+'</span>';
+  relayCheck().then(async res=>{
+    const ac=await actionsCheck();
+    if(st)st.innerHTML=(res.ok?'<span style="color:var(--nc)">✓ '+res.msg+'</span>':'<span style="color:var(--hc)">✗ '+res.msg+'</span>')+'<br>'+(ac.ok?'<span style="color:var(--nc)">'+ac.msg+'</span>':'<span style="color:var(--gc)">'+ac.msg+'</span>');
     toast(res.ok?'// GITHUB TOKEN SAVED — MANUAL-LOCK RELAY READY':'// TOKEN SAVED BUT RELAY CHECK FAILED');
-    if(res.ok){try{_relayLastHash='';relayManualLocks();}catch(e){}setTimeout(closeTokenModal,2500);}
+    if(res.ok){try{_relayLastHash='';relayManualLocks();}catch(e){}setTimeout(closeTokenModal,ac.ok?2500:9000);}
   });
 }
 function clearTokenFromModal(){
