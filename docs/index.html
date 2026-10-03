@@ -3803,7 +3803,15 @@ function _gradeChipHtml(p){
 }
 // One layout for every locked pick, pending or settled (2026-10-03): league tag + grade tag, matchup, the pick, price/type/probability, then the
 // final score (or AWAITING FINAL), with the result controls in the same slot on the right (full width under the text on a phone).
-// o: {mode:'pending'|'settled', actions:html (pending buttons), removeHtml:html (settled), dateLbl, why:bool, title, legHtml, wrapClass}
+// o: {mode:'pending'|'settled', actions:html (pending buttons), removeHtml:html (settled), dateLbl, why:bool, title, legHtml, pickPrefix, wrapClass}
+// Pending result controls shared by the sport / home locked-pick lists (same three buttons as the Overall + Home pending lists).
+function _pickBtnsHTML(p,after){
+  const a=after?';'+after:'';
+  return`<button class="btn btn-win btn-sm" style="font-size:15px" onclick="recR('${p.id}','win')${a}">✓ WIN</button>
+    <button class="btn btn-o btn-sm" style="font-size:15px;color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss')${a}">✗ LOSS</button>
+    <button class="btn btn-sm" style="font-size:15px;color:var(--t3);border-color:var(--t3);padding:2px 7px" onclick="removePick('${p.id}')">✕ REMOVE</button>`;
+}
+function _pickRemoveHTML(p){return`<button class="btn btn-sm" style="font-size:15px;color:var(--t3);border-color:var(--t3);padding:2px 7px" onclick="removePick('${p.id}')">✕ REMOVE</button>`;}
 const _PICK_LOGO_SPORT={NHL:'nhl',NBA:'nba',NFL:'nfl',MLB:'mlb',WNBA:'wnba',CFB:'cfb',PL:'soccer',LIGA:'soccer',SERIEA:'soccer',BUND:'soccer',MLS:'soccer',CL:'soccer',LIIGA:'liiga',SHL:'shl',NLA:'nla',EXTRALIGA:'extraliga',WORLDCUP:'countries',WORLD_CUP:'countries'};
 function _pickLogo(p,side){
   try{
@@ -3839,7 +3847,7 @@ function _pickRowHTML(p,o){
     <div class="prow2-main">
       <div class="prow2-top">${(()=>{const d=_leagueDisplayLabel(window._normSport(p));return(d.sub?`<span class="ptag ptag-sub">${d.sub}</span>`:'')+`<span class="ptag ptag-lg">${d.label}</span>`;})()}${_gradeChipHtml(p)}${o.dateLbl?`<span class="ptag ptag-date">${o.dateLbl}</span>`:''}</div>
       <div class="prow2-match">${match}</div>
-      <div class="prow2-pick">${o.legHtml||_expandBetOn(p.betOn||p.betType||'',p.sport)}</div>
+      <div class="prow2-pick">${o.pickPrefix||''}${o.legHtml||_expandBetOn(p.betOn||p.betType||'',p.sport)}</div>
       <div class="prow2-meta">${p.ml||''} · ${p.betType||''}${conf}</div>
       ${o.why&&p.betType!=='PARLAY'?_whyThisPickHTML(p):''}
     </div>
@@ -10610,20 +10618,7 @@ function renderNHLLockedBets(){
   const el=document.getElementById('nhl-locked');if(!el)return;
   const picks=getP().filter(p=>p.sport==='NHL'||p.betType==='PL');
   if(!picks.length){el.innerHTML='<div class="empty">NO LOCKED NHL BETS</div>';return;}
-  el.innerHTML=picks.map(p=>{
-    const oColor=p.outcome==='win'?'var(--nc)':p.outcome==='loss'?'var(--hc)':'var(--pc)';
-    const st=p.outcome==='pending'?'PENDING':p.outcome?.toUpperCase()||'PENDING';
-    return`<div class="pk" style="border-left:2px solid ${oColor}">
-      <div style="flex:1">
-        <div class="pkt">${_titleWithLogos(p)}</div>
-        <div class="pkt2">BET: ${_expandBetOn(p.betOn||'',p.sport)} · ${p.ml||''}</div>
-        <div class="pkd">WIN%: <strong>${p.winProb?(p.winProb*100).toFixed(1)+'%':'—'}</strong> · <strong style="color:${oColor}">${st}</strong>${p.date?' · '+p.date:''}</div>
-        ${p.outcome==='pending'?`<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap"><button class="btn btn-n btn-sm" onclick="recR('${p.id}','win')">✓ WIN</button><button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss')">✗ LOSS</button><button class="btn btn-sm" style="color:var(--t3);border-color:var(--t3);font-size:16px;padding:2px 8px" onclick="removePick('${p.id}')">✕ REMOVE</button></div>`:''}
-        ${_whyThisPickHTML(p)}
-      </div>
-      <button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc);align-self:start;flex-shrink:0" onclick="removePick('${p.id}')">✕</button>
-    </div>`;
-  }).join('');
+  el.innerHTML=picks.map(p=>_pickRowHTML(p,{mode:p.outcome==='pending'?'pending':'settled',wrapClass:'card',dateLbl:p.outcome==='pending'?(p.date||''):'',why:true,actions:_pickBtnsHTML(p,''),removeHtml:_pickRemoveHTML(p)})).join('');
 }
 
 // ═══ MLB STANDINGS ═══════════════════════════════════════════
@@ -13162,20 +13157,7 @@ function renderNBALockedBets(){
   const el=document.getElementById('nba-locked');if(!el)return;
   const picks=getP().filter(p=>p.sport==='NBA');
   if(!picks.length){el.innerHTML='<div class="empty">NO LOCKED NBA BETS</div>';return;}
-  el.innerHTML=picks.map(p=>{
-    const oColor=p.outcome==='win'?'var(--nc)':p.outcome==='loss'?'var(--hc)':'var(--ic)';
-    const st=p.outcome==='pending'?'PENDING':p.outcome?.toUpperCase()||'PENDING';
-    return`<div class="pk" style="border-left:2px solid ${oColor}">
-      <div style="flex:1">
-        <div class="pkt">${_titleWithLogos(p)}</div>
-        <div class="pkt2">BET: ${_expandBetOn(p.betOn||'',p.sport)} · ${p.ml||''}</div>
-        <div class="pkd">WIN%: <strong>${p.winProb?(p.winProb*100).toFixed(1)+'%':'—'}</strong> · <strong style="color:${oColor}">${st}</strong>${p.date?' · '+p.date:''}</div>
-        ${p.outcome==='pending'?`<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap"><button class="btn btn-n btn-sm" onclick="recR('${p.id}','win')">✓ WIN</button><button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss')">✗ LOSS</button><button class="btn btn-sm" style="color:var(--t3);border-color:var(--t3);font-size:16px;padding:2px 8px" onclick="removePick('${p.id}')">✕ REMOVE</button></div>`:''}
-        ${_whyThisPickHTML(p)}
-      </div>
-      <button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc);align-self:start;flex-shrink:0" onclick="removePick('${p.id}')">✕</button>
-    </div>`;
-  }).join('');
+  el.innerHTML=picks.map(p=>_pickRowHTML(p,{mode:p.outcome==='pending'?'pending':'settled',wrapClass:'card',dateLbl:p.outcome==='pending'?(p.date||''):'',why:true,actions:_pickBtnsHTML(p,''),removeHtml:_pickRemoveHTML(p)})).join('');
 }
 // NBA matchup radar -- same 3-tab MATCHUP/OFFENSE/DEFENSE pattern as
 // CFB/NHL/soccer/NFL. Same live-over-static preference nbaMC/nbaGetBayes
@@ -20123,8 +20105,8 @@ async function renderNHLPropsLive(filter){
 }
 window.renderNHLPropsLive=renderNHLPropsLive;
 
-function renderNHLLiveBets(){const el=document.getElementById('nhl-live-bets');if(!el)return;const bets=getP().filter(p=>p.sport==='NHL'&&p.outcome==='pending');if(!bets.length){el.innerHTML='<div class="empty">NO ACTIVE NHL BETS</div>';return;}el.innerHTML=bets.map(p=>`<div class="card" style="margin-bottom:7px;border-left:2px solid var(--pc)"><div style="font-family:var(--orb);font-size:22px;font-weight:700">${_titleWithLogos(p,'NHL')}</div><div style="font-family:var(--mono);font-size:18px;color:var(--gc);margin-top:3px">${p.betType} · ${_expandBetOn(p.betOn,'NHL')}</div><div style="font-family:var(--mono);font-size:17px;color:var(--t3);margin-top:2px">${p.ml} · ${(p.winProb*100).toFixed(1)}% · $${p.wager||'--'}</div></div>`).join('');}
-function renderNBALiveBets(){const el=document.getElementById('nba-live-bets');if(!el)return;const bets=getP().filter(p=>p.sport==='NBA'&&p.outcome==='pending');if(!bets.length){el.innerHTML='<div class="empty">NO ACTIVE NBA BETS</div>';return;}el.innerHTML=bets.map(p=>`<div class="card" style="margin-bottom:7px;border-left:2px solid var(--ic)"><div style="font-family:var(--orb);font-size:22px;font-weight:700">${_titleWithLogos(p,'NBA')}</div><div style="font-family:var(--mono);font-size:18px;color:var(--gc);margin-top:3px">${p.betType} · ${_expandBetOn(p.betOn,'NBA')}</div><div style="font-family:var(--mono);font-size:17px;color:var(--t3);margin-top:2px">${p.ml} · ${(p.winProb*100).toFixed(1)}% · $${p.wager||'--'}</div></div>`).join('');}
+function renderNHLLiveBets(){const el=document.getElementById('nhl-live-bets');if(!el)return;const bets=getP().filter(p=>p.sport==='NHL'&&p.outcome==='pending');if(!bets.length){el.innerHTML='<div class="empty">NO ACTIVE NHL BETS</div>';return;}el.innerHTML=bets.map(p=>_pickRowHTML(p,{mode:'pending',wrapClass:'card',dateLbl:p.date||'',actions:''})).join('');}
+function renderNBALiveBets(){const el=document.getElementById('nba-live-bets');if(!el)return;const bets=getP().filter(p=>p.sport==='NBA'&&p.outcome==='pending');if(!bets.length){el.innerHTML='<div class="empty">NO ACTIVE NBA BETS</div>';return;}el.innerHTML=bets.map(p=>_pickRowHTML(p,{mode:'pending',wrapClass:'card',dateLbl:p.date||'',actions:''})).join('');}
 function _adjParLine(inputId,sport,player,stat,dir,ml,prob,matchup){
   var inp=document.getElementById(inputId);
   var line=inp?inp.value:'';
@@ -20382,28 +20364,9 @@ function renderHomeLockedBets(){
       <div class="card" style="flex:1;min-width:72px;padding:8px;text-align:center"><div style="font-family:var(--mono);font-size:17px;color:var(--t3)">WIN%</div><div style="font-family:var(--orb);font-size:27px;font-weight:700;color:var(--ic)">${won+lost>0?Math.round(won/(won+lost)*100):0}%</div></div>
     </div>
     ${bets.slice(0,20).map(b=>{
-      const oc=b.outcome==='win'?'var(--nc)':b.outcome==='loss'?'var(--hc)':b.outcome==='push'?'var(--vc)':'var(--gc)';
-      const st=b.outcome==='pending'?'PENDING':b.outcome?.toUpperCase()||'PENDING';
-      const sc=_homeSportCol[b.sport]||_homeSportCol.default;
-      const mu=_gameTitle(b.hA,b.awA,b.sport);
-      const rawBetOn=b.betOn||'';
-      const displayBetOn=rawBetOn;
-      const legHtml=b.betType==='PARLAY'&&Array.isArray(b.legs)&&b.legs.length?'<div style="margin-top:5px;border-top:1px solid rgba(255,255,255,.08);padding-top:5px">'+b.legs.map((lg,li)=>{const lc=lg.outcome==='win'?'var(--nc)':lg.outcome==='loss'?'var(--hc)':'var(--t3)';const lbl=lg.outcome==='win'?'✓':lg.outcome==='loss'?'✗':'·';return'<div style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:14px;margin-bottom:2px"><span style="color:'+lc+';font-weight:700;width:10px">'+lbl+'</span><span style="color:'+lc+'">'+( lg.desc||('LEG '+(li+1)))+'</span></div>';}).join('')+'</div>':'';
-      return`<div class="card" style="margin-bottom:6px;border-left:2px solid ${oc}">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap">
-              <span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid ${sc};color:${sc};border-radius:2px">${b.sport||'BET'}</span>
-              <span style="font-family:var(--mono);font-size:15px;color:var(--t2)">${mu}</span>
-              <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">${b.date||''}</span>
-            </div>
-            <div style="font-family:var(--orb);font-size:19px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${displayBetOn}</div>${legHtml}
-            <div style="font-family:var(--mono);font-size:16px;color:var(--t3);margin-top:1px">${b.betType||''}${b.ml?' · '+b.ml:''}</div>
-            ${b.betType==='PARLAY'?'':_whyThisPickHTML(b)}
-          </div>
-          ${b.outcome==='pending'?`<div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap"><button class="btn btn-n btn-sm" style="padding:3px 7px;font-size:16px" onclick="recR('${b.id}','win');setTimeout(()=>{renderHomeLockedBets();try{renderOverall();}catch(e){}try{updHdr();}catch(e){}},100)">✓W</button><button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc);padding:3px 7px;font-size:16px" onclick="recR('${b.id}','loss');setTimeout(()=>{renderHomeLockedBets();try{renderOverall();}catch(e){}try{updHdr();}catch(e){}},100)">✗L</button><button class="btn btn-sm" style="color:var(--t3);border-color:var(--t3);padding:3px 7px;font-size:16px" onclick="removePick('${b.id}')">✕</button></div>`:`<span style="font-family:var(--mono);font-size:16px;padding:2px 5px;border:1px solid ${oc};color:${oc};border-radius:2px;flex-shrink:0">${st}</span>`}
-        </div>
-      </div>`;
+      const legHtml=b.betType==='PARLAY'&&Array.isArray(b.legs)&&b.legs.length?b.legs.map((lg,li)=>{const lc=lg.outcome==='win'?'var(--nc)':lg.outcome==='loss'?'var(--hc)':'var(--t3)';const lbl=lg.outcome==='win'?'✓':lg.outcome==='loss'?'✗':'·';return'<div style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:14px;margin-bottom:2px"><span style="color:'+lc+';font-weight:700;width:10px">'+lbl+'</span><span style="color:'+lc+'">'+(lg.desc||('LEG '+(li+1)))+'</span></div>';}).join(''):undefined;
+      const after="setTimeout(()=>{renderHomeLockedBets();try{renderOverall();}catch(e){}try{updHdr();}catch(e){}},100)";
+      return _pickRowHTML(b,{mode:b.outcome==='pending'?'pending':'settled',wrapClass:'card',dateLbl:b.outcome==='pending'?(b.date||''):'',legHtml:legHtml,title:_gameTitle(b.hA,b.awA,b.sport)||b.betOn||'',why:b.betType!=='PARLAY',actions:_pickBtnsHTML(b,after),removeHtml:_pickRemoveHTML(b)});
     }).join('')}`;
 }
 
@@ -30029,47 +29992,9 @@ function renderLockedTracker() {
           }).join('')
           +'</div>';
       }
-      var settleBtns = isPend
-        ?'<div style="display:flex;gap:4px;margin-top:6px">'
-          +'<button class="btn btn-sm" style="color:var(--gc);border-color:var(--gc);font-size:14px" onclick="recR(\''+p.id+'\',\'win\');setTimeout(renderLockedTracker,400)">WIN</button>'
-          +'<button class="btn btn-sm" style="color:var(--hc);border-color:var(--hc);font-size:14px" onclick="recR(\''+p.id+'\',\'loss\');setTimeout(renderLockedTracker,400)">LOSS</button>'
-          +'<button class="btn btn-o btn-sm" style="font-size:14px" onclick="recR(\''+p.id+'\',\'push\');setTimeout(renderLockedTracker,400)">PUSH</button>'
-          +'</div>':'' ;
-      html+=
-        '<div class="gc" style="border-left:2px solid '+borderC+';margin-bottom:8px">'
-          +'<div class="gch">'
-            +'<div>'
-              +'<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:4px">'
-                +cvLeagueTag(league)
-                +cvSportTag(league)
-                +cvBetTypeTag(p.betType)
-                +statBadge
-                +parlayBadge
-              +'</div>'
-              +'<div class="gtm" style="font-size:23px">'+p.betOn+'</div>'
-              +'<div class="gsp">'+_titleWithLogos(p)+' &middot; '+mlStr+'</div>'
-            +'</div>'
-            +'<div style="text-align:right">'
-              +'<div style="font-family:var(--orb);font-size:24px;font-weight:900;color:'+probCol+'">'+prob+'%</div>'
-              +'<div style="font-family:var(--mono);font-size:14px;color:var(--t3)">WIN PROB</div>'
-            +'</div>'
-          +'</div>'
-          +'<div style="padding:6px 10px 8px">'
-            +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
-              +'<div style="font-family:var(--mono);font-size:13px;color:var(--t3)">PROB</div>'
-              +'<div style="flex:1;height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">'
-                +'<div style="height:100%;width:'+prob+'%;background:'+probCol+';border-radius:3px"></div>'
-              +'</div>'
-              +'<div style="font-family:var(--mono);font-size:13px;color:'+probCol+'">'+prob+'%</div>'
-            +'</div>'
-            +'<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">'
-              +(p.lockedAt?'Locked: '+new Date(p.lockedAt).toLocaleString():'')
-              +(evStr!==null?' &middot; EV: '+(parseFloat(evStr)>=0?'+':'')+evStr+'%':'')
-            +'</div>'
-            +legsHtml
-            +settleBtns
-          +'</div>'
-        +'</div>';
+      var after="setTimeout(renderLockedTracker,400)";
+      var btns=_pickBtnsHTML(p,after).replace('</button>\n    <button class="btn btn-sm" style="font-size:15px;color:var(--t3)','</button><button class="btn btn-o btn-sm" style="font-size:15px" onclick="recR(\''+p.id+'\',\'push\');'+after+'">PUSH</button>\n    <button class="btn btn-sm" style="font-size:15px;color:var(--t3)');
+      html+=_pickRowHTML(p,{mode:isPend?'pending':'settled',wrapClass:'card',legHtml:isParlay?legsHtml:undefined,pickPrefix:parlayBadge?parlayBadge+' ':'',title:p.betOn||'',why:false,actions:btns,removeHtml:_pickRemoveHTML(p)});
     });
   });
   el.innerHTML=html;
