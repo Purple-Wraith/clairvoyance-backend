@@ -4614,9 +4614,9 @@ function _mvmBarHTML(m){
   }catch(e){return'';}
 }
 // ── Alternate lines (2026-10-03): CFB/NFL spread + O/U picks are LOCKED at a safer line (see ALT_LINE_CFG in scripts/auto_lock_settle.py -- keep both in sync).
-// Same maths as the Python side: smallest whole-point cushion k in [kmin,kmax] whose empirical win curve Phi((k+a)/sigma) reaches 70%; price is an estimate.
+// Same maths as the Python side: smallest whole-point cushion k in [kmin,kmax] whose empirical win curve Phi((k+a)/sigma) reaches 67%; price is an estimate.
 const _ALT_CFG={CFB:{OU:[14.7,1.9,3,9],SPREAD:[15.7,.8,3,10]},NFL:{OU:[13,0,3,8],SPREAD:[13.4,0,3,8]}};
-const _ALT_TARGET=.70,_ALT_FLOOR=.65,_ALT_VIG=.045;
+const _ALT_TARGET=.67,_ALT_FLOOR=.62,_ALT_VIG=.045;
 function _altShift(sport,mkt,label){
   const cfg=_ALT_CFG[sport]&&_ALT_CFG[sport][mkt];if(!cfg)return null;
   const sigma=cfg[0],a=cfg[1],kmin=cfg[2],kmax=cfg[3];
