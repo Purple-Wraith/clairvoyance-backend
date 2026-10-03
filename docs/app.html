@@ -2006,10 +2006,11 @@ body{line-height:1.5}
     <div style="font-family:'Orbitron',sans-serif;font-size:18px;font-weight:700;letter-spacing:3px;color:var(--pc);margin-bottom:14px">GITHUB SYNC</div>
     <div style="font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--t2);line-height:1.8;margin-bottom:14px">
       TOKEN TRIGGERS FULL DATA REBUILD (new picks, scores, props).<br>
-      TOKEN NEEDS: <span style="color:var(--gc)">workflow</span> SCOPE · Takes 2-4 min
+      TOKEN NEEDS: <span style="color:var(--gc)">workflow</span> SCOPE · Takes 2-4 min<br>
+      MANUAL-LOCK RELAY: fine-grained token with <span style="color:var(--gc)">Contents: read + write</span> on Purple-Wraith/clairvoyance-backend
     </div>
     <div style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--t3);margin-bottom:6px">GITHUB PERSONAL ACCESS TOKEN (ghp_...)</div>
-    <input type="password" id="gh-token-modal-input" class="fi" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="width:100%;margin-bottom:10px;font-size:15px">
+    <input type="password" id="gh-token-modal-input" class="fi" placeholder="github_pat_… or ghp_…" style="width:100%;margin-bottom:10px;font-size:15px">
     <div id="gh-token-modal-status" style="font-family:'Share Tech Mono',monospace;font-size:13px;min-height:16px;margin-bottom:10px;color:var(--t3)"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <button class="btn btn-p" style="flex:1;padding:9px" onclick="saveTokenFromModal()">SAVE TOKEN</button>
@@ -5768,6 +5769,30 @@ let _relayTimer=null,_relayLastHash='';
 function _relayPicks(){
   const cut=Date.now()-45*86400000,wiped=_getWipedIds();
   return getP().filter(p=>p&&p.id&&p.lockOrigin==='manual'&&p.outcome!=='_removed'&&!wiped.has(p.id)&&(p.lockedAt||0)>=cut);
+}
+// One-time check when a token is saved: can it read AND write this repo? Writes docs/relay_ping.json (a timestamp) and creates docs/manual_locks.json if it is missing.
+async function relayCheck(){
+  const tok=getGHToken();if(!tok)return{ok:false,msg:'NO TOKEN SAVED'};
+  const base='https://api.github.com/repos/'+GH_RELAY_REPO+'/contents/docs/';
+  const H={Authorization:'token '+tok,Accept:'application/vnd.github.v3+json'};
+  const enc=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o,null,1))));
+  try{
+    const put=async(name,obj,msg)=>{
+      const g=await fetch(base+name+'?t='+Date.now(),{headers:H});
+      if(g.status===401)return{bad:'TOKEN REJECTED (401) - RE-COPY IT IN FULL'};
+      if(g.status===403)return{bad:'TOKEN CANNOT ACCESS THIS REPO (403)'};
+      let sha;if(g.ok)sha=(await g.json()).sha;else if(g.status!==404)return{bad:'GITHUB ERROR '+g.status+' - CHECK THE TOKEN IS FOR '+GH_RELAY_REPO};
+      const r=await fetch(base+name,{method:'PUT',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({message:msg,branch:'main',content:enc(obj),...(sha?{sha}:{})})});
+      if(r.status===403||r.status===404)return{bad:'TOKEN CAN READ BUT NOT WRITE (HTTP '+r.status+') - NEEDS CONTENTS: READ AND WRITE ON '+GH_RELAY_REPO};
+      if(!r.ok)return{bad:'WRITE FAILED (HTTP '+r.status+')'};
+      return{ok:true,existed:!!sha};
+    };
+    const ping=await put('relay_ping.json',{checked_at:new Date().toISOString()},'relay: token check');
+    if(ping.bad)return{ok:false,msg:ping.bad};
+    const g=await fetch(base+'manual_locks.json?t='+Date.now(),{headers:H});
+    if(g.status===404){const m=await put('manual_locks.json',{updated_at:new Date().toISOString(),picks:[]},'relay: create manual locks file');if(m.bad)return{ok:false,msg:m.bad};}
+    return{ok:true,msg:'RELAY READY - MANUAL LOCKS WILL BE SAVED TO GITHUB'};
+  }catch(e){return{ok:false,msg:'NETWORK ERROR: '+e.message};}
 }
 function relayManualLocks(){clearTimeout(_relayTimer);_relayTimer=setTimeout(_relayPush,8000);}
 async function _relayPush(){
@@ -24778,13 +24803,16 @@ function closeTokenModal(){
 function saveTokenFromModal(){
   const tok=(document.getElementById('gh-token-modal-input')?.value||'').trim();
   const st=document.getElementById('gh-token-modal-status');
-  if(!tok){if(st)st.innerHTML='<span style="color:var(--hc)">PASTE YOUR TOKEN FIRST (starts with ghp_)</span>';return;}
+  if(!tok){if(st)st.innerHTML='<span style="color:var(--hc)">PASTE YOUR TOKEN FIRST (ghp_ or github_pat_)</span>';return;}
   setGHToken(tok);
   document.getElementById('gh-token-modal-input').value='';
-  if(st)st.innerHTML='<span style="color:var(--nc)">✓ TOKEN SAVED — SYNC NOW TRIGGERS FULL REBUILD</span>';
-  toast('// GITHUB TOKEN SAVED — SYNC WILL NOW REBUILD DATA');
+  if(st)st.innerHTML='<span style="color:var(--t3)">TOKEN SAVED — CHECKING ACCESS TO '+GH_RELAY_REPO+'…</span>';
   try{initGHTokenUI();}catch(e){}
-  setTimeout(closeTokenModal,1500);
+  relayCheck().then(res=>{
+    if(st)st.innerHTML=res.ok?'<span style="color:var(--nc)">✓ '+res.msg+'</span>':'<span style="color:var(--hc)">✗ '+res.msg+'</span>';
+    toast(res.ok?'// GITHUB TOKEN SAVED — MANUAL-LOCK RELAY READY':'// TOKEN SAVED BUT RELAY CHECK FAILED');
+    if(res.ok){try{_relayLastHash='';relayManualLocks();}catch(e){}setTimeout(closeTokenModal,2500);}
+  });
 }
 function clearTokenFromModal(){
   localStorage.removeItem('cv_gh_token');

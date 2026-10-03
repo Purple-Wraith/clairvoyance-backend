@@ -2081,6 +2081,37 @@ def _dedupe_opposite_sides(game_qualifying: list[dict]) -> list[dict]:
     return kept
 
 
+# ── CFB per-game selection (2026-10-03) ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+# A Saturday CFB slate locked 46-113 picks (89 across 44 games on Oct 3): ~2 per game, 70% of them spread / O-U. The settled ledger (359 CFB picks) says why that is
+# wasteful: moneyline favourites hit 88.9% but spreads only 54.7% and O/Us 56.4%, and for spreads/O-Us the stated probability was ANTI-informative above ~75%
+# (spread 70-85% stated -> 38-40% won, O/U 75-85% -> 45%). So per game:
+#   RULE B  one pick: the moneyline if it is a heavy favourite (p >= CFB_ML_MIN_P), otherwise the single best spread / O-U whose probability sits in the band where
+#           the history held up (CFB_NONML_BAND).
+#   RULE A  two picks (ML + the O/U) only when the moneyline is very strong (p >= CFB_PAIR_ML_MIN_P) AND an O/U qualifies in the band. ML + spread is never paired
+#           (same directional read priced twice; the generic cap below already excludes it).
+# In-sample on the ledger: keeps ~47% of picks and lifts the win rate 65.7% -> 74.6%; on Oct 3's slate it would have been 37 picks over 35 games instead of 89 over 44.
+CFB_ML_MIN_P = 0.70
+CFB_PAIR_ML_MIN_P = 0.75
+CFB_NONML_BAND = (0.60, 0.75)
+
+
+def _cfb_select(legs: list[dict]) -> list[dict]:
+    """Per-game CFB selection (rules B/A above) over the legs that already qualified for this game."""
+    def p(leg):
+        return leg.get("prob") or 0
+    ml = [l for l in legs if _market_type(l.get("side")) == "ML" and p(l) >= CFB_ML_MIN_P]
+    non = [l for l in legs if _market_type(l.get("side")) != "ML" and CFB_NONML_BAND[0] <= p(l) < CFB_NONML_BAND[1]]
+    best_ml = max(ml, key=p) if ml else None
+    ou = [l for l in non if _market_type(l.get("side")) == "OU"]
+    best_ou = max(ou, key=p) if ou else None
+    best_non = max(non, key=p) if non else None
+    if best_ml is not None:
+        if best_ou is not None and p(best_ml) >= CFB_PAIR_ML_MIN_P:
+            return [best_ml, best_ou]          # rule A
+        return [best_ml]                       # rule B, moneyline first
+    return [best_non] if best_non is not None else []
+
+
 def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, now=None,
                      guard_stats: dict | None = None) -> list[dict]:
     """only_sports: if given, restricts to exactly these sport tags (e.g.
@@ -2204,6 +2235,11 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                 f"({game_skipped} qualifying leg(s) not locked)")
         if len(game_qualifying) > 1:
             game_qualifying = _dedupe_opposite_sides(game_qualifying)
+        if sport == "CFB" and game_qualifying:
+            before = len(game_qualifying)
+            game_qualifying = _cfb_select(game_qualifying)
+            if len(game_qualifying) < before:
+                log(f"  CFB selection: {gl.get('awA')} @ {gl.get('hA')} {before} -> {len(game_qualifying)} leg(s)")
         # Same-game correlated-market cap: originally MLB-only (real ledger
         # data showed MLB routinely locking all 3 markets on one game at
         # once -- ML + run line + O/U each independently qualifying --
