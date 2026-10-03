@@ -474,9 +474,21 @@ class StandingsAndPlayers(unittest.TestCase):
     def test_player_stats_season_rule(self):
         zero = {a: {"w": "0", "l": "0"} for a in ESPN_30}
         six = {a: {"w": "3", "l": "3"} for a in ESPN_30}
+        fifteen = {a: {"w": "8", "l": "7"} for a in ESPN_30}
         self.assertEqual(cu.nba_player_stats_season(zero, 2027), 2026)
-        self.assertEqual(cu.nba_player_stats_season(six, 2027), 2027)
+        # tiers need >= NBA_TIER_MIN_GP games per player, so six team games must NOT flip yet
+        self.assertEqual(cu.nba_player_stats_season(six, 2027), 2026)
+        self.assertEqual(cu.nba_player_stats_season(fifteen, 2027), 2027)
         self.assertEqual(cu.nba_player_stats_season({}, 2027), 2026)
+
+    def test_apply_tiers_only_missing(self):
+        roster = {"a star": {"team": "LAL", "pos": "G", "rating": "PREMIUM", "ppg": 30.0},
+                  "b star": {"team": "LAL", "pos": "G"}}
+        prior = [{"name": "A Star", "gp": 70, "ppg": 12.0, "team": "LAL"},
+                 {"name": "B Star", "gp": 70, "ppg": 30.0, "team": "LAL"}]
+        cu.apply_nba_player_tiers(roster, prior, only_missing=True)
+        self.assertEqual(roster["a star"]["ppg"], 30.0)   # current-season tier untouched
+        self.assertTrue(roster["b star"].get("rating"))    # gap filled from last season
 
     def test_apply_tiers(self):
         roster = {"luka doncic": {"team": "LAL", "pos": "G"}, "role player": {"team": "LAL", "pos": "F"},

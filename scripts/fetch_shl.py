@@ -449,15 +449,20 @@ def git_push(paths: list[str], message: str) -> None:
     if r.returncode != 0:
         log(f"  nothing to commit ({r.stdout.strip()[:120]})")
         return
-    for attempt in range(5):
-        subprocess.run(["git", "pull", "--rebase", "origin", "main"], cwd=ROOT, capture_output=True)
-        push = subprocess.run(["git", "push", "origin", "main"], cwd=ROOT, capture_output=True, text=True)
-        if push.returncode == 0:
-            log("  pushed")
-            return
-        log(f"  push attempt {attempt + 1}/5 failed, retrying: {push.stderr.strip()[:160]}")
-        time.sleep(3 + attempt * 2)
-    raise RuntimeError("git push failed after 5 retries")
+    from _scraper_health import park_health
+    restore = park_health()      # a dirty docs/scraper_health.json would make every `git pull --rebase` below refuse to run
+    try:
+        for attempt in range(5):
+            subprocess.run(["git", "pull", "--rebase", "--autostash", "origin", "main"], cwd=ROOT, capture_output=True)
+            push = subprocess.run(["git", "push", "origin", "main"], cwd=ROOT, capture_output=True, text=True)
+            if push.returncode == 0:
+                log("  pushed")
+                return
+            log(f"  push attempt {attempt + 1}/5 failed, retrying: {push.stderr.strip()[:160]}")
+            time.sleep(3 + attempt * 2)
+        raise RuntimeError("git push failed after 5 retries")
+    finally:
+        restore()
 
 
 if __name__ == "__main__":

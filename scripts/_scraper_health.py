@@ -121,6 +121,38 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True)
 
 
+def park_health(root: Path | None = None):
+    """Set docs/scraper_health.json aside before a schedule-file `git pull --rebase` and return a restore() callable.
+
+    log_scrape() rewrites the (tracked) file BEFORE the fetch script publishes its schedule JSON, so the tree is dirty at that point and `git pull --rebase` refuses
+    ("cannot pull with rebase: You have unstaged changes") -- every retry then failed and the schedule JSON was not published whenever another commit had landed on main.
+    Park = remember the bytes and revert the file to HEAD (or remove an untracked copy); restore() writes the bytes back so commit_and_push() can publish them afterwards."""
+    root = Path(root) if root else ROOT
+    path = root / HEALTH_REL
+    try:
+        data = path.read_bytes() if path.exists() else None
+    except Exception:
+        data = None
+    if data is not None:
+        try:
+            tracked = _git(root, "ls-files", "--error-unmatch", HEALTH_REL).returncode == 0
+            if tracked:
+                _git(root, "checkout", "--", HEALTH_REL)
+            else:
+                path.unlink()
+        except Exception:
+            pass
+
+    def restore() -> None:
+        if data is None:
+            return
+        try:
+            path.write_bytes(data)
+        except Exception:
+            pass
+    return restore
+
+
 def commit_and_push(message: str = "chore: scraper health log", root: Path | None = None, attempts: int = 4,
                     remote: str = "origin", branch: str = "main", sleep=time.sleep) -> bool:
     """Commit + push ONLY docs/scraper_health.json (best effort, never raises).  -> True when the file is on the remote (or had

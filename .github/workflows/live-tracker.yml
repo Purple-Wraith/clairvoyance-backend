@@ -49,12 +49,13 @@ on:
     # 6-9am slots if live_tracker.py's own gate says nothing's live yet.
     # 6am MT = 12:00 UTC, 11pm MT = 05:00 UTC next day (MDT), hence the
     # split hour range. Like every other fixed-UTC cron in this repo,
-    # drifts ~1hr earlier MT once MST returns in November.
+    # drifts ~1hr earlier MT once MST returns in November -- hour 6 UTC is included so the evening window
+    # still reaches 11pm MST (05:xx UTC = 11pm MDT, 06:xx UTC = 11pm MST); live_tracker.py's own gate no-ops anything outside real game hours.
     # Minute nudged off :00/:30 2026-09-09 -- part of an account-wide pass
     # moving every remaining round-minute cron off the top/half of the
     # hour, since that's documented (both by GitHub itself and multiple
     # community reports) as the most congested instant for the scheduler.
-    - cron: '7,37 12-23,0-5 * * *'
+    - cron: '7,37 12-23,0-6 * * *'
   workflow_dispatch:
 
 permissions:

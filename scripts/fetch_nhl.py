@@ -399,7 +399,7 @@ def git_push(paths: list[str], message: str) -> None:
     # by multiple concurrent scheduled jobs, so a bare push failing once
     # is a normal race, not a real error.
     for attempt in range(5):
-        subprocess.run(["git", "pull", "--rebase", "origin", "main"], cwd=ROOT, capture_output=True)
+        subprocess.run(["git", "pull", "--rebase", "--autostash", "origin", "main"], cwd=ROOT, capture_output=True)
         push = subprocess.run(["git", "push", "origin", "main"], cwd=ROOT, capture_output=True, text=True)
         if push.returncode == 0:
             _log("  pushed")

@@ -699,6 +699,20 @@ def fetch_transactions() -> dict:
     return {"items": items}
 
 
+def _write_teams_guarded(path: Path, payload: dict) -> None:
+    """_write() for the per-team stats files, but never replace a file that has data with an EMPTY result (every ESPN call failed / rate limit): the app and the
+    models would silently lose all team numbers until the next successful weekly run."""
+    if not payload.get("teams") and path.exists():
+        try:
+            had = bool(json.loads(path.read_text()).get("teams"))
+        except Exception:
+            had = False
+        if had:
+            _log(f"  {path.name}: fetch returned no teams -- keeping the existing file instead of overwriting it with an empty one")
+            return
+    _write(path, payload)
+
+
 def _write(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"generated_at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), **payload}
@@ -719,7 +733,7 @@ def git_push(paths: list[str], message: str) -> None:
     # git_push). Rebase onto the latest remote and retry a few times before
     # giving up, same pattern as fetch_cfb.py.
     for attempt in range(5):
-        subprocess.run(["git", "pull", "--rebase", "origin", "main"], cwd=ROOT, capture_output=True)
+        subprocess.run(["git", "pull", "--rebase", "--autostash", "origin", "main"], cwd=ROOT, capture_output=True)
         push = subprocess.run(["git", "push", "origin", "main"], cwd=ROOT, capture_output=True, text=True)
         if push.returncode == 0:
             _log("  pushed")
@@ -791,7 +805,7 @@ if __name__ == "__main__":
                     stats = fetch_all_team_stats(roster_teams, stats_season)
                 else:
                     stats_season = current_year
-            _write(STATS_OUT, {"season": stats_season, "teams": stats})
+            _write_teams_guarded(STATS_OUT, {"season": stats_season, "teams": stats})
 
     if args.mode in ("player_stats", "all"):
         if not roster_teams:
@@ -806,7 +820,7 @@ if __name__ == "__main__":
                 # season by hand); the scheduled workflow never passes this.
                 player_stats_season = args.stats_season
                 player_stats = fetch_all_player_stats(roster_teams, player_stats_season)
-                _write(PLAYER_STATS_OUT, {"season": player_stats_season, "teams": player_stats})
+                _write_teams_guarded(PLAYER_STATS_OUT, {"season": player_stats_season, "teams": player_stats})
             else:
                 # Explicit request: weeks 1-3 stay 100% prior-season (a
                 # 1-3-game current sample is too noisy to trust alone --
@@ -823,7 +837,7 @@ if __name__ == "__main__":
                 _log(f"  week={current_week} -> "
                      + (f"blending {current_year}(70%)/{current_year - 1}(30%)" if blended
                         else f"100% {current_year - 1} (pre-week-4)"))
-                _write(PLAYER_STATS_OUT, {
+                _write_teams_guarded(PLAYER_STATS_OUT, {
                     "season": current_year if blended else current_year - 1,
                     "week": current_week,
                     "blend": "70/30 current/prior after week 3" if blended else None,

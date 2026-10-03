@@ -510,6 +510,15 @@ def write_stats(year: int | None = None) -> None:
             year = current_year
 
     stats_path = STATS_OUT_PATH
+    if not stats and stats_path.exists():
+        # every ESPN call failed (outage / rate limit): never replace a populated file with an empty one
+        try:
+            had = bool(json.loads(stats_path.read_text()).get("teams"))
+        except Exception:
+            had = False
+        if had:
+            _log(f"fetch returned 0 teams -- keeping the existing {stats_path.name} instead of overwriting it with an empty one")
+            return
     # Before replacing last season's file with a newer season's stats, keep it as the prior-season snapshot (once; see _season.py).
     rolled = roll_prior_snapshot(stats_path, PRIOR_STATS_PATH, int(year))
     if rolled == "rolled":
@@ -538,7 +547,7 @@ def git_push(paths: list[str], message: str) -> None:
     # every ~3min, so another push can land between this rebase and this
     # push. Retry with a fresh rebase each time instead of failing outright.
     for attempt in range(5):
-        subprocess.run(["git", "-C", str(ROOT), "pull", "--rebase", "origin", "main"], capture_output=True)
+        subprocess.run(["git", "-C", str(ROOT), "pull", "--rebase", "--autostash", "origin", "main"], capture_output=True)
         push = subprocess.run(["git", "-C", str(ROOT), "push", "origin", "main"], capture_output=True, text=True)
         if push.returncode == 0:
             _log("git push → main ✓")

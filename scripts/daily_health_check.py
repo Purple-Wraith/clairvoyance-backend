@@ -234,16 +234,16 @@ REFRESH_MONITORED = [
 # (docs file, label, stamp key, warn hours, stale hours).  data.json / schedules / euro hockey = the app header line's _FRESH_SRC
 # numbers.  Daily producers get 30/54h; weekly / monthly producers get cadence + slack.
 FRESHNESS_FILES = [
-    ("data.json", "Engine data (data.json)", "generated", 14, 26),
-    ("nhl_schedule.json", "NHL schedule/odds", "generated_at", 20, 36),
-    ("cfb_schedule.json", "CFB schedule", "generated_at", 20, 36),
-    ("nfl_schedule.json", "NFL schedule", "generated_at", 20, 36),
-    ("nba_schedule.json", "NBA schedule/lines", "generated_at", 20, 36),
-    ("soccer_schedule.json", "Soccer schedule", "generated_at", 20, 36),
-    ("shl_schedule.json", "SHL schedule/odds", "generated_at", 12, 28),
-    ("liiga_schedule.json", "Liiga schedule/odds", "generated_at", 12, 28),
-    ("nla_schedule.json", "NLA schedule/odds", "generated_at", 12, 28),
-    ("extraliga_schedule.json", "Extraliga schedule/odds", "generated_at", 12, 28),
+    ("data.json", "Engine data (data.json)", "generated", 17, 26),
+    ("nhl_schedule.json", "NHL schedule/odds", "generated_at", 24, 36),
+    ("cfb_schedule.json", "CFB schedule", "generated_at", 24, 36),
+    ("nfl_schedule.json", "NFL schedule", "generated_at", 24, 36),
+    ("nba_schedule.json", "NBA schedule/lines", "generated_at", 24, 36),
+    ("soccer_schedule.json", "Soccer schedule", "generated_at", 24, 36),
+    ("shl_schedule.json", "SHL schedule/odds", "generated_at", 17, 28),
+    ("liiga_schedule.json", "Liiga schedule/odds", "generated_at", 17, 28),
+    ("nla_schedule.json", "NLA schedule/odds", "generated_at", 17, 28),
+    ("extraliga_schedule.json", "Extraliga schedule/odds", "generated_at", 17, 28),
     ("live_data.json", "Live feed (live_data.json)", "ts", 1.5, 4),           # special-cased in check_data_freshness
     ("cfb_team_stats.json", "CFB team stats", "generated_at", 30, 54),
     ("nfl_injuries.json", "NFL injuries", "generated_at", 30, 54),
@@ -287,7 +287,11 @@ WORKFLOW_FOR_FILE = {
     "nfl_schedule.json": "daily-schedules-refresh.yml", "soccer_schedule.json": "daily-schedules-refresh.yml",
     "shl_schedule.json": "shl-schedule-refresh.yml", "liiga_schedule.json": "liiga-schedule-refresh.yml",
     "nla_schedule.json": "nla-schedule-refresh.yml", "extraliga_schedule.json": "extraliga-schedule-refresh.yml",
-    "live_data.json": "live-tracker.yml",
+    "live_data.json": "live-tracker.yml", "nba_schedule.json": "daily-schedules-refresh.yml",
+    "cfb_team_stats.json": "cfb-stats-weekly.yml", "nfl_team_stats.json": "nfl-stats-weekly.yml",
+    "nfl_injuries.json": "nfl-stats-weekly.yml", "nfl_transactions.json": "nfl-stats-weekly.yml",
+    "nfl_player_stats.json": "nfl-stats-weekly.yml", "nfl_standings.json": "nfl-stats-weekly.yml",
+    "cfb_power.json": "cfb-rankings-weekly.yml", "player_stats.json": "daily-player-stats-refresh.yml",
 }
 
 

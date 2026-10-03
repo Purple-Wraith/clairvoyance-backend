@@ -1150,6 +1150,10 @@ def collect_nba_season_data(no_reference: bool = False, prev_nba: dict | None = 
     if roster_carried or not roster:
         stale.append("roster")
     tagged = apply_nba_player_tiers(roster, players)
+    if roster and stats_season == cur:
+        # current-season tiers only exist for players who already have NBA_TIER_MIN_GP games: keep everyone else on LAST season's tier instead of dropping to the fallback weight
+        prior_players = safe("players(prior)", lambda: fetch_nba_player_stats(cur - 1), [])
+        tagged += apply_nba_player_tiers(roster, prior_players, only_missing=True)
     log(f"  NBA roster: {len(roster)} players, {tagged} tiered (PREMIUM/OPTIMAL/GOOD) for injury weighting")
     if roster and not tagged:
         log("NBA roster: 0 players tiered -- ESPN player-stats fetch produced nothing usable", "WARN")
@@ -1396,8 +1400,10 @@ def fetch_nba_playoff_bracket() -> dict:
 
 def nba_player_stats_season(espn_cur: dict, cur_year: int, min_games: int | None = None) -> int:
     """Season whose per-player numbers should feed injury-impact tiers: the current
-    one once the median team has >= min_games played (ESPN standings), else last season."""
-    min_games = NBA_MIN_GAMES_FOR_CURRENT if min_games is None else min_games
+    one once the median team has >= min_games played (ESPN standings), else last season.
+    min_games defaults to NBA_TIER_MIN_GP (15), NOT the 5 the team ratings switch at: a player is only tiered with >= 15 games (apply_nba_player_tiers), so flipping at 5 left
+    ~2-3 weeks (until players reached 15 GP) with nobody tiered and every star weighted at the fallback in the app's injury impact."""
+    min_games = NBA_TIER_MIN_GP if min_games is None else min_games
     gps = sorted((int(_bb_float(v.get("w")) or 0) + int(_bb_float(v.get("l")) or 0)) for v in (espn_cur or {}).values())
     if gps and gps[len(gps) // 2] >= min_games:
         return cur_year
@@ -1453,13 +1459,16 @@ NBA_TIER_PPG = ((24.0, "PREMIUM"), (18.0, "OPTIMAL"), (12.0, "GOOD"))   # ppg ->
 NBA_TIER_MIN_GP = 15
 
 
-def apply_nba_player_tiers(roster: dict, players: list[dict]) -> int:
+def apply_nba_player_tiers(roster: dict, players: list[dict], only_missing: bool = False) -> int:
     """Add `rating` (PREMIUM/OPTIMAL/GOOD) and `ppg` to roster entries (in place) for
-    players whose last/current-season scoring clears a tier. Returns how many were tagged."""
+    players whose last/current-season scoring clears a tier. Returns how many were tagged.
+    only_missing: leave entries that already have a rating alone (used to fill the gaps from LAST season's numbers once the current season is underway)."""
     n = 0
     for p in players or []:
         ent = roster.get((p.get("name") or "").lower())
         if not ent or (p.get("gp") or 0) < NBA_TIER_MIN_GP:
+            continue
+        if only_missing and ent.get("rating"):
             continue
         for thr, tier in NBA_TIER_PPG:
             if (p.get("ppg") or 0) >= thr:
