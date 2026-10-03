@@ -20,6 +20,34 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
 <title>CLAIRVOYANCE ENGINE v5.1 — App</title>
+<script>
+/* PERF 2026-10-03: Date.prototype.toLocale{Date,Time,}String(locale, options) constructs a brand-new Intl.DateTimeFormat on EVERY call (~0.1-1ms each). The app calls it ~130 places,
+   many inside per-game / per-pick loops (the Hockey tab spent ~3s on it, the Overall history ~1.7s). This shim reuses one formatter per (locale, options) pair. Output is identical:
+   it only handles a string locale + plain options object, and falls back to the native method for anything else (invalid dates included). */
+(function(){
+  try{
+    const cache=new Map(),protoD=Date.prototype;
+    const wrap=(name,defs)=>{
+      const native=protoD[name];
+      protoD[name]=function(locale,opts){
+        try{
+          if(typeof locale==='string'&&opts&&typeof opts==='object'&&!Array.isArray(opts)&&!isNaN(this)){
+            const key=name+'|'+locale+'|'+JSON.stringify(opts);
+            let f=cache.get(key);
+            if(!f){f=new Intl.DateTimeFormat(locale,Object.assign({},defs(opts),opts));cache.set(key,f);}
+            return f.format(this);
+          }
+        }catch(e){}
+        return native.apply(this,arguments);
+      };
+    };
+    const hasDate=o=>o.year||o.month||o.day||o.weekday||o.era||o.dateStyle,hasTime=o=>o.hour||o.minute||o.second||o.dayPeriod||o.fractionalSecondDigits||o.timeStyle;
+    // defaults mirror the spec: toLocaleDateString adds y/m/d unless a date field is given; toLocaleTimeString adds h/m/s unless a time field is given
+    wrap('toLocaleDateString',o=>(hasDate(o)&&!o.timeStyle)||o.dateStyle?{}:{year:'numeric',month:'numeric',day:'numeric'});
+    wrap('toLocaleTimeString',o=>hasTime(o)?{}:{hour:'numeric',minute:'numeric',second:'numeric'});
+  }catch(e){}
+})();
+</script>
 <script src="config.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -80,8 +108,13 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   color:#f000ff !important;-webkit-text-fill-color:#f000ff !important;
   background:none !important;-webkit-background-clip:unset !important;background-clip:unset !important;
   text-shadow:0 0 10px #f000ff,0 0 28px rgba(240,0,255,.75),0 0 60px rgba(240,0,255,.35);
-  justify-self:center;white-space:nowrap;animation:logoPulse 4s ease-in-out infinite}
-@keyframes logoPulse{0%,100%{text-shadow:0 0 10px #f000ff,0 0 28px rgba(240,0,255,.75),0 0 60px rgba(240,0,255,.35)}50%{text-shadow:0 0 16px #f000ff,0 0 42px rgba(240,0,255,.9),0 0 90px rgba(240,0,255,.55),0 0 150px rgba(240,0,255,.2)}}
+  justify-self:center;white-space:nowrap;position:relative;isolation:isolate}
+/* PERF 2026-10-03: the pulse used to animate text-shadow (blurs up to 150px) -> a full main-thread repaint EVERY frame, ~40% of the page's idle CPU and the main cause of lag
+   on phones. The extra glow is now a pre-painted radial layer whose OPACITY pulses (compositor-only, no repaint). */
+.logo::before{content:'';position:absolute;z-index:-1;left:-30px;right:-30px;top:-14px;bottom:-14px;pointer-events:none;
+  background:radial-gradient(ellipse at center,rgba(240,0,255,.38) 0%,rgba(240,0,255,.16) 45%,transparent 72%);
+  opacity:0;will-change:opacity;animation:logoPulse 4s ease-in-out infinite}
+@keyframes logoPulse{0%,100%{opacity:0}50%{opacity:1}}
 @keyframes betPopupResultPop{0%{transform:scale(.6);opacity:0}55%{transform:scale(1.12);opacity:1}100%{transform:scale(1);opacity:1}}
 /* Letter-by-letter wordmark reveal — pure CSS keyframe (GPU-composited via
    will-change) instead of per-letter JS setTimeouts, so the stagger runs on
@@ -3908,7 +3941,8 @@ function _titleWithLogos(p,sportOverride){
 }
 // Logos on pick rows only for games dated yesterday, today or tomorrow (Mountain): the Overall history renders ~1,900 rows and a logo on every one added
 // ~10k DOM nodes + ~3,300 images (history render 0.3s -> ~1s). Everything older keeps the plain team names.
-function _pickRecent(p){try{const fmt=ms=>new Date(ms).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});const d=p.date||'';return d>=fmt(Date.now()-86400000)&&d<=fmt(Date.now()+86400000);}catch(e){return true;}}
+let _prWin=null,_prWinAt=0;
+function _pickRecent(p){try{const n=Date.now();if(!_prWin||n-_prWinAt>30000){_prWin=[_mtDateOf(n-86400000),_mtDateOf(n+86400000)];_prWinAt=n;}const d=p.date||'';return d>=_prWin[0]&&d<=_prWin[1];}catch(e){return true;}}
 function _pickRowHTML(p,o){
   o=o||{};
   const settled=o.mode==='settled';
@@ -4365,7 +4399,10 @@ function _lockStartBlock(startMs,nowMs){
 // EVERY manual lock button -- lockH, _spreadLockDir, _ouLockDir, the hockey minors' direct lockPick chips -- is guarded
 // without editing ~40 onclick strings. Key: hA|awA|MT calendar date of the start (both orientations stored).
 window._gameStartReg=window._gameStartReg||{};
-function _mtDateOf(ms){try{return new Date(ms).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});}catch(e){return null;}}
+// PERF 2026-10-03: toLocaleDateString(locale,{timeZone}) builds a brand-new Intl formatter on EVERY call (~0.1-1ms); the history render and the lock-timing index call this
+// thousands of times. One cached formatter (+ a small memo for repeated instants) cuts that to microseconds. Output is identical ('YYYY-MM-DD' in Mountain time).
+const _MT_DATE_FMT=(function(){try{return new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Denver',year:'numeric',month:'2-digit',day:'2-digit'});}catch(e){return null;}})();
+function _mtDateOf(ms){try{return _MT_DATE_FMT?_MT_DATE_FMT.format(new Date(ms)):new Date(ms).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});}catch(e){return null;}}
 function _regGameStart(hA,awA,startMs){
   if(startMs==null)return;var d=_mtDateOf(startMs);if(!d)return;
   window._gameStartReg[hA+'|'+awA+'|'+d]=startMs;window._gameStartReg[awA+'|'+hA+'|'+d]=startMs;
@@ -4791,6 +4828,14 @@ function _whyThisPickHTML(pick){
 }
 function evGrd(evPct){if(evPct>=12)return{lbl:'EV A+',col:'var(--gc)'};if(evPct>=8)return{lbl:'EV A',col:'var(--nc)'};if(evPct>=4)return{lbl:'EV B',col:'var(--pc)'};if(evPct>=1)return{lbl:'EV C',col:'var(--t2)'};return{lbl:'EV D',col:'var(--t3)'};}
 function pois(l){const L=Math.exp(-l);let k=0,p=1;do{k++;p*=Math.random()}while(p>L);return k-1;}
+// PERF 2026-10-03: inversion sampler -- one Math.random() + a short CDF scan per draw instead of ~lambda+1 random numbers (nhlMC draws 50k per game, per card, per render). Same Poisson distribution.
+function _poisSampler(l){
+  if(!(l>0)||l>60)return()=>pois(l);
+  const cdf=[];let pk=Math.exp(-l),c=pk,k=0;cdf.push(c);
+  while(c<1-1e-12&&k<200){k++;pk*=l/k;c+=pk;cdf.push(c);}
+  const n=cdf.length;
+  return function(){const u=Math.random();for(let i=0;i<n;i++)if(u<cdf[i])return i;return n-1;};
+}
 function today(){return new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'});}
 function nDaysAgoET(n){return new Date(Date.now()-n*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});}
 function getTomorrowET(){return new Date(Date.now()+86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'}).replace(/-/g,'');}
@@ -5265,6 +5310,7 @@ const _MOBILE_BUTTON_PAD_CEILING=5;
 const _MOBILE_BUTTON_PAD_H_CEILING=9;
 function _isMobileViewport(){return window.matchMedia&&window.matchMedia('(max-width:768px)').matches;}
 function _isMobileBtn(el){return el.tagName==='BUTTON'||el.classList.contains('btn')||el.classList.contains('btn-n')||el.classList.contains('btn-p')||el.classList.contains('btn-o')||el.classList.contains('btn-g')||el.classList.contains('btn-h')||el.classList.contains('btn-i')||el.classList.contains('btn-sm');}
+const _capSeen=new WeakSet(),_capSeenB=new WeakSet();
 function capMobileFontSizes(root){
   if(!_isMobileViewport())return;
   const scope=(root&&root.querySelectorAll)?root:document;
@@ -5272,6 +5318,7 @@ function capMobileFontSizes(root){
   // this pass's larger ceiling can never win the inline-style
   // specificity fight against the button-specific pass.
   scope.querySelectorAll('[style*="font-size"]').forEach(el=>{
+    if(_capSeen.has(el))return;_capSeen.add(el);   // PERF: each element is judged once per render, not on every DOM mutation
     if(_isMobileBtn(el))return;
     const fs=parseFloat(el.style.fontSize);
     if(fs&&fs>_MOBILE_FONT_CEILING&&el.tagName!=='INPUT'&&el.tagName!=='SELECT'&&el.tagName!=='TEXTAREA'){
@@ -5283,6 +5330,7 @@ function capMobileFontSizes(root){
   // buttons, refresh buttons, etc.), most carry inline padding too, not
   // just font-size, so shrinking font alone still leaves an oversized box.
   scope.querySelectorAll('button,.btn,.btn-n,.btn-p,.btn-o,.btn-g,.btn-h,.btn-i,.btn-sm').forEach(el=>{
+    if(_capSeenB.has(el))return;_capSeenB.add(el);   // getComputedStyle forces a layout flush -- never repeat it for an element already capped
     const cs=getComputedStyle(el);
     if(parseFloat(cs.fontSize)>_MOBILE_BUTTON_FONT_CEILING){
       el.style.setProperty('font-size',_MOBILE_BUTTON_FONT_CEILING+'px','important');
@@ -7078,7 +7126,8 @@ function nhlMC(hA,awA,n=25000,marketOU){
   // the last-resort fallback for the narrow case of no live data loaded.
   const ouLine=marketOU!=null?parseFloat(marketOU):(TONIGHT.find(g=>(g.h===hA&&g.a===awA)||(g.h===awA&&g.a===hA))?.ou||5.5);
   let hw=0,aw2=0,ot=0,hT=0,aT=0,rT=0,ov=0,rl15h=0,rl15a=0;
-  for(let i=0;i<n;i++){const hg=pois(hLam),ag=pois(aLam);hT+=hg;aT+=ag;rT+=hg+ag;if(hg+ag>ouLine)ov++;if(hg>ag){hw++;if(hg-ag>=2)rl15h++;}else if(ag>hg){aw2++;if(ag-hg>=2)rl15a++;}else{ot++;hw+=.5;aw2+=.5;}}
+  const _hp=_poisSampler(hLam),_ap=_poisSampler(aLam);
+  for(let i=0;i<n;i++){const hg=_hp(),ag=_ap();hT+=hg;aT+=ag;rT+=hg+ag;if(hg+ag>ouLine)ov++;if(hg>ag){hw++;if(hg-ag>=2)rl15h++;}else if(ag>hg){aw2++;if(ag-hg>=2)rl15a++;}else{ot++;hw+=.5;aw2+=.5;}}
   // Special-teams (hStAdj/aStAdj) and shot-quality (hSqAdj/aSqAdj) multipliers
   // already drive hLam/aLam above but were never surfaced anywhere in the
   // reasoning text -- a real signal the model uses but the reader never sees.
@@ -19799,15 +19848,19 @@ function renderHomePage(){
 
 // ── Header dual-timezone clock ────────────────────────────────────────────────
 (function(){
+  const _clkOpt={hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false};
+  const _clkMT=new Intl.DateTimeFormat('en-US',{..._clkOpt,timeZone:'America/Denver'});
+  const _clkET=new Intl.DateTimeFormat('en-US',{..._clkOpt,timeZone:'America/New_York'});
   function tickClock(){
     const elMT=document.getElementById('hdr-clock-mt');
     const elET=document.getElementById('hdr-clock-et');
     if(!elMT||!elET)return;
     const now=new Date();
     const narrow=window.innerWidth<=480;
-    const fmt=(tz)=>{const t=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZone:tz});return narrow?t.slice(0,5):t;};
-    elMT.textContent=`MT ${fmt('America/Denver')}`;
-    elET.textContent=`ET ${fmt('America/New_York')}`;
+    const fmt=(f)=>{const t=f.format(now);return narrow?t.slice(0,5):t;};
+    const mt=`MT ${fmt(_clkMT)}`,et=`ET ${fmt(_clkET)}`;
+    if(elMT.textContent!==mt)elMT.textContent=mt;   // PERF: cached Intl formatters + skip no-op DOM writes
+    if(elET.textContent!==et)elET.textContent=et;
   }
   tickClock();
   setInterval(tickClock,1000);
