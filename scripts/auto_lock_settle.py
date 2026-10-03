@@ -2140,9 +2140,13 @@ ALT_LINE_CFG = {
     "NFL": {"OU": (("normal", 13.0, 0.0), 3.0, 8.0), "SPREAD": (("normal", 13.4, 0.0), 3.0, 8.0)},
     "NBA": {"OU": (("table", ((0, .500), (2, .543), (3, .564), (4, .590), (5, .612), (6, .631), (7, .651), (8, .670), (10, .711))), 3.0, 10.0)},
 }
-# Hockey (NHL + SHL/LIIGA/NLA/EXTRALIGA), totals only, 60-65% band (2026-10-03, owner's call): the pick may FLIP SIDE as well as move the line (OVER 5.5 -> UNDER 6.5,
-# UNDER 6.5 -> OVER 5.5, OVER 4.5 -> UNDER 5.5). Every OVER anchor-1..3 and UNDER anchor+1..3 candidate is scored with that league's own hit rates and the one closest to
-# HOCKEY_ALT_BAND wins; nothing below HOCKEY_ALT_FLOOR is ever picked. Ties within 2 points go to the model's own side, then the smaller move. Puck lines are not shifted.
+# Hockey (NHL + SHL/LIIGA/NLA/EXTRALIGA), totals only, 60-65% band. 2026-10-03 (owner's call): NEVER flip a side just because the table likes the other one -- a pick keeps its OWN side
+# (OVER stays OVER, UNDER stays UNDER) and only the LINE moves, 0-3 goals toward safety, chosen per game:
+#   * each candidate line gets that league's neutral hit rate (table below), then the GAME's own edge is added: half of (the model's probability for this pick at the posted line
+#     minus the neutral 50% baseline of that line), clamped to [-0.05, +0.08]. A strong model pick therefore needs a smaller move, a marginal one a bigger move;
+#   * the candidate closest to HOCKEY_ALT_BAND wins; nothing below HOCKEY_ALT_FLOOR (58%) is allowed, so a pick whose own adjusted probability is already >= 58% keeps its posted line
+#     (no alt line, price stays the market's); ties within 2 points go to the smaller move.
+# A flip would only make sense if the model itself favoured the other side, and then this leg would not have qualified -- so flips are off (altLine.flip is always False).
 #   NHL: conditional hit rates from 2,630 games of closing totals + results (2024-25 + 2025-26, scripts/backtest_alt_lines.py nhl), with the shootout-winning goal removed
 #        (ESPN's final includes it, sportsbooks do not settle totals on it). Posted totals <= 6.0 use the 5.5 table, higher ones the 6.5 table.
 #   LIIGA / SHL / NLA / EXTRALIGA: each league's OWN table (scripts/backtest_alt_lines.py euro-archive): the league's full 2025-26 regular season (364-480 games, from Flashscore's
@@ -2152,13 +2156,17 @@ ALT_LINE_CFG = {
 #        that shift-invariant method lands 1.6-3.4 points (mean 2.7) off: treat these as +/- 3 points. Refresh as the season fills in.
 # A whole-number posted line is anchored on the half-point below it, so a lock never lands on a push.
 HOCKEY_ALT_BAND = (0.60, 0.65)
-HOCKEY_ALT_FLOOR = 0.55
+HOCKEY_ALT_FLOOR = 0.58
+HOCKEY_EDGE_W = 0.5            # share of the model's edge over the neutral line probability that is credited to every candidate
+HOCKEY_EDGE_CLAMP = (-0.05, 0.08)
 HOCKEY_ALT_TIE = 0.02
 # {j goals from the anchor line: P(OVER anchor+j) for j<0, P(UNDER anchor+j) for j>0}
 HOCKEY_OU_NHL = {
     5.5: {-3: 0.961, -2: 0.848, -1: 0.731, 1: 0.611, 2: 0.769, 3: 0.851},
     6.5: {-3: 0.879, -2: 0.787, -1: 0.589, 1: 0.736, 2: 0.831, 3: 0.915},
 }
+# neutral probability of the POSTED line itself (j = 0): NHL from the same closing-line data, European leagues 50% by construction (the posted line is assumed to be the median)
+HOCKEY_BASE0_NHL = {5.5: {"over": 0.517, "under": 0.483}, 6.5: {"over": 0.474, "under": 0.526}}
 HOCKEY_OU_EURO = {
     "LIIGA": {-3: 0.915, -2: 0.805, -1: 0.609, 1: 0.707, 2: 0.833, 3: 0.915},
     "SHL": {-3: 0.911, -2: 0.770, -1: 0.590, 1: 0.714, 2: 0.840, 3: 0.916},
@@ -2206,24 +2214,36 @@ def _alt_finish(leg: dict, new_label: str, p_alt: float, posted: float, new_line
     return out
 
 
-def _hockey_pick_alt(posted: float, sport: str = "NHL", own_side: str = "over") -> tuple[str, float, int, float]:
-    """(side, line, goals moved from the anchor, probability) of the hockey total closest to the 60-65% band."""
+def _hockey_pick_alt(posted: float, sport: str = "NHL", own_side: str = "over", model_p: float | None = None):
+    """(side, line, goals moved, probability, edge credit) for the hockey total on the pick's OWN side nearest the 60-65% band, or None when the posted line already clears the
+    floor once the game's own edge is credited (keep it as posted)."""
     anchor = posted if posted != int(posted) else posted - 0.5
-    table = HOCKEY_OU_EURO.get(sport) or HOCKEY_OU_NHL[5.5 if anchor <= 6.0 else 6.5]
+    base = 5.5 if anchor <= 6.0 else 6.5
+    table = HOCKEY_OU_EURO.get(sport) or HOCKEY_OU_NHL[base]
+    base0 = 0.5 if sport in HOCKEY_OU_EURO else HOCKEY_BASE0_NHL[base][own_side]
+    adj = 0.0
+    if model_p is not None:
+        adj = max(HOCKEY_EDGE_CLAMP[0], min(HOCKEY_EDGE_CLAMP[1], HOCKEY_EDGE_W * (model_p - base0)))
     lo, hi = HOCKEY_ALT_BAND
+    cands = [(0, anchor, min(0.95, base0 + adj))]
+    for m in (1, 2, 3):
+        j = -m if own_side == "over" else m
+        cands.append((m, anchor + j, min(0.95, table[j] + adj)))
     best = None
-    for j, p in table.items():
-        if p < HOCKEY_ALT_FLOOR:
-            continue
-        side, line = ("over", anchor + j) if j < 0 else ("under", anchor + j)
-        if line <= 0:
+    for m, line, p in cands:
+        if p < HOCKEY_ALT_FLOOR or line <= 0:
             continue
         dist = 0.0 if lo <= p <= hi else (lo - p if p < lo else p - hi)
-        # distances within HOCKEY_ALT_TIE of each other are a tie: prefer the model's own side, then the smaller move
-        key = (int(dist / HOCKEY_ALT_TIE + 1e-9), side != own_side, abs(j))
+        key = (int(dist / HOCKEY_ALT_TIE + 1e-9), m)
         if best is None or key < best[0]:
-            best = (key, side, line, j, p)
-    return best[1], best[2], best[3], best[4]
+            best = (key, m, line, p)
+    if best is None:                      # nothing clears the floor: take the largest move rather than leave a sub-58% pick
+        m, line, p = cands[-1]
+    else:
+        _k, m, line, p = best
+    if m == 0:
+        return None
+    return own_side, line, m, p, adj
 
 
 def _alt_shift_hockey(leg: dict) -> dict | None:
@@ -2232,11 +2252,15 @@ def _alt_shift_hockey(leg: dict) -> dict | None:
     if not m:
         return None
     posted = float(m.group(2))
-    side, line, j, p_alt = _hockey_pick_alt(posted, leg.get("sport") or "NHL", m.group(1).lower())
+    res = _hockey_pick_alt(posted, leg.get("sport") or "NHL", m.group(1).lower(), leg.get("prob"))
+    if res is None:
+        return None
+    side, line, moved, p_alt, adj = res
     new_label = f"{side.upper()} {_fmt_line(line, False)}"
-    out = _alt_finish(leg, new_label, p_alt, posted, line, float(abs(j)), label)
-    out["side"] = side
-    out["altLine"]["flip"] = side != m.group(1).lower()
+    out = _alt_finish(leg, new_label, p_alt, posted, line, float(moved), label)
+    out["altLine"]["flip"] = False
+    out["altLine"]["edgeAdj"] = round(adj, 4)
+    out["altLine"]["modelP"] = leg.get("prob")
     return out
 
 

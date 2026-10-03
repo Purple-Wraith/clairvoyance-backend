@@ -551,7 +551,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .bmk2.pg{background:linear-gradient(90deg,var(--gc),var(--g2))}.bmk2.pp{background:var(--pc)}.bmk2.pn{background:var(--nc)}.bmk2.pq{background:#39ff14}.bmk2.ph{background:var(--hc)}
 .fresh{font-family:var(--mono);font-size:12px;letter-spacing:.6px;white-space:nowrap;line-height:1.2;min-height:14px;text-align:center}.fresh.ok{color:rgba(0,230,68,.62)}.fresh.warn{color:#ffb020}.fresh.bad{color:#ff3b6b;text-shadow:0 0 8px rgba(255,59,107,.55);animation:blink 1.6s infinite}
 #cv-ticker{flex:0 0 auto;background:rgba(6,0,15,.97);border-bottom:1px solid rgba(77,121,255,.2);overflow:hidden;position:relative;font-family:var(--mono);font-size:14px;color:var(--t2)}
-#cv-ticker .tk-track{display:inline-flex;align-items:center;white-space:nowrap;padding:4px 0;will-change:transform}
+#cv-ticker{contain:layout paint}#cv-ticker .tk-track{display:inline-flex;align-items:center;white-space:nowrap;padding:4px 0;will-change:transform;transform:translate3d(0,0,0)}#cv-ticker .tkgrp{display:inline-flex;align-items:center}#cv-ticker .tkf{animation:tkflash 1.6s ease-out}@keyframes tkflash{0%{background:rgba(255,230,0,.45)}100%{background:transparent}}
 #cv-ticker .tk-track.go{animation:tkscroll var(--tkdur,60s) linear infinite}
 #cv-ticker:hover .tk-track.go,#cv-ticker:active .tk-track.go{animation-play-state:paused}
 #cv-ticker .tk{display:inline-flex;align-items:center;gap:7px;padding:0 18px;border-right:1px solid rgba(255,255,255,.08)}
@@ -562,6 +562,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 @keyframes tkscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){#cv-ticker .tk-track.go{animation:none}#cv-ticker{overflow-x:auto}}
 @media (max-width:768px){.fresh{font-size:8px!important;letter-spacing:.2px}#cv-ticker{font-size:11px}#cv-ticker .tk{padding:0 12px}#hdr{flex:0 0 calc(48px + env(safe-area-inset-top,0px))!important}}
+.tpw>summary{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;cursor:pointer;padding:8px 10px;background:rgba(10,0,24,.7);border-left:2px solid var(--nc);border-radius:2px;font-family:var(--mono);font-size:13px;list-style:none}.tpw>summary::-webkit-details-marker{display:none}.tpw>summary::before{content:'▸';color:var(--nc)}.tpw[open]>summary::before{content:'▾'}
+.tpw .tpwd{color:var(--pc);letter-spacing:1px;min-width:92px}.tpw .tpwt{font-weight:700}.tpw .tpwa{color:var(--t3);font-size:12px}.tpw .tpwb{padding:2px 4px 8px}.tpw0>summary{list-style:none;cursor:pointer}.tpw0>summary::-webkit-details-marker{display:none}
 .lockoff{pointer-events:none;opacity:.62;filter:saturate(.75)}.lockoff *{cursor:default!important}
 .altrow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin-bottom:8px;font-family:var(--mono)}.altrow .altk{flex:1 0 100%;font-size:13px;letter-spacing:1px;color:var(--t3)}.altrow .altc{flex:1 1 150px;display:flex;flex-direction:column;gap:2px;padding:6px 9px;border-radius:3px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);cursor:pointer;min-width:0}.altrow .altc .alt1{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.altrow .altc .altp{font-family:var(--orb);font-size:16px;font-weight:700;color:var(--t)}.altrow .altc .alts{font-size:13px;color:var(--t2)}.altrow .altc .altw{font-size:12px;color:var(--t3)}.altrow .altc .pill{font-size:12px}
 .bmk2 .bmk2t{font-size:14px;padding:1px 6px;background:#0b0612;color:#fff;border-radius:2px;flex-shrink:0;font-weight:700}.bmk2 .bmk2k{font-size:13px;letter-spacing:1px;font-weight:700}.bmk2 .bmk2p{font-family:var(--orb);font-size:16px;font-weight:700}.bmk2 .bmk2s{font-size:14px;font-weight:700}
@@ -794,6 +796,7 @@ body{line-height:1.5}
   <div class="sa" style="padding:16px">
     <div id="toppicks-date-row" style="margin-bottom:12px;display:flex;justify-content:flex-end"></div>
     <div id="toppicks-content"></div>
+    <div id="toppicks-week" style="margin-top:14px"></div>
     <!-- Historical Top Picks calendar heatmap, additive -- see renderTopPicksHeatmap -->
     <div id="toppicks-heatmap" style="margin-top:16px"></div>
   </div>
@@ -4631,11 +4634,12 @@ function _mvmBarHTML(m){
 }
 // ── Alternate lines (2026-10-03): spread + O/U picks are LOCKED at a safer line (ALT_LINE_CFG in scripts/auto_lock_settle.py -- keep both in sync).
 // CFB/NFL: smallest whole-point cushion k in [kmin,kmax] whose empirical win curve reaches 67%; NBA totals use a table fitted on 2,470 closing lines (scripts/backtest_alt_lines.py);
-// hockey totals (NHL + SHL/LIIGA/NLA/EXTRALIGA) take the side+line nearest a 60-65% hit rate (may flip side) using that league's own table (NHL: closing lines; European leagues: their own scoring data). The price is an estimate, never a quote.
+// hockey totals (NHL + SHL/LIIGA/NLA/EXTRALIGA) keep their own side and move only the line (0-3 goals) to the 60-65% hit rate per game, using that league's own table + the game's model edge (NHL: closing lines; European leagues: their own scoring data). The price is an estimate, never a quote.
 const _ALT_CFG={CFB:{OU:[['normal',14.7,1.9],3,9],SPREAD:[['normal',15.7,.8],3,10]},NFL:{OU:[['normal',13,0],3,8],SPREAD:[['normal',13.4,0],3,8]},
   NBA:{OU:[['table',[[0,.5],[2,.543],[3,.564],[4,.59],[5,.612],[6,.631],[7,.651],[8,.67],[10,.711]]],3,10]}};
 const _ALT_HK=new Set(['NHL','SHL','LIIGA','NLA','EXTRALIGA']);
-const _ALT_HK_BAND=[.60,.65],_ALT_HK_FLOOR=.55,_ALT_HK_TIE=.02;
+const _ALT_HK_BAND=[.60,.65],_ALT_HK_FLOOR=.58,_ALT_HK_TIE=.02,_ALT_HK_EDGE_W=.5,_ALT_HK_EDGE_CLAMP=[-.05,.08];
+const _ALT_HK_BASE0={'5.5':{OVER:.517,UNDER:.483},'6.5':{OVER:.474,UNDER:.526}};
 const _ALT_HK_NHL={'5.5':{'-3':.961,'-2':.848,'-1':.731,'1':.611,'2':.769,'3':.851},'6.5':{'-3':.879,'-2':.787,'-1':.589,'1':.736,'2':.831,'3':.915}};
 const _ALT_HK_EURO={LIIGA:{'-3':.915,'-2':.805,'-1':.609,'1':.707,'2':.833,'3':.915},SHL:{'-3':.911,'-2':.770,'-1':.590,'1':.714,'2':.840,'3':.916},
   NLA:{'-3':.911,'-2':.805,'-1':.632,'1':.714,'2':.853,'3':.928},EXTRALIGA:{'-3':.866,'-2':.765,'-1':.600,'1':.755,'2':.835,'3':.908}};
@@ -4650,23 +4654,28 @@ function _altFinish(label,nl,p,posted,line,k,mkt){
   const dec=1/(p+_ALT_VIG);
   return{label:nl,prob:+p.toFixed(4),dec:+dec.toFixed(3),ml:dec<2?'-'+Math.round(100/(dec-1)):'+'+Math.round((dec-1)*100),posted,line,shift:k,postedLabel:label,mkt};
 }
-function _altShift(sport,mkt,label){
+function _altShift(sport,mkt,label,modelP){
   if(_ALT_HK.has(sport)){
+    // Hockey totals keep the pick's OWN side (never flip) and move only the line 0-3 goals, per game: each candidate gets the league's neutral hit rate plus half of the game's own edge
+    // (model probability at the posted line minus the neutral baseline, clamped); closest to 60-65% wins, nothing under 58%; a pick that already clears 58% keeps its posted line (null).
     if(mkt!=='OU')return null;
     const m=String(label).trim().match(/^(OVER|UNDER)\s+(\d+(?:\.\d+)?)$/i);if(!m)return null;
-    const posted=parseFloat(m[2]),anchor=posted===Math.floor(posted)?posted-.5:posted,tab=_ALT_HK_EURO[sport]||_ALT_HK_NHL[anchor<=6?'5.5':'6.5'],own=m[1].toUpperCase();
+    const posted=parseFloat(m[2]),own=m[1].toUpperCase(),anchor=posted===Math.floor(posted)?posted-.5:posted,bk=anchor<=6?'5.5':'6.5';
+    const tab=_ALT_HK_EURO[sport]||_ALT_HK_NHL[bk],base0=_ALT_HK_EURO[sport]?.5:_ALT_HK_BASE0[bk][own];
+    const adj=(modelP!=null&&!isNaN(modelP))?Math.max(_ALT_HK_EDGE_CLAMP[0],Math.min(_ALT_HK_EDGE_CLAMP[1],_ALT_HK_EDGE_W*(modelP-base0))):0;
+    const cands=[[0,anchor,Math.min(.95,base0+adj)]];
+    for(let k=1;k<=3;k++){const j=own==='OVER'?-k:k;cands.push([k,anchor+j,Math.min(.95,tab[String(j)]+adj)]);}
     let best=null;
-    for(const js of Object.keys(tab)){
-      const j=+js,p=tab[js];if(p<_ALT_HK_FLOOR)continue;
-      const side=j<0?'OVER':'UNDER',line=anchor+j;if(line<=0)continue;
+    for(const c of cands){
+      const mv=c[0],line=c[1],p=c[2];if(p<_ALT_HK_FLOOR||line<=0)continue;
       const dist=(p>=_ALT_HK_BAND[0]&&p<=_ALT_HK_BAND[1])?0:(p<_ALT_HK_BAND[0]?_ALT_HK_BAND[0]-p:p-_ALT_HK_BAND[1]);
-      const key=[Math.floor(dist/_ALT_HK_TIE+1e-9),side!==own?1:0,Math.abs(j)];
-      const better=!best||key[0]<best.key[0]||(key[0]===best.key[0]&&(key[1]<best.key[1]||(key[1]===best.key[1]&&key[2]<best.key[2])));
-      if(better)best={key,side,line,j,p};
+      const key=[Math.floor(dist/_ALT_HK_TIE+1e-9),mv];
+      if(!best||key[0]<best.key[0]||(key[0]===best.key[0]&&key[1]<best.key[1]))best={key,mv,line,p};
     }
-    if(!best)return null;
-    const r=_altFinish(label,best.side+' '+best.line.toFixed(1),best.p,posted,best.line,Math.abs(best.j),mkt);
-    r.flip=best.side!==m[1].toUpperCase();r.side=best.side.toLowerCase();return r;
+    const pick=best||{mv:cands[3][0],line:cands[3][1],p:cands[3][2]};
+    if(pick.mv===0)return null;
+    const r=_altFinish(label,own+' '+pick.line.toFixed(1),pick.p,posted,pick.line,pick.mv,mkt);
+    r.flip=false;r.edgeAdj=adj;r.modelP=modelP==null?null:modelP;return r;
   }
   const cfg=_ALT_CFG[sport]&&_ALT_CFG[sport][mkt];if(!cfg)return null;
   const curve=cfg[0],kmin=cfg[1],kmax=cfg[2];
@@ -4687,7 +4696,7 @@ function _altRowFor(sport,home,away,dateRaw,nm,off){
     const best=(a,b)=>{const x=nm.mkts.find(m=>m.side===a),y=nm.mkts.find(m=>m.side===b);return x&&y?(x.prob>=y.prob?x:y):(x||y);};
     const d=new Date(dateRaw);const dateKey=isNaN(d)?String(dateRaw||'').slice(0,10):d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
     const chips=[['OU',best('over','under')],['SPREAD',best('sprdFav','sprdDog')]].map(([mkt,m])=>{
-      if(!m)return'';const alt=_altShift(sport,mkt,m.label);if(!alt)return'';
+      if(!m)return'';const alt=_altShift(sport,mkt,m.label,m.prob);if(!alt)return'';
       const key=sport+'|'+dateKey+'|'+home+'|'+away+'|'+mkt;
       window._altReg[key]={sport,hA:home,awA:away,date:dateKey,alt};
       const cls=m.tierN===3?'pg':m.tierN===2?'pp':m.tierN===1?'pn':'';
@@ -13435,12 +13444,12 @@ function nbaGetBayes(abbr){
   const t=NBA_TEAMS[abbr];
   const liveStand=window.__CV_DATA?.nba?.standings?.[abbr];
   // Season rollover, 2026-10-03: nba.teamRatings (clairvoyance_update.py collect_nba_season_data) holds all 30 teams' last-season win% regressed toward .500 plus this season's record.
-  // 10 pseudo-games of that prior + the current record replaces the old playoff-record (NBA_TEAMS.pw/pl, 4 teams) / raw standings fallbacks, which read 0-0 -> flat 50% for everyone
+  // 15 pseudo-games of that prior + the current record replaces the old playoff-record (NBA_TEAMS.pw/pl, 4 teams) / raw standings fallbacks, which read 0-0 -> flat 50% for everyone
   // at the start of a season. Falls back to the previous logic when the block is absent.
   const tr=window.__CV_DATA?.nba?.teamRatings?.teams?.[abbr];
   if(!t&&!liveStand&&!tr)return{m:.5};
   let al,bl;
-  if(tr&&tr.priorWinPct!=null){al=10*tr.priorWinPct+(tr.current?.w||0)+1;bl=10*(1-tr.priorWinPct)+(tr.current?.l||0)+1;}
+  if(tr&&tr.priorWinPct!=null){al=15*tr.priorWinPct+(tr.current?.w||0)+1;bl=15*(1-tr.priorWinPct)+(tr.current?.l||0)+1;}
   else{al=(t?t.pw:parseInt(liveStand?.w)||0)+1;bl=(t?t.pl:parseInt(liveStand?.l)||0)+1;}
   for(const p of getP()){if(p.outcome==='pending'||_normSport(p)!=='NBA')continue;const iH=p.hA===abbr,iA=p.awA===abbr;if(!iH&&!iA)continue;const w=(iH&&(p.hScore||0)>(p.aScore||0))||(iA&&(p.aScore||0)>(p.hScore||0));if(w)al++;else bl++;}
   return{m:al/(al+bl)};
@@ -18977,6 +18986,68 @@ async function computeTopPicksToday(){
   await new Promise(r=>setTimeout(r,300));
   return window._autoLockLegs||[];
 }
+// ── live / final result for a Top Picks row ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+const _TP_TAG={SOC_PL:'PL',SOC_LIGA:'LA LIGA',SOC_ITA:'SERIE A',SOC_CL:'UCL'};
+function _tpLiveResult(e){
+  try{
+    const games=(typeof _LV!=='undefined'?_LV.games:[]).concat(typeof _tkEuroGames==='function'?_tkEuroGames():[]);
+    const tag=_TP_TAG[e.sport]||e.sport;
+    const g=games.find(x=>x.tag===tag&&_tkMatch(e.hA,x.home)&&_tkMatch(e.awA,x.away));
+    if(!g||g.state==='pre')return null;
+    if(g.pending&&g.state==='post')return{state:'post',text:'RESULT PENDING (score updates after the next results refresh)',col:'var(--t3)',outcome:null};
+    const sc=`${g.away} ${g.awayScore==null?'':g.awayScore} – ${g.home} ${g.homeScore==null?'':g.homeScore}`;
+    if(g.state==='in')return{state:'in',text:g.pending?'IN PROGRESS · SCORE PENDING':`${sc} · ${g.note||'LIVE'}`,col:'var(--hc)',outcome:null};
+    let outcome=null;
+    try{outcome=_gradeSettledPick({...e,gameResult:{finished:true,hScore:g.homeScore,aScore:g.awayScore}});}catch(x){}
+    return{state:'post',text:`${sc} · FINAL`,col:'var(--t2)',outcome};
+  }catch(x){return null;}
+}
+// repaint today's list from the cached legs whenever the live layer refreshes (no re-simulation)
+function _tpRefreshResults(){
+  const pane=document.getElementById('sp-toppicks');
+  if(!pane||!pane.classList.contains('act')||!window._topPicksLegs)return;
+  const el=document.getElementById('toppicks-content');if(!el||el.querySelector('.empty'))return;
+  const sel=document.querySelector('#toppicks-date-row select');if(sel&&sel.value!==today())return;
+  const html=_renderTopPicksHTML(window._topPicksLegs,today());
+  el.innerHTML=html;
+  if(window._topPicksCache)window._topPicksCache.html=html;
+}
+// ── LAST 7 DAYS drop-down: each day's results and its top picks ───────────────────────────────────────────────────────────────────────────────────────────────
+function renderTopPicksWeek(){
+  const el=document.getElementById('toppicks-week');if(!el)return;
+  try{
+    const bets=getP();
+    const toUTC=ds=>new Date(ds+'T00:00:00Z'),toDS=d=>d.toISOString().slice(0,10);
+    const t0=toUTC(today());
+    const days=[];for(let i=1;i<=7;i++)days.push(toDS(new Date(t0.getTime()-i*86400000)));
+    const row=ds=>{
+      const day=_topPicksDayWinRate(ds,bets);
+      const all=bets.filter(p=>p.date===ds&&!['PROP','PARLAY'].includes((p.betType||'').toUpperCase()));
+      const w=all.filter(p=>p.outcome==='win').length,l=all.filter(p=>p.outcome==='loss').length,pend=all.filter(p=>p.outcome==='pending').length;
+      const topTxt=day.graded?`${day.w}W-${day.l}L · ${(day.pct*100).toFixed(0)}%`:(day.n?'not settled':'—');
+      const allTxt=all.length?`${w}W-${l}L${pend?' · '+pend+' pending':''}`:'no locks';
+      const col=day.pct==null?'var(--t3)':day.pct>=.5?'#00e644':'#ff2090';
+      return`<details class="tpw" data-d="${ds}" ontoggle="_tpWeekToggle(this)"><summary><span class="tpwd">${_topPicksDateLabel(ds)}</span><span class="tpwt" style="color:${col}">TOP 10: ${topTxt}</span><span class="tpwa">ALL LOCKS: ${allTxt}</span></summary><div class="tpwb"></div></details>`;
+    };
+    el.innerHTML=`<details class="card tpw0"><summary class="sh" style="font-size:17px!important;margin:0;cursor:pointer"><span class="nc"></span> LAST 7 DAYS — RESULTS &amp; TOP PICKS</summary><div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">${days.map(row).join('')}</div></details>`;
+  }catch(e){console.error('renderTopPicksWeek',e);el.innerHTML='';}
+}
+function _tpWeekToggle(d){
+  if(!d.open)return;const b=d.querySelector('.tpwb');if(!b||b.dataset.done)return;
+  try{
+    const ds=d.dataset.d,bets=getP();
+    const{top10}=_topPicksRankLegs(_topPicksLegsForDate(ds,bets));
+    const all=bets.filter(p=>p.date===ds&&!['PROP','PARLAY'].includes((p.betType||'').toUpperCase()));
+    const resRows=all.length?all.slice().sort((a,c)=>(a.outcome==='pending')-(c.outcome==='pending')).map(p=>{
+      const col=p.outcome==='win'?'#00e644':p.outcome==='loss'?'#ff1a1a':'var(--t3)';
+      const sc=(p.aScore!=null&&p.hScore!=null)?` · ${p.awA} ${p.aScore} – ${p.hA} ${p.hScore}`:'';
+      return`<div style="display:flex;justify-content:space-between;gap:8px;font-family:var(--mono);font-size:12px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="color:var(--t2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.betOn||'')} <span style="color:var(--t3)">(${_escHtml(p.awA||'')} @ ${_escHtml(p.hA||'')}${sc})</span></span><span style="color:${col};flex-shrink:0">${String(p.outcome||'').toUpperCase()}</span></div>`;
+    }).join(''):'<div class="empty">NO LOCKS THIS DAY</div>';
+    b.innerHTML=`<div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc);margin:8px 0 6px">★ TOP ${top10.length} OF THE DAY</div>${top10.length?top10.map(e=>_topPickRowHTML(e)).join(''):'<div class="empty">NO QUALIFYING PICKS</div>'}<div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--nc);margin:10px 0 4px">ALL LOCKED PICKS — RESULTS</div>${resRows}`;
+    b.dataset.done='1';
+  }catch(e){b.innerHTML='<div class="empty">COULD NOT LOAD THIS DAY</div>';}
+}
+window.renderTopPicksWeek=renderTopPicksWeek;window._tpWeekToggle=_tpWeekToggle;
 function _topPickRowHTML(e){
   const col=e.tierN===3?'var(--gc)':e.tierN===2?'var(--nc)':'var(--ic)';
   const lbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][e.tierN];
@@ -18990,12 +19061,19 @@ function _topPickRowHTML(e){
   // list" signal instead.
   const so=e.settledOutcome; // 'win'|'loss'|'push'|null -- see _gradeSettledPick
   const soCol=so==='win'?'#00e644':so==='loss'?'#ff1a1a':'var(--t3)';
-  const settledBadge=so?`<span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${soCol};color:${soCol};border-radius:2px;margin-left:3px">${so.toUpperCase()}</span>`:'';
+  const _lvRes=(!so)?_tpLiveResult(e):null;
+  const _bd=so||(_lvRes&&_lvRes.outcome);
+  const _bdCol=_bd==='win'?'#00e644':_bd==='loss'?'#ff1a1a':'var(--t3)';
+  const settledBadge=_bd?`<span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${_bdCol};color:${_bdCol};border-radius:2px;margin-left:3px">${_bd.toUpperCase()}</span>`:(_lvRes&&_lvRes.state==='in'?`<span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid var(--hc);color:var(--hc);border-radius:2px;margin-left:3px">LIVE</span>`:'');
   const gr=e.gameResult;
   const scoreLine=(so&&gr&&gr.hScore!=null&&gr.aScore!=null)?` · ${e.awA} ${gr.aScore} – ${e.hA} ${gr.hScore}`:'';
+  // Live / final result straight from the live layer (ESPN scoreboards + the European schedule files) when the ledger/card has not graded the pick yet.
+  const lv=(!so)?_tpLiveResult(e):null;
+  const liveLine=lv?`<div style="font-family:var(--mono);font-size:12px;color:${lv.col};letter-spacing:.5px;margin-top:1px">${lv.state==='in'?'● ':''}${_escHtml(lv.text)}</div>`:'';
   return`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,0,24,.7);border-left:2px solid ${so==='loss'?'#ff1a1a':so==='win'?'#00e644':col};border-radius:2px;margin-bottom:5px">
     <div style="flex:1;min-width:0">
       <div style="font-family:var(--mono);font-size:12px;color:var(--pc);letter-spacing:1px">${e.leagueLabel} · ${e.matchup}${scoreLine}</div>
+      ${liveLine}
       <div style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--nc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.best.label}${e.altLine?` <span style="font-family:var(--mono);font-size:11px;color:var(--t3);font-weight:400">ADJ. LINE · posted ${_escHtml(e.altLine.postedLabel)}</span>`:''}</div>
     </div>
     <div style="text-align:right;flex-shrink:0">
@@ -19020,9 +19098,10 @@ function _topPickRowHTML(e){
 const TOP_PICKS_LEAGUE_CAP=3;
 function _topPicksEffective(l,mkt){
   const side=l.best.side,raw=(mkt&&mkt.prob!=null)?mkt.prob:null;
+  if(l.fromLedger)return{p:raw,alt:null};
   const mt=(side==='over'||side==='under')?'OU':(/^(sprd|pl|rl|ah)/.test(side||'')?'SPREAD':'ML');
   if(mt!=='ML'){
-    try{const alt=_altShift(l.sport,mt,l.best.label);if(alt)return{p:alt.prob,alt};}catch(e){}
+    try{const alt=_altShift(l.sport,mt,l.best.label,raw);if(alt)return{p:alt.prob,alt};}catch(e){}
     if(l.sport==='CFB'||l.sport==='NFL')return{p:raw==null?null:Math.min(raw,.56),alt:null};
   }
   return{p:raw,alt:null};
@@ -19122,6 +19201,7 @@ function _topPicksLegsForDate(dateStr,allBets){
       markets:[{side,prob:wp,evVal,mfScore}],
       gameResult:(p.hScore!=null&&p.aScore!=null)?{finished:true,hScore:p.hScore,aScore:p.aScore}:null,
       settledOutcome,
+      fromLedger:true,   // a locked pick: its line/probability are what was actually locked, so nothing is re-adjusted when ranking
     };
   });
 }
@@ -19191,7 +19271,7 @@ function renderTopPicksHeatmap(){
       const tip=c.pct!=null?`${dLbl} | Top Picks: ${c.w}W-${c.l}L | ${(c.pct*100).toFixed(0)}% win (n=${c.graded})`
         :c.n>0?`${dLbl} | ${c.n} top pick${c.n===1?'':'s'}, not settled yet`
         :`${dLbl} | no top picks`;
-      return`<div class="tp-heat-cell" data-tip="${tip.replace(/"/g,"'")}" style="width:13px;height:13px;border-radius:2px;background:${bg};cursor:pointer" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2500)"></div>`;
+      return`<div class="tp-heat-cell" data-tip="${tip.replace(/"/g,"'")}" style="width:100%;height:100%;border-radius:3px;background:${bg};cursor:pointer" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2500)"></div>`;
     }).join('');
     const cappedNote=earliestD.getTime()<capStartD.getTime()?' (ledger goes back further -- showing the most recent stretch for readability)':'';
     const rangeLbl=`${fmtShort(rangeStartD)} – ${fmtShort(todayD)}, ${todayD.getUTCFullYear()}`;
@@ -19199,10 +19279,10 @@ function renderTopPicksHeatmap(){
       <div class="sh" style="font-size:17px!important;margin-top:0"><span class="nc"></span> TOP PICKS — DAILY WIN RATE</div>
       <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:10px;line-height:1.5">Each cell is one real day's Top Picks (the exact ★ TOP 10 OF THE DAY selection above, re-graded against the real ledger) — green runs hot, pink runs cold, dim means no data. ${rangeLbl}${cappedNote}. Hover (or tap) a day for its real record.</div>
       <div style="display:flex;gap:4px">
-        <div style="display:grid;grid-template-rows:repeat(7,13px);gap:2px;flex:0 0 14px">
+        <div style="display:grid;grid-template-rows:repeat(7,24px);gap:3px;flex:0 0 14px">
           ${['S','M','T','W','T','F','S'].map(d=>`<div style="font-family:var(--mono);font-size:9px;color:var(--t3);display:flex;align-items:center">${d}</div>`).join('')}
         </div>
-        <div style="min-width:0;max-width:100%;overflow-x:auto;display:grid;grid-template-rows:repeat(7,13px);grid-auto-flow:column;grid-auto-columns:13px;gap:2px;align-content:start">
+        <div style="flex:1;min-width:0;display:grid;grid-template-rows:repeat(7,24px);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:3px">
           ${cellsHtml}
         </div>
       </div>
@@ -19265,7 +19345,10 @@ async function renderTopPicksToday(force,dateStr){
   window._topPicksInFlight=true;
   el.innerHTML=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP PICKS${isToday?' TODAY':''} — ${_topPicksDateLabel(dateStr)}</div><div class="loading"><span class="spi"></span></div>`;
   try{
-    const html=isToday?_renderTopPicksHTML(await computeTopPicksToday(),dateStr):_renderTopPicksHistoryHTML(dateStr);
+    let _tpLegs=null;
+    if(isToday)_tpLegs=await computeTopPicksToday();
+    window._topPicksLegs=isToday?_tpLegs:null;
+    const html=isToday?_renderTopPicksHTML(_tpLegs,dateStr):_renderTopPicksHistoryHTML(dateStr);
     window._topPicksCache={ts:Date.now(),dateKey:dateStr,html};
     const el2=document.getElementById('toppicks-content');if(el2)el2.innerHTML=html;
   }catch(e){
@@ -19896,7 +19979,7 @@ function SS(s){
   const mn11=document.getElementById('mn11');if(mn11)mn11.style.display=s==='fut'?'flex':'none';
   const _t=(fn)=>{try{fn();}catch(e){console.warn('SS render',e);}};
   if(s==='home'){_t(renderHomePage);}
-  if(s==='toppicks'){_t(renderTopPicksToday);_t(renderTopPicksHeatmap);}
+  if(s==='toppicks'){_t(renderTopPicksToday);_t(renderTopPicksWeek);_t(renderTopPicksHeatmap);}
   if(s==='hk'){_t(()=>setSub('hk','nhl'));_t(()=>T('nhl','games'));_t(renderNHLGames);_t(renderNHLTonight);_t(renderGoalies);_t(renderMoneyPuck);}
   if(s==='nba'){_t(()=>{setSub('nba','nba');});_t(()=>{T('nba','games');renderNBATonightGames();renderNBAGames();renderNBABracket();});}
   if(s==='live'){_t(()=>T('live','games'));_t(startNHLLive);_t(startNBALive);}
@@ -21928,7 +22011,8 @@ async function refreshFreshness(){
         return t==null?{...src,err:true}:{...src,age:(now-t)/3600000};
       }catch(e){return{...src,err:true};}
     }));
-    try{const lv=window.__CV_LIVE;if(lv&&lv.hasLiveGames&&lv.ts){const t=_parseGenAt(lv.ts);if(t!=null)res.push({f:'live_data.json',l:'LIVE FEED',warn:1.5,bad:4,age:(now-t)/3600000});}}catch(e){}
+    // live scores now come from the browser-side ESPN/Flashscore layer (live_data.json is only a fallback): flag it only when that layer itself has gone quiet while games are live
+    try{if(typeof _LV!=='undefined'&&_LV.games.some(g=>g.state==='in'))res.push({f:'live',l:'LIVE SCORES',warn:0.17,bad:0.5,age:(now-_LV.ts)/3600000});}catch(e){}
     const ok=res.filter(x=>!x.err);
     if(!ok.length){el.textContent='';el.className='fresh';return;}
     const bad=ok.filter(x=>x.age>=x.bad),warn=ok.filter(x=>x.age>=x.warn&&x.age<x.bad),errs=res.filter(x=>x.err);
@@ -21942,91 +22026,181 @@ async function refreshFreshness(){
 }
 setTimeout(refreshFreshness,2500);setInterval(refreshFreshness,5*60*1000);
 
-// ── Live ticker (between the header and the tab bar) -- 2026-10-03 ───────────────────────────────────────────────────────────────────────────────────────────
-// Live and finished games from live_data.json (NBA / NHL / CFB / NFL; European hockey and soccer are not in that feed), each followed by the picks locked on that game: the line
-// and price the pick was locked at (an adjusted-line pick shows its adjusted line), coloured by result once settled. Games with locks come first.
-function _tkState(g){
-  const st=String(g.state||'').toLowerCase();
-  if(st==='in'||st==='live'||st==='crit')return'live';
-  if(st==='post'||st==='off'||st==='final')return'final';
-  return'pre';
+// ── Live scores layer + ticker (between the header and the tab bar) -- rebuilt 2026-10-03 ───────────────────────────────────────────────────────────────────
+// ONE client-side live layer feeds both the ticker and the live game cards, so scores never wait for a GitHub Actions cron (live_tracker.py lands 30 min to hours apart):
+//   ESPN public scoreboards (CORS-open): NBA, NHL, CFB, NFL, Premier League, La Liga, Serie A, Champions League.
+//   Liiga, SHL, National League, Extraliga: ESPN does not cover them and Flashscore's live feed refuses browsers on other domains (its CORS preflight only allows its own site), so they
+//   come from the schedule/results files the app already loads (_tkEuroGames): finals with scores, and games past their start time shown as IN PROGRESS with the score pending the next results refresh.
+// Polling is adaptive (45 s while anything is live, 2 min when a game starts within 40 min, 10 min otherwise, paused while the tab is hidden) so it stays light on phones.
+// The ticker updates in place (no DOM rebuild unless the set of games changes) and scrolls with a requestAnimationFrame transform loop, so a refresh never restarts or jumps it.
+const _LV_ESPN=[
+  {k:'nba',tag:'NBA',path:'basketball/nba'},{k:'nhl',tag:'NHL',path:'hockey/nhl'},
+  {k:'cfb',tag:'CFB',path:'football/college-football',q:'?groups=80&limit=300'},{k:'nfl',tag:'NFL',path:'football/nfl'},
+  {k:'pl',tag:'PL',path:'soccer/eng.1'},{k:'liga',tag:'LA LIGA',path:'soccer/esp.1'},{k:'seriea',tag:'SERIE A',path:'soccer/ita.1'},{k:'cl',tag:'UCL',path:'soccer/uefa.champions'}
+];
+const _LV_ALIAS={PL:['PL','PL_SOC','SOC_PL'],'LA LIGA':['LIGA','SOC_LIGA'],'SERIE A':['SERIEA','SOC_ITA','ITA'],UCL:['CL','SOC_CL']};   // ticker tag -> the sport tags picks carry
+let _LV={ts:0,games:[],timer:0};
+async function _lvEspn(def){
+  const out=[];
+  try{
+    const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/'+def.path+'/scoreboard'+(def.q||''),{cache:'no-store'});
+    if(!r.ok)return null;const j=await r.json();
+    (j.events||[]).forEach(e=>{
+      const c=e.competitions&&e.competitions[0];if(!c)return;
+      const h=c.competitors.find(x=>x.homeAway==='home'),a=c.competitors.find(x=>x.homeAway==='away');if(!h||!a)return;
+      const stt=c.status||e.status||{},ty=stt.type||{};
+      const soccer=def.path.indexOf('soccer/')===0;
+      out.push({k:def.k,tag:def.tag,id:e.id,home:soccer?(h.team.displayName||h.team.shortDisplayName):h.team.abbreviation,away:soccer?(a.team.displayName||a.team.shortDisplayName):a.team.abbreviation,
+        homeScore:+h.score,awayScore:+a.score,state:ty.state,period:stt.period,displayClock:stt.displayClock,note:ty.shortDetail,startMs:Date.parse(e.date)});
+    });
+    return out;
+  }catch(e){return null;}
 }
-function _tkStatus(sk,g,state){
-  if(state==='final')return'FINAL';
-  if(sk==='nhl')return'P'+(g.period||'?')+' '+(g.displayClock||'');
-  return g.note||(g.quarter?'Q'+g.quarter+' '+(g.displayClock||''):'LIVE');
+async function refreshLive(){
+  let wait=600000;
+  try{
+    const parts=await Promise.all(_LV_ESPN.map(_lvEspn));
+    const games=[];let any=false;
+    parts.forEach(p=>{if(p){any=true;games.push(...p);}});
+    if(any){_LV.ts=Date.now();_LV.games=games;window.__LV=_LV;}
+    const now=Date.now();
+    if(_LV.games.some(g=>g.state==='in'))wait=45000;
+    else if(_LV.games.some(g=>g.state==='pre'&&g.startMs&&g.startMs-now<2400000&&g.startMs-now>-600000))wait=120000;
+    try{_lvApplyToCards();}catch(e){}
+    renderTicker();
+    try{_tpRefreshResults();}catch(e){}
+  }catch(e){}
+  clearTimeout(_LV.timer);_LV.timer=setTimeout(()=>{if(document.hidden){_LV.timer=setTimeout(refreshLive,60000);}else refreshLive();},wait);
 }
-// Scores come straight from ESPN's public scoreboards in the browser (same source live_tracker.py uses, no key, no quota) every 60 s. live_data.json is only the fallback: its GitHub Actions
-// cron lands 30 min to several hours apart, so on its own it can show scores hours behind.
-async function _tkESPN(){
-  const eps={nba:'basketball/nba',nhl:'hockey/nhl',cfb:'football/college-football',nfl:'football/nfl'};
-  const out={ok:false,ts:Date.now(),games:{nba:[],nhl:[],cfb:[],nfl:[]}};
-  await Promise.all(Object.entries(eps).map(async([sk,path])=>{
-    try{
-      const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/'+path+'/scoreboard'+(sk==='cfb'?'?groups=80&limit=300':''),{cache:'no-store'});
-      if(!r.ok)return;const j=await r.json();out.ok=true;
-      (j.events||[]).forEach(e=>{
-        const c=e.competitions&&e.competitions[0];if(!c)return;
-        const h=c.competitors.find(x=>x.homeAway==='home'),a=c.competitors.find(x=>x.homeAway==='away');if(!h||!a)return;
-        const stt=c.status||e.status||{},ty=stt.type||{};
-        out.games[sk].push({home:h.team.abbreviation,away:a.team.abbreviation,homeScore:+h.score,awayScore:+a.score,state:ty.state,period:stt.period,displayClock:stt.displayClock,note:ty.shortDetail});
-      });
-    }catch(e){}
-  }));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-_LV.ts>60000)refreshLive();});
+setTimeout(refreshLive,2000);
+// Overlay ESPN's numbers onto window.__CV_LIVE (live_data.json shape) so the live game cards / football LOCKS CLOSED status / auto-settle see real-time scores too.
+function _lvOverlay(d){
+  if(!d||!_LV.ts||Date.now()-_LV.ts>300000)return d;
+  ['nba','nhl','cfb','nfl'].forEach(k=>{
+    const espn=_LV.games.filter(g=>g.k===k);if(!espn.length)return;
+    const arr=(d[k]||[]).slice();const idx={};arr.forEach((g,i)=>{idx[g.home+'|'+g.away]=i;});
+    espn.forEach(g=>{
+      const st=k==='nhl'?(g.state==='in'?'LIVE':g.state==='post'?'OFF':'FUT'):g.state;
+      const upd={homeScore:g.homeScore,awayScore:g.awayScore,state:st,note:g.note||'',displayClock:g.displayClock||'',[k==='nhl'?'period':'quarter']:g.period||1};
+      const i=idx[g.home+'|'+g.away];
+      if(i!==undefined)arr[i]={...arr[i],...upd};
+      else arr.push({id:g.id,sport:k.toUpperCase(),home:g.home,away:g.away,...upd});
+    });
+    d[k]=arr;
+  });
+  d.hasLiveGames=['nba','nhl','cfb','nfl'].some(k=>(d[k]||[]).some(g=>g.state==='in'||g.state==='LIVE'));
+  return d;
+}
+function _lvApplyToCards(){
+  const d=window.__CV_LIVE?{...window.__CV_LIVE}:{nba:[],nhl:[],cfb:[],nfl:[],liveBets:[]};
+  _cvLiveApply(_lvOverlay(d));
+}
+// ── ticker ──
+function _tkNorm(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\b(fc|cf|afc|sc|hc|ik|if|ac|as|us|ssc|rcd|ud|cd|sv)\b/g,'').replace(/[^a-z0-9]/g,'');}
+function _tkMatch(a,b){a=_tkNorm(a);b=_tkNorm(b);return !!a&&!!b&&(a===b||(a.length>=4&&b.length>=4&&(a.includes(b)||b.includes(a))));}
+const _TKM={order:[],sig:'',html:{},score:{},track:null,x:0,half:0,raf:0,last:0,hover:false,run:false,speed:46};
+function _tkItemHTML(it){
+  const lk=it.locks.map(p=>{
+    const cls=p.outcome==='win'?' w':p.outcome==='loss'?' l':'';
+    const ml=p.ml!=null&&p.ml!==''?' '+_mlFmt(p.ml):'';
+    return`<span class="tkl${cls}" title="Locked ${_escHtml(p.betOn)}${p.altLine?' (adjusted from '+_escHtml(p.altLine.postedLabel)+')':''}">LOCKED ${_escHtml(p.betOn)}${ml}${p.altLine?' · ADJ':''}${p.outcome==='win'?' ✓':p.outcome==='loss'?' ✗':''}</span>`;
+  }).join('');
+  const g=it.g,sc=v=>v==null||isNaN(v)?'':v;
+  return`<span class="tks">${_escHtml(it.tag)}</span><span class="tkn">${_escHtml(g.away)} ${sc(g.awayScore)} @ ${_escHtml(g.home)} ${sc(g.homeScore)}</span><span class="tkc${it.state==='in'?' lv':''}">${it.state==='in'?'● ':''}${_escHtml(it.state==='post'?(g.pending?'RESULT PENDING':'FINAL'):(g.note||'LIVE'))}</span>${lk}`;
+}
+function _tkEuroGames(){
+  const out=[],now=Date.now(),td=today();
+  [['LIIGA',typeof _LIIGA_DATA!=='undefined'?_LIIGA_DATA:null],['SHL',typeof _SHL_DATA!=='undefined'?_SHL_DATA:null],['NLA',typeof _NLA_DATA!=='undefined'?_NLA_DATA:null],['EXTRALIGA',typeof _EXTRALIGA_DATA!=='undefined'?_EXTRALIGA_DATA:null]].forEach(([tag,lgData])=>{
+    ((lgData&&lgData.games)||[]).forEach(g=>{
+      const t=_startMsOf(g.date);if(t==null||t>now)return;
+      if(new Date(t).toLocaleDateString('sv-SE',{timeZone:'America/Denver'})!==td&&now-t>8*3600000)return;
+      if(now-t>8*3600000)return;
+      const fin=g.state==='post'&&g.homeScore!=null;
+      // a hockey game lasts ~2.5-3 h: inside 3.2 h of the start it is shown as in progress (score unknown until the next results refresh), after that as finished-awaiting-result
+      const over=!fin&&now-t>3.2*3600000;
+      out.push({k:tag.toLowerCase(),tag,id:g.id,home:g.homeName||g.home,away:g.awayName||g.away,homeScore:fin?g.homeScore:null,awayScore:fin?g.awayScore:null,state:(fin||over)?'post':'in',
+        note:fin?'Final':over?'RESULT PENDING':'IN PROGRESS · SCORE PENDING',startMs:t,pending:!fin});
+    });
+  });
   return out;
 }
-async function refreshTicker(){
-  try{const r=await _tkESPN();if(r.ok)window.__CV_TK=r;}catch(e){}
-  renderTicker();
-}
-setTimeout(refreshTicker,3000);setInterval(()=>{if(!document.hidden)refreshTicker();},60000);
 function renderTicker(){
   const el=document.getElementById('cv-ticker');if(!el)return;
   try{
-    const tk=window.__CV_TK,useEspn=!!(tk&&Date.now()-tk.ts<180000);
-    const file=window.__CV_LIVE;
-    if(!useEspn&&!file){el.style.display='none';return;}
-    const games=useEspn?tk.games:file;
-    const feedTs=useEspn?tk.ts:Date.parse(file.ts);
-    const feedAgeMin=isNaN(feedTs)?null:(Date.now()-feedTs)/60000;
+    const euro=_tkEuroGames(),all=_LV.games.concat(euro);
+    if(!all.length){_tkHide(el);return;}
     const td=today();let picks=[];
     try{picks=getP().filter(p=>p&&p.id&&p.hA&&p.outcome!=='_removed'&&p.date===td);}catch(e){}
-    const byGame={};
-    picks.forEach(p=>{const sp=String(window._normSport?window._normSport(p):(p.league||p.sport||'')).toUpperCase();(byGame[sp+'|'+p.hA+'|'+p.awA]=byGame[sp+'|'+p.hA+'|'+p.awA]||[]).push(p);});
     const items=[];
-    ['nba','nhl','cfb','nfl'].forEach(sk=>{
-      (games[sk]||[]).forEach(g=>{
-        const state=_tkState(g);if(state==='pre')return;
-        const locks=byGame[sk.toUpperCase()+'|'+g.home+'|'+g.away]||[];
-        items.push({sk,g,state,locks,rank:(locks.length?0:2)+(state==='live'?0:1)});
+    all.forEach(g=>{
+      if(g.state==='pre')return;
+      const al=_LV_ALIAS[g.tag]||[g.tag];
+      const locks=picks.filter(p=>{
+        const sp=String(window._normSport?window._normSport(p):(p.league||p.sport||'')).toUpperCase();
+        return al.includes(sp)&&_tkMatch(p.hA,g.home)&&_tkMatch(p.awA,g.away);
       });
+      items.push({key:g.k+'|'+g.id,tag:g.tag,g,state:g.state,locks,rank:(locks.length?0:2)+(g.state==='in'?0:1)});
     });
-    if(!items.length){el.style.display='none';return;}
-    items.sort((a,b)=>a.rank-b.rank);
-    const finalsWithoutLocks=items.filter(x=>x.state==='final'&&!x.locks.length);
-    const keep=items.filter(x=>x.locks.length||x.state==='live').concat(finalsWithoutLocks.slice(0,10));
-    const stale=!useEspn&&feedAgeMin!=null&&feedAgeMin>20;
-    const chip=`<span class="tk"><span class="tks" style="${stale?'color:#ffb020':''}">${useEspn?'LIVE':'FEED'}</span><span class="tkc${stale?'':' lv'}" style="${stale?'color:#ffb020':''}">${useEspn?'ESPN · '+new Date(feedTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Denver'})+' MT':(stale?'⚠ SCORES MAY BE '+_fmtAge(feedAgeMin/60)+' BEHIND':'updated '+_fmtAge(feedAgeMin/60)+' ago')}</span></span>`;
-    const html=chip+keep.map(({sk,g,state,locks})=>{
-      const lk=locks.map(p=>{
-        const cls=p.outcome==='win'?' w':p.outcome==='loss'?' l':'';
-        const ml=p.ml!=null&&p.ml!==''?' '+_mlFmt(p.ml):'';
-        return`<span class="tkl${cls}" title="Locked ${_escHtml(p.betOn)}${p.altLine?' (adjusted from '+_escHtml(p.altLine.postedLabel)+')':''}">LOCKED ${_escHtml(p.betOn)}${ml}${p.altLine?' · ADJ':''}${p.outcome==='win'?' ✓':p.outcome==='loss'?' ✗':''}</span>`;
-      }).join('');
-      const status=state==='final'?'FINAL':(g.note||_tkStatus(sk,g,state));
-      return`<span class="tk"><span class="tks">${sk.toUpperCase()}</span><span class="tkn">${_escHtml(g.away)} ${g.awayScore==null||isNaN(g.awayScore)?'':g.awayScore} @ ${_escHtml(g.home)} ${g.homeScore==null||isNaN(g.homeScore)?'':g.homeScore}</span><span class="tkc${state==='live'?' lv':''}">${state==='live'?'● ':''}${_escHtml(status)}</span>${lk}</span>`;
-    }).join('');
+    if(!items.length){_tkHide(el);return;}
+    const finals=items.filter(x=>x.state==='post'&&!x.locks.length);
+    const keep=items.filter(x=>x.locks.length||x.state==='in').concat(finals.slice(0,12));
+    const liveN=keep.filter(x=>x.state==='in').length;
+    // keep the existing order for games that stay; only new games are slotted in by rank
+    const byKey={};keep.forEach(x=>{byKey[x.key]=x;});
+    const order=_TKM.order.filter(k=>byKey[k]);
+    keep.slice().sort((a,b)=>a.rank-b.rank).forEach(x=>{if(order.indexOf(x.key)<0)order.push(x.key);});
+    const ageMin=_LV.ts?(Date.now()-_LV.ts)/60000:0;
+    const chipHtml=`<span class="tks" style="${ageMin>5?'color:#ffb020':''}">${liveN?liveN+' LIVE':'SCORES'}</span><span class="tkc${liveN&&ageMin<=5?' lv':''}" style="${ageMin>5?'color:#ffb020':''}">${ageMin>5?'⚠ '+_fmtAge(ageMin/60)+' OLD':new Date(_LV.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Denver'})+' MT'}${_LV.fsFail>=3?'':''}</span>`;
+    const sig=order.join('|');
     el.style.display='block';
-    el.innerHTML=`<div class="tk-track">${html}</div>`;
-    const track=el.firstChild;
-    if(track.scrollWidth>el.clientWidth+4){
-      track.innerHTML=html+html;                                  // duplicated so the -50% loop is seamless
-      track.style.setProperty('--tkdur',Math.max(25,Math.round(track.scrollWidth/2/55))+'s');
-      track.classList.add('go');
+    if(sig!==_TKM.sig||!_TKM.track||!el.contains(_TKM.track)){
+      const grp=()=>`<span class="tkgrp"><span class="tk" data-k="__chip">${chipHtml}</span>`+order.map(k=>`<span class="tk" data-k="${_escHtml(k)}">${_tkItemHTML(byKey[k])}</span>`).join('')+`</span>`;
+      el.innerHTML=`<div class="tk-track">${grp()}${grp()}</div>`;
+      _TKM.track=el.firstChild;_TKM.sig=sig;_TKM.html={};_TKM.score={};
+      order.forEach(k=>{_TKM.html[k]=_tkItemHTML(byKey[k]);_TKM.score[k]=byKey[k].g.homeScore+'-'+byKey[k].g.awayScore;});
+      _TKM.html.__chip=chipHtml;
+    }else{
+      // in-place patch: only the games whose text changed; a changed score flashes once
+      const patch=(k,html,flash)=>{
+        _TKM.track.querySelectorAll('[data-k="'+(window.CSS&&CSS.escape?CSS.escape(k):k)+'"]').forEach(n=>{n.innerHTML=html;if(flash){n.classList.remove('tkf');void n.offsetWidth;n.classList.add('tkf');}});
+        _TKM.html[k]=html;
+      };
+      if(_TKM.html.__chip!==chipHtml)patch('__chip',chipHtml,false);
+      order.forEach(k=>{
+        const html=_tkItemHTML(byKey[k]);
+        if(_TKM.html[k]!==html){const sc=byKey[k].g.homeScore+'-'+byKey[k].g.awayScore;patch(k,html,_TKM.score[k]!==sc);_TKM.score[k]=sc;}
+      });
     }
-  }catch(e){el.style.display='none';}
+    _TKM.order=order;
+    _tkMeasure(el);
+  }catch(e){_tkHide(el);}
 }
-setInterval(renderTicker,60000);
+function _tkHide(el){el.style.display='none';_TKM.run=false;_TKM.sig='';_TKM.track=null;}
+function _tkMeasure(el){
+  const grp=_TKM.track&&_TKM.track.firstChild;if(!grp)return;
+  _TKM.half=grp.offsetWidth;
+  const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const need=_TKM.half>el.clientWidth+4&&!reduce;
+  if(need&&!_TKM.run){_TKM.run=true;_TKM.last=0;if(!_TKM.raf)_TKM.raf=requestAnimationFrame(_tkLoop);}
+  if(!need){_TKM.run=false;_TKM.x=0;if(_TKM.track)_TKM.track.style.transform='';}
+  if(_TKM.half&&_TKM.x<=-_TKM.half)_TKM.x=_TKM.x%_TKM.half;
+}
+function _tkLoop(t){
+  _TKM.raf=0;
+  if(!_TKM.run||!_TKM.track)return;
+  const dt=_TKM.last?Math.min(64,t-_TKM.last):16;_TKM.last=t;
+  if(!_TKM.hover&&_TKM.half){_TKM.x-=_TKM.speed*dt/1000;if(_TKM.x<=-_TKM.half)_TKM.x+=_TKM.half;_TKM.track.style.transform='translate3d('+_TKM.x.toFixed(2)+'px,0,0)';}
+  _TKM.raf=requestAnimationFrame(_tkLoop);
+}
+(function(){
+  const el=document.getElementById('cv-ticker');if(!el)return;
+  el.addEventListener('mouseenter',()=>{_TKM.hover=true;});el.addEventListener('mouseleave',()=>{_TKM.hover=false;});
+  el.addEventListener('touchstart',()=>{_TKM.hover=true;},{passive:true});
+  el.addEventListener('touchend',()=>{setTimeout(()=>{_TKM.hover=false;},1800);},{passive:true});
+  window.addEventListener('resize',()=>{try{_tkMeasure(el);}catch(e){}});
+})();
+setInterval(()=>{try{renderTicker();}catch(e){}},30000);   // picks / outcomes change independently of scores
 
 // ═══ LIVE DATA BOOTSTRAP (live_data.json — written by live_tracker.py every 45s) ═══
 window.__CV_LIVE=null;
@@ -22037,6 +22211,13 @@ async function loadLiveData(){
     const r=await fetch(`live_data.json?${Date.now()}`,{cache:'no-cache'});
     if(!r.ok)return;
     const d=await r.json();
+    window.__CV_FILE_LIVE_TS=d.ts;
+    _cvLiveApply(_lvOverlay(d));
+  }catch(e){/* live_data.json not yet generated */}
+}
+// Applies a live bundle (live_data.json shape, ESPN-overlaid) to the whole app. Called by loadLiveData (file, every 45 s) and by the ESPN live layer (refreshLive).
+function _cvLiveApply(d){
+  try{
     window.__CV_LIVE=d;
     if(d.nba?.length)patchLiveNBA(d.nba);
     if(d.nhl?.length)patchLiveNHL(d.nhl);
@@ -22061,7 +22242,7 @@ async function loadLiveData(){
     updateLiveProbabilities(d);
     try{renderHomeLiveGames();}catch(e){}
     try{renderTicker();}catch(e){}
-  }catch(e){/* live_data.json not yet generated */}
+  }catch(e){/* bad live bundle */}
 }
 
 function startLivePolling(){
