@@ -45,9 +45,9 @@ class AltLine(unittest.TestCase):
 
     def test_shift_stays_inside_the_band(self):
         for sport, mkt, side, label in (("CFB", "OU", "under", "UNDER 50.5"), ("NFL", "OU", "under", "UNDER 44.5"),
-                                        ("NFL", "SPREAD", "sprdDog", "NYG +3.5")):
+                                        ("NFL", "SPREAD", "sprdDog", "NYG +3.5"), ("NBA", "OU", "over", "OVER 221.5")):
             out = A._alt_shift_leg(leg(sport, side, label))
-            kmin, kmax = A.ALT_LINE_CFG[sport][mkt][2:]
+            _curve, kmin, kmax = A.ALT_LINE_CFG[sport][mkt]
             if out:
                 self.assertTrue(kmin <= out["altLine"]["shift"] <= kmax, (sport, mkt, out["altLine"]))
 
@@ -61,7 +61,6 @@ class AltLine(unittest.TestCase):
 
     def test_moneyline_and_other_sports_are_untouched(self):
         self.assertIsNone(A._alt_shift_leg(leg("CFB", "mlFav", "ALA ML")))
-        self.assertIsNone(A._alt_shift_leg(leg("NBA", "under", "UNDER 220.5")))
         self.assertIsNone(A._alt_shift_leg(leg("MLB", "under", "UNDER 8.5")))
 
     def test_whole_number_lines_move_onto_a_half_point(self):
@@ -71,6 +70,62 @@ class AltLine(unittest.TestCase):
     def test_every_alt_line_keeps_a_half_point(self):
         for posted in ("UNDER 47.5", "UNDER 58.5", "UNDER 71.5"):
             self.assertTrue(A._alt_shift_leg(leg("CFB", "under", posted))["label"].endswith(".5"))
+
+    def test_nba_total_uses_the_empirical_table(self):
+        under = A._alt_shift_leg(leg("NBA", "under", "UNDER 225.5"))
+        over = A._alt_shift_leg(leg("NBA", "over", "OVER 221.5"))
+        self.assertEqual(under["label"], "UNDER 233.5")
+        self.assertEqual(over["label"], "OVER 213.5")
+        self.assertAlmostEqual(under["prob"], 0.67, places=3)
+        self.assertEqual(under["altLine"]["shift"], 8.0)
+
+    def test_nba_spread_without_a_line_number_is_left_alone(self):
+        self.assertIsNone(A._alt_shift_leg(leg("NBA", "sprdFav", "BOS -ATS")))
+
+    def test_table_interpolates_between_points(self):
+        curve = A.ALT_LINE_CFG["NBA"]["OU"][0]
+        self.assertAlmostEqual(A._alt_prob(curve, 9.0), (0.670 + 0.711) / 2, places=3)
+        self.assertEqual(A._alt_prob(curve, 20), 0.711)
+
+    def test_hockey_total_picks_the_side_and_line_nearest_the_60_65_band(self):
+        for sport in ("NHL", "SHL", "LIIGA", "NLA", "EXTRALIGA"):
+            self.assertEqual(A._alt_shift_leg(leg(sport, "over", "OVER 5.5"))["label"], "UNDER 6.5")      # flips side
+            self.assertEqual(A._alt_shift_leg(leg(sport, "under", "UNDER 5.5"))["label"], "UNDER 6.5")
+            self.assertEqual(A._alt_shift_leg(leg(sport, "under", "UNDER 6.5"))["label"], "OVER 5.5")      # flips side
+            self.assertEqual(A._alt_shift_leg(leg(sport, "over", "OVER 6.5"))["label"], "OVER 5.5")
+            self.assertEqual(A._alt_shift_leg(leg(sport, "over", "OVER 4.5"))["label"], "UNDER 5.5")
+
+    def test_hockey_flip_updates_side_and_is_recorded(self):
+        out = A._alt_shift_leg(leg("NHL", "over", "OVER 5.5"))
+        self.assertEqual(out["side"], "under")
+        self.assertTrue(out["altLine"]["flip"])
+        self.assertFalse(A._alt_shift_leg(leg("NHL", "under", "UNDER 5.5"))["altLine"]["flip"])
+
+    def test_hockey_uses_the_nhl_closing_line_hit_rates(self):
+        self.assertEqual(A._alt_shift_leg(leg("NHL", "over", "OVER 5.5"))["prob"], 0.585)
+        self.assertEqual(A._alt_shift_leg(leg("NHL", "under", "UNDER 6.5"))["prob"], 0.589)
+
+    def test_hockey_never_picks_below_the_floor(self):
+        saved = A.HOCKEY_ALT_FLOOR
+        try:
+            A.HOCKEY_ALT_FLOOR = 0.99
+            with self.assertRaises(TypeError):
+                A._hockey_pick_alt(5.5)       # nothing qualifies -> no candidate (callers only reach this with a real total)
+        finally:
+            A.HOCKEY_ALT_FLOOR = saved
+
+    def test_hockey_whole_line_is_anchored_on_a_half_point(self):
+        out = A._alt_shift_leg(leg("NHL", "under", "UNDER 6.0"))
+        self.assertTrue(out["label"].endswith(".5"), out["label"])
+
+    def test_hockey_puck_line_and_moneyline_are_untouched(self):
+        self.assertIsNone(A._alt_shift_leg(leg("NHL", "plFav", "BOS -1.5")))
+        self.assertIsNone(A._alt_shift_leg(leg("NHL", "mlFav", "BOS ML")))
+
+    def test_hockey_leg_is_priced_as_an_estimate(self):
+        out = A._alt_shift_leg(leg("NHL", "over", "OVER 5.5"))
+        self.assertEqual(out["priceSource"], "estimated")
+        self.assertEqual(out["altLine"]["postedLabel"], "OVER 5.5")
 
     def test_over_never_goes_to_a_non_positive_line(self):
         self.assertIsNone(A._alt_shift_leg(leg("CFB", "over", "OVER 3.5")))

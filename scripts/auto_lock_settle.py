@@ -2127,10 +2127,27 @@ ALT_FLOOR_P = 0.62            # if even the cap cannot reach this, leave the pos
 ALT_VIG = 0.045
 ALT_STEP = 1.0
 ALT_LINE_CFG = {
-    # sport: {market: (sigma of actual margin vs line, offset a at k=0, kmin, kmax)}
-    "CFB": {"OU": (14.7, 1.9, 3.0, 9.0), "SPREAD": (15.7, 0.8, 3.0, 10.0)},
-    "NFL": {"OU": (13.0, 0.0, 3.0, 8.0), "SPREAD": (13.4, 0.0, 3.0, 8.0)},
+    # sport: {market: (curve, kmin, kmax)}; curve = ("normal", sigma of actual margin vs line, offset a at k=0) or ("table", ((k, win p), ...)) with linear
+    # interpolation. CFB/NFL come from the settled ledger; NBA from 2,470 closing lines + final scores of the 2024-25 and 2025-26 seasons
+    # (scripts/backtest_alt_lines.py nba -- side-neutral, since the ledger holds no settled NBA totals; its NBA spread legs also carry no line number
+    # in the label ("BOS -ATS"), so only NBA totals are shifted for now).
+    "CFB": {"OU": (("normal", 14.7, 1.9), 3.0, 9.0), "SPREAD": (("normal", 15.7, 0.8), 3.0, 10.0)},
+    "NFL": {"OU": (("normal", 13.0, 0.0), 3.0, 8.0), "SPREAD": (("normal", 13.4, 0.0), 3.0, 8.0)},
+    "NBA": {"OU": (("table", ((0, .500), (2, .543), (3, .564), (4, .590), (5, .612), (6, .631), (7, .651), (8, .670), (10, .711))), 3.0, 10.0)},
 }
+# Hockey (NHL + SHL/LIIGA/NLA/EXTRALIGA), totals only, 60-65% band (2026-10-03, owner's call): the pick may FLIP SIDE as well as move the line (OVER 5.5 -> UNDER 6.5,
+# UNDER 6.5 -> OVER 5.5, OVER 4.5 -> UNDER 5.5). Every OVER anchor-1..3 and UNDER anchor+1..3 candidate is scored with the NHL closing-line hit rates (2,630 games, 2024-25 +
+# 2025-26, scripts/backtest_alt_lines.py nhl, side-neutral) and the one closest to HOCKEY_ALT_BAND wins (ties: the smaller move); nothing below HOCKEY_ALT_FLOOR is ever picked.
+# Posted totals <= 6.0 use the 5.5 table, higher ones the 6.5 table, offsets measured from the posted line (a whole-number line is anchored on the half-point below it, so
+# a lock never lands on a push). The European leagues have no line history, so they borrow the NHL numbers (unverified). Puck lines are not shifted.
+HOCKEY_ALT_BAND = (0.60, 0.65)
+HOCKEY_ALT_FLOOR = 0.55
+# {base total: {j goals from the anchor line: P(OVER anchor+j) for j<0, P(UNDER anchor+j) for j>0}}
+HOCKEY_OU_TABLE = {
+    5.5: {-3: 0.970, -2: 0.848, -1: 0.754, 1: 0.585, 2: 0.769, 3: 0.835},
+    6.5: {-3: 0.879, -2: 0.804, -1: 0.589, 1: 0.736, 2: 0.820, 3: 0.915},
+}
+ALT_SPORTS = frozenset(ALT_LINE_CFG) | HOCKEY_SPORTS
 _ND = None
 
 
@@ -2150,13 +2167,72 @@ def _ml_from_dec(dec: float) -> str:
     return f"-{round(100 / (dec - 1))}" if dec < 2 else f"+{round((dec - 1) * 100)}"
 
 
+def _alt_prob(curve, k: float) -> float:
+    if curve[0] == "normal":
+        return _alt_cdf((k + curve[2]) / curve[1])
+    pts = curve[1]
+    if k <= pts[0][0]:
+        return pts[0][1]
+    for (k0, p0), (k1, p1) in zip(pts, pts[1:]):
+        if k <= k1:
+            return p0 + (p1 - p0) * (k - k0) / (k1 - k0)
+    return pts[-1][1]
+
+
+def _alt_finish(leg: dict, new_label: str, p_alt: float, posted: float, new_line: float, k: float, label: str) -> dict:
+    dec = 1.0 / (p_alt + ALT_VIG)
+    out = dict(leg)
+    out.update({"label": new_label, "prob": round(p_alt, 4), "dec": round(dec, 3), "ml": _ml_from_dec(dec),
+                "evVal": round(p_alt * dec - 1, 4), "priceSource": "estimated",
+                "altLine": {"posted": posted, "line": new_line, "shift": k, "postedLabel": label, "postedProb": leg.get("prob")}})
+    return out
+
+
+def _hockey_pick_alt(posted: float) -> tuple[str, float, int, float]:
+    """(side, line, goals moved from the anchor, probability) of the hockey total closest to the 60-65% band."""
+    anchor = posted if posted != int(posted) else posted - 0.5
+    table = HOCKEY_OU_TABLE[5.5 if anchor <= 6.0 else 6.5]
+    lo, hi = HOCKEY_ALT_BAND
+    best = None
+    for j, p in table.items():
+        if p < HOCKEY_ALT_FLOOR:
+            continue
+        side, line = ("over", anchor + j) if j < 0 else ("under", anchor + j)
+        if line <= 0:
+            continue
+        dist = 0.0 if lo <= p <= hi else (lo - p if p < lo else p - hi)
+        key = (round(dist, 6), abs(j))
+        if best is None or key < best[0]:
+            best = (key, side, line, j, p)
+    return best[1], best[2], best[3], best[4]
+
+
+def _alt_shift_hockey(leg: dict) -> dict | None:
+    label = (leg.get("label") or "").strip()
+    m = re.match(r"^(OVER|UNDER)\s+([0-9]+(?:\.[0-9]+)?)$", label, re.I)
+    if not m:
+        return None
+    posted = float(m.group(2))
+    side, line, j, p_alt = _hockey_pick_alt(posted)
+    new_label = f"{side.upper()} {_fmt_line(line, False)}"
+    out = _alt_finish(leg, new_label, p_alt, posted, line, float(abs(j)), label)
+    out["side"] = side
+    out["altLine"]["flip"] = side != m.group(1).lower()
+    return out
+
+
 def _alt_shift_leg(leg: dict) -> dict | None:
     """Alternate-line version of one OU / SPREAD leg, or None to keep it as posted."""
-    cfg = ALT_LINE_CFG.get(leg.get("sport") or "")
+    sport = leg.get("sport") or ""
     mkt = _market_type(leg.get("side"))
-    if not cfg or mkt not in cfg or leg.get("altLine"):
+    if leg.get("altLine"):
         return None
-    sigma, a, kmin, kmax = cfg[mkt]
+    if sport in HOCKEY_SPORTS:
+        return _alt_shift_hockey(leg) if mkt == "OU" else None
+    cfg = ALT_LINE_CFG.get(sport)
+    if not cfg or mkt not in cfg:
+        return None
+    curve, kmin, kmax = cfg[mkt]
     label = leg.get("label") or ""
     if mkt == "OU":
         m = re.match(r"^(OVER|UNDER)\s+([0-9]+(?:\.[0-9]+)?)$", label.strip(), re.I)
@@ -2172,9 +2248,9 @@ def _alt_shift_leg(leg: dict) -> dict | None:
         sign = 1.0                                          # a spread is safer as the number goes up (-5.5 -> -1.5, +5.5 -> +9.5)
     # Whole-point steps keep a half-point line on a half-point (no push); a whole-number posted line is moved onto a half-point instead.
     k = kmin + (0.5 if posted == int(posted) else 0.0)
-    while k + ALT_STEP <= kmax + 0.5 and _alt_cdf((k + a) / sigma) < ALT_TARGET_P - 1e-9:
+    while k + ALT_STEP <= kmax + 0.5 and _alt_prob(curve, k) < ALT_TARGET_P - 1e-9:
         k += ALT_STEP
-    p_alt = _alt_cdf((k + a) / sigma)
+    p_alt = _alt_prob(curve, k)
     if p_alt < ALT_FLOOR_P:
         return None
     new_line = posted + sign * k
@@ -2184,12 +2260,7 @@ def _alt_shift_leg(leg: dict) -> dict | None:
         new_label = f"{direction} {_fmt_line(new_line, False)}"
     else:
         new_label = f"{team} {_fmt_line(new_line, True)}"
-    dec = 1.0 / (p_alt + ALT_VIG)
-    out = dict(leg)
-    out.update({"label": new_label, "prob": round(p_alt, 4), "dec": round(dec, 3), "ml": _ml_from_dec(dec),
-                "evVal": round(p_alt * dec - 1, 4), "priceSource": "estimated",
-                "altLine": {"posted": posted, "line": new_line, "shift": k, "postedLabel": label, "postedProb": leg.get("prob")}})
-    return out
+    return _alt_finish(leg, new_label, p_alt, posted, new_line, k, label)
 
 
 def _apply_alt_lines(legs: list[dict]) -> list[dict]:
@@ -2358,7 +2429,7 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                     picked.append(cand)
                     break
             game_qualifying = picked
-        if game_qualifying and sport in ALT_LINE_CFG:
+        if game_qualifying and sport in ALT_SPORTS:
             shifted = _apply_alt_lines(game_qualifying)
             for old, new in zip(game_qualifying, shifted):
                 if new is not old:

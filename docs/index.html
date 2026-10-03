@@ -4613,44 +4613,76 @@ function _mvmBarHTML(m){
     return`<div class="mvm"><div class="mvml">MODEL VS MARKET</div><div class="mvmb" role="img" aria-label="Market ${pc(mk)} percent, model ${pc(md)}, blended ${pc(bl)}"><div class="mvmr"></div><div class="mvmg" style="left:${pos(lo)};width:calc(${pos(lo+w)} - ${pos(lo)})"></div><div class="mvmm mk" style="left:${pos(mk)}">${pc(mk)}</div><div class="mvmm md" style="left:${pos(md)};${sh}">${pc(md)}</div><div class="mvmm bl" style="left:${pos(bl)}">${pc(bl)}</div></div><div class="mvma"><span>50%</span><span>market &middot; model &middot; blended</span><span>85%</span></div></div>`;
   }catch(e){return'';}
 }
-// ── Alternate lines (2026-10-03): CFB/NFL spread + O/U picks are LOCKED at a safer line (see ALT_LINE_CFG in scripts/auto_lock_settle.py -- keep both in sync).
-// Same maths as the Python side: smallest whole-point cushion k in [kmin,kmax] whose empirical win curve Phi((k+a)/sigma) reaches 67%; price is an estimate.
-const _ALT_CFG={CFB:{OU:[14.7,1.9,3,9],SPREAD:[15.7,.8,3,10]},NFL:{OU:[13,0,3,8],SPREAD:[13.4,0,3,8]}};
+// ── Alternate lines (2026-10-03): spread + O/U picks are LOCKED at a safer line (ALT_LINE_CFG in scripts/auto_lock_settle.py -- keep both in sync).
+// CFB/NFL: smallest whole-point cushion k in [kmin,kmax] whose empirical win curve reaches 67%; NBA totals use a table fitted on 2,470 closing lines (scripts/backtest_alt_lines.py);
+// hockey totals (NHL + SHL/LIIGA/NLA/EXTRALIGA) take the side+line nearest a 60-65% hit rate (may flip side) using the NHL closing-line hit rates. The price is an estimate, never a quote.
+const _ALT_CFG={CFB:{OU:[['normal',14.7,1.9],3,9],SPREAD:[['normal',15.7,.8],3,10]},NFL:{OU:[['normal',13,0],3,8],SPREAD:[['normal',13.4,0],3,8]},
+  NBA:{OU:[['table',[[0,.5],[2,.543],[3,.564],[4,.59],[5,.612],[6,.631],[7,.651],[8,.67],[10,.711]]],3,10]}};
+const _ALT_HK=new Set(['NHL','SHL','LIIGA','NLA','EXTRALIGA']);
+const _ALT_HK_BAND=[.60,.65],_ALT_HK_FLOOR=.55;
+const _ALT_HK_T={'5.5':{'-3':.970,'-2':.848,'-1':.754,'1':.585,'2':.769,'3':.835},'6.5':{'-3':.879,'-2':.804,'-1':.589,'1':.736,'2':.820,'3':.915}};
 const _ALT_TARGET=.67,_ALT_FLOOR=.62,_ALT_VIG=.045;
+function _altProb(c,k){
+  if(c[0]==='normal')return normalCDF((k+c[2])/c[1]);
+  const pts=c[1];if(k<=pts[0][0])return pts[0][1];
+  for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1];if(k<=b[0])return a[1]+(b[1]-a[1])*(k-a[0])/(b[0]-a[0]);}
+  return pts[pts.length-1][1];
+}
+function _altFinish(label,nl,p,posted,line,k,mkt){
+  const dec=1/(p+_ALT_VIG);
+  return{label:nl,prob:+p.toFixed(4),dec:+dec.toFixed(3),ml:dec<2?'-'+Math.round(100/(dec-1)):'+'+Math.round((dec-1)*100),posted,line,shift:k,postedLabel:label,mkt};
+}
 function _altShift(sport,mkt,label){
+  if(_ALT_HK.has(sport)){
+    if(mkt!=='OU')return null;
+    const m=String(label).trim().match(/^(OVER|UNDER)\s+(\d+(?:\.\d+)?)$/i);if(!m)return null;
+    const posted=parseFloat(m[2]),anchor=posted===Math.floor(posted)?posted-.5:posted,tab=_ALT_HK_T[anchor<=6?'5.5':'6.5'];
+    let best=null;
+    for(const js of Object.keys(tab)){
+      const j=+js,p=tab[js];if(p<_ALT_HK_FLOOR)continue;
+      const side=j<0?'OVER':'UNDER',line=anchor+j;if(line<=0)continue;
+      const dist=(p>=_ALT_HK_BAND[0]&&p<=_ALT_HK_BAND[1])?0:(p<_ALT_HK_BAND[0]?_ALT_HK_BAND[0]-p:p-_ALT_HK_BAND[1]);
+      const key=[Math.round(dist*1e6)/1e6,Math.abs(j)];
+      if(!best||key[0]<best.key[0]||(key[0]===best.key[0]&&key[1]<best.key[1]))best={key,side,line,j,p};
+    }
+    if(!best)return null;
+    const r=_altFinish(label,best.side+' '+best.line.toFixed(1),best.p,posted,best.line,Math.abs(best.j),mkt);
+    r.flip=best.side!==m[1].toUpperCase();r.side=best.side.toLowerCase();return r;
+  }
   const cfg=_ALT_CFG[sport]&&_ALT_CFG[sport][mkt];if(!cfg)return null;
-  const sigma=cfg[0],a=cfg[1],kmin=cfg[2],kmax=cfg[3];
+  const curve=cfg[0],kmin=cfg[1],kmax=cfg[2];
   let direction,team,posted,sign;
   if(mkt==='OU'){const m=String(label).trim().match(/^(OVER|UNDER)\s+(\d+(?:\.\d+)?)$/i);if(!m)return null;direction=m[1].toUpperCase();posted=parseFloat(m[2]);sign=direction==='OVER'?-1:1;}
   else{const m=String(label).trim().match(/^(.+?)\s+([+-]\d+(?:\.\d+)?)$/);if(!m)return null;team=m[1];posted=parseFloat(m[2]);sign=1;}
   let k=kmin+(posted===Math.floor(posted)?.5:0);
-  while(k+1<=kmax+.5&&normalCDF((k+a)/sigma)<_ALT_TARGET-1e-9)k+=1;
-  const p=normalCDF((k+a)/sigma);if(p<_ALT_FLOOR)return null;
+  while(k+1<=kmax+.5&&_altProb(curve,k)<_ALT_TARGET-1e-9)k+=1;
+  const p=_altProb(curve,k);if(p<_ALT_FLOOR)return null;
   const line=posted+sign*k;let nl;
   if(mkt==='OU'){if(line<=0)return null;nl=direction+' '+line.toFixed(1);}else nl=team+' '+(line>=0?'+':'')+line.toFixed(1);
-  const dec=1/(p+_ALT_VIG);
-  return{label:nl,prob:+p.toFixed(4),dec:+dec.toFixed(3),ml:dec<2?'-'+Math.round(100/(dec-1)):'+'+Math.round((dec-1)*100),posted,line,shift:k,postedLabel:label,mkt};
+  return _altFinish(label,nl,p,posted,line,k,mkt);
 }
 window._altReg=window._altReg||{};
-function _altLineRowHTML(sport,g,nm){
+function _altRowFor(sport,home,away,dateRaw,nm){
   try{
     if(!nm||!nm.mkts)return'';
     const best=(a,b)=>{const x=nm.mkts.find(m=>m.side===a),y=nm.mkts.find(m=>m.side===b);return x&&y?(x.prob>=y.prob?x:y):(x||y);};
-    const d=new Date(g.date);const dateKey=isNaN(d)?String(g.date||'').slice(0,10):d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+    const d=new Date(dateRaw);const dateKey=isNaN(d)?String(dateRaw||'').slice(0,10):d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
     const chips=[['OU',best('over','under')],['SPREAD',best('sprdFav','sprdDog')]].map(([mkt,m])=>{
       if(!m)return'';const alt=_altShift(sport,mkt,m.label);if(!alt)return'';
-      const key=sport+'|'+dateKey+'|'+g.home+'|'+g.away+'|'+mkt;
-      window._altReg[key]={sport,hA:g.home,awA:g.away,date:dateKey,alt};
+      const key=sport+'|'+dateKey+'|'+home+'|'+away+'|'+mkt;
+      window._altReg[key]={sport,hA:home,awA:away,date:dateKey,alt};
       const cls=m.tierN===3?'pg':m.tierN===2?'pp':m.tierN===1?'pn':'';
       const lb=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN]||'';
-      return`<div class="altc" onclick="event.stopPropagation();_lockAltKey('${key.replace(/'/g,"\\'")}')"><div class="alt1"><span class="altp">${_escHtml(alt.label)}</span>${lb?`<span class="pill ${cls}">${lb}</span>`:''}</div><div class="alts">${Math.round(alt.prob*100)}% · est ${alt.ml} · +${alt.shift} pts</div><div class="altw">posted ${_escHtml(alt.postedLabel)} · ${Math.round(m.prob*100)}%</div></div>`;
+      const sh=alt.shift%1===0?alt.shift:alt.shift.toFixed(1);
+      return`<div class="altc" onclick="event.stopPropagation();_lockAltKey('${key.replace(/'/g,"\\'")}')"><div class="alt1"><span class="altp">${_escHtml(alt.label)}</span>${lb?`<span class="pill ${cls}">${lb}</span>`:''}</div><div class="alts">${Math.round(alt.prob*100)}% · est ${alt.ml} · ${_ALT_HK.has(sport)?(alt.flip?'FLIPS SIDE · ':'')+sh+(+sh===1?' goal':' goals'):'+'+sh+' pts'}</div><div class="altw">posted ${_escHtml(alt.postedLabel)} · ${Math.round(m.prob*100)}%</div></div>`;
     }).join('');
     return chips?`<div class="altrow"><div class="altk">ADJ. LINE · LOCKS HERE · TAP TO LOCK · EST. PRICE</div>${chips}</div>`:'';
   }catch(e){return'';}
 }
+function _altLineRowHTML(sport,g,nm){return _altRowFor(sport,g.home,g.away,g.date,nm);}
 async function _lockAltKey(key){
   const r=window._altReg[key];if(!r)return;const a=r.alt;
-  await lockPick(r.hA,r.awA,r.sport,a.label,a.prob,a.ml,a.dec,r.date,undefined,a.mkt,{priceSource:'estimated',altLine:{posted:a.posted,line:a.line,shift:a.shift,postedLabel:a.postedLabel}});
+  await lockPick(r.hA,r.awA,r.sport,a.label,a.prob,a.ml,a.dec,r.date,undefined,a.mkt,{priceSource:'estimated',altLine:{posted:a.posted,line:a.line,shift:a.shift,postedLabel:a.postedLabel,...(a.flip!=null?{flip:a.flip}:{})}});
 }
 function _bestMarketBoxHTML(tierN,tierCol,tierLabel,bestLabel,bestProb,bestEvVal){
   if(!(tierN>0))return'';
@@ -7166,7 +7198,7 @@ function renderNHLTonight(){
       if(topTier>0)_attachReasoning(_nm1,side=>_mcLineScore(mc,side,gh.ou,{n:25000}),{[_bm1.side]:explanation});
       else _attachReasoning(_nm1,side=>_mcLineScore(mc,side,gh.ou,{n:25000}));
       _autoLockCapture('NHL',gh.h,gh.a,_nm1,mc?`MC PROJ: ${gh.a} ${mc.avgA.toFixed(1)} – ${gh.h} ${mc.avgH.toFixed(1)} (Total ${mc.avgT.toFixed(1)})`:null,undefined,lg.date);
-      html+=`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)"><div class="gch"><div><div style="display:flex;align-items:center;gap:6px">${_teamLogoHTML('nhl',gh.a,'a',44)}<span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${gh.a}</span><span style="color:var(--t3);font-size:15px;font-family:var(--mono)">at</span>${_teamLogoHTML('nhl',gh.h,'h',44)}<span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${gh.h}</span></div>${_nhlGoalieRowHTML(gh.h,gh.a,lg.date,null,true)||`<div class="gsp">PRIMARY GOALIES: ${aw.g1} vs ${h.g1}</div>`}<div class="gsp">${gh.ctx?'G'+gh.gn+' · '+gh.ctx+' · ':''}<span style="color:var(--vc)">O/U ${gh.ou}</span></div></div><div style="text-align:right"><div class="np mono" style="font-size:19px">${statusDot}${statusTxt}</div></div></div><div class="brow"><div class="${hCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.h}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},${_hkExtraMeta(_px1.ml.home,_tnML)})"><div class="cht">ML ${gh.h}</div><div class="cho">${_mlFmt(hML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px1.ml.home)}</div>${_hkBlendTag(_tnML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${hCS.pl}">${hCS.lb}</span></div></div><div class="${aCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.a}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},${_hkExtraMeta(_px1.ml.away,_hkBlComp(_tnML))})"><div class="cht">ML ${gh.a}</div><div class="cho">${_mlFmt(aML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px1.ml.away)}</div>${_hkBlendTag(_hkBlComp(_tnML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${aCS.pl}">${aCS.lb}</span></div></div><div class="gbox" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="-1.5" id="sprd_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id);_hkPxRefresh(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','FAV','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.h:gh.a}</div><div id="fav_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">-1.5</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','DOG','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.a:gh.h}</div><div id="dog_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">+1.5</div></button></div>${_hkPxLabelHTML('sprd_nhl1_'+gh.h+'_'+gh.a,{kind:'pl',g:_pg1,favIsHome:hP>=aP,nhl:true})}${_hkBlendLabelHTML('sprd_nhl1_'+gh.h+'_'+gh.a,_tnPL,-1.5)}${typeof _nm1!=='undefined'?_boxGradeHTML(_nm1,['plFav','sprdFav','ahFav'],['plDog','sprdDog','ahDog']):''}</div><div class="gbox gbox2" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${gh.ou}" id="ouinp_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▼ UNDER</button></div>${_hkPxLabelHTML('ouinp_nhl1_'+gh.h+'_'+gh.a,{kind:'ou',g:_pg1,line:gh.ou,nhl:true})}${_hkBlendLabelHTML('ouinp_nhl1_'+gh.h+'_'+gh.a,_tnOU,gh.ou)}${typeof _nm1!=='undefined'?_boxGradeHTML(_nm1,['over'],['under']):''}</div></div><div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span></div>${_mcProjBarHTML(mc,gh.ou||5.5,gh.h,gh.a,{dec:2})}${_bestMarketBoxHTML(_nm1.tierN,_nm1.col,_nm1.lbl,_nm1.best.label,_nm1.best.prob,_nm1.best.evVal)}${_mvmBarHTML(_nm1.best)}<div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div><div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm1.mkts.map(_hkScanTxt).join(' · ')}</div></div><div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px"><span class="mono" style="font-size:16px;color:var(--t3)">MC:${(ens.mc*100).toFixed(0)}% xGF:${(ens.xgf*100).toFixed(0)}% ELO:${(ens.elo*100).toFixed(0)}% · PROJ ${mc?mc.avgH.toFixed(1)+'-'+mc.avgA.toFixed(1):'—'} · OT ${mc?(mc.otP*100).toFixed(0):0}%</span></div></div>`;
+      html+=`<div class="gc" style="border-left:2px solid rgba(255,204,0,.5)"><div class="gch"><div><div style="display:flex;align-items:center;gap:6px">${_teamLogoHTML('nhl',gh.a,'a',44)}<span class="gtm" style="color:${aP>hP?'var(--pc)':'var(--t2)'}">${gh.a}</span><span style="color:var(--t3);font-size:15px;font-family:var(--mono)">at</span>${_teamLogoHTML('nhl',gh.h,'h',44)}<span class="gtm" style="color:${hP>=aP?'var(--pc)':'var(--t2)'}">${gh.h}</span></div>${_nhlGoalieRowHTML(gh.h,gh.a,lg.date,null,true)||`<div class="gsp">PRIMARY GOALIES: ${aw.g1} vs ${h.g1}</div>`}<div class="gsp">${gh.ctx?'G'+gh.gn+' · '+gh.ctx+' · ':''}<span style="color:var(--vc)">O/U ${gh.ou}</span></div></div><div style="text-align:right"><div class="np mono" style="font-size:19px">${statusDot}${statusTxt}</div></div></div><div class="brow"><div class="${hCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.h}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},${_hkExtraMeta(_px1.ml.home,_tnML)})"><div class="cht">ML ${gh.h}</div><div class="cho">${_mlFmt(hML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px1.ml.home)}</div>${_hkBlendTag(_tnML)}<div class="chp">${(hP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${hCS.pl}">${hCS.lb}</span></div></div><div class="${aCS.c} chip" style="flex:1" onclick="lockH('${gh.h}','${gh.a}','ML','${gh.a}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},${_hkExtraMeta(_px1.ml.away,_hkBlComp(_tnML))})"><div class="cht">ML ${gh.a}</div><div class="cho">${_mlFmt(aML)}</div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px">${_hkSrcTag(_px1.ml.away)}</div>${_hkBlendTag(_hkBlComp(_tnML))}<div class="chp">${(aP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${aCS.pl}">${aCS.lb}</span></div></div><div class="gbox" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">PUCK LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="-1.5" id="sprd_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id);_hkPxRefresh(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','FAV','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.h:gh.a}</div><div id="fav_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">-1.5</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=.5?gh.h:gh.a}','${hP>=.5?gh.a:gh.h}','${gh.h}','${gh.a}',null,${plP.toFixed(3)},'-1.5','sprd_nhl1_${gh.h}_${gh.a}','DOG','NHL')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=.5?gh.a:gh.h}</div><div id="dog_sprd_nhl1_${gh.h}_${gh.a}" style="font-size:11px;opacity:.85">+1.5</div></button></div>${_hkPxLabelHTML('sprd_nhl1_'+gh.h+'_'+gh.a,{kind:'pl',g:_pg1,favIsHome:hP>=aP,nhl:true})}${_hkBlendLabelHTML('sprd_nhl1_'+gh.h+'_'+gh.a,_tnPL,-1.5)}${typeof _nm1!=='undefined'?_boxGradeHTML(_nm1,['plFav','sprdFav','ahFav'],['plDog','sprdDog','ahDog']):''}</div><div class="gbox gbox2" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${gh.ou}" id="ouinp_nhl1_${gh.h}_${gh.a}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nhl1_${gh.h}_${gh.a}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_ouLockDir('${gh.h}','${gh.a}',null,${ouP.toFixed(3)},'${gh.ou}','ouinp_nhl1_${gh.h}_${gh.a}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▼ UNDER</button></div>${_hkPxLabelHTML('ouinp_nhl1_'+gh.h+'_'+gh.a,{kind:'ou',g:_pg1,line:gh.ou,nhl:true})}${_hkBlendLabelHTML('ouinp_nhl1_'+gh.h+'_'+gh.a,_tnOU,gh.ou)}${typeof _nm1!=='undefined'?_boxGradeHTML(_nm1,['over'],['under']):''}</div></div><div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span></div>${_mcProjBarHTML(mc,gh.ou||5.5,gh.h,gh.a,{dec:2})}${_bestMarketBoxHTML(_nm1.tierN,_nm1.col,_nm1.lbl,_nm1.best.label,_nm1.best.prob,_nm1.best.evVal)}${_mvmBarHTML(_nm1.best)}${_altRowFor('NHL',gh.h,gh.a,lg.date,_nm1)}<div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div><div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm1.mkts.map(_hkScanTxt).join(' · ')}</div></div><div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px"><span class="mono" style="font-size:16px;color:var(--t3)">MC:${(ens.mc*100).toFixed(0)}% xGF:${(ens.xgf*100).toFixed(0)}% ELO:${(ens.elo*100).toFixed(0)}% · PROJ ${mc?mc.avgH.toFixed(1)+'-'+mc.avgA.toFixed(1):'—'} · OT ${mc?(mc.otP*100).toFixed(0):0}%</span></div></div>`;
     }
     el.innerHTML=html||'<div class="empty">NO NHL GAMES TONIGHT</div>';
     return;
@@ -7259,7 +7291,7 @@ function renderNHLTonight(){
       <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
     </div>
     ${_mcProjBarHTML(mc,g.ou||5.5,g.h,g.a,{dec:2})}
-    ${_bestMarketBoxHTML(_nm2.tierN,_nm2.col,_nm2.lbl,_nm2.best.label,_nm2.best.prob,_nm2.best.evVal)}${_mvmBarHTML(_nm2.best)}
+    ${_bestMarketBoxHTML(_nm2.tierN,_nm2.col,_nm2.lbl,_nm2.best.label,_nm2.best.prob,_nm2.best.evVal)}${_mvmBarHTML(_nm2.best)}${_altRowFor('NHL',g.h,g.a,g.date,_nm2)}
     <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
     <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm2.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
   </div>
@@ -10079,7 +10111,7 @@ function _nhlGameCard(espnEv){
         mktOU:_liveNHL?.ou!=null?parseFloat(_liveNHL.ou).toFixed(1):(_espnOdds?.overUnder!=null?parseFloat(_espnOdds.overUnder).toFixed(1):null),
       });
     }catch(e){return'';}})()}
-    ${_bestMarketBoxHTML(_nm3.tierN,_nm3.col,_nm3.lbl,_nm3.best.label,_nm3.best.prob,_nm3.best.evVal)}${_mvmBarHTML(_nm3.best)}
+    ${_bestMarketBoxHTML(_nm3.tierN,_nm3.col,_nm3.lbl,_nm3.best.label,_nm3.best.prob,_nm3.best.evVal)}${_mvmBarHTML(_nm3.best)}${_altRowFor('NHL',hn,an,espnEv.date,_nm3)}
     <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
     <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm3.mkts.map(_hkScanTxt).join(' · ')}</div>
   </div>
@@ -10227,7 +10259,7 @@ function renderNHLGamesOffline(){
       <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
     </div>
     ${_mcProjBarHTML(mc,_ouLOff,g.h,g.a,{dec:2})}
-    ${_bestMarketBoxHTML(_nmOff.tierN,_nmOff.col,_nmOff.lbl,_nmOff.best.label,_nmOff.best.prob,_nmOff.best.evVal)}${_mvmBarHTML(_nmOff.best)}
+    ${_bestMarketBoxHTML(_nmOff.tierN,_nmOff.col,_nmOff.lbl,_nmOff.best.label,_nmOff.best.prob,_nmOff.best.evVal)}${_mvmBarHTML(_nmOff.best)}${_altRowFor('NHL',g.h,g.a,g.date,_nmOff)}
     <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
     <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nmOff.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
   </div>
@@ -10438,7 +10470,7 @@ function _nhlUpcomingCard(g,dayIdx){
         <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
       </div>
       ${_mcProjBarHTML(mc,ouLine,g.home,g.away,{dec:2})}
-      ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}
+      ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}${_altRowFor('NHL',g.home,g.away,g.date,nm)}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
       <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(_hkScanTxt).join(' · ')}</div>
     </div>
@@ -11857,7 +11889,7 @@ function _liigaMatchCard(g){
         <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
       </div>
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
-      ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}${topTier>0?_mvmBarHTML(bm):''}
+      ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}${topTier>0?_mvmBarHTML(bm):''}${_altRowFor('LIIGA',g.homeName,g.awayName,g.date,nm)}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
       <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
@@ -11999,7 +12031,7 @@ function _nlaMatchCard(g){
         <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
       </div>
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
-      ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}${topTier>0?_mvmBarHTML(bm):''}
+      ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}${topTier>0?_mvmBarHTML(bm):''}${_altRowFor('NLA',g.homeName,g.awayName,g.date,nm)}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
       <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
@@ -12137,7 +12169,7 @@ function _extraligaMatchCard(g){
         <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
       </div>
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
-      ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}${topTier>0?_mvmBarHTML(bm):''}
+      ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}${topTier>0?_mvmBarHTML(bm):''}${_altRowFor('EXTRALIGA',g.homeName,g.awayName,g.date,nm)}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
       <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
@@ -12456,7 +12488,7 @@ function _shlMatchCard(g){
         <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
       </div>
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
-      ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}${topTier>0?_mvmBarHTML(bm):''}
+      ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}${topTier>0?_mvmBarHTML(bm):''}${_altRowFor('SHL',g.homeName,g.awayName,g.date,nm)}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
       <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
@@ -13592,7 +13624,7 @@ function _nbaGameCard(espnEv){
       mktSpreadFav:espnSprdNum!=null?(espnSprdNum<0?hn:an):null,mktSpreadNum:espnSprdNum!=null?Math.abs(espnSprdNum).toFixed(1):null,
       mktOU:ouL!=null?parseFloat(ouL).toFixed(1):null,
     }):''}
-    ${pre?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,_bmNBA.label,_bmNBA.prob,_bmNBA.evVal):''}
+    ${pre?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,_bmNBA.label,_bmNBA.prob,_bmNBA.evVal):''}${pre?_altRowFor('NBA',hn,an,espnEv.date,_nmNBA):''}
     <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
     <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nmNBA.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
   </div>
