@@ -44,6 +44,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+from _flashscore_logos import attach_logos, carry_over_logos
 from _flashscore_odds import carry_over_odds, fetch_match_odds
 from _schedule_carry import carry_over_missing, load_previous
 from _scraper_health import log_scrape
@@ -144,7 +145,7 @@ def fetch_gm_rates(page, url: str) -> dict:
     return out
 
 
-def fetch_standings(page, url: str) -> dict:
+def fetch_standings(page, url: str, logos: bool = False) -> dict:
     log(f"Standings: {url}")
     page.goto(url, wait_until="networkidle", timeout=30000)
     try:
@@ -153,6 +154,9 @@ def fetch_standings(page, url: str) -> dict:
         pass
     page.wait_for_timeout(1000)
     teams = _parse_standings_table(page)
+    if logos:
+        # Team-logo URL strings (never images) for the app's game cards -- fail-open, see _flashscore_logos.py.
+        log(f"  {attach_logos(page, teams)} team logo URLs found")
     log(f"  {len(teams)} teams parsed")
     return teams
 
@@ -343,7 +347,7 @@ def run() -> dict:
         context = browser.new_context(timezone_id="UTC")
         page = context.new_page()
 
-        current_teams = fetch_standings(page, CURRENT_STANDINGS_URL)
+        current_teams = fetch_standings(page, CURRENT_STANDINGS_URL, logos=True)
         prior_teams = fetch_standings(page, PRIOR_STANDINGS_URL)
         current_gm = fetch_gm_rates(page, CURRENT_OU_URL)
         prior_gm = fetch_gm_rates(page, PRIOR_OU_URL)
@@ -363,6 +367,8 @@ def run() -> dict:
         if prev is not None and team_id in prior_gm:
             prev = {**prev, "gm": prior_gm[team_id]}
         teams[team_id] = {**cur, "gm": current_gm.get(team_id), "prevSeason": prev}
+    # A team whose logo URL was missed this run keeps the previous file's (fail-open, additive).
+    log(f"  logo URLs carried over from previous file for {carry_over_logos(teams, OUT)} teams")
 
     by_id = {g["id"]: g for g in fixtures}
     for g in results:
