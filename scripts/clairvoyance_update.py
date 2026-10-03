@@ -19,7 +19,7 @@ Cron (MT times — TZ=America/Denver):
   0 17           * * *  live-window mode (self-terminates 23:00 MT)
 
 Data sources (v6.0):
-  ESPN APIs, NHL API, MoneyPuck, HockeyViz, TennisAbstract Elo, Ergast F1,
+  ESPN APIs, NHL API, MoneyPuck, TennisAbstract Elo, Ergast F1,
   ESPN F1 scoreboard/standings, TennisAbstract Roland Garros, Sports-Reference
   (Baseball/Basketball/Hockey-Reference), FBref (Champions League/Premier
   League/La Liga/Bundesliga/MLS), Open-Meteo weather
@@ -66,6 +66,10 @@ except ImportError:
     )
     import requests
     from bs4 import BeautifulSoup, Comment
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # `import _espn_injuries` however this is launched
+import _espn_injuries  # pure ESPN injuries/roster parsers (see that module's docstring for the 2 silent bugs it fixes)
+import _nhl_skaters    # pure NHL skater points/game table for the app's injury adjustment
 
 # ── paths & config ────────────────────────────────────────────────────────────
 ROOT     = Path(__file__).parent.parent
@@ -128,6 +132,10 @@ YEAR      = 2026
 # render functions along with the display copy; this only pauses the
 # real, wasted daily fetches for a sport with no real games to fetch.
 WNBA_OFFSEASON = True
+
+# See the soccer_fbref roster block in main(): ESPN has no soccer injury feed, so the roster fetch that only existed to match
+# injuries to clubs is off.  True = restore the (~96 requests/run) per-league roster fetch.
+SOCCER_ROSTER_FETCH_ENABLED = False
 
 NOW        = datetime.now(timezone.utc)
 try:
@@ -356,24 +364,16 @@ def _espn_game(event: dict, sport: str) -> dict:
     return g
 
 def fetch_espn_injuries(sport_path: str, sport_key: str) -> list[dict]:
-    """Fetch ESPN injury report for a sport (e.g. 'baseball/mlb')."""
+    """Fetch ESPN injury report for a sport (e.g. 'baseball/mlb').
+
+    Parsing lives in _espn_injuries.parse_injuries: ESPN's payload carries the team abbreviation on each
+    athlete (athlete.team.abbreviation), NOT on the team entry any more -- reading the entry field
+    (the old code) made `team` "" on every row of every sport.  Rows also carry the ESPN athlete `id`
+    (additive) so consumers can match by identity instead of by name."""
     log(f"ESPN injuries {sport_key}…")
     url  = f"https://site.api.espn.com/apis/site/v2/sports/{sport_path}/injuries"
     data = fetch_json(url)
-    items: list[dict] = []
-    for team in (data or {}).get("injuries") or []:
-        abbr = (team.get("team") or {}).get("abbreviation", "")
-        for inj in team.get("injuries") or []:
-            ath = inj.get("athlete") or {}
-            items.append({
-                "team":   abbr,
-                "name":   ath.get("displayName", ""),
-                "pos":    (ath.get("position") or {}).get("abbreviation", ""),
-                "status": inj.get("status", ""),
-                "detail": inj.get("details", {}).get("detail", ""),
-                "return": inj.get("details", {}).get("returnDate", ""),
-                "sport":  sport_key,
-            })
+    items = _espn_injuries.parse_injuries(data, sport_key, abbr_fix=_espn_injuries.NHL_ABBR_FIX if sport_key == "nhl" else None)
     vlog(f"  {sport_key} injuries: {len(items)}")
     return items
 
@@ -442,8 +442,13 @@ def fetch_nhl_roster() -> dict:
     NHL player-roster source at all before this (only the hand-curated
     4-team NHL object's implicit "goalie/skater" mentions). Same
     ESPN team-list -> per-team-roster pattern as fetch_nba_roster().
-    Returns {"player name": {"team": "ABBR", "pos": "C"}, ...}, keyed
-    lowercase.
+    Returns {"player name": {"team": "ABBR", "pos": "C", "id": "<ESPN athlete id>"}, ...},
+    keyed lowercase.
+
+    Bug fixed 2026-10-03: ESPN's NHL roster response groups `athletes` by position
+    ([{"position": "Centers", "items": [...]}, ...]) instead of the flat list NBA returns, so the old
+    flat loop raised `'str' object has no attribute 'get'` for 32 of 32 teams and nhl.roster was
+    always {}.  Parsing now goes through _espn_injuries.parse_roster, which accepts both shapes.
     """
     log("NHL rosters (ESPN)…")
     result: dict = {}
@@ -458,11 +463,7 @@ def fetch_nhl_roster() -> dict:
             try:
                 time.sleep(0.2)
                 roster = fetch_json(f"https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/teams/{team_id}/roster")
-                for p in (roster or {}).get("athletes", []):
-                    pos = (p.get("position") or {}).get("abbreviation", "")
-                    name = p.get("fullName", "")
-                    if name:
-                        result[name.lower()] = {"team": abbr, "pos": pos}
+                result.update(_espn_injuries.parse_roster(roster, abbr, _espn_injuries.NHL_ABBR_FIX))
             except Exception as exc:
                 log(f"NHL roster {abbr}: {exc}", "WARN")
         log(f"  NHL rosters: {len(result)} players across {len(teams)} teams")
@@ -1911,113 +1912,47 @@ def fetch_moneypuck() -> dict:
     vlog(f"  MoneyPuck ({current_yr} + 25% {prior_yr}): {len(out['teams'])} teams, {len(out['goalies'])} goalies")
     return out
 
-def fetch_hockeyviz() -> dict:
-    """Scrape HockeyViz team-level shot rate and zone data."""
-    log("HockeyViz stats…")
-    result: dict = {"teams": {}, "fetchedAt": TODAY_ISO}
-    try:
-        soup = fetch_html("https://hockeyviz.com/txt/shotRatesByScore4", timeout=20)
-        if soup:
-            for tbl in soup.find_all("table")[:3]:
-                headers_row = tbl.find("tr")
-                col_names = [th.get_text(strip=True) for th in headers_row.find_all(["th","td"])] if headers_row else []
-                for tr in tbl.find_all("tr")[1:35]:
-                    cells = tr.find_all(["td","th"])
-                    if not cells: continue
-                    row = {col_names[i] if i < len(col_names) else f"c{i}": cells[i].get_text(strip=True)
-                           for i in range(len(cells))}
-                    team = row.get("Team","") or row.get("team","") or row.get(col_names[0] if col_names else "","")
-                    if team:
-                        result["teams"][team] = row
-    except Exception as exc:
-        log(f"HockeyViz: {exc}", "WARN")
+# RETIRED 2026-10-03: fetch_hockeyviz(), fetch_hockey_reference(), fetch_hockey_reference_team_stats().
+#   * HockeyViz: both pages it scraped (/txt/shotRatesByScore4, /txt/teamStats4) now return 404, so nhl.hockeyviz was
+#     always {"teams": {}} while every refresh paid two failing requests + two log warnings.  Nothing in docs/app.html
+#     (or any script) ever read it (grep: the only hits are the bundle key and a section-header comment).
+#   * Hockey-Reference: scraped two hardcoded 2026 conference-finals series pages (columns misaligned, last season's
+#     finalists) and the NHL_2026 season page (LAST season; the live one is NHL_2027), 3 requests with 2s sleeps each;
+#     nhl.hockeyRef was stale playoff junk and nhl.hockeyRefTeams was always {teams:{}}.  Also never read anywhere.
+#   The bundle keys below stay present-but-empty so any defensive reader keeps working.  NHL team-level shot/possession
+#   quality already comes from MoneyPuck (fetch_moneypuck) and the NHL stats API (fetch_nhl_edge) -- the live consumers.
 
-    # Try individual stat endpoints
-    for endpoint, label in [
-        ("/txt/teamStats4", "teamStats"),
-    ]:
+def fetch_nhl_skater_value() -> dict:
+    """Per-skater points-per-game table for the app's NHL injury adjustment (docs/app.html nhlMC / NHL_INJ_*).
+
+    One request per season (current + prior) to the NHL stats API's skater/summary (every skater in one response, ~940 rows).
+    Estimation/shrinkage rules are in scripts/_nhl_skaters.py's docstring.  Fail-open: any failure returns an empty
+    `players` dict and the app applies no skater adjustment."""
+    log("NHL skater value (stats API, current + prior season)…")
+    current = _nhl_current_season_id()
+    prior = _nhl_prior_season_id(current)
+    out: dict = {"season": current, "priorSeason": prior, "shrinkGames": _nhl_skaters.SHRINK_GAMES, "players": {}}
+    def rows(season: str) -> list[dict]:
         try:
-            soup2 = fetch_html(f"https://hockeyviz.com{endpoint}", timeout=20)
-            if soup2:
-                rows: list[dict] = []
-                for tbl in soup2.find_all("table")[:2]:
-                    hdrs = [th.get_text(strip=True) for th in (tbl.find("tr") or BeautifulSoup("","lxml")).find_all(["th","td"])]
-                    for tr in tbl.find_all("tr")[1:35]:
-                        cells = tr.find_all(["td","th"])
-                        if not cells: continue
-                        rows.append({hdrs[i] if i < len(hdrs) else f"c{i}": cells[i].get_text(strip=True)
-                                     for i in range(len(cells))})
-                if rows: result[label] = rows
+            r = requests.get(
+                f"{NHL_STATS}/skater/summary",
+                params={"isAggregate": "false", "isGame": "false", "start": 0, "limit": -1,
+                        "cayenneExp": f"seasonId={season} and gameTypeId=2"},
+                headers=HEADERS, timeout=25,
+            )
+            return ((r.json() or {}).get("data") or []) if r.ok else []
         except Exception as exc:
-            log(f"HockeyViz {label}: {exc}", "WARN")
-
-    vlog(f"  HockeyViz: {len(result['teams'])} teams")
-    return result
-
-def fetch_hockey_reference() -> dict:
-    """Scrape Hockey Reference conference finals series stats."""
-    log("Hockey Reference series stats…")
-    result: dict = {"series": {}, "fetchedAt": TODAY_ISO}
-    series_urls = {
-        "east_finals": "https://www.hockey-reference.com/playoffs/2026-carolina-hurricanes-vs-montreal-canadiens-eastern-conference-finals.html",
-        "west_finals": "https://www.hockey-reference.com/playoffs/2026-colorado-avalanche-vs-vegas-golden-knights-western-conference-finals.html",
-    }
-    for label, url in series_urls.items():
-        try:
-            time.sleep(2)
-            soup = fetch_html(url, ref=True)
-            if not soup: continue
-            tables_data: dict = {}
-            for tbl in soup.find_all("table")[:6]:
-                tbl_id = tbl.get("id","")
-                rows = _table_to_rows(soup, tbl_id, limit=30) if tbl_id else []
-                if rows: tables_data[tbl_id or f"tbl{len(tables_data)}"] = rows
-            result["series"][label] = tables_data
-            vlog(f"  Hockey Ref {label}: {len(tables_data)} tables")
-        except Exception as exc:
-            log(f"Hockey Reference {label}: {exc}", "WARN")
-    return result
-
-def fetch_hockey_reference_team_stats() -> dict:
-    """
-    Full-league (not just 2 playoff series) team stats from Hockey-Reference's
-    season page — PP%, PK%, shooting%, save%, and the two components needed to
-    derive PDO (SH% + SV%) for every team, not just whoever made a given
-    year's finals. This is what the existing fetch_hockey_reference() above
-    is missing: it only ever covered two hardcoded playoff-series URLs, which
-    go stale the moment that year's finalists change.
-    """
-    log("Hockey Reference full team stats…")
-    result: dict = {"fetchedAt": TODAY_ISO, "teams": {}}
-    try:
-        time.sleep(2)
-        soup = fetch_html("https://www.hockey-reference.com/leagues/NHL_2026.html", timeout=25, ref=True)
-        if not soup:
-            return result
-        rows = _table_to_rows(soup, "stats", limit=40)
-        for row in rows:
-            team = (row.get("team_name") or row.get("team") or "").strip()
-            if not team or team in ("League Average", ""):
-                continue
-            try:
-                pp_pct = float(row.get("power_play_pct") or 0)
-                pk_pct = float(row.get("penalty_kill_pct") or 0)
-                sh_pct = float(row.get("shooting_pct") or 0)
-                sv_pct = float(row.get("save_pct") or 0)
-                result["teams"][team] = {
-                    "pp_pct": pp_pct, "pk_pct": pk_pct,
-                    "sh_pct": sh_pct, "sv_pct": sv_pct,
-                    # PDO = SH% + SV%, expressed per-100 (~100 is "sustainable" —
-                    # far above/below signals regression is likely coming,
-                    # useful as a Monte Carlo confidence-interval widener).
-                    "pdo": round(sh_pct + sv_pct * 100, 1) if sv_pct < 2 else round(sh_pct + sv_pct, 1),
-                }
-            except (ValueError, TypeError):
-                continue
-        log(f"  Hockey Ref team stats: {len(result['teams'])} teams")
-    except Exception as exc:
-        log(f"Hockey Reference team stats: {exc}", "WARN")
-    return result
+            log(f"NHL skater value {season}: {exc}", "WARN")
+            return []
+    cur_rows = rows(current)
+    time.sleep(0.5)
+    pri_rows = rows(prior)
+    if not pri_rows:          # no prior season = cannot anchor the shrinkage; ship nothing rather than a current-season-only table
+        log("NHL skater value: prior season unavailable -- skipping (no skater injury adjustment)", "WARN")
+        return out
+    out["players"] = _nhl_skaters.build_skater_value(cur_rows, pri_rows)
+    vlog(f"  NHL skater value: {len(out['players'])} skaters ({current} now + {prior} prior)")
+    return out
 
 
 def fetch_futures_odds() -> dict:
@@ -5168,9 +5103,12 @@ def main() -> None:
     nhl_bracket          = fetch_nhl_playoff_bracket()    if S in ("nhl","all") else {}
     nhl_edge             = fetch_nhl_edge()               if S in ("nhl","all") else {}
     mp                   = fetch_moneypuck()              if S in ("nhl","all") else {}
-    hockeyviz            = fetch_hockeyviz()              if S in ("nhl","all") else {}
-    hockey_ref           = (fetch_hockey_reference()      if not args.no_reference else {}) if S in ("nhl","all") else {}
-    hockey_ref_teams     = (fetch_hockey_reference_team_stats() if not args.no_reference else {}) if S in ("nhl","all") else {}
+    nhl_skater_value     = fetch_nhl_skater_value()       if S in ("nhl","all") else {}
+    # hockeyviz / hockey-reference fetches retired 2026-10-03 (404 / stale + never read) -- see the RETIRED note above
+    # fetch_nhl_skater_value().  The bundle keys stay present-but-empty below.
+    hockeyviz: dict        = {"teams": {}}
+    hockey_ref: dict       = {}
+    hockey_ref_teams: dict = {}
 
     # F1 is no longer tracked in the engine — purged from the daily fetch.
     # Bundle keys are kept (empty) below so the frontend's d.get('f1',...)
@@ -5222,7 +5160,13 @@ def main() -> None:
     # for computeInjuryImpact() to key off. Stored alongside each league's
     # existing "teams" xG data in soccer_fbref.json so the frontend only
     # needs the one file it already fetches (loadSoccerFBref()).
-    if S in ("soccer","all"):
+    # DISABLED 2026-10-03 (SOCCER_ROSTER_FETCH_ENABLED): rosters existed ONLY so computeInjuryImpact() could map an injured
+    # player's name to a club -- and ESPN publishes NO soccer injuries: /soccer/{eng.1,esp.1,ger.1,ita.1,UEFA.champions,usa.1}/
+    # injuries returns {"injuries": []} for every league (verified live 2026-10-03, in season), and the roster endpoint's per-player
+    # `injuries` arrays are empty too.  So ~96 team-roster requests per run and ~1 MB of soccer_fbref.json (3,400 players, the
+    # file the app downloads) fed an injury impact that is always 0.  Nothing else reads `rosters` (grep).  Flip the constant
+    # back to True only if ESPN ever starts publishing soccer injuries; the app-side readers are still in place and fail open.
+    if S in ("soccer","all") and SOCCER_ROSTER_FETCH_ENABLED:
         for _lkey, _lcfg in ESPN_SOCCER_LEAGUES.items():
             if _lkey == "mls":
                 continue  # MLS fully retired 2026-09-27 -- no roster fetch at all
@@ -5501,7 +5445,8 @@ def main() -> None:
             "roster":       nhl_roster,
             "bracket":      nhl_bracket,
             "edge":         nhl_edge,
-            "hockeyviz":    hockeyviz,
+            "skaterValue":  nhl_skater_value,   # per-skater points/game for the app's NHL injury adjustment (nhlMC)
+            "hockeyviz":    hockeyviz,          # retired 2026-10-03 -- kept present-but-empty (see fetch_nhl_skater_value's note)
             "hockeyRef":    hockey_ref,
             "hockeyRefTeams": hockey_ref_teams,
             "props":        lm_props.get("nhl", []),

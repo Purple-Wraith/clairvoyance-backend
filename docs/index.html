@@ -6864,6 +6864,108 @@ function _nhlFormFactor(abbr,baseGfPg){
     return{mult:isFinite(mult)?mult:1,delta,n:rec.length,gfL};
   }catch(e){return none;}
 }
+// ═══ INJURY ADJUSTMENTS — shared helpers + NHL (added 2026-10-03, explicit request: scraped injury data must be USED, not just scraped) ═══
+// Data: window.__CV_DATA.injuries.nhl (ESPN /injuries via scripts/_espn_injuries.py: team already mapped to this app's keys, status,
+// position, estimated return) + window.__CV_DATA.nhl.skaterValue (scripts/_nhl_skaters.py: est. points/game per skater, keyed by
+// normalized name) + the goalie names the model already rates each team on (NHL[abbr]._liveGoalieStarter = MoneyPuck's highest-GP goalie,
+// whose gsax/hdsv feed goalieComposite(); edge.goalies[abbr].name = the NHL-stats goalie whose sv feeds it).
+//
+// DESIGN RULES (all enforced below, and by scripts/test_injury_wiring.py):
+//   (a) documented magnitude  (b) CAPPED  (c) FAIL-OPEN: no/stale/unmatched data => EXACTLY the pre-existing behaviour (frac 0, goalie
+//   factors 0)  (d) identity-matched: normalized full name + the injury row's own team (+ position group F/D to split real name
+//   collisions such as the two Sebastian Ahos); an ambiguous or unknown name is SKIPPED, never fuzzy-matched  (e) visible: nhlMC returns
+//   injAdj and every NHL card's reasoning string appends _nhlInjNote().
+//
+// SKATERS -- scoring only.  A skater's absence lowers HIS team's expected goals by
+//     frac = min(NHL_INJ_PLAYER_CAP, NHL_INJ_GOALS_PER_PT * (ppg - NHL_INJ_REPL_PPG[group]) * severity / _NHL_LG_GF60)
+//   Magnitude source: league scoring is ~2.9 goals/team/game and ~2.6-2.7 points (G+A) are credited per goal, so a skater at `ppg`
+//   points/game is involved in ~ppg/2.7 goals/game; his replacement (a call-up at ~NHL_INJ_REPL_PPG) supplies some of that and his
+//   linemates re-absorb ~40% of the rest => ~0.6/2.7 ~= 0.22, rounded DOWN to 0.20 goals per point/game above replacement.  Sanity
+//   anchor: public GAR/WAR puts a top-6 forward at ~+10 goals above replacement per 82 (~0.12/game); this gives (0.8-0.3)*0.20 = 0.10.
+//   The per-player cap (5% ~ 0.145 goals ~ 2.4 pts of win probability) binds only for the league's very top scorers, and the team cap
+//   (8%) stops a pile of IR stashes from swinging a game.  Points do not see defence, penalty killing or faceoffs, so this UNDER-states
+//   a shutdown D or a faceoff centre -- the intended, conservative direction.  Defensive impact on the OPPONENT's goals is not modelled.
+//   Not backtestable: ESPN keeps no historical injury snapshots, so the constants are judgment anchored to the numbers above, kept small.
+//   severity: Out / Injured Reserve / Suspension 1.0, Doubtful .75, Questionable / Day-To-Day .30; an Out/IR row whose own estimated
+//   return date has already passed counts half (ESPN often leaves a player listed after he is eligible to return).
+// GOALIES -- the model rates a team on its primary goalie's season stats (gsax/hdsv from MoneyPuck, sv from the NHL stats feed).  If THAT
+//   goalie is Out/IR, crediting (or debiting) his numbers is wrong, so his contribution is scaled by (1 - severity), i.e. neutralised to
+//   league average -- a move toward the model's own neutral value, never beyond the range the goalie term already spans (hGlv/aGlv are
+//   clamped to .87-1.13), and no replacement rating is invented (the 2026-10-03 backtest found no gain from rating the actual starter).
+const NHL_INJ_REPL_PPG={F:.30,D:.20},NHL_INJ_GOALS_PER_PT=.20,NHL_INJ_PLAYER_CAP=.05,NHL_INJ_TEAM_CAP=.08;
+const _INJ_STALE_H=72; // the injury list changes daily; a feed older than this is ignored (fail-open) rather than trusted
+// Same normalizer as scripts/_espn_injuries.norm_name (NFKD, strip accents, lowercase, non-alphanumerics -> space, collapse).
+function _injNorm(s){return String(s||'').normalize('NFKD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();}
+// ESPN status -> probability the player misses the game (0 = plays).  'Active' rows (listed but playing) and anything unknown = 0.
+function _injSev(status){
+  const s=String(status||'').toLowerCase().trim();
+  if(!s||s==='active')return 0;
+  if(/\bout\b|injured reserve|\bir\b|-il\b|suspen/.test(s))return 1;
+  if(s.includes('doubtful'))return .75;
+  if(s.includes('questionable')||s.includes('day-to-day'))return .30;
+  return 0;
+}
+// true when `ts` (ISO, or "YYYY-MM-DD HH:MM UTC") is missing/unparseable/older than `hours`.  Unknown age => treated as stale (fail-open).
+function _injStale(ts,hours){
+  let t=Date.parse(ts);
+  if(!isFinite(t)&&typeof ts==='string')t=Date.parse(ts.replace(' UTC','Z').replace(' ','T'));
+  return !isFinite(t)||(Date.now()-t)>hours*3600*1000;
+}
+function _injPct(x){return +(x*100).toFixed(1);}
+// One team's NHL injury adjustment.  Returns {frac, players:[{name,pos,status,pct,kind}], goalie:{mp,edge}, any}.  frac = fraction of the team's
+// expected goals removed (0 when nothing matched); goalie.mp/.edge = how much of the MoneyPuck-/NHL-feed-based goalie term to neutralise (0..1).
+function _nhlInjAdj(abbr){
+  const none={frac:0,players:[],goalie:{mp:0,edge:0},any:false};
+  try{
+    const D=window.__CV_DATA;if(!D||!abbr)return none;
+    const inj=(D.injuries&&D.injuries.nhl)||[];if(!inj.length||_injStale(D.generated,_INJ_STALE_H))return none;
+    const sv=D.nhl&&D.nhl.skaterValue&&D.nhl.skaterValue.players;
+    const T=(typeof NHL!=='undefined'&&NHL&&NHL[abbr])||{};
+    const mpName=_injNorm(T._liveGoalieStarter),edgeName=_injNorm(D.nhl&&D.nhl.edge&&D.nhl.edge.goalies&&D.nhl.edge.goalies[abbr]&&D.nhl.edge.goalies[abbr].name);
+    const out={frac:0,players:[],goalie:{mp:0,edge:0},any:false};
+    let sum=0;
+    for(const r of inj){
+      if(!r||r.team!==abbr)continue;
+      let sev=_injSev(r.status);if(!sev)continue;
+      if(sev>=1&&r.return){const t=Date.parse(r.return);if(isFinite(t)&&t<=Date.now())sev=.5;}
+      const pos=String(r.pos||'').toUpperCase(),nm=_injNorm(r.name);if(!nm)continue;
+      if(pos==='G'){
+        const hitMp=!!mpName&&nm===mpName,hitEdge=!!edgeName&&nm===edgeName;
+        if(!hitMp&&!hitEdge)continue;                         // a backup / third goalie on IR does not move the primary goalie's rating
+        if(hitMp)out.goalie.mp=Math.max(out.goalie.mp,sev);
+        if(hitEdge)out.goalie.edge=Math.max(out.goalie.edge,sev);
+        out.players.push({name:r.name,pos:'G',status:r.status,pct:0,kind:'goalie'});
+        continue;
+      }
+      const grp=pos==='D'?'D':(['C','L','R','LW','RW','W','F'].includes(pos)?'F':null);if(!grp||!sv)continue;
+      const m=(sv[nm]||[]).filter(e=>e&&e[0]===grp);if(m.length!==1)continue;   // unknown or ambiguous (same name AND same group) => skip
+      const above=m[0][1]-NHL_INJ_REPL_PPG[grp];if(!(above>0))continue;
+      const fr=Math.min(NHL_INJ_PLAYER_CAP,above*NHL_INJ_GOALS_PER_PT*sev/_NHL_LG_GF60);
+      if(!(fr>0))continue;
+      sum+=fr;out.players.push({name:r.name,pos,status:r.status,pct:_injPct(fr),kind:'skater'});
+    }
+    out.frac=Math.min(NHL_INJ_TEAM_CAP,sum);
+    out.any=out.frac>0||out.goalie.mp>0||out.goalie.edge>0;
+    return out.any?out:none;
+  }catch(e){return none;}
+}
+// One-line, human-readable account of what the injury adjustment did for a game (appended to every NHL card's reasoning); '' when nothing moved.
+function _nhlInjNote(mc){
+  try{
+    const a=mc&&mc.injAdj;if(!a)return'';
+    const side=(abbr,x)=>{
+      if(!x||!x.any)return'';
+      const sk=x.players.filter(p=>p.kind==='skater').map(p=>`${p.name} ${p.pos} ${_injSev(p.status)>=1?'OUT':String(p.status).toUpperCase()}`);
+      const gk=x.players.filter(p=>p.kind==='goalie').map(p=>`${p.name} G ${_injSev(p.status)>=1?'OUT':String(p.status).toUpperCase()}`);
+      const bits=[];
+      if(sk.length)bits.push(`${sk.join(', ')} -> scoring -${_injPct(x.frac)}%`);
+      if(gk.length)bits.push(`${gk.join(', ')} -> goalie rating set to league average`);
+      return`${abbr}: ${bits.join('; ')}`;
+    };
+    const parts=[side(mc.hA,a.h),side(mc.aA,a.a)].filter(Boolean);
+    return parts.length?` (injury adj: ${parts.join(' | ')})`:'';
+  }catch(e){return'';}
+}
 function nhlMC(hA,awA,n=25000,marketOU){
   const h=NHL[hA],aw=NHL[awA];if(!h||!aw)return null;
   const hfa=.055;
@@ -6901,13 +7003,16 @@ function nhlMC(hA,awA,n=25000,marketOU){
   // instead of being scraped and never read -- a secondary 30% weight,
   // not a replacement, since sv%/hdsv% are themselves largely what
   // produces a goalie's gsax in the first place and shouldn't double it.
-  const goalieComposite=t=>{
-    const gsaxPart=(t.gsax??0)*.7;
-    const svPart=t.sv!=null?(t.sv-.91)*100*.18:0;
-    const hdsvPart=t.hdsv!=null?(t.hdsv-.90)*100*.12:0;
+  // Injury adjustment (see the INJURY ADJUSTMENTS block above nhlMC): when the goalie a team is RATED on is Out/IR, his share of this
+  // composite is scaled by (1-severity) -- neutralised toward league average, fail-open to the exact old value (gk.mp = gk.edge = 0).
+  const injH=_nhlInjAdj(hA),injA=_nhlInjAdj(awA);
+  const goalieComposite=(t,gk)=>{
+    const gsaxPart=(t.gsax??0)*.7*(1-gk.mp);
+    const svPart=t.sv!=null?(t.sv-.91)*100*.18*(1-gk.edge):0;
+    const hdsvPart=t.hdsv!=null?(t.hdsv-.90)*100*.12*(1-gk.mp):0;
     return gsaxPart+svPart+hdsvPart;
   };
-  const hGlv=Math.max(.87,Math.min(1.13,1-(goalieComposite(aw)/80))),aGlv=Math.max(.87,Math.min(1.13,1-(goalieComposite(h)/80)));
+  const hGlv=Math.max(.87,Math.min(1.13,1-(goalieComposite(aw,injA.goalie)/80))),aGlv=Math.max(.87,Math.min(1.13,1-(goalieComposite(h,injH.goalie)/80)));
   // ga60 corroborates the opponent's own defensive strength on top of
   // the hv.def qualitative rating already in hOff/aOff above -- a real,
   // independently-scraped rate stat, kept small since hv.def already
@@ -6917,8 +7022,8 @@ function nhlMC(hA,awA,n=25000,marketOU){
   const aGaAdj=gaAdj(((h.ga60??_NHL_LG_GA60)-_NHL_LG_GA60)*-.03);
   // Recent own-scoring form (see NHL_FORM_* above) -- each team's OWN lambda only. Exactly 1.0 today (NHL_FORM_K=0).
   const hForm=_nhlFormFactor(hA,h.gf60),aForm=_nhlFormFactor(awA,aw.gf60);
-  const hLam=Math.max(.4,hOff*.55*hGlv*(1+hfa)*hZadj*hSadj*(1+mpAdj)*hStAdj*hSqAdj*hGaAdj*hForm.mult);
-  const aLam=Math.max(.4,aOff*.55*aGlv*(1-hfa*.5)*aZadj*aSadj*(1-mpAdj)*aStAdj*aSqAdj*aGaAdj*aForm.mult);
+  const hLam=Math.max(.4,hOff*.55*hGlv*(1+hfa)*hZadj*hSadj*(1+mpAdj)*hStAdj*hSqAdj*hGaAdj*hForm.mult*(1-injH.frac));
+  const aLam=Math.max(.4,aOff*.55*aGlv*(1-hfa*.5)*aZadj*aSadj*(1-mpAdj)*aStAdj*aSqAdj*aGaAdj*aForm.mult*(1-injA.frac));
   // Real bug fixed 2026-09-29: this used to ONLY check the hardcoded
   // TONIGHT array (a single stale entry from last season's Cup Final),
   // so for every real 2026-27 matchup ouLine silently fell back to a
@@ -6961,7 +7066,7 @@ function nhlMC(hA,awA,n=25000,marketOU){
   const gpConf=Math.min(1,Math.min(h.gp||0,aw.gp||0)/MIN_GP_FOR_FULL_CONFIDENCE);
   const damp=p=>0.5+(p-0.5)*gpConf;
   const hwPD=damp(hw/n),overPD=damp(ov/n),rl15D=damp(_hkMarginCal(rl15h/n)),rl15AD=damp(_hkMarginCal(rl15a/n)); // puck-line cover incl. empty-net margin calibration (see HOCKEY_PL_MARGIN_LOGIT_SHIFT)
-  return{hwP:hwPD,awP:1-hwPD,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:overPD,underP:1-overPD,otP:ot/n,ouLine,rl15:rl15D,rl15A:rl15AD,rlN:1-rl15D,stEdge,sqEdge,gpConf,formH:hForm,formA:aForm};
+  return{hwP:hwPD,awP:1-hwPD,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:overPD,underP:1-overPD,otP:ot/n,ouLine,rl15:rl15D,rl15A:rl15AD,rlN:1-rl15D,stEdge,sqEdge,gpConf,formH:hForm,formA:aForm,hA,aA:awA,injAdj:{h:injH,a:injA}};
 }
 function nhlEns(hA,awA,marketOU,mkt){
   const h=NHL[hA],aw=NHL[awA];if(!h||!aw)return{p:.5};
@@ -6982,7 +7087,7 @@ function nhlEns(hA,awA,marketOU,mkt){
   // separately via mpBoost below, so this isn't losing real signal, just
   // no longer crashing on its absence.
   const xgf=(h.xgf5!=null&&aw.xgf5!=null&&(h.xgf5+aw.xgf5)>0)?h.xgf5/(h.xgf5+aw.xgf5):.5;
-  const gE=(h.gsax!=null&&aw.gsax!=null)?(h.gsax-aw.gsax)/100:0;
+  const gE=(h.gsax!=null&&aw.gsax!=null)?(h.gsax*(1-(mc.injAdj?mc.injAdj.h.goalie.mp:0))-aw.gsax*(1-(mc.injAdj?mc.injAdj.a.goalie.mp:0)))/100:0; // injury: a primary goalie who is Out/IR is not credited his gsax (same rule as nhlMC's goalieComposite)
   const hvM=((h.hv.off-aw.hv.def)+(h.hv.fin-aw.hv.fin)*.5)*.04;
   const sm=((h.sw||0)-(aw.sw||0))*.015;
   // Prefer the real, live-fetched MoneyPuck team data (MONEYPUCK.teams,
@@ -7146,7 +7251,7 @@ function renderNHLTonight(){
       const favEV=hP>=aP?hEV:aEV,dogEV=hP>=aP?aEV:hEV;
       const plDogP=Math.max(0.25,1-plP);
       const favGsax=hP>=.5?(h.gsax||0):(aw.gsax||0),dogGsax=hP>=.5?(aw.gsax||0):(h.gsax||0);
-      const _gsaxStr=`GSAx: ${favGsax>=0?'+':''}${favGsax.toFixed(1)} vs ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)}`;
+      const _gsaxStr=`GSAx: ${favGsax>=0?'+':''}${favGsax.toFixed(1)} vs ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)}`+_nhlInjNote(mc);
       const _ensStr1=`MC ${(ens.mc*100).toFixed(0)}% / xGF ${(ens.xgf*100).toFixed(0)}% / ELO ${(ens.elo*100).toFixed(0)}%`;
       const _fav1Home=hP>=aP;
       const _nm1=_evalMkts([
@@ -7258,7 +7363,7 @@ function renderNHLTonight(){
     const favEV2=hP>=aP?hEV:aEV,dogEV2=hP>=aP?aEV:hEV;
     const plDogP2=Math.max(0.25,1-plP);
     const hGsax=h.gsax||0,aGsax=aw.gsax||0,favGsax=hP>=.5?hGsax:aGsax,dogGsax=hP>=.5?aGsax:hGsax;
-    const _g2gsax=`GSAx: ${favGsax>=0?'+':''}${favGsax.toFixed(1)} vs ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)}`;
+    const _g2gsax=`GSAx: ${favGsax>=0?'+':''}${favGsax.toFixed(1)} vs ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)}`+_nhlInjNote(mc);
     const _ensStr2=`MC ${(ens.mc*100).toFixed(0)}% / xGF ${(ens.xgf*100).toFixed(0)}% / ELO ${(ens.elo*100).toFixed(0)}%`;
     const _nm2=_evalMkts([
       {label:`${favTeam} ML`,prob:favP,evVal:favEV2,side:'mlFav'},
@@ -9242,6 +9347,57 @@ window.NFL_ENS=window.NFL_ENS||(typeof S!=='undefined'?S.g('nfl_ens'):null)||{mc
 // team has no standings entry yet (very early season / bye-week gaps),
 // same "never block the card, use real market data instead" principle
 // CFB's FCS fallback established.
+// ── NFL injury adjustment (added 2026-10-03; helpers _injNorm/_injSev/_injStale live in the NHL INJURY ADJUSTMENTS block above nhlMC) ──
+// Data: docs/nfl_injuries.json (D.injuriesByTeam; scripts/fetch_nfl.py -- it was {"teams":{}} until the 2026-10-03 abbreviation fix) joined
+// to docs/nfl_player_stats.json (D.playerStats[team]: that team's depth-chart QB1, WR1+WR2, RB1, TE1 -- exactly the "key" players;
+// nobody else is ever adjusted).  Identity: the ESPN athlete id when BOTH sides carry one (rows written before the id field existed fall
+// back to normalized full name + same position); an id mismatch is never overridden by a name match.  No match => no adjustment.
+// MAGNITUDE (points of spread, i.e. of margin), each x severity (_injSev: Out/IR 1, Doubtful .75, Questionable .30):
+//   QB1  NFL_INJ_QB_PTS = 2.5.  Market/analyst consensus is ~3 points for an average starter -> average backup, 5-7+ for an elite QB.  We use
+//        a flat 2.5 (below the consensus floor) because (i) quality is not rated here, (ii) season point-differential already contains
+//        some backup snaps when a starter has been out for weeks, and (iii) the depth chart can lag, so over-adjusting is the bigger risk.
+//   WR1/WR2/RB1/TE1  NFL_INJ_SKILL_PTS = 0.4 each (published skill-position values run ~0.5-1 for a star, ~0 for depth), team skill total
+//        capped at NFL_INJ_SKILL_CAP = 1.0.      Whole-team cap NFL_INJ_TEAM_CAP = 3.5 so a long list can never swing a game.
+//   Total: the lost production is the injured team's OWN scoring, so the game total drops too -- but only NFL_INJ_TOTAL_SHARE = 50% of the
+//        margin effect is applied (the O/U market is priced separately and this is the least verifiable leg).
+// ONLY the model-derived margin is adjusted: when a team has no standings differential yet the margin is anchored to the MARKET spread,
+// which already prices the injury, so adjusting it would double count -- the margin is left alone there (the note says so).
+// Fail-open: no/stale (> _NFL_INJ_STALE_H) injury file, game > 8 days away (a week-specific designation does not apply), or no match => 0.
+// Not backtestable (ESPN keeps no historical injury snapshots); constants are judgment anchored to the figures above and kept small.
+const NFL_INJ_QB_PTS=2.5,NFL_INJ_SKILL_PTS=.4,NFL_INJ_SKILL_CAP=1.0,NFL_INJ_TEAM_CAP=3.5,NFL_INJ_TOTAL_SHARE=.5,_NFL_INJ_STALE_H=60;
+function _nflInjAdj(abbr,g){
+  const none={pts:0,players:[],any:false};
+  try{
+    const D=_NFL_DATA;if(!D||!abbr)return none;
+    const rows=(D.injuriesByTeam&&D.injuriesByTeam[abbr])||[],key=(D.playerStats&&D.playerStats[abbr])||[];
+    if(!rows.length||!key.length||_injStale(D.generatedAt&&D.generatedAt.injuries,_NFL_INJ_STALE_H))return none;
+    if(g&&g.date){const dt=Date.parse(g.date);if(isFinite(dt)&&dt-Date.now()>8*864e5)return none;}
+    const out={pts:0,players:[],any:false};let qb=0,skill=0;
+    for(const r of rows){
+      let sev=_injSev(r.status);if(!sev)continue;
+      if(sev>=1&&r.estimatedReturn){const t=Date.parse(r.estimatedReturn);if(isFinite(t)&&t<=Date.now())sev=.5;}
+      const pos=String(r.position||'').toUpperCase();if(!['QB','WR','RB','TE'].includes(pos))continue;
+      const nm=_injNorm(r.player);
+      const p=key.find(k=>String(k.position||'').toUpperCase()===pos&&((r.playerId&&k.id)?String(k.id)===String(r.playerId):(!!nm&&_injNorm(k.name)===nm)));
+      if(!p)continue;
+      if(pos==='QB'){const v=NFL_INJ_QB_PTS*sev;if(v>qb)qb=v;out.players.push({name:r.player,pos,status:r.status,pts:+v.toFixed(2)});}
+      else{const v=NFL_INJ_SKILL_PTS*sev;skill+=v;out.players.push({name:r.player,pos,status:r.status,pts:+v.toFixed(2)});}
+    }
+    out.pts=Math.min(NFL_INJ_TEAM_CAP,qb+Math.min(NFL_INJ_SKILL_CAP,skill));
+    out.any=out.pts>0;
+    return out.any?out:none;
+  }catch(e){return none;}
+}
+// Card text for nflMC's injury adjustment ('' when nothing matched).  `mc.inj` is nflMC's own record of what it applied.
+function _nflInjNote(mc,g){
+  try{
+    const a=mc&&mc.inj;if(!a||!(a.h.any||a.a.any))return'';
+    const side=(abbr,x)=>x.any?`${abbr}: ${x.players.map(p=>`${p.name} ${p.pos} ${_injSev(p.status)>=1?'OUT':String(p.status).toUpperCase()}`).join(', ')} (-${x.pts.toFixed(1)} pts)`:'';
+    const parts=[side(g.home,a.h),side(g.away,a.a)].filter(Boolean).join(' | ');
+    return a.marginApplied?`Injury adjustment: ${parts}; margin ${a.margin>=0?'+':''}${a.margin.toFixed(1)} for ${g.home}, total ${a.total.toFixed(1)}. `
+      :`Injury note: ${parts} -- margin NOT adjusted (this projection is anchored to the market spread, which already prices it); total ${a.total.toFixed(1)}. `;
+  }catch(e){return'';}
+}
 function nflMC(hA,awA,n,ouLine,g){
   const D=_NFL_DATA;if(!D)return null;
   const hS=D.standings[hA],aS=D.standings[awA];
@@ -9268,7 +9424,10 @@ function nflMC(hA,awA,n,ouLine,g){
   const hTO=_n(hDefAllowed.totalTakeaways),aTO=_n(aDefAllowed.totalTakeaways);
   if(hTO!=null&&aTO!=null)toAdjPts=Math.max(-1.5,Math.min(1.5,(hTO-aTO)*0.15));
   const hfaApplied=g?.neutralSite?0:_nflHFA();
-  const margin0=hasDiff?((hDiffPg-aDiffPg)+hfaApplied+yardsAdjPts+toAdjPts):(marketMargin+yardsAdjPts+toAdjPts);
+  // Injuries (see the NFL injury adjustment block above): home-perspective margin shift, model-derived margin ONLY (see its note).
+  const injH=_nflInjAdj(hA,g),injA=_nflInjAdj(awA,g);
+  const injMargin=hasDiff?(injA.pts-injH.pts):0;
+  const margin0=hasDiff?((hDiffPg-aDiffPg)+hfaApplied+yardsAdjPts+toAdjPts+injMargin):(marketMargin+yardsAdjPts+toAdjPts);
   // Real bug, found auditing why every single player prop across a real
   // slate came back UNDER (30 of 31 rows on one real game): this summed
   // BOTH teams' own points-ALLOWED (defense) and called that the game's
@@ -9298,6 +9457,8 @@ function nflMC(hA,awA,n,ouLine,g){
   }else{
     baseTotal=_NFL_LG_TOTAL;
   }
+  const injTotal=-(injH.pts+injA.pts)*NFL_INJ_TOTAL_SHARE; // lost production is the injured team's own scoring (half applied -- see the block above)
+  baseTotal+=injTotal;
   const wxKey=g&&(g.id||(g.city+g.date));
   const wx=wxKey?_CFB_WX_CACHE[wxKey]:null; // shared weather cache — see note above on why CFB's weather fns are reused as-is
   const wxImpact=wx?cfbWeatherImpact(wx):{totalAdj:0,label:''};
@@ -9332,6 +9493,7 @@ function nflMC(hA,awA,n,ouLine,g){
     // simulation off the exact same baseline this game-level sim uses,
     // without duplicating margin0/baseTotal's own derivation logic.
     margin0:+margin0.toFixed(2),baseTotal:+baseTotal.toFixed(2),
+    inj:{h:injH,a:injA,margin:injMargin,total:injTotal,marginApplied:hasDiff},
   };
 }
 // Beta-binomial posterior on this season's actual W-L record (standings-
@@ -9510,7 +9672,7 @@ function _nflGameCard2(g){
   const hS=D.standings[g.home]||{},aS=D.standings[g.away]||{};
   const injH=(D.injuriesByTeam[g.home]||[]).filter(i=>i.status&&i.status.toLowerCase()!=='active');
   const injA=(D.injuriesByTeam[g.away]||[]).filter(i=>i.status&&i.status.toLowerCase()!=='active');
-  const injTxt=(injH.length?`${g.home} injury notes: ${injH.slice(0,2).map(i=>i.player+' ('+i.status+(i.injury?', '+i.injury:'')+')').join('; ')}. `:'')
+  const injTxt=_nflInjNote(mc,g)+(injH.length?`${g.home} injury notes: ${injH.slice(0,2).map(i=>i.player+' ('+i.status+(i.injury?', '+i.injury:'')+')').join('; ')}. `:'')
     +(injA.length?`${g.away} injury notes: ${injA.slice(0,2).map(i=>i.player+' ('+i.status+(i.injury?', '+i.injury:'')+')').join('; ')}. `:'');
   // Three separate ML/SPREAD/O-U reasoning paragraphs, same structure CFB's
   // own game cards already use (_cfbPickReasoning/mlReasoning/sprdReasoning/
@@ -10241,7 +10403,7 @@ function renderNHLGamesOffline(){
     const _nhlFavEVOff=hP>=aP?hEV:aEV,_nhlDogEVOff=hP>=aP?aEV:hEV;
     const _plDogOff=Math.max(0.25,1-plP);
     const favGsax=hP>=.5?(h.gsax||0):(aw.gsax||0),dogGsax=hP>=.5?(aw.gsax||0):(h.gsax||0);
-    const _g3gsax=`GSAx: ${favGsax>=0?'+':''}${favGsax.toFixed(1)} vs ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)}`;
+    const _g3gsax=`GSAx: ${favGsax>=0?'+':''}${favGsax.toFixed(1)} vs ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)}`+_nhlInjNote(mc);
     const _ensStrOff=`MC ${(ens.mc*100).toFixed(0)}% / xGF ${(ens.xgf*100).toFixed(0)}% / ELO ${(ens.elo*100).toFixed(0)}%`;
     const _ouLOff=g.ou||5.5;
     const _nmOff=_evalMkts([
@@ -10415,7 +10577,7 @@ function _nhlUpcomingCardRaw(g,dayIdx){
   // (near the top of this file) for the full rationale.
   const bm=nm.best,evPct=(bm.evVal>=0?'+':'')+(bm.evVal*100).toFixed(1),bp=(bm.prob*100).toFixed(1);
   const favGsax=hP>=.5?(h.gsax||0):(aw.gsax||0),dogGsax=hP>=.5?(aw.gsax||0):(h.gsax||0);
-  const gsaxStr=`GSAx: ${favGsax>=0?'+':''}${favGsax.toFixed(1)} vs ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)}`;
+  const gsaxStr=`GSAx: ${favGsax>=0?'+':''}${favGsax.toFixed(1)} vs ${dogGsax>=0?'+':''}${dogGsax.toFixed(1)}`+_nhlInjNote(mc);
   const stStr=mc?.stEdge!=null?` / ST ${(mc.stEdge>=0?'+':'')+mc.stEdge.toFixed(1)}pp`:'';
   const sqStr=mc?.sqEdge!=null?` / SQ ${(mc.sqEdge>=0?'+':'')+mc.sqEdge.toFixed(1)}pp`:'';
   const _blSum=_hkBlendSummary(ens.mkt).replace(/\.$/,'');
@@ -11657,6 +11819,11 @@ function _hkBigMarginRate(teamId,allGames){
 // resolve a real result even if someone tried to wire it in. Settlement
 // stays exclusively on _LIIGA_DATA/_SHL_DATA (Flashscore), which is
 // the only source with real per-game state/homeScore/awayScore.
+// DISPLAY-ONLY (confirmed 2026-10-03 -- nothing in the model reads these files): the point-in-time backtest
+// (scripts/backtest_quanthockey_signal.py, 89 settled bets; result recorded in its docstring and commit a4437ce2) found NO usable
+// signal -- PK%/SV% correlated the wrong way and LIIGA's SH% flipped sign between two valid snapshots, i.e. noise -- and its own bar
+// (4-6 weeks of weekly snapshots and ~50-100 settled bets per league) is not met yet. So there is deliberately NO model term and no
+// switch for one; anything on screen that cites QuantHockey is a comparison chart, never an input to a probability.
 let _LIIGA_QH_DATA=null,_SHL_QH_DATA=null,_NLA_QH_DATA=null,_EXTRALIGA_QH_DATA=null;
 function loadLiigaQuantHockeyData(){
   if(_LIIGA_QH_DATA)return Promise.resolve(_LIIGA_QH_DATA);
@@ -11771,7 +11938,7 @@ function _hkCompareRadarHTML(uid,homeName,awayName,league,hTeam,aTeam,hRates,aRa
   const offSvg=_matchupRadarSVG(['Shots/GP','SH%','PP%','Goals/GP'],_hkOffenseRadarValuesQH(hQH),_hkOffenseRadarValuesQH(aQH),uid+'_o');
   const defSvg=_matchupRadarSVG(['GA/GP','SV%','PK%'],_hkDefenseRadarValuesQH(hQH,hRates),_hkDefenseRadarValuesQH(aQH,aRates),uid+'_d');
   return _radarTabPanelHTML(uid,[{label:'MATCHUP',svg:matchupSvg},{label:'OFFENSE',svg:offSvg},{label:'DEFENSE',svg:defSvg}])
-    +`<div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">OFFENSE/DEFENSE from a manually-imported QuantHockey snapshot (${qhData.generated_at||'date unknown'}) -- refreshed periodically, not live.</div>`;
+    +`<div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">OFFENSE/DEFENSE from a manually-imported QuantHockey snapshot (${qhData.generated_at||'date unknown'}) -- refreshed periodically, not live. Comparison only: not used in the win-probability model.</div>`;
 }
 // Shared by Liiga and SHL COMPARE panels -- same team-object shape
 // ({gp,pts,gf,ga,gm,prevSeason}), same blended-rate approach (see
@@ -24296,7 +24463,18 @@ async function renderNewsSport(sport){
 //     "rating" system was needed: MLB's baseW() branch already keys off
 //     the injury record's own `pos` field, so the roster only needed to
 //     supply name→team, which the ESPN roster endpoint gives directly.
-//   - WNBA/soccer (5 leagues)/tennis/F1/CFB/NFL: no roster+rating dataset
+//   STATUS 2026-10-03 (injury data audit -- "scraped but never used" pass):
+//     * NHL: NO LONGER goes through this function's roster path (it never matched: NHL[].key is empty). nhlMC applies a capped,
+//       identity-matched skater-scoring + primary-goalie adjustment itself (_nhlInjAdj; computeInjuryImpact('nhl') just reports it).
+//     * NFL: nflMC applies a capped QB1 / WR1-2 / RB1 / TE1 margin+total adjustment (_nflInjAdj) from docs/nfl_injuries.json.
+//     * CFB: deliberately NOT wired. ESPN publishes ~3 college injury rows for ~130 FBS teams, so "no row" cannot be read as "healthy";
+//       adjusting only the handful of teams that happen to be listed would bias every other game. Revisit if a real CFB injury source
+//       appears.
+//     * Soccer (cl/pl/liga/bl/ita/mls): deliberately NOT wired. ESPN's soccer /injuries endpoint returns an empty list for every
+//       league (verified live 2026-10-03, mid-season) and the roster payloads carry no injuries either, so injury impact is always 0
+//       and the per-league roster download that only fed this map was switched off (SOCCER_ROSTER_FETCH_ENABLED in
+//       clairvoyance_update.py). The buildInjuryRoster() soccer readers below stay as harmless fail-open code.
+//   - (historical note, pre-2026-10-03) WNBA/soccer (5 leagues)/tennis/F1/CFB/NFL: no roster+rating dataset
 //     exists at all, so computeInjuryImpact() is never called for them —
 //     injuries for these sports (WNBA now fetched backend-side as of this
 //     audit — see fetch_injuries_all() in clairvoyance_update.py) have
@@ -24349,6 +24527,13 @@ function buildInjuryRoster(){
 
 // Returns {penalty (0-0.12), flag (bool), players []} for team vs their sport's injury list
 function computeInjuryImpact(teamAbbr,sport){
+  // NHL: the real, capped, identity-matched adjustment now lives INSIDE nhlMC (_nhlInjAdj -- scoring lambda + goalie term), so this returns
+  // penalty 0 (no second win-probability nudge, no double count) and only carries the matched players for injFlagHTML-style chips.  The
+  // generic name->roster path below never matched NHL anyway (NHL[].key is empty) and its flat .03/.045/.08 weights were uncalibrated.
+  if(String(sport).toLowerCase()==='nhl'){
+    const a=_nhlInjAdj(teamAbbr);
+    return{penalty:0,flag:a.any,players:a.players.map(p=>({name:p.name,pos:p.pos,status:p.status,pen:p.pct}))};
+  }
   const injs=(window.__CV_DATA?.injuries||{})[sport.toLowerCase()]||[];
   if(!injs.length)return{penalty:0,flag:false,players:[]};
   const roster=window._injRoster||buildInjuryRoster();

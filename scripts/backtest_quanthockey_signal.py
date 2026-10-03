@@ -60,6 +60,14 @@ QuantHockey into liigaMC/shlMC/nlaMC/extraligaMC's win-probability calc
 this" comment in docs/app.html for why that boundary exists and must
 not be crossed without exactly this kind of validation first).
 
+LAST RESULT / DECISION (recorded 2026-10-03, from the 2026-09-28 run in commit a4437ce2 -- not re-run since: it reads the settled-bets
+ledger from Supabase, which the injury-data audit was not allowed to touch): 89 usable settled bets, NO usable signal.  PK% and SV%
+correlated NEGATIVELY with outperformance in LIIGA (n=22) and SHL (n=18), and LIIGA's SH% correlation flipped sign (+0.27 -> -0.12)
+between two equally valid snapshots -- a real effect does not do that.  OU samples (5-7 per league) are too small to read.  So the
+QuantHockey files are DISPLAY-ONLY (the COMPARE radar in docs/app.html) and deliberately feed no win-probability term.  Re-run once the
+bar above is met (4-6 weeks of weekly snapshot commits AND ~50-100 settled bets per league) before even considering a term; if it ever
+shows a stable, correctly-signed correlation, wire it behind a clearly named constant, capped, never into settlement.
+
 Usage:
   python3 scripts/backtest_quanthockey_signal.py
 """

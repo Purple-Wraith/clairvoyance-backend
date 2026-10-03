@@ -29,6 +29,9 @@ from pathlib import Path
 
 import requests
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _espn_injuries  # pure ESPN injuries parser (athlete-level team abbreviation + athlete id)
+
 ROOT = Path(__file__).resolve().parent.parent
 TEAMS_OUT = ROOT / "docs" / "nfl_teams.json"
 SCHEDULE_OUT = ROOT / "docs" / "nfl_schedule.json"
@@ -530,7 +533,7 @@ def fetch_all_player_stats(roster: list[dict], season: int) -> dict:
             time.sleep(0.1)
             if not stats.get("games"):
                 continue
-            rows.append({"name": p["name"], "position": p["position"], **stats})
+            rows.append({"name": p["name"], "position": p["position"], "id": p["id"], **stats})
         out[abbr] = rows
         _log(f"  {abbr}: {len(rows)}/{len(players)} skill players with real {season} stats  ({i + 1}/{len(roster)})")
         time.sleep(0.2)
@@ -634,7 +637,7 @@ def fetch_all_player_stats_blended(roster: list[dict], current_year: int, curren
                 stats = _blend_stats(cur_stats, prior_stats) if cur_stats.get("games") else prior_stats
             if not stats.get("games"):
                 continue
-            rows.append({"name": p["name"], "position": p["position"], **stats})
+            rows.append({"name": p["name"], "position": p["position"], "id": p["id"], **stats})
         out[abbr] = rows
         _log(f"  {abbr}: {len(rows)}/{len(players)} skill players with real stats  ({i + 1}/{len(roster)})")
         time.sleep(0.2)
@@ -652,27 +655,11 @@ def fetch_injuries() -> dict:
     except Exception as exc:
         _log(f"  injuries FAILED: {exc}")
         return {"teams": {}}
-    teams: dict[str, list[dict]] = {}
-    for entry in d.get("injuries") or []:
-        team = (entry.get("team") or {})
-        abbr = team.get("abbreviation")
-        if not abbr:
-            continue
-        rows = []
-        for item in entry.get("injuries") or []:
-            athlete = item.get("athlete") or {}
-            details = item.get("details") or {}
-            rows.append({
-                "player": athlete.get("displayName"),
-                "position": (athlete.get("position") or {}).get("abbreviation"),
-                "status": item.get("status"),
-                "injury": details.get("type") or item.get("shortComment"),
-                "estimatedReturn": details.get("returnDate"),
-                "comment": item.get("longComment") or item.get("shortComment"),
-                "date": item.get("date"),
-            })
-        teams[abbr] = rows
-    return {"teams": teams}
+    # Bug fixed 2026-10-03: this read entry["team"]["abbreviation"], which ESPN no longer sends on the team entry
+    # (only team.id/displayName) -- every team hit `continue`, so docs/nfl_injuries.json was {"teams": {}} while ESPN
+    # listed ~800 rows.  Parsing (athlete-level team abbreviation, athlete id as `playerId`, dropping the ~600 "Active" rows
+    # both app.html consumers already ignore) lives in _espn_injuries.parse_nfl_injuries so it is testable offline.
+    return _espn_injuries.parse_nfl_injuries(d)
 
 
 def fetch_transactions() -> dict:
