@@ -36,6 +36,7 @@ APP = (DOCS / "app.html").read_text()
 ALLOWED_CALLERS = {
     "renderNHLTonight", "renderNHLGamesOffline", "_nhlGameCard", "_nhlUpcomingCard", "_nbaGameCard", "_cfbGameCard", "_nflGameCard2",
     "_renderSocMatchCard", "_liigaMatchCard", "_shlMatchCard", "_nlaMatchCard", "_extraligaMatchCard",
+    "_pickLogo",  # in-app locked-pick rows (pending/settled lists) -- in-app only, never an export or email
 }
 LOGO_HOSTS = ("a.espncdn.com", "static.flashscore.com")
 PNG_1X1 = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360f8cfc0f00f0002c60180e5e7b4b30000000049454e44ae426082")
