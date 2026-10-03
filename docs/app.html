@@ -570,12 +570,12 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .ptag-sub{border:1px solid rgba(240,0,255,.6);color:#f000ff;text-shadow:0 0 6px rgba(240,0,255,.8)}
 .ptag-lg{border:1px solid var(--nc);color:var(--nc)}
 .ptag-date{border:1px solid rgba(255,255,255,.15);color:var(--nc)}
-.prow2-side{display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex:0 0 auto}
+.prow2-side{display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex:0 0 auto;align-self:stretch}
 .prow2-match{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:15px;color:var(--t2);flex-wrap:wrap}
 .prow2-match em{font-style:normal;color:var(--t3)}
 .prow2-pick{font-family:var(--mono);font-size:18px;color:var(--t)}
 .prow2-meta{font-family:var(--mono);font-size:15px;color:var(--t3)}
-.prow2-fin{font-family:var(--mono);font-size:15px;color:var(--t2);text-align:right}@media(max-width:560px){.prow2-fin{text-align:left}}.prow2-fin.dim{color:var(--t3)}
+.prow2-fin{font-family:var(--mono);font-size:15px;color:var(--t2);text-align:right;margin-top:auto;align-self:flex-end}.prow2-fin.dim{color:var(--t3)}
 .prow2.card{margin-bottom:7px}
 .prow2-act .btn-sm:not(.btn-win):not(.btn-o){background:transparent;box-shadow:inset 0 0 0 1px currentColor}
 .prow2-act{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
@@ -3805,6 +3805,45 @@ function _gradeChipHtml(p){
   const lbl=g==='PREMIUM'?'PREMIUM':'// '+g;
   return`<span class="pill ${cls}">${lbl}</span>`;
 }
+// ── Per-sport LOCKED tab (2026-10-03): each sport / league page gets a LOCKED tab listing that sport's locked picks in the same uniform row (pending first,
+// then the most recent settled). The tab button + panel are injected once at load so every sport shares one implementation.
+const _SPORT_LOCK_TAG={nhl:'NHL',nba:'NBA',shl:'SHL',liiga:'LIIGA',nla:'NLA',extraliga:'EXTRALIGA',pl:'PL',liga:'LIGA',ita:'SERIEA',cl:'CL',cfb:'CFB',nfl:'NFL'};
+function _renderSportLocked(sport){
+  const el=document.getElementById(sport+'-locked-list');if(!el)return;
+  const tag=_SPORT_LOCK_TAG[sport];
+  const all=getP().filter(p=>p&&p.outcome!=='_removed'&&String(window._normSport(p)||'').toUpperCase()===tag);
+  if(!all.length){el.innerHTML=`<div class="empty">NO LOCKED ${tag} BETS</div>`;return;}
+  const pend=all.filter(p=>p.outcome==='pending').sort((a,b)=>(a.date||'').localeCompare(b.date||'')||((a.lockedAt||0)-(b.lockedAt||0)));
+  const setl=all.filter(p=>p.outcome!=='pending').sort((a,b)=>(b.date||'').localeCompare(a.date||'')||((b.lockedAt||0)-(a.lockedAt||0)));
+  const shown=setl.slice(0,60);
+  const w=setl.filter(p=>p.outcome==='win').length,l=setl.filter(p=>p.outcome==='loss').length;
+  const after=`setTimeout(()=>_renderSportLocked('${sport}'),400)`;
+  const row=p=>_pickRowHTML(p,{mode:p.outcome==='pending'?'pending':'settled',wrapClass:'card',dateLbl:p.outcome==='pending'?(p.date||''):'',why:true,actions:_pickBtnsHTML(p,after),removeHtml:_pickRemoveHTML(p,after)});
+  el.innerHTML=`<div class="nhlgk" style="margin-bottom:8px"><span class="nhlgk-l">${tag} LOCKED</span><span class="nhlgk-i">${pend.length} <small>pending</small></span><span class="nhlgk-i">${w}W-${l}L <small>settled</small></span></div>`
+    +(pend.length?`<div class="sh" style="margin:6px 0"><span class="g"></span> PENDING</div>`+pend.map(row).join(''):'')
+    +(shown.length?`<div class="sh" style="margin:10px 0 6px"><span class="g"></span> SETTLED${setl.length>shown.length?` · LATEST ${shown.length} OF ${setl.length}`:''}</div>`+shown.map(row).join(''):'');
+}
+function _injectLockedTabs(){
+  try{
+    Object.keys(_SPORT_LOCK_TAG).forEach(sport=>{
+      if(document.getElementById(sport+'-locked-list'))return;
+      const nav=document.getElementById(sport+'-in'),sa=document.getElementById(sport+'-sa');
+      if(nav&&sa){ // inav sports: the generic T(sport,tab) switcher
+        nav.insertAdjacentHTML('beforeend',`<button class="nb" onclick="T('${sport}','locked')">LOCKED</button>`);
+        sa.insertAdjacentHTML('beforeend',`<div id="${sport}-tab-locked" class="tab"><div id="${sport}-locked-list"></div></div>`);
+        return;
+      }
+      const fb=sport==='cfb'?{nav:'cfb-innav-config',panel:'cfb-tab-config',navId:'cfb-innav-locked',panelId:'cfb-tab-locked',fn:'cfbSubTab'}
+        :sport==='nfl'?{nav:'nfl2-innav-config',panel:'nfl2-tab-config',navId:'nfl2-innav-locked',panelId:'nfl2-tab-locked',fn:'nflSubTab2'}:null;
+      if(!fb)return;
+      const b=document.getElementById(fb.nav),pn=document.getElementById(fb.panel);
+      if(!b||!pn)return;
+      b.insertAdjacentHTML('afterend',`<button class="sb2" id="${fb.navId}" onclick="${fb.fn}('locked')">LOCKED</button>`);
+      pn.insertAdjacentHTML('afterend',`<div id="${fb.panelId}" class="subp" style="display:none"><div class="sa"><div id="${sport}-locked-list"></div></div></div>`);
+    });
+  }catch(e){}
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_injectLockedTabs);else _injectLockedTabs();
 // One layout for every locked pick, pending or settled (2026-10-03): league tag + grade tag, matchup, the pick, price/type/probability, then the
 // final score (or AWAITING FINAL), with the result controls in the same slot on the right (full width under the text on a phone).
 // o: {mode:'pending'|'settled', actions:html (pending buttons), removeHtml:html (settled), dateLbl, why:bool, title, legHtml, pickPrefix, wrapClass}
@@ -3813,9 +3852,9 @@ function _pickBtnsHTML(p,after){
   const a=after?';'+after:'';
   return`<button class="btn btn-win btn-sm" style="font-size:15px" onclick="recR('${p.id}','win')${a}">✓ WIN</button>
     <button class="btn btn-o btn-sm" style="font-size:15px;color:var(--hc);border-color:var(--hc)" onclick="recR('${p.id}','loss')${a}">✗ LOSS</button>
-    <button class="btn btn-sm" style="font-size:15px;color:var(--t3);border-color:var(--t3);padding:2px 7px" onclick="removePick('${p.id}')">✕ REMOVE</button>`;
+    <button class="btn btn-sm" style="font-size:15px;color:var(--t3);border-color:var(--t3);padding:2px 7px" onclick="removePick('${p.id}')${a}">✕ REMOVE</button>`;
 }
-function _pickRemoveHTML(p){return`<button class="btn btn-sm" style="font-size:15px;color:var(--t3);border-color:var(--t3);padding:2px 7px" onclick="removePick('${p.id}')">✕ REMOVE</button>`;}
+function _pickRemoveHTML(p,after){return`<button class="btn btn-sm" style="font-size:15px;color:var(--t3);border-color:var(--t3);padding:2px 7px" onclick="removePick('${p.id}')${after?';'+after:''}">✕ REMOVE</button>`;}
 const _PICK_LOGO_SPORT={NHL:'nhl',NBA:'nba',NFL:'nfl',MLB:'mlb',WNBA:'wnba',CFB:'cfb',PL:'soccer',LIGA:'soccer',SERIEA:'soccer',BUND:'soccer',MLS:'soccer',CL:'soccer',LIIGA:'liiga',SHL:'shl',NLA:'nla',EXTRALIGA:'extraliga',WORLDCUP:'countries',WORLD_CUP:'countries'};
 function _pickLogo(p,side){
   try{
@@ -3831,14 +3870,18 @@ function _titleWithLogos(p,sportOverride){
     return`<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${_pickLogo(q,'a')}${_pickLogo(q,'h')}<span>${_gameTitle(p.hA,p.awA,sportOverride||p.sport)}</span></span>`;
   }catch(e){return _gameTitle(p.hA,p.awA,sportOverride||p.sport);}
 }
+function _pickRecent(p){try{const c=new Date(Date.now()-3*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});return(p.date||'')>=c;}catch(e){return true;}}
 function _pickRowHTML(p,o){
   o=o||{};
   const settled=o.mode==='settled';
   const oc=p.outcome==='win'?'#00e644':p.outcome==='loss'?'var(--hc)':p.outcome==='push'?'var(--vc)':'var(--pc)';
   const st=p.outcome==='push'?'PUSH':String(p.outcome||'pending').toUpperCase();
   const hasTeams=!!(p.hA&&p.awA);
+  // Logos on pending rows and on settled rows from the last 3 days only: the Overall history renders ~1,900 rows, and a logo on every one of them
+  // added ~10k DOM nodes + ~3,300 <img> elements (history render 0.3s -> ~1s, noticeable lag). Older settled rows keep the plain team names.
+  const lgOn=!settled||_pickRecent(p);
   const match=hasTeams
-    ?`${_pickLogo(p,'a')}<span>${_teamName(p.awA,p.sport)}</span><em>at</em>${_pickLogo(p,'h')}<span>${_teamName(p.hA,p.sport)}</span>`
+    ?`${lgOn?_pickLogo(p,'a'):''}<span>${_teamName(p.awA,p.sport)}</span><em>at</em>${lgOn?_pickLogo(p,'h'):''}<span>${_teamName(p.hA,p.sport)}</span>`
     :`<span>${o.title||_gameTitle(p.hA,p.awA,p.sport)||''}</span>`;
   const conf=p.winProb?` · ${(p.winProb*100).toFixed(0)}%`:'';
   const fin=p.hScore!=null
@@ -7626,7 +7669,7 @@ function cfbEns(hA,awA,ouLine,g){
 window._cfbActiveTab='games';
 function cfbSubTab(tab){
   window._cfbActiveTab=tab;
-  ['games','model','config'].forEach(t=>{
+  ['games','model','config','locked'].forEach(t=>{
     const nav=document.getElementById('cfb-innav-'+t),panel=document.getElementById('cfb-tab-'+t);
     if(nav)nav.classList.toggle('act',t===tab);
     if(panel){panel.classList.toggle('act',t===tab);panel.style.display=t===tab?'':'none';}
@@ -7634,6 +7677,7 @@ function cfbSubTab(tab){
   if(tab==='games')loadCFBData().then(()=>{_cfbPopulateWeekFilter();renderCFBGames();});
   else if(tab==='model')loadCFBData().then(renderCFBModel);
   else if(tab==='config')renderCFBConfig();
+  else if(tab==='locked')_renderSportLocked('cfb');
 }
 function _cfbToggleTop25(){
   const btn=document.getElementById('cfb-filter-top25');if(!btn)return;
@@ -9183,7 +9227,7 @@ function _nflDefenseRadarValues(abbr){
 window._nflActiveTab='games';
 function nflSubTab2(tab){
   window._nflActiveTab=tab;
-  ['games','model','config'].forEach(t=>{
+  ['games','model','config','locked'].forEach(t=>{
     const nav=document.getElementById('nfl2-innav-'+t),panel=document.getElementById('nfl2-tab-'+t);
     if(nav)nav.classList.toggle('act',t===tab);
     if(panel){panel.classList.toggle('act',t===tab);panel.style.display=t===tab?'':'none';}
@@ -9191,6 +9235,7 @@ function nflSubTab2(tab){
   if(tab==='games')loadNFLData().then(()=>{_nflPopulateWeekFilter();renderNFLGames2();});
   else if(tab==='model')loadNFLData().then(renderNFLModel2);
   else if(tab==='config')renderNFLConfig2();
+  else if(tab==='locked')_renderSportLocked('nfl');
 }
 function _nflPopulateWeekFilter(){
   const D=_NFL_DATA;const sel=document.getElementById('nfl2-filter-week');if(!D||!sel)return;
@@ -19556,6 +19601,7 @@ function T(sport,tabId){const D=window.__CV_DATA||{};
   document.querySelectorAll(`#${saId} .tab`).forEach(t=>t.classList.remove('act'));
   document.querySelectorAll(`#${navId} .nb,#${mnId} .mb`).forEach(b=>b.classList.remove('act','ai','ap'));
   document.getElementById(`${sport}-tab-${tabId}`)?.classList.add('act');
+  if(tabId==='locked'){try{_renderSportLocked(sport);}catch(e){}}
   // NBA/NHL used to get the 'ai' (blue) active-tab class here while every
   // other sport's own GAMES/PROPS/MODEL/CONFIG sub-nav got the standard
   // 'act' (cyan) -- explicit request, 2026-09-23, to make them consistent
@@ -21598,7 +21644,10 @@ if('serviceWorker' in navigator){/* SW disabled */}
 // to a URL with a fresh query string instead can never be served from
 // cache, since the cached entry is keyed by the exact URL.
 function _cvForceFreshReload(){
-  window.location.href=window.location.pathname+'?_cvfresh='+Date.now();
+  // keep the page's own query flags (?nosb=1, ?nologo=1, ?logos=1 ...): this used to drop them, so a flagged load silently turned into an
+  // unflagged one after the freshness reload (a test page with ?nosb=1 pulled the whole ledger anyway; an automation page lost ?nologo=1).
+  try{const q=new URLSearchParams(window.location.search);q.set('_cvfresh',String(Date.now()));window.location.href=window.location.pathname+'?'+q.toString();}
+  catch(e){window.location.href=window.location.pathname+'?_cvfresh='+Date.now();}
 }
 // ── Version freshness: if version.json is newer than cached, hard reload ────
 // version.json's "built" timestamp is rewritten to the current minute on
