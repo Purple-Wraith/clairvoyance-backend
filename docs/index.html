@@ -5019,7 +5019,9 @@ async function autoSettleNHL(targetDate){
         // generalizing correctly if it's ever not 1.5.
         const cls=_classifyBetOn(p.betOn);
         if(cls.type==='OU'){
-          const total=hs+as;
+          // the NHL's final score includes the shootout-winning goal; sportsbooks settle totals on regulation + overtime only (gameOutcome.lastPeriodType 'SO' = decided in a shootout)
+          const _so=((g.gameOutcome||{}).lastPeriodType==='SO')||((g.periodDescriptor||{}).periodType==='SO');
+          const total=hs+as-(_so?1:0);
           outcome=total===cls.line?'push':(cls.over?total>cls.line:total<cls.line)?'win':'loss';
         }else if(cls.type==='SPREAD'&&(cls.team===h||cls.team===a)){
           const favIsHome=cls.team===h;
@@ -9097,7 +9099,7 @@ async function _autoSettleFlashscoreHockey(targetDate,loadFn,sportTag){
         let outcome=null;
         const cls=_classifyBetOn(p.betOn);
         if(cls.type==='OU'){
-          const total=hs+as;
+          const total=g.ouTotal!=null?g.ouTotal:hs+as;   // ouTotal = regulation + OT total when the game went to a shootout (relay only; the schedule files carry no shootout flag)
           outcome=total===cls.line?'push':(cls.over?total>cls.line:total<cls.line)?'win':'loss';
         }else if(cls.type==='SPREAD'&&(cls.team===hn||cls.team===an)){
           const favIsHome=cls.team===hn;
@@ -13483,7 +13485,11 @@ function nbaGetBayes(abbr){
   let al,bl;
   if(tr&&tr.priorWinPct!=null){al=15*tr.priorWinPct+(tr.current?.w||0)+1;bl=15*(1-tr.priorWinPct)+(tr.current?.l||0)+1;}
   else{al=(t?t.pw:parseInt(liveStand?.w)||0)+1;bl=(t?t.pl:parseInt(liveStand?.l)||0)+1;}
-  for(const p of getP()){if(p.outcome==='pending'||_normSport(p)!=='NBA')continue;const iH=p.hA===abbr,iA=p.awA===abbr;if(!iH&&!iA)continue;const w=(iH&&(p.hScore||0)>(p.aScore||0))||(iA&&(p.aScore||0)>(p.hScore||0));if(w)al++;else bl++;}
+  // Ledger results are only a fallback for when teamRatings is absent, and only picks that carry a real final score count (153 of the 154 settled NBA picks are props / moneylines with hScore/aScore null,
+  // which used to be counted as a LOSS for both teams). With teamRatings the record already comes from ESPN's standings via tr.current, so the ledger is not added again.
+  if(!(tr&&tr.priorWinPct!=null)){
+    for(const p of getP()){if(p.outcome==='pending'||_normSport(p)!=='NBA'||p.hScore==null||p.aScore==null)continue;const iH=p.hA===abbr,iA=p.awA===abbr;if(!iH&&!iA)continue;const w=(iH&&p.hScore>p.aScore)||(iA&&p.aScore>p.hScore);if(w)al++;else bl++;}
+  }
   return{m:al/(al+bl)};
 }
 function nbaEloWP(eA,eB){return 1/(1+Math.pow(10,(eB-eA)/400));}
@@ -13727,7 +13733,15 @@ function _nbaGameCard(espnEv){
       const hEV=ev(hP,hD);const aEV=ev(aP,aD);
       const hCS=chipC(hP,hEV);const aCS=chipC(aP,aEV);
       // Spread chip — use MC projected margin vs actual line (normal distribution model)
-      const espnSprdDetails=espnOdds?.details||'';const espnSprdNum=espnSprdDetails?parseFloat(espnSprdDetails.replace(/^[A-Z\s]+/,'')):(_sl&&_sl.spread!=null?_sl.spread:(function(){var d=Math.round(Math.log((hP>=aP?hP:aP)/((hP>=aP?aP:hP)))*14*2)/2;return hP>=aP?-d:d;})());const sprdFav=hP>=aP?hn:an;const sprdLbl=sprdFav+' '+(espnSprdNum>0?'+':'')+espnSprdNum;
+      // Spread favourite + line come from the MARKET (ESPN's details text "DET -4.5" names the favourite; the schedule file's spread is HOME-signed). The model's own favourite can differ from the book's,
+// and a bet "model-fav -L" is only offerable when they agree -- so every spread leg below is written, graded and priced for the MARKET favourite. No market line -> no spread legs (display only).
+let _mktFav=null,_sprdL=null,_sprdMkt=false;
+{const _dm=espnSprdDetails.match(/^([A-Z]{2,4})\s+([+-]?\d+(?:\.\d+)?)/);
+ if(_dm&&(_dm[1]===hn||_dm[1]===an)&&parseFloat(_dm[2])!==0){_mktFav=_dm[1];_sprdL=Math.abs(parseFloat(_dm[2]));_sprdMkt=true;}
+ else if(_sl&&_sl.spread!=null&&_sl.spread!==0&&!isNaN(_sl.spread)){_mktFav=_sl.spread<0?hn:an;_sprdL=Math.abs(_sl.spread);_sprdMkt=true;}}
+if(_sprdL==null){const _d=Math.round(Math.log((hP>=aP?hP:aP)/((hP>=aP?aP:hP)))*14*2)/2;_mktFav=hP>=aP?hn:an;_sprdL=Math.max(.5,Math.abs(_d)||1.5);}
+const _mktDog=_mktFav===hn?an:hn;
+const espnSprdNum=-_sprdL;const sprdFav=_mktFav;const sprdLbl=sprdFav+' '+espnSprdNum;
       // O/U chip — use MC overP when available, pass ESPN line to ensemble.
       // Moved above the spread block since it computes nbaEnsD, which the
       // spread block's mcProjSpread reads -- nbaEnsD used to be declared
@@ -13736,11 +13750,13 @@ function _nbaGameCard(espnEv){
       // no try/catch at the call site) for every single NBA game.
       let nbaEnsD=null;try{nbaEnsD=nbaEns(hn,an,ouL?{ou:ouL}:null);}catch(e2){}
       // No market total posted (preseason, or ESPN has none yet): the O/U box still renders -- on the model's own projected total -- so the card keeps the same two-box layout as every other league.
-      const ouLBox=ouL!=null?ouL:((nbaEnsD&&nbaEnsD.mcD&&nbaEnsD.mcD.avgT)?_forceHalfLine(nbaEnsD.mcD.avgT):225.5);   // 225.5 = league-typical total when neither a market line nor a model projection exists yet
+      const ouLBox=ouL!=null?ouL:((nbaEnsD&&nbaEnsD.mcD&&nbaEnsD.mcD.avgT)?_forceHalfLine(nbaEnsD.mcD.avgT):225.5);
+      // the probabilities behind the O/U box must be computed AT the line the box shows (nbaEns(...,null) uses a 220.5 default, which would misprice a locked 226.5)
+      if(ouL==null){try{const _e2=nbaEns(hn,an,{ou:ouLBox});if(_e2&&_e2.mcD)nbaEnsD=_e2;}catch(e2){}}   // 225.5 = league-typical total when neither a market line nor a model projection exists yet
       const ouP=nbaEnsD?.mcD?.overP??0.50;const ouD=ml2d('-110');const ouCS=chipC(ouP,ev(ouP,ouD));
       // Projected margin from MC (positive = home favored)
       const mcProjSpread=nbaEnsD?.mcD?.spread||0;
-      const favProjMargin=Math.abs(mcProjSpread);const lineMargin=Math.abs(espnSprdNum);
+      const favProjMargin=(_mktFav===hn?mcProjSpread:-mcProjSpread);const lineMargin=_sprdL;   // projected margin of the MARKET favourite (mcProjSpread > 0 = home favoured)
       // P(fav covers) = normalCDF((projMargin - lineMargin) / nba_sigma)
       const _nbaSigma=11.5;
       const sprdP=Math.min(0.82,Math.max(0.18,normalCDF((favProjMargin-lineMargin)/_nbaSigma+0.015)));
@@ -13758,8 +13774,8 @@ function _nbaGameCard(espnEv){
       const _nbaMkts=[
         {label:`${_nbaFav} ML`,prob:_nbaFavP,evVal:_nbaFavEV,side:'mlFav'},
         {label:`${_nbaDog} ML`,prob:_nbaDogP,evVal:_nbaDogEV,side:'mlDog'},
-        {label:`${_nbaFav} -${_forceHalfLine(Math.abs(espnSprdNum)||1.5)}`,prob:sprdP,evVal:ev(sprdP,1.87),side:'sprdFav'},
-        {label:`${_nbaDog} +${_forceHalfLine(Math.abs(espnSprdNum)||1.5)}`,prob:_nbaDogSprdP,evVal:ev(_nbaDogSprdP,2.05),side:'sprdDog'},
+        ...(_sprdMkt?[{label:`${_mktFav} -${_forceHalfLine(_sprdL)}`,prob:sprdP,evVal:ev(sprdP,1.87),side:'sprdFav'},
+        {label:`${_mktDog} +${_forceHalfLine(_sprdL)}`,prob:_nbaDogSprdP,evVal:ev(_nbaDogSprdP,2.05),side:'sprdDog'}]:[]),
         ...(ouL?[
           {label:`OVER ${ouL}`,prob:ouP,evVal:ev(ouP,1.91),side:'over'},
           {label:`UNDER ${ouL}`,prob:1-ouP,evVal:ev(1-ouP,1.91),side:'under'},
@@ -13826,8 +13842,8 @@ function _nbaGameCard(espnEv){
           const _sizeNBA=_nmNBA.size+'-unit play';
           if(_bmNBA.side==='mlFav')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaFav} ML</strong> · ${topTierLabel} · ${_bpNBA}% · EV ${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`${_nbaCtxLine}. `+`${_nbaProjLine}. Pace avg ${(parseFloat(_hPace)+parseFloat(_aPace)/2).toFixed(1)} — ${parseFloat(_hPace)>100?'up-tempo':parseFloat(_hPace)<97?'half-court':'normal pace'} game. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
           else if(_bmNBA.side==='mlDog')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaDog} ML</strong> · ${topTierLabel} · ${_bpNBA}% · EV ${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Underdog value: ${_dogNbaN} net ${_dogNet} / DRtg ${_dogDrtg} / eFG ${_dogEFG}% — metrics don't justify the line. ${_nbaCtxLine}. ${_nbaProjLine}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
-          else if(_bmNBA.side==='sprdFav'){const _nbaFavCoverPct=(sprdP*100).toFixed(1);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaFav} -ATS (${sprdLbl})</strong> · ${topTierLabel} · ${_bpNBA}% · EV ${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Fav covers -${Math.abs(espnSprdNum)} in ${_nbaFavCoverPct}% of simulations. ${_projSprdDisp}-pt proj margin vs ${espnSprdNum} line (+${(parseFloat(_projSprdDisp)-Math.abs(espnSprdNum)).toFixed(1)} value). ${_nbaCtxLine}. eFG ${_favEFG}% vs opp-allowed ${_favOppEFG}%. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;}
-          else if(_bmNBA.side==='sprdDog'){const _nbaDogCoverPct=((1-sprdP)*100).toFixed(1);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_nbaDog} +ATS (${sprdLbl})</strong> · ${topTierLabel} · ${_bpNBA}% · EV ${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Dog covers +${Math.abs(espnSprdNum)} in ${_nbaDogCoverPct}% of simulations. ${_projSprdDisp}-pt proj margin vs ${espnSprdNum} line — fav falls short by ${(Math.abs(espnSprdNum)-Math.abs(parseFloat(_projSprdDisp))).toFixed(1)} pts. ${_nbaCtxLine}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;}
+          else if(_bmNBA.side==='sprdFav'){const _nbaFavCoverPct=(sprdP*100).toFixed(1);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_mktFav} -ATS (${sprdLbl})</strong> · ${topTierLabel} · ${_bpNBA}% · EV ${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Fav covers -${Math.abs(espnSprdNum)} in ${_nbaFavCoverPct}% of simulations. ${_projSprdDisp}-pt proj margin vs ${espnSprdNum} line (+${(parseFloat(_projSprdDisp)-Math.abs(espnSprdNum)).toFixed(1)} value). ${_nbaCtxLine}. eFG ${_favEFG}% vs opp-allowed ${_favOppEFG}%. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;}
+          else if(_bmNBA.side==='sprdDog'){const _nbaDogCoverPct=((1-sprdP)*100).toFixed(1);explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">${_mktDog} +ATS (${sprdLbl})</strong> · ${topTierLabel} · ${_bpNBA}% · EV ${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Dog covers +${Math.abs(espnSprdNum)} in ${_nbaDogCoverPct}% of simulations. ${_projSprdDisp}-pt proj margin vs ${espnSprdNum} line — fav falls short by ${(Math.abs(espnSprdNum)-Math.abs(parseFloat(_projSprdDisp))).toFixed(1)} pts. ${_nbaCtxLine}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;}
           else if(_bmNBA.side==='over')explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">OVER ${ouL}</strong> · ${topTierLabel} · ${_bpNBA}% · EV ${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Totals play: projected combined ${(parseFloat(_projHScr)+parseFloat(_projAScr)).toFixed(1)} vs ${ouL} line. Pace: ${_hPace}/${_aPace} (avg ${((parseFloat(_hPace)+parseFloat(_aPace))/2).toFixed(1)} pos/game). eFG: ${_hEFG}%/${_aEFG}% — above-average efficiency both sides. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
           else explanation=`Best market: <strong style="color:var(--gc);font-size:1.08em;text-shadow:0 0 6px rgba(255,221,0,.6)">UNDER ${ouL}</strong> · ${topTierLabel} · ${_bpNBA}% · EV ${evPct}% · edge +${(_nbaEdge*100).toFixed(1)}pp. `+`Under play: projected ${(parseFloat(_projHScr)+parseFloat(_projAScr)).toFixed(1)} combined vs ${ouL} line. DRtg: ${_hDrtg}/${_aDrtg} — elite defensive resistance limiting efficient scoring. TOV%: ${_hTOV}/${_aTOV}. ${_nbaEnsStr} (${_nbaSigStr}). Kelly ${_nbaKelly}%. ${_sizeNBA}${_nmNBA.secStr}.`;
         }
@@ -13885,7 +13901,7 @@ function _nbaGameCard(espnEv){
     ${nbaEnsD?.mcD?_recommendedLineHTML({
       recSpreadFav:(nbaEnsD.mcD.spread||0)>=0?hn:an,recSpreadNum:_forceHalfLine(Math.abs(nbaEnsD.mcD.spread||0)),
       recOU:_forceHalfLine(nbaEnsD.mcD.avgT),
-      mktSpreadFav:espnSprdNum!=null?(espnSprdNum<0?hn:an):null,mktSpreadNum:espnSprdNum!=null?Math.abs(espnSprdNum).toFixed(1):null,
+      mktSpreadFav:_sprdMkt?_mktFav:null,mktSpreadNum:_sprdMkt?_sprdL.toFixed(1):null,
       mktOU:ouL!=null?parseFloat(ouL).toFixed(1):null,
     }):''}
     ${pre?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,_bmNBA.label,_bmNBA.prob,_bmNBA.evVal)+_mvmBarHTML(_bmNBA):''}${_altRowFor('NBA',hn,an,espnEv.date,_nmNBA,!pre)}
@@ -14383,8 +14399,9 @@ function _mergeNBAPlayerProps(byName){
     if(!pp||!pp.players||!pp.players.length)return byName;
     pp.players.forEach(function(p){
       if(!p||!p.name)return;
-      var e=byName[p.name];
-      if(!e){e=byName[p.name]={name:p.name,team:p.team,gp:p.gp,ppg:p.ppg,rpg:p.rpg,apg:p.apg,tpg:p.tpm,mpg:p.mpg};}
+      var k=p.name.toLowerCase();   // _basketballStatsFromLeaders keys by lower-cased name: using the original case created a second row for every player
+      var e=byName[k];
+      if(!e){e=byName[k]={name:p.name,team:p.team,gp:p.gp,ppg:p.ppg,rpg:p.rpg,apg:p.apg,tpg:p.tpm,mpg:p.mpg};}
       e.pos=e.pos||p.pos;e.last5=p.last5||null;e.stdev=p.stdev||null;e.status=p.status||'';e.espnId=p.id;
     });
   }catch(x){}
@@ -19133,9 +19150,9 @@ function _topPickRowHTML(e){
   const liveLine=lv?`<div style="font-family:var(--mono);font-size:12px;color:${lv.col};letter-spacing:.5px;margin-top:1px">${lv.state==='in'?'● ':''}${_escHtml(lv.text)}</div>`:'';
   return`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,0,24,.7);border-left:2px solid ${so==='loss'?'#ff1a1a':so==='win'?'#00e644':col};border-radius:2px;margin-bottom:5px">
     <div style="flex:1;min-width:0">
-      <div style="font-family:var(--mono);font-size:12px;color:var(--pc);letter-spacing:1px">${e.leagueLabel} · ${e.matchup}${scoreLine}</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--pc);letter-spacing:1px">${_escHtml(e.leagueLabel)} · ${_escHtml(e.matchup)}${_escHtml(scoreLine)}</div>
       ${liveLine}
-      <div style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--nc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.best.label}${e.altLine?` <span style="font-family:var(--mono);font-size:11px;color:var(--t3);font-weight:400">ADJ. LINE · posted ${_escHtml(e.altLine.postedLabel)}</span>`:''}</div>
+      <div style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--nc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escHtml(e.best.label)}${e.altLine?` <span style="font-family:var(--mono);font-size:11px;color:var(--t3);font-weight:400">ADJ. LINE · posted ${_escHtml(e.altLine.postedLabel)}</span>`:''}</div>
     </div>
     <div style="text-align:right;flex-shrink:0">
       <span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${col};color:${col};border-radius:2px">${lbl}</span>${settledBadge}
@@ -22068,18 +22085,18 @@ function renderOverallDashboard(){
 // ── Data freshness line (header, under the clocks) -- 2026-10-03 ──────────────────────────────────────────────────────────────────────────────────────────────
 // The refresh workflows can fail or land hours late without anything on screen changing (a dropped push left docs/data.json 17h old with the run still green). Reads each file's own
 // generated-at stamp from the first ~1 KB (Range request) and shows the worst state: FRESH (green) / AGING (amber) / STALE (red, blinking). Thresholds sit above each file's real
-// refresh cadence + the 3-6h GitHub Actions scheduling delay observed on the cron slots.
+// refresh cadence + the 3-6h GitHub Actions scheduling delay observed on the cron slots: warn = the longest normal gap between cron slots (euro 11.2 h, schedules 17.25 h, data.json 10 h) + ~6 h delay.
 const _FRESH_SRC=[
-  {f:'data.json',l:'STATS',k:'generated',warn:14,bad:26},
-  {f:'nhl_schedule.json',l:'NHL',k:'generated_at',warn:20,bad:36},
-  {f:'cfb_schedule.json',l:'CFB',k:'generated_at',warn:20,bad:36},
-  {f:'nfl_schedule.json',l:'NFL',k:'generated_at',warn:20,bad:36},
-  {f:'liiga_schedule.json',l:'LIIGA',k:'generated_at',warn:12,bad:28},
-  {f:'shl_schedule.json',l:'SHL',k:'generated_at',warn:12,bad:28},
-  {f:'nla_schedule.json',l:'NLA',k:'generated_at',warn:12,bad:28},
-  {f:'extraliga_schedule.json',l:'EXTRALIGA',k:'generated_at',warn:12,bad:28},
-  {f:'soccer_schedule.json',l:'SOCCER',k:'generated_at',warn:20,bad:36},
-  {f:'nba_schedule.json',l:'NBA',k:'generated_at',warn:20,bad:36}
+  {f:'data.json',l:'STATS',k:'generated',warn:17,bad:26},
+  {f:'nhl_schedule.json',l:'NHL',k:'generated_at',warn:24,bad:36},
+  {f:'cfb_schedule.json',l:'CFB',k:'generated_at',warn:24,bad:36},
+  {f:'nfl_schedule.json',l:'NFL',k:'generated_at',warn:24,bad:36},
+  {f:'liiga_schedule.json',l:'LIIGA',k:'generated_at',warn:17,bad:28},
+  {f:'shl_schedule.json',l:'SHL',k:'generated_at',warn:17,bad:28},
+  {f:'nla_schedule.json',l:'NLA',k:'generated_at',warn:17,bad:28},
+  {f:'extraliga_schedule.json',l:'EXTRALIGA',k:'generated_at',warn:17,bad:28},
+  {f:'soccer_schedule.json',l:'SOCCER',k:'generated_at',warn:24,bad:36},
+  {f:'nba_schedule.json',l:'NBA',k:'generated_at',warn:24,bad:36}
 ];
 function _parseGenAt(v){
   if(!v)return null;let t=Date.parse(v);
@@ -22130,11 +22147,13 @@ const _LV_ESPN=[
   {k:'pl',tag:'PL',path:'soccer/eng.1'},{k:'liga',tag:'LA LIGA',path:'soccer/esp.1'},{k:'seriea',tag:'SERIE A',path:'soccer/ita.1'},{k:'cl',tag:'UCL',path:'soccer/uefa.champions'}
 ];
 const _LV_ALIAS={PL:['PL','PL_SOC','SOC_PL'],'LA LIGA':['LIGA','SOC_LIGA'],'SERIE A':['SERIEA','SOC_ITA','ITA'],UCL:['CL','SOC_CL']};   // ticker tag -> the sport tags picks carry
-let _LV={ts:0,games:[],timer:0,lg:{},relay:{ts:0,games:[],ok:false}};
+async function _fetchT(url,opts,ms){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms||15000);try{return await fetch(url,{...(opts||{}),signal:c.signal});}finally{clearTimeout(t);}}
+const _LV_NHL_FIX={LA:'LAK',NJ:'NJD',SJ:'SJS',TB:'TBL',UTAH:'UTA'};   // ESPN abbreviations -> the NHL-API codes the rest of the app (and ledger) uses (same map as scripts/fetch_nhl.py ESPN_ABBR_FIX)
+let _LV={ts:0,games:[],timer:0,lg:{},relay:{ts:0,games:[],ok:false,pendingConfirm:false},conf:{}};
 async function _lvEspn(def){
   const out=[];
   try{
-    const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/'+def.path+'/scoreboard'+(def.q||''),{cache:'no-store'});
+    const r=await _fetchT('https://site.api.espn.com/apis/site/v2/sports/'+def.path+'/scoreboard'+(def.q||''),{cache:'no-store'},15000);
     if(!r.ok)return null;const j=await r.json();
     (j.events||[]).forEach(e=>{
       if(def.k==='nba'&&e.season&&e.season.type===1)return;   // NBA preseason is not tracked anywhere (no locks, no ticker, no polling) -- regular season opens ~Oct 21
@@ -22142,8 +22161,9 @@ async function _lvEspn(def){
       const h=c.competitors.find(x=>x.homeAway==='home'),a=c.competitors.find(x=>x.homeAway==='away');if(!h||!a)return;
       const stt=c.status||e.status||{},ty=stt.type||{};
       const soccer=def.path.indexOf('soccer/')===0;
-      out.push({k:def.k,tag:def.tag,id:e.id,home:soccer?(h.team.displayName||h.team.shortDisplayName):h.team.abbreviation,away:soccer?(a.team.displayName||a.team.shortDisplayName):a.team.abbreviation,
-        homeScore:+h.score,awayScore:+a.score,state:ty.state,period:stt.period,displayClock:stt.displayClock,note:ty.shortDetail,startMs:Date.parse(e.date)});
+      const nm=t=>soccer?(t.team.displayName||t.team.shortDisplayName):(def.k==='nhl'?(_LV_NHL_FIX[t.team.abbreviation]||t.team.abbreviation):t.team.abbreviation);
+      out.push({k:def.k,tag:def.tag,id:e.id,home:nm(h),away:nm(a),
+        homeScore:+h.score,awayScore:+a.score,state:ty.state,period:stt.period,displayClock:stt.displayClock,note:ty.shortDetail,startMs:Date.parse(e.date),seasonType:(e.season&&e.season.type)||null});
     });
     return out;
   }catch(e){return null;}
@@ -22174,12 +22194,12 @@ function saveRelayUrl(inId,stId){
 }
 function _lvRelayStatus(msg){const el=document.getElementById('relay-url-status');if(el)el.textContent=msg;}
 function _lvRelayPeriodNote(g){
-  if(g.state==='post')return'Final';
+  if(g.state==='post')return g.so?'Final/SO':g.ot?'Final/OT':'Final';
   if(g.state!=='in')return'';
   if(g.period==null)return'LIVE';
   const mins=g.periodStart?Math.max(0,Math.floor((Date.now()-g.periodStart*1000)/60000)):null;
   const lbl=g.period==='OT'?'OT':g.period==='SO'?'SO':'P'+g.period;
-  return mins==null||g.period==='SO'?lbl:lbl+' '+Math.min(mins,g.period==='OT'?5:20)+"'";
+  return mins==null||g.period==='SO'?lbl:lbl+' '+Math.min(mins,20)+"'";
 }
 function _lvEuroSchedGames(){
   const out=[];
@@ -22201,12 +22221,20 @@ async function refreshRelay(force){
   const url=_lvRelayUrl();if(!url)return false;
   try{
     const tz=-new Date().getTimezoneOffset()/60;
-    const r=await fetch(url+'/hockey?tz='+tz);
+    const r=await _fetchT(url+'/hockey?tz='+tz,{},15000);
     if(!r.ok){_LV.relay.ok=false;return false;}
     const j=await r.json();
-    const games=(j.games||[]).map(g=>({k:g.lg.toLowerCase(),tag:g.lg,id:g.id,home:g.home,away:g.away,homeScore:g.homeScore,awayScore:g.awayScore,state:g.state,period:g.period,periodStart:g.periodStart,startMs:g.startMs}));
-    _LV.relay={ts:Date.now(),games,ok:true};
-    _lvRelaySettle(games);
+    const games=(j.games||[]).map(g=>({k:g.lg.toLowerCase(),tag:g.lg,id:g.id,home:g.home,away:g.away,homeScore:g.homeScore,awayScore:g.awayScore,state:g.state,period:g.period,periodStart:g.periodStart,startMs:g.startMs,so:!!g.so,ot:!!g.ot,regHome:g.regHome,regAway:g.regAway}));
+    // a final is only acted on once the SAME score has been seen on two polls at least 60 s apart (a late score correction / half-updated feed must never settle a pick)
+    const now=Date.now();let pending=false;const confirmed=[];
+    games.forEach(g=>{
+      if(g.state!=='post'||g.homeScore==null||g.awayScore==null)return;
+      const key=g.tag+'|'+g.id,sc=g.homeScore+'-'+g.awayScore+(g.so?'s':''),c=_LV.conf[key];
+      if(!c||c.sc!==sc){_LV.conf[key]={sc,t:now,settled:false};pending=true;return;}
+      if(now-c.t>=60000){if(!c.settled){confirmed.push(g);c.settled=true;}}else pending=true;
+    });
+    _LV.relay={ts:now,games,ok:true,pendingConfirm:pending};
+    if(confirmed.length)_lvRelaySettle(confirmed);
     return true;
   }catch(e){_LV.relay.ok=false;return false;}
 }
@@ -22216,7 +22244,8 @@ function _lvRelaySettle(games){
     const td=today();const pend=getP().filter(p=>p&&p.outcome==='pending'&&p.date===td);if(!pend.length)return;
     ['LIIGA','SHL','NLA','EXTRALIGA'].forEach(tag=>{
       if(!pend.some(p=>_normSport(p)===tag))return;
-      const finals=games.filter(g=>g.tag===tag&&g.state==='post'&&g.homeScore!=null&&g.awayScore!=null).map(g=>({state:'post',homeScore:g.homeScore,awayScore:g.awayScore,date:new Date(g.startMs).toISOString(),homeName:g.home,awayName:g.away}));
+      // ouTotal: sportsbooks settle hockey totals on regulation + overtime and do NOT count the shootout-winning goal, but Flashscore's final score includes it (AT/AU = the score before the shootout)
+      const finals=games.filter(g=>g.tag===tag&&g.state==='post'&&g.homeScore!=null&&g.awayScore!=null).map(g=>({state:'post',homeScore:g.homeScore,awayScore:g.awayScore,date:new Date(g.startMs).toISOString(),homeName:g.home,awayName:g.away,ouTotal:(g.so&&g.regHome!=null&&g.regAway!=null)?g.regHome+g.regAway:undefined}));
       if(finals.length)_autoSettleFlashscoreHockey(td,async()=>({games:finals}),tag);
     });
   }catch(e){}
@@ -22235,7 +22264,9 @@ async function refreshLive(force){
     // relay (European hockey): its own gate
     if(_lvRelayUrl()){
       const rs=_LV.lg.__relay=_LV.lg.__relay||{ts:0,next:0};
-      if(force||rs.next<=now){const ok=await refreshRelay(true);rs.ts=Date.now();rs.next=ok?_lvRelayNext(Date.now()):Date.now()+120000;}
+      if(force||rs.next<=now){const ok=await refreshRelay(true);rs.ts=Date.now();
+        // success: the relay's own gate (a final awaiting its confirmation poll is re-checked in 90 s); failure: retry every 5 min only while a game is in its window, else hourly -- never every 2 min around the clock
+        rs.next=ok?(_LV.relay.pendingConfirm?Date.now()+90000:_lvRelayNext(Date.now())):Math.max(_lvRelayNext(Date.now()),Date.now()+300000);}
     }
     if(res.length||force){try{_lvApplyToCards();}catch(e){}renderTicker();try{_tpRefreshResults();}catch(e){}}
   }catch(e){}
@@ -22273,7 +22304,7 @@ function _lvApplyToCards(){
   _cvLiveApply(_lvOverlay(d));
 }
 // ── ticker ──
-function _tkNorm(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\b(fc|cf|afc|sc|hc|ik|if|ac|as|us|ssc|rcd|ud|cd|sv)\b/g,'').replace(/[^a-z0-9]/g,'');}
+function _tkNorm(s){const raw=String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const n=raw.replace(/\b(fc|cf|afc|sc|hc|ik|if|ac|as|us|ssc|rcd|ud|cd|sv)\b/g,'').replace(/[^a-z0-9]/g,'');return n||raw.replace(/[^a-z0-9]/g,'');}   // 'SC' / 'HC' are real CFB abbreviations: if stripping club prefixes leaves nothing, keep the name
 function _tkMatch(a,b){a=_tkNorm(a);b=_tkNorm(b);return !!a&&!!b&&(a===b||(a.length>=4&&b.length>=4&&(a.includes(b)||b.includes(a))));}
 const _TKM={order:[],sig:'',html:{},score:{},track:null,x:0,half:0,raf:0,last:0,hover:false,run:false,speed:46};
 // live status text: NHL -> "P2 12:34" (period + game clock; OT / SO labelled; intermissions keep ESPN's own text), everything else keeps ESPN's / the relay's note
@@ -22281,7 +22312,9 @@ function _tkLiveStatus(it){
   const g=it.g;
   if(it.g.k==='nhl'&&g.period){
     if(/end of|intermission|final/i.test(g.note||''))return g.note;
-    const p=g.period>=5?'SO':g.period===4?'OT':'P'+g.period;
+    // regular season: period 4 = OT, 5 = shootout; playoffs have no shootout -- period 5 = 2OT, 6 = 3OT ...
+    const po=g.seasonType===3;
+    const p=po&&g.period>=4?(g.period===4?'OT':(g.period-3)+'OT'):(g.period>=5?'SO':g.period===4?'OT':'P'+g.period);
     return g.displayClock&&p!=='SO'?p+' '+g.displayClock:p;
   }
   return g.note||'LIVE';
@@ -22324,7 +22357,7 @@ function renderTicker(){
     const euro=_tkEuroGames(),all=_LV.games.concat(euro);
     if(!all.length){_tkHide(el);return;}
     const td=today();let picks=[];
-    try{picks=getP().filter(p=>p&&p.id&&p.hA&&p.outcome!=='_removed'&&p.date===td);}catch(e){}
+    try{const yd=yesterday();picks=getP().filter(p=>p&&p.id&&p.hA&&p.outcome!=='_removed'&&(p.date===td||p.date===yd));}catch(e){}
     const items=[];
     all.forEach(g=>{
       if(g.state==='pre')return;
@@ -22379,6 +22412,7 @@ function _tkMeasure(el){
   const need=_TKM.half>el.clientWidth+4&&!reduce;
   if(need&&!_TKM.run){_TKM.run=true;_TKM.last=0;if(!_TKM.raf)_TKM.raf=requestAnimationFrame(_tkLoop);}
   if(!need){_TKM.run=false;_TKM.x=0;if(_TKM.track)_TKM.track.style.transform='';}
+  const g2=_TKM.track&&_TKM.track.children[1];if(g2)g2.style.display=need?'':'none';   // the second copy exists only for the seamless loop
   if(_TKM.half&&_TKM.x<=-_TKM.half)_TKM.x=_TKM.x%_TKM.half;
 }
 function _tkLoop(t){
@@ -22409,20 +22443,25 @@ const _FRESH_WF={'data.json':'scheduled-refresh.yml','nhl_schedule.json':'daily-
   'soccer_schedule.json':'daily-schedules-refresh.yml','nba_schedule.json':'daily-schedules-refresh.yml','liiga_schedule.json':'liiga-schedule-refresh.yml','shl_schedule.json':'shl-schedule-refresh.yml','nla_schedule.json':'nla-schedule-refresh.yml',
   'extraliga_schedule.json':'extraliga-schedule-refresh.yml'};
 async function dispatchWorkflow(file){
-  const tok=getGHToken();
   const page='https://github.com/'+GH_RELAY_REPO+'/actions/workflows/'+file;
-  if(!tok){window.open(page,'_blank');return{ok:false,msg:'NO TOKEN — opened the workflow page: press "Run workflow"'};}
+  let tok='';try{tok=getGHToken();}catch(e){}
+  // No token: open the workflow page right away -- this runs inside the click that started it, so popup blockers allow it.
+  if(!tok){try{window.open(page,'_blank');}catch(e){}return{ok:false,page,msg:'NO TOKEN — opened the workflow page: press "Run workflow"'};}
   try{
     const r=await fetch('https://api.github.com/repos/'+GH_RELAY_REPO+'/actions/workflows/'+file+'/dispatches',{method:'POST',headers:{Authorization:'token '+tok,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({ref:'main'})});
-    if(r.status===204)return{ok:true,msg:'✓ TRIGGERED '+file+' — fresh data lands in a few minutes'};
-    window.open(page,'_blank');
-    return{ok:false,msg:(r.status===403||r.status===404?'TOKEN LACKS "Actions: Read and write" ('+r.status+')':'GITHUB '+r.status)+' — opened the workflow page: press "Run workflow"'};
+    if(r.status===204)return{ok:true,page,msg:'✓ TRIGGERED '+file+' — fresh data lands in a few minutes'};
+    // after an await a window.open is blocked on iOS Safari, so a failure shows a LINK instead of claiming a page was opened
+    return{ok:false,page,msg:(r.status===403||r.status===404?'TOKEN LACKS "Actions: Read and write" ('+r.status+')':'GITHUB '+r.status)+' — use the link to press "Run workflow"'};
   }catch(e){
     console.warn('dispatchWorkflow',file,e);
-    window.open(page,'_blank');
     // the browser's own reason ("Failed to fetch" = request never reached GitHub: offline / blocked / a content blocker; "Invalid value" = a stray character in the saved token)
-    return{ok:false,msg:'NETWORK ERROR ('+String(e&&e.message||e).slice(0,90)+') — opened the workflow page; press "Run workflow"'};
+    return{ok:false,page,msg:'NETWORK ERROR ('+String(e&&e.message||e).slice(0,90)+') — use the link to press "Run workflow"'};
   }
+}
+function _freshMsg(r){
+  const m=document.getElementById('fresh-msg');if(!m)return;
+  m.style.color=r.ok?'#00e644':'#ffb020';
+  m.innerHTML=_escHtml(r.msg)+(!r.ok&&r.page?' <a href="'+r.page+'" target="_blank" rel="noopener" style="color:var(--nc);text-decoration:underline">OPEN WORKFLOW PAGE</a>':'');
 }
 function openFreshPanel(){
   const st=(window._freshState||[]).slice();
@@ -22445,16 +22484,17 @@ function openFreshPanel(){
 }
 async function _freshUpdate(file,btn){
   if(btn){btn.disabled=true;btn.textContent='…';}
-  const r=await dispatchWorkflow(file);
-  const m=document.getElementById('fresh-msg');if(m){m.textContent=r.msg;m.style.color=r.ok?'#00e644':'#ffb020';}
-  if(btn){btn.disabled=false;btn.textContent=r.ok?'TRIGGERED':'UPDATE NOW';}
+  let r={ok:false,msg:'ERROR'};
+  try{r=await dispatchWorkflow(file);}catch(e){r={ok:false,page:'https://github.com/'+GH_RELAY_REPO+'/actions/workflows/'+file,msg:'ERROR ('+String(e&&e.message||e).slice(0,80)+')'};}
+  finally{if(btn){btn.disabled=false;btn.textContent=r.ok?'TRIGGERED':'UPDATE NOW';}}
+  _freshMsg(r);
   if(r.ok)setTimeout(refreshFreshness,180000);
 }
 async function _freshUpdateAll(files,btn){
-  if(btn)btn.disabled=true;let okN=0;
-  for(const f of files){const r=await dispatchWorkflow(f);if(r.ok)okN++;const m=document.getElementById('fresh-msg');if(m)m.textContent=r.msg;}
+  if(btn)btn.disabled=true;let okN=0,last=null;
+  try{for(const f of files){last=await dispatchWorkflow(f);if(last.ok)okN++;_freshMsg(last);}}
+  finally{if(btn)btn.disabled=false;}
   if(okN)setTimeout(refreshFreshness,180000);
-  if(btn){btn.disabled=false;}
 }
 (function(){const el=document.getElementById('hdr-fresh');if(el){el.style.cursor='pointer';el.addEventListener('click',()=>openFreshPanel());}})();
 

@@ -4,10 +4,11 @@
  * WHY: ESPN does not cover these leagues, and Flashscore's public live feed (the same one its website reads) answers a plain server request but its CORS preflight only allows
  * flashscore.com, so a browser on another domain cannot read it. This worker makes the request server-side, keeps only the four leagues, and re-serves a tiny JSON with CORS for the app.
  *
- *   GET /hockey?tz=-6   ->  { ts, tz, source, games: [ { lg, id, home, away, homeScore, awayScore, state, period, periodStart, startMs } ] }
+ *   GET /hockey?tz=-6   ->  { ts, tz, source, games: [ { lg, id, home, away, homeScore, awayScore, state, so, ot, regHome, regAway, period, periodStart, startMs } ] }
  *        state  : "pre" | "in" | "post"
  *        period : 1 | 2 | 3 | "OT" | "SO" | null   (live games only; from Flashscore's status code)
  *        periodStart : epoch seconds when the current period began (the app shows elapsed minutes from it)
+ *        so / ot     : final decided in a shootout (AC 11) / overtime (AC 10); for a shootout regHome/regAway hold the score BEFORE it (hockey totals are settled on that, not on the final)
  *   GET /health         ->  { ok: true }
  *
  * One upstream request per tz per CACHE_SECONDS (180 s, the app's live cycle) no matter how many people have the app open (edge cache), so the load on Flashscore stays tiny.
@@ -41,16 +42,26 @@ export function parseFeed(text) {
     }
     if (kv.ZA !== undefined) lg = LEAGUES[kv.ZA] || null;
     if (lg && kv.AA && kv.AE && kv.AF) {
-      const state = kv.AB === "2" ? "in" : kv.AB === "3" ? "post" : "pre";
       const num = v => (v === undefined || v === "" ? null : Number(v));
+      const homeScore = num(kv.AG), awayScore = num(kv.AH);
+      let state = kv.AB === "2" ? "in" : kv.AB === "3" ? "post" : "pre";
+      // a "finished" record without a score is a postponed / cancelled / awarded game: never show it as a FINAL
+      if (state === "post" && (homeScore === null || awayScore === null)) state = "pre";
+      const so = state === "post" && kv.AC === "11";     // decided in a shootout: the final score INCLUDES the shootout-winning goal (sportsbooks settle totals without it)
+      const ot = state === "post" && kv.AC === "10";     // decided in overtime (the OT goal counts)
       out.push({
         lg,
         id: kv.AA,
         home: kv.AE,
         away: kv.AF,
-        homeScore: num(kv.AG),
-        awayScore: num(kv.AH),
+        homeScore,
+        awayScore,
         state,
+        so,
+        ot,
+        // AT / AU = the score before the shootout (regulation + overtime); only meaningful for a shootout final
+        regHome: so ? num(kv.AT) : null,
+        regAway: so ? num(kv.AU) : null,
         period: state === "in" ? (PERIOD[kv.AC] ?? null) : null,
         periodStart: state === "in" && kv.AO ? Number(kv.AO) : null,
         startMs: (Number(kv.AD) || 0) * 1000,
@@ -92,7 +103,7 @@ export default {
     const hit = await cache.match(cacheKey);
     if (hit) {
       const body = await hit.text();
-      return new Response(body, { status: 200, headers: { "Content-Type": "application/json; charset=utf-8", ...cors, "X-Cache": "HIT" } });
+      return new Response(body, { status: hit.status, headers: { "Content-Type": "application/json; charset=utf-8", ...cors, "X-Cache": "HIT" } });
     }
 
     let upstream;
@@ -101,7 +112,12 @@ export default {
     } catch (e) {
       return json({ error: "upstream unreachable" }, 502);
     }
-    if (!upstream.ok) return json({ error: "upstream " + upstream.status }, 502);
+    if (!upstream.ok) {
+      // negative cache: while Flashscore is failing, answer from the edge for 30 s instead of hitting it again on every request
+      const err = JSON.stringify({ error: "upstream " + upstream.status });
+      ctx.waitUntil(cache.put(cacheKey, new Response(err, { status: 502, headers: { "Cache-Control": "public, max-age=30", "Content-Type": "application/json" } })));
+      return json({ error: "upstream " + upstream.status }, 502);
+    }
     const games = parseFeed(await upstream.text());
     const body = JSON.stringify({ ts: Date.now(), tz, source: "flashscore", games });
     ctx.waitUntil(cache.put(cacheKey, new Response(body, { headers: { "Cache-Control": `public, max-age=${CACHE_SECONDS}`, "Content-Type": "application/json" } })));
