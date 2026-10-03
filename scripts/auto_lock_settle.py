@@ -2115,15 +2115,15 @@ def _cfb_select(legs: list[dict]) -> list[dict]:
 # ── Alternate-line shift (2026-10-03) ────────────────────────────────────────────────────────────
 # Sportsbooks offer the same total / spread at other numbers (alternate lines), so a pick on a posted line L can instead be locked at a safer
 # L' = L +/- k for a shorter price. For the sides this engine already qualifies (spread, O/U) the lock is moved to the line that reaches
-# ALT_TARGET_P calibrated win probability, bounded by a per-sport/market band [kmin, kmax] (the fixed band) -- the target picks k inside it.
+# ALT_TARGET_P (70%) calibrated win probability, bounded by a per-sport/market band [kmin, kmax] (the fixed band) -- the target picks k inside it.
 # The probability is NOT the card's own model number: on the settled ledger the stated O/U / spread probability carried no information about the
 # margin (CFB O/U: fitted slope on the stated probability was negative), so the cushion is priced purely from the empirical margin spread.
 # Backtest on 151 settled CFB O/U picks / 94 spread picks, margin cushion k -> actual win rate:
 #     O/U    k=0 55.0%   k=4 68.9%   k=7 74.2%   k=10 80.1%       (this curve: Phi((k + 1.9) / 14.7): 54%, 65%, 72%, 78%)
 #     spread k=0 52.1%   k=4 63.8%   k=7 70.2%   k=10 75.5%       (this curve: Phi((k + 0.8) / 15.7): 52%, 60%, 68%, 74%)
 # so the curve is slightly conservative. The price is estimated (fair price + ALT_VIG), never a real quote -> priceSource "estimated".
-ALT_TARGET_P = 0.75
-ALT_FLOOR_P = 0.70            # if even the cap cannot reach this, leave the posted-line pick alone
+ALT_TARGET_P = 0.70           # 2026-10-03: lowered from 0.75 -- a smaller cushion keeps the price shorter-vig-drag lower, so ROI holds up better
+ALT_FLOOR_P = 0.65            # if even the cap cannot reach this, leave the posted-line pick alone
 ALT_VIG = 0.045
 ALT_STEP = 1.0
 ALT_LINE_CFG = {

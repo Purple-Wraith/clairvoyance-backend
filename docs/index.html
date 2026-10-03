@@ -549,6 +549,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 /* best-market strip: filled with the full colour of the grade, dark type */
 .bmk2{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 9px;border-radius:3px;flex-wrap:wrap;color:#0b0612;font-family:var(--mono)}
 .bmk2.pg{background:linear-gradient(90deg,var(--gc),var(--g2))}.bmk2.pp{background:var(--pc)}.bmk2.pn{background:var(--nc)}.bmk2.pq{background:#39ff14}.bmk2.ph{background:var(--hc)}
+.altrow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin-bottom:8px;font-family:var(--mono)}.altrow .altk{flex:1 0 100%;font-size:13px;letter-spacing:1px;color:var(--t3)}.altrow .altc{flex:1 1 150px;display:flex;flex-direction:column;gap:2px;padding:6px 9px;border-radius:3px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);cursor:pointer;min-width:0}.altrow .altc .alt1{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.altrow .altc .altp{font-family:var(--orb);font-size:16px;font-weight:700;color:var(--t)}.altrow .altc .alts{font-size:13px;color:var(--t2)}.altrow .altc .altw{font-size:12px;color:var(--t3)}.altrow .altc .pill{font-size:12px}
 .bmk2 .bmk2t{font-size:14px;padding:1px 6px;background:#0b0612;color:#fff;border-radius:2px;flex-shrink:0;font-weight:700}.bmk2 .bmk2k{font-size:13px;letter-spacing:1px;font-weight:700}.bmk2 .bmk2p{font-family:var(--orb);font-size:16px;font-weight:700}.bmk2 .bmk2s{font-size:14px;font-weight:700}
 /* GAME CARD */
 .gc{background:repeating-linear-gradient(45deg,rgba(255,255,255,.03) 0,rgba(255,255,255,.03) 1px,transparent 1px,transparent 5px),repeating-linear-gradient(-45deg,rgba(0,0,0,.2) 0,rgba(0,0,0,.2) 1px,transparent 1px,transparent 5px),rgba(34,36,46,.55);border:1px solid var(--w2);border-radius:3px;padding:12px;margin-bottom:7px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));backdrop-filter:blur(4px)}
@@ -4612,6 +4613,45 @@ function _mvmBarHTML(m){
     return`<div class="mvm"><div class="mvml">MODEL VS MARKET</div><div class="mvmb" role="img" aria-label="Market ${pc(mk)} percent, model ${pc(md)}, blended ${pc(bl)}"><div class="mvmr"></div><div class="mvmg" style="left:${pos(lo)};width:calc(${pos(lo+w)} - ${pos(lo)})"></div><div class="mvmm mk" style="left:${pos(mk)}">${pc(mk)}</div><div class="mvmm md" style="left:${pos(md)};${sh}">${pc(md)}</div><div class="mvmm bl" style="left:${pos(bl)}">${pc(bl)}</div></div><div class="mvma"><span>50%</span><span>market &middot; model &middot; blended</span><span>85%</span></div></div>`;
   }catch(e){return'';}
 }
+// ── Alternate lines (2026-10-03): CFB/NFL spread + O/U picks are LOCKED at a safer line (see ALT_LINE_CFG in scripts/auto_lock_settle.py -- keep both in sync).
+// Same maths as the Python side: smallest whole-point cushion k in [kmin,kmax] whose empirical win curve Phi((k+a)/sigma) reaches 70%; price is an estimate.
+const _ALT_CFG={CFB:{OU:[14.7,1.9,3,9],SPREAD:[15.7,.8,3,10]},NFL:{OU:[13,0,3,8],SPREAD:[13.4,0,3,8]}};
+const _ALT_TARGET=.70,_ALT_FLOOR=.65,_ALT_VIG=.045;
+function _altShift(sport,mkt,label){
+  const cfg=_ALT_CFG[sport]&&_ALT_CFG[sport][mkt];if(!cfg)return null;
+  const sigma=cfg[0],a=cfg[1],kmin=cfg[2],kmax=cfg[3];
+  let direction,team,posted,sign;
+  if(mkt==='OU'){const m=String(label).trim().match(/^(OVER|UNDER)\s+(\d+(?:\.\d+)?)$/i);if(!m)return null;direction=m[1].toUpperCase();posted=parseFloat(m[2]);sign=direction==='OVER'?-1:1;}
+  else{const m=String(label).trim().match(/^(.+?)\s+([+-]\d+(?:\.\d+)?)$/);if(!m)return null;team=m[1];posted=parseFloat(m[2]);sign=1;}
+  let k=kmin+(posted===Math.floor(posted)?.5:0);
+  while(k+1<=kmax+.5&&normalCDF((k+a)/sigma)<_ALT_TARGET-1e-9)k+=1;
+  const p=normalCDF((k+a)/sigma);if(p<_ALT_FLOOR)return null;
+  const line=posted+sign*k;let nl;
+  if(mkt==='OU'){if(line<=0)return null;nl=direction+' '+line.toFixed(1);}else nl=team+' '+(line>=0?'+':'')+line.toFixed(1);
+  const dec=1/(p+_ALT_VIG);
+  return{label:nl,prob:+p.toFixed(4),dec:+dec.toFixed(3),ml:dec<2?'-'+Math.round(100/(dec-1)):'+'+Math.round((dec-1)*100),posted,line,shift:k,postedLabel:label,mkt};
+}
+window._altReg=window._altReg||{};
+function _altLineRowHTML(sport,g,nm){
+  try{
+    if(!nm||!nm.mkts)return'';
+    const best=(a,b)=>{const x=nm.mkts.find(m=>m.side===a),y=nm.mkts.find(m=>m.side===b);return x&&y?(x.prob>=y.prob?x:y):(x||y);};
+    const d=new Date(g.date);const dateKey=isNaN(d)?String(g.date||'').slice(0,10):d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+    const chips=[['OU',best('over','under')],['SPREAD',best('sprdFav','sprdDog')]].map(([mkt,m])=>{
+      if(!m)return'';const alt=_altShift(sport,mkt,m.label);if(!alt)return'';
+      const key=sport+'|'+dateKey+'|'+g.home+'|'+g.away+'|'+mkt;
+      window._altReg[key]={sport,hA:g.home,awA:g.away,date:dateKey,alt};
+      const cls=m.tierN===3?'pg':m.tierN===2?'pp':m.tierN===1?'pn':'';
+      const lb=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN]||'';
+      return`<div class="altc" onclick="event.stopPropagation();_lockAltKey('${key.replace(/'/g,"\\'")}')"><div class="alt1"><span class="altp">${_escHtml(alt.label)}</span>${lb?`<span class="pill ${cls}">${lb}</span>`:''}</div><div class="alts">${Math.round(alt.prob*100)}% · est ${alt.ml} · +${alt.shift} pts</div><div class="altw">posted ${_escHtml(alt.postedLabel)} · ${Math.round(m.prob*100)}%</div></div>`;
+    }).join('');
+    return chips?`<div class="altrow"><div class="altk">ADJ. LINE · LOCKS HERE · TAP TO LOCK · EST. PRICE</div>${chips}</div>`:'';
+  }catch(e){return'';}
+}
+async function _lockAltKey(key){
+  const r=window._altReg[key];if(!r)return;const a=r.alt;
+  await lockPick(r.hA,r.awA,r.sport,a.label,a.prob,a.ml,a.dec,r.date,undefined,a.mkt,{priceSource:'estimated',altLine:{posted:a.posted,line:a.line,shift:a.shift,postedLabel:a.postedLabel}});
+}
 function _bestMarketBoxHTML(tierN,tierCol,tierLabel,bestLabel,bestProb,bestEvVal){
   if(!(tierN>0))return'';
   // Filled with the full colour of the grade (same colours as the .pill tag), pick in dark type; the grade itself sits in a dark chip.
@@ -5768,7 +5808,9 @@ const GH_RELAY_REPO='Purple-Wraith/clairvoyance-backend',GH_RELAY_PATH='docs/man
 let _relayTimer=null,_relayLastHash='';
 function _relayPicks(){
   const cut=Date.now()-45*86400000,wiped=_getWipedIds();
-  return getP().filter(p=>p&&p.id&&p.lockOrigin==='manual'&&p.outcome!=='_removed'&&!wiped.has(p.id)&&(p.lockedAt||0)>=cut);
+  // Direct-lock buttons (CFB/NFL moneyline, NHL quick lock, parlays) did not stamp lockOrigin until 2026-10-03; every automated lock does ('auto'), so an UNSTAMPED pick locked since then is manual too.
+  const since=1791007200000;
+  return getP().filter(p=>p&&p.id&&(p.lockOrigin==='manual'||(!p.lockOrigin&&(p.lockedAt||0)>=since))&&p.outcome!=='_removed'&&!wiped.has(p.id)&&(p.lockedAt||0)>=cut);
 }
 // One-time check when a token is saved: can it read AND write this repo? Writes docs/relay_ping.json (a timestamp) and creates docs/manual_locks.json if it is missing.
 async function relayCheck(){
@@ -8585,7 +8627,7 @@ function _cfbGameCard(g){
           <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${ouNote}</div>
         </div>`;
       })()}
-      ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}
+      ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}${liveStatus?'':_altLineRowHTML('CFB',g,nm)}
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">ENSEMBLE: MC ${(ens.mc*100).toFixed(0)}% / BAY ${(ens.bay*100).toFixed(0)}% / ELO ${(ens.elo*100).toFixed(0)}% win prob (weighted MC/BAY/ELO ${(100-ens.eloWeight*100).toFixed(0)}%/ELO ${(ens.eloWeight*100).toFixed(0)}% blend applied — see MODEL tab to adjust)</div>
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -8708,7 +8750,7 @@ function lockCFBGame(hA,awA,betType,betOn,ml,winProb,ouLine){
   // which it otherwise would since _normSport treats FOOTBALL as an NFL
   // synonym on its own).
   const pred={id,date:dateKey,hA,awA,sport:'FOOTBALL',league:'CFB',betType,betOn,winProb,ml,decOdds:dec,
-    ou:ouLine!=null?ouLine:null,wager:0,outcome:'pending',lockedAt:Date.now()};
+    ou:ouLine!=null?ouLine:null,wager:0,outcome:'pending',lockedAt:Date.now(),lockOrigin:'manual'};
   const preds=getP();
   // Real bug found 2026-09-09: this only ever checked its OWN exact id
   // (`cfb_${date}_...`), never against the automated pipeline's separate
@@ -9464,7 +9506,7 @@ function _nflGameCard2(g){
     </div>`}
     <div style="padding:8px 10px;background:rgba(0,120,255,.04);border-top:1px solid rgba(0,120,255,.1)">
       ${_mcProjBarHTML({avgH:mc.avgH,avgA:mc.avgA,avgT:mc.avgTotal,overP:overP},ouL.toFixed(1),g.home,g.away,{n:mc.n,dec:1})}
-      ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}
+      ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}${liveStatus?'':_altLineRowHTML('NFL',g,nm)}
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">MONEYLINE REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${mlReasoning}</div></div>
@@ -9575,7 +9617,7 @@ function lockNFLGame(hA,awA,betType,betOn,ml,winProb,ouLine){
   const dateKey=today();
   const id=`nfl_${dateKey}_${hA}_${awA}_${betType}_${betOn.replace(/\s+/g,'')}`;
   const pred={id,date:dateKey,hA,awA,sport:'FOOTBALL',league:'NFL',betType,betOn,winProb,ml,decOdds:dec,
-    ou:ouLine!=null?ouLine:null,wager:0,outcome:'pending',lockedAt:Date.now()};
+    ou:ouLine!=null?ouLine:null,wager:0,outcome:'pending',lockedAt:Date.now(),lockOrigin:'manual'};
   const preds=getP();
   // Same gap as lockCFBGame (fixed 2026-09-09, see its own comment): only
   // checked its own exact id, never the automated pipeline's separate
@@ -10633,7 +10675,7 @@ function lockParlay(w,p,ml,d,sport){
   // of inventing a new tag. Sport-specific parlay panes (e.g. NHL) already
   // pass their real sport explicitly and are unaffected.
   const sp=sport||'MISC';
-  const preds=getP();preds.push({id:`p_${today()}_${Date.now()}`,date:today(),hA:'PARLAY',awA:'',sport:sp,league:sp,betType:'PARLAY',betOn:PAR.map(l=>l.name).join('|'),winProb:p,ml,decOdds:d,wager:w,outcome:'pending',lockedAt:Date.now()});saveP(preds);toast('// PARLAY LOCKED');try{window.showBetPopup({type:'lock',betOn:sp+' PARLAY',sport:sp,betType:'PARLAY',ml,prob:p,decOdds:d});}catch(ex){}
+  const preds=getP();preds.push({id:`p_${today()}_${Date.now()}`,date:today(),hA:'PARLAY',awA:'',sport:sp,league:sp,betType:'PARLAY',betOn:PAR.map(l=>l.name).join('|'),winProb:p,ml,decOdds:d,wager:w,outcome:'pending',lockedAt:Date.now(),lockOrigin:'manual'});saveP(preds);toast('// PARLAY LOCKED');try{window.showBetPopup({type:'lock',betOn:sp+' PARLAY',sport:sp,betType:'PARLAY',ml,prob:p,decOdds:d});}catch(ex){}
 }
 
 // ═══ LIVE TRACKER ═══════════════════════════════════════════
@@ -10739,7 +10781,7 @@ function lockNHLGame(gameStr,pick,ml){
   const dec=mlNum>0?mlNum/100+1:100/Math.abs(mlNum)+1;
   const dateKey=today();
   const id=`nhl_${dateKey}_${hA}_${awA}_${pick.replace(/\s/g,'')}`;
-  const pred={id,date:dateKey,hA,awA,sport:'NHL',league:'NHL',betType:'ML',betOn:pick,winProb:0.55,ml,decOdds:dec,wager:0,outcome:'pending',lockedAt:Date.now()};
+  const pred={id,date:dateKey,hA,awA,sport:'NHL',league:'NHL',betType:'ML',betOn:pick,winProb:0.55,ml,decOdds:dec,wager:0,outcome:'pending',lockedAt:Date.now(),lockOrigin:'manual'};
   const preds=getP();
   // Same gap as lockCFBGame/lockNFLGame (block-double-locking audit,
   // 2026-09-09): only checked its own exact id, never lockPick()'s
@@ -14293,7 +14335,7 @@ function calcNBAP(){
 }
 function lockNBAParlay(w,p,ml,d){
   const preds=getP();
-  preds.push({id:`nba_p_${today()}_${Date.now()}`,date:today(),hA:'NBA-PARLAY',awA:'',sport:'NBA',league:'NBA',betType:'PARLAY',betOn:NBA_PAR.map(l=>l.name).join('|'),winProb:p,ml,decOdds:d,wager:w,outcome:'pending',lockedAt:Date.now()});
+  preds.push({id:`nba_p_${today()}_${Date.now()}`,date:today(),hA:'NBA-PARLAY',awA:'',sport:'NBA',league:'NBA',betType:'PARLAY',betOn:NBA_PAR.map(l=>l.name).join('|'),winProb:p,ml,decOdds:d,wager:w,outcome:'pending',lockedAt:Date.now(),lockOrigin:'manual'});
   saveP(preds);updHdr();toast('// NBA PARLAY LOCKED');try{window.showBetPopup({type:'lock',betOn:'NBA PARLAY',sport:'NBA',betType:'PARLAY',ml,prob:p,decOdds:d});}catch(ex){}
 }
 
@@ -28133,7 +28175,7 @@ function cvParlayLock(s,w,cP,cML,cD){
   var sp=s.toUpperCase();var preds=getP();
   preds.push({id:'cvpar_'+s+'_'+Date.now(),date:today(),hA:'PARLAY',awA:'',sport:sp,league:sp,betType:'PARLAY',
     betOn:legs.map(function(l){return l.name;}).join('|'),winProb:cP,ml:cML,decOdds:cD,wager:w,
-    outcome:'pending',lockedAt:Date.now(),
+    outcome:'pending',lockedAt:Date.now(),lockOrigin:'manual',
     note:legs.length+'-leg '+sp+' parlay. '+legs.map(function(l){return l.name+'('+l.type+')';}).join(', ')+'.'});
   saveP(preds);
   try{window.showBetPopup({type:'lock',betOn:legs.length+'-LEG '+sp+' PARLAY',sport:sp,betType:'PARLAY',ml:cML,prob:cP,decOdds:cD});}catch(ex){}

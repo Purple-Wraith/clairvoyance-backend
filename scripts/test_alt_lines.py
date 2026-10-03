@@ -21,27 +21,27 @@ def leg(sport, side, label, prob=0.66, tier=2):
 class AltLine(unittest.TestCase):
     def test_cfb_under_moves_up_to_the_target_probability(self):
         out = A._alt_shift_leg(leg("CFB", "under", "UNDER 60.5"))
-        self.assertEqual(out["label"], "UNDER 69.5")                      # +9 cushion
-        self.assertGreaterEqual(out["prob"], 0.75)
+        self.assertEqual(out["label"], "UNDER 66.5")                      # +6 cushion
+        self.assertGreaterEqual(out["prob"], 0.70)
         self.assertEqual(out["priceSource"], "estimated")
         self.assertEqual(out["altLine"]["posted"], 60.5)
-        self.assertEqual(out["altLine"]["shift"], 9.0)
+        self.assertEqual(out["altLine"]["shift"], 6.0)
         self.assertEqual(out["altLine"]["postedLabel"], "UNDER 60.5")
 
     def test_cfb_over_moves_down(self):
         out = A._alt_shift_leg(leg("CFB", "over", "OVER 60.5"))
-        self.assertEqual(out["label"], "OVER 51.5")
+        self.assertEqual(out["label"], "OVER 54.5")
 
     def test_spread_favourite_lays_fewer_points_and_dog_gets_more(self):
         fav = A._alt_shift_leg(leg("CFB", "sprdFav", "ALA -5.5"))
         dog = A._alt_shift_leg(leg("CFB", "sprdDog", "MSST +5.5"))
-        self.assertEqual(fav["label"], "ALA +4.5")                         # -5.5 + 10 crosses zero, still a valid alternate line
-        self.assertEqual(dog["label"], "MSST +15.5")
-        self.assertTrue(all(o["prob"] >= 0.75 for o in (fav, dog)))
+        self.assertEqual(fav["label"], "ALA +2.5")                         # -5.5 + 8 crosses zero, still a valid alternate line
+        self.assertEqual(dog["label"], "MSST +13.5")
+        self.assertTrue(all(o["prob"] >= 0.70 for o in (fav, dog)))
 
     def test_fav_label_keeps_sign_format(self):
         out = A._alt_shift_leg(leg("CFB", "sprdFav", "ALA -21.5"))
-        self.assertEqual(out["label"], "ALA -11.5")
+        self.assertEqual(out["label"], "ALA -13.5")
 
     def test_shift_stays_inside_the_band(self):
         for sport, mkt, side, label in (("CFB", "OU", "under", "UNDER 50.5"), ("NFL", "OU", "under", "UNDER 44.5"),
@@ -89,13 +89,13 @@ class AltLine(unittest.TestCase):
         ml, ou = leg("CFB", "mlFav", "ALA ML", 0.8), leg("CFB", "under", "UNDER 60.5")
         res = A._apply_alt_lines([ml, ou])
         self.assertIs(res[0], ml)
-        self.assertEqual(res[1]["label"], "UNDER 69.5")
+        self.assertEqual(res[1]["label"], "UNDER 66.5")
 
     def test_build_qualifying_locks_the_shifted_line(self):
         result = {"gameLegs": [{"sport": "CFB", "hA": "MSST", "awA": "ALA", "startMs": None, "markets": [
             {"side": "under", "label": "UNDER 60.5", "prob": 0.66, "tierN": 2, "evVal": 0.08, "dec": 1.909, "ml": "-110"}]}]}
         q = A.build_qualifying(result, only_sports=frozenset({"CFB"}))
-        self.assertEqual([x["label"] for x in q], ["UNDER 69.5"])
+        self.assertEqual([x["label"] for x in q], ["UNDER 66.5"])
         self.assertEqual(q[0]["altLine"]["posted"], 60.5)
 
 
