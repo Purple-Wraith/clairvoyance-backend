@@ -5905,14 +5905,21 @@ async function relayCheck(){
   const enc=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o,null,1))));
   try{
     const put=async(name,obj,msg)=>{
-      const g=await fetch(base+name+'?t='+Date.now(),{headers:H});
-      if(g.status===401)return{bad:'TOKEN REJECTED (401) - RE-COPY IT IN FULL'};
-      if(g.status===403)return{bad:'TOKEN CANNOT ACCESS THIS REPO (403)'};
-      let sha;if(g.ok)sha=(await g.json()).sha;else if(g.status!==404)return{bad:'GITHUB ERROR '+g.status+' - CHECK THE TOKEN IS FOR '+GH_RELAY_REPO};
-      const r=await fetch(base+name,{method:'PUT',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({message:msg,branch:'main',content:enc(obj),...(sha?{sha}:{})})});
-      if(r.status===403||r.status===404)return{bad:'TOKEN CAN READ BUT NOT WRITE (HTTP '+r.status+') - NEEDS CONTENTS: READ AND WRITE ON '+GH_RELAY_REPO};
-      if(!r.ok)return{bad:'WRITE FAILED (HTTP '+r.status+')'};
-      return{ok:true,existed:!!sha};
+      // 409 / 422 = another commit landed between reading the file's version and writing (this repo gets bot commits all day): read the new version and try again, up to 4 times
+      let last=0;
+      for(let attempt=0;attempt<4;attempt++){
+        const g=await fetch(base+name+'?t='+Date.now(),{headers:H});
+        if(g.status===401)return{bad:'TOKEN REJECTED (401) - RE-COPY IT IN FULL'};
+        if(g.status===403)return{bad:'TOKEN CANNOT ACCESS THIS REPO (403)'};
+        let sha;if(g.ok)sha=(await g.json()).sha;else if(g.status!==404)return{bad:'GITHUB ERROR '+g.status+' - CHECK THE TOKEN IS FOR '+GH_RELAY_REPO};
+        const r=await fetch(base+name,{method:'PUT',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({message:msg,branch:'main',content:enc(obj),...(sha?{sha}:{})})});
+        if(r.status===403||r.status===404)return{bad:'TOKEN CAN READ BUT NOT WRITE (HTTP '+r.status+') - NEEDS CONTENTS: READ AND WRITE ON '+GH_RELAY_REPO};
+        if(r.ok)return{ok:true,existed:!!sha};
+        last=r.status;
+        if(r.status!==409&&r.status!==422)break;
+        await new Promise(res=>setTimeout(res,600*(attempt+1)));
+      }
+      return{bad:'WRITE FAILED (HTTP '+last+(last===409||last===422?' - GitHub was busy with another commit; press TEST SAVED TOKEN again':'')+')'};
     };
     const ping=await put('relay_ping.json',{checked_at:new Date().toISOString()},'relay: token check');
     if(ping.bad)return{ok:false,msg:ping.bad};
