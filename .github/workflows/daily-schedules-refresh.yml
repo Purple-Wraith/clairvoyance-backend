@@ -103,8 +103,13 @@ jobs:
           pip install -q playwright
           for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient apt-mirror hiccup) -- retrying in 20s..."; sleep 20; done
 
-      - name: Refresh NHL schedule/lines + Flashscore odds
+      # Starting goalies (added 2026-10-02, see scripts/_nhl_goalies.py): ESPN's probables ride along in the scoreboard response this
+      # step already downloads (confirmed + expected, no extra requests) and are ALWAYS attached. MoneyPuck's tweet-confirmed starters are
+      # opt-in and OFF: its terms (moneypuck.com/data.htm) are non-commercial / ask-first for pages not on its data list. To enable after
+      # getting approval: Settings -> Secrets and variables -> Actions -> Variables -> NHL_GOALIES_MONEYPUCK = true (unset/anything else = off).
+      - name: Refresh NHL schedule/lines + Flashscore odds + starting goalies
         continue-on-error: true
         env:
           TZ: America/Denver
+          NHL_GOALIES_MONEYPUCK: ${{ vars.NHL_GOALIES_MONEYPUCK }}
         run: python3 scripts/fetch_nhl.py --flashscore-odds --push

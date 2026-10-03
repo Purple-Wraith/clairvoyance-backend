@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -26,6 +27,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # so `from _flashscore_odds import ...` works however this is launched
+import _nhl_goalies  # starting goalies (ESPN probables always; MoneyPuck opt-in) -- see that module's docstring
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEDULE_OUT = ROOT / "docs" / "nhl_schedule.json"
@@ -115,6 +117,8 @@ def fetch_full_schedule() -> dict:
     d = date(start_year, 9, 29)
     end = date(start_year + 1, 4, 20)
     games: list[dict] = []
+    goalie_sides: dict[str, dict] = {}   # ESPN game id -> {"home": {name,status}, "away": {...}}  (starting goalies, see _nhl_goalies)
+    unknown_goalie_status: set = set()
     n_days_with_games = 0
     while d <= end:
         date_str = d.strftime("%Y%m%d")
@@ -189,6 +193,14 @@ def fetch_full_schedule() -> dict:
                         "ouOver":    _am("over"),
                         "ouUnder":   _am("under"),
                     })
+                # Starting goalies ride along in the SAME scoreboard response (competitors[].probables): zero extra requests, same
+                # ESPN id as the odds. Fail-open: a parse problem here can never drop the game.
+                try:
+                    gs = _nhl_goalies.espn_probables(comp.get("competitors", []), unknown_goalie_status)
+                    if gs and game["id"]:
+                        goalie_sides[str(game["id"])] = gs
+                except Exception as exc:
+                    _log(f"  goalie probables parse failed for {game.get('id')}: {exc}")
                 games.append(game)
                 day_count += 1
             if day_count:
@@ -198,7 +210,10 @@ def fetch_full_schedule() -> dict:
         time.sleep(0.15)
         d += timedelta(days=1)
     _log(f"  {len(games)} games across {n_days_with_games} real game days (season {season_id})")
-    return {"season": season_id, "games": games}
+    if unknown_goalie_status:
+        _log(f"  WARNING unrecognised ESPN goalie status types (skipped): {sorted(unknown_goalie_status)}")
+    # `_goalie_sides` is consumed (popped) by __main__ before the JSON is written -- it is not part of the file.
+    return {"season": season_id, "games": games, "_goalie_sides": goalie_sides}
 
 
 def _fs_norm(name: str) -> str:
@@ -333,6 +348,35 @@ def attach_flashscore_odds(games: list[dict], now: datetime | None = None,
     return meta
 
 
+def attach_goalies(sched: dict, prev: dict, use_moneypuck: bool = False, now: datetime | None = None) -> dict:
+    """Attach `goalies` to each game (see scripts/_nhl_goalies.py for the shape and the merge/carry rules) and return the
+    coverage dict stored as `goalies_meta` in the JSON.  Consumes sched["_goalie_sides"].  Never raises: on any error the previous
+    file's goalies are kept for every game (carry-over only) and the error is recorded in the meta."""
+    now = now or datetime.now(timezone.utc)
+    espn_sides = sched.pop("_goalie_sides", None) or {}
+    games = sched.get("games", [])
+    meta = {"at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "espn_games": len(espn_sides), "moneypuck": None, "error": None}
+    fresh = espn_sides
+    try:
+        if use_moneypuck:
+            mp_fresh, mp_meta = _nhl_goalies.fetch_moneypuck(games, espn_sides, sched.get("season") or _nhl_current_season_id(), now)
+            meta["moneypuck"] = mp_meta
+            fresh = {**espn_sides, **mp_fresh}
+        meta.update(_nhl_goalies.merge_with_previous(games, fresh, prev, now))
+    except Exception as exc:  # carry-over only: keep whatever the previous file had
+        meta["error"] = str(exc)[:200]
+        _log(f"  goalies step failed (fail-open, previous goalies kept): {exc}")
+        try:
+            prev_by_id = {str(g.get("id")): g.get("goalies") for g in (prev or {}).get("games", []) if g.get("goalies")}
+            for g in games:
+                if prev_by_id.get(str(g.get("id"))):
+                    g["goalies"] = prev_by_id[str(g.get("id"))]
+        except Exception:
+            pass
+    _log(f"  goalies: {meta}")
+    return meta
+
+
 def _write(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"generated_at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), **payload}
@@ -364,6 +408,10 @@ def git_push(paths: list[str], message: str) -> None:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--push", action="store_true")
+    ap.add_argument("--goalies-moneypuck", action="store_true",
+                    help="also ask MoneyPuck (tweet-confirmed starters / start predictions) for sides ESPN has not confirmed. OFF by "
+                         "default: MoneyPuck's terms are non-commercial/ask-first -- see scripts/_nhl_goalies.py. Env NHL_GOALIES_MONEYPUCK=true "
+                         "does the same (used by the workflows' repo-variable switch).")
     ap.add_argument("--flashscore-odds", action="store_true",
                     help="also scrape real Flashscore ML/O-U/puck-line prices for the next ~2 days (needs Playwright)")
     args = ap.parse_args()
@@ -384,6 +432,9 @@ if __name__ == "__main__":
         sched["odds_meta"] = attach_flashscore_odds(sched["games"])
     elif prev.get("odds_meta"):
         sched["odds_meta"] = prev["odds_meta"]
+    # Starting goalies (fail-open: any problem leaves the schedule exactly as it would have been without this step).
+    use_mp = args.goalies_moneypuck or os.environ.get("NHL_GOALIES_MONEYPUCK", "").strip().lower() == "true"
+    sched["goalies_meta"] = attach_goalies(sched, prev, use_moneypuck=use_mp)
     _write(SCHEDULE_OUT, sched)
 
     if args.push:
