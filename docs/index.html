@@ -13673,8 +13673,9 @@ function _nbaGameCard(espnEv){
       const statusTxt=post?`FINAL · ${an} ${as2} — ${hn} ${hs}`:live?`Q${c.status?.period||'?'} ${c.status?.displayClock||''} · ${an} ${as2}–${hs} ${hn}`:(espnEv.date?new Date(espnEv.date).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'}):'SCHEDULED');
       // Odds: Odds API → ESPN → model fallback
       const espnOdds=(c.odds||[])[0];
-      const espnHL=espnOdds?.homeTeamOdds?.moneyLine;const espnAL=espnOdds?.awayTeamOdds?.moneyLine;
-      const espnOU=espnOdds?.overUnder||null;
+      const _sl=_nbaSchedLine(hn,an);   // schedule-file line, used only where ESPN's own event has none
+      const espnHL=espnOdds?.homeTeamOdds?.moneyLine??(_sl?_sl.homeML:undefined);const espnAL=espnOdds?.awayTeamOdds?.moneyLine??(_sl?_sl.awayML:undefined);
+      const espnOU=espnOdds?.overUnder||(_sl?_sl.ou:null)||null;
       const _liveNBA=(typeof _clvGetLiveOdds==='function')?_clvGetLiveOdds('NBA',hn,an):null;
       const _ouRaw=_liveNBA?.ou??espnOU;
       const ouL=_ouRaw!=null?_forceHalfLine(_ouRaw):null;
@@ -13700,7 +13701,7 @@ function _nbaGameCard(espnEv){
       const hEV=ev(hP,hD);const aEV=ev(aP,aD);
       const hCS=chipC(hP,hEV);const aCS=chipC(aP,aEV);
       // Spread chip — use MC projected margin vs actual line (normal distribution model)
-      const espnSprdDetails=espnOdds?.details||'';const espnSprdNum=espnSprdDetails?parseFloat(espnSprdDetails.replace(/^[A-Z\s]+/,'')):(function(){var d=Math.round(Math.log((hP>=aP?hP:aP)/((hP>=aP?aP:hP)))*14*2)/2;return hP>=aP?-d:d;})();const sprdFav=hP>=aP?hn:an;const sprdLbl=sprdFav+' '+(espnSprdNum>0?'+':'')+espnSprdNum;
+      const espnSprdDetails=espnOdds?.details||'';const espnSprdNum=espnSprdDetails?parseFloat(espnSprdDetails.replace(/^[A-Z\s]+/,'')):(_sl&&_sl.spread!=null?_sl.spread:(function(){var d=Math.round(Math.log((hP>=aP?hP:aP)/((hP>=aP?aP:hP)))*14*2)/2;return hP>=aP?-d:d;})());const sprdFav=hP>=aP?hn:an;const sprdLbl=sprdFav+' '+(espnSprdNum>0?'+':'')+espnSprdNum;
       // O/U chip — use MC overP when available, pass ESPN line to ensemble.
       // Moved above the spread block since it computes nbaEnsD, which the
       // spread block's mcProjSpread reads -- nbaEnsD used to be declared
@@ -13847,7 +13848,7 @@ function _nbaGameCard(espnEv){
   ${pre?'':_footballLocksDisabledHTML({isLive:live})}${`<div class="brow${pre?'':' lockoff'}"${pre?'':' inert aria-disabled="true"'}>
     <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${hn}','${an}','NBA','${hn}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${today()}')"><div class="cht">ML ${hn}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
     <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${hn}','${an}','NBA','${an}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},'${today()}')"><div class="cht">ML ${an}</div><div class="cho">${_mlFmt(aML)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
-    <div class="gbox" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">SPREAD</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nba_${hn}_${an}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${espnSprdNum}" id="sprd_nba_${hn}_${an}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nba_${hn}_${an}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=aP?hn:an}','${hP>=aP?an:hn}','${hn}','${an}','${today()}',${sprdP.toFixed(3)},'${espnSprdNum}','sprd_nba_${hn}_${an}','FAV','NBA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=aP?hn:an}</div><div id="fav_sprd_nba_${hn}_${an}" style="font-size:11px;opacity:.85">-1.5</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=aP?hn:an}','${hP>=aP?an:hn}','${hn}','${an}','${today()}',${sprdP.toFixed(3)},'${espnSprdNum}','sprd_nba_${hn}_${an}','DOG','NBA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=aP?an:hn}</div><div id="dog_sprd_nba_${hn}_${an}" style="font-size:11px;opacity:.85">+1.5</div></button></div>${typeof _nmNBA!=='undefined'?_boxGradeHTML(_nmNBA,['plFav','sprdFav','ahFav'],['plDog','sprdDog','ahDog']):''}</div>
+    <div class="gbox" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">SPREAD</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nba_${hn}_${an}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${espnSprdNum}" id="sprd_nba_${hn}_${an}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nba_${hn}_${an}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=aP?hn:an}','${hP>=aP?an:hn}','${hn}','${an}','${today()}',${sprdP.toFixed(3)},'${espnSprdNum}','sprd_nba_${hn}_${an}','FAV','NBA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=aP?hn:an}</div><div id="fav_sprd_nba_${hn}_${an}" style="font-size:11px;opacity:.85">-${_forceHalfLine(Math.abs(espnSprdNum)||1.5)}</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=aP?hn:an}','${hP>=aP?an:hn}','${hn}','${an}','${today()}',${sprdP.toFixed(3)},'${espnSprdNum}','sprd_nba_${hn}_${an}','DOG','NBA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=aP?an:hn}</div><div id="dog_sprd_nba_${hn}_${an}" style="font-size:11px;opacity:.85">+${_forceHalfLine(Math.abs(espnSprdNum)||1.5)}</div></button></div>${typeof _nmNBA!=='undefined'?_boxGradeHTML(_nmNBA,['plFav','sprdFav','ahFav'],['plDog','sprdDog','ahDog']):''}</div>
     ${ouLBox?`<div class="gbox gbox2" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE${ouL==null?' · MODEL':''}</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nba_${hn}_${an}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${ouLBox}" id="ouinp_nba_${hn}_${an}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nba_${hn}_${an}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_ouLockDir('${hn}','${an}','${today()}',${ouP.toFixed(3)},'${ouLBox}','ouinp_nba_${hn}_${an}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_ouLockDir('${hn}','${an}','${today()}',${ouP.toFixed(3)},'${ouLBox}','ouinp_nba_${hn}_${an}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▼ UNDER</button></div>${typeof _nmNBA!=='undefined'?_boxGradeHTML(_nmNBA,['over'],['under']):''}</div>`:''}
   </div>`}
   <div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px">
@@ -21667,6 +21668,34 @@ function mergeSeededBets(seeded){
     try{renderNBAHistory();}catch(e){}
   }catch(e){console.warn('[CV] mergeSeededBets:',e);}
 }
+// ── NBA schedule file (docs/nba_schedule.json, scripts/fetch_nba.py -- refreshed twice daily and again right before every lock pass, like the other leagues' schedule files) ──
+window._NBA_SCHED=null;
+function _nbaEtToday(){return new Date().toLocaleDateString('sv-SE',{timeZone:'America/New_York'});}
+async function loadNBASchedule(){
+  try{
+    const r=await fetch('nba_schedule.json?'+Date.now(),{cache:'no-store'});if(!r.ok)return;
+    window._NBA_SCHED=await r.json();
+    _applyNBASchedule();
+  }catch(e){}
+}
+// today's slate from the schedule file feeds the NBA tonight list whenever it is newer than data.json's own nba.today (or that is empty); carried / postponed rows are skipped
+function _applyNBASchedule(){
+  try{
+    const j=window._NBA_SCHED;if(!j||!j.games)return;
+    const dataTs=Date.parse((window.__CV_DATA&&window.__CV_DATA.generated)||'')||0,schedTs=_parseGenAt(j.generated_at)||0;
+    const today=j.games.filter(g=>g.day===_nbaEtToday()&&!g.carried&&!g.postponed);
+    if(today.length&&(schedTs>dataTs||!(window._remoteNBAGames||[]).length))patchNBATonight(today);
+  }catch(e){}
+}
+// market line for one game from the schedule file (used by the NBA card when ESPN's own event carries no odds): {homeML,awayML,ou,spread (HOME-signed)} or null
+function _nbaSchedLine(hn,an){
+  try{
+    const g=((window._NBA_SCHED&&window._NBA_SCHED.games)||[]).find(x=>x.home===hn&&x.away===an&&!x.carried&&!x.postponed);
+    if(!g||(g.homeML==null&&g.ou==null&&g.spread==null))return null;
+    return{homeML:g.homeML,awayML:g.awayML,ou:g.ou!=null?g.ou:g.overUnder,spread:g.spread};
+  }catch(e){return null;}
+}
+setTimeout(loadNBASchedule,3000);setInterval(loadNBASchedule,10*60*1000);
 // NBA season rollover, 2026-10-03: nba.eloSeed (all 30 teams: last season's net rating regressed + this season's results, from clairvoyance_update.py) replaces the 4 hardcoded
 // finalists in NBA_ELO (every other team read 1550 = identical). Called from both data loaders; resets the cached injury roster so nba.roster is picked up.
 function _applyNBARatings(d){
@@ -22023,7 +22052,8 @@ const _FRESH_SRC=[
   {f:'shl_schedule.json',l:'SHL',k:'generated_at',warn:12,bad:28},
   {f:'nla_schedule.json',l:'NLA',k:'generated_at',warn:12,bad:28},
   {f:'extraliga_schedule.json',l:'EXTRALIGA',k:'generated_at',warn:12,bad:28},
-  {f:'soccer_schedule.json',l:'SOCCER',k:'generated_at',warn:20,bad:36}
+  {f:'soccer_schedule.json',l:'SOCCER',k:'generated_at',warn:20,bad:36},
+  {f:'nba_schedule.json',l:'NBA',k:'generated_at',warn:20,bad:36}
 ];
 function _parseGenAt(v){
   if(!v)return null;let t=Date.parse(v);
@@ -22337,7 +22367,7 @@ setTimeout(async function(){
 // Click the header freshness line when it is amber/red: lists the aging files with a button that dispatches the workflow that refreshes each (GitHub API, needs the owner token with
 // "Actions: Read and write" -- if the token cannot, the GitHub page of that workflow opens so "Run workflow" is one click). Nothing is ever triggered automatically.
 const _FRESH_WF={'data.json':'scheduled-refresh.yml','nhl_schedule.json':'daily-schedules-refresh.yml','cfb_schedule.json':'daily-schedules-refresh.yml','nfl_schedule.json':'daily-schedules-refresh.yml',
-  'soccer_schedule.json':'daily-schedules-refresh.yml','liiga_schedule.json':'liiga-schedule-refresh.yml','shl_schedule.json':'shl-schedule-refresh.yml','nla_schedule.json':'nla-schedule-refresh.yml',
+  'soccer_schedule.json':'daily-schedules-refresh.yml','nba_schedule.json':'daily-schedules-refresh.yml','liiga_schedule.json':'liiga-schedule-refresh.yml','shl_schedule.json':'shl-schedule-refresh.yml','nla_schedule.json':'nla-schedule-refresh.yml',
   'extraliga_schedule.json':'extraliga-schedule-refresh.yml'};
 async function dispatchWorkflow(file){
   const tok=getGHToken();

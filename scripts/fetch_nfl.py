@@ -163,13 +163,27 @@ def fetch_week_games(year: int, week: int, seasontype: int = 2) -> list[dict]:
             "spread": odds.get("spread"),
             "spreadDetails": odds.get("details"),
             "overUnder": odds.get("overUnder"),
-            "homeML": (odds.get("homeTeamOdds") or {}).get("moneyLine"),
-            "awayML": (odds.get("awayTeamOdds") or {}).get("moneyLine"),
+            # ESPN moved the moneyline from homeTeamOdds.moneyLine to odds.moneyline.{home,away}.close.odds -- the flat key is gone, which left every NFL homeML/awayML null.
+            # fetch_nba.parse_odds reads the nested shape first and falls back to the old flat one.
+            "homeML": _ml_of(odds, "homeML", "homeTeamOdds"),
+            "awayML": _ml_of(odds, "awayML", "awayTeamOdds"),
             "state": status.get("type", {}).get("state", "pre"),
             "week": week,
             "seasonType": seasontype,
         })
     return games
+
+
+def _ml_of(odds: dict, key: str, flat_side: str):
+    """Moneyline for one side of an ESPN odds object (nested 2026 shape first, old flat shape as fallback)."""
+    if not isinstance(odds, dict) or not odds:
+        return None
+    try:
+        from fetch_nba import parse_odds
+        v = parse_odds(odds).get(key)
+    except Exception:
+        v = None
+    return v if v is not None else (odds.get(flat_side) or {}).get("moneyLine")
 
 
 def fetch_full_schedule(year: int) -> dict:
