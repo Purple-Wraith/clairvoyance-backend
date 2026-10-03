@@ -354,13 +354,16 @@ jobs:
             if python3 scripts/settle_gate.py --stage final; then
               echo "run_heavy=1" >> "$GITHUB_OUTPUT"
             else
-              echo "run_heavy=0" >> "$GITHUB_OUTPUT"
+              echo "run_heavy=skip" >> "$GITHUB_OUTPUT"
               echo "::notice::settle gate (stage 2): no pending pick's game is final in the fresh results -- no-op (no ledger pull)."
             fi
           fi
 
+      # NOTE (2026-10-02 fix): the gate output is the sentinel 'skip', NOT '0'. GitHub expressions coerce mismatched types to numbers,
+      # and an UNSET output (null) coerces to 0, so `run_heavy != '0'` was FALSE whenever the presettle step did not write it -- every
+      # ungated slot (22:44Z settle, 05:27Z, 07:07 MT lock, digest...) silently skipped this whole step. 'skip' is NaN, so null != 'skip' is true.
       - name: Run auto-lock / auto-settle
-        if: ${{ steps.flags.outputs.should_run != '0' && steps.presettle.outputs.run_heavy != '0' }}
+        if: ${{ steps.flags.outputs.should_run != '0' && steps.presettle.outputs.run_heavy != 'skip' }}
         env:
           TZ: America/Denver
           LOCK_RESULT: ${{ runner.temp }}/lock_pass.json
@@ -411,7 +414,7 @@ jobs:
         # committing whatever these files WERE written before that
         # failure -- decoupled from that step's reliability, not
         # inheriting it.
-        if: ${{ !cancelled() && steps.flags.outputs.should_run != '0' && steps.presettle.outputs.run_heavy != '0' }}
+        if: ${{ !cancelled() && steps.flags.outputs.should_run != '0' && steps.presettle.outputs.run_heavy != 'skip' }}
         run: |
           git add docs/picks_backup.json docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
           if git diff --cached --quiet; then
