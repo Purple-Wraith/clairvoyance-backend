@@ -2968,12 +2968,12 @@ def send_locks_email(qualifying: list[dict], live: bool, locked_count: int | Non
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# TOP PICKS DIGEST -- owner-only, parlay-focused daily summary
+# TOP PICKS DIGEST -- owner-only daily summary
 # ─────────────────────────────────────────────────────────────────────────
 # Explicit request: a separate email, ONLY to clairvoyanceengine@gmail.com
 # (never the subscriber lists send_locks_email uses), ranking that day's
 # ALREADY-LOCKED picks by model win probability -- top 4 per league, top 7
-# overall -- with the reasoning laid out for parlay consideration. Reads
+# overall. (Parlay math was removed 2026-10-04: the engine does nothing with parlays.) Reads
 # directly from today's real locked ledger rather than re-running
 # gather_legs() a second time: by the time this runs (right after the
 # final morning lock check), every qualifying leg for the day is already
@@ -2994,6 +2994,7 @@ def gather_todays_locked_bets(page, date_iso: str | None = None) -> list[dict]:
     bets = page.evaluate("(d) => getP().filter(p => p.date === d)", target)
     # Pre-start locks only (2026-10-02): a pick locked after its game started (manual late lock) is not a "top pick" the model
     # called in advance and may already carry a WON/LOST badge -- leave it out of the digest (shared classifier).
+    bets = [b for b in bets if not lock_timing.is_parlay(b)]   # parlays are out of the engine (owner decision 2026-10-04)
     kept, late = lock_timing.split_picks(bets, lock_timing.load_index())
     if late:
         log(f"Top-picks digest: {len(late)} known-late (locked after game start) pick(s) left out")
@@ -3022,8 +3023,7 @@ def _pick_edge_pp(bet: dict) -> float:
 
 def build_top_picks_digest(bets: list[dict]) -> dict:
     """Ranks purely by model win probability (not tier/EV) -- explicit
-    request, since a parlay's real hit rate is bounded by its weakest
-    leg's own probability, not by average edge. top7 is computed
+    request. top7 is computed
     independently across ALL of today's locked bets, not just assembled
     from the per-league top-4 pools, so one unusually strong league can
     correctly contribute more than one leg to the overall top 7."""
@@ -3038,22 +3038,6 @@ def build_top_picks_digest(bets: list[dict]) -> dict:
         for lg, legs in by_league.items()
     }
     return {"top7": top7, "top4ByLeague": top4_by_league}
-
-
-def _parlay_math(bets: list[dict]) -> dict:
-    """Combined hit probability (product of each leg's own model win
-    probability) and combined payout (product of each leg's decimal
-    odds) for treating this set as one parlay. Shown deliberately
-    alongside the individual numbers, never in place of them --
-    stacking legs compounds risk fast (even at a strong 70% average per
-    leg, 7 legs multiplies down to under 10% combined), and hiding that
-    math would misrepresent what a 7-leg parlay actually is."""
-    combined_p = 1.0
-    combined_dec = 1.0
-    for b in bets:
-        combined_p *= (b.get("winProb") or 0.5)
-        combined_dec *= (b.get("decOdds") or 1.91)
-    return {"combinedProb": combined_p, "combinedDec": combined_dec, "combinedAmerican": _dec_to_american(combined_dec)}
 
 
 def _digest_pick_row_html(bet: dict) -> str:
@@ -3100,7 +3084,6 @@ def build_top_picks_digest_html(digest: dict, date_str: str) -> str:
         parts.append(_LOCKS_EMAIL_CLOSE)
         return "".join(parts)
 
-    pm = _parlay_math(top7)
     parts.append(
         # Note: this header/paragraph pair sits directly on _EMAIL_WRAP_OPEN's
         # white background (unlike the per-pick rows below, each of which
@@ -3111,21 +3094,9 @@ def build_top_picks_digest_html(digest: dict, date_str: str) -> str:
         '<div style="font-size:20px;font-weight:700;color:#f20cff;margin:18px 0 4px">'
         f'TOP 7 OVERALL — {_esc(date_str)} — {len(top7)} PICKS</div>'
         '<div style="font-size:13px;color:#555;line-height:1.6;margin-bottom:12px">'
-        "Ranked purely by model win probability across every sport locked today — the metric that matters "
-        "most for parlaying, since a parlay's real hit rate is bounded by its weakest leg, not its average "
-        "edge. These are the 7 individual plays the model is most confident in today, regardless of "
-        "sport or market type."
+        "Ranked purely by model win probability across every sport locked today. These are the 7 "
+        "individual plays the model is most confident in today, regardless of sport or market type."
         '</div>'
-        '<div style="background:#1a0028;border:1px solid rgba(242,12,255,.3);border-radius:6px;'
-        'padding:12px 16px;margin-bottom:14px">'
-        f'<div style="font-size:13px;color:#ccc;line-height:1.7">'
-        f'<strong style="color:#fff">If parlayed together:</strong> an estimated '
-        f'<strong style="color:#f20cff">{pm["combinedProb"]*100:.1f}%</strong> chance all 7 hit, '
-        f'paying roughly <strong style="color:#f20cff">{_esc(pm["combinedAmerican"])}</strong> '
-        f'({pm["combinedDec"]:.1f}x) if they do.<br>'
-        f'<span style="color:#999">Stacking legs compounds fast — even strong individual picks multiply down '
-        f'to a real long-shot combined. This is the honest math, not a recommendation to parlay all 7 at '
-        f'full size.</span></div></div>'
     )
     parts.append("".join(_digest_pick_row_html(b) for b in top7))
 
@@ -4020,7 +3991,7 @@ def main() -> None:
                           "run_hockey_evening_lock's own docstring / hockey-lock-evening.yml.")
     ap.add_argument("--top-picks-digest", action="store_true",
                      help="Sends the owner-only Top Picks Digest (top 4 per league + top 7 overall "
-                          "for the day, ranked by model win probability, with parlay math) to "
+                          "for the day, ranked by model win probability) to "
                           "clairvoyanceengine@gmail.com only -- never the subscriber lists. Reads "
                           "today's already-locked picks fresh from Supabase; run this AFTER the "
                           "day's real lock pass, not standalone. Does not touch the browser's other "

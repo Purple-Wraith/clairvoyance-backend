@@ -81,6 +81,12 @@ BROAD_SPORT_CODES = frozenset({"NBA", "NFL", "CFB", "NHL", "KHL", "SHL", "LIIGA"
 # Figure scope = BROAD minus the retired soccer leagues (MLS, Bundesliga) -- mirrors _cvScoped() in docs/app.html (owner decision 2026-10-03). Use this for every published/record figure.
 RETIRED_SOCCER_CODES = frozenset({"MLS", "BUND", "BL"})
 IN_SCOPE_CODES = BROAD_SPORT_CODES - RETIRED_SOCCER_CODES
+
+
+def is_parlay(p: dict) -> bool:
+    """Parlays are out of the engine (owner decision 2026-10-04): they never count toward a published figure. Mirrors _isParlay() in docs/app.html."""
+    bt = str(p.get("betType") or "").upper()
+    return bt in ("PARLAY", "PL_PARLAY") or p.get("hA") in ("PARLAY", "NBA-PARLAY")
 LEAGUE_MAP_CODES = frozenset({"NFL", "CFB", "NHL", "NCAAH", "SHL", "LIIGA", "NLA", "EXTRALIGA", "KHL", "NBA", "CL", "PL",
                               "LIGA", "SERIEA"})
 

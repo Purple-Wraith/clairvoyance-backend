@@ -292,7 +292,7 @@ def _landing_basis(b: dict) -> dict:
 
 def _scoped_basis(pf: dict, keep) -> dict:
     """basis fields for a JSON whose figures cover only the picks `keep(p)` accepts (its own scope)."""
-    scoped = [p for p in pf["rows"] if keep(p)]
+    scoped = [p for p in pf["rows"] if not lt.is_parlay(p) and keep(p)]   # parlays never count (owner decision 2026-10-04)
     return lt.basis_fields(scoped, pf["idx"])
 
 
@@ -502,7 +502,9 @@ _PERIOD_TILES_JS = """
           const L = new Set(lateIds || []);
           // The generator loads the DEPLOYED app, which can lag a push by a few minutes: fall back to the same rule inline (keep in sync with _cvScoped in docs/app.html).
           const inScope = window._cvScoped || (p => { const t = window._normSport(p); return window._broadSportOf(t) !== null && !['MLS', 'BUND', 'BL'].includes(t); });
-          const scope = p => !subscriber || inScope(p);
+          // parlays never count (owner decision 2026-10-04); same fallback reasoning as inScope (the deployed app can lag a push)
+          const isPar = window._isParlay || (p => { const bt = String(p.betType || '').toUpperCase(); return bt === 'PARLAY' || bt === 'PL_PARLAY' || p.hA === 'PARLAY' || p.hA === 'NBA-PARLAY'; });
+          const scope = p => !isPar(p) && (!subscriber || inScope(p));
           const allRaw = getP().filter(scope);
           const allBets = allRaw.filter(p => !L.has(p.id));
           const now = Date.now();
@@ -611,7 +613,8 @@ def get_sport_performance(page, pf: dict | None = None) -> dict | None:
         """
         async (lateIds) => {
           const L = new Set(lateIds || []);
-          const allRaw = getP();
+          const isPar = window._isParlay || (p => { const bt = String(p.betType || '').toUpperCase(); return bt === 'PARLAY' || bt === 'PL_PARLAY' || p.hA === 'PARLAY' || p.hA === 'NBA-PARLAY'; });
+          const allRaw = getP().filter(p => !isPar(p));   // parlays never count (owner decision 2026-10-04)
           const allBets = allRaw.filter(p => !L.has(p.id));
           const nowD = getMSTNow();
           const firstOfMonth = mstFirstOfMonth(nowD);

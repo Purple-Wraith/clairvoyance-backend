@@ -4016,6 +4016,8 @@ def supabase_bets_to_history(bets: list[dict]) -> list[dict]:
         for _k in ("sport", "date"):
             if not _pk.get(_k):
                 _pk[_k] = row.get(_k)
+        if _lt.is_parlay(_pk):
+            continue        # parlays are out of the engine (owner decision 2026-10-04): they never feed overallStats / calibration / the public history files
         if _lt.is_known_late(_pk, _lt_idx):
             _late_dropped += 1
             continue

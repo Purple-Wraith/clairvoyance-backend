@@ -48,6 +48,13 @@ class MonthBetType(unittest.TestCase):
         for t in ("ML", "SPREAD", "O/U"):
             self.assertIn(t, c["all"])
 
+    def test_all_time_section_has_its_own_header(self):
+        self.pg.evaluate("window._ovrSelectedMonth='2026-05';renderOverall()"); self.pg.wait_for_timeout(300)
+        r = self.pg.evaluate("""()=>{const h=document.getElementById('ovr-alltime-breakdown-lbl');const grids=[...document.querySelectorAll('.ovr-sport-breakdown')];
+          return {text:h&&h.innerText, headerIsRightBeforeAllTimeGrid:h&&h.nextElementSibling===grids[1], monthHeader:/MAY 2026 — BY SPORT \/ BET TYPE \/ LEAGUE/i.test(document.getElementById('ovr-dashboard').innerText)}}""")
+        self.assertEqual(r["text"], "ALL TIME — BY SPORT / BET TYPE / LEAGUE")
+        self.assertTrue(r["headerIsRightBeforeAllTimeGrid"]); self.assertTrue(r["monthHeader"])      # and the month section keeps its own header
+
     def test_selected_month_really_is_the_one_with_the_picks(self):
         self.pg.evaluate("window._ovrSelectedMonth='2026-05';renderOverall()"); self.pg.wait_for_timeout(300)
         self.assertIn("MAY 2026", self.pg.evaluate("document.getElementById('ovr-month-select').selectedOptions[0].text").upper())
