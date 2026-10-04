@@ -5424,7 +5424,24 @@ function _scheduleA11yChipTag(){
 // that literal string), so matching on the prefix alone -- regardless
 // of what other fields happen to be populated -- is safe.
 function _isJunkPred(p){return/^test[_-]/i.test(p.id||'');}
+// PERF 2026-10-03: getP() is called ~130 places (often several times per render) and used to JSON.parse the whole ~1.5MB ledger (3,900 picks, ~26ms) EVERY time -- the single biggest
+// cost of page load, the Overall tab and every Home re-render on desktop. Now parsed once per distinct localStorage content (keyed by the raw strings, so ANY write -- this tab's
+// saveP, a sync, a settle -- invalidates it) and every caller still gets its own fresh shallow copy of each pick, exactly like before, so callers that mutate picks keep working.
+let _gpCache=null;
 function getP(){
+  let raw=null,wr=null;
+  try{raw=localStorage.getItem('preds');wr=localStorage.getItem('cv_wiped_ids');}catch(e){return _getPRaw();}
+  if(_gpCache&&_gpCache.raw===raw&&_gpCache.wr===wr)return _gpCache.arr.map(_gpClone);
+  const out=_getPRaw();
+  try{
+    // the self-heal inside _getPRaw may have rewritten 'preds': key the cache on what is stored NOW
+    const raw2=localStorage.getItem('preds'),wr2=localStorage.getItem('cv_wiped_ids');
+    _gpCache={raw:raw2,wr:wr2,arr:out.map(_gpClone)};
+  }catch(e){_gpCache=null;}
+  return out;
+}
+function _gpClone(p){return p&&typeof p==='object'&&!Array.isArray(p)?Object.assign({},p):p;}
+function _getPRaw(){
   const raw=S.g('preds',[])||[];
   const w=_getWipedIds();
   let filtered=raw.filter(p=>!_isJunkPred(p));
@@ -16284,8 +16301,15 @@ function buildAlyFilters(allRaw,F){
 }
 
 
+// Builds a lazily-rendered archive folder body the first time it is opened (see monthFolder/yearFolder in renderOverallHistory).
+window._ovrLazy={};
+function _ovrFill(c){
+  try{const f=window._ovrLazy&&window._ovrLazy[c.id];if(f){c.innerHTML=f();delete window._ovrLazy[c.id];}}catch(e){console.warn('[CV] folder build failed',e);}
+  c.removeAttribute('data-lazy');
+}
 function renderOverallHistory(sportFilter,dateFrom,dateTo){
   const el=document.getElementById('ovr-history-list');if(!el)return;
+  window._ovrLazy={};
   let all=[...getP()].sort((a,b)=>(b.lockedAt||0)-(a.lockedAt||0));
   // ── PENDING BETS — always shown at top regardless of filters ──────────────
   // Explicit request, 2026-09-25: soonest date first (today at top,
@@ -16534,9 +16558,10 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
     const fid='mfold_'+mk.replace(/-/g,'');
     let monthLabel=mk;
     try{const d=new Date(mk+'-01T12:00:00');monthLabel=d.toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();}catch(e){}
-    const dayHtml=Object.entries(days).sort((a,b)=>b[0].localeCompare(a[0])).map(([d,db])=>dayFolder(d,db,mk)).join('');
+    // PERF 2026-10-03: a collapsed archive month is not built until it is first opened (the whole ~3,900-pick history used to be rendered into hidden DOM: ~2s + ~15k nodes on desktop)
+    window._ovrLazy[fid]=()=>Object.entries(days).sort((a,b)=>b[0].localeCompare(a[0])).map(([d,db])=>dayFolder(d,db,mk)).join('');
     return`<div style="margin-bottom:8px">
-      <div onclick="const c=document.getElementById('${fid}');const open=c.style.display!=='none';c.style.display=open?'none':'block';this.querySelector('.mfa').textContent=open?'▶':'▼'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;gap:8px">
+      <div onclick="const c=document.getElementById('${fid}');const open=c.style.display!=='none';if(!open)_ovrFill(c);c.style.display=open?'none':'block';this.querySelector('.mfa').textContent=open?'▶':'▼'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;gap:8px">
         <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
           <span class="mfa" style="font-family:var(--mono);font-size:15px;color:rgba(0,240,255,.5)">▶</span>
           <span style="font-family:var(--orb);font-size:17px;font-weight:700;color:var(--nc)">${monthLabel}</span>
@@ -16549,9 +16574,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
           <span style="font-family:var(--mono);font-size:14px;color:${uCol2(pr.u)}">${pr.u>=0?'+':''}${pr.u.toFixed(1)}u</span>
         </div>
       </div>
-      <div id="${fid}" style="display:none;padding:7px;border:1px solid rgba(0,240,255,.1);border-top:none;border-radius:0 0 3px 3px;background:rgba(0,10,20,.4)">
-        ${dayHtml}
-      </div>
+      <div id="${fid}" data-lazy="1" style="display:none;padding:7px;border:1px solid rgba(0,240,255,.1);border-top:none;border-radius:0 0 3px 3px;background:rgba(0,10,20,.4)"></div>
     </div>`;
   };
 
@@ -16559,9 +16582,9 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   const yearFolder=(yk,bets,months)=>{
     const pr=perf(bets);
     const fid='yfold_'+yk;
-    const monthHtml=Object.entries(months).sort((a,b)=>b[0].localeCompare(a[0])).map(([mk,{bets:mb,days}])=>monthFolder(mk,mb,days)).join('');
+    window._ovrLazy[fid]=()=>Object.entries(months).sort((a,b)=>b[0].localeCompare(a[0])).map(([mk,{bets:mb,days}])=>monthFolder(mk,mb,days)).join('');
     return`<div style="margin-bottom:10px">
-      <div onclick="const c=document.getElementById('${fid}');const open=c.style.display!=='none';c.style.display=open?'none':'block';this.querySelector('.yfa').textContent=open?'▶':'▼'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 13px;background:rgba(187,255,0,.04);border:1px solid rgba(187,255,0,.25);border-radius:3px;gap:8px">
+      <div onclick="const c=document.getElementById('${fid}');const open=c.style.display!=='none';if(!open)_ovrFill(c);c.style.display=open?'none':'block';this.querySelector('.yfa').textContent=open?'▶':'▼'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 13px;background:rgba(187,255,0,.04);border:1px solid rgba(187,255,0,.25);border-radius:3px;gap:8px">
         <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
           <span class="yfa" style="font-family:var(--mono);font-size:16px;color:rgba(187,255,0,.5)">▶</span>
           <span style="font-family:var(--orb);font-size:19px;font-weight:700;color:var(--vc)">${yk}</span>
@@ -16574,7 +16597,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
           <span style="font-family:var(--mono);font-size:14px;color:${uCol2(pr.u)}">${pr.u>=0?'+':''}${pr.u.toFixed(1)}u</span>
         </div>
       </div>
-      <div id="${fid}" style="display:none;padding:7px;border:1px solid rgba(187,255,0,.1);border-top:none;border-radius:0 0 3px 3px;background:rgba(0,8,0,.3)">${monthHtml}</div>
+      <div id="${fid}" data-lazy="1" style="display:none;padding:7px;border:1px solid rgba(187,255,0,.1);border-top:none;border-radius:0 0 3px 3px;background:rgba(0,8,0,.3)"></div>
     </div>`;
   };
 
