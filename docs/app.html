@@ -5424,6 +5424,26 @@ function _scheduleA11yChipTag(){
 // that literal string), so matching on the prefix alone -- regardless
 // of what other fields happen to be populated -- is safe.
 function _isJunkPred(p){return/^test[_-]/i.test(p.id||'');}
+// ══ LEDGER ARCHIVE (2026-10-03) ═══════════════════════════════════════════════════════════════════════════════════════════
+// ~60% of the ledger (2,237 of 3,879 picks: MLB, WNBA, WTA, ATP, World Cup, tennis...) belongs to RETIRED leagues and is excluded from every figure on Overall/Analytics/Track Record, yet every
+// load parsed, filtered and rendered all of it. Those settled picks now live in docs/ledger_archive.json (loaded only when you open the archive in Overall > history) and are kept OUT of the working
+// ledger (localStorage/IndexedDB/getP). NOTHING IS DELETED: Supabase and docs/picks_backup.json still hold every pick, and the archive file is the same data. Only the header accuracy needs the old
+// retired picks' totals, so those are the constant below (scripts/test_ledger_archive.py checks it against the archive file).
+//   * Automation (CI / Playwright: navigator.webdriver) is NEVER slimmed, so the lock/settle sessions and docs/picks_backup.json see the full ledger exactly as before. ?slim=1 forces it on for testing.
+//   * Only settled picks of KNOWN retired tags older than 21 days (the Supabase push window) are archivable -- a new/odd pick is never hidden.
+const _ARCH_TAGS=new Set(['MLB','WNBA','WTA','ATP','WC','TEN','XP']);
+const _ARCH_SUM={n:2236,w:1564,l:672};   // retired-league picks: settled count / wins / losses (filled by scripts/build_ledger_archive.py)
+function _slimOn(){try{if(/[?&]slim=1(?:&|$)/.test(location.search||''))return true;if(/[?&]slim=0(?:&|$)/.test(location.search||''))return false;return navigator.webdriver!==true;}catch(e){return true;}}
+let _archCutV='',_archCutAt=0;
+function _archCut(){const n=Date.now();if(!_archCutV||n-_archCutAt>60000){_archCutV=_mtDateOf(n-21*86400000)||'';_archCutAt=n;}return _archCutV;}
+function _archivable(p){
+  try{
+    if(!p||!p.outcome||p.outcome==='pending'||p.outcome==='_removed')return false;
+    const d=p.date||'';if(!d||d>=_archCut())return false;
+    return _ARCH_TAGS.has(_normSport(p));
+  }catch(e){return false;}
+}
+function _slimPick(p){return _slimOn()&&_archivable(p);}
 // PERF 2026-10-03: getP() is called ~130 places (often several times per render) and used to JSON.parse the whole ~1.5MB ledger (3,900 picks, ~26ms) EVERY time -- the single biggest
 // cost of page load, the Overall tab and every Home re-render on desktop. Now parsed once per distinct localStorage content (keyed by the raw strings, so ANY write -- this tab's
 // saveP, a sync, a settle -- invalidates it) and every caller still gets its own fresh shallow copy of each pick, exactly like before, so callers that mutate picks keep working.
@@ -5444,7 +5464,7 @@ function _gpClone(p){return p&&typeof p==='object'&&!Array.isArray(p)?Object.ass
 function _getPRaw(){
   const raw=S.g('preds',[])||[];
   const w=_getWipedIds();
-  let filtered=raw.filter(p=>!_isJunkPred(p));
+  let filtered=raw.filter(p=>!_isJunkPred(p)&&!_slimPick(p));   // also self-heals archived picks out of localStorage
   if(w.size)filtered=filtered.filter(p=>!w.has(p.id));
   if(filtered.length<raw.length)S.s('preds',filtered); // self-heal: remove any re-seeded wiped/junk picks
   return filtered;
@@ -5475,7 +5495,7 @@ function _dedupeStalePendingPicks(){
   }catch(e){console.warn('[CV] stale-pending dedupe failed',e);}
 }
 function saveP(a){
-  const cleaned=_filterWiped(a);
+  const cleaned=_filterWiped(a).filter(p=>!_slimPick(p));
   S.s('preds',cleaned);idbSavePicks(cleaned);
   try{syncBetsToSupabase();}catch(e){} // mirror to Supabase, debounced, non-blocking
 }// shadow to IndexedDB
@@ -5821,6 +5841,7 @@ function _mergeRemoteBetRows(rows){
       const remote=row.raw&&typeof row.raw==='object'?row.raw:null;
       if(!remote)continue;
       const existing=byId.get(row.id);
+      if(!existing&&_slimPick(Object.assign({},remote,{outcome:row.outcome||remote.outcome})))continue;   // archived retired pick: stays out of the working ledger
       if(!existing){
         const sig=`${remote.date}|${remote.hA}|${remote.awA}|${remote.betOn}`;
         const sigMatch=bySig.get(sig);
@@ -6519,7 +6540,7 @@ function renderStatusBar(){
   el.style.display='block';
 }
 function updHdr(){
-  const p=getP().filter(x=>x.outcome!=='pending');const w=p.filter(x=>x.outcome==='win').length;const a=p.length?w/p.length:null;
+  const p=getP().filter(x=>x.outcome!=='pending');const _as=_slimOn()?_ARCH_SUM:{n:0,w:0};const w=p.filter(x=>x.outcome==='win').length+_as.w;const a=(p.length+_as.n)?w/(p.length+_as.n):null;   // + archived retired picks, so the number is unchanged
   const h=document.getElementById('h-acc');if(h)h.textContent=a?`${(a*100).toFixed(1)}%`:'--';
   const sb=document.getElementById('h-status-bar');
   if(sb){
@@ -16651,8 +16672,52 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   el.innerHTML=filterHtml+summaryBar
     +(recentBets.length?`<div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px;margin-bottom:5px">// RECENT — ${recentBets.length} BETS</div>`+recentHtml:'')
     +(_allYears.length?`<div style="font-family:var(--mono);font-size:14px;color:var(--nc);letter-spacing:2px;margin:10px 0 6px">// HISTORY ARCHIVE — ${archivedBets.length} BETS</div>`+yearFilterHtml+archHtml:'')
-    +(!all.length?'<div class="empty">NO BETS FOR SELECTED FILTERS</div>':'');
+    +(!all.length?'<div class="empty">NO BETS FOR SELECTED FILTERS</div>':'')
+    +_ovrArchiveHtml();
 }
+// ── Retired-league archive (docs/ledger_archive.json), loaded only when this folder is opened ─────────────────────────────
+window._ovrArch=window._ovrArch||{open:false,data:null,loading:false,fail:false,sport:null,shown:0};
+function _ovrArchiveHtml(){
+  if(!_slimOn()||!(_ARCH_SUM&&_ARCH_SUM.n))return'';
+  const A=window._ovrArch,n=_ARCH_SUM.n;
+  const hdr=`<div onclick="_ovrArchToggle()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;margin-top:14px;border:1px solid rgba(220,190,255,.18);border-radius:3px;background:rgba(10,0,24,.55)">
+    <span style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px"><span>${A.open?'▼':'▶'}</span> // RETIRED-LEAGUE ARCHIVE — ${n.toLocaleString('en-US')} PICKS</span>
+    <span style="font-family:var(--mono);font-size:14px;color:rgba(220,190,255,.45)">${_ARCH_SUM.w}W ${_ARCH_SUM.l}L · MLB / WNBA / TENNIS / WORLD CUP · TAP TO ${A.open?'HIDE':'LOAD'}</span></div>`;
+  if(!A.open)return`<div id="ovr-archive">${hdr}</div>`;
+  if(A.loading)return`<div id="ovr-archive">${hdr}<div class="loading" style="padding:12px"><span class="spi"></span></div></div>`;
+  if(A.fail||!A.data)return`<div id="ovr-archive">${hdr}<div class="empty" style="padding:12px">COULD NOT LOAD THE ARCHIVE — CHECK YOUR CONNECTION AND TAP TO RETRY</div></div>`;
+  const by={};for(const p of A.data){const k=_normSport(p);(by[k]=by[k]||[]).push(p);}
+  const rec=bets=>{let w=0,l=0,u=0;for(const p of bets){if(p.outcome==='win'){w++;u+=(parseFloat(p.decOdds)||2)-1;}else if(p.outcome==='loss'){l++;u-=1;}}return{w,l,u,pct:(w+l)?w/(w+l):null};};
+  const folders=Object.entries(by).sort((a,b)=>b[1].length-a[1].length).map(([k,bets])=>{
+    const r=rec(bets),open=A.sport===k;
+    let rows='';
+    if(open){
+      const list=bets.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||((b.lockedAt||0)-(a.lockedAt||0)));
+      const cap=Math.max(A.shown||0,100);
+      rows=list.slice(0,cap).map(p=>_pickRowHTML(p,{mode:'settled',wrapClass:'card',dateLbl:p.date||''})).join('')
+        +(list.length>cap?`<div onclick="_ovrArchMore()" style="cursor:pointer;text-align:center;padding:9px;font-family:var(--mono);font-size:14px;color:var(--nc)">SHOW 100 MORE (${list.length-cap} LEFT)</div>`:'');
+    }
+    return`<div style="margin-bottom:5px"><div onclick="_ovrArchSport('${k}')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border:1px solid rgba(255,255,255,.08);border-radius:3px;background:rgba(0,0,0,.25)">
+      <span style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--t)"><span style="font-family:var(--mono);color:rgba(220,190,255,.45)">${open?'▼':'▶'}</span> ${k} <span style="font-family:var(--mono);font-size:13px;color:rgba(220,190,255,.35)">${bets.length} picks</span></span>
+      <span style="font-family:var(--mono);font-size:14px"><span style="color:#00e644">${r.w}W</span> <span style="color:var(--hc)">${r.l}L</span> <span style="color:${r.u>=0?'#00e644':'#ff1a1a'}">${r.u>=0?'+':''}${r.u.toFixed(1)}u</span></span></div>${open?`<div style="padding:7px 4px 2px">${rows}</div>`:''}</div>`;
+  }).join('');
+  return`<div id="ovr-archive">${hdr}<div style="margin-top:6px">${folders}</div></div>`;
+}
+async function _ovrArchToggle(){
+  const A=window._ovrArch;A.open=!A.open;
+  if(A.open&&!A.data&&!A.loading){
+    A.loading=true;A.fail=false;renderOverallHistory();
+    try{
+      const r=await fetch('ledger_archive.json?v='+Date.now());
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const j=await r.json();A.data=Array.isArray(j.picks)?j.picks:[];
+    }catch(e){A.fail=true;console.warn('[CV] archive load failed:',e.message);}
+    A.loading=false;
+  }
+  renderOverallHistory();
+}
+function _ovrArchSport(k){const A=window._ovrArch;A.sport=A.sport===k?null:k;A.shown=100;renderOverallHistory();}
+function _ovrArchMore(){const A=window._ovrArch;A.shown=Math.max(A.shown||0,100)+100;renderOverallHistory();}
 
 
 
