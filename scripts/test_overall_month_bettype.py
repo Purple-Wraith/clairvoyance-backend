@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Overall > Dashboard > FILTER BY MONTH: the month-filtered BET TYPE list must not show PARLAY (owner request 2026-10-04); the all-time BET TYPE card is unchanged."""
+"""Overall > Dashboard: neither BET TYPE list -- the month-filtered one under FILTER BY MONTH nor the all-time one below it -- may show PARLAY (owner request 2026-10-04); the other types still show."""
 import functools, http.server, socketserver, threading, unittest
 from pathlib import Path
 
@@ -40,11 +40,13 @@ class MonthBetType(unittest.TestCase):
           const typeCard=r=>[...r.querySelectorAll('.card')].find(c=>/^\\s*BET TYPE/.test(c.innerText)).innerText;
           return {month:typeCard(month), all:typeCard(all)}}""")
 
-    def test_month_list_has_no_parlay_but_alltime_keeps_it(self):
+    def test_no_parlay_in_either_bet_type_list(self):
         self.pg.evaluate("window._ovrSelectedMonth='2026-05';renderOverall()"); self.pg.wait_for_timeout(300)
         c = self.cards()
         self.assertNotIn("PARLAY", c["month"]); self.assertIn("ML", c["month"]); self.assertIn("SPREAD", c["month"]); self.assertIn("O/U", c["month"])
-        self.assertIn("PARLAY", c["all"])                                   # the all-time breakdown is untouched
+        self.assertNotIn("PARLAY", c["all"])                                # nor in the all-time list below it
+        for t in ("ML", "SPREAD", "O/U"):
+            self.assertIn(t, c["all"])
 
     def test_selected_month_really_is_the_one_with_the_picks(self):
         self.pg.evaluate("window._ovrSelectedMonth='2026-05';renderOverall()"); self.pg.wait_for_timeout(300)

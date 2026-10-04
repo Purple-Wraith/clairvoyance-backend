@@ -15167,7 +15167,7 @@ function renderOverall(){
     {lbl:'SPREAD', codes:['RL','PL','SPREAD','ATS']},
     {lbl:'O/U',    codes:['OU','TOTAL']},
     {lbl:'PROP',   codes:['PROP','NRFI','PLAYER']},
-    {lbl:'PARLAY', codes:['PARLAY','PL_PARLAY']},
+    // PARLAY row removed from BOTH the all-time and the month-filtered BET TYPE lists (owner request 2026-10-04); parlay picks still count in the sport/league totals.
   ];
   const byType=typeMap.map(tm=>{
     const tp=settled.filter(p=>tm.codes.some(c=>p._btUC===c));
@@ -15220,7 +15220,7 @@ function renderOverall(){
   const byTypeMo=typeMap.map(tm=>{
     const tp=selMoSettled.filter(p=>tm.codes.some(c=>p._btUC===c));
     return{lbl:tm.lbl,...calcPerf(tp)};
-  }).filter(d=>d.n>0&&d.lbl!=='PARLAY');   // owner request 2026-10-04: no PARLAY row in the month-filtered BET TYPE list (the all-time list is unchanged)
+  }).filter(d=>d.n>0);
   const byLeagueMo=leagueMap.map(lm=>{
     const lb=selMoSettled.filter(p=>lm.codes.some(c=>p._spUC===c));
     return{lbl:lm.lbl,...calcPerf(lb)};
