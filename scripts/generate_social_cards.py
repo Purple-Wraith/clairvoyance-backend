@@ -166,42 +166,9 @@ def _mt_now() -> datetime:
 SPORT_LEAGUES = {
     "BASKETBALL": "NBA",
     "FOOTBALL": "NFL, CFB",
-    "HOCKEY": "NHL, KHL, SHL, LIIGA, NLA, EXTRALIGA",
+    "HOCKEY": "NHL, SHL, LIIGA, NLA, EXTRALIGA",
     "SOCCER": "Champions League, La Liga, Premier League, Serie A",
 }
-
-
-def _strip_stale_hockey(stats: dict) -> None:
-    """One-time correction for 5 leftover test-fixture bets (ids "b0"-"b4",
-    no real team/matchup data, dated July 10-14 2026) sitting in the real
-    Supabase ledger and tagged NHL -- there's no actual hockey being
-    played right now, so a "HOCKEY 1-1" (or similar) row was showing up
-    in the monthly recap purely from that stale test data. User asked to
-    patch the video output rather than delete the underlying rows, so
-    this drops the HOCKEY row from the Sport Performance breakdown and
-    backs 1 win + 1 loss out of the monthly total here, in place, before
-    the monthly video/caption get built. Mutates stats in place; no-ops
-    once the HOCKEY row disappears from bySport (e.g. once real hockey
-    resumes and there's actual data to show, or the row rolls out of the
-    monthly window on its own)."""
-    if not stats or not stats.get("bySport"):
-        return
-    hockey = next((s for s in stats["bySport"] if s.get("label") == "HOCKEY"), None)
-    if not hockey:
-        return
-    stats["bySport"] = [s for s in stats["bySport"] if s.get("label") != "HOCKEY"]
-    if stats.get("w") is not None and stats.get("l") is not None:
-        new_w, new_l = max(0, stats["w"] - 1), max(0, stats["l"] - 1)
-        settled = new_w + new_l
-        stats["w"], stats["l"] = new_w, new_l
-        stats["pct"] = (new_w / settled) if settled else None
-        if stats.get("units") is not None:
-            # Same unit-normalized pnl convention as everywhere else
-            # (win: decOdds-1, loss: -1) -- the 5 fake bets all used
-            # decOdds:1.9, so back out exactly that pnl rather than a
-            # generic +/-1u guess.
-            stats["units"] = stats["units"] - (0.9 - 1.0)
-    log("  Stripped stale HOCKEY test data from monthly stats (-1W-1L)")
 
 
 def _breakdown_rows(stats: dict) -> list[dict]:
@@ -250,7 +217,7 @@ def _fmt_pct(pct: float | None) -> str:
 # Event cards, the caption and video numbers) is computed on picks NOT known to have been locked after their game started.
 # The classifier is scripts/lock_timing.py (shared with auto_lock_settle.py, clairvoyance_update.py, the digests); this
 # module only asks it for the ids to drop and hands them to the in-page JS. Unknown-timing picks stay included.
-TALLY_NOTE = "Counts only picks locked before game start."
+TALLY_NOTE = "Excludes picks known to have been locked after game start."
 
 
 def public_filter(page) -> dict:
@@ -444,7 +411,9 @@ def get_year_stats(page, year: int, pf: dict | None = None) -> dict:
         ([year, lateIds]) => {
           const L = new Set(lateIds || []);
           const start = year + '-01-01', end = year + '-12-31';
-          const inYear = getP().filter(p => p.date && p.date >= start && p.date <= end && !L.has(p.id));
+          // same scope as every other published figure (recognised leagues only; no parlays; no retired MLS/Bundesliga) so the TOTAL row equals the sum of its rows
+          const inScope = window._cvScoped || (p => { const t = window._normSport(p); const bt = String(p.betType || '').toUpperCase(); return !(bt === 'PARLAY' || bt === 'PL_PARLAY' || p.hA === 'PARLAY' || p.hA === 'NBA-PARLAY') && window._broadSportOf(t) !== null && !['MLS', 'BUND', 'BL'].includes(t); });
+          const inYear = getP().filter(p => p.date && p.date >= start && p.date <= end && !L.has(p.id) && inScope(p));
           const settled = inYear.filter(p => p.outcome === 'win' || p.outcome === 'loss');
           const w = settled.filter(p => p.outcome === 'win').length;
           const l = settled.length - w;
@@ -892,14 +861,14 @@ def build_daily_caption(stats: dict | None, date_ref: datetime) -> dict[str, str
     date_str = date_ref.strftime("%B %-d, %Y")
     tally_line = _tally_line(stats)
     ig = (
-        f"Yesterdays Performance\n\n{date_str}\n\nThis is Clairvoyance.\n\n{tally_line}"
+        f"Yesterday's Performance\n\n{date_str}\n\nThis is Clairvoyance.\n\n{tally_line}"
         f"Every pick graded. Every line evaluated for edge. No guesswork.\n\n"
         f"Follow for daily signals, subscribe for exclusive graded picks, and intelligence briefs.\n\n"
         f"clairvoyanceengine.info\nIG @clairvoyanceengine\nX @clairvoyanceeng\n\n"
         f"#foryou #sportsbetting #bettingtips #bettingpicks"
     )
     x = (
-        f"Yesterdays Performance\n\nThis is Clairvoyance.\n\n{tally_line}"
+        f"Yesterday's Performance\n\nThis is Clairvoyance.\n\n{tally_line}"
         f"clairvoyanceengine.info\n\n#sportsbetting #bettingtips #bettingpicks"
     )
     return {"instagram": ig, "x": x}
@@ -927,14 +896,14 @@ def build_weekly_caption(stats: dict | None, week_end: datetime) -> dict[str, st
 def build_alltime_caption(stats: dict | None) -> dict[str, str]:
     tally_line = _tally_line(stats)
     ig = (
-        f"All Time — Every Pick, Every Result\n\nThis is Clairvoyance.\n\n{tally_line}"
-        f"The full track record, public from day one. No cherry-picking, no deleted losses.\n\n"
+        f"All Time — The Full Record\n\nThis is Clairvoyance.\n\n{tally_line}"
+        f"The full track record, tracked and graded in public from day one.\n\n"
         f"Follow for daily signals, subscribe for exclusive graded picks, and intelligence briefs.\n\n"
         f"clairvoyanceengine.info\nIG @clairvoyanceengine\nX @clairvoyanceeng\n\n"
         f"#foryou #sportsbetting #bettingtips #bettingpicks"
     )
     x = (
-        f"All Time — Every Pick, Every Result\n\nThis is Clairvoyance.\n\n{tally_line}"
+        f"All Time — The Full Record\n\nThis is Clairvoyance.\n\n{tally_line}"
         f"The full track record, public from day one.\n\n"
         f"clairvoyanceengine.info\n\n#sportsbetting #bettingpicks"
     )
@@ -947,14 +916,14 @@ def build_monthly_caption(stats: dict | None, month_ref: datetime) -> dict[str, 
     tally_line = _tally_line(stats)
     ig = (
         f"{month_str} in the Books\n\nThis is Clairvoyance.\n\n{tally_line}"
-        f"A full month tracked, graded, and public. No cherry-picking, no deleted losses.\n\n"
+        f"A full month tracked, graded, and public.\n\n"
         f"Follow for daily signals, subscribe for exclusive graded picks, and intelligence briefs.\n\n"
         f"clairvoyanceengine.info\nIG @clairvoyanceengine\nX @clairvoyanceeng\n\n"
         f"#foryou #sportsbetting #bettingtips #bettingpicks #monthlyrecap"
     )
     x = (
         f"{month_str} in the Books\n\nThis is Clairvoyance.\n\n{tally_line}"
-        f"A full month tracked, graded, and public. No cherry-picking.\n\n"
+        f"A full month tracked, graded, and public.\n\n"
         f"clairvoyanceengine.info\n\n#sportsbetting #bettingpicks #monthlyrecap"
     )
     return {"instagram": ig, "x": x}
@@ -964,14 +933,14 @@ def build_yearly_caption(stats: dict | None, year: int) -> dict[str, str]:
     tally_line = _tally_line(stats)
     ig = (
         f"{year} in the Books\n\nThis is Clairvoyance.\n\n{tally_line}"
-        f"A full year tracked, graded, and public. Every pick, every result — no cherry-picking, no deleted losses.\n\n"
+        f"A full year tracked, graded, and public.\n\n"
         f"Follow for daily signals, subscribe for exclusive graded picks, and intelligence briefs.\n\n"
         f"clairvoyanceengine.info\nIG @clairvoyanceengine\nX @clairvoyanceeng\n\n"
         f"#foryou #sportsbetting #bettingtips #bettingpicks #yearinreview"
     )
     x = (
         f"{year} in the Books\n\nThis is Clairvoyance.\n\n{tally_line}"
-        f"A full year tracked, graded, and public. No cherry-picking.\n\n"
+        f"A full year tracked, graded, and public.\n\n"
         f"clairvoyanceengine.info\n\n#sportsbetting #bettingpicks #yearinreview"
     )
     return {"instagram": ig, "x": x}
@@ -1071,7 +1040,7 @@ def build_covers_caption() -> dict[str, str]:
     # across the same 5 sports/products.
     ig = (
         "One engine. Every sport that matters.\n\nThis is Clairvoyance.\n\n"
-        "12 leagues across 5 sports, every pick graded, every result tracked publicly — model outputs, not gut feelings.\n\n"
+        "12 leagues across 5 sports, picks graded and results tracked publicly — model outputs, not gut feelings.\n\n"
         "Follow for daily signals, subscribe for exclusive graded picks, and intelligence briefs.\n\n"
         "clairvoyanceengine.info\nIG @clairvoyanceengine\nX @clairvoyanceeng\n\n"
         "#foryou #sportsbetting #bettingtips #bettingpicks"
@@ -1092,6 +1061,9 @@ def _caption_block(title: str, text: str) -> str:
     )
 
 
+SEND_FAILURES: list[str] = []
+
+
 def send_email(subject: str, cards: list[Path], captions: dict[str, str], intro: str = "") -> None:
     if not SOCIAL_CARD_EMAIL_TO:
         log(f"No recipient set (SOCIAL_CARD_EMAIL_TO) — skipping send for: {subject}")
@@ -1108,7 +1080,10 @@ def send_email(subject: str, cards: list[Path], captions: dict[str, str], intro:
     )
     ok, msg = _send_gmail(subject, SOCIAL_CARD_EMAIL_TO, body_html, attachments=cards)
     if not ok:
-        raise RuntimeError(f"Gmail send failed for '{subject}': {msg}")
+        # Recorded, not raised: a Gmail hiccup on the daily email must not abort the weekly / monthly / rotation emails queued behind it. main() ends the run RED if any send failed.
+        log(f"ERROR: Gmail send failed for '{subject}': {msg}")
+        SEND_FAILURES.append(subject)
+        return
     log(f"Email sent: {subject} ({len(cards)} attachment(s))")
 
 
@@ -1201,7 +1176,9 @@ def main() -> None:
             # actually matters every day.
             log(f"Video reveal generation failed (non-fatal, skipping): {exc}")
 
-    if not args.no_email:
+    if not args.no_email and (stats.get("w") or 0) + (stats.get("l") or 0) == 0:
+        log("No settled picks yesterday -- daily social post skipped (nothing to show).")
+    elif not args.no_email:
         send_email(
             f"Clairvoyance — Daily Social Cards ({yesterday_mt.strftime('%B %d, %Y')})",
             daily_attachments, captions,
@@ -1266,7 +1243,6 @@ def main() -> None:
     # Monthly
     if result["monthly"]:
         m_stats = result["monthly"]["stats"] or {}
-        _strip_stale_hockey(m_stats)
         captions = build_monthly_caption(m_stats, now_mt)
         log("Monthly captions:\n--- IG ---\n" + captions["instagram"])
         monthly_attachments = []
@@ -1486,6 +1462,8 @@ def main() -> None:
             log(f"Rotation content generation failed (non-fatal, skipping): {exc}")
 
     log("Done.")
+    if SEND_FAILURES:
+        raise SystemExit(f"{len(SEND_FAILURES)} email(s) failed to send: {SEND_FAILURES}")
 
 
 if __name__ == "__main__":
