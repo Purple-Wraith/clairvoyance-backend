@@ -32,6 +32,10 @@ class TickerScroll(unittest.TestCase):
 
     def page(self, init=""):
         pg = self.browser.new_page(viewport={"width": 1280, "height": 800})
+        # keep the test deterministic: no real scoreboard / relay data may reach the ticker
+        # (aborted, not answered: an empty 200 would make the page REPLACE the synthetic NHL games with "no games"; a failed fetch keeps the last games)
+        pg.route("**/*espn.com/**", lambda r: r.abort())
+        pg.route("**/*workers.dev/**", lambda r: r.abort())
         if init:
             pg.add_init_script(init)
         pg.goto(f"http://127.0.0.1:{self.port}/app.html?nosb=1")
@@ -72,13 +76,13 @@ class TickerScroll(unittest.TestCase):
         pg.evaluate("""()=>{ saveP([{id:'t1',hA:'HOME0',awA:'AWAY0',sport:'NHL',betType:'ML',betOn:'HOME0',date:today(),outcome:'pending',lockedAt:Date.now(),decOdds:1.9}]);
             _TKM.sig='';renderTicker(); }""")
         pg.wait_for_timeout(300)
-        keys = pg.evaluate("_TKM.order")
+        keys = [k for k in pg.evaluate("_TKM.order") if k.startswith("nhl|g")]   # only the synthetic games (the page may also add real ESPN games)
         live = [k for k in keys if int(k.split('g')[-1]) % 3 != 0]
         finals = [k for k in keys if int(k.split('g')[-1]) % 3 == 0]
         self.assertEqual(len(live), 26)                      # all 26 live games (i not divisible by 3, of 40)
         self.assertEqual(finals, ["nhl|g0"])                 # the one final that carries a lock; the other 13 finals are gone (names chosen so the app's fuzzy team match cannot collide)
         # nothing live and nothing locked -> the ticker hides
-        pg.evaluate("_LV.games=_LV.games.filter(g=>g.state==='post'&&g.id!=='g0');saveP([]);renderTicker()")
+        pg.evaluate("window._tkEuroGames=function(){return []};_LV.games=_LV.games.filter(g=>g.state==='post'&&String(g.id).startsWith('g')&&g.id!=='g0');saveP([]);renderTicker()")
         pg.wait_for_timeout(200)
         self.assertEqual(pg.evaluate("getComputedStyle(document.getElementById('cv-ticker')).display"), "none")
         pg.close()
@@ -89,7 +93,7 @@ class TickerScroll(unittest.TestCase):
             {id:'y2',hA:'HOME1',awA:'AWAY1',sport:'NHL',betType:'ML',betOn:'HOME1',date:yesterday(),outcome:'pending',lockedAt:Date.now()-86400000,decOdds:1.9}]);
             _TKM.sig='';renderTicker(); }""")
         pg.wait_for_timeout(300)
-        keys = pg.evaluate("_TKM.order")
+        keys = [k for k in pg.evaluate("_TKM.order") if k.startswith("nhl|g")]   # only the synthetic games (the page may also add real ESPN games)
         self.assertNotIn("nhl|g0", keys)                       # g0 is a FINAL with only a yesterday lock -> gone
         self.assertIn("nhl|g1", keys)                          # g1 is LIVE: stays, and keeps its yesterday-dated lock chip
         self.assertEqual(pg.evaluate("document.querySelectorAll('#cv-ticker .tkgrp:first-child [data-k=\"nhl|g1\"] .tkl').length"), 1)

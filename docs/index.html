@@ -625,6 +625,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .prow2-match em{font-style:normal;color:var(--t3)}
 .prow2-pick{font-family:var(--mono);font-size:18px;color:var(--t)}
 .prow2-meta{font-family:var(--mono);font-size:15px;color:var(--t3)}
+.prow2-adj{font-family:var(--mono);font-size:13px;margin-top:4px;letter-spacing:.4px;color:#ffe600;display:flex;flex-wrap:wrap;gap:6px;align-items:center;line-height:1.35}.prow2-adj b{font-weight:700;color:var(--t)}
+.adjt td{padding:3px 14px 3px 0;white-space:nowrap}.adjt th{padding-right:14px!important;white-space:nowrap}
+.adjr{padding:0 6px;border:1px solid currentColor;border-radius:2px;font-family:var(--mono);font-size:11px;letter-spacing:.5px;white-space:nowrap}
 .prow2-fin{font-family:var(--mono);font-size:15px;color:var(--t2);text-align:right;margin-top:auto;align-self:flex-end}.prow2-fin.dim{color:var(--t3)}
 .prow2.card{margin-bottom:7px}
 .prow2-act .btn-sm:not(.btn-win):not(.btn-o){background:transparent;box-shadow:inset 0 0 0 1px currentColor}
@@ -808,6 +811,8 @@ body{line-height:1.5}
   <div class="sa" style="padding:16px">
     <!-- Engine performance section -->
     <div id="home-engine-record" style="margin-bottom:14px"></div>
+    <!-- Adjusted-line tracker: original vs shifted lines (renderAltTracker) -->
+    <div id="home-adj-tracker" style="margin-bottom:14px"></div>
     <!-- Today's pending bets -->
     <div id="home-pending-bets" style="margin-bottom:14px"></div>
     <!-- Hidden stubs — keep IDs so legacy JS calls don't crash -->
@@ -1808,6 +1813,7 @@ body{line-height:1.5}
     <button class="sb2" onclick="setSub('analytics','trends');renderAnalyticsTrends()">TRENDS</button>
     <button class="sb2" onclick="setSub('analytics','bybet');renderAnalyticsByBet()">BY BET</button>
     <button class="sb2" onclick="setSub('analytics','visuals');renderAnalyticsVisuals()">VISUALS</button>
+    <button class="sb2" onclick="setSub('analytics','adjlines');renderAnalyticsAdjLines()">ADJ. LINES</button>
   </nav>
   <!-- PRICE BASIS (Part C): units/ROI only; record & win% never change. Default ALL = nothing hidden. -->
   <div id="pb-bar" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:4px 12px;background:rgba(4,0,12,.7);border-bottom:1px solid rgba(255,255,255,.06)">
@@ -1907,6 +1913,10 @@ body{line-height:1.5}
   <div id="analytics-visuals" class="subp"><div class="sa"><div class="tab act" style="padding:12px 12px 82px">
     <div class="sh"><span class="nc"></span> VISUALS — 7 DATA-DRIVEN CHARTS</div>
     <div id="analytics-visuals-content"><div class="loading"><span class="spi"></span></div></div>
+  </div></div></div>
+  <div id="analytics-adjlines" class="subp"><div class="sa"><div class="tab act" style="padding:12px 12px 82px">
+    <div class="sh"><span class="pc"></span> ADJUSTED LINES — ORIGINAL VS SHIFTED</div>
+    <div id="adjlines-body"><div class="loading"><span class="spi"></span></div></div>
   </div></div></div>
   <div id="analytics-mlb" style="display:none"><div id="analytics-mlb-content"></div></div>
   <div id="analytics-nhl" style="display:none"><div id="analytics-nhl-content"></div></div>
@@ -3943,6 +3953,161 @@ function _titleWithLogos(p,sportOverride){
 // ~10k DOM nodes + ~3,300 images (history render 0.3s -> ~1s). Everything older keeps the plain team names.
 let _prWin=null,_prWinAt=0;
 function _pickRecent(p){try{const n=Date.now();if(!_prWin||n-_prWinAt>30000){_prWin=[_mtDateOf(n-86400000),_mtDateOf(n+86400000)];_prWinAt=n;}const d=p.date||'';return d>=_prWin[0]&&d<=_prWin[1];}catch(e){return true;}}
+// ══ ADJUSTED-LINE TRACKER (owner request 2026-10-04) ═══════════════════════════════════════════════════════════════════════════════════════════
+// Every pick the engine locks at a SHIFTED line (CFB/NFL spreads + totals, NBA totals, hockey totals -- auto locks AND manual taps on an "ADJ. LINE" chip) carries `altLine`
+// {posted, line, shift, postedLabel, ...}: the ORIGINAL posted line and the line it was locked at. This module tracks both: it grades each settled pick at the line it was locked at
+// (the stored outcome) AND at the posted line it was moved from (recomputed from the final score), so the cushion is judged on real results. Shown on Home, Overall, a new
+// Analytics tab ("ADJ. LINES") and as a one-line notation under every pick row (_altNoteHTML). Sports the engine does not shift yet simply have no rows (they are listed as such).
+// scripts/alt_line_scorecard.py implements the same grading from the backend; keep the two in step.
+const _ALT_STD_DEC=1.909;
+const _ALT_COVERAGE=[['CFB','SPREAD + TOTAL'],['NFL','SPREAD + TOTAL'],['NBA','TOTAL'],['NHL','TOTAL'],['SHL','TOTAL'],['LIIGA','TOTAL'],['NLA','TOTAL'],['EXTRALIGA','TOTAL']];
+function _altOf(p){const a=p&&p.altLine;return a&&typeof a==='object'&&isFinite(+a.line)&&isFinite(+a.posted)?a:null;}
+// Result of the pick's bet at `line`, from the stored final score: 'win'|'loss'|'push'|null (no usable score / unknown shape).
+function _altGradeAt(p,line){
+  if(p.hScore==null||p.aScore==null)return null;
+  const h=Number(p.hScore),a=Number(p.aScore);if(!isFinite(h)||!isFinite(a))return null;
+  const bt=String(p.betType||'').toUpperCase(),bet=String(p.betOn||'');
+  if(bt==='OU'||bt==='O/U'||bt==='TOTAL'){const over=/^\s*OVER/i.test(bet),tot=h+a;if(tot===line)return'push';return((tot>line)===over)?'win':'loss';}
+  if(bt==='SPREAD'){
+    const m=bet.match(/^\s*([A-Za-z0-9&.'-]+)/);if(!m)return null;
+    const team=m[1].toUpperCase(),home=String(p.hA||'').toUpperCase(),away=String(p.awA||'').toUpperCase();
+    let margin;if(team===home)margin=h-a;else if(team===away)margin=a-h;else return null;
+    const v=margin+line;return v===0?'push':v>0?'win':'loss';
+  }
+  return null;
+}
+function _altRows(picks){
+  const out=[];
+  for(const p of picks||[]){
+    const al=_altOf(p);if(!al||p.outcome==='_removed')continue;
+    const settled=p.outcome==='win'||p.outcome==='loss'||p.outcome==='push';
+    let posted=null;
+    if(settled){
+      // the posted-line result is only trusted when recomputing the LOCKED line from the same score reproduces the stored outcome (a shootout goal or a hand-entered score can break that)
+      const ra=_altGradeAt(p,+al.line);
+      posted=(ra!==null&&ra!==p.outcome)?null:_altGradeAt(p,+al.posted);
+    }
+    out.push({p,al,league:_leagueDisplayLabel(_normSport(p)).label,settled,alt:settled?p.outcome:'pending',posted,
+      saved:settled&&p.outcome==='win'&&posted==='loss',cost:settled&&p.outcome==='loss'&&posted==='win'});
+  }
+  return out;
+}
+function _altStats(rows){
+  const s={n:rows.length,settled:0,pending:0,altW:0,altL:0,altP:0,both:0,bAltW:0,bAltL:0,bPostW:0,bPostL:0,saved:0,cost:0,shiftSum:0,shiftN:0,uAlt:0,uPost:0};
+  for(const r of rows){
+    const sh=Math.abs(+r.al.shift);if(isFinite(sh)){s.shiftSum+=sh;s.shiftN++;}
+    if(!r.settled){s.pending++;continue;}
+    s.settled++;
+    if(r.alt==='win')s.altW++;else if(r.alt==='loss')s.altL++;else s.altP++;
+    if(r.posted===null)continue;
+    s.both++;
+    if(r.alt==='win')s.bAltW++;else if(r.alt==='loss')s.bAltL++;
+    if(r.posted==='win')s.bPostW++;else if(r.posted==='loss')s.bPostL++;
+    if(r.saved)s.saved++;if(r.cost)s.cost++;
+    const ad=parseFloat(r.p.decOdds)||_ALT_STD_DEC,pd=parseFloat(r.al.postedDec)||_ALT_STD_DEC;
+    s.uAlt+=r.alt==='win'?ad-1:r.alt==='loss'?-1:0;
+    s.uPost+=r.posted==='win'?pd-1:r.posted==='loss'?-1:0;
+  }
+  return s;
+}
+function _altPct(w,l){return(w+l)?Math.round(w/(w+l)*100)+'%':'--';}
+function _altU(u){return(u>=0?'+':'')+u.toFixed(1)+'u';}
+function _altShiftTxt(al){const x=Math.abs(+al.shift);return(x%1===0?x:x.toFixed(1))+' PT'+(x===1?'':'S');}
+function _altResCol(r){return r==='win'?'#00e644':r==='loss'?'var(--hc)':r==='push'?'var(--vc)':'var(--t3)';}
+function _altResChip(label,r){return`<span class="adjr" style="color:${_altResCol(r)}">${label} ${r?String(r).toUpperCase():'—'}</span>`;}
+// One-line notation under a pick row: what the market posted, what the engine locked, how far it moved, and (once settled) how the posted line would have done.
+function _altNoteHTML(p){
+  const al=_altOf(p);if(!al)return'';
+  const r=_altRows([p])[0];
+  const pend=!r||!r.settled;
+  const tail=pend?'':`${_altResChip('LOCKED LINE',r.alt)}${_altResChip('POSTED LINE',r.posted)}${r.saved?'<span class="adjr" style="color:#ffe600">SAVED BY SHIFT</span>':''}`;
+  return`<div class="prow2-adj" title="Original posted line vs the line the engine locked">ADJUSTED ${_altShiftTxt(al)} · POSTED <b>${_escHtml(al.postedLabel||String(al.posted))}</b> → LOCKED <b>${_escHtml(p.betOn||'')}</b>${tail}</div>`;
+}
+function _altPeriodPicks(picks,per){
+  const td=today(),t0=mstFirstOfMonth(getMSTNow()).getTime(),w7=Date.now()-7*86400000;
+  if(per==='today')return picks.filter(p=>p.date===td);
+  if(per==='7d')return picks.filter(p=>(p.lockedAt||0)>=w7);
+  if(per==='month')return picks.filter(p=>(p.lockedAt||0)>=t0);
+  return picks;
+}
+function _altTile(label,main,sub,col){
+  return`<div style="flex:1 1 150px;min-width:140px;padding:10px 12px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);border-top:2px solid ${col||'var(--pc)'};border-radius:3px">
+    <div style="font-family:var(--mono);font-size:12px;letter-spacing:2px;color:var(--t3)">${label}</div>
+    <div style="font-family:var(--orb);font-size:21px;font-weight:700;color:var(--t);margin:3px 0">${main}</div>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--t3);line-height:1.35">${sub||'&nbsp;'}</div></div>`;
+}
+function _altTableHTML(rows,full){
+  const by={};for(const r of rows){(by[r.league]=by[r.league]||[]).push(r);}
+  const have=new Set(Object.keys(by).map(x=>x.toUpperCase()));
+  const lines=Object.entries(by).sort((a,b)=>b[1].length-a[1].length).map(([lg,rs])=>{
+    const s=_altStats(rs);
+    return`<tr><td style="font-weight:700;color:var(--t)">${_escHtml(lg)}</td><td>${s.n}</td><td>${s.altW}-${s.altL}${s.altP?'-'+s.altP:''} <span style="color:var(--t3)">${_altPct(s.altW,s.altL)}</span></td>
+      <td>${s.both?s.bPostW+'-'+s.bPostL+' <span style="color:var(--t3)">'+_altPct(s.bPostW,s.bPostL)+'</span>':'<span style="color:var(--t3)">n/a</span>'}</td>
+      <td style="color:#ffe600">${s.saved}${s.cost?' <span style="color:var(--hc)">/ -'+s.cost+'</span>':''}</td><td>${s.shiftN?(s.shiftSum/s.shiftN).toFixed(1):'--'}</td>
+      <td>${s.pending?s.pending+' pending':''}</td></tr>`;
+  }).join('');
+  const none=_ALT_COVERAGE.filter(([lg])=>!have.has(lg)).map(([lg,m])=>`${_escHtml(lg)} <span style="color:var(--t3)">(${m})</span>`).join(' · ');
+  const th='style="text-align:left;font-weight:400;color:var(--t3);letter-spacing:1px;font-size:12px;padding:3px 8px 3px 0"';
+  return`<div style="overflow-x:auto;margin-top:10px"><table style="border-collapse:collapse;font-family:var(--mono);font-size:14px;color:var(--t2);min-width:520px">
+    <tr><th ${th}>LEAGUE</th><th ${th}>PICKS</th><th ${th}>AT LOCKED LINE</th><th ${th}>SAME PICKS AT POSTED</th><th ${th}>SAVED / COST</th><th ${th}>AVG SHIFT</th><th ${th}></th></tr>
+    ${lines||`<tr><td colspan="7" style="padding:8px 0;color:var(--t3)">NO ADJUSTED-LINE PICKS IN THIS PERIOD</td></tr>`}</table></div>
+    ${none?`<div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:8px;line-height:1.5">ENGINE SHIFTS THESE, NO PICKS YET: ${none}${full?'<br>NOT SHIFTED BY THE ENGINE YET: SOCCER, NBA SPREADS, MLS/OTHER LEAGUES — THEY APPEAR HERE AUTOMATICALLY ONCE THEY ARE':''}</div>`:''}`;
+}
+function _altListHTML(rows,limit){
+  const list=rows.slice().sort((a,b)=>(b.p.date||'').localeCompare(a.p.date||'')||((b.p.lockedAt||0)-(a.p.lockedAt||0)));
+  const shown=list.slice(0,limit);
+  const html=shown.map(r=>{
+    const p=r.p,al=r.al,col=r.settled?_altResCol(r.alt):'var(--pc)';
+    return`<div style="padding:8px 10px;margin-bottom:6px;background:rgba(0,0,0,.3);border-left:3px solid ${col};border-radius:2px;font-family:var(--mono)">
+      <div style="font-size:12px;color:var(--t3);letter-spacing:1px">${_escHtml(p.date||'')} · <span style="color:var(--nc)">${_escHtml(r.league)}</span> · ${_escHtml(String(p.betType||''))} · ${_escHtml(_gameTitle(p.hA,p.awA,p.sport)||'')}</div>
+      <div style="font-size:15px;color:var(--t);margin:3px 0">POSTED <b>${_escHtml(al.postedLabel||String(al.posted))}</b> <span style="color:var(--t3)">→</span> LOCKED <b style="color:#ffe600">${_escHtml(p.betOn||'')}</b> <span style="color:var(--t3);font-size:13px">(${_altShiftTxt(al)})</span></div>
+      <div style="font-size:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">${r.settled?`${_altResChip('LOCKED LINE',r.alt)}${_altResChip('POSTED LINE',r.posted)}${r.saved?'<span class="adjr" style="color:#ffe600">SAVED BY SHIFT</span>':''}${r.cost?'<span class="adjr" style="color:var(--hc)">COST</span>':''}`:'<span class="adjr" style="color:var(--pc)">PENDING</span>'}${p.winProb?`<span style="color:var(--t3)">${Math.round(p.winProb*100)}% est.</span>`:''}</div></div>`;
+  }).join('');
+  return{html,more:list.length-shown.length};
+}
+function _altTrackerHTML(mode,opts){
+  opts=opts||{};const full=mode==='full';
+  const per=window._altPeriod||'all';
+  let picks=(opts.picks||getP()).filter(p=>_altOf(p)&&p.outcome!=='_removed');
+  picks=_altPeriodPicks(picks,per);
+  let rows=_altRows(picks);
+  const sportFilter=full?(window._altSport||''):'';
+  const allRows=rows;
+  if(sportFilter)rows=rows.filter(r=>r.league===sportFilter);
+  const s=_altStats(rows);
+  const pbtn=(k,l)=>`<button class="btn btn-o btn-sm${per===k?' act':''}" onclick="_altSetPeriod('${k}')" style="font-size:12px!important;padding:2px 8px!important">${l}</button>`;
+  const head=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+    <span style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc)">// ADJUSTED LINES — ENGINE TRACKER</span>
+    <span style="display:flex;gap:4px;flex-wrap:wrap">${pbtn('all','ALL TIME')}${pbtn('month','THIS MONTH')}${pbtn('7d','7D')}${pbtn('today','TODAY')}</span></div>`;
+  const sub=`<div style="font-family:var(--mono);font-size:12px;color:var(--t3);line-height:1.5;margin-bottom:10px">THE ENGINE LOCKS SOME SPREADS / TOTALS AT A SAFER LINE THAN THE ONE POSTED. EACH PICK IS GRADED AT THE LINE IT WAS LOCKED AT AND, FROM THE FINAL SCORE, AT THE ORIGINAL POSTED LINE. SHIFTED PRICES ARE ESTIMATES — WIN % IS THE CLEAN COMPARISON.</div>`;
+  if(!allRows.length){
+    return`<div class="adjt" style="padding:12px;background:rgba(10,0,24,.55);border:1px solid rgba(255,230,0,.25);border-radius:4px">${head}${sub}<div class="empty" style="padding:10px">NO ADJUSTED-LINE PICKS ${per==='all'?'YET':'IN THIS PERIOD'} — THEY APPEAR HERE WHEN THE ENGINE LOCKS A SPREAD OR TOTAL AT A SHIFTED LINE</div>${_altTableHTML([],full)}</div>`;
+  }
+  const tiles=[
+    _altTile('ADJUSTED',s.n,`${s.settled} settled · ${s.pending} pending`,'var(--pc)'),
+    _altTile('AT LOCKED LINE',`${s.altW}-${s.altL}`,`${_altPct(s.altW,s.altL)} · ${s.settled} settled${s.altP?' · '+s.altP+' push':''}`,'#00e644'),
+    _altTile('SAME PICKS AT POSTED',s.both?`${s.bPostW}-${s.bPostL}`:'n/a',s.both?`${_altPct(s.bPostW,s.bPostL)} · locked line on these ${s.both}: ${s.bAltW}-${s.bAltL} (${_altPct(s.bAltW,s.bAltL)})`:'needs final scores on the picks','var(--nc)'),
+    _altTile('SAVED BY SHIFT',s.saved,s.both?`lost at posted, won at locked · cost ${s.cost}`:'—','#ffe600'),
+    _altTile('AVG SHIFT',s.shiftN?(s.shiftSum/s.shiftN).toFixed(1)+' pts':'--',s.both?`units on those ${s.both}: locked ${_altU(s.uAlt)} (est. price) vs posted ${_altU(s.uPost)}`:'','var(--vc)')
+  ].join('');
+  const lst=_altListHTML(rows,full?(window._altShown||40):5);
+  const filt=full?(()=>{const lgs=[...new Set(allRows.map(r=>r.league))];
+    return`<div style="display:flex;gap:4px;flex-wrap:wrap;margin:10px 0 0"><button class="btn btn-o btn-sm${sportFilter?'':' act'}" onclick="_altSetSport('')" style="font-size:12px!important;padding:2px 8px!important">ALL LEAGUES</button>${lgs.map(l=>`<button class="btn btn-o btn-sm${sportFilter===l?' act':''}" onclick="_altSetSport('${l.replace(/'/g,"\\'")}')" style="font-size:12px!important;padding:2px 8px!important">${_escHtml(l)}</button>`).join('')}</div>`;})():'';
+  return`<div class="adjt" style="padding:12px;background:rgba(10,0,24,.55);border:1px solid rgba(255,230,0,.25);border-radius:4px">${head}${sub}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${tiles}</div>${filt}${_altTableHTML(rows,full)}
+    <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--t3);margin:12px 0 6px">${full?'EVERY ADJUSTED PICK':'LATEST ADJUSTED PICKS'}</div>${lst.html}
+    ${lst.more>0?(full?`<div onclick="_altMore()" style="cursor:pointer;text-align:center;padding:8px;font-family:var(--mono);font-size:14px;color:var(--nc)">SHOW 40 MORE (${lst.more} LEFT)</div>`:`<div onclick="setSub('analytics','adjlines');SS('analytics');renderAnalyticsAdjLines()" style="cursor:pointer;text-align:right;font-family:var(--mono);font-size:13px;color:var(--nc)">ALL ${rows.length} IN ANALYTICS → ADJ. LINES</div>`):''}</div>`;
+}
+function renderAltTracker(id,mode,opts){const el=document.getElementById(id);if(!el)return;el.dataset.altMode=mode;el.innerHTML=_altTrackerHTML(mode,opts);}
+function renderAnalyticsAdjLines(){renderAltTracker('adjlines-body','full',{picks:(typeof _aP==='function'?_aP():getP())});}
+function _altRerenderAll(){
+  try{renderAltTracker('home-adj-tracker','compact');}catch(e){}
+  try{if(document.getElementById('ovr-adj-tracker'))renderAltTracker('ovr-adj-tracker','compact');}catch(e){}
+  try{if(document.getElementById('adjlines-body'))renderAnalyticsAdjLines();}catch(e){}
+}
+function _altSetPeriod(k){window._altPeriod=k;window._altShown=40;_altRerenderAll();}
+function _altSetSport(l){window._altSport=l;window._altShown=40;_altRerenderAll();}
+function _altMore(){window._altShown=(window._altShown||40)+40;_altRerenderAll();}
 function _pickRowHTML(p,o){
   o=o||{};
   const settled=o.mode==='settled';
@@ -3967,6 +4132,7 @@ function _pickRowHTML(p,o){
       <div class="prow2-match">${match}</div>
       <div class="prow2-pick">${o.pickPrefix||''}${o.legHtml||_expandBetOn(p.betOn||p.betType||'',p.sport)}</div>
       <div class="prow2-meta">${p.ml||''} · ${p.betType||''}${conf}</div>
+      ${p.altLine?_altNoteHTML(p):''}
       ${o.why&&p.betType!=='PARLAY'?_whyThisPickHTML(p):''}
     </div>
     <div class="prow2-side">${act}${fin}</div>
@@ -4747,6 +4913,7 @@ function _altRowFor(sport,home,away,dateRaw,nm,off){
     const d=new Date(dateRaw);const dateKey=isNaN(d)?String(dateRaw||'').slice(0,10):d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
     const chips=[['OU',best('over','under')],['SPREAD',best('sprdFav','sprdDog')]].map(([mkt,m])=>{
       if(!m)return'';const alt=_altShift(sport,mkt,m.label,m.prob);if(!alt)return'';
+      alt.postedDec=m.dec!=null?m.dec:null;alt.postedMl=m.ml!=null?String(m.ml):null;   // the ORIGINAL posted price, kept with the pick
       const key=sport+'|'+dateKey+'|'+home+'|'+away+'|'+mkt;
       window._altReg[key]={sport,hA:home,awA:away,date:dateKey,alt};
       const cls=m.tierN===3?'pg':m.tierN===2?'pp':m.tierN===1?'pn':'';
@@ -4760,7 +4927,7 @@ function _altRowFor(sport,home,away,dateRaw,nm,off){
 function _altLineRowHTML(sport,g,nm,off){return _altRowFor(sport,g.home,g.away,g.date,nm,off);}
 async function _lockAltKey(key){
   const r=window._altReg[key];if(!r)return;const a=r.alt;
-  await lockPick(r.hA,r.awA,r.sport,a.label,a.prob,a.ml,a.dec,r.date,undefined,a.mkt,{priceSource:'estimated',altLine:{posted:a.posted,line:a.line,shift:a.shift,postedLabel:a.postedLabel,...(a.flip!=null?{flip:a.flip}:{})}});
+  await lockPick(r.hA,r.awA,r.sport,a.label,a.prob,a.ml,a.dec,r.date,undefined,a.mkt,{priceSource:'estimated',altLine:{posted:a.posted,line:a.line,shift:a.shift,postedLabel:a.postedLabel,postedDec:a.postedDec,postedMl:a.postedMl,...(a.flip!=null?{flip:a.flip}:{})}});
 }
 function _bestMarketBoxHTML(tierN,tierCol,tierLabel,bestLabel,bestProb,bestEvVal){
   if(!(tierN>0))return'';
@@ -15519,6 +15686,7 @@ function renderOverall(){
   </div>`;
   h+=_pbSummaryHTML();
 
+  h+=`<div id="ovr-adj-tracker" style="margin-bottom:14px" data-alt-mode="compact">${_altTrackerHTML('compact')}</div>`;   // adjusted-line tracker
   // Recent Form — enhanced (last 25, last 10 W/L)
   if(recentForm.length){
     const rfUnits=recentForm.reduce((a,p)=>p.outcome==='win'?a+(parseFloat(p.decOdds)||2)-1:p.outcome==='loss'?a-1:a,0);
@@ -19938,6 +20106,7 @@ function renderHomePage(){
     window._supabasePullTimer=setInterval(_syncOnForeground,3*60*60*1000);
     document.addEventListener('visibilitychange',_syncOnForeground);
   }
+  try{renderAltTracker('home-adj-tracker','compact');}catch(e){}
 }
 
 // ── Header dual-timezone clock ────────────────────────────────────────────────
@@ -20251,6 +20420,7 @@ function setSub(sport,sub){
     else if(sub==='trends')try{renderAnalyticsTrends();}catch(e){}
     else if(sub==='bybet')try{renderAnalyticsByBet();}catch(e){}
     else if(sub==='visuals')try{renderAnalyticsVisuals();}catch(e){}
+    else if(sub==='adjlines')try{renderAnalyticsAdjLines();}catch(e){}
   }
   if(sport==='hk'&&sub==='ncaah'){try{T('ncaah','matches');renderGenericWeek('ncaah-matches-list','hockey/mens-college-hockey','NCAAH');}catch(e){}}
   if(sport==='hk'&&['khl','shl','liiga','nla','extraliga'].includes(sub)){try{T(sub,'matches');}catch(e){}}
@@ -32201,6 +32371,7 @@ function saveParlayToTracker(legs,sport){
   <button onclick="SS('analytics');setSub('analytics','trends');renderAnalyticsTrends();hideAllND()">Trends</button>
   <button onclick="SS('analytics');setSub('analytics','bybet');renderAnalyticsByBet();hideAllND()">By Bet</button>
   <button onclick="SS('analytics');setSub('analytics','visuals');renderAnalyticsVisuals();hideAllND()">Visuals</button>
+  <button onclick="SS('analytics');setSub('analytics','adjlines');renderAnalyticsAdjLines();hideAllND()">Adj. Lines</button>
 </div>
 
 </body>

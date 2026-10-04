@@ -12,7 +12,7 @@ the engine expected, so the cushion is judged on real results, not on the backte
                                                        # shows as final -- marked provisional -- so you do not wait for the next settle pass)
 
 Prices: alternate-line prices are ESTIMATES (fair + vig, priceSource 'estimated'), so units here are indicative; the posted-line price is not stored, so the
-posted line is graded at the standard -110 (1.909).  Win rate is the clean number.  Small samples: read n first.
+posted line is graded at the original price when the pick stored it (altLine.postedDec, newer picks) else the standard -110 (1.909).  Win rate is the clean number.  Small samples: read n first.
 """
 from __future__ import annotations
 import argparse, json, re, sys, urllib.request
@@ -154,7 +154,7 @@ def main() -> int:
         pw = sum(r[2] == "win" for r in rs); pl = sum(r[2] == "loss" for r in rs)
         saved = sum(r[1] == "win" and r[2] == "loss" for r in rs)    # the shift turned a loss into a win
         cost = sum(r[1] == "loss" and r[2] == "win" for r in rs)     # (cannot happen: a safer line never loses where the posted line wins)
-        au = sum(units(r[1], float(r[0].get("decOdds") or STD_DEC)) for r in rs); pu = sum(units(r[2], STD_DEC) for r in rs)
+        au = sum(units(r[1], float(r[0].get("decOdds") or STD_DEC)) for r in rs); pu = sum(units(r[2], float(r[0]["altLine"].get("postedDec") or STD_DEC)) for r in rs)   # original price when the pick stored it
         exp = sum(float(r[0].get("winProb") or 0) for r in rs) / n
         f = lambda w, l: f"{w / (w + l) * 100:5.1f}%" if (w + l) else "   --"
         print(f"  {g:<14}{n:>4}  {f(aw, al_):>9}{f(pw, pl):>12}{saved:>7}{cost:>6}{au:>+8.1f}{pu:>+9.1f}{exp * 100:>8.1f}%")

@@ -2247,7 +2247,8 @@ def _alt_finish(leg: dict, new_label: str, p_alt: float, posted: float, new_line
     out = dict(leg)
     out.update({"label": new_label, "prob": round(p_alt, 4), "dec": round(dec, 3), "ml": _ml_from_dec(dec),
                 "evVal": round(p_alt * dec - 1, 4), "priceSource": "estimated",
-                "altLine": {"posted": posted, "line": new_line, "shift": k, "postedLabel": label, "postedProb": leg.get("prob")}})
+                "altLine": {"posted": posted, "line": new_line, "shift": k, "postedLabel": label, "postedProb": leg.get("prob"),
+                            "postedDec": leg.get("dec"), "postedMl": leg.get("ml")}})   # original price kept with the pick
     return out
 
 
