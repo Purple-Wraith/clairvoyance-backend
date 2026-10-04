@@ -151,20 +151,12 @@ class NbaPreseasonGuard(unittest.TestCase):
         self.assertIsInstance(pairs, set)
 
 
-class DigestEmail(unittest.TestCase):
-    def test_adjusted_line_rows_make_no_market_edge_claim_and_send_failure_raises(self):
-        row = a._digest_pick_row_html({"awA": "SEA", "hA": "SF", "betOn": "SF +3.5", "ml": "-272", "winProb": .69, "decOdds": 1.37, "altLine": ALT, "priceSource": "estimated"})
-        self.assertIn("ADJUSTED LINE", row); self.assertIn("estimate", row); self.assertNotIn("pp edge", row); self.assertNotIn("implied by the price", row)
-        normal = a._digest_pick_row_html({"awA": "SEA", "hA": "SF", "betOn": "SF ML", "ml": "-110", "winProb": .6, "decOdds": 1.9})
-        self.assertIn("pp edge", normal)
-        orig = a._send_gmail; a._send_gmail = lambda *x, **k: (False, "nope")
-        try:
-            with self.assertRaises(RuntimeError):
-                a.send_top_picks_digest_email([{"awA": "B", "hA": "A", "betOn": "OVER 5.5", "ml": "-110", "winProb": .7, "decOdds": 1.9, "league": "NHL"}], "2026-10-04")
-        finally:
-            a._send_gmail = orig
-        html = a.build_top_picks_digest_html({"top7": [], "top4ByLeague": {}}, "2026-10-04")
-        self.assertNotIn("Questions, or want to stop", html)                  # owner-only email: no subscriber footer
+class TopPicksDigestRetired(unittest.TestCase):
+    def test_digest_is_gone(self):
+        for name in ("send_top_picks_digest_email", "build_top_picks_digest", "build_top_picks_digest_html", "gather_todays_locked_bets"):
+            self.assertFalse(hasattr(a, name), name)
+        self.assertFalse((ROOT / ".github" / "workflows" / "top-picks-digest.yml").exists())
+        self.assertNotIn("--top-picks-digest", (ROOT / "scripts" / "auto_lock_settle.py").read_text())
 
 
 class PickOfDay(unittest.TestCase):
@@ -364,6 +356,29 @@ class HealthAlerts(unittest.TestCase):
             self.assertEqual(self.dh._report([], []), 0)
         finally:
             self.dh.ALERT_TO, self.dh.send_email = orig_to, orig_send
+
+    def test_each_problem_is_emailed_once_per_day(self):
+        import tempfile
+        from pathlib import Path as P
+        dh, sent = self.dh, []
+        orig = dh.ALERT_TO, dh.send_email
+        dh.ALERT_TO, dh.send_email = "me@x.com", lambda subj, to, body: (sent.append(body) or (True, "sent"))
+        st = P(tempfile.mkdtemp()) / "state.json"
+        try:
+            a1 = "NFL schedule: STALE -- nfl_schedule.json stamp is 40.2h old (stale at 36h) -- <a href=\"https://x/y\">Run</a>"
+            a2 = "NFL schedule: STALE -- nfl_schedule.json stamp is 46.9h old (stale at 36h) -- <a href=\"https://x/z\">Run</a>"   # same problem, later pass
+            b1 = "CFB Early Lock: no successful live lock recorded"
+            self.assertEqual(dh._report([a1], [], st, "2026-10-04"), 0); self.assertEqual(len(sent), 1)
+            self.assertEqual(dh._report([a2], [], st, "2026-10-04"), 0); self.assertEqual(len(sent), 1)        # repeat suppressed
+            self.assertEqual(dh._report([a2, b1], [], st, "2026-10-04"), 0); self.assertEqual(len(sent), 2)    # only the new one goes out
+            self.assertNotIn("NFL schedule", sent[1]); self.assertIn("CFB Early Lock", sent[1])
+            self.assertEqual(dh._report([a2], [], st, "2026-10-05"), 0); self.assertEqual(len(sent), 3)        # next day: sent again
+            dh.send_email = lambda *x, **k: (False, "boom")
+            self.assertEqual(dh._report(["brand new problem"], [], st, "2026-10-05"), 1)                       # failed send is not recorded...
+            dh.send_email = lambda subj, to, body: (sent.append(body) or (True, "sent"))
+            dh._report(["brand new problem"], [], st, "2026-10-05"); self.assertEqual(len(sent), 4)            # ...so the next pass retries it
+        finally:
+            dh.ALERT_TO, dh.send_email = orig
 
     def test_cancelled_latest_run_is_not_a_failure(self):
         orig = self.dh._api_get

@@ -109,11 +109,6 @@ class NoParlaysBackend(unittest.TestCase):
         out = cu.supabase_bets_to_history(rows)
         self.assertEqual([b["id"] for b in out], ["s1"])
 
-    def test_digest_has_no_parlay_math(self):
-        import auto_lock_settle as a
-        html = a.build_top_picks_digest_html(a.build_top_picks_digest([{"awA": "B", "hA": "A", "betOn": "OVER 5.5", "ml": "-110", "winProb": .7, "decOdds": 1.9, "league": "NHL"}]), "2026-10-04")
-        self.assertNotIn("parlay", html.lower()); self.assertFalse(hasattr(a, "_parlay_math"))
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

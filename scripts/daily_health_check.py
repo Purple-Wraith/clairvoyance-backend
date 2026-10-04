@@ -458,7 +458,31 @@ def main() -> int:
     return _report(problems, notes)
 
 
-def _report(problems: list[str], notes: list[str]) -> int:
+ALERT_STATE_PATH = ROOT / "data" / "health_alert_state.json"
+
+
+def _problem_key(msg: str) -> str:
+    """Stable identity for a problem across passes: ages / times / run URLs change every pass ("stamp is 20h old"), the problem does not."""
+    return re.sub(r"#+", "#", re.sub(r"https?://\S+|[\d.:]+", "#", msg)).strip()
+
+
+def _sent_today(path: Path, today: str) -> set[str]:
+    try:
+        d = json.loads(path.read_text())
+    except Exception:
+        return set()
+    return set(d.get("sent") or []) if d.get("date") == today else set()
+
+
+def _record_sent(path: Path, today: str, keys: set[str]) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"date": today, "sent": sorted(_sent_today(path, today) | keys)}, indent=2))
+    except Exception as exc:
+        print(f"::warning::could not record alert state ({exc}) -- the next pass may repeat today's alert")
+
+
+def _report(problems: list[str], notes: list[str], state_path: Path | None = None, today: str | None = None) -> int:
     """Prints, emails when there is an alert-level problem.  Returns the process exit code: non-zero when a problem could NOT be delivered
     (no recipient configured / send failed), so a broken alert path turns the run red instead of silently swallowing the alert."""
     for n in notes:
@@ -471,6 +495,17 @@ def _report(problems: list[str], notes: list[str]) -> int:
     print(f"{len(problems)} issue(s) found:")
     for p in problems:
         print(f"  - {p}")
+
+    # Each distinct problem is emailed at most once per Mountain day (the workflow runs three passes a day; a persistent problem used to
+    # re-send on every one). A new problem appearing later in the day still goes out, alone. Recorded only after a successful send.
+    state_path = state_path or ALERT_STATE_PATH
+    today = today or datetime.now(ZoneInfo("America/Denver")).strftime("%Y-%m-%d")
+    already = _sent_today(state_path, today)
+    fresh = [p for p in problems if _problem_key(p) not in already]
+    if not fresh:
+        print(f"All {len(problems)} issue(s) were already emailed today ({today}) -- not repeating.")
+        return 0
+    problems = fresh
 
     if not ALERT_TO:
         print("::error::No alert recipient configured (SOCIAL_CARD_EMAIL_TO/LOCKS_EMAIL_TO unset) -- can't email this.")
@@ -485,6 +520,8 @@ def _report(problems: list[str], notes: list[str]) -> int:
     )
     ok, msg = send_email("Clairvoyance -- daily health check found an issue", ALERT_TO, body)
     print(f"Alert email sent to {ALERT_TO}" if ok else f"::error::Alert email FAILED: {msg}")
+    if ok:
+        _record_sent(state_path, today, {_problem_key(p) for p in problems})
     return 0 if ok else 1
 
 

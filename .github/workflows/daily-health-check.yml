@@ -28,7 +28,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  contents: write      # only to commit data/health_alert_state.json (once-a-day alert dedupe)
   actions: read
 
 jobs:
@@ -38,6 +38,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -57,3 +59,21 @@ jobs:
             *) PASS=full ;;
           esac
           python3 scripts/daily_health_check.py --pass "$PASS"
+
+      # Records which problems were already emailed today so the next pass does not repeat them (see daily_health_check._report).
+      - name: Commit alert state
+        if: ${{ always() }}
+        run: |
+          git add data/health_alert_state.json 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: health alert state"
+            if ! git push origin main; then
+              git fetch origin main
+              if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase origin/main; then
+                git push origin main || echo "::warning::health alert state: push failed after rebase (next pass may repeat today's alert)"
+              else
+                git rebase --abort
+                echo "::warning::health alert state: rebase conflict, skipped"
+              fi
+            fi
+          fi
