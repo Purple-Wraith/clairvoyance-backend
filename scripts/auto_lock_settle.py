@@ -73,7 +73,8 @@ import requests
 sys.path.insert(0, str(Path(__file__).parent))
 from _gmail_email import send_email as _send_gmail  # noqa: E402
 from _gmail_email import EMAIL_WRAP_OPEN as _EMAIL_WRAP_OPEN, EMAIL_WRAP_CLOSE as _EMAIL_WRAP_CLOSE  # noqa: E402
-from _gmail_email import EMAIL_WRAP_CLOSE_DISCLOSED as _LOCKS_EMAIL_CLOSE  # noqa: E402
+from _gmail_email import EMAIL_WRAP_CLOSE_DISCLOSED as _OWNER_EMAIL_CLOSE  # noqa: E402
+from _gmail_email import EMAIL_WRAP_CLOSE_SUBSCRIBER as _LOCKS_EMAIL_CLOSE  # noqa: E402  (locks emails carry the subscriber contact footer)
 from _subscribers import recipients_for, OWNER_EMAIL, EMAIL_BANNER_URL  # noqa: E402
 # Reused (not reimplemented) for the landing-perf JSON snapshot this
 # script now also writes on every run -- see the call site in main() for
@@ -2353,6 +2354,32 @@ def _apply_alt_lines(legs: list[dict]) -> list[dict]:
     return res
 
 
+def _nba_preseason_pairs() -> set:
+    """Team pairs ({home, away}) of NBA games the schedule files flag as PRESEASON (seasonType 1 / preseason) within a 3-day MT window around today. Defence in depth (owner decision: nothing
+    is done for the NBA preseason; found 2026-10-04 when a Utah-Denver preseason PROP was locked and emailed): the browser-side generators already skip preseason, but a leg that slips
+    through must never be locked or emailed."""
+    out: set = set()
+    try:
+        today = datetime.now(ZoneInfo("America/Denver")).date()
+        ok_dates = {(today + timedelta(days=d)).isoformat() for d in (-1, 0, 1, 2)}
+        games = []
+        for fname, key in (("nba_schedule.json", "games"), ("data.json", None)):
+            try:
+                d = json.loads((ROOT / "docs" / fname).read_text())
+            except Exception:
+                continue
+            games += (d.get(key) if key else (d.get("nba") or {}).get("today")) or []
+        for g in games:
+            if g.get("seasonType") == 1 or g.get("preseason") is True:
+                h, a = g.get("home") or g.get("h"), g.get("away") or g.get("a")
+                ds = str(g.get("date") or "")[:10]
+                if h and a and (not ds or ds in ok_dates):
+                    out.add(frozenset({h, a}))
+    except Exception as exc:  # fail-open: the generators are the primary guard
+        log(f"  (NBA preseason guard could not read the schedule files: {exc})")
+    return out
+
+
 def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, now=None,
                      guard_stats: dict | None = None) -> list[dict]:
     """only_sports: if given, restricts to exactly these sport tags (e.g.
@@ -2368,6 +2395,7 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
     def _wanted(sport: str) -> bool:
         return only_sports is None or (sport or "") in only_sports
     qualifying: list[dict] = []
+    _pre_nba = _nba_preseason_pairs()
     skipped_legs = 0
     skipped_games: list[str] = []
     skipped_detail: list[dict] = []   # every qualifying leg the guard refused (for the owner's pre-kickoff alert)
@@ -2375,6 +2403,9 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
     for gl in result.get("gameLegs") or []:
         sport = gl.get("sport")
         if not _wanted(sport):
+            continue
+        if sport == "NBA" and frozenset({gl.get("hA"), gl.get("awA")}) in _pre_nba:
+            log(f"  skip NBA PRESEASON game {gl.get('awA')} @ {gl.get('hA')} (never locked or emailed)")
             continue
         guard_ok, guard_reason, _guard_mins = start_guard(sport, gl.get("startMs"), now)
         game_skipped = 0
@@ -2538,6 +2569,8 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
         for p in result.get("propLegs") or []:
             if p.get("grade") not in ("PREMIUM", "OPTIMAL"):
                 continue
+            if p.get("sportTag") == "NBA" and frozenset({p.get("hA"), p.get("awA")}) in _pre_nba:
+                continue                      # NBA preseason prop: never locked or emailed
             qualifying.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": p})
     return qualifying
 
@@ -2768,6 +2801,16 @@ def _leg_html(q: dict) -> str:
         prob = q.get("prob") or 0
         hh = ' <span style="color:#ffdd00">🔥 HIGH HIT %</span>' if (_market_type(q.get("side")) == "ML" and prob >= _HIGH_HIT_P
                                                                      and q.get("sport") not in HOCKEY_SPORTS) else ''
+        alt = q.get("altLine")
+        if alt:
+            # An ADJUSTED-LINE pick (spread / total moved to a safer line): the posted-line tier and EV do not describe it, and its price is an estimate -- say so instead of showing them.
+            return (f'<div style="padding:5px 0">'
+                    f'<span style="background:#ffe600;color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
+                    f'border-radius:3px;display:inline-block;margin-bottom:3px">ADJUSTED LINE</span>'
+                    f'<div style="font-size:14px;color:#eee">{_esc(q["label"])} — {prob*100:.0f}%</div>'
+                    f'<div style="font-size:12px;color:#bbb;margin-top:2px">Moved from the posted {_esc(alt.get("postedLabel") or alt.get("posted"))} to a safer line. '
+                    f'The price at this line is an estimate, not a bookmaker quote — your book may not offer it, so check before you bet.</div>'
+                    f'</div>')
         if q.get("lane"):
             tier_lbl, color = HOCKEY_LANE_LABEL, _LANE_COLOR
         return (f'<div style="padding:5px 0">'
@@ -2876,11 +2919,11 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
         '<strong style="color:#fff">EV (Expected Value)</strong> the model\'s estimated long-run profit '
         'edge over the market price, as a percentage of stake -- e.g. EV +8.1% means the model expects '
         'this pick to profit about 8.1% of stake on average if made repeatedly at this probability and '
-        'price. For hockey the price is the consensus (median) of the bookmakers\' posted prices at lock time -- '
+        'price. For hockey the price at the posted line is the consensus (median) of the bookmakers\' posted prices at lock time -- '
         'not an assumed number -- and it includes the bookmakers\' margin, so even a fairly priced pick shows a negative EV about equal to the margin '
         '(roughly -4% to -7%) and a positive EV means the model sees real value beyond the margin. '
         'Game picks show EV; player props don\'t carry an EV figure in the underlying data, so '
-        'only probability is shown for those. A hockey pick is only ever made when a real market price exists for it.</div>'
+        'only probability is shown for those. A hockey pick at the posted line is only ever made when a real market price exists for it; hockey totals moved to an adjusted line are the exception (see ADJUSTED LINE).</div>'
         '<div style="font-size:13px;color:#eee;line-height:1.6;margin-top:10px">'
         f'<span style="background:{_LANE_COLOR};color:#000;font-weight:700;font-size:11px;padding:1px 7px;border-radius:3px">'
         f'{HOCKEY_LANE_LABEL}</span> hockey only: a moneyline pick (or a +1.5 puck-line underdog) the model gives at least '
@@ -2896,6 +2939,10 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
         'font-size:11px;padding:1px 7px;border-radius:3px">SKIP</span> grade. That happens when a heavy '
         'favorite\'s price is too short to be good EV, but the model still thinks it wins very often -- '
         'worth knowing about even though it\'s not a normal pick.</div>'
+        '<div style="font-size:13px;color:#eee;line-height:1.6;margin-top:10px">'
+        '<span style="background:#ffe600;color:#000;font-weight:700;font-size:11px;padding:1px 7px;border-radius:3px">ADJUSTED LINE</span> '
+        'the engine moved this spread or total to a safer line than the one posted, to raise the chance it hits (the original posted line is shown in the pick). '
+        'The price at the new line is an ESTIMATE, not a bookmaker quote, so no EV is shown, and your book may not offer that exact line -- check before you bet.</div>'
         '</div>'
     )
 
@@ -2919,6 +2966,8 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
             best = next((l.get("best") for l in legs if l.get("best")), None)
             if mc_summary or best:
                 bits = []
+                if any(l.get("altLine") for l in legs):
+                    bits.append('<strong style="color:#e6c200">Context at the POSTED line (not the adjusted line):</strong>')
                 if mc_summary:
                     bits.append(_esc(mc_summary))
                 if best:
@@ -2934,8 +2983,11 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
     return "".join(parts)
 
 
+EMAIL_FAILURES: list[str] = []
+
+
 def send_locks_email(qualifying: list[dict], live: bool, locked_count: int | None = None,
-                      label: str = "", to: list[str] | None = None, date_str: str | None = None) -> None:
+                      label: str = "", to: list[str] | None = None, date_str: str | None = None) -> bool:
     # Real bug, found via audit 2026-09-24: every call site across every
     # lock function (run_lock, run_euro_early_lock, run_soccer_evening_
     # lock, run_cfb_evening_lock, run_hockey_evening_lock, run_lock_
@@ -2954,17 +3006,23 @@ def send_locks_email(qualifying: list[dict], live: bool, locked_count: int | Non
     recipients = ([OWNER_EMAIL] if OWNER_EMAIL else []) if not live else (to if to is not None else ([LOCKS_EMAIL_TO] if LOCKS_EMAIL_TO else []))
     if not recipients:
         log("No recipients (LOCKS_EMAIL_TO unset and none passed) — skipping locked-picks email")
-        return
+        return False
     # date_str override: the evening-prior soccer lock passes the actual
     # game date (tomorrow) here -- otherwise this'd default to UTC "now",
     # which reads as tonight's date on a subject line about tomorrow's
     # games.
-    date_str = date_str or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    date_str = date_str or datetime.now(ZoneInfo("America/Denver")).strftime("%Y-%m-%d")   # Mountain date (was UTC: an evening run showed tomorrow's date)
     tag = f"{label} " if label else ""
     subject = f"Clairvoyance — {'Locked' if live else '[DRY RUN] Would lock'} {tag}picks for {date_str} ({len(qualifying)})"
     body_html = build_locks_email_html(qualifying, live, locked_count)
     ok, msg = _send_gmail(subject, recipients, body_html)
-    log(f"Locks email ({label or 'ALL'}) sent to {len(recipients)} recipient(s)" if ok else f"Locks email ({label or 'ALL'}) send failed: {msg}")
+    if ok:
+        log(f"Locks email ({label or 'ALL'}) sent to {len(recipients)} recipient(s)")
+    else:
+        # A dropped send used to be only a log line: the run stayed green and the picks never reached anyone. Recorded now; main() ends the run RED so the health check / Actions tab show it.
+        log(f"ERROR: Locks email ({label or 'ALL'}) send failed: {msg}")
+        EMAIL_FAILURES.append(f"{label or 'ALL'} locks email: {msg}")
+    return bool(ok)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -3046,13 +3104,27 @@ def _digest_pick_row_html(bet: dict) -> str:
     matchup = f"{bet.get('awA') or '?'} @ {bet.get('hA') or '?'}"
     dec = bet.get("decOdds") or 1.91
     implied = (1 / dec * 100) if dec else 52.4
-    edge_col = "#00c853" if edge > 0 else "#ff5252"
+    edge_col = "#00c853" if edge >= 0.05 else ("#888" if edge > -0.05 else "#ff5252")   # a ~0.0pp edge is not "red"
     outcome = bet.get("outcome")
     outcome_badge = ""
     if outcome == "win":
         outcome_badge = ' <span style="color:#00c853;font-weight:700">✓ WON</span>'
     elif outcome == "loss":
         outcome_badge = ' <span style="color:#ff5252;font-weight:700">✗ LOST</span>'
+    alt = bet.get("altLine")
+    if alt or bet.get("priceSource") == "estimated":
+        # Adjusted-line pick: its price is an ESTIMATE and its probability is the cushioned line's, so a "edge vs the price" claim would be meaningless (it always reads about -5pp).
+        posted = f' (moved from the posted {_esc(alt.get("postedLabel") or alt.get("posted"))})' if alt else ""
+        return (
+            '<div style="background:#14001f;border-radius:6px;padding:12px 14px;margin-bottom:8px">'
+            f'<div style="font-weight:700;font-size:15px;color:#fff;margin-bottom:2px">{_esc(matchup)}{outcome_badge}</div>'
+            f'<div style="font-size:14px;color:#e0c9ff;margin-bottom:6px">{_esc(bet.get("betOn") or "")} '
+            f'<span style="background:#ffe600;color:#000;font-weight:700;font-size:10px;padding:1px 6px;border-radius:3px">ADJUSTED LINE</span></div>'
+            f'<div style="font-size:13px;color:#bbb;line-height:1.5">'
+            f'<strong style="color:#f20cff">{prob:.1f}%</strong> model probability at the adjusted line{posted}. Price is an estimate, not a market quote.'
+            f'</div>'
+            '</div>'
+        )
     return (
         '<div style="background:#14001f;border-radius:6px;padding:12px 14px;margin-bottom:8px">'
         f'<div style="font-weight:700;font-size:15px;color:#fff;margin-bottom:2px">{_esc(matchup)}{outcome_badge}</div>'
@@ -3081,7 +3153,7 @@ def build_top_picks_digest_html(digest: dict, date_str: str) -> str:
 
     if not top7:
         parts.append('<div style="padding:20px 0;color:#555;font-size:14px">No picks locked today.</div>')
-        parts.append(_LOCKS_EMAIL_CLOSE)
+        parts.append(_OWNER_EMAIL_CLOSE)
         return "".join(parts)
 
     parts.append(
@@ -3110,7 +3182,7 @@ def build_top_picks_digest_html(digest: dict, date_str: str) -> str:
         )
         parts.append("".join(_digest_pick_row_html(b) for b in legs))
 
-    parts.append(_LOCKS_EMAIL_CLOSE)
+    parts.append(_OWNER_EMAIL_CLOSE)
     return "".join(parts)
 
 
@@ -3120,7 +3192,10 @@ def send_top_picks_digest_email(bets: list[dict], date_str: str | None = None) -
     subject = f"Clairvoyance — Top Picks Digest — {date_str} ({len(digest['top7'])} overall)"
     body_html = build_top_picks_digest_html(digest, date_str)
     ok, msg = _send_gmail(subject, [TOP_PICKS_EMAIL_TO], body_html)
-    log(f"Top picks digest sent to {TOP_PICKS_EMAIL_TO}" if ok else f"Top picks digest send failed: {msg}")
+    if not ok:
+        # Raised, not just logged: top-picks-digest.yml records "digest sent today" only after this step succeeds, so a swallowed failure used to mark the day as sent and never retry it.
+        raise RuntimeError(f"Top picks digest send failed: {msg}")
+    log(f"Top picks digest sent to {TOP_PICKS_EMAIL_TO}")
 
 
 class LockResult(NamedTuple):
@@ -4327,3 +4402,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    if EMAIL_FAILURES:                      # picks were locked, but an email did not go out: fail the run so it is visible
+        log(f"{len(EMAIL_FAILURES)} email send failure(s): {EMAIL_FAILURES}")
+        sys.exit(1)

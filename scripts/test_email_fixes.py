@@ -69,5 +69,103 @@ class YearScope(unittest.TestCase):
         self.assertEqual(sum(s["w"] for s in ys["bySport"]), ys["w"]); self.assertEqual(sum(s["l"] for s in ys["bySport"]), ys["l"])
 
 
+# ───────────────────────── locks / digest emails (auto_lock_settle.py) ─────────────────────────
+import auto_lock_settle as a  # noqa: E402
+
+
+def _game(sport="NFL", label="SF +3.5", alt=None, tier=3, ev=0.08, **kw):
+    q = {"kind": "GAME", "sport": sport, "hA": "SF", "awA": "SEA", "side": "sprdDog", "label": label, "prob": 0.69, "ml": "-272", "dec": 1.37,
+         "tierN": tier, "evVal": ev, "lane": False, "priceSource": "estimated" if alt else "market"}
+    if alt:
+        q["altLine"] = alt
+    q.update(kw)
+    return q
+
+
+ALT = {"posted": -3.0, "line": 3.5, "shift": 6.5, "postedLabel": "SF -3.0", "postedProb": 0.85}
+
+
+class LocksEmail(unittest.TestCase):
+    def test_adjusted_line_pick_is_labelled_and_has_no_ev_or_posted_tier(self):
+        html = a._leg_html(_game(alt=ALT))
+        self.assertIn("ADJUSTED LINE", html); self.assertIn("SF -3.0", html)             # the original posted line is shown
+        self.assertIn("estimate", html); self.assertNotIn("EV ", html); self.assertNotIn("PREMIUM", html)
+        plain = a._leg_html(_game())                                                   # a normal pick is unchanged: tier badge + EV
+        self.assertIn("PREMIUM", plain); self.assertIn("EV +8.0%", plain); self.assertNotIn("ADJUSTED", plain)
+
+    def test_legend_explains_adjusted_lines_and_hockey_claims_are_true(self):
+        html = a.build_locks_email_html([_game(alt=ALT)], live=True, locked_count=1)
+        self.assertIn("ADJUSTED LINE", html)
+        self.assertIn("exception (see ADJUSTED LINE)", html)                           # hockey 'real price' claim no longer absolute
+        self.assertIn("price at the posted line is the consensus", html)
+        self.assertIn("clairvoyanceengine.info", html); self.assertIn("reply", html.lower())  # subscriber contact footer
+        for retired in ("MLS", "Bundesliga", "parlay", "MLB", "WNBA"):
+            self.assertNotIn(retired, html)
+
+    def test_posted_line_context_is_labelled_when_a_leg_is_shifted(self):
+        leg = _game(alt=ALT, mcSummary="MC: SF wins 85%", best={"label": "SF -3.0", "tierN": 3})
+        html = a.build_locks_email_html([leg], live=True, locked_count=1)
+        self.assertIn("Context at the POSTED line", html)
+
+    def test_send_failure_is_recorded_and_returned(self):
+        orig = (a._send_gmail, a.LOCKS_EMAIL_TO, a.OWNER_EMAIL)
+        a._send_gmail = lambda *x, **k: (False, "smtp down"); a.LOCKS_EMAIL_TO = "to@example.com"
+        a.EMAIL_FAILURES.clear()
+        try:
+            self.assertFalse(a.send_locks_email([_game()], live=True, locked_count=1, label="NFL", to=["to@example.com"]))
+            self.assertEqual(len(a.EMAIL_FAILURES), 1)
+            a._send_gmail = lambda *x, **k: (True, "")
+            self.assertTrue(a.send_locks_email([_game()], live=True, locked_count=1, label="NFL", to=["to@example.com"]))
+        finally:
+            a._send_gmail, a.LOCKS_EMAIL_TO, a.OWNER_EMAIL = orig; a.EMAIL_FAILURES.clear()
+
+    def test_subject_date_is_mountain_time(self):
+        seen = {}
+        orig = a._send_gmail
+        a._send_gmail = lambda subject, *x, **k: (seen.setdefault("s", subject) and (True, ""))
+        try:
+            a.send_locks_email([_game()], live=True, locked_count=1, label="NFL", to=["to@example.com"])
+        finally:
+            a._send_gmail = orig
+        today_mt = datetime.now(ZoneInfo("America/Denver")).strftime("%Y-%m-%d")
+        self.assertIn(today_mt, seen["s"])
+
+
+class NbaPreseasonGuard(unittest.TestCase):
+    def test_preseason_legs_are_never_qualified(self):
+        pre = datetime.now(ZoneInfo("America/Denver")).strftime("%Y-%m-%dT18:00Z")
+        orig = a._nba_preseason_pairs
+        a._nba_preseason_pairs = lambda: {frozenset({"UTAH", "DEN"})}
+        try:
+            game = {"sport": "NBA", "hA": "DEN", "awA": "UTAH", "startMs": None, "markets": [{"side": "over", "label": "OVER 220.5", "prob": .8, "tierN": 3, "evVal": .1, "ml": "-110", "dec": 1.9}]}
+            reg = dict(game, hA="BOS", awA="NYK")
+            props = [{"grade": "PREMIUM", "sportTag": "NBA", "hA": "DEN", "awA": "UTAH", "player": "X"}, {"grade": "PREMIUM", "sportTag": "NBA", "hA": "BOS", "awA": "NYK", "player": "Y"}]
+            q = a.build_qualifying({"gameLegs": [game, reg], "propLegs": props})
+        finally:
+            a._nba_preseason_pairs = orig
+        teams = {(x.get("hA") or x["leg"].get("hA")) for x in q}
+        self.assertNotIn("DEN", teams); self.assertIn("BOS", teams)          # preseason pair dropped (game AND prop), regular-season pair kept
+
+    def test_pairs_come_from_the_schedule_files(self):
+        pairs = a._nba_preseason_pairs()                                      # runs against docs/nba_schedule.json: must be a set and never raise
+        self.assertIsInstance(pairs, set)
+
+
+class DigestEmail(unittest.TestCase):
+    def test_adjusted_line_rows_make_no_market_edge_claim_and_send_failure_raises(self):
+        row = a._digest_pick_row_html({"awA": "SEA", "hA": "SF", "betOn": "SF +3.5", "ml": "-272", "winProb": .69, "decOdds": 1.37, "altLine": ALT, "priceSource": "estimated"})
+        self.assertIn("ADJUSTED LINE", row); self.assertIn("estimate", row); self.assertNotIn("pp edge", row); self.assertNotIn("implied by the price", row)
+        normal = a._digest_pick_row_html({"awA": "SEA", "hA": "SF", "betOn": "SF ML", "ml": "-110", "winProb": .6, "decOdds": 1.9})
+        self.assertIn("pp edge", normal)
+        orig = a._send_gmail; a._send_gmail = lambda *x, **k: (False, "nope")
+        try:
+            with self.assertRaises(RuntimeError):
+                a.send_top_picks_digest_email([{"awA": "B", "hA": "A", "betOn": "OVER 5.5", "ml": "-110", "winProb": .7, "decOdds": 1.9, "league": "NHL"}], "2026-10-04")
+        finally:
+            a._send_gmail = orig
+        html = a.build_top_picks_digest_html({"top7": [], "top4ByLeague": {}}, "2026-10-04")
+        self.assertNotIn("Questions, or want to stop", html)                  # owner-only email: no subscriber footer
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

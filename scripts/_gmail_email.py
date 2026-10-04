@@ -100,6 +100,15 @@ DISCLAIMER_HTML = (
 )
 EMAIL_WRAP_CLOSE_DISCLOSED = DISCLAIMER_HTML + EMAIL_WRAP_CLOSE
 
+# Subscriber-facing footer (locks emails, expiry reminders): who to contact / how to stop the emails, and where the public site is. Owner-only emails keep the plain disclaimer close.
+SUBSCRIBER_FOOTER_HTML = (
+    '<div style="margin-top:12px;font-size:12px;line-height:1.6;color:#666;text-align:center">'
+    'Questions, or want to stop these emails? Just reply to this message. · '
+    '<a href="https://clairvoyanceengine.info" style="color:#a000b8">clairvoyanceengine.info</a>'
+    '</div>'
+)
+EMAIL_WRAP_CLOSE_SUBSCRIBER = DISCLAIMER_HTML + SUBSCRIBER_FOOTER_HTML + EMAIL_WRAP_CLOSE
+
 
 def _build_message(subject: str, batch: list[str], html_body: str, attachments: list[Path] | None) -> MIMEMultipart:
     msg = MIMEMultipart()
