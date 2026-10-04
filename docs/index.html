@@ -22507,6 +22507,8 @@ function renderTicker(){
       if(g.state==='pre')return;
       const al=_LV_ALIAS[g.tag]||[g.tag];
       const locks=picks.filter(p=>{
+        // today's locks only (owner decision 2026-10-04) -- yesterday's picks only still count for a game that is STILL IN PROGRESS (a late game running past midnight keeps its chips)
+        if(p.date!==td&&g.state!=='in')return false;
         const sp=String(window._normSport?window._normSport(p):(p.league||p.sport||'')).toUpperCase();
         return al.includes(sp)&&_tkMatch(p.hA,g.home)&&_tkMatch(p.awA,g.away);
       });

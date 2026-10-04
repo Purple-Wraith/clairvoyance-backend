@@ -83,6 +83,18 @@ class TickerScroll(unittest.TestCase):
         self.assertEqual(pg.evaluate("getComputedStyle(document.getElementById('cv-ticker')).display"), "none")
         pg.close()
 
+    def test_yesterdays_locks_do_not_keep_finished_games(self):
+        pg = self.page()
+        pg.evaluate("""()=>{ saveP([{id:'y1',hA:'HOME0',awA:'AWAY0',sport:'NHL',betType:'ML',betOn:'HOME0',date:yesterday(),outcome:'win',lockedAt:Date.now()-86400000,decOdds:1.9},
+            {id:'y2',hA:'HOME1',awA:'AWAY1',sport:'NHL',betType:'ML',betOn:'HOME1',date:yesterday(),outcome:'pending',lockedAt:Date.now()-86400000,decOdds:1.9}]);
+            _TKM.sig='';renderTicker(); }""")
+        pg.wait_for_timeout(300)
+        keys = pg.evaluate("_TKM.order")
+        self.assertNotIn("nhl|g0", keys)                       # g0 is a FINAL with only a yesterday lock -> gone
+        self.assertIn("nhl|g1", keys)                          # g1 is LIVE: stays, and keeps its yesterday-dated lock chip
+        self.assertEqual(pg.evaluate("document.querySelectorAll('#cv-ticker .tkgrp:first-child [data-k=\"nhl|g1\"] .tkl').length"), 1)
+        pg.close()
+
     def test_js_fallback_without_element_animate(self):
         pg = self.page("delete Element.prototype.animate;")
         self.assertTrue(pg.evaluate("!_TKM.anim&&!!_TKM.raf"))
