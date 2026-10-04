@@ -84,7 +84,7 @@ class AltTracker(unittest.TestCase):
         pg = self.page()
         pg.evaluate("renderHomePage()"); pg.wait_for_timeout(500)
         home = pg.evaluate("(document.getElementById('home-adj-tracker')||{}).innerText||''")
-        for needle in ("ADJUSTED LINES", "ADJUSTED", "AT LOCKED LINE", "SAME PICKS AT POSTED", "SAVED BY SHIFT", "POSTED", "LOCKED", "NFL", "CFB", "NHL"):
+        for needle in ("ADJUSTED LINES", "ADJUSTED", "LOCKED ADJ. LINE", "SAME PICKS AT POSTED", "SAVED BY SHIFT", "POSTED", "LOCKED", "NFL", "CFB", "NHL"):
             self.assertIn(needle, home)
         pg.evaluate("renderOverall()")
         self.assertIn("ADJUSTED LINES", pg.evaluate("(document.getElementById('ovr-adj-tracker')||{}).innerText||''"))

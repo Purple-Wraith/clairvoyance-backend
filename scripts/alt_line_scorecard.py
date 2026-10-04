@@ -2,7 +2,7 @@
 """Scorecard for alternate-line locks (CFB / NFL spreads and O/Us moved to a safer line; see ALT_LINE_CFG in scripts/auto_lock_settle.py).
 
 For every SETTLED pick that carries an `altLine` it grades two things from the final score: the pick as locked (the alternate line) and the same bet at the
-POSTED line it was moved from.  Then it prints win rate and units for both, how many results the shift flipped either way, and the average win probability
+POSTED line it was moved from.  Then it prints win rate (LOCKED ADJ. = the line it was locked at) and units for both, how many results the shift flipped either way, and the average win probability
 the engine expected, so the cushion is judged on real results, not on the backtest.
 
   python3 scripts/alt_line_scorecard.py                # live ledger (Supabase, read-only); falls back to docs/picks_backup.json
@@ -147,7 +147,7 @@ def main() -> int:
     groups: dict[str, list] = {"ALL": rows}
     for r in rows:
         groups.setdefault(f"{r[0].get('sport')} {r[0].get('betType')}", []).append(r)
-    print(f"\n  {'group':<14}{'n':>4}  {'ALT win%':>9}{'POSTED win%':>12}{'saved':>7}{'cost':>6}{'ALT u':>8}{'POSTED u':>9}{'expected':>9}")
+    print(f"\n  {'group':<14}{'n':>4}  {'LOCKED ADJ. w%':>15}{'POSTED w%':>11}{'saved':>7}{'cost':>6}{'ADJ. u':>8}{'POSTED u':>9}{'expected':>9}")
     for g, rs in groups.items():
         n = len(rs)
         aw = sum(r[1] == "win" for r in rs); al_ = sum(r[1] == "loss" for r in rs)
@@ -157,8 +157,8 @@ def main() -> int:
         au = sum(units(r[1], float(r[0].get("decOdds") or STD_DEC)) for r in rs); pu = sum(units(r[2], float(r[0]["altLine"].get("postedDec") or STD_DEC)) for r in rs)   # original price when the pick stored it
         exp = sum(float(r[0].get("winProb") or 0) for r in rs) / n
         f = lambda w, l: f"{w / (w + l) * 100:5.1f}%" if (w + l) else "   --"
-        print(f"  {g:<14}{n:>4}  {f(aw, al_):>9}{f(pw, pl):>12}{saved:>7}{cost:>6}{au:>+8.1f}{pu:>+9.1f}{exp * 100:>8.1f}%")
-    print("\n  saved = lost at the posted line but won at the alternate line;  cost = the reverse.  ALT u uses the estimated alternate price, POSTED u assumes -110.")
+        print(f"  {g:<14}{n:>4}  {f(aw, al_):>15}{f(pw, pl):>11}{saved:>7}{cost:>6}{au:>+8.1f}{pu:>+9.1f}{exp * 100:>8.1f}%")
+    print("\n  saved = lost at the posted line but won at the locked adj. line;  cost = the reverse.  ADJ. u uses the estimated adjusted-line price, POSTED u uses the original price (or -110 if not stored).")
     print("  Judge the shift on win%; the price is bought with the cushion, so units can be lower even when win% is higher.")
     return 0
 

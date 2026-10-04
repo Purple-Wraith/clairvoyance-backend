@@ -4020,7 +4020,7 @@ function _altNoteHTML(p){
   const al=_altOf(p);if(!al)return'';
   const r=_altRows([p])[0];
   const pend=!r||!r.settled;
-  const tail=pend?'':`${_altResChip('LOCKED LINE',r.alt)}${_altResChip('POSTED LINE',r.posted)}${r.saved?'<span class="adjr" style="color:#ffe600">SAVED BY SHIFT</span>':''}`;
+  const tail=pend?'':`${_altResChip('LOCKED ADJ. LINE',r.alt)}${_altResChip('POSTED LINE',r.posted)}${r.saved?'<span class="adjr" style="color:#ffe600">SAVED BY SHIFT</span>':''}`;
   return`<div class="prow2-adj" title="Original posted line vs the line the engine locked">ADJUSTED ${_altShiftTxt(al)} · POSTED <b>${_escHtml(al.postedLabel||String(al.posted))}</b> → LOCKED <b>${_escHtml(p.betOn||'')}</b>${tail}</div>`;
 }
 function _altPeriodPicks(picks,per){
@@ -4049,7 +4049,7 @@ function _altTableHTML(rows,full){
   const none=_ALT_COVERAGE.filter(([lg])=>!have.has(lg)).map(([lg,m])=>`${_escHtml(lg)} <span style="color:var(--t3)">(${m})</span>`).join(' · ');
   const th='style="text-align:left;font-weight:400;color:var(--t3);letter-spacing:1px;font-size:12px;padding:3px 8px 3px 0"';
   return`<div style="overflow-x:auto;margin-top:10px"><table style="border-collapse:collapse;font-family:var(--mono);font-size:14px;color:var(--t2);min-width:520px">
-    <tr><th ${th}>LEAGUE</th><th ${th}>PICKS</th><th ${th}>AT LOCKED LINE</th><th ${th}>SAME PICKS AT POSTED</th><th ${th}>SAVED / COST</th><th ${th}>AVG SHIFT</th><th ${th}></th></tr>
+    <tr><th ${th}>LEAGUE</th><th ${th}>PICKS</th><th ${th}>LOCKED ADJ. LINE</th><th ${th}>SAME PICKS AT POSTED</th><th ${th}>SAVED / COST</th><th ${th}>AVG SHIFT</th><th ${th}></th></tr>
     ${lines||`<tr><td colspan="7" style="padding:8px 0;color:var(--t3)">NO ADJUSTED-LINE PICKS IN THIS PERIOD</td></tr>`}</table></div>
     ${none?`<div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:8px;line-height:1.5">ENGINE SHIFTS THESE, NO PICKS YET: ${none}${full?'<br>NOT SHIFTED BY THE ENGINE YET: SOCCER, NBA SPREADS, MLS/OTHER LEAGUES — THEY APPEAR HERE AUTOMATICALLY ONCE THEY ARE':''}</div>`:''}`;
 }
@@ -4061,7 +4061,7 @@ function _altListHTML(rows,limit){
     return`<div style="padding:8px 10px;margin-bottom:6px;background:rgba(0,0,0,.3);border-left:3px solid ${col};border-radius:2px;font-family:var(--mono)">
       <div style="font-size:12px;color:var(--t3);letter-spacing:1px">${_escHtml(p.date||'')} · <span style="color:var(--nc)">${_escHtml(r.league)}</span> · ${_escHtml(String(p.betType||''))} · ${_escHtml(_gameTitle(p.hA,p.awA,p.sport)||'')}</div>
       <div style="font-size:15px;color:var(--t);margin:3px 0">POSTED <b>${_escHtml(al.postedLabel||String(al.posted))}</b> <span style="color:var(--t3)">→</span> LOCKED <b style="color:#ffe600">${_escHtml(p.betOn||'')}</b> <span style="color:var(--t3);font-size:13px">(${_altShiftTxt(al)})</span></div>
-      <div style="font-size:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">${r.settled?`${_altResChip('LOCKED LINE',r.alt)}${_altResChip('POSTED LINE',r.posted)}${r.saved?'<span class="adjr" style="color:#ffe600">SAVED BY SHIFT</span>':''}${r.cost?'<span class="adjr" style="color:var(--hc)">COST</span>':''}`:'<span class="adjr" style="color:var(--pc)">PENDING</span>'}${p.winProb?`<span style="color:var(--t3)">${Math.round(p.winProb*100)}% est.</span>`:''}</div></div>`;
+      <div style="font-size:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">${r.settled?`${_altResChip('LOCKED ADJ. LINE',r.alt)}${_altResChip('POSTED LINE',r.posted)}${r.saved?'<span class="adjr" style="color:#ffe600">SAVED BY SHIFT</span>':''}${r.cost?'<span class="adjr" style="color:var(--hc)">COST</span>':''}`:'<span class="adjr" style="color:var(--pc)">PENDING</span>'}${p.winProb?`<span style="color:var(--t3)">${Math.round(p.winProb*100)}% est.</span>`:''}</div></div>`;
   }).join('');
   return{html,more:list.length-shown.length};
 }
@@ -4085,8 +4085,8 @@ function _altTrackerHTML(mode,opts){
   }
   const tiles=[
     _altTile('ADJUSTED',s.n,`${s.settled} settled · ${s.pending} pending`,'var(--pc)'),
-    _altTile('AT LOCKED LINE',`${s.altW}-${s.altL}`,`${_altPct(s.altW,s.altL)} · ${s.settled} settled${s.altP?' · '+s.altP+' push':''}`,'#00e644'),
-    _altTile('SAME PICKS AT POSTED',s.both?`${s.bPostW}-${s.bPostL}`:'n/a',s.both?`${_altPct(s.bPostW,s.bPostL)} · locked line on these ${s.both}: ${s.bAltW}-${s.bAltL} (${_altPct(s.bAltW,s.bAltL)})`:'needs final scores on the picks','var(--nc)'),
+    _altTile('LOCKED ADJ. LINE',`${s.altW}-${s.altL}`,`${_altPct(s.altW,s.altL)} · ${s.settled} settled${s.altP?' · '+s.altP+' push':''}`,'#00e644'),
+    _altTile('SAME PICKS AT POSTED',s.both?`${s.bPostW}-${s.bPostL}`:'n/a',s.both?`${_altPct(s.bPostW,s.bPostL)} · locked adj. line on these ${s.both}: ${s.bAltW}-${s.bAltL} (${_altPct(s.bAltW,s.bAltL)})`:'needs final scores on the picks','var(--nc)'),
     _altTile('SAVED BY SHIFT',s.saved,s.both?`lost at posted, won at locked · cost ${s.cost}`:'—','#ffe600'),
     _altTile('AVG SHIFT',s.shiftN?(s.shiftSum/s.shiftN).toFixed(1)+' pts':'--',s.both?`units on those ${s.both}: locked ${_altU(s.uAlt)} (est. price) vs posted ${_altU(s.uPost)}`:'','var(--vc)')
   ].join('');
