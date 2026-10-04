@@ -387,6 +387,28 @@ def check_refresh_health(now: datetime | None = None, api_get=None) -> list[tupl
     return out
 
 
+ARCHIVE_TAGS = {"MLB", "WNBA", "WTA", "ATP", "WC", "TEN", "XP"}  # mirror of _ARCH_TAGS in docs/app.html
+
+
+def check_ledger_archive(docs_dir: Path | None = None, now: datetime | None = None) -> list[tuple[str, str]]:
+    """docs/ledger_archive.json is a static snapshot (see scripts/build_ledger_archive.py).  Note (never an email) when docs/picks_backup.json holds settled,
+    >21-day-old picks of a retired league that the archive does not have: a stale archive would leave those picks in neither place on a slimmed device."""
+    docs_dir = docs_dir or Path(__file__).resolve().parent.parent / "docs"
+    now = now or datetime.now(timezone.utc)
+    try:
+        backup = json.loads((docs_dir / "picks_backup.json").read_text())
+        have = {p.get("id") for p in json.loads((docs_dir / "ledger_archive.json").read_text()).get("picks", [])}
+    except Exception as exc:
+        return [("note", f"ledger archive check skipped ({exc.__class__.__name__})")]
+    cut = (now - timedelta(days=21)).strftime("%Y-%m-%d")
+    missing = [p.get("id") for p in backup if str(p.get("sport") or "").upper() in ARCHIVE_TAGS
+               and p.get("outcome") in ("win", "loss", "push") and (p.get("date") or "9999") < cut and p.get("id") not in have]
+    if missing:
+        return [("note", f"ledger archive is stale: {len(missing)} settled retired-league pick(s) in picks_backup.json are not in ledger_archive.json "
+                         f"(run scripts/build_ledger_archive.py) -- e.g. {missing[0]}")]
+    return []
+
+
 def main() -> None:
     problems = check_lock_markers()
     notes: list[str] = []
@@ -404,6 +426,12 @@ def main() -> None:
             (problems if level == "alert" else notes).append(msg)
     except Exception as exc:  # fail-open
         notes.append(f"data freshness check crashed ({exc})")
+
+    try:
+        for _lvl, msg in check_ledger_archive():
+            notes.append(msg)
+    except Exception as exc:  # fail-open
+        notes.append(f"ledger archive check crashed ({exc})")
 
     for n in notes:
         print(f"::warning::{n}")

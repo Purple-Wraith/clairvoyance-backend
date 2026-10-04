@@ -5842,6 +5842,9 @@ function _mergeRemoteBetRows(rows){
       if(!remote)continue;
       const existing=byId.get(row.id);
       if(!existing&&_slimPick(Object.assign({},remote,{outcome:row.outcome||remote.outcome})))continue;   // archived retired pick: stays out of the working ledger
+      // A retired league has no live picks, so an OLD retired pick still 'pending' on Supabase is a stale row (found 2026-10-03: j13_slip2_wnba is a loss in the backup/archive but pending on
+      // Supabase) -- never pull it in as a phantom pending pick now that the settled copy is archived.
+      if(!existing&&_slimOn()&&(row.outcome==='pending'||!row.outcome)&&(remote.date||'')&&(remote.date||'')<_archCut()&&_ARCH_TAGS.has(_normSport(remote)))continue;
       if(!existing){
         const sig=`${remote.date}|${remote.hA}|${remote.awA}|${remote.betOn}`;
         const sigMatch=bySig.get(sig);

@@ -72,6 +72,15 @@ class ArchiveTests(unittest.TestCase):
         self.assertEqual(n[0], n[1])
         pg.close()
 
+    def test_stale_pending_retired_row_not_pulled_in(self):
+        # j13_slip2_wnba: loss in the backup/archive, still 'pending' on Supabase -> must not come back as a phantom pending pick
+        pg = self.page("&slim=1")
+        r = pg.evaluate("""(ps)=>{const p=ps.find(x=>x.id==='j13_slip2_wnba');const raw=Object.assign({},p,{outcome:'pending',settledAt:null});
+            const before=getP().length;_mergeRemoteBetRows([{id:p.id,raw:raw,outcome:'pending',settled_at:null,locked_at:p.lockedAt}]);
+            return [before,getP().length,getP().some(x=>x.id===p.id)]}""", self.archive["picks"])
+        self.assertEqual(r, [r[0], r[0], False])
+        pg.close()
+
     def test_predicate_edges(self):
         pg = self.page("&slim=1")
         r = pg.evaluate("""()=>{const old='2026-01-05',recent=_mtDateOf(Date.now()-2*86400000);
