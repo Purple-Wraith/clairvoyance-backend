@@ -29,8 +29,8 @@ READONLY_JS = """<script>
   try{if(!localStorage.getItem('preds')){var x=new XMLHttpRequest();x.open('GET','picks_backup.json',false);x.send();if(x.status===200)localStorage.setItem('preds',x.responseText);}}catch(e){}
   document.addEventListener('DOMContentLoaded',function(){
     var b=document.createElement('div');b.id='cv-demo-banner';
-    b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;text-align:center;background:linear-gradient(90deg,#f000ff,#4d79ff);color:#0b0612;font:700 12px/1 monospace;letter-spacing:2px;padding:4px 6px;pointer-events:none';
-    b.textContent='LIVE VIEW-ONLY DEMO · TAP THE TABS TO EXPLORE · EXPIRES __UNTIL__';document.body.appendChild(b);document.body.style.paddingTop='20px';
+    b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;text-align:center;background:linear-gradient(90deg,#f000ff,#4d79ff);color:#0b0612;font:700 clamp(9px,2.6vw,12px)/1.1 monospace;letter-spacing:1px;padding:4px 6px;white-space:nowrap;overflow:hidden;pointer-events:none';
+    b.textContent='LIVE DEMO · TAP TABS TO EXPLORE · ENDS __UNTIL__';document.body.appendChild(b);document.body.style.paddingTop='20px';
     setTimeout(function(){toast('This is the live app — tap any tab at the top to explore. Editing is switched off.');},3500);
   });
 })();
