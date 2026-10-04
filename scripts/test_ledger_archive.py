@@ -25,6 +25,7 @@ class ArchiveTests(unittest.TestCase):
         cls.pw = sync_playwright().start()
         cls.browser = cls.pw.chromium.launch()
         cls.backup = (DOCS / "picks_backup.json").read_text()
+        cls.app_src = (DOCS / "app.html").read_text(encoding="utf-8")
         cls.archive = json.loads((DOCS / "ledger_archive.json").read_text())
 
     @classmethod
@@ -55,13 +56,17 @@ class ArchiveTests(unittest.TestCase):
         working = {p["id"] for p in pg.evaluate("getP()")}
         backup = {p["id"] for p in json.loads(self.backup)}
         self.assertFalse(working & ids_arch, "archived picks leaked into the working ledger")
-        self.assertEqual(working | ids_arch, backup, "archive + working ledger must equal the full backup")
+        self.assertFalse(backup - (working | ids_arch), "a pick in the backup is in neither the working ledger nor the archive")
+        extras = (working | ids_arch) - backup            # only picks the app seeds itself (hard-coded in app.html) may exist beyond the backup
+        self.assertTrue(all(("id:'%s'" % i) in self.app_src for i in extras), sorted(extras)[:3])
         pg.close()
 
     def test_automation_is_not_slimmed(self):
         pg = self.page("")  # Playwright => navigator.webdriver===true
         self.assertFalse(pg.evaluate("_slimOn()"))
-        self.assertEqual(pg.evaluate("getP().length"), len(json.loads(self.backup)))
+        ids = {p["id"] for p in pg.evaluate("getP()")}; bk = {p["id"] for p in json.loads(self.backup)}
+        self.assertFalse(bk - ids, "automation must see every backup pick")                       # nothing hidden from CI
+        self.assertTrue(all(("id:'%s'" % i) in self.app_src for i in ids - bk))                  # extras = the app's own seeded picks
         pg.close()
 
     def test_merge_does_not_readd_archived(self):
@@ -73,9 +78,9 @@ class ArchiveTests(unittest.TestCase):
         pg.close()
 
     def test_stale_pending_retired_row_not_pulled_in(self):
-        # j13_slip2_wnba: loss in the backup/archive, still 'pending' on Supabase -> must not come back as a phantom pending pick
+        # an old retired pick that is still 'pending' on Supabase (a stale row, as j13_slip2_wnba once was) must not come back as a phantom pending pick
         pg = self.page("&slim=1")
-        r = pg.evaluate("""(ps)=>{const p=ps.find(x=>x.id==='j13_slip2_wnba');const raw=Object.assign({},p,{outcome:'pending',settledAt:null});
+        r = pg.evaluate("""(ps)=>{const p=ps.find(x=>x.sport==='MLB');const raw=Object.assign({},p,{outcome:'pending',settledAt:null});
             const before=getP().length;_mergeRemoteBetRows([{id:p.id,raw:raw,outcome:'pending',settled_at:null,locked_at:p.lockedAt}]);
             return [before,getP().length,getP().some(x=>x.id===p.id)]}""", self.archive["picks"])
         self.assertEqual(r, [r[0], r[0], False])
@@ -85,8 +90,10 @@ class ArchiveTests(unittest.TestCase):
         pg = self.page("&slim=1")
         r = pg.evaluate("""()=>{const old='2026-01-05',recent=_mtDateOf(Date.now()-2*86400000);
             const mk=(o)=>Object.assign({id:'x',sport:'MLB',outcome:'win',date:old,hA:'A',awA:'B',betOn:'A',betType:'ML'},o);
-            return [_archivable(mk({})),_archivable(mk({outcome:'pending'})),_archivable(mk({date:recent})),_archivable(mk({sport:'NHL'})),_archivable(mk({sport:'ZZZ'})),_archivable(mk({outcome:'_removed'}))]}""")
-        self.assertEqual(r, [True, False, False, False, False, False])
+            return [_archivable(mk({})),_archivable(mk({outcome:'pending'})),_archivable(mk({date:recent})),_archivable(mk({sport:'NHL'})),_archivable(mk({sport:'ZZZ'})),_archivable(mk({outcome:'_removed'})),\
+                    _archivable(mk({sport:'MLS',date:recent})),_archivable(mk({sport:'BUND',date:recent})),_archivable(mk({sport:'MLS',date:recent,outcome:'pending'}))]}""")
+        # MLB: old+settled only. MLS/BUND (retired, no live picks): settled at ANY age, still never while pending
+        self.assertEqual(r, [True, False, False, False, False, False, True, True, False])
         pg.close()
 
     def test_header_accuracy_unchanged(self):

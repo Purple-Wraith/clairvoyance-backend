@@ -387,7 +387,8 @@ def check_refresh_health(now: datetime | None = None, api_get=None) -> list[tupl
     return out
 
 
-ARCHIVE_TAGS = {"MLB", "WNBA", "WTA", "ATP", "WC", "TEN", "XP"}  # mirror of _ARCH_TAGS in docs/app.html
+ARCHIVE_TAGS = {"MLB", "WNBA", "WTA", "ATP", "WC", "TEN", "XP", "MLS", "BUND"}  # mirror of _ARCH_TAGS in docs/app.html
+ARCHIVE_ANY_AGE = {"MLS", "BUND"}  # mirror of _ARCH_ANY_AGE: archived whatever their age
 
 
 def check_ledger_archive(docs_dir: Path | None = None, now: datetime | None = None) -> list[tuple[str, str]]:
@@ -402,7 +403,8 @@ def check_ledger_archive(docs_dir: Path | None = None, now: datetime | None = No
         return [("note", f"ledger archive check skipped ({exc.__class__.__name__})")]
     cut = (now - timedelta(days=21)).strftime("%Y-%m-%d")
     missing = [p.get("id") for p in backup if str(p.get("sport") or "").upper() in ARCHIVE_TAGS
-               and p.get("outcome") in ("win", "loss", "push") and (p.get("date") or "9999") < cut and p.get("id") not in have]
+               and p.get("outcome") in ("win", "loss", "push")
+               and (str(p.get("sport") or "").upper() in ARCHIVE_ANY_AGE or (p.get("date") or "9999") < cut) and p.get("id") not in have]
     if missing:
         return [("note", f"ledger archive is stale: {len(missing)} settled retired-league pick(s) in picks_backup.json are not in ledger_archive.json "
                          f"(run scripts/build_ledger_archive.py) -- e.g. {missing[0]}")]

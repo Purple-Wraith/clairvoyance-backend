@@ -5431,16 +5431,19 @@ function _isJunkPred(p){return/^test[_-]/i.test(p.id||'');}
 // retired picks' totals, so those are the constant below (scripts/test_ledger_archive.py checks it against the archive file).
 //   * Automation (CI / Playwright: navigator.webdriver) is NEVER slimmed, so the lock/settle sessions and docs/picks_backup.json see the full ledger exactly as before. ?slim=1 forces it on for testing.
 //   * Only settled picks of KNOWN retired tags older than 21 days (the Supabase push window) are archivable -- a new/odd pick is never hidden.
-const _ARCH_TAGS=new Set(['MLB','WNBA','WTA','ATP','WC','TEN','XP']);
-const _ARCH_SUM={n:2236,w:1564,l:672};   // retired-league picks: settled count / wins / losses (filled by scripts/build_ledger_archive.py)
+const _ARCH_TAGS=new Set(['MLB','WNBA','WTA','ATP','WC','TEN','XP','MLS','BUND']);
+// MLS + Bundesliga were retired 2026-09-23/27 and have no live picks, so ALL their settled picks are archived whatever their age (an age cut would hide picks later without them being in the archive file).
+const _ARCH_ANY_AGE=new Set(['MLS','BUND']);
+const _ARCH_SUM={n:2424,w:1682,l:742};   // retired-league picks: settled count / wins / losses (filled by scripts/build_ledger_archive.py)
 function _slimOn(){try{if(/[?&]slim=1(?:&|$)/.test(location.search||''))return true;if(/[?&]slim=0(?:&|$)/.test(location.search||''))return false;return navigator.webdriver!==true;}catch(e){return true;}}
 let _archCutV='',_archCutAt=0;
 function _archCut(){const n=Date.now();if(!_archCutV||n-_archCutAt>60000){_archCutV=_mtDateOf(n-21*86400000)||'';_archCutAt=n;}return _archCutV;}
 function _archivable(p){
   try{
     if(!p||!p.outcome||p.outcome==='pending'||p.outcome==='_removed')return false;
-    const d=p.date||'';if(!d||d>=_archCut())return false;
-    return _ARCH_TAGS.has(_normSport(p));
+    const t=_normSport(p);if(!_ARCH_TAGS.has(t))return false;
+    if(_ARCH_ANY_AGE.has(t))return true;
+    const d=p.date||'';return !!d&&d<_archCut();
   }catch(e){return false;}
 }
 function _slimPick(p){return _slimOn()&&_archivable(p);}
@@ -16685,7 +16688,7 @@ function _ovrArchiveHtml(){
   const A=window._ovrArch,n=_ARCH_SUM.n;
   const hdr=`<div onclick="_ovrArchToggle()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;margin-top:14px;border:1px solid rgba(220,190,255,.18);border-radius:3px;background:rgba(10,0,24,.55)">
     <span style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px"><span>${A.open?'▼':'▶'}</span> // RETIRED-LEAGUE ARCHIVE — ${n.toLocaleString('en-US')} PICKS</span>
-    <span style="font-family:var(--mono);font-size:14px;color:rgba(220,190,255,.45)">${_ARCH_SUM.w}W ${_ARCH_SUM.l}L · MLB / WNBA / TENNIS / WORLD CUP · TAP TO ${A.open?'HIDE':'LOAD'}</span></div>`;
+    <span style="font-family:var(--mono);font-size:14px;color:rgba(220,190,255,.45)">${_ARCH_SUM.w}W ${_ARCH_SUM.l}L · MLB / WNBA / TENNIS / WORLD CUP / MLS / BUNDESLIGA · TAP TO ${A.open?'HIDE':'LOAD'}</span></div>`;
   if(!A.open)return`<div id="ovr-archive">${hdr}</div>`;
   if(A.loading)return`<div id="ovr-archive">${hdr}<div class="loading" style="padding:12px"><span class="spi"></span></div></div>`;
   if(A.fail||!A.data)return`<div id="ovr-archive">${hdr}<div class="empty" style="padding:12px">COULD NOT LOAD THE ARCHIVE — CHECK YOUR CONNECTION AND TAP TO RETRY</div></div>`;
