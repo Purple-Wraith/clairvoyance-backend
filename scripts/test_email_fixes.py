@@ -192,7 +192,8 @@ class PickOfDay(unittest.TestCase):
     def test_workflow_marker_requires_a_real_send(self):
         wf = (ROOT / ".github" / "workflows" / "pick-of-day-social-daily.yml").read_text()
         self.assertIn("id: post", wf)
-        self.assertIn("steps.post.outputs.sent == '1'", wf)
+        self.assertIn('if [ "${{ steps.post.outputs.sent }}" = "1" ]', wf)       # the "email went out" marker is conditional on a real send
+        self.assertIn("_checked.txt", wf)                                          # the health marker is written by any completed run
 
     def test_sent_flag_written_only_when_called(self):
         import os, tempfile
@@ -324,6 +325,115 @@ class Lifecycle(unittest.TestCase):
         wf = (ROOT / ".github" / "workflows" / "send-demo-emails.yml").read_text()
         self.assertIn("DEMO_TO: ${{ inputs.to }}", wf)
         self.assertNotIn("format('--to", wf)
+
+
+class HealthAlerts(unittest.TestCase):
+    def setUp(self):
+        import daily_health_check as dh, weekly_health_digest as wd
+        self.dh, self.wd = dh, wd
+
+    def test_marker_passes_are_scoped_and_pm_slate_is_checked_late(self):
+        mt = ZoneInfo("America/Denver")
+        at = lambda h: datetime(2026, 10, 4, h, 15, tzinfo=mt)
+        orig = self.dh.LOCK_MARKERS
+        self.dh.LOCK_MARKERS = [(ROOT / "data" / "nope_am.txt", "AM", 10), (ROOT / "data" / "nope_pm.txt", "PM", 16)]
+        try:
+            self.assertEqual(len(self.dh.check_lock_markers("early", at(11))), 1)     # AM only
+            self.assertEqual(len(self.dh.check_lock_markers("late", at(17))), 1)      # PM only
+            self.assertEqual(len(self.dh.check_lock_markers("full", at(17))), 2)
+            self.assertEqual(self.dh.check_lock_markers("late", at(15)), [])          # before the PM cutoff: nothing yet
+        finally:
+            self.dh.LOCK_MARKERS = orig
+
+    def test_pick_of_day_health_markers_are_the_checked_files(self):
+        names = [p.name for p, _l, _h in self.dh.LOCK_MARKERS]
+        self.assertIn("last_pick_of_day_am_checked.txt", names)
+        self.assertIn("last_pick_of_day_pm_checked.txt", names)
+        wf = (ROOT / ".github" / "workflows" / "pick-of-day-social-daily.yml").read_text()
+        self.assertIn("_checked.txt", wf)
+
+    def test_undeliverable_alert_is_a_nonzero_exit(self):
+        orig_to, orig_send = self.dh.ALERT_TO, self.dh.send_email
+        try:
+            self.dh.ALERT_TO = ""
+            self.assertEqual(self.dh._report(["x is down"], []), 1)
+            self.dh.ALERT_TO, self.dh.send_email = "me@x.com", lambda *a, **k: (False, "boom")
+            self.assertEqual(self.dh._report(["x is down"], []), 1)
+            self.dh.send_email = lambda *a, **k: (True, "sent")
+            self.assertEqual(self.dh._report(["x is down"], []), 0)
+            self.assertEqual(self.dh._report([], []), 0)
+        finally:
+            self.dh.ALERT_TO, self.dh.send_email = orig_to, orig_send
+
+    def test_cancelled_latest_run_is_not_a_failure(self):
+        orig = self.dh._api_get
+        runs = [{"conclusion": "cancelled", "status": "completed", "created_at": datetime.now(ZoneInfo("UTC")).isoformat()},
+                {"conclusion": "success", "status": "completed", "created_at": datetime.now(ZoneInfo("UTC")).isoformat()}]
+        self.dh._api_get = lambda path: {"workflow_runs": runs}
+        try:
+            self.assertIsNone(self.dh.check_workflow("x.yml", "X", 26))
+        finally:
+            self.dh._api_get = orig
+
+    def test_watchdog_alert_does_not_claim_a_lock_failed(self):
+        rep = {"live": True, "label": "WATCHDOG", "failedLabels": [],
+               "skippedDetail": [{"sport": "NHL", "game": "A @ B", "leg": "A ML", "startMs": 1, "why": "kicks off in 30 min", "prob": .7, "tier": "PREMIUM"}]}
+        h, subject, html = a.owner_alert_for([rep], watchdog=True)
+        self.assertIn("WATCHDOG", subject)
+        self.assertIn("never locks anything", html)
+        self.assertNotIn("lock failed", html.lower())
+        self.assertNotIn("could not lock", html)
+
+    def test_failed_owner_alert_marks_the_run_red(self):
+        before = len(a.EMAIL_FAILURES)
+        orig = a.send_owner_alert, a.write_automation_status, a.pass_entries
+        a.send_owner_alert = lambda s, h: False
+        a.write_automation_status = lambda *x, **k: None
+        a.pass_entries = lambda *x, **k: []
+        rep = {"live": True, "label": "X", "failedLabels": ["boom"], "skippedDetail": []}
+        try:
+            a.finish_live_pass("lastLock", True, "d", [rep], None)
+        finally:
+            a.send_owner_alert, a.write_automation_status, a.pass_entries = orig
+        self.assertEqual(len(a.EMAIL_FAILURES), before + 1)
+        a.EMAIL_FAILURES[:] = a.EMAIL_FAILURES[:before]
+
+    def test_lock_missed_alert_has_no_stale_times_and_fails_loudly(self):
+        src = (ROOT / "scripts" / "auto_lock_settle.py").read_text()
+        seg = src[src.index("if args.alert_lock_missed:"):src.index("do_lock, do_settle = (args.lock")]
+        for stale in ("11:27 PM", "3:07 AM", "9am-12pm", "4:44pm"):
+            self.assertNotIn(stale, seg)
+        self.assertIn("sys.exit(0 if ok else 1)", seg)
+
+    def test_weekly_digest_scope_and_window(self):
+        wd = self.wd
+        self.assertNotIn("MLS", wd.ACTIVE_TAGS)
+        self.assertNotIn("BUND", wd.ACTIVE_TAGS)
+        self.assertFalse(wd.is_active_sport({"sport": "NFL", "betType": "PARLAY"}))
+        self.assertTrue(wd.is_active_sport({"sport": "NFL", "betType": "SPREAD"}))
+        seen = {}
+        orig = wd._api_get
+        wd._api_get = lambda path: (seen.update(path=path) or {"workflow_runs": []})
+        try:
+            wd.workflow_success_rate("live-tracker.yml")
+        finally:
+            wd._api_get = orig
+        self.assertIn("per_page=100", seen["path"])
+        self.assertIn("created=%3E%3D", seen["path"])
+
+    def test_weekly_digest_exit_codes(self):
+        wd, orig = self.wd, (self.wd.ALERT_TO, self.wd.send_email, self.wd.probe_supabase, self.wd.load_ledger, self.wd.GITHUB_TOKEN)
+        try:
+            wd.GITHUB_TOKEN = ""
+            wd.probe_supabase = lambda u, k: "down"
+            wd.ALERT_TO = ""
+            self.assertEqual(wd.main(), 1)
+            wd.ALERT_TO, wd.send_email = "me@x.com", lambda *x, **k: (False, "boom")
+            self.assertEqual(wd.main(), 1)
+            wd.send_email = lambda *x, **k: (True, "sent")
+            self.assertEqual(wd.main(), 0)
+        finally:
+            wd.ALERT_TO, wd.send_email, wd.probe_supabase, wd.load_ledger, wd.GITHUB_TOKEN = orig
 
 
 if __name__ == "__main__":

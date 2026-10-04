@@ -606,7 +606,7 @@ def pass_entries(kind_key: str, reports: list[dict]) -> list[dict]:
     return out
 
 
-def owner_alert_for(reports: list[dict]) -> tuple[str, str, str] | None:
+def owner_alert_for(reports: list[dict], watchdog: bool = False) -> tuple[str, str, str] | None:
     """-> (hash, subject, html) for the OWNER-ONLY pre-kickoff alert, or None. Raised when a LIVE pass found qualifying legs it
     could NOT lock before kickoff (refused by the start guard: the game already started / starts within LOCK_START_MARGIN_MIN) or
     legs that failed to lock. Those are exactly the picks that would otherwise need a manual lock -- listed so the owner knows
@@ -633,6 +633,16 @@ def owner_alert_for(reports: list[dict]) -> tuple[str, str, str] | None:
     for f in fails:
         rows.append(f"<li><strong>LOCK FAILED</strong> {_esc(f)}</li>")
     n = len(items) + len(fails)
+    if watchdog:
+        # The pre-kickoff watchdog is read-only: it never tried to lock anything, so it must not say a lock "failed".
+        html = (f"{_EMAIL_WRAP_OPEN}"
+                f'<div style="font-size:16px;color:#ff9090;font-weight:700">⚠ {n} qualifying pick(s) not in the ledger yet</div>'
+                f'<div style="margin-top:10px;font-size:14px;color:#ccc">The pre-kickoff watchdog ran at {now_mt}. It only reads (it never locks anything) '
+                f"and found these qualifying legs with a kickoff close by that are not locked. A later lock pass may still pick them up; if one gets close to "
+                f"kickoff and you want it, lock it manually in the app -- late locks are stamped 'late-manual' and excluded from every published figure "
+                f"and from model learning. No subscriber email has gone out for them."
+                f'<ul style="margin:8px 0 0;padding-left:18px">{"".join(rows)}</ul></div>{_EMAIL_WRAP_CLOSE}')
+        return h, f"Clairvoyance — WATCHDOG: {n} qualifying pick(s) still unlocked", html
     html = (f"{_EMAIL_WRAP_OPEN}"
             f'<div style="font-size:16px;color:#ff9090;font-weight:700">⚠ {n} qualifying pick(s) NOT locked before kickoff</div>'
             f'<div style="margin-top:10px;font-size:14px;color:#ccc">A lock pass landed at {now_mt} and found these legs qualifying, '
@@ -676,6 +686,8 @@ def finish_live_pass(status_key: str, ok: bool, detail: str, reports: list[dict]
             log(f"owner alert {h} already sent ({seen[h]}) -- not repeating")
         elif send_owner_alert(subject, html):
             sent_hash = h
+        else:
+            EMAIL_FAILURES.append(f"owner pre-kickoff alert {h}: not sent")      # ends the run red -- this is the "a pick is going unlocked" warning
     write_automation_status(status_key, ok, detail, passes=pass_entries(status_key, reports), owner_alert_hash=sent_hash)
 
 
@@ -3949,15 +3961,13 @@ def run_watchdog(page, live: bool, now=None) -> list[dict]:
     if not unlocked:
         return unlocked
     rep = {"live": True, "label": "WATCHDOG", "skippedDetail": unlocked, "failedLabels": []}
-    alert = owner_alert_for([rep])
+    alert = owner_alert_for([rep], watchdog=True)
     if alert is None:
         return unlocked
     h, _subject, html = alert
     first = min((u["startMs"] for u in unlocked if u["startMs"]), default=None)
     subject = (f"Clairvoyance — WATCHDOG: {len(unlocked)} qualifying pick(s) still unlocked"
                + (f", first kickoff {datetime.fromtimestamp(first / 1000.0, MT).strftime('%a %I:%M %p MT')}" if first else ""))
-    html = html.replace("A lock pass landed at", "The pre-kickoff watchdog ran at").replace(
-        "but could not lock them (game already started or within", "and found them still unlocked (kickoff within")
     if not live:
         log(f"[DRY RUN] Would email the owner: {subject}")
         return unlocked
@@ -3970,6 +3980,9 @@ def run_watchdog(page, live: bool, now=None) -> list[dict]:
     elif send_owner_alert(subject, html):
         write_automation_status("lastWatchdog", True, f"{len(unlocked)} unlocked qualifying leg(s) reported to the owner",
                                 owner_alert_hash=h)
+    else:
+        # The one email that exists to say "a pick is about to start unlocked" did not go out: end the run RED (not a quiet green no-op).
+        EMAIL_FAILURES.append(f"watchdog alert {h}: owner email not sent")
     return unlocked
 
 
@@ -4090,21 +4103,23 @@ def main() -> None:
     if args.alert_lock_missed:
         to = OWNER_EMAIL or LOCKS_EMAIL_TO
         if not to:
+            # Exit non-zero: the workflow only writes its "alert sent today" marker after this command succeeds, so a failed alert is retried
+            # on the next settle-only fire and shows up red, instead of being recorded as delivered.
             log("alert-lock-missed: no OWNER_EMAIL/LOCKS_EMAIL_TO configured -- cannot send")
-            return
+            sys.exit(1)
         today_mt = datetime.now(ZoneInfo("America/Denver")).strftime("%Y-%m-%d")
         body = (f"{_EMAIL_WRAP_OPEN}"
-                f'<div style="font-size:16px;color:#ff9090;font-weight:700">⚠ Lock did not run today ({today_mt})</div>'
-                f'<div style="margin-top:10px;font-size:14px;color:#ccc">None of the main lock slots (pre-dawn 11:27 PM MT nominal, '
-                f'the 3:07 AM backup, the 7:07 AM check) produced a real lock pass today, and none of the day\'s settle-only fires '
-                f'(4:44pm MT) land inside the old 9am-12pm MT catch-up window to auto-retry it -- no new picks were locked, '
-                f'and no locks email went out. This is a same-day alert so it gets noticed today, not whenever '
-                f'someone happens to check the app. Run a manual workflow_dispatch with mode=catch-up to recover '
-                f'today\'s lock now.</div>'
+                f'<div style="font-size:16px;color:#ff9090;font-weight:700">⚠ No lock pass has completed today ({today_mt})</div>'
+                f'<div style="margin-top:10px;font-size:14px;color:#ccc">It is past noon Mountain time and none of today\'s main lock passes '
+                f'recorded a completed run, so no new picks were locked by the main pass and no main locks email went out. '
+                f'(The dedicated soccer / CFB / hockey passes have their own checks and are not covered by this message.) '
+                f'To recover, run <a href="https://github.com/Purple-Wraith/clairvoyance-backend/actions/workflows/auto-lock-settle.yml" '
+                f'style="color:#ff9090">Auto Lock &amp; Settle</a> by hand with mode = catch-up and live checked. '
+                f'You get this alert at most once per day.</div>'
                 f"{_EMAIL_WRAP_CLOSE}")
-        ok, msg = _send_gmail(f"Clairvoyance — Lock FAILED to run {today_mt}", to, body)
+        ok, msg = _send_gmail(f"Clairvoyance — No lock pass completed {today_mt}", to, body)
         log(f"Lock-missed alert sent to {to}" if ok else f"Lock-missed alert failed: {msg}")
-        return
+        sys.exit(0 if ok else 1)
 
     do_lock, do_settle = (args.lock, args.settle) if (args.lock or args.settle) else (True, True)
     if args.daily_digest or args.adaptive_recalibration or args.top_picks_digest or args.watchdog:

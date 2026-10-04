@@ -22,6 +22,9 @@ on:
     # repo use.
     # Minute nudged off :30 2026-09-09 (account-wide congestion cleanup).
     - cron: '33 20 * * *'
+    # ~17:15 MT in summer (23:15 UTC; 16:15 MT after DST ends) -- the late pass, markers only: the PM pick-of-day slate's cutoff is
+    # 16:00 MT, after both passes above, so its marker was never evaluated same-day before this existed.
+    - cron: '15 23 * * *'
   workflow_dispatch: {}
 
 permissions:
@@ -48,4 +51,9 @@ jobs:
           SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
           LOCKS_EMAIL_TO: ${{ secrets.LOCKS_EMAIL_TO }}
         run: |
-          python3 scripts/daily_health_check.py
+          case "${{ github.event.schedule }}" in
+            "15 17 * * *") PASS=early ;;
+            "15 23 * * *") PASS=late ;;
+            *) PASS=full ;;
+          esac
+          python3 scripts/daily_health_check.py --pass "$PASS"

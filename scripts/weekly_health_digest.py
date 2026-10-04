@@ -37,6 +37,7 @@ also needs the app's own JS (settlement logic, the qualifying pipeline)
 -- this one only ever reads.
 """
 from __future__ import annotations
+import html as _html
 import os
 import re
 import sys
@@ -93,8 +94,9 @@ except Exception:  # fail-open: the digest still goes out with the original list
 # quietly omitted two live paid-product leagues) and stuck_pending() (so
 # a stuck NLA/Extraliga pick older than 3 days would never be flagged
 # here, even though it's real paying-subscriber inventory).
-ACTIVE_TAGS = {"NBA", "NFL", "CFB", "NHL", "KHL", "SHL", "LIIGA", "NLA", "EXTRALIGA", "NCAAH",
-               "PL", "LIGA", "BUND", "BL", "MLS", "SERIEA", "CL", "CH"}
+# Retired leagues (MLS, Bundesliga) and parlays are out of scope (owner decisions 2026-10-03 / 2026-10-04) -- same set the Dashboard's _cvScoped()
+# and every published figure use, via the shared lock_timing constants, so this digest's calibration / stuck-pending counts match the app.
+ACTIVE_TAGS = set(lock_timing.IN_SCOPE_CODES)
 
 
 def _extract_supabase_creds() -> tuple[str, str]:
@@ -151,6 +153,8 @@ def load_ledger(url: str, key: str) -> list[dict]:
 
 
 def is_active_sport(p: dict) -> bool:
+    if lock_timing.is_parlay(p):
+        return False
     return (p.get("sport") or "").upper() in ACTIVE_TAGS or (p.get("league") or "").upper() in ACTIVE_TAGS
 
 
@@ -171,14 +175,18 @@ def workflow_success_rate(filename: str, days: int = 7) -> tuple[int, int] | Non
     """Returns (successes, total) among runs in the last `days`, or None
     if the API call itself failed."""
     try:
-        data = _api_get(f"/repos/{REPO}/actions/workflows/{filename}/runs?per_page=50")
+        # Filtered by date server-side and per_page=100: a flat per_page=50 only reached back ~1.5 days for a 30-minute workflow
+        # (live-tracker), so its "last 7 days" rate was really the last day and a half.
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+        data = _api_get(f"/repos/{REPO}/actions/workflows/{filename}/runs?per_page=100&status=completed&created=%3E%3D{since}")
     except Exception:
         return None
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    # cancelled / skipped runs (concurrency groups) are normal -- counting them as failures made healthy workflows read red
     runs = [
         r for r in (data.get("workflow_runs") or [])
         if datetime.fromisoformat(r["created_at"].replace("Z", "+00:00")) >= cutoff
-        and r.get("status") == "completed"
+        and r.get("status") == "completed" and r.get("conclusion") not in ("cancelled", "skipped", "neutral")
     ]
     if not runs:
         return (0, 0)
@@ -268,7 +276,7 @@ def build_email_html(supabase_problem, wf_rates, cal_rows, stuck, late_excluded:
     else:
         parts.append(f'<p style="color:#c00">{len(stuck)} found:</p><ul>')
         for p in stuck[:20]:
-            parts.append(f"<li>{p.get('betOn', '?')} — {p.get('date', '?')} ({p['_ageDays']}d old)</li>")
+            parts.append(f"<li>{_html.escape(str(p.get('betOn', '?')))} — {p.get('date', '?')} ({p['_ageDays']}d old)</li>")
         if len(stuck) > 20:
             parts.append(f"<li>...and {len(stuck) - 20} more</li>")
         parts.append("</ul>")
@@ -277,7 +285,7 @@ def build_email_html(supabase_problem, wf_rates, cal_rows, stuck, late_excluded:
     return "".join(parts)
 
 
-def main() -> None:
+def main() -> int:
     url, key = _extract_supabase_creds()
     supabase_problem = probe_supabase(url, key)
 
@@ -316,14 +324,15 @@ def main() -> None:
     print(f"Stuck pending: {len(stuck)}")
 
     if not ALERT_TO:
-        print("No recipient configured (SOCIAL_CARD_EMAIL_TO/LOCKS_EMAIL_TO unset) -- can't email this.")
-        return
+        print("::error::No recipient configured (SOCIAL_CARD_EMAIL_TO/LOCKS_EMAIL_TO unset) -- can't email this.")
+        return 1
 
     body = build_email_html(supabase_problem, wf_rates, cal_rows, stuck, late_excluded)
     subject = "Clairvoyance — Weekly Health Digest" + (" — SUPABASE ISSUE" if supabase_problem else "")
     ok, msg = send_email(subject, ALERT_TO, body)
-    print(f"Digest email sent to {ALERT_TO}" if ok else f"Digest email FAILED: {msg}")
+    print(f"Digest email sent to {ALERT_TO}" if ok else f"::error::Digest email FAILED: {msg}")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

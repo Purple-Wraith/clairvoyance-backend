@@ -116,16 +116,28 @@ jobs:
         run: |
           python3 scripts/generate_pick_of_day_social.py --slot ${{ steps.gate.outputs.slot }}
 
-      - name: Record successful send
-        if: ${{ !steps.gate.outputs.skip && steps.post.outputs.sent == '1' && success() }}
+      # Two markers, two meanings:
+      #   data/last_pick_of_day_<slot>_date.txt     -- an email actually went out; the gate above skips the later fallback
+      #                                                runs of this slate once it is set. Written ONLY on a real send, so a run that
+      #                                                found nothing to post yet (locks not in) leaves the slate open for the fallbacks.
+      #   data/last_pick_of_day_<slot>_checked.txt  -- the slate ran to completion today (sent OR legitimately nothing to post);
+      #                                                this is what daily_health_check.py watches, so a quiet no-pick day is not a
+      #                                                false "slate missing" alert.
+      - name: Record run
+        if: ${{ !steps.gate.outputs.skip && success() }}
         run: |
           TODAY_MT=$(TZ=America/Denver date +%Y-%m-%d)
           MARKER="${{ steps.gate.outputs.marker }}"
-          echo "$TODAY_MT" > "$MARKER"
-          git add "$MARKER"
+          CHECKED="data/last_pick_of_day_${{ steps.gate.outputs.slot }}_checked.txt"
+          echo "$TODAY_MT" > "$CHECKED"
+          git add "$CHECKED"
+          if [ "${{ steps.post.outputs.sent }}" = "1" ]; then
+            echo "$TODAY_MT" > "$MARKER"
+            git add "$MARKER"
+          fi
           [ -f data/pick_of_day_featured_today.json ] && git add data/pick_of_day_featured_today.json
           if ! git diff --cached --quiet; then
-            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: record pick-of-day ${{ steps.gate.outputs.slot }} send for $TODAY_MT"
+            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: record pick-of-day ${{ steps.gate.outputs.slot }} run for $TODAY_MT"
             if ! git push origin main; then
               git fetch origin main
               if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase origin/main; then

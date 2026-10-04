@@ -105,7 +105,9 @@ MONITORED = [
 # cutoffs here sit right after those, so a real miss is caught the same
 # morning, not up to a day later.
 #
-# last_pick_of_day_{am,pm}_date.txt added after a real rigorous audit
+# last_pick_of_day_{am,pm}_checked.txt (2026-10-04: was ..._date.txt, which now means "an email actually went out" and is
+# deliberately NOT written on a quiet no-pick day; ..._checked.txt is written by every run that completes, so it still proves
+# the slate ran) added after a real rigorous audit
 # (2026-09-03) found this exact gap: MONITORED's check_workflow() below
 # only checks "did a run happen recently and succeed" -- a run that hits
 # the workflow's own "already sent" skip gate ALSO reports success, so a
@@ -145,16 +147,26 @@ MONITORED = [
 LOCK_MARKERS = [
     (ROOT / "data" / "last_soccer_lock_date.txt", "European Early Lock (Soccer + SHL/Liiga)", 8),
     (ROOT / "data" / "last_cfb_lock_date.txt", "CFB Early Lock", 11),
-    (ROOT / "data" / "last_pick_of_day_am_date.txt", "Pick-of-Day Social Email (AM slate)", 10),
-    (ROOT / "data" / "last_pick_of_day_pm_date.txt", "Pick-of-Day Social Email (PM slate)", 16),
+    (ROOT / "data" / "last_pick_of_day_am_checked.txt", "Pick-of-Day Social Email (AM slate)", 10),
+    (ROOT / "data" / "last_pick_of_day_pm_checked.txt", "Pick-of-Day Social Email (PM slate)", 16),
 ]
 
 
-def check_lock_markers() -> list[str]:
-    now_mt = datetime.now(ZoneInfo("America/Denver"))
+# Which pass checks which marker (daily-health-check.yml runs three times a day: early ~11:15 MT, full ~14:33 MT, late ~17:15 MT).
+# The PM pick-of-day cutoff (16:00 MT) is after the early and full passes, so before the late pass existed that marker was never
+# actually evaluated same-day. 'late' = cutoff >= 16; 'early' = the rest; 'full' (manual dispatch / the main pass) checks all of them.
+LATE_CUTOFF_HOUR = 16
+
+
+def check_lock_markers(which: str = "full", now_mt: datetime | None = None) -> list[str]:
+    now_mt = now_mt or datetime.now(ZoneInfo("America/Denver"))
     today_mt = now_mt.strftime("%Y-%m-%d")
     problems = []
     for path, label, cutoff_hour in LOCK_MARKERS:
+        if which == "late" and cutoff_hour < LATE_CUTOFF_HOUR:
+            continue
+        if which == "early" and cutoff_hour >= LATE_CUTOFF_HOUR:
+            continue
         if now_mt.hour < cutoff_hour:
             continue  # too early in the day to expect this yet
         try:
@@ -192,7 +204,8 @@ def check_workflow(filename: str, label: str, max_age_hours: int) -> str | None:
     except Exception as exc:
         return f"{label}: couldn't check ({exc})"
 
-    runs = data.get("workflow_runs") or []
+    # cancelled / skipped runs (concurrency groups, a newer run superseding an older one) are normal, not failures
+    runs = [r for r in (data.get("workflow_runs") or []) if r.get("conclusion") not in ("cancelled", "skipped")]
     if not runs:
         return f"{label}: no runs found at all"
 
@@ -413,9 +426,14 @@ def check_ledger_archive(docs_dir: Path | None = None, now: datetime | None = No
     return []
 
 
-def main() -> None:
-    problems = check_lock_markers()
+def main() -> int:
+    which = "full"
+    if "--pass" in sys.argv:
+        which = sys.argv[sys.argv.index("--pass") + 1]
+    problems = check_lock_markers(which)
     notes: list[str] = []
+    if which != "full":
+        return _report(problems, notes)      # early / late passes only look at the lock markers
 
     if not GITHUB_TOKEN:
         print("GITHUB_TOKEN not set -- can't check Actions API, skipping workflow-run checks.")
@@ -437,20 +455,26 @@ def main() -> None:
     except Exception as exc:  # fail-open
         notes.append(f"ledger archive check crashed ({exc})")
 
+    return _report(problems, notes)
+
+
+def _report(problems: list[str], notes: list[str]) -> int:
+    """Prints, emails when there is an alert-level problem.  Returns the process exit code: non-zero when a problem could NOT be delivered
+    (no recipient configured / send failed), so a broken alert path turns the run red instead of silently swallowing the alert."""
     for n in notes:
         print(f"::warning::{n}")
     if not problems:
         print("All monitored workflows and data files healthy -- no alert sent." if not notes else
               f"No alert-level issue ({len(notes)} watch item(s) logged above) -- no alert sent.")
-        return
+        return 0
 
     print(f"{len(problems)} issue(s) found:")
     for p in problems:
         print(f"  - {p}")
 
     if not ALERT_TO:
-        print("No alert recipient configured (SOCIAL_CARD_EMAIL_TO/LOCKS_EMAIL_TO unset) -- can't email this.")
-        return
+        print("::error::No alert recipient configured (SOCIAL_CARD_EMAIL_TO/LOCKS_EMAIL_TO unset) -- can't email this.")
+        return 1
 
     body = (
         '<div style="font-family:monospace;font-size:14px;color:#1a1a2e">'
@@ -460,8 +484,9 @@ def main() -> None:
         + '</div>'
     )
     ok, msg = send_email("Clairvoyance -- daily health check found an issue", ALERT_TO, body)
-    print(f"Alert email sent to {ALERT_TO}" if ok else f"Alert email FAILED: {msg}")
+    print(f"Alert email sent to {ALERT_TO}" if ok else f"::error::Alert email FAILED: {msg}")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
