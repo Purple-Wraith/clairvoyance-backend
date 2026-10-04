@@ -30,7 +30,8 @@ READONLY_JS = """<script>
   document.addEventListener('DOMContentLoaded',function(){
     var b=document.createElement('div');b.id='cv-demo-banner';
     b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;text-align:center;background:linear-gradient(90deg,#f000ff,#4d79ff);color:#0b0612;font:700 12px/1 monospace;letter-spacing:2px;padding:4px 6px;pointer-events:none';
-    b.textContent='VIEW-ONLY DEMO · LINK EXPIRES __UNTIL__';document.body.appendChild(b);document.body.style.paddingTop='20px';
+    b.textContent='LIVE VIEW-ONLY DEMO · TAP THE TABS TO EXPLORE · EXPIRES __UNTIL__';document.body.appendChild(b);document.body.style.paddingTop='20px';
+    setTimeout(function(){toast('This is the live app — tap any tab at the top to explore. Editing is switched off.');},3500);
   });
 })();
 </script>"""
