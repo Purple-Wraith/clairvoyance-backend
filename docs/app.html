@@ -14596,6 +14596,9 @@ function _generateNBAProps(games,statsData){
   // opponent's real defensive rating.
   (games||[]).forEach(function(g){
     var hn=g.h||g.hA||g.home,an=g.a||g.awA||g.away;if(!hn||!an)return;
+    // NBA PRESEASON (ESPN season type 1) never gets a player prop -- owner decision: nothing is done for the preseason. Found 2026-10-04: the automated lock pass
+    // locked "Keyonte George UNDER AST 6.5" for a Utah-Denver PRESEASON game because only the game-line path skipped preseason. Also covers the Props tab (same generator).
+    if(g.seasonType===1||g.preseason===true)return;
     var gamePlayers=players.filter(function(p){
       if(p.status&&/^out/i.test(p.status))return false;   // ESPN injury status from nba.playerProps: an Out player gets no prop
       return(p.team===hn||p.team===an)&&p.gp>=10;
