@@ -3054,7 +3054,7 @@ function _pbReal(p){return !!p&&p.priceSource==='market';}
 function _pbIn(p){const m=window._PB;return m==='real'?_pbReal(p):m==='assumed'?!_pbReal(p):true;}
 function _pbPnl(p){return !_pbIn(p)?0:(p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1);}
 function _pbN(bets){return window._PB==='all'?bets.length:bets.filter(_pbIn).length;}
-function _pbCounts(){let r=0,a=0,ru=0,au=0;try{getP().forEach(p=>{if(p.outcome==='pending')return;if(typeof _broadSportOf==='function'&&_broadSportOf(_normSport(p))===null)return;const u=p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1;if(_pbReal(p)){r++;ru+=u;}else{a++;au+=u;}});}catch(e){}return{r,a,ru,au};}
+function _pbCounts(){let r=0,a=0,ru=0,au=0;try{getP().forEach(p=>{if(p.outcome==='pending')return;if(typeof _cvScoped==='function'&&!_cvScoped(p))return;const u=p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='push'?0:-1;if(_pbReal(p)){r++;ru+=u;}else{a++;au+=u;}});}catch(e){}return{r,a,ru,au};}
 // Short label for headline units/ROI figures that cannot be split in place (Home, Overall, Adaptive).
 function _pbTag(){const c=_pbCounts();return c.r?' · MIXED PRICING':' · ASSUMED PRICES';}
 // One-line split shown under headline blocks: real-priced vs assumed-priced units, never hiding either.
@@ -14858,7 +14858,7 @@ function renderOverall(){
   // card already uses to draw this exact line; retired-sport bets
   // (MLB/WNBA/CBB/World Cup/tennis) are now excluded from every number
   // on this tab, not just from the BY SPORT/LEAGUE row lists.
-  const all=getP().filter(p=>_broadSportOf(_normSport(p))!==null);
+  const all=getP().filter(_cvScoped);
   // Real perf bug, found via a live desktop-lag audit (2026-09-02):
   // this function's sport/league/type breakdown blocks below re-filter
   // the WHOLE all-time settled array once per row (6 sports + 5 bet
@@ -16399,7 +16399,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   // Deliberately NOT applied to pendingAll above -- a legacy pending bet
   // in a retired sport still needs to stay visible/actionable here so it
   // doesn't become a permanently stuck ghost bet with no settle button.
-  all=all.filter(p=>window._broadSportOf(window._normSport(p))!==null);
+  all=all.filter(p=>window._cvScoped(p));
   // Sport filter — null means "preserve stored", undefined means "not passed"
   const sf=(sportFilter!=null)?sportFilter:(window._ovrHistSport||'ALL');
   window._ovrHistSport=sf;
@@ -17229,7 +17229,7 @@ function renderAdaptiveLearning(){
   // snapshot used to show a "recent" window built from whatever bets
   // happened to sort last by id, confirmed live as NBA bets over a year
   // stale on a September CL/NFL slate.
-  const all=getP().filter(p=>p.outcome!=='pending'&&_broadSportOf(_normSport(p))!==null)
+  const all=getP().filter(p=>p.outcome!=='pending'&&_cvScoped(p))
     .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
   const now=Date.now();
   const L10=all.slice(-10);const L30=all.slice(-30);
@@ -19614,7 +19614,7 @@ function renderHomePage(){
     // pending-bets-needing-attention, live games, best bets -- is
     // untouched; hiding a legacy pending bet in a retired sport from the
     // action queue would just make it a permanently stuck ghost bet.
-    const keptBets=allBets.filter(p=>_broadSportOf(_normSport(p))!==null);
+    const keptBets=allBets.filter(_cvScoped);
     // Real bug, found and fixed: "SETTLED" only ever counted win/loss,
     // excluding push -- a push is a real, resolved (no longer pending)
     // outcome, just neither a win nor a loss. With any push in the ledger
@@ -21484,7 +21484,7 @@ function adaptiveTick(){
   // tennis) could still leak into what's supposed to be an assessment of
   // the ACTIVE model's recent performance.
   if(!window._tbIdx){try{_tbKick();}catch(e){}} // lock-timing index (see _calEligible); first call before it loads is conservative
-  const allPreds=getP().filter(p=>p.outcome!=='pending'&&_broadSportOf(_normSport(p))!==null&&_calEligible(p))
+  const allPreds=getP().filter(p=>p.outcome!=='pending'&&_cvScoped(p)&&_calEligible(p))
     .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
   if(allPreds.length<5){
     const st={lastRun:Date.now(),betsAnalyzed:0,status:'INSUFFICIENT_DATA',msg:'Need at least 5 settled bets to begin adaptive learning. Lock picks and record outcomes.'};
@@ -23126,6 +23126,12 @@ function _broadSportOf(tag){
   return null; // unrecognized/retired league — excluded from the sport-level card rather than guessed
 }
 window._broadSportOf=_broadSportOf;
+// FIGURE SCOPE (owner decision 2026-10-03): the picks that count toward every public/record figure -- Home + Overall Engine Performance, the pre-start line, calibration, the landing page
+// and the backend JSON snapshots. = a recognised league (_broadSportOf) MINUS the retired soccer leagues (MLS, Bundesliga). _broadSportOf itself is untouched: it also labels badges
+// (the SOCCER sub-chip), which must keep working for the historical MLS/Bundesliga picks. KEEP IN SYNC with IN_SCOPE_CODES in scripts/lock_timing.py.
+const _CV_OUT_OF_SCOPE=new Set(['MLS','BUND','BL']);
+function _cvScoped(p){const t=_normSport(p);return _broadSportOf(t)!==null&&!_CV_OUT_OF_SCOPE.has(t);}
+window._cvScoped=_cvScoped;
 // Sport normalization — infers correct sport from pick metadata
 function _normSport(p){
   // Explicit sport field always wins — EXCEPT when it's a broad/ambiguous

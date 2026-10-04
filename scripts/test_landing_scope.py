@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Landing-page figures (generate_social_cards.write_landing_json): the headline tile (engine_performance_subscriber.json) must not count retired
+"""Landing-page figures (generate_social_cards.write_landing_json), now INCLUDING post-start locks (owner decision 2026-10-03): the headline tile (engine_performance_subscriber.json) must not count retired
 MLS / Bundesliga picks (owner decision 2026-10-03) and must AGREE with the by-league table (sport_performance.json), which never counted them.
 Built from the committed ledger backup in a headless app page, exactly as the generator's Supabase-outage fallback does."""
 import functools, http.server, json, socketserver, sys, tempfile, threading, unittest
@@ -51,6 +51,14 @@ class LandingScope(unittest.TestCase):
     def test_retired_leagues_not_in_basis(self):
         unk = self.subfile["basis_detail"]["unknown_timing_by_league"]
         self.assertFalse({"MLS", "BUND", "BL"} & set(unk), unk)
+
+    def test_landing_includes_post_start_picks(self):
+        self.assertEqual(self.subfile["basis"], g.LANDING_BASIS)
+        self.assertGreater(self.subfile["basis_detail"]["settled_locked_after_start_included"], 0)
+        # every period reports nothing dropped as late
+        self.assertTrue(all(p["excluded_late"] == 0 for p in self.sub.values()))
+        # and it is a superset of the pre-start view of the same ledger
+        self.assertGreater(self.sub["ALL_TIME"]["n"], 0)
 
     def test_unscoped_file_still_counts_them(self):
         # engine_performance.json (personal/all-picks view) is unchanged: it must be >= the subscriber headline

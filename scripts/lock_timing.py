@@ -78,6 +78,9 @@ def norm_sport(p: dict) -> str:
 # Scope sets the public figures use (mirror _broadSportOf's non-null tags and get_sport_performance's leagueMap codes).
 BROAD_SPORT_CODES = frozenset({"NBA", "NFL", "CFB", "NHL", "KHL", "SHL", "LIIGA", "NLA", "EXTRALIGA", "NCAAH",
                                "PL", "LIGA", "BUND", "BL", "MLS", "SERIEA", "CL", "CH"})
+# Figure scope = BROAD minus the retired soccer leagues (MLS, Bundesliga) -- mirrors _cvScoped() in docs/app.html (owner decision 2026-10-03). Use this for every published/record figure.
+RETIRED_SOCCER_CODES = frozenset({"MLS", "BUND", "BL"})
+IN_SCOPE_CODES = BROAD_SPORT_CODES - RETIRED_SOCCER_CODES
 LEAGUE_MAP_CODES = frozenset({"NFL", "CFB", "NHL", "NCAAH", "SHL", "LIIGA", "NLA", "EXTRALIGA", "KHL", "NBA", "CL", "PL",
                               "LIGA", "SERIEA"})
 

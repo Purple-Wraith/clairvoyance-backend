@@ -1,14 +1,11 @@
 {
-  "generated_at": "2026-10-03 19:14 MT",
-  "basis": "pre-start locks (known-late manual locks excluded)",
-  "basis_note": "Figures count only picks locked before the game started. Picks known to have been locked after the start (manual late locks) are excluded; picks whose start time cannot be determined are included.",
+  "generated_at": "2026-10-03 19:39 MT",
+  "basis": "all locks (including picks locked after the game started)",
+  "basis_note": "Figures count every settled pick in scope, including picks locked after the game had started. basis_detail shows how many of those there are.",
   "classifier": "scripts/lock_timing.py",
   "basis_detail": {
-    "basis": "pre-start locks (known-late manual locks excluded)",
-    "settled_pre_start": 910,
-    "settled_excluded_late": 190,
-    "settled_excluded_in_progress": 99,
-    "settled_excluded_after_end": 91,
+    "settled_pre_start": 912,
+    "settled_locked_after_start_included": 190,
     "settled_unknown_timing_included": 302,
     "unknown_timing_by_league": {
       "NBA": 154,
@@ -24,11 +21,11 @@
       "key": "TODAY",
       "label": "TODAY",
       "sub": "",
-      "w": 49,
-      "l": 37,
-      "n": 87,
-      "pct": 0.5632183908045977,
-      "units": -2.822509450742948,
+      "w": 50,
+      "l": 38,
+      "n": 89,
+      "pct": 0.5617977528089888,
+      "units": -3.1280650062985007,
       "excluded_late": 0
     },
     {
@@ -46,45 +43,45 @@
       "key": "ROLLING_7D",
       "label": "ROLLING 7D",
       "sub": "",
-      "w": 100,
-      "l": 67,
-      "n": 168,
-      "pct": 0.5952380952380952,
-      "units": 7.072605839763769,
-      "excluded_late": 51
+      "w": 145,
+      "l": 75,
+      "n": 221,
+      "pct": 0.6561085972850679,
+      "units": 36.317610990364464,
+      "excluded_late": 0
     },
     {
       "key": "THIS_MONTH",
       "label": "THIS MONTH",
       "sub": "OCT 2026",
-      "w": 71,
-      "l": 51,
-      "n": 123,
-      "pct": 0.5772357723577236,
-      "units": -0.783679238692985,
-      "excluded_late": 12
+      "w": 84,
+      "l": 52,
+      "n": 137,
+      "pct": 0.6131386861313869,
+      "units": 8.567856114842371,
+      "excluded_late": 0
     },
     {
       "key": "LAST_MONTH",
       "label": "LAST MONTH",
       "sub": "SEP 2026",
-      "w": 484,
-      "l": 271,
-      "n": 758,
-      "pct": 0.6385224274406333,
-      "units": 86.85721340390131,
-      "excluded_late": 146
+      "w": 602,
+      "l": 299,
+      "n": 904,
+      "pct": 0.665929203539823,
+      "units": 158.83857480318449,
+      "excluded_late": 0
     },
     {
       "key": "ALL_TIME",
       "label": "ALL TIME",
       "sub": "",
-      "w": 816,
-      "l": 396,
-      "n": 1216,
-      "pct": 0.6710526315789473,
-      "units": 223.32047735261477,
-      "excluded_late": 190
+      "w": 973,
+      "l": 431,
+      "n": 1408,
+      "pct": 0.6910511363636364,
+      "units": 319.99770810844643,
+      "excluded_late": 0
     }
   ]
 }

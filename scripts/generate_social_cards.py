@@ -273,10 +273,21 @@ def inject_public_exclusions(page, pf: dict) -> None:
     page.evaluate("(ids) => { window._CV_PUBLIC_EXCLUDE_IDS = new Set(ids); }", pf["ids"])
 
 
-# Retired leagues the PUBLIC headline (engine_performance_subscriber.json -> clairvoyanceengine.info "Live Track Record") must not count (owner decision 2026-10-03).
-# The landing page already hides them in its by-league table (HIDDEN_LEAGUES in the clairvoyance-landing repo), so before this the headline tile and the league table
-# disagreed (all-time 906-448 vs 797-379). The in-app Home "Engine Performance" card is a separate figure and still counts them.
-LANDING_RETIRED_CODES = frozenset({"MLS", "BUND", "BL"})
+# Landing-page JSONs include picks locked AFTER the game started (owner decision 2026-10-03). Set False to restore the pre-start-only basis (lock_timing.BASIS).
+LANDING_INCLUDES_LATE = True
+LANDING_BASIS = "all locks (including picks locked after the game started)"
+LANDING_BASIS_NOTE = ("Figures count every settled pick in scope, including picks locked after the game had started. "
+                      "basis_detail shows how many of those there are.")
+
+
+def _landing_basis(b: dict) -> dict:
+    """Relabel lt.basis_fields() output for a JSON that no longer drops known-late picks, so the file never claims a basis it does not use."""
+    d = b.get("basis_detail", {})
+    return {"basis": LANDING_BASIS, "basis_note": LANDING_BASIS_NOTE, "classifier": b.get("classifier"),
+            "basis_detail": {"settled_pre_start": d.get("settled_pre_start"),
+                             "settled_locked_after_start_included": d.get("settled_excluded_late"),
+                             "settled_unknown_timing_included": d.get("settled_unknown_timing_included"),
+                             "unknown_timing_by_league": d.get("unknown_timing_by_league")}}
 
 
 def _scoped_basis(pf: dict, keep) -> dict:
@@ -290,7 +301,7 @@ def basis_for_engine(pf):
 
 
 def basis_for_subscriber(pf):
-    return _scoped_basis(pf, lambda p: lt.norm_sport(p) in lt.BROAD_SPORT_CODES and lt.norm_sport(p) not in LANDING_RETIRED_CODES)
+    return _scoped_basis(pf, lambda p: lt.norm_sport(p) in lt.IN_SCOPE_CODES)
 
 
 def basis_for_sport(pf):
@@ -487,10 +498,11 @@ def get_year_stats(page, year: int, pf: dict | None = None) -> dict:
 # `lateIds` (from public_filter) are dropped from every period; each period also reports excluded_late = how many SETTLED
 # picks that dropped from it (so the JSON is auditable). Period windows are byte-for-byte what they were before the filter.
 _PERIOD_TILES_JS = """
-        async ({lateIds, subscriber, retired}) => {
+        async ({lateIds, subscriber}) => {
           const L = new Set(lateIds || []);
-          const R = new Set(retired || []);
-          const scope = p => !subscriber || (window._broadSportOf(window._normSport(p)) !== null && !R.has(window._normSport(p)));
+          // The generator loads the DEPLOYED app, which can lag a push by a few minutes: fall back to the same rule inline (keep in sync with _cvScoped in docs/app.html).
+          const inScope = window._cvScoped || (p => { const t = window._normSport(p); return window._broadSportOf(t) !== null && !['MLS', 'BUND', 'BL'].includes(t); });
+          const scope = p => !subscriber || inScope(p);
           const allRaw = getP().filter(scope);
           const allBets = allRaw.filter(p => !L.has(p.id));
           const now = Date.now();
@@ -573,10 +585,10 @@ def get_engine_performance_subscriber(page, pf: dict | None = None) -> dict | No
     2026-10-02: now also pre-start-locks-only (see get_engine_performance), so
     it equals the Home tiles' PRE-START companion line, not the headline tiles.
 
-    2026-10-03: retired MLS / Bundesliga picks (LANDING_RETIRED_CODES) are no longer counted -- explicit owner decision, so the headline matches the landing
-    page's by-league table (which already hid them). This is now deliberately NOT identical to the Home tab's Engine Performance card for those two leagues."""
+    2026-10-03: retired MLS / Bundesliga picks are no longer counted (window._cvScoped in docs/app.html / lt.IN_SCOPE_CODES) -- explicit owner decision; the Home and Overall cards
+    use the same predicate, so the app, the landing page and these JSONs agree."""
     pf = pf or public_filter(page)
-    return page.evaluate(_PERIOD_TILES_JS, {"lateIds": pf["ids"], "subscriber": True, "retired": sorted(LANDING_RETIRED_CODES)})
+    return page.evaluate(_PERIOD_TILES_JS, {"lateIds": pf["ids"], "subscriber": True})
 
 
 def get_sport_performance(page, pf: dict | None = None) -> dict | None:
@@ -697,15 +709,19 @@ def write_landing_json(page, now_mt: datetime, pf: dict | None = None, out_dir: 
     out_dir = out_dir or (ROOT / "docs")
     stamp = now_mt.strftime("%Y-%m-%d %H:%M MT")
     pf = pf or public_filter(page)
+    # Owner decision 2026-10-03: the LANDING page figures include picks locked after the game started (the exported Social-tab cards stay pre-start-only; `pf` is
+    # left untouched for them). Dropping the known-late ids here is the whole change; the basis fields below say so honestly.
+    land_pf = dict(pf, ids=[]) if LANDING_INCLUDES_LATE else pf
     for name, fn, basis_fn, wrap in (
         ("engine_performance.json", get_engine_performance, basis_for_engine, lambda r: {"periods": r}),
         ("engine_performance_subscriber.json", get_engine_performance_subscriber, basis_for_subscriber, lambda r: {"periods": r}),
         ("sport_performance.json", get_sport_performance, basis_for_sport, lambda r: dict(r)),
     ):
         try:
-            res = fn(page, pf)
+            res = fn(page, land_pf)
             if res:
-                (out_dir / name).write_text(json.dumps({"generated_at": stamp, **basis_fn(pf), **wrap(res)}, indent=2))
+                basis = _landing_basis(basis_fn(pf)) if LANDING_INCLUDES_LATE else basis_fn(pf)
+                (out_dir / name).write_text(json.dumps({"generated_at": stamp, **basis, **wrap(res)}, indent=2))
                 log(f"Wrote {out_dir / name}")
         except Exception as e:
             log(f"WARNING: {name} snapshot failed: {e}")
