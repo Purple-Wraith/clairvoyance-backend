@@ -8,6 +8,8 @@ the engine expected, so the cushion is judged on real results, not on the backte
   python3 scripts/alt_line_scorecard.py                # live ledger (Supabase, read-only); falls back to docs/picks_backup.json
   python3 scripts/alt_line_scorecard.py --backup       # committed backup only
   python3 scripts/alt_line_scorecard.py --sport CFB    # one sport
+  python3 scripts/alt_line_scorecard.py --no-espn      # only picks the automation has already settled (default also grades PENDING picks whose game ESPN
+                                                       # shows as final -- marked provisional -- so you do not wait for the next settle pass)
 
 Prices: alternate-line prices are ESTIMATES (fair + vig, priceSource 'estimated'), so units here are indicative; the posted-line price is not stored, so the
 posted line is graded at the standard -110 (1.909).  Win rate is the clean number.  Small samples: read n first.
@@ -18,6 +20,46 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 STD_DEC = 1.909
+ESPN = {"NFL": "football/nfl", "CFB": "football/college-football"}
+ESPN_ABBR = {"WAS": "WSH", "WSH": "WSH", "JAC": "JAX"}     # ledger code -> ESPN code where they differ
+_score_cache: dict = {}
+
+
+def espn_finals(sport: str, date: str) -> dict:
+    """{(away, home): (away_score, home_score)} for games ESPN shows as FINAL on `date` (YYYY-MM-DD)."""
+    key = (sport, date)
+    if key in _score_cache:
+        return _score_cache[key]
+    out: dict = {}
+    path = ESPN.get(sport)
+    if path:
+        try:
+            q = "?dates=" + date.replace("-", "") + ("&groups=80&limit=300" if sport == "CFB" else "")
+            d = json.load(urllib.request.urlopen(urllib.request.Request(f"https://site.api.espn.com/apis/site/v2/sports/{path}/scoreboard{q}", headers={"User-Agent": "Mozilla/5.0"}), timeout=30))
+            for e in d.get("events", []):
+                if e["status"]["type"]["state"] != "post":
+                    continue
+                c = {x["homeAway"]: x for x in e["competitions"][0]["competitors"]}
+                out[(c["away"]["team"]["abbreviation"].upper(), c["home"]["team"]["abbreviation"].upper())] = (float(c["away"]["score"]), float(c["home"]["score"]))
+        except Exception as exc:
+            print(f"[scorecard] ESPN {sport} {date} unavailable ({exc.__class__.__name__})", file=sys.stderr)
+    _score_cache[key] = out
+    return out
+
+
+def provisional(p: dict) -> bool:
+    """Fill a PENDING pick's score from ESPN when its game is final; sets hScore/aScore + a provisional outcome at the line it was locked at."""
+    fin = espn_finals((p.get("sport") or "").upper(), p.get("date") or "")
+    h, a = str(p.get("hA") or "").upper(), str(p.get("awA") or "").upper()
+    sc = fin.get((ESPN_ABBR.get(a, a), ESPN_ABBR.get(h, h)))
+    if not sc:
+        return False
+    p["aScore"], p["hScore"] = sc
+    res = grade(p, float(p["altLine"]["line"]))
+    if res is None:
+        return False
+    p["outcome"], p["_provisional"] = res, True
+    return True
 
 
 def load(backup_only: bool) -> tuple[list[dict], str]:
@@ -78,13 +120,18 @@ def units(res: str | None, dec: float) -> float:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--backup", action="store_true"); ap.add_argument("--sport")
+    ap.add_argument("--backup", action="store_true"); ap.add_argument("--sport"); ap.add_argument("--no-espn", action="store_true")
     a = ap.parse_args()
     picks, source = load(a.backup)
     if a.sport:
         picks = [p for p in picks if (p.get("sport") or "").upper() == a.sport.upper()]
+    n_prov = 0
+    if not a.no_espn:
+        for p in picks:
+            if p.get("outcome") == "pending" and provisional(p):
+                n_prov += 1
     settled = [p for p in picks if p.get("outcome") in ("win", "loss", "push")]
-    print(f"Alternate-line scorecard  ({source})\n  alternate-line picks: {len(picks)} | settled: {len(settled)} | pending: {len(picks) - len(settled)}")
+    print(f"Alternate-line scorecard  ({source})\n  alternate-line picks: {len(picks)} | graded: {len(settled)} (of which {n_prov} provisional from ESPN finals, not yet settled by the automation) | still waiting on a final: {len(picks) - len(settled)}")
     rows = []
     for p in settled:
         al = p["altLine"]
