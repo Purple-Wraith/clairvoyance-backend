@@ -15220,7 +15220,7 @@ function renderOverall(){
   const byTypeMo=typeMap.map(tm=>{
     const tp=selMoSettled.filter(p=>tm.codes.some(c=>p._btUC===c));
     return{lbl:tm.lbl,...calcPerf(tp)};
-  }).filter(d=>d.n>0);
+  }).filter(d=>d.n>0&&d.lbl!=='PARLAY');   // owner request 2026-10-04: no PARLAY row in the month-filtered BET TYPE list (the all-time list is unchanged)
   const byLeagueMo=leagueMap.map(lm=>{
     const lb=selMoSettled.filter(p=>lm.codes.some(c=>p._spUC===c));
     return{lbl:lm.lbl,...calcPerf(lb)};
