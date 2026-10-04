@@ -22513,8 +22513,10 @@ function renderTicker(){
       items.push({key:g.k+'|'+g.id,tag:g.tag,g,state:g.state,locks,rank:(locks.length?0:2)+(g.state==='in'?0:1)});
     });
     if(!items.length){_tkHide(el);return;}
-    const finals=items.filter(x=>x.state==='post'&&!x.locks.length);
-    const keep=items.filter(x=>x.locks.length||x.state==='in').concat(finals.slice(0,12));
+    // Owner decision 2026-10-04: the ticker shows ONLY games with one of your locks (any state) plus games in progress -- it used to also add up to 12 other finals, which on a busy night made it ~88
+    // items / ~16 minutes per loop. With nothing live and nothing locked it hides.
+    const keep=items.filter(x=>x.locks.length||x.state==='in');
+    if(!keep.length){_tkHide(el);return;}
     const liveN=keep.filter(x=>x.state==='in').length;
     // keep the existing order for games that stay; only new games are slotted in by rank
     const byKey={};keep.forEach(x=>{byKey[x.key]=x;});

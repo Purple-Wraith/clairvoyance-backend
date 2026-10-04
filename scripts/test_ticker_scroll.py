@@ -66,6 +66,23 @@ class TickerScroll(unittest.TestCase):
         self.assertAlmostEqual(pg.evaluate(TX), before, delta=25)       # a longer item changes the loop length, not the position
         pg.close()
 
+    def test_only_locked_and_live_games(self):
+        pg = self.page()
+        # synthetic set: i%3==0 -> final, otherwise live. Finals WITHOUT a lock must not appear; a final WITH a lock must.
+        pg.evaluate("""()=>{ saveP([{id:'t1',hA:'HOME0',awA:'AWAY0',sport:'NHL',betType:'ML',betOn:'HOME0',date:today(),outcome:'pending',lockedAt:Date.now(),decOdds:1.9}]);
+            _TKM.sig='';renderTicker(); }""")
+        pg.wait_for_timeout(300)
+        keys = pg.evaluate("_TKM.order")
+        live = [k for k in keys if int(k.split('g')[-1]) % 3 != 0]
+        finals = [k for k in keys if int(k.split('g')[-1]) % 3 == 0]
+        self.assertEqual(len(live), 26)                      # all 26 live games (i not divisible by 3, of 40)
+        self.assertEqual(finals, ["nhl|g0"])                 # the one final that carries a lock; the other 13 finals are gone (names chosen so the app's fuzzy team match cannot collide)
+        # nothing live and nothing locked -> the ticker hides
+        pg.evaluate("_LV.games=_LV.games.filter(g=>g.state==='post'&&g.id!=='g0');saveP([]);renderTicker()")
+        pg.wait_for_timeout(200)
+        self.assertEqual(pg.evaluate("getComputedStyle(document.getElementById('cv-ticker')).display"), "none")
+        pg.close()
+
     def test_js_fallback_without_element_animate(self):
         pg = self.page("delete Element.prototype.animate;")
         self.assertTrue(pg.evaluate("!_TKM.anim&&!!_TKM.raf"))
