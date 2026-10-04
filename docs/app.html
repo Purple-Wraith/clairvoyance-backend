@@ -22450,7 +22450,7 @@ function _lvApplyToCards(){
 // ── ticker ──
 function _tkNorm(s){const raw=String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const n=raw.replace(/\b(fc|cf|afc|sc|hc|ik|if|ac|as|us|ssc|rcd|ud|cd|sv)\b/g,'').replace(/[^a-z0-9]/g,'');return n||raw.replace(/[^a-z0-9]/g,'');}   // 'SC' / 'HC' are real CFB abbreviations: if stripping club prefixes leaves nothing, keep the name
 function _tkMatch(a,b){a=_tkNorm(a);b=_tkNorm(b);return !!a&&!!b&&(a===b||(a.length>=4&&b.length>=4&&(a.includes(b)||b.includes(a))));}
-const _TKM={order:[],sig:'',html:{},score:{},track:null,x:0,half:0,raf:0,last:0,hover:false,run:false,speed:46};
+const _TKM={order:[],sig:'',html:{},score:{},track:null,x:0,half:0,raf:0,last:0,hover:false,run:false,speed:46,anim:null,animHalf:0,animDur:0,px:0};
 // live status text: NHL -> "P2 12:34" (period + game clock; OT / SO labelled; intermissions keep ESPN's own text), everything else keeps ESPN's / the relay's note
 function _tkLiveStatus(it){
   const g=it.g;
@@ -22528,6 +22528,7 @@ function renderTicker(){
     el.style.display='block';
     if(sig!==_TKM.sig||!_TKM.track||!el.contains(_TKM.track)){
       const grp=()=>`<span class="tkgrp"><span class="tk" data-k="__chip">${chipHtml}</span>`+order.map(k=>`<span class="tk" data-k="${_escHtml(k)}">${_tkItemHTML(byKey[k])}</span>`).join('')+`</span>`;
+      _TKM.px=_tkPx();   // resume at the same on-screen offset after the track is rebuilt
       el.innerHTML=`<div class="tk-track">${grp()}${grp()}</div>`;
       _TKM.track=el.firstChild;_TKM.sig=sig;_TKM.html={};_TKM.score={};
       order.forEach(k=>{_TKM.html[k]=_tkItemHTML(byKey[k]);_TKM.score[k]=byKey[k].g.homeScore+'-'+byKey[k].g.awayScore;});
@@ -22548,29 +22549,67 @@ function renderTicker(){
     _tkMeasure(el);
   }catch(e){_tkHide(el);}
 }
-function _tkHide(el){el.style.display='none';_TKM.run=false;_TKM.sig='';_TKM.track=null;}
+function _tkHide(el){el.style.display='none';_TKM.run=false;_TKM.sig='';_TKM.track=null;if(_TKM.anim){try{_TKM.anim.cancel();}catch(e){}_TKM.anim=null;}}
+// PERF 2026-10-03 (ticker lag): the scroll used to be moved by JavaScript every frame (requestAnimationFrame -> style.transform), so ANY main-thread stall (a data refresh, a card re-render,
+// a busy laptop) froze the ticker for that long. It is now a Web Animation on the track's transform, which the browser runs on the compositor thread: it keeps gliding through main-thread
+// work. The rAF loop below is kept only as a fallback for browsers without Element.animate.
+function _tkPx(){   // current scroll offset in px (0..half)
+  const a=_TKM.anim;
+  if(a&&_TKM.animDur&&_TKM.animHalf){try{const t=a.currentTime;if(t!=null)return((t%_TKM.animDur)/_TKM.animDur)*_TKM.animHalf;}catch(e){}}
+  return _TKM.px||0;
+}
+function _tkSetAnim(need){
+  const tr=_TKM.track;
+  if(!tr||!need||!tr.animate){if(_TKM.anim){try{_TKM.anim.cancel();}catch(e){}_TKM.anim=null;}if(!need)_TKM.px=0;return false;}
+  const half=_TKM.half,dur=half/_TKM.speed*1000;
+  const kf=[{transform:'translate3d(0,0,0)'},{transform:'translate3d('+(-half)+'px,0,0)'}];
+  try{
+    let a=_TKM.anim;
+    if(a&&a.effect&&a.effect.target===tr){
+      if(Math.abs(_TKM.animHalf-half)>0.5){   // content width changed (a score grew a digit): keep the on-screen position, change the loop length
+        const px=_tkPx();a.effect.setKeyframes(kf);a.effect.updateTiming({duration:dur});a.currentTime=(px/half)*dur;
+      }
+    }else{
+      if(a){try{a.cancel();}catch(e){}}
+      a=tr.animate(kf,{duration:dur,iterations:Infinity,easing:'linear'});
+      a.currentTime=((_TKM.px%half)/half)*dur;
+      _TKM.anim=a;
+    }
+    _TKM.animHalf=half;_TKM.animDur=dur;
+    if(_TKM.hover&&a.playState!=='paused')a.pause();else if(!_TKM.hover&&a.playState==='paused')a.play();
+    return true;
+  }catch(e){if(_TKM.anim){try{_TKM.anim.cancel();}catch(e2){}_TKM.anim=null;}return false;}
+}
+function _tkHover(on){
+  _TKM.hover=on;
+  const a=_TKM.anim;if(!a)return;
+  try{if(on)a.pause();else a.play();}catch(e){}
+}
 function _tkMeasure(el){
   const grp=_TKM.track&&_TKM.track.firstChild;if(!grp)return;
   _TKM.half=grp.offsetWidth;
   const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches;
   const need=_TKM.half>el.clientWidth+4&&!reduce;
-  if(need&&!_TKM.run){_TKM.run=true;_TKM.last=0;if(!_TKM.raf)_TKM.raf=requestAnimationFrame(_tkLoop);}
-  if(!need){_TKM.run=false;_TKM.x=0;if(_TKM.track)_TKM.track.style.transform='';}
   const g2=_TKM.track&&_TKM.track.children[1];if(g2)g2.style.display=need?'':'none';   // the second copy exists only for the seamless loop
+  _TKM.run=need;
+  if(_tkSetAnim(need))return;   // compositor-driven scroll
+  // fallback: JS-driven scroll
+  if(need){_TKM.last=0;if(!_TKM.raf)_TKM.raf=requestAnimationFrame(_tkLoop);}
+  else{_TKM.x=0;if(_TKM.track)_TKM.track.style.transform='';}
   if(_TKM.half&&_TKM.x<=-_TKM.half)_TKM.x=_TKM.x%_TKM.half;
 }
 function _tkLoop(t){
   _TKM.raf=0;
-  if(!_TKM.run||!_TKM.track)return;
+  if(!_TKM.run||!_TKM.track||_TKM.anim)return;
   const dt=_TKM.last?Math.min(64,t-_TKM.last):16;_TKM.last=t;
   if(!_TKM.hover&&_TKM.half){_TKM.x-=_TKM.speed*dt/1000;if(_TKM.x<=-_TKM.half)_TKM.x+=_TKM.half;_TKM.track.style.transform='translate3d('+_TKM.x.toFixed(2)+'px,0,0)';}
   _TKM.raf=requestAnimationFrame(_tkLoop);
 }
 (function(){
   const el=document.getElementById('cv-ticker');if(!el)return;
-  el.addEventListener('mouseenter',()=>{_TKM.hover=true;});el.addEventListener('mouseleave',()=>{_TKM.hover=false;});
-  el.addEventListener('touchstart',()=>{_TKM.hover=true;},{passive:true});
-  el.addEventListener('touchend',()=>{setTimeout(()=>{_TKM.hover=false;},1800);},{passive:true});
+  el.addEventListener('mouseenter',()=>{_tkHover(true);});el.addEventListener('mouseleave',()=>{_tkHover(false);});
+  el.addEventListener('touchstart',()=>{_tkHover(true);},{passive:true});
+  el.addEventListener('touchend',()=>{setTimeout(()=>{_tkHover(false);},1800);},{passive:true});
   window.addEventListener('resize',()=>{try{_tkMeasure(el);}catch(e){}});
 })();
 setInterval(()=>{try{renderTicker();}catch(e){}},30000);   // picks / outcomes change independently of scores
