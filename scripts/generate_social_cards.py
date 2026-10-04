@@ -273,6 +273,12 @@ def inject_public_exclusions(page, pf: dict) -> None:
     page.evaluate("(ids) => { window._CV_PUBLIC_EXCLUDE_IDS = new Set(ids); }", pf["ids"])
 
 
+# Retired leagues the PUBLIC headline (engine_performance_subscriber.json -> clairvoyanceengine.info "Live Track Record") must not count (owner decision 2026-10-03).
+# The landing page already hides them in its by-league table (HIDDEN_LEAGUES in the clairvoyance-landing repo), so before this the headline tile and the league table
+# disagreed (all-time 906-448 vs 797-379). The in-app Home "Engine Performance" card is a separate figure and still counts them.
+LANDING_RETIRED_CODES = frozenset({"MLS", "BUND", "BL"})
+
+
 def _scoped_basis(pf: dict, keep) -> dict:
     """basis fields for a JSON whose figures cover only the picks `keep(p)` accepts (its own scope)."""
     scoped = [p for p in pf["rows"] if keep(p)]
@@ -284,7 +290,7 @@ def basis_for_engine(pf):
 
 
 def basis_for_subscriber(pf):
-    return _scoped_basis(pf, lambda p: lt.norm_sport(p) in lt.BROAD_SPORT_CODES)
+    return _scoped_basis(pf, lambda p: lt.norm_sport(p) in lt.BROAD_SPORT_CODES and lt.norm_sport(p) not in LANDING_RETIRED_CODES)
 
 
 def basis_for_sport(pf):
@@ -481,9 +487,10 @@ def get_year_stats(page, year: int, pf: dict | None = None) -> dict:
 # `lateIds` (from public_filter) are dropped from every period; each period also reports excluded_late = how many SETTLED
 # picks that dropped from it (so the JSON is auditable). Period windows are byte-for-byte what they were before the filter.
 _PERIOD_TILES_JS = """
-        async ({lateIds, subscriber}) => {
+        async ({lateIds, subscriber, retired}) => {
           const L = new Set(lateIds || []);
-          const scope = p => !subscriber || window._broadSportOf(window._normSport(p)) !== null;
+          const R = new Set(retired || []);
+          const scope = p => !subscriber || (window._broadSportOf(window._normSport(p)) !== null && !R.has(window._normSport(p)));
           const allRaw = getP().filter(scope);
           const allBets = allRaw.filter(p => !L.has(p.id));
           const now = Date.now();
@@ -564,9 +571,12 @@ def get_engine_performance_subscriber(page, pf: dict | None = None) -> dict | No
     same logic.
 
     2026-10-02: now also pre-start-locks-only (see get_engine_performance), so
-    it equals the Home tiles' PRE-START companion line, not the headline tiles."""
+    it equals the Home tiles' PRE-START companion line, not the headline tiles.
+
+    2026-10-03: retired MLS / Bundesliga picks (LANDING_RETIRED_CODES) are no longer counted -- explicit owner decision, so the headline matches the landing
+    page's by-league table (which already hid them). This is now deliberately NOT identical to the Home tab's Engine Performance card for those two leagues."""
     pf = pf or public_filter(page)
-    return page.evaluate(_PERIOD_TILES_JS, {"lateIds": pf["ids"], "subscriber": True})
+    return page.evaluate(_PERIOD_TILES_JS, {"lateIds": pf["ids"], "subscriber": True, "retired": sorted(LANDING_RETIRED_CODES)})
 
 
 def get_sport_performance(page, pf: dict | None = None) -> dict | None:
