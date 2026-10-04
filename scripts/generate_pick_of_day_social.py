@@ -45,6 +45,7 @@ from auto_lock_settle import (  # noqa: E402
     SPORT_DISPLAY_NAME, TIER_LABEL, _prop_matchup_key, log,
     OTHER_ALLOWED_SPORTS,
 )
+import lock_timing as lt  # noqa: E402
 from _gmail_email import send_email as _send_gmail  # noqa: E402
 from _gmail_email import EMAIL_WRAP_OPEN as _EMAIL_WRAP_OPEN, EMAIL_WRAP_CLOSE as _EMAIL_WRAP_CLOSE  # noqa: E402
 
@@ -182,6 +183,8 @@ def _candidate_from_game(q: dict) -> dict:
         "rank_tier": tier_n,
         "ev": q.get("evVal"),
         "kickoff": _kickoff_time(q["sport"], q["hA"], q["awA"]),
+        "altLine": q.get("altLine"),
+        "estimated_price": q.get("priceSource") == "estimated" or bool(q.get("altLine")),
     }
 
 
@@ -200,6 +203,8 @@ def _candidate_from_prop(q: dict) -> dict:
         "rank_tier": rank_tier,
         "ev": None,
         "kickoff": _kickoff_time(q["sport"], team, opp) if team and opp else None,
+        "altLine": None,
+        "estimated_price": False,
     }
 
 
@@ -222,6 +227,10 @@ def select_top_picks(qualifying: list[dict], n: int = 3, exclude_keys: set[str] 
         _candidate_from_game(q) if q["kind"] == "GAME" else _candidate_from_prop(q)
         for q in qualifying
     ]
+    # Public posts are PREMIUM/OPTIMAL only: a LEAN (rank 1) or HIGH-HIT-exception leg (rank 0)
+    # is fine in the subscriber lock email but is not something to put a "PICK" headline on, and
+    # a recognised-league filter keeps retired/unsold sports out of the public feed.
+    candidates = [c for c in candidates if c["rank_tier"] >= 2 and c["sport"] in lt.IN_SCOPE_CODES]
     live_candidates = [c for c in candidates if c["kickoff"] is None or c["kickoff"] > now]
     skipped = len(candidates) - len(live_candidates)
     if skipped:
@@ -237,12 +246,20 @@ def select_top_picks(qualifying: list[dict], n: int = 3, exclude_keys: set[str] 
 
 def build_pick_caption(c: dict, date_str: str) -> str:
     sport_label = SPORT_DISPLAY_NAME.get(c["sport"], c["sport"])
-    ev_line = f"Model edge: EV {c['ev']*100:+.1f}%\n\n" if c["ev"] is not None else ""
+    alt = c.get("altLine")
+    extra = ""
+    if alt:
+        # Alternate-line locks carry an ESTIMATED price (fair + vig), so a "model edge" figure
+        # would be a number built from our own estimate, not a market edge. Say what it is.
+        posted = alt.get("postedLabel") or alt.get("posted")
+        extra = f"Alternate line (posted line: {posted}); price is an estimate, not a market quote.\n\n"
+    elif c["ev"] is not None and not c.get("estimated_price"):
+        extra = f"Model edge: EV {c['ev']*100:+.1f}%\n\n"
     return (
-        f"🔒 {c['grade']} PICK — {date_str}\n\n"
+        f"{c['grade']} PICK — {date_str}\n\n"
         f"{sport_label}: {c['matchup']}\n"
         f"{c['pick']}\n\n"
-        f"{ev_line}"
+        f"{extra}"
         "Model output, not a guarantee -- full reasoning and every graded pick inside.\n\n"
         "clairvoyanceengine.info\n"
         "IG @clairvoyanceengine | X @clairvoyanceeng\n\n"
@@ -293,6 +310,15 @@ def send_pick_posts(picks_with_captions: list[dict], out_dir: Path, date_str: st
     if not ok:
         raise RuntimeError(f"Gmail send failed for '{subject}': {msg}")
     log(f"Email sent: {subject} ({len(all_attachments)} attachment(s))")
+
+
+def _flag_sent() -> None:
+    """Tell the workflow an email really went out, so its slot marker is only written then.
+    Early exits ('nothing to post yet') leave the slot open for the fallback cron runs."""
+    out = os.environ.get("GITHUB_OUTPUT")
+    if out:
+        with open(out, "a") as fh:
+            fh.write("sent=1\n")
 
 
 def main() -> None:
@@ -379,6 +405,7 @@ def main() -> None:
 
     if not args.no_email:
         send_pick_posts(picks_with_captions, out_dir, date_str, slot=args.slot)
+        _flag_sent()
         if args.slot:
             _record_featured_today(today_str, [_candidate_key(c) for c in top_picks])
 

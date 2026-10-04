@@ -167,5 +167,42 @@ class DigestEmail(unittest.TestCase):
         self.assertNotIn("Questions, or want to stop", html)                  # owner-only email: no subscriber footer
 
 
+class PickOfDay(unittest.TestCase):
+    def setUp(self):
+        import generate_pick_of_day_social as pod
+        self.pod = pod
+
+    def test_only_premium_optimal_in_scope_sports(self):
+        qs = [_game(tier=3), _game(tier=1, label="SF -1.5"), _game(tier=0, label="SF -2.5"), _game(sport="NCAAB", tier=3, label="DUKE -4"), _game(sport="MLS", tier=3, label="X -1")]
+        picks = self.pod.select_top_picks(qs, n=5)
+        self.assertEqual([c["rank_tier"] for c in picks], [3])
+
+    def test_alt_line_caption_has_no_edge_claim_or_lock_emoji(self):
+        c = self.pod.select_top_picks([_game(alt=ALT, ev=0.12)])[0]
+        cap = self.pod.build_pick_caption(c, "October 4, 2026")
+        self.assertNotIn("Model edge", cap)
+        self.assertNotIn("\U0001f512", cap)
+        self.assertIn("price is an estimate", cap)
+        self.assertIn("SF -3.0", cap)
+
+    def test_market_priced_caption_keeps_edge(self):
+        c = self.pod.select_top_picks([_game(ev=0.08)])[0]
+        self.assertIn("Model edge: EV +8.0%", self.pod.build_pick_caption(c, "October 4, 2026"))
+
+    def test_workflow_marker_requires_a_real_send(self):
+        wf = (ROOT / ".github" / "workflows" / "pick-of-day-social-daily.yml").read_text()
+        self.assertIn("id: post", wf)
+        self.assertIn("steps.post.outputs.sent == '1'", wf)
+
+    def test_sent_flag_written_only_when_called(self):
+        import os, tempfile
+        with tempfile.NamedTemporaryFile("r+", delete=False) as fh:
+            os.environ["GITHUB_OUTPUT"] = fh.name
+            self.pod._flag_sent()
+            fh.seek(0)
+            self.assertEqual(fh.read(), "sent=1\n")
+        os.environ.pop("GITHUB_OUTPUT")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
