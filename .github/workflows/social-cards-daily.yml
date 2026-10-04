@@ -46,8 +46,9 @@ jobs:
         env:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
+          FORCE: ${{ github.event.inputs.force }}   # via env, not interpolated into the shell line
         run: |
-          python scripts/generate_social_cards.py --force "${{ github.event.inputs.force }}"
+          python scripts/generate_social_cards.py --force "$FORCE"
 
       # docs/pick_of_day.json removed 2026-09-09 -- confirmed nothing writes
       # or reads it anymore (generate_social_cards.py stopped touching it

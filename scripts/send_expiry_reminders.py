@@ -25,17 +25,18 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _subscribers import subscribers_needing_reminder, mark_reminder_sent, EMAIL_BANNER_URL  # noqa: E402
+from datetime import datetime  # noqa: E402
+from _subscribers import subscribers_needing_reminder, mark_reminder_sent, EMAIL_BANNER_URL, fmt_mt_date  # noqa: E402
 from auto_lock_settle import PRODUCT_LABEL  # noqa: E402
-from _gmail_email import send_email, EMAIL_WRAP_OPEN, EMAIL_WRAP_CLOSE_DISCLOSED  # noqa: E402
+from _gmail_email import send_email, EMAIL_WRAP_OPEN, EMAIL_WRAP_CLOSE_SUBSCRIBER  # noqa: E402
 
 
-def _build_email(products_and_days: list[tuple[str, int]]) -> tuple[str, str]:
+def _build_email(products_and_days: list[tuple[str, int]], expires: dict[str, str] | None = None) -> tuple[str, str]:
     """Returns (subject, html_body). products_and_days is a list of
-    (product, days_left) for this one subscriber. Closes through
-    EMAIL_WRAP_CLOSE_DISCLOSED (not plain EMAIL_WRAP_CLOSE) -- per
-    _gmail_email.py's own standing rule, every email reaching a paying
-    subscriber carries the disclaimer, and this one now does."""
+    (product, days_left) for this one subscriber; expires maps product -> ISO expiry
+    (shown as a Mountain-time date). Closes through EMAIL_WRAP_CLOSE_SUBSCRIBER: the
+    disclaimer every subscriber email carries plus the reply-to-stop footer."""
+    expires = expires or {}
     names = [PRODUCT_LABEL[p] for p, _ in products_and_days]
     soonest = min(d for _, d in products_and_days)
 
@@ -49,10 +50,13 @@ def _build_email(products_and_days: list[tuple[str, int]]) -> tuple[str, str]:
         f'<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:15px;color:#eee">'
         f'<strong style="color:#fff">{PRODUCT_LABEL[p]}</strong> — '
         f'<span style="color:{"#ff3b5c" if d <= 1 else "#ffdd00"}">{d} day{"s" if d != 1 else ""} left</span>'
+        + (f' <span style="color:#bbb;font-size:13px">(through {fmt_mt_date(datetime.fromisoformat(expires[p]))})</span>' if expires.get(p) else "") +
         f'</div>'
         for p, d in sorted(products_and_days, key=lambda x: x[1])
     )
-    urgency = "expires today" if soonest <= 0 else f"expires in {soonest} day{'s' if soonest != 1 else ''}"
+    in_days = f"in {soonest} day{'s' if soonest != 1 else ''}"
+    headline = (f"Your access to {names[0]} expires {in_days}." if len(names) == 1
+                else f"{len(names)} of your subscriptions are about to expire — the first {in_days}.")
     # Same hosted banner every other subscriber email uses (see
     # EMAIL_BANNER_URL in _subscribers.py) -- outside EMAIL_WRAP_OPEN's
     # padding so it bleeds edge-to-edge across the full 640px card width.
@@ -66,13 +70,14 @@ def _build_email(products_and_days: list[tuple[str, int]]) -> tuple[str, str]:
         banner_html +
         EMAIL_WRAP_OPEN +
         f'<div style="font-size:16px;color:#1a1a2e;margin-bottom:14px">'
-        f'Your access to {", ".join(names)} {urgency}.</div>'
+        f'{headline}</div>'
         f'<div style="background:#14001f;border-radius:6px;padding:4px 14px;margin-bottom:16px">{rows}</div>'
         f'<div style="font-size:14px;color:#444;line-height:1.6">'
         f'To keep it going with no gap in your daily picks, reply to this email or Venmo the usual '
-        f'amount — we\'ll renew you for another 30 days from whenever it\'s received. '
+        f'amount. Renewal gives you 30 days from the day we record your payment, so renewing early '
+        f'does not add to the time you have left. '
         f'No action needed if you\'re fine letting it lapse.</div>' +
-        EMAIL_WRAP_CLOSE_DISCLOSED
+        EMAIL_WRAP_CLOSE_SUBSCRIBER
     )
     return subject, body
 
@@ -91,11 +96,14 @@ def main() -> None:
         return
 
     by_email: dict[str, list[tuple[str, int]]] = {}
+    expires: dict[str, dict[str, str]] = {}
     for row in needing:
         by_email.setdefault(row["email"], []).append((row["product"], row["days_left"]))
+        expires.setdefault(row["email"], {})[row["product"]] = row["expires"]
 
+    failures = 0
     for email, products_and_days in by_email.items():
-        subject, body = _build_email(products_and_days)
+        subject, body = _build_email(products_and_days, expires[email])
         if args.dry_run:
             print(f"[DRY RUN] would email {email}: {subject}")
             continue
@@ -105,7 +113,14 @@ def main() -> None:
                 mark_reminder_sent(product, email)
             print(f"Reminder sent to {email} for {[p for p, _ in products_and_days]}")
         else:
+            failures += 1
             print(f"FAILED to email {email}: {msg}")
+    if failures:
+        # Non-zero so the run goes red (the failure alert/health check can see it) instead of a green
+        # run where a subscriber silently never got their warning. reminder_sent was NOT set for them,
+        # so tomorrow's run retries; the ones that did send are already marked.
+        print(f"{failures} reminder email(s) failed", file=sys.stderr)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

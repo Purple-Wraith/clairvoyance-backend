@@ -128,12 +128,17 @@ def _build_message(subject: str, batch: list[str], html_body: str, attachments: 
     return msg
 
 
-def _send_batch_with_retry(batch: list[str], msg: MIMEMultipart) -> tuple[bool, str]:
+def _send_batch_with_retry(batch: list[str], msg: MIMEMultipart) -> tuple[bool, str, list[str]]:
     """One batch, retried up to MAX_SEND_ATTEMPTS times with a short
     backoff -- a fresh SMTP connection + login per attempt rather than
     reusing one across retries, since a flaky login/connection is
     exactly the kind of thing a retry needs to actually get past, not
-    just resend the same request over a connection that's the problem."""
+    just resend the same request over a connection that's the problem.
+
+    Returns (ok, error, refused). smtplib's sendmail() does NOT raise when only SOME recipients are
+    refused (it returns {address: (code, reason)} for them), so a single bad address in a BCC list
+    used to vanish silently while the whole batch reported "sent". Those addresses come back in
+    `refused` and are never retried (the others were already delivered)."""
     last_err = ""
     for attempt in range(MAX_SEND_ATTEMPTS):
         if attempt > 0:
@@ -142,11 +147,11 @@ def _send_batch_with_retry(batch: list[str], msg: MIMEMultipart) -> tuple[bool, 
             with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
                 server.starttls()
                 server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-                server.sendmail(GMAIL_USER, batch, msg.as_string())
-            return True, "sent"
+                refused = server.sendmail(GMAIL_USER, batch, msg.as_string())
+            return True, "sent", sorted(refused or {})
         except Exception as exc:
             last_err = str(exc)
-    return False, last_err
+    return False, last_err, []
 
 
 def send_email(subject: str, to: str | list[str], html_body: str, attachments: list[Path] | None = None) -> tuple[bool, str]:
@@ -173,9 +178,11 @@ def send_email(subject: str, to: str | list[str], html_body: str, attachments: l
     batch_errors: list[str] = []
     for batch in batches:
         msg = _build_message(subject, batch, html_body, attachments)
-        ok, err = _send_batch_with_retry(batch, msg)
+        ok, err, refused = _send_batch_with_retry(batch, msg)
         if ok:
-            sent_count += len(batch)
+            sent_count += len(batch) - len(refused)
+            if refused:
+                batch_errors.append(f"{len(refused)} recipient(s) refused by the mail server: {', '.join(refused)}")
         else:
             batch_errors.append(f"{len(batch)} recipient(s): {err}")
 

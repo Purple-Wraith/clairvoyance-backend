@@ -19,8 +19,16 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from auto_lock_settle import send_locks_email, PRODUCT_LABEL  # noqa: E402
+from auto_lock_settle import build_locks_email_html, PRODUCT_LABEL  # noqa: E402
 from _subscribers import OWNER_EMAIL  # noqa: E402
+from _gmail_email import send_email  # noqa: E402
+
+# Own send path (not send_locks_email): that function is built for real locks -- with live=False it forces the
+# recipient to the owner and titles the mail "[DRY RUN] Would lock", so --to was silently ignored and a demo
+# read like a real dry run. A demo is labelled as sample data in both the subject and the first line of the body.
+DEMO_BANNER = ('<div style="max-width:640px;margin:0 auto;background:#fff3cd;color:#5c4400;border:1px solid #e0b100;'
+               'padding:10px 14px;font:700 13px -apple-system,Segoe UI,Arial,sans-serif;text-align:center">'
+               'SAMPLE DATA — these picks are invented to show the email format. Nothing here was locked or is a real pick.</div>')
 
 
 def _tier(prob: float, ev: float) -> int:
@@ -41,13 +49,17 @@ def _tier(prob: float, ev: float) -> int:
     return 0
 
 
-def _leg(sport, hA, awA, side, label, prob, ml, dec, ev, mc_summary):
+def _leg(sport, hA, awA, side, label, prob, ml, dec, ev, mc_summary, alt=None):
     tier_n = _tier(prob, ev)
-    return {
+    leg = {
         "kind": "GAME", "sport": sport, "hA": hA, "awA": awA, "side": side, "label": label,
         "prob": prob, "ml": ml, "dec": dec, "tierN": tier_n, "evVal": ev,
         "mcSummary": mc_summary, "best": {"label": label, "tierN": tier_n},
     }
+    if alt:
+        leg["altLine"] = alt
+        leg["priceSource"] = "estimated"
+    return leg
 
 
 # 2-3 sample matchups per product (a mix of PREMIUM/OPTIMAL/LEAN, like a
@@ -64,6 +76,9 @@ DEMO_LEGS = {
              "MC PROJ TOTAL: 44.0 · SF projected -6.0"),
         _leg("NFL", "PHI", "GB", "under", "UNDER 43.5", 0.59, "-110", 1.91, 0.021,
              "MC PROJ TOTAL: 40.5 · PHI projected -2.5"),
+        _leg("NFL", "MIN", "CHI", "sprdDog", "CHI +7.5", 0.75, "-300", 1.33, 0.0,
+             "MC PROJ TOTAL: 45.0 · MIN projected -3.0",
+             alt={"posted": 3.0, "line": 7.5, "shift": 4.5, "postedLabel": "CHI +3.0", "postedProb": 0.55}),
     ],
     "cfb": [
         _leg("CFB", "Georgia", "Alabama", "sprdFav", "Georgia -3.5", 0.63, "-110", 1.91, 0.045,
@@ -102,10 +117,17 @@ def main() -> None:
     if not recipient:
         raise SystemExit("No recipient -- pass --to or set LOCKS_EMAIL_TO/SOCIAL_CARD_EMAIL_TO")
 
+    failed = []
     for product, legs in DEMO_LEGS.items():
-        label = f"{PRODUCT_LABEL[product]} (DEMO)"
-        send_locks_email(legs, live=False, label=label, to=[recipient])
-        print(f"sent demo email for {product} -> {recipient}")
+        label = PRODUCT_LABEL[product]
+        body = DEMO_BANNER + build_locks_email_html(legs, True, len(legs))
+        subject = f"Clairvoyance — DEMO (sample data) {label} locks email"
+        ok, msg = send_email(subject, recipient, body)
+        print(f"{'sent' if ok else 'FAILED'} demo email for {product} -> {recipient}" + ("" if ok else f": {msg}"))
+        if not ok:
+            failed.append(product)
+    if failed:
+        raise SystemExit(f"demo email send failed for: {', '.join(failed)}")
 
 
 if __name__ == "__main__":

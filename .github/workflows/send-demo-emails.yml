@@ -52,5 +52,12 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           LOCKS_EMAIL_TO: ${{ secrets.LOCKS_EMAIL_TO }}
           SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
+          # Passed through the environment, never interpolated into the shell line: a dispatch input like
+          # `x; curl ...` would otherwise run as a command on a runner that holds the Gmail secret.
+          DEMO_TO: ${{ inputs.to }}
         run: |
-          python3 scripts/send_demo_emails.py ${{ inputs.to != '' && format('--to {0}', inputs.to) || '' }}
+          if [ -n "$DEMO_TO" ]; then
+            python3 scripts/send_demo_emails.py --to "$DEMO_TO"
+          else
+            python3 scripts/send_demo_emails.py
+          fi

@@ -204,5 +204,127 @@ class PickOfDay(unittest.TestCase):
         os.environ.pop("GITHUB_OUTPUT")
 
 
+class Lifecycle(unittest.TestCase):
+    def setUp(self):
+        import _subscribers as sub, send_expiry_reminders as rem, _gmail_email as gm, send_demo_emails as demo
+        self.sub, self.rem, self.gm, self.demo = sub, rem, gm, demo
+
+    def test_reminder_copy_dates_and_footer(self):
+        subj, body = self.rem._build_email([("nfl", 2), ("cfb", 3)], {"nfl": "2026-10-06T03:00:00+00:00", "cfb": "2026-10-07T03:00:00+00:00"})
+        self.assertIn("October 05, 2026", body)                        # 03:00 UTC on the 6th is still the 5th in Mountain time
+        self.assertNotIn("whenever it", body)
+        self.assertIn("does not add to the time you have left", body)
+        self.assertIn("want to stop these emails", body)
+        self.assertIn("2 of your subscriptions", body)
+
+    def _run_reminders(self, send_ok):
+        rem, marked, sent = self.rem, [], []
+        rows = [{"product": "nfl", "email": "a@x.com", "days_left": 2, "expires": "2026-10-06T03:00:00+00:00"},
+                {"product": "cfb", "email": "b@x.com", "days_left": 2, "expires": "2026-10-06T03:00:00+00:00"}]
+        orig = (rem.subscribers_needing_reminder, rem.mark_reminder_sent, rem.send_email, sys.argv)
+        rem.subscribers_needing_reminder = lambda days_before=3: rows
+        rem.mark_reminder_sent = lambda p, e: marked.append(e)
+        rem.send_email = lambda subj, to, body: (sent.append(to) or (to in send_ok, "boom"))
+        sys.argv = ["send_expiry_reminders.py"]
+        try:
+            rem.main()
+            code = 0
+        except SystemExit as e:
+            code = e.code
+        finally:
+            rem.subscribers_needing_reminder, rem.mark_reminder_sent, rem.send_email, sys.argv = orig
+        return code, marked
+
+    def test_failed_reminder_exits_nonzero_and_is_not_marked(self):
+        code, marked = self._run_reminders({"a@x.com"})
+        self.assertEqual(code, 1)
+        self.assertEqual(marked, ["a@x.com"])                          # only the delivered one is marked; b retries tomorrow
+
+    def test_all_sent_exits_zero(self):
+        self.assertEqual(self._run_reminders({"a@x.com", "b@x.com"})[0], 0)
+
+    def test_reminder_workflow_serialised_and_commits_state_on_failure(self):
+        wf = (ROOT / ".github" / "workflows" / "send-expiry-reminders.yml").read_text()
+        self.assertIn("concurrency:", wf)
+        self.assertIn("always() && !inputs.dry_run", wf)
+
+    def test_retired_product_keys_are_ignored(self):
+        orig = self.sub.load_subscribers
+        added = self.sub._now().isoformat()
+        self.sub.load_subscribers = lambda: {"mlb": [{"email": "a@x.com", "added": added}], "nfl": [{"email": "a@x.com", "added": added}]}
+        try:
+            self.assertEqual([r["product"] for r in self.sub.products_for_email("a@x.com")], ["nfl"])
+        finally:
+            self.sub.load_subscribers = orig
+
+    def test_receipt_is_an_access_confirmation_not_a_payment_receipt(self):
+        orig_load, orig_send, captured = self.sub.load_subscribers, self.sub._send_gmail, {}
+        added = self.sub._now().isoformat()
+        self.sub.load_subscribers = lambda: {"nfl": [{"email": "a@x.com", "added": added}]}
+        self.sub._send_gmail = lambda subj, to, body: (captured.update(subject=subj, body=body) or (True, "sent"))
+        try:
+            self.assertTrue(self.sub.send_receipt_email("a@x.com")[0])
+        finally:
+            self.sub.load_subscribers, self.sub._send_gmail = orig_load, orig_send
+        blob = captured["subject"] + captured["body"]
+        for bad in ("Payment Receipt", "/mo)", "per month", "whenever you pay again"):
+            self.assertNotIn(bad, blob)
+        self.assertIn("Access Confirmation", captured["body"])
+        self.assertIn("standard price for 1 product", captured["body"])
+
+    def test_refused_recipient_is_reported_not_swallowed(self):
+        import smtplib
+
+        class FakeSMTP:
+            def __init__(self, *a, **k): pass
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def starttls(self): pass
+            def login(self, *a): pass
+            def sendmail(self, frm, to, msg): return {"bad@x.com": (550, b"no such user")}
+
+        orig_smtp, orig_pw = smtplib.SMTP, self.gm.GMAIL_APP_PASSWORD
+        smtplib.SMTP, self.gm.GMAIL_APP_PASSWORD = FakeSMTP, "pw"
+        try:
+            ok, msg = self.gm.send_email("s", ["good@x.com", "bad@x.com"], "<p>x</p>")
+        finally:
+            smtplib.SMTP, self.gm.GMAIL_APP_PASSWORD = orig_smtp, orig_pw
+        self.assertFalse(ok)
+        self.assertIn("1/2 delivered", msg)
+        self.assertIn("bad@x.com", msg)
+
+    def _run_demo(self, ok):
+        demo, calls = self.demo, []
+        orig_send, argv = demo.send_email, sys.argv
+        demo.send_email = lambda subj, to, body: (calls.append((subj, to, body)) or (ok, "boom"))
+        sys.argv = ["send_demo_emails.py", "--to", "me@x.com"]
+        try:
+            demo.main()
+            code = 0
+        except SystemExit as e:
+            code = e.code
+        finally:
+            demo.send_email, sys.argv = orig_send, argv
+        return code, calls
+
+    def test_demo_goes_to_requested_recipient_labelled_as_sample(self):
+        code, calls = self._run_demo(True)
+        self.assertEqual(code, 0)
+        self.assertEqual(len(calls), 5)
+        for subj, to, body in calls:
+            self.assertEqual(to, "me@x.com")
+            self.assertIn("DEMO (sample data)", subj)
+            self.assertNotIn("DRY RUN", subj)
+            self.assertIn("SAMPLE DATA", body)
+
+    def test_demo_failure_is_fatal(self):
+        self.assertNotEqual(self._run_demo(False)[0], 0)
+
+    def test_demo_workflow_has_no_shell_interpolated_input(self):
+        wf = (ROOT / ".github" / "workflows" / "send-demo-emails.yml").read_text()
+        self.assertIn("DEMO_TO: ${{ inputs.to }}", wf)
+        self.assertNotIn("format('--to", wf)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -30,6 +30,12 @@ on:
 permissions:
   contents: write
 
+# One run at a time: two overlapping runs (a manual dispatch during the daily one) would both read
+# reminder_sent=false and email the same subscriber twice.
+concurrency:
+  group: send-expiry-reminders
+  cancel-in-progress: false
+
 jobs:
   send-expiry-reminders:
     runs-on: ubuntu-latest
@@ -57,6 +63,7 @@ jobs:
         run: pip install -q requests
 
       - name: Send reminders
+        id: send
         env:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           LOCKS_EMAIL_TO: ${{ secrets.LOCKS_EMAIL_TO }}
@@ -70,7 +77,10 @@ jobs:
       # manage_subscribers.py/subscribers_admin.py write to locally --
       # has to be committed back or every run re-sends the same
       # reminder forever.
+      # if: always() -- a run that sent some reminders and then exited 1 on a failed one must still commit the
+      # reminder_sent flags it set, or tomorrow re-sends to the people who already got theirs.
       - name: Commit reminder_sent state
+        if: ${{ always() && !inputs.dry_run }}
         run: |
           git config user.name  "Clairvoyance Bot"
           git config user.email "bot@clairvoyance"

@@ -27,27 +27,12 @@ and MLS retired 2026-09-27, both explicit requests following real
 settled-bet audits, so soccer is now just the 4 remaining European
 leagues -- see PRODUCT_SPORTS' own comment in auto_lock_settle.py).
 
-Explicit decision 2026-09-03: tennis (ATP/WTA), WNBA, KHL, SHL, and
-LIIGA were real, live engine features kept for personal use only --
-never sold to subscribers at the time, so "tennis" and "wnba" were
-removed from PRODUCTS entirely and KHL/SHL/LIIGA were kept off the
-hockey product's sport set. Their qualifying legs routed to the
-owner-only "other" locks email instead of a subscriber email.
-
-Superseded for Liiga/SHL specifically, 2026-09-16: once both leagues had
-real engines (Flashscore-sourced schedule/standings, an exact-Poisson MC
-model, full ML/spread/O-U game cards -- see PRODUCT_SPORTS' own comment
-in auto_lock_settle.py), the user's explicit direction was that "hockey"
-as a product should mean NHL+Liiga+SHL(+NCAAH once it gets a real engine)
-going forward, not NHL alone. The hockey product now bundles all three,
-same "recipients_for('hockey') doesn't know or care which specific
-sports are in the bundle" mechanism as every other product here -- KHL
-remains permanently excluded (no stated plan to sell it) and NCAAH stays
-owner-only until it has its own real engine.
-
-Explicit decision 2026-09-08: MLB, CBB, and World Cup were removed from
-the engine entirely (accuracy/scope reasons), dropping "mlb" from
-PRODUCTS too -- 6 products became 5.
+Current product contents (see PRODUCT_SPORTS in auto_lock_settle.py for the authoritative
+list): hockey = NHL + Liiga + SHL + NLA + Extraliga (all sold, 2026-09-29); soccer = Champions
+League, Premier League, La Liga, Serie A. KHL and NCAAH are owner-only (no stated plan to sell
+them) and route to the owner-only "other" locks email. MLB, CBB and World Cup were removed from
+the engine entirely (2026-09-08), so "mlb" is not a product any more -- PRODUCTS is the only
+list of valid keys, and anything else found in data/subscribers.json is ignored.
 """
 from __future__ import annotations
 import json
@@ -56,6 +41,7 @@ import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _gmail_email import send_email as _send_gmail  # noqa: E402
@@ -91,8 +77,16 @@ PRICING_BY_COUNT = {1: 20, 2: 30, 3: 45, 4: 60, 5: 75}
 EMAIL_BANNER_URL = "https://purple-wraith.github.io/clairvoyance-backend/email_banner.jpg"
 
 
+_MT = ZoneInfo("America/Denver")
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def fmt_mt_date(dt: datetime) -> str:
+    """'October 04, 2026' in Mountain time (UTC dates read a day ahead for an evening MT send)."""
+    return dt.astimezone(_MT).strftime("%B %d, %Y")
 
 
 def _parse(ts: str) -> datetime | None:
@@ -283,7 +277,9 @@ def subscribers_needing_reminder(days_before: int = 3) -> list[dict]:
     for product in PRODUCTS:
         for entry in active_subscribers(product):
             if entry["days_left"] <= days_before and not entry["reminder_sent"]:
-                out.append({"product": product, "email": entry["email"], "days_left": entry["days_left"]})
+                added = _parse(entry["added"])
+                out.append({"product": product, "email": entry["email"], "days_left": entry["days_left"],
+                            "expires": (added + timedelta(days=EXPIRY_DAYS)).isoformat()})
     return out
 
 
@@ -584,6 +580,8 @@ def products_for_email(email: str) -> list[dict]:
     now = _now()
     out = []
     for product, entries in load_subscribers().items():
+        if product not in PRODUCTS:
+            continue          # retired product keys (e.g. a leftover "mlb" list) never show up or get receipted
         for entry in entries:
             if entry.get("email", "").strip().lower() != email:
                 continue
@@ -638,11 +636,11 @@ def send_receipt_email(email: str) -> tuple[bool, str]:
         f'<div style="font-size:14px;color:#1a1a2e;font-weight:700;letter-spacing:.3px">{r["product"].upper()}</div>'
         f'<div style="color:#1a1a2e;font-size:12px;margin-top:3px;text-transform:uppercase;letter-spacing:.5px">'
         f'active through '
-        f'{(_parse(r["added"]) + timedelta(days=EXPIRY_DAYS)).strftime("%B %d, %Y")}</div>'
+        f'{fmt_mt_date(_parse(r["added"]) + timedelta(days=EXPIRY_DAYS))}</div>'
         f'</div>'
         for i, r in enumerate(rows)
     )
-    subject = f"Clairvoyance — Receipt: {n} product{'s' if n != 1 else ''} active (${price}/mo)"
+    subject = f"Clairvoyance — Access confirmation: {n} product{'s' if n != 1 else ''} active"
     # Custom open (not the shared EMAIL_WRAP_OPEN) so the receipt can carry
     # its own bordered card instead of going flat-white right under a neon
     # header. Kept deliberately restrained (no background texture, no glow
@@ -688,20 +686,20 @@ def send_receipt_email(email: str) -> tuple[bool, str]:
         f'font-family:-apple-system,sans-serif;color:#999" /></div>' +
         receipt_wrap_open +
         f'<div style="font-size:11px;letter-spacing:2.5px;color:{BLACK};text-transform:uppercase;'
-        'font-weight:700;margin-bottom:14px">Payment Receipt</div>'
+        'font-weight:700;margin-bottom:14px">Access Confirmation</div>'
         f'<div style="font-size:19px;font-weight:700;color:{BLACK};margin-bottom:6px;line-height:1.3">'
         'Thanks for subscribing to Clairvoyance Engine.</div>'
-        f'<div style="font-size:13px;color:{BLACK};margin-bottom:26px">Confirmed {now.strftime("%B %d, %Y")}</div>'
+        f'<div style="font-size:13px;color:{BLACK};margin-bottom:26px">Confirmed {fmt_mt_date(now)}</div>'
         f'<div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:6px;'
         f'padding:4px 20px;margin-bottom:20px">{expiry_rows}</div>'
         f'<div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:6px;'
         f'padding:18px 22px;margin-bottom:24px">'
         f'<div style="font-size:24px;font-weight:800;color:#f20cff">${price}<span '
-        f'style="font-size:13px;font-weight:500;color:{BLACK};margin-left:6px">per month</span></div></div>'
+        f'style="font-size:13px;font-weight:500;color:{BLACK};margin-left:6px">standard price for {n} product{"s" if n != 1 else ""} / {EXPIRY_DAYS} days</span></div></div>'
         f'<div style="font-size:13px;color:{BLACK};line-height:1.7">'
         'This confirms the access currently live on your account -- not a record of a specific '
-        'Venmo payment (payments aren\'t processed or tracked here). Each product above renews '
-        f'for another {EXPIRY_DAYS} days whenever you pay again; reply to this email with any '
+        'Venmo payment (payments aren\'t processed or tracked here). Each product above is renewed '
+        f'for {EXPIRY_DAYS} days from the day your next payment is recorded; reply to this email with any '
         'questions.</div>' +
         receipt_close
     )
