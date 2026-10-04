@@ -67,13 +67,22 @@ def make_handler(site: Path, key: str, deadline: float, until_label: str):
             if time.time() >= deadline:
                 return self._deny(410, EXPIRED)
             path, _, query = self.path.partition("?")
-            if f"k={key}" in query.split("&"):   # first visit: set the cookie, then land on the app
+            # Key in the PATH (/d/<key>/...) works in every browser, including in-app browsers that refuse cookies; every asset the page loads is relative, so it keeps the prefix.
+            pref = f"/d/{key}"
+            via_path = path == pref or path.startswith(pref + "/")
+            if via_path:
+                path = path[len(pref):] or "/"
+                self.path = path + ("?" + query if query else "")
+                if path == "/":
+                    self.send_response(302); self.send_header("Location", f"{pref}/app.html?nosb=1"); self.send_header("Cache-Control", "no-store"); self.end_headers(); return
+            elif f"k={key}" in query.split("&"):   # legacy link: set the cookie, then land on the app
                 self.send_response(302); self.send_header("Set-Cookie", f"cvdemo={key}; Path=/; HttpOnly; SameSite=Lax; Max-Age={int(deadline - time.time())}")
-                self.send_header("Location", "/app.html?nosb=1&nologo=0"); self.send_header("Cache-Control", "no-store"); self.end_headers(); return
-            if not self._authorised():
+                self.send_header("Location", f"{pref}/app.html?nosb=1"); self.send_header("Cache-Control", "no-store"); self.end_headers(); return
+            if not (via_path or self._authorised()):
                 return self._deny(403, b"<!doctype html><meta charset=utf-8><body style='background:#0b0612;color:#ffd6ff;font:16px monospace;display:grid;place-items:center;height:100vh;margin:0'>PRIVATE DEMO - USE THE LINK YOU WERE SENT")
+            base = pref if via_path else ""
             if path in ("/", "/index.html", "/app.html") and "nosb=1" not in query:
-                self.send_response(302); self.send_header("Location", "/app.html?nosb=1"); self.send_header("Cache-Control", "no-store"); self.end_headers(); return
+                self.send_response(302); self.send_header("Location", f"{base}/app.html?nosb=1"); self.send_header("Cache-Control", "no-store"); self.end_headers(); return
             if path in ("/app.html", "/index.html"):
                 html = (site / "app.html").read_bytes()
                 i = html.find(b"</head>")
@@ -98,7 +107,7 @@ def main() -> int:
     srv = socketserver.ThreadingTCPServer(("127.0.0.1", a.port), make_handler(site, key, deadline, until))
     srv.daemon_threads = True
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    print(f"READY http://127.0.0.1:{a.port}/?k={key}\nEXPIRES {until} ({a.minutes:g} min). Local only until a tunnel is pointed at port {a.port}.", flush=True)
+    print(f"READY http://127.0.0.1:{a.port}/d/{key}/\nEXPIRES {until} ({a.minutes:g} min). Local only until a tunnel is pointed at port {a.port}.", flush=True)
     while time.time() < deadline + 5:
         time.sleep(1)
     srv.shutdown(); shutil.rmtree(site, ignore_errors=True)

@@ -70,7 +70,6 @@ on:
       - "Landing Page Performance Refresh (manual)"
       - "Live Score Tracker"
       - "Soccer Schedule Refresh (Tomorrow)"
-      - "Pre-Kickoff Lock Watchdog (owner only)"
       # 2026-09-01 workflow consolidation: replaced CFB Schedule + Lines
       # Refresh, NFL Schedule + Lines Refresh, Daily Soccer Schedule
       # Refresh, and Daily Soccer Standings Refresh (below), and replaced
@@ -89,7 +88,10 @@ on:
     # unchanged content is a harmless no-op (~20s, confirmed from real
     # run durations), so this costs nothing on a normal day and only
     # matters on the day something's missing from the list above again.
-    - cron: '23 */2 * * *'
+    # 2026-10-03 cleanup: every 2 h -> every 4 h. ~90% of runs on this workflow were no-op "docs/ unchanged" skips (24 real deploys vs 400 skips in a week); the
+    # workflow_run list above already covers every docs-writing workflow, so this is only the net for a future miss, and 4 h is still a bounded worst case.
+    # Also dropped "Pre-Kickoff Lock Watchdog" from the list: it never writes docs/, so every run it triggered was a skip.
+    - cron: '23 */4 * * *'
 
 permissions:
   contents: read
