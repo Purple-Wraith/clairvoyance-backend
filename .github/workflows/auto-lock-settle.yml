@@ -166,6 +166,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Private data (subscriber list)
+        continue-on-error: true
+        uses: ./.github/actions/private-data
+        with:
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+
       - name: Determine step flags from trigger
         id: flags
         run: |

@@ -1,0 +1,25 @@
+name: Private data
+description: >
+  Checks out the PRIVATE data repo (Purple-Wraith/clairvoyance-private: the subscriber list) into .private-data and points CV_PRIVATE_DIR at it, so
+  scripts/_subscribers.py reads and writes it from there instead of this public repo. Use with `continue-on-error: true` -- if the checkout fails
+  (token missing / expired) the job carries on, _subscribers.py reports the list as unavailable, and the run ends RED at the end rather than silently
+  emailing nobody. The picks themselves are still locked.
+inputs:
+  token:
+    description: Fine-grained token with Contents read/write on the private repo (secret PRIVATE_REPO_TOKEN)
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Check out the private repo
+      uses: actions/checkout@v4
+      with:
+        repository: Purple-Wraith/clairvoyance-private
+        token: ${{ inputs.token }}
+        path: .private-data
+    - name: Point scripts at it
+      shell: bash
+      run: |
+        echo "CV_PRIVATE_DIR=$GITHUB_WORKSPACE/.private-data" >> "$GITHUB_ENV"
+        git -C "$GITHUB_WORKSPACE/.private-data" config user.name  "clairvoyance-bot"
+        git -C "$GITHUB_WORKSPACE/.private-data" config user.email "bot@clairvoyance.local"

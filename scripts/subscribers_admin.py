@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 subscribers_admin.py — local-only web UI for viewing/editing the paid
-mailing list (data/subscribers.json), a point-and-click alternative to
+mailing list (subscribers.json, kept in the private repo -- ~/clairvoyance-private), a point-and-click alternative to
 manage_subscribers.py for anyone who'd rather click than type.
 
 Run:
@@ -13,7 +13,7 @@ Binds to 0.0.0.0 -- reachable from any device on the same network, with
 NO auth. That's a deliberate choice for home-network convenience (so a
 phone can load and bookmark it), not an oversight -- do not run this on
 a network you don't trust every device on. Edits write straight to
-data/subscribers.json on disk; nothing here talks to git, Supabase, or
+subscribers.json on disk; nothing here talks to git, Supabase, or
 email. After editing, the usual workflow still applies: the file has to
 be committed and pushed for the change to actually reach the GitHub
 Actions lock/email runs -- this tool only edits your local working copy,

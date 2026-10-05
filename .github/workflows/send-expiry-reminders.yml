@@ -46,6 +46,12 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Private data (subscriber list)
+        continue-on-error: true
+        uses: ./.github/actions/private-data
+        with:
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -82,17 +88,26 @@ jobs:
       - name: Commit reminder_sent state
         if: ${{ always() && !inputs.dry_run }}
         run: |
-          git config user.name  "Clairvoyance Bot"
-          git config user.email "bot@clairvoyance"
-          git add data/subscribers.json
+          # The list lives in the PRIVATE repo checked out at .private-data (CV_PRIVATE_DIR). If that checkout is missing (secret not set yet),
+          # fall back to the legacy file in this repo so the move can be done in two steps.
+          if [ -n "$CV_PRIVATE_DIR" ] && [ -d "$CV_PRIVATE_DIR/.git" ]; then
+            cd "$CV_PRIVATE_DIR"
+            git add subscribers.json
+            BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          else
+            git config user.name  "Clairvoyance Bot"
+            git config user.email "bot@clairvoyance"
+            git add data/subscribers.json
+            BRANCH=main
+          fi
           if git diff --cached --quiet; then
             echo "No state change"
           else
             git commit -m "expiry-reminders: mark reminder_sent"
-            if ! git push; then
-              git fetch origin main
-              if git rebase origin/main; then
-                git push || echo "::warning::expiry-reminders: push still failed after rebase, will retry next run"
+            if ! git push origin "$BRANCH"; then
+              git fetch origin "$BRANCH"
+              if git rebase "origin/$BRANCH"; then
+                git push origin "$BRANCH" || echo "::warning::expiry-reminders: push still failed after rebase, will retry next run"
               else
                 git rebase --abort
                 echo "::warning::expiry-reminders: rebase conflict, skipped this state write, will retry next run"

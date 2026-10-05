@@ -76,6 +76,7 @@ from _gmail_email import EMAIL_WRAP_OPEN as _EMAIL_WRAP_OPEN, EMAIL_WRAP_CLOSE a
 from _gmail_email import EMAIL_WRAP_CLOSE_DISCLOSED as _OWNER_EMAIL_CLOSE  # noqa: E402
 from _gmail_email import EMAIL_WRAP_CLOSE_SUBSCRIBER as _LOCKS_EMAIL_CLOSE  # noqa: E402  (locks emails carry the subscriber contact footer)
 from _subscribers import recipients_for, OWNER_EMAIL, EMAIL_BANNER_URL  # noqa: E402
+import _subscribers  # noqa: E402
 # Reused (not reimplemented) for the landing-perf JSON snapshot this
 # script now also writes on every run -- see the call site in main() for
 # why this replaced a second, fully independent browser+Supabase pull.
@@ -2032,9 +2033,7 @@ def gather_hockey_legs_for_dates(page, target_dates: list[str]) -> dict:
     same rationale as gather_cfb_legs_for_date above -- no new data-feed
     workflow needed: docs/liiga_schedule.json/shl_schedule.json/
     nla_schedule.json/extraliga_schedule.json each already cover several
-    weeks ahead (refreshed twice daily, liiga-schedule-refresh.yml/
-    shl-schedule-refresh.yml/nla-schedule-refresh.yml/
-    extraliga-schedule-refresh.yml), so this just targets tomorrow's date
+    weeks ahead (refreshed three times daily by hockey-euro-refresh.yml), so this just targets tomorrow's date
     against data that's already there.
 
     _liigaMatchCard(g)/_shlMatchCard(g)/_nlaMatchCard(g)/
@@ -4228,3 +4227,5 @@ if __name__ == "__main__":
     if EMAIL_FAILURES:                      # picks were locked, but an email did not go out: fail the run so it is visible
         log(f"{len(EMAIL_FAILURES)} email send failure(s): {EMAIL_FAILURES}")
         sys.exit(1)
+    if _subscribers.DATA_ERRORS:            # the subscriber list could not be read: picks were locked, but only the owner could be emailed
+        EMAIL_FAILURES.extend(_subscribers.DATA_ERRORS)

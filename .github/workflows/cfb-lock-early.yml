@@ -55,6 +55,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Private data (subscriber list)
+        continue-on-error: true
+        uses: ./.github/actions/private-data
+        with:
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+
       - name: Determine live flag + whether to run
         # Pure bash (no Python/Playwright yet): a slot that finds today's pass already COMPLETE costs one fast check instead of a
         # runner + browser install. The marker is written (below) only by a pass that finished complete, so an incomplete pass

@@ -467,5 +467,73 @@ class HealthAlerts(unittest.TestCase):
             wd.ALERT_TO, wd.send_email, wd.probe_supabase, wd.load_ledger, wd.GITHUB_TOKEN = orig
 
 
+class PrivateData(unittest.TestCase):
+    """The subscriber list lives in a private repo: where it is read from, and that an unreadable list is loud in CI, not "no subscribers"."""
+    def reload_with(self, **env):
+        import importlib, os, tempfile
+        saved = {k: os.environ.get(k) for k in ("CV_PRIVATE_DIR", "GITHUB_ACTIONS", "HOME")}
+        for k, v in env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        import _subscribers
+        try:
+            return importlib.reload(_subscribers)
+        finally:
+            self._restore = saved
+
+    def tearDown(self):
+        import importlib, os
+        for k, v in getattr(self, "_restore", {}).items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        import _subscribers
+        importlib.reload(_subscribers)
+
+    def test_env_dir_wins_and_sync_commits_inside_it(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        m = self.reload_with(CV_PRIVATE_DIR=d, GITHUB_ACTIONS=None)
+        self.assertEqual(m.DATA_SOURCE, "private")
+        self.assertEqual(str(m.SUBSCRIBERS_FILE), d + "/subscribers.json")
+        self.assertEqual(str(m.REPO_ROOT), d)
+        self.assertEqual(m._SYNC_RELS, ["subscribers.json", "subscriber_events.json"])
+        m.add_subscriber("nfl", "a@x.com")
+        self.assertTrue((Path(d) / "subscribers.json").exists())
+        self.assertFalse((ROOT / "data" / "subscribers.json").read_text().count("a@x.com"))     # nothing leaked into the public repo's file
+
+    def test_legacy_fallback_when_nothing_is_configured(self):
+        import tempfile
+        m = self.reload_with(CV_PRIVATE_DIR=None, GITHUB_ACTIONS=None, HOME=tempfile.mkdtemp())
+        self.assertEqual(m.DATA_SOURCE, "legacy")
+        self.assertEqual(m._SYNC_RELS, ["data/subscribers.json", "data/subscriber_events.json"])
+
+    def test_unreadable_list_in_actions_is_an_error_not_an_empty_list(self):
+        import tempfile
+        m = self.reload_with(CV_PRIVATE_DIR=tempfile.mkdtemp(), GITHUB_ACTIONS="true")          # a checkout that has no subscribers.json
+        self.assertEqual(m.load_subscribers(), {})
+        self.assertEqual(len(m.DATA_ERRORS), 1)
+        self.assertIn("subscribers will NOT be emailed", m.DATA_ERRORS[0])
+        self.assertEqual(m.recipients_for("nfl"), [e for e in [m.OWNER_EMAIL] if e])
+
+    def test_missing_list_locally_is_just_empty(self):
+        import tempfile
+        m = self.reload_with(CV_PRIVATE_DIR=tempfile.mkdtemp(), GITHUB_ACTIONS=None)
+        self.assertEqual(m.load_subscribers(), {})
+        self.assertEqual(m.DATA_ERRORS, [])
+
+    def test_workflows_use_the_private_data_action_and_expiry_commits_there(self):
+        for wf in ("auto-lock-settle", "cfb-lock-early", "cfb-lock-evening", "european-lock-early", "hockey-lock-evening", "soccer-lock-evening", "send-expiry-reminders"):
+            text = (ROOT / ".github" / "workflows" / f"{wf}.yml").read_text()
+            self.assertIn("uses: ./.github/actions/private-data", text, wf)
+            self.assertIn("PRIVATE_REPO_TOKEN", text, wf)
+        text = (ROOT / ".github" / "workflows" / "send-expiry-reminders.yml").read_text()
+        self.assertIn('"$CV_PRIVATE_DIR"', text)
+        self.assertIn(".private-data/", (ROOT / ".gitignore").read_text())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

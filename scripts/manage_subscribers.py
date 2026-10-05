@@ -2,7 +2,7 @@
 """
 manage_subscribers.py — easy CLI for adding/removing/listing paid mailing
 list subscribers (see _subscribers.py). MVP is Venmo + this script: someone
-pays, you run `add`, and it commits + pushes data/subscribers.json for you
+pays, you run `add`, and it commits + pushes subscribers.json for you (to the private repo, ~/clairvoyance-private)
 (see sync_subscribers_to_git()) -- nothing else to remember afterward.
 
 Usage:

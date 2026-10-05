@@ -46,8 +46,29 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _gmail_email import send_email as _send_gmail  # noqa: E402
 
-SUBSCRIBERS_FILE = Path(__file__).resolve().parent.parent / "data" / "subscribers.json"
-EVENTS_FILE = Path(__file__).resolve().parent.parent / "data" / "subscriber_events.json"
+# WHERE THE SUBSCRIBER DATA LIVES. The list is personal data, so it is kept in a PRIVATE repo (Purple-Wraith/clairvoyance-private), not in this public
+# one. Resolution order:
+#   1. $CV_PRIVATE_DIR -- set by .github/actions/private-data in workflows (a checkout of the private repo);
+#   2. ~/clairvoyance-private -- the local clone the admin tools (manage_subscribers.py / subscribers_admin.py) use;
+#   3. data/ in this repo -- the legacy location, still read so nothing breaks before the move is finished.
+# In GitHub Actions, if none of these holds a subscribers.json the list is UNAVAILABLE: see DATA_ERRORS (runs end red, and say so loudly).
+_REPO = Path(__file__).resolve().parent.parent
+
+
+def _resolve_data_dir() -> tuple[Path, str]:
+    env = os.environ.get("CV_PRIVATE_DIR")
+    if env:
+        return Path(env), "private"
+    local = Path.home() / "clairvoyance-private"
+    if (local / "subscribers.json").exists() and not os.environ.get("GITHUB_ACTIONS"):
+        return local, "private-local"
+    return _REPO / "data", "legacy"
+
+
+DATA_DIR, DATA_SOURCE = _resolve_data_dir()
+SUBSCRIBERS_FILE = DATA_DIR / "subscribers.json"
+EVENTS_FILE = DATA_DIR / "subscriber_events.json"
+DATA_ERRORS: list[str] = []      # filled when the list cannot be read in Actions; callers turn a non-empty list into a red run
 PRODUCTS = ("nfl", "cfb", "nba", "hockey", "soccer")
 OWNER_EMAIL = os.environ.get("LOCKS_EMAIL_TO", "") or os.environ.get("SOCIAL_CARD_EMAIL_TO", "")
 EXPIRY_DAYS = 30
@@ -122,7 +143,13 @@ def load_subscribers() -> dict[str, list[dict]]:
     recipients_for()/active_subscribers() instead."""
     try:
         return json.loads(SUBSCRIBERS_FILE.read_text())
-    except Exception:
+    except Exception as exc:
+        if os.environ.get("GITHUB_ACTIONS") and not DATA_ERRORS:
+            # An unreadable list must not look like "no subscribers": nobody would be emailed and nothing would say so.
+            msg = (f"subscriber list unavailable ({SUBSCRIBERS_FILE}: {exc.__class__.__name__}) -- subscribers will NOT be emailed. "
+                   f"Check the PRIVATE_REPO_TOKEN secret / the private-data step.")
+            DATA_ERRORS.append(msg)
+            print(f"::error::{msg}")
         return {}
 
 
@@ -130,11 +157,13 @@ def save_subscribers(data: dict[str, list[dict]]) -> None:
     SUBSCRIBERS_FILE.write_text(json.dumps(data, indent=2) + "\n")
 
 
-REPO_ROOT = SUBSCRIBERS_FILE.parent.parent
+# The git repo holding the data file, and the paths to commit inside it: the private repo's root, or data/ inside this repo (legacy).
+REPO_ROOT = DATA_DIR if DATA_SOURCE != "legacy" else DATA_DIR.parent
+_SYNC_RELS = ["subscribers.json", "subscriber_events.json"] if DATA_SOURCE != "legacy" else ["data/subscribers.json", "data/subscriber_events.json"]
 
 
 def sync_subscribers_to_git(message: str) -> tuple[bool, str]:
-    """Commits + pushes data/subscribers.json (and data/subscriber_events.json,
+    """Commits + pushes subscribers.json (and subscriber_events.json -- in the private repo, or data/ in this one while legacy;
     the add/remove/renew history add_subscriber()/remove_subscriber() also
     write locally) so an add/remove made locally (CLI or the web admin
     tool) actually reaches the GitHub Actions runs without a separate
@@ -156,7 +185,7 @@ def sync_subscribers_to_git(message: str) -> tuple[bool, str]:
             env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
         )
 
-    rels = ["data/subscribers.json", "data/subscriber_events.json"]
+    rels = _SYNC_RELS
     run("add", *rels)
     diff = run("diff", "--cached", "--quiet", "--", *rels)
     if diff.returncode == 0:

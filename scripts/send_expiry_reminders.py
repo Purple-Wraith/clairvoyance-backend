@@ -26,6 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from datetime import datetime  # noqa: E402
+import _subscribers  # noqa: E402
 from _subscribers import subscribers_needing_reminder, mark_reminder_sent, EMAIL_BANNER_URL, fmt_mt_date  # noqa: E402
 from auto_lock_settle import PRODUCT_LABEL  # noqa: E402
 from _gmail_email import send_email, EMAIL_WRAP_OPEN, EMAIL_WRAP_CLOSE_SUBSCRIBER  # noqa: E402
@@ -91,6 +92,8 @@ def main() -> None:
     args = ap.parse_args()
 
     needing = subscribers_needing_reminder(days_before=args.days_before)
+    if _subscribers.DATA_ERRORS:
+        raise SystemExit(1)       # the list could not be read: "nobody needs a reminder" would be a lie (already printed as ::error::)
     if not needing:
         print("No subscribers need a reminder today.")
         return
