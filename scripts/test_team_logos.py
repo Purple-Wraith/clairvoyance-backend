@@ -250,9 +250,10 @@ class BrowserChecks(unittest.TestCase):
         self.assertNotIn("<img", long_key)
         # a hint URL on any other host is rejected (no injection through a data file) -> badge only
         self.assertNotIn("<img", page.evaluate("_teamLogoHTML('nhl','QQQ','h',44,{url:'https://evil.example/x.png'})"))
-        # failed load: the gate aborts every non-localhost request, so the <img> errors -> retry raw -> removed -> badge remains
+        # failed load (a URL the page has never loaded: the real BOS logo may already sit in the browser's memory cache from an earlier render, and a cached
+        # image never reaches the gate -- that made this pass locally and fail on CI): the gate aborts every non-localhost request, so the <img> errors -> retry raw -> removed -> badge remains
         page.evaluate("""()=>{const d=document.createElement('div');d.id='tlt';document.body.appendChild(d);
-          d.innerHTML=_teamLogoHTML('nhl','BOS','h',44,{url:'https://a.espncdn.com/i/teamlogos/nhl/500/bos.png'})}""")
+          d.innerHTML=_teamLogoHTML('nhl','BOS','h',44,{url:'https://a.espncdn.com/i/teamlogos/nhl/500/never-loaded-test-logo.png'})}""")
         # poll instead of a fixed 2.5 s sleep: the error -> retry -> remove chain takes longer on a loaded CI runner
         try:
             page.wait_for_function("()=>!document.querySelector('#tlt .tlg img')", timeout=15000)

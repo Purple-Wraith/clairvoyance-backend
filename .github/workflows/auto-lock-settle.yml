@@ -159,7 +159,7 @@ concurrency:
 
 jobs:
   auto-lock-settle:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Was 15. A lock slot now also runs the in-workflow NHL/NFL odds refresh (lock_prep.py, up to ~10 min) before the pass.
     timeout-minutes: 30
     steps:

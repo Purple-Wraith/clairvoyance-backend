@@ -67,7 +67,7 @@ concurrency:
 
 jobs:
   hockey-lock-evening:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Was 10 min. Now includes the in-workflow odds refresh (lock_prep.py: ~1-5 min) before the lock pass.
     timeout-minutes: 25
     steps:

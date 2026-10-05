@@ -26,6 +26,11 @@ class WorkflowRefs(unittest.TestCase):
             self.assertFalse((WF / old).exists(), old)
         self.assertTrue((WF / "cfb-roster-monthly.yml").exists())          # deliberately kept separate
 
+    def test_runners_are_pinned(self):
+        """`ubuntu-latest` moves to Ubuntu 26 on 2026-10-19 (browser installs / apt deps could break) -- every job stays on 24.04 until we choose to move."""
+        for f in WF.glob("*.yml"):
+            self.assertNotIn("ubuntu-latest", f.read_text(), f.name)
+
     def test_nfl_roster_runs_every_other_week_only(self):
         text = (WF / "nfl-weekly-refresh.yml").read_text()
         self.assertIn("WEEK % 2", text)
