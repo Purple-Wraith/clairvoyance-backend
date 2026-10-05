@@ -1,0 +1,10 @@
+name = "clairvoyance-scheduler"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[triggers]
+# one trigger for everything: the Worker decides what is due in each 10-minute slot (SCHEDULE in worker.js). Keep in step with TICK_MIN.
+crons = ["*/10 * * * *"]
+
+# Secret (set once, never committed):  cd scheduler && npx wrangler secret put GH_TOKEN
+#   -> a fine-grained GitHub token for Purple-Wraith/clairvoyance-backend with "Actions: Read and write" and nothing else.

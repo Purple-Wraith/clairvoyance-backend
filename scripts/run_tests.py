@@ -41,6 +41,13 @@ def main() -> int:
             print(f"SKIP  {name:<38}       {SKIP[name]}")
             continue
         results.append(run([sys.executable, f"scripts/{name}"], name))
+    if not words:
+        import shutil
+        if shutil.which("node"):
+            for mjs in ("relay/test_parse.mjs", "scheduler/test_scheduler.mjs"):
+                results.append(run(["node", mjs], mjs))
+        else:
+            print("SKIP  node tests (node not installed)")
     failed = results.count(False)
     print(f"\n{len(results) - failed}/{len(results)} passed" + (f", {failed} FAILED" if failed else ""))
     return 1 if failed else 0
