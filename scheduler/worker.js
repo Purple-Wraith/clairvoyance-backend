@@ -18,22 +18,26 @@ export const SCHEDULE = [
   { wf: "scheduled-refresh.yml", at: ["05:13", "15:13", "21:13"] },
   { wf: "hockey-euro-refresh.yml", at: ["08:10", "12:10", "21:00"] },
   { wf: "daily-player-stats-refresh.yml", at: ["15:45"] },
-  { wf: "opta-soccer-stats-daily.yml", at: ["11:33"] },
-  { wf: "soccer-schedule-tomorrow.yml", at: ["03:50"] },
-  { wf: "cfb-stats-weekly.yml", at: ["14:33"] },
-  { wf: "cfb-rankings-weekly.yml", at: ["13:47"], dow: [1, 2] },
-  { wf: "nfl-stats-weekly.yml", at: ["13:53"], dow: [2] },
-  { wf: "nfl-roster-weekly.yml", at: ["12:23"], dow: [1] },
+  { wf: "soccer-refresh.yml", at: ["03:50"], inputs: { which: "tomorrow" } },
+  { wf: "soccer-refresh.yml", at: ["11:33"], inputs: { which: "opta" } },
+  { wf: "cfb-refresh.yml", at: ["14:33"] },
+  { wf: "cfb-refresh.yml", at: ["02:17"], dow: [1] },
+  { wf: "nfl-weekly-refresh.yml", at: ["13:53"], dow: [2] },
 ];
 
 const slotOf = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return Math.floor((h * 60 + m) / TICK_MIN); };
 
-/** Workflow files due in the tick that contains `when` (a Date or epoch ms). */
-export function dueWorkflows(when) {
+/** Schedule entries ({wf, inputs?}) due in the tick that contains `when` (a Date or epoch ms). */
+export function dueEntries(when) {
   const d = new Date(when);
   const slot = Math.floor((d.getUTCHours() * 60 + d.getUTCMinutes()) / TICK_MIN);
   const dow = d.getUTCDay();
-  return SCHEDULE.filter((s) => (!s.dow || s.dow.includes(dow)) && s.at.some((t) => slotOf(t) === slot)).map((s) => s.wf);
+  return SCHEDULE.filter((s) => (!s.dow || s.dow.includes(dow)) && s.at.some((t) => slotOf(t) === slot));
+}
+
+/** Workflow files due in that tick (names only, de-duplicated). */
+export function dueWorkflows(when) {
+  return [...new Set(dueEntries(when).map((s) => s.wf))];
 }
 
 async function gh(env, path, init = {}, fetchImpl = fetch) {
@@ -58,13 +62,12 @@ async function alreadyRunning(env, wf, fetchImpl) {
 
 /** Starts every workflow due at `when`. Returns [{wf, result}] where result is "dispatched" | "skipped: ..." | "error: ...". */
 export async function runTick(env, when, fetchImpl = fetch) {
-  const due = dueWorkflows(when);
   const out = [];
-  for (const wf of due) {
+  for (const { wf, inputs } of dueEntries(when)) {
     if (!env.GH_TOKEN) { out.push({ wf, result: "skipped: GH_TOKEN secret not set" }); continue; }
     try {
       if (await alreadyRunning(env, wf, fetchImpl)) { out.push({ wf, result: "skipped: already queued or running" }); continue; }
-      const r = await gh(env, `/actions/workflows/${wf}/dispatches`, { method: "POST", body: JSON.stringify({ ref: "main" }) }, fetchImpl);
+      const r = await gh(env, `/actions/workflows/${wf}/dispatches`, { method: "POST", body: JSON.stringify(inputs ? { ref: "main", inputs } : { ref: "main" }) }, fetchImpl);
       out.push({ wf, result: r.status === 204 ? "dispatched" : `error: HTTP ${r.status}` });
     } catch (e) {
       out.push({ wf, result: `error: ${e.message}` });

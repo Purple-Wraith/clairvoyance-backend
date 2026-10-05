@@ -155,7 +155,7 @@ class MergeRules(unittest.TestCase):
         orig_nhl = {k: json.dumps(v, indent=2) for k, v in d["nhl"].items()}
         out, changed = N.merge_nhl_core(d, standings(), {"goalies": {"X": 1}}, {}, {}, [], "S")
         for k in orig:
-            if k in ("nhl",):
+            if k in ("nhl", "nhlCoreAt"):          # nhlCoreAt is the stamp merge_nhl_core deliberately rewrites ("S" here); the real file may already carry one
                 continue
             self.assertEqual(json.dumps(out[k], indent=2), orig[k], k)
         for k in orig_nhl:

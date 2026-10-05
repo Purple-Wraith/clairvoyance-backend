@@ -1,0 +1,104 @@
+name: Soccer Refresh (Tomorrow Schedule + Opta Stats)
+
+# Merged 2026-10-05 from soccer-schedule-tomorrow.yml + opta-soccer-stats-daily.yml. They keep their OWN times -- one workflow, two jobs-of-work chosen by which
+# cron fired (github.event.schedule):
+#
+#   03:50 UTC (9:50 PM MT)  TOMORROW'S SCHEDULE: scrapes tomorrow's schedule/odds for the European leagues (CL, PL, La Liga, Serie A) into a SEPARATE file,
+#                           docs/soccer_schedule_tomorrow.json (the live site's today-only soccer_schedule.json is never touched), 10 minutes ahead of
+#                           soccer-lock-evening.yml's 10:00 PM MT pass, which reads it. Odds for these leagues are posted 1-2+ days ahead, so there is no
+#                           reason to wait for the morning of; scripts/scrape_soccer_schedule.py --tomorrow. Needs only `requests`.
+#   11:33 UTC (5:33 AM MT)  OPTA STATS: team-stats reference data + the _SOC_XG win-probability fallback table in docs/app.html (without it the xG
+#                           numbers and rosters freeze -- promoted/relegated clubs stayed in the table for months). Needs Playwright.
+#
+# Manual runs choose with the `which` input (default: both). The live-tracker watchdog re-dispatches the tomorrow part with which=tomorrow when
+# soccer_schedule_tomorrow.json is stale at 10 PM MT. Like every MT time here these are fixed UTC crons: they land ~1 h earlier in MT once MST returns in November.
+
+on:
+  schedule:
+    - cron: '50 3 * * *'
+    - cron: '33 11 * * *'
+  workflow_dispatch:
+    inputs:
+      which:
+        description: 'What to refresh'
+        required: false
+        type: choice
+        options: ['both', 'tomorrow', 'opta']
+        default: 'both'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: soccer-refresh-${{ github.event.schedule || inputs.which || 'both' }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Plan
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          WHICH: ${{ inputs.which }}
+        run: |
+          W="${WHICH:-both}"
+          if [ "$EVENT" = "schedule" ]; then
+            case "$SCHEDULE" in "50 3 * * *") W=tomorrow ;; *) W=opta ;; esac
+          fi
+          T=0; O=0
+          [ "$W" = "tomorrow" ] || [ "$W" = "both" ] && T=1
+          [ "$W" = "opta" ] || [ "$W" = "both" ] && O=1
+          echo "tomorrow=$T" >> "$GITHUB_OUTPUT"
+          echo "opta=$O" >> "$GITHUB_OUTPUT"
+          echo "plan: $W (tomorrow=$T opta=$O)"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -q requests
+
+      - name: Install browser (Opta only)
+        if: ${{ steps.plan.outputs.opta == '1' }}
+        run: |
+          pip install -q playwright
+          for i in 1 2 3; do playwright install chromium --with-deps && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
+
+      - name: Git identity
+        run: |
+          git config user.name  "Clairvoyance Bot"
+          git config user.email "bot@clairvoyance"
+
+      - name: Scrape tomorrow's schedule and push
+        id: tomorrow
+        if: ${{ steps.plan.outputs.tomorrow == '1' }}
+        continue-on-error: true
+        env:
+          TZ: America/Denver
+        run: python3 scripts/scrape_soccer_schedule.py --tomorrow --push
+
+      - name: Scrape Opta stats and push
+        id: opta
+        if: ${{ steps.plan.outputs.opta == '1' }}
+        continue-on-error: true
+        run: python3 scripts/scrape_opta_stats.py --push
+
+      - name: Fail the run if any part failed
+        if: ${{ always() }}
+        run: |
+          bad=""
+          [ "${{ steps.tomorrow.outcome }}" = "failure" ] && bad="$bad tomorrow-schedule"
+          [ "${{ steps.opta.outcome }}" = "failure" ] && bad="$bad opta"
+          if [ -n "$bad" ]; then echo "::error::soccer refresh failed for:$bad"; exit 1; fi
+          echo "soccer refresh OK"

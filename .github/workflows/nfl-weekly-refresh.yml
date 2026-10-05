@@ -1,0 +1,83 @@
+name: NFL Weekly Refresh (stats, standings, player stats, roster)
+
+# Merged 2026-10-05 from nfl-stats-weekly.yml (Tuesday) + nfl-roster-weekly.yml (Monday): both are weekly NFL pulls from the same script
+# (scripts/fetch_nfl.py), one runner now does all four modes in a row. The roster moves from Monday to Tuesday with the rest -- it barely changes
+# mid-season (venue capacity / indoor status; no realignment risk like CFB), so a day's difference does not matter.
+#
+# Cadence (the owner's explicit request, kept): every Tuesday morning, right after Monday Night Football closes the week, so next week's
+# stats/standings are in before Thursday's kickoff. A single Tuesday run covers team stats (offense/defense/special teams), standings
+# (W-L/PF/PA/diff), real per-player season stats for every active offensive skill-position player (the player-props model), and the roster.
+# player_stats fetches each team's roster then each player's own stats (~500-650 requests league-wide) -- budget real time for that step,
+# especially early in a season when the current-year auto-detect comes back empty and it re-runs against the prior season.
+#
+# Each mode is its own step with continue-on-error, so one failing never skips the others, and a final step turns any failure into a RED run.
+
+on:
+  schedule:
+    # ~Tuesday 7:00 AM MT = 13:00 UTC (MDT) / 14:00 UTC (MST); minute nudged off :00 (account-wide congestion cleanup 2026-09-09).
+    # GitHub starts scheduled runs 3-6 h late; scheduler/worker.js (Cloudflare) can start this workflow on time via workflow_dispatch.
+    - cron: '53 13 * * 2'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nfl-weekly-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TZ: America/Denver
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -q requests
+
+      - name: Git identity
+        run: |
+          git config user.name  "Clairvoyance Bot"
+          git config user.email "bot@clairvoyance"
+
+      - name: Refresh team stats
+        id: stats
+        continue-on-error: true
+        run: python3 scripts/fetch_nfl.py --mode stats --push
+
+      - name: Refresh standings
+        id: standings
+        continue-on-error: true
+        run: python3 scripts/fetch_nfl.py --mode standings --push
+
+      - name: Refresh player stats
+        id: player_stats
+        continue-on-error: true
+        run: python3 scripts/fetch_nfl.py --mode player_stats --push
+
+      - name: Refresh roster
+        id: roster
+        continue-on-error: true
+        run: python3 scripts/fetch_nfl.py --mode roster --push
+
+      - name: Fail the run if any step failed
+        if: ${{ always() }}
+        run: |
+          bad=""
+          [ "${{ steps.stats.outcome }}" = "failure" ] && bad="$bad stats"
+          [ "${{ steps.standings.outcome }}" = "failure" ] && bad="$bad standings"
+          [ "${{ steps.player_stats.outcome }}" = "failure" ] && bad="$bad player_stats"
+          [ "${{ steps.roster.outcome }}" = "failure" ] && bad="$bad roster"
+          if [ -n "$bad" ]; then echo "::error::NFL refresh failed for:$bad"; exit 1; fi
+          echo "all four NFL modes refreshed"

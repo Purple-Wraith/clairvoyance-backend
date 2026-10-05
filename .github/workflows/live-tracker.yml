@@ -121,7 +121,7 @@ jobs:
               gh workflow run "CFB Auto Lock (Early)" -f live=true || echo "::warning::Watchdog dispatch failed (non-fatal, will retry next tick)"
             fi
           fi
-          # Soccer evening-lock's DATA FEED: soccer-schedule-tomorrow.yml
+          # Soccer evening-lock's DATA FEED: soccer-refresh.yml (tomorrow part)
           # has no catch-up slots of its own (single cron trigger), unlike
           # every lock workflow it feeds -- confirmed live 2026-08-29/30
           # that a brand-new workflow's very first scheduled trigger can
@@ -133,8 +133,8 @@ jobs:
             TOMORROW_ESPN=$(date -d tomorrow +%Y%m%d)
             SNAPSHOT_DATE=$(python3 -c "import json; print(json.load(open('docs/soccer_schedule_tomorrow.json')).get('date',''))" 2>/dev/null || echo "")
             if [ "$SNAPSHOT_DATE" != "$TOMORROW_ESPN" ]; then
-              echo "::notice::Watchdog: soccer_schedule_tomorrow.json not refreshed for $TOMORROW_ESPN yet at ${HOUR_MT}:xx MT (has '$SNAPSHOT_DATE') -- dispatching Soccer Schedule Refresh (Tomorrow)."
-              gh workflow run "Soccer Schedule Refresh (Tomorrow)" || echo "::warning::Watchdog dispatch failed (non-fatal, will retry next tick)"
+              echo "::notice::Watchdog: soccer_schedule_tomorrow.json not refreshed for $TOMORROW_ESPN yet at ${HOUR_MT}:xx MT (has '$SNAPSHOT_DATE') -- dispatching Soccer Refresh (tomorrow part)."
+              gh workflow run "Soccer Refresh (Tomorrow Schedule + Opta Stats)" -f which=tomorrow || echo "::warning::Watchdog dispatch failed (non-fatal, will retry next tick)"
             fi
           fi
           # Soccer evening-lock window: 10:00-11:45pm MT, matching
@@ -175,7 +175,7 @@ jobs:
             GEN_DATE=$(python3 -c "import json; print(json.load(open('docs/engine_performance.json')).get('generated_at','')[:10])" 2>/dev/null || echo "")
             if [ "$GEN_DATE" != "$TODAY_MT" ]; then
               echo "::notice::Watchdog: landing performance JSON not refreshed today (shows $GEN_DATE) by 1pm MT -- dispatching Landing Page Performance Refresh."
-              gh workflow run "Landing Page Performance Refresh" || echo "::warning::Watchdog dispatch failed (non-fatal, will retry next tick)"
+              gh workflow run "Landing Page Performance Refresh (manual)" || echo "::warning::Watchdog dispatch failed (non-fatal, will retry next tick)"
             fi
           fi
           # Daily Schedules + Standings Refresh (CFB/NFL/soccer schedule +

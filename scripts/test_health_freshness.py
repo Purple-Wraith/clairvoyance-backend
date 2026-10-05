@@ -202,8 +202,8 @@ class RefreshWorkflows(unittest.TestCase):
         names = {f for f, *_ in H.REFRESH_MONITORED}
         for f in names:
             self.assertTrue((ROOT / ".github" / "workflows" / f).exists(), f)
-        for must in ("scheduled-refresh.yml", "daily-schedules-refresh.yml", "hockey-euro-refresh.yml", "opta-soccer-stats-daily.yml",
-                     "cfb-stats-weekly.yml", "nfl-stats-weekly.yml", "live-tracker.yml", "daily-player-stats-refresh.yml"):
+        for must in ("scheduled-refresh.yml", "daily-schedules-refresh.yml", "hockey-euro-refresh.yml", "soccer-refresh.yml",
+                     "cfb-refresh.yml", "nfl-weekly-refresh.yml", "live-tracker.yml", "daily-player-stats-refresh.yml"):
             self.assertIn(must, names)
 
     def test_weekly_digest_includes_the_refresh_workflows(self):

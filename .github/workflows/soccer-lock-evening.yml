@@ -1,13 +1,13 @@
 name: Soccer Auto Lock (Evening — Tomorrow's Slate)
 
 # Evening-prior + pre-dawn lock for the 4 European soccer leagues (Champions League, Premier League, La Liga, Serie A). Originally a
-# single "10:00 PM MT, lock TOMORROW's games" slot fed by soccer-schedule-tomorrow.yml ten minutes earlier.
+# single "10:00 PM MT, lock TOMORROW's games" slot fed by soccer-refresh.yml (tomorrow part) ten minutes earlier.
 #
 # WHAT CHANGED 2026-10-02 (same three defects as hockey-lock-evening.yml, plus a data-feed one):
 #  1. ROLLING HORIZON: locks today's AND tomorrow's games relative to when the pass really runs (EPL kicks off 7:00 AM MT; the old
 #     slot ran at ~4:20 AM MT, after midnight, when "tomorrow" is the wrong day). It reads BOTH published snapshots,
 #     soccer_schedule.json (today) and soccer_schedule_tomorrow.json.
-#  2. DATA FEED: the old design needed soccer-schedule-tomorrow.yml to have run AND Pages to have redeployed before this slot.
+#  2. DATA FEED: the old design needed soccer-refresh.yml (tomorrow part) to have run AND Pages to have redeployed before this slot.
 #     lock_prep.py now re-scrapes both snapshots itself (ESPN API, ~30s) and the pass reads the checkout it just refreshed.
 #  3. SUCCESS != DONE: the marker is written only by a complete pass (see hockey-lock-evening.yml).
 # No odds-age cap applies to soccer (only hockey has one) but fresher prices are strictly better.

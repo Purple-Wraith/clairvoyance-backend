@@ -234,15 +234,12 @@ def check_workflow(filename: str, label: str, max_age_hours: int) -> str | None:
 REFRESH_MONITORED = [
     ("scheduled-refresh.yml", "Main data refresh (data.json) 3x/day", 20, 1),
     ("daily-schedules-refresh.yml", "Daily schedules refresh", 20, 1),
-    ("soccer-schedule-tomorrow.yml", "Soccer tomorrow-slate schedule", 36, 1),
+    ("soccer-refresh.yml", "Soccer refresh (tomorrow schedule + Opta stats)", 36, 1),
     ("hockey-euro-refresh.yml", "European hockey refresh (Liiga/SHL/NLA/Extraliga)", 20, 1),
-    ("opta-soccer-stats-daily.yml", "Opta soccer stats", 36, 1),
     ("daily-player-stats-refresh.yml", "Daily player & prop stats refresh", 36, 1),
-    ("cfb-stats-weekly.yml", "CFB team stats", 36, 1),
-    ("cfb-rankings-weekly.yml", "CFB power rankings (weekly)", 9 * 24, 1),
+    ("cfb-refresh.yml", "CFB stats + rankings", 36, 1),
     ("cfb-roster-monthly.yml", "CFB rosters (monthly)", 35 * 24, 1),
-    ("nfl-stats-weekly.yml", "NFL stats (weekly)", 9 * 24, 1),
-    ("nfl-roster-weekly.yml", "NFL rosters (weekly)", 9 * 24, 1),
+    ("nfl-weekly-refresh.yml", "NFL weekly refresh (stats, standings, players, roster)", 9 * 24, 1),
     # Runs every 30 min 12:00-05:00 UTC only (7h nightly gap + delay) and flakes are cheap there: alert on 3 in a row.
     ("live-tracker.yml", "Live tracker (live_data.json)", 14, 3),
 ]
@@ -304,10 +301,10 @@ WORKFLOW_FOR_FILE = {
     "shl_schedule.json": "hockey-euro-refresh.yml", "liiga_schedule.json": "hockey-euro-refresh.yml",
     "nla_schedule.json": "hockey-euro-refresh.yml", "extraliga_schedule.json": "hockey-euro-refresh.yml",
     "live_data.json": "live-tracker.yml", "nba_schedule.json": "daily-schedules-refresh.yml",
-    "cfb_team_stats.json": "cfb-stats-weekly.yml", "nfl_team_stats.json": "nfl-stats-weekly.yml",
-    "nfl_injuries.json": "nfl-stats-weekly.yml", "nfl_transactions.json": "nfl-stats-weekly.yml",
-    "nfl_player_stats.json": "nfl-stats-weekly.yml", "nfl_standings.json": "nfl-stats-weekly.yml",
-    "cfb_power.json": "cfb-rankings-weekly.yml", "player_stats.json": "daily-player-stats-refresh.yml",
+    "cfb_team_stats.json": "cfb-refresh.yml", "nfl_team_stats.json": "nfl-weekly-refresh.yml",
+    "nfl_injuries.json": "nfl-weekly-refresh.yml", "nfl_transactions.json": "nfl-weekly-refresh.yml",
+    "nfl_player_stats.json": "nfl-weekly-refresh.yml", "nfl_standings.json": "nfl-weekly-refresh.yml",
+    "cfb_power.json": "cfb-refresh.yml", "player_stats.json": "daily-player-stats-refresh.yml",
 }
 
 

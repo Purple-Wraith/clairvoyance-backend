@@ -253,7 +253,11 @@ class BrowserChecks(unittest.TestCase):
         # failed load: the gate aborts every non-localhost request, so the <img> errors -> retry raw -> removed -> badge remains
         page.evaluate("""()=>{const d=document.createElement('div');d.id='tlt';document.body.appendChild(d);
           d.innerHTML=_teamLogoHTML('nhl','BOS','h',44,{url:'https://a.espncdn.com/i/teamlogos/nhl/500/bos.png'})}""")
-        page.wait_for_timeout(2500)
+        # poll instead of a fixed 2.5 s sleep: the error -> retry -> remove chain takes longer on a loaded CI runner
+        try:
+            page.wait_for_function("()=>!document.querySelector('#tlt .tlg img')", timeout=15000)
+        except Exception:
+            pass
         st = page.evaluate("""()=>{const e=document.querySelector('#tlt .tlg');return {img:!!e.querySelector('img'),ok:e.classList.contains('ok'),
            txt:getComputedStyle(e.querySelector('.tlt')).visibility, text:e.querySelector('.tlt').textContent, w:e.getBoundingClientRect().width}}""")
         self.assertEqual(st, {"img": False, "ok": False, "txt": "visible", "text": "BOS", "w": 44})

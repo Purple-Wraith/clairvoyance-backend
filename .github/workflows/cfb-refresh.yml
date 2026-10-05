@@ -1,0 +1,85 @@
+name: CFB Stats + Rankings Refresh
+
+# Merged 2026-10-05 from cfb-stats-weekly.yml + cfb-rankings-weekly.yml (the monthly roster refresh, cfb-roster-monthly.yml, stays separate -- it is rarely needed).
+#
+# TEAM STATS (every run): offense/defense/special-teams for all 102 tracked teams, feeding the MC sim's totals projection. Daily 14:33 UTC (~8 AM MT)
+# plus Sunday evening (02:17 UTC Monday) after the week's games. It was a TEMPORARY daily cadence for the 2026 season opener (the model was on the 2025
+# fallback until real 2026 box scores existed, and fetch_cfb.py's season auto-detect needs a refresh to notice); revert to Sun/Mon only once the
+# auto-detect has switched over and a normal week or two has passed.
+#
+# RANKINGS + FPI (Monday and Tuesday UTC, and manual runs only): AP Top 25 and FPI/Resume/Efficiencies update on ESPN's own schedule -- polls drop
+# Sunday evening / Monday / Tuesday -- so the daily run on those days also does rankings, as the separate weekly workflow did. This step needs
+# Playwright (www.espn.com sits behind an AWS WAF JS challenge a plain requests.get can never solve; before that fix it silently wrote 0 FPI rows
+# every run -- see fetch_cfb.py's _fetch_fpi_view), so the browser is only installed on the days it is needed.
+#
+# Each part is its own step with continue-on-error; a final step turns any failure into a RED run.
+
+on:
+  schedule:
+    - cron: '33 14 * * *'
+    - cron: '17 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cfb-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TZ: America/Denver
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Plan (rankings only on Mon/Tue UTC or a manual run)
+        id: plan
+        run: |
+          DOW=$(date -u +%u)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$DOW" = "1" ] || [ "$DOW" = "2" ]; then echo "rankings=1" >> "$GITHUB_OUTPUT"; else echo "rankings=0" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -q requests
+
+      - name: Install browser (rankings days only)
+        if: ${{ steps.plan.outputs.rankings == '1' }}
+        run: |
+          pip install -q playwright
+          for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
+
+      - name: Git identity
+        run: |
+          git config user.name  "Clairvoyance Bot"
+          git config user.email "bot@clairvoyance"
+
+      - name: Refresh team stats
+        id: stats
+        continue-on-error: true
+        run: python3 scripts/fetch_cfb.py --mode stats --push
+
+      - name: Refresh rankings + FPI
+        id: rankings
+        if: ${{ steps.plan.outputs.rankings == '1' }}
+        continue-on-error: true
+        run: python3 scripts/fetch_cfb.py --mode rankings --push
+
+      - name: Fail the run if any step failed
+        if: ${{ always() }}
+        run: |
+          bad=""
+          [ "${{ steps.stats.outcome }}" = "failure" ] && bad="$bad stats"
+          [ "${{ steps.rankings.outcome }}" = "failure" ] && bad="$bad rankings"
+          if [ -n "$bad" ]; then echo "::error::CFB refresh failed for:$bad"; exit 1; fi
+          echo "CFB refresh OK"

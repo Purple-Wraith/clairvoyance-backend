@@ -1,16 +1,21 @@
 // node scheduler/test_scheduler.mjs -- offline: slot matching, weekday filters, dedupe, dispatch, failure reporting (GitHub API faked)
 import assert from "node:assert/strict";
-import { dueWorkflows, runTick, SCHEDULE, TICK_MIN } from "./worker.js";
+import { dueWorkflows, dueEntries, runTick, SCHEDULE, TICK_MIN } from "./worker.js";
 import { readFileSync, readdirSync } from "node:fs";
 
 const at = (iso) => Date.parse(iso);
 assert.deepEqual(dueWorkflows(at("2026-10-05T05:13:30Z")), ["scheduled-refresh.yml"]);
 assert.deepEqual(dueWorkflows(at("2026-10-05T05:19:59Z")), ["scheduled-refresh.yml"]);          // same 10-minute slot
 assert.deepEqual(dueWorkflows(at("2026-10-05T05:20:00Z")), []);
-assert.deepEqual(dueWorkflows(at("2026-10-05T12:20:00Z")).sort(), ["nfl-roster-weekly.yml"]);   // Monday 12:20-12:29 slot
-// weekday filter: nfl-roster-weekly is Monday (2026-10-05) only
-assert.ok(dueWorkflows(at("2026-10-05T12:23:00Z")).includes("nfl-roster-weekly.yml"));             // a Monday
-assert.ok(!dueWorkflows(at("2026-10-06T12:23:00Z")).includes("nfl-roster-weekly.yml"));            // a Tuesday
+assert.deepEqual(dueWorkflows(at("2026-10-05T12:20:00Z")), []);   // Monday 12:20-12:29 slot: nothing (the old NFL roster slot was merged away)
+// weekday filters: nfl-weekly-refresh is Tuesday only (2026-10-06); the Sunday-evening CFB stats run (02:17 UTC) is Monday UTC only
+assert.ok(dueWorkflows(at("2026-10-06T13:53:00Z")).includes("nfl-weekly-refresh.yml"));            // a Tuesday
+assert.ok(!dueWorkflows(at("2026-10-05T13:53:00Z")).includes("nfl-weekly-refresh.yml"));           // a Monday
+assert.ok(dueWorkflows(at("2026-10-05T02:17:00Z")).includes("cfb-refresh.yml"));                   // a Monday
+assert.ok(!dueWorkflows(at("2026-10-06T02:17:00Z")).includes("cfb-refresh.yml"));                  // a Tuesday
+// the two soccer jobs share one workflow and are told apart by an input
+assert.deepEqual(dueEntries(at("2026-10-05T03:50:00Z")), [{ wf: "soccer-refresh.yml", at: ["03:50"], inputs: { which: "tomorrow" } }]);
+assert.deepEqual(dueEntries(at("2026-10-05T11:33:00Z")).map((e) => e.inputs), [{ which: "opta" }]);
 
 // every scheduled workflow file must exist, and its own cron must include the same time (the table is a mirror, not a second opinion)
 const wfDir = new URL("../.github/workflows/", import.meta.url);
@@ -51,5 +56,8 @@ g = fakeGitHub();
 assert.match((await runTick({}, T, g.fetchImpl))[0].result, /GH_TOKEN secret not set/);
 assert.equal(g.calls.length, 0, "no token -> no network calls");
 assert.deepEqual(await runTick({ GH_TOKEN: "t" }, at("2026-10-05T00:01:00Z"), g.fetchImpl), []);   // nothing due
+g = fakeGitHub();
+await runTick({ GH_TOKEN: "t" }, at("2026-10-05T03:50:00Z"), g.fetchImpl);
+assert.deepEqual(JSON.parse(g.calls.find((c) => c.method === "POST").body), { ref: "main", inputs: { which: "tomorrow" } });
 assert.equal(TICK_MIN, 10);
 console.log("scheduler OK:", SCHEDULE.length, "workflows");
