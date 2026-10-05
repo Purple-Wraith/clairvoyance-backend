@@ -458,8 +458,9 @@ class StandingsAndPlayers(unittest.TestCase):
         with mock.patch.object(cu, "fetch_json", fake_fetch), mock.patch.dict(os.environ, {"NBA_SEASON_END_YEAR": "2027"}):
             out = cu.fetch_nba_standings()
             cu.fetch_nba_standings(2026)
-        self.assertIn("season=2027&type=2", urls[0])
-        self.assertIn("season=2026&type=2", urls[1])
+        self.assertIn("season=2027&seasontype=2", urls[0])        # ESPN ignores plain `type=2` and returns preseason standings
+        self.assertIn("season=2026&seasontype=2", urls[1])
+        self.assertNotIn("&type=2", urls[0])
         self.assertEqual(len(out), 30)
         self.assertEqual(out["OKC"]["diff"], "+3.5")
         self.assertEqual(out["OKC"]["w"], "0")

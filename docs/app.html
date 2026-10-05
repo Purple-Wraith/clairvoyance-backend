@@ -3874,7 +3874,7 @@ function _pickRecent(p){try{const n=Date.now();if(!_prWin||n-_prWinAt>30000){_pr
 // Analytics tab ("ADJ. LINES") and as a one-line notation under every pick row (_altNoteHTML). Sports the engine does not shift yet simply have no rows (they are listed as such).
 // scripts/alt_line_scorecard.py implements the same grading from the backend; keep the two in step.
 const _ALT_STD_DEC=1.909;
-const _ALT_COVERAGE=[['CFB','SPREAD + TOTAL'],['NFL','SPREAD + TOTAL'],['NBA','TOTAL'],['NHL','TOTAL'],['SHL','TOTAL'],['LIIGA','TOTAL'],['NLA','TOTAL'],['EXTRALIGA','TOTAL']];
+const _ALT_COVERAGE=[['CFB','SPREAD + TOTAL'],['NFL','SPREAD + TOTAL'],['NBA','SPREAD + TOTAL'],['NHL','TOTAL'],['SHL','TOTAL'],['LIIGA','TOTAL'],['NLA','TOTAL'],['EXTRALIGA','TOTAL']];
 function _altOf(p){const a=p&&p.altLine;return a&&typeof a==='object'&&isFinite(+a.line)&&isFinite(+a.posted)?a:null;}
 // Result of the pick's bet at `line`, from the stored final score: 'win'|'loss'|'push'|null (no usable score / unknown shape).
 function _altGradeAt(p,line){
@@ -13413,10 +13413,9 @@ var NBA_TEAMS={
   NY:{n:'New York Knicks',conf:'East',seed:3,net:6.4,efg:.603,ts:.625,tov:13.2,reb:51.0,ppg:120.4,opp:112.8,pw:8,pl:2,color:'#F58426',star:'Jalen Brunson',star2:'Karl-Anthony Towns',note:'NBA FINALS · LEADS 3-1. Won G4 107-106 at MSG. G5 June 13 at SA — road close-out opportunity.'},
   CLE:{n:'Cleveland Cavaliers',conf:'East',seed:4,net:4.1,efg:.536,ts:.556,tov:11.8,reb:50.0,ppg:110.4,opp:107.6,pw:8,pl:8,color:'#6F263D',star:'Donovan Mitchell',star2:'Evan Mobley',note:'ECF ELIMINATED BY NYK 0-4. Season over. NYK dominant sweep.'}
 };
-// June 13 2026: NBA FINALS G5 — NYK @ SA · 8:30 PM ET ESPN · AT&T Center, San Antonio · NYK leads 3-1
-var NBA_TONIGHT=[
-  {h:'SA',a:'NY',hML:-124,aML:148,ou:212.5,hL:4,ctx:'NBA FINALS G5 · June 13 2026 · 8:30 PM ET ESPN · AT&T Center, San Antonio · NYK LEADS 3-1 · SA ELIMINATION'}
-];
+// Tonight's NBA slate, filled by patchNBATonight() from data.json / nba_schedule.json. It used to start as a hardcoded June 2026 FINALS game (SA vs NY): on any day with
+// no real NBA game that placeholder stayed in place and the props generator produced (and could lock + email) props for a game that did not exist. Empty until real data arrives.
+var NBA_TONIGHT=[];
 // NBA_PLAYERS: All 4 CF teams rosters with ECF-relevant players
 var NBA_PLAYERS=[
   // NY Knicks (ECF)
@@ -13792,6 +13791,7 @@ function _nbaGameCard(espnEv){
       const _sl=_nbaSchedLine(hn,an);   // schedule-file line, used only where ESPN's own event has none
       const espnHL=espnOdds?.homeTeamOdds?.moneyLine??(_sl?_sl.homeML:undefined);const espnAL=espnOdds?.awayTeamOdds?.moneyLine??(_sl?_sl.awayML:undefined);
       const espnOU=espnOdds?.overUnder||(_sl?_sl.ou:null)||null;
+      const espnSprdDetails=espnOdds?.details||'';   // e.g. 'NYK -7.5' (the market favourite + line); was deleted by accident in d3047068 while its reader stayed -> ReferenceError for EVERY NBA game
       const _liveNBA=(typeof _clvGetLiveOdds==='function')?_clvGetLiveOdds('NBA',hn,an):null;
       const _ouRaw=_liveNBA?.ou??espnOU;
       const ouL=_ouRaw!=null?_forceHalfLine(_ouRaw):null;
@@ -13856,8 +13856,9 @@ const espnSprdNum=-_sprdL;const sprdFav=_mktFav;const sprdLbl=sprdFav+' '+espnSp
       // breakdown (see NHL's _nhlEmailMc for why).
       const _nbaEmailMc=nbaEnsD?.mcD?`MC PROJ: ${an} ${nbaEnsD.mcD.avgA.toFixed(1)} – ${hn} ${nbaEnsD.mcD.avgH.toFixed(1)} (Total ${nbaEnsD.mcD.avgT.toFixed(1)}, 25k sims)`:null;
       const _nbaMkts=[
-        {label:`${_nbaFav} ML`,prob:_nbaFavP,evVal:_nbaFavEV,side:'mlFav'},
-        {label:`${_nbaDog} ML`,prob:_nbaDogP,evVal:_nbaDogEV,side:'mlDog'},
+        // ml/dec = the price this card shows for the side (market line when posted, else the model's own); without them every NBA moneyline locked at a placeholder -110 (MIA ML -190 locked at -110).
+        {label:`${_nbaFav} ML`,prob:_nbaFavP,evVal:_nbaFavEV,side:'mlFav',...((hP>=aP?hML:aML)?{ml:_mlFmt(hP>=aP?hML:aML),dec:_nbaFavD}:{})},
+        {label:`${_nbaDog} ML`,prob:_nbaDogP,evVal:_nbaDogEV,side:'mlDog',...((hP>=aP?aML:hML)?{ml:_mlFmt(hP>=aP?aML:hML),dec:_nbaDogD}:{})},
         ...(_sprdMkt?[{label:`${_mktFav} -${_forceHalfLine(_sprdL)}`,prob:sprdP,evVal:ev(sprdP,1.87),side:'sprdFav'},
         {label:`${_mktDog} +${_forceHalfLine(_sprdL)}`,prob:_nbaDogSprdP,evVal:ev(_nbaDogSprdP,2.05),side:'sprdDog'}]:[]),
         ...(ouL?[
@@ -21784,9 +21785,10 @@ function _applyNBARatings(d){
   }catch(e){}
 }
 function patchNBATonight(games){
+  games=Array.isArray(games)?games:[];
   window._remoteNBAGames=games;
-  if(games&&games.length){
-    NBA_TONIGHT.length=0;
+  NBA_TONIGHT.length=0;      // a real feed with NO games today means no slate (an off-day), not "keep whatever was here"
+  if(games.length){
     games.forEach(g=>{
       // Force half-point at ingest (see matching TONIGHT/NHL comment) —
       // the live feed can post a whole-number total.

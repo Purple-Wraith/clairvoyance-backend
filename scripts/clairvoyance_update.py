@@ -1342,7 +1342,9 @@ def fetch_nba_standings(season: int | None = None) -> dict:
     log(f"NBA standings (ESPN season={season})…")
     data = fetch_json(
         "https://site.web.api.espn.com/apis/v2/sports/basketball/nba/standings"
-        f"?region=us&lang=en&season={season}&type=2"
+        # seasontype=2 (regular season), NOT type=2: ESPN ignores `type` here and returns PRESEASON W-L / points (checked live 2026-10-05: MIA 1-0 +24 before any regular-season game),
+        # which then leaked into teamRatings.current, eloSeed, nbaGetBayes and the median-GP rule for player tiers. seasontype=2 returns a clean 0-0 until real games are played.
+        f"?region=us&lang=en&season={season}&seasontype=2"
     )
     if not data:
         log(f"NBA standings season={season}: no response from ESPN", "WARN")
