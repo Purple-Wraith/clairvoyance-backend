@@ -1,0 +1,89 @@
+name: European Hockey Schedule + Standings Refresh
+
+# Liiga, SHL, NLA and Extraliga in ONE job (merged 2026-10-05 from four near-identical workflows: shl-/liiga-/nla-/extraliga-schedule-refresh.yml).
+# The four only differed by script and cron minute, and each paid for its own runner + Playwright/Chromium install -- the single flakiest step
+# (see the retry loop below). Now one runner installs it once and refreshes the leagues one after another; each league is its own step with
+# continue-on-error, so one league's failure never skips the others, and a final step turns any failure into a RED run.
+#
+# Why Playwright, not the lightweight daily-schedules-refresh.yml: none of these leagues has ESPN coverage; Flashscore (their source) is a JS-rendered
+# SPA that returns an empty shell to a plain request. Each fetch_<league>.py documents its own sources.
+#
+# Three runs a day (UTC; MDT = UTC-6), each with a reason:
+#   12:10 UTC (6:10 AM MT) -- ahead of the morning lock passes: upcoming fixtures + standings for the day's locks.
+#   21:00 UTC (3:00 PM MT) -- the scrapers only know "pre" and "post" (no in-progress state) and games start as early as 7:15 AM MT, so the morning
+#                             snapshot is always pre-game; by mid-afternoon the day's games are final and the next settle pass finds real scores.
+#   08:10 UTC (2:10 AM MT) -- odds FRESHNESS for the European same-morning lock: hockey legs only qualify on a real bookmaker price <=18 h old
+#                             (HOCKEY_ODDS_MAX_AGE_H in docs/app.html) and european-lock-early lands ~15:00-19:00 UTC, after the morning scrape.
+# GitHub starts scheduled runs 3-6 h late; scheduler/worker.js (Cloudflare) can start this workflow on time via workflow_dispatch.
+
+on:
+  schedule:
+    - cron: '10 12 * * *'
+    - cron: '0 21 * * *'
+    - cron: '10 8 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hockey-euro-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TZ: America/Denver
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -q playwright
+          for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed (likely a transient upstream apt-mirror hash mismatch on Google's Chrome repo) -- retrying in 20s..."; sleep 20; done
+
+      - name: Git identity
+        run: |
+          git config user.name  "Clairvoyance Bot"
+          git config user.email "bot@clairvoyance"
+
+      - name: Refresh Liiga
+        id: liiga
+        continue-on-error: true
+        run: python3 scripts/fetch_liiga.py --push
+
+      - name: Refresh SHL
+        id: shl
+        continue-on-error: true
+        run: python3 scripts/fetch_shl.py --push
+
+      - name: Refresh NLA
+        id: nla
+        continue-on-error: true
+        run: python3 scripts/fetch_nla.py --push
+
+      - name: Refresh Extraliga
+        id: extraliga
+        continue-on-error: true
+        run: python3 scripts/fetch_extraliga.py --push
+
+      - name: Fail the run if any league failed
+        if: ${{ always() }}
+        run: |
+          bad=""
+          [ "${{ steps.liiga.outcome }}" = "failure" ] && bad="$bad Liiga"
+          [ "${{ steps.shl.outcome }}" = "failure" ] && bad="$bad SHL"
+          [ "${{ steps.nla.outcome }}" = "failure" ] && bad="$bad NLA"
+          [ "${{ steps.extraliga.outcome }}" = "failure" ] && bad="$bad Extraliga"
+          if [ -n "$bad" ]; then echo "::error::refresh failed for:$bad"; exit 1; fi
+          echo "all four leagues refreshed"

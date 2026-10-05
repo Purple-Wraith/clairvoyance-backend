@@ -7,7 +7,7 @@ const at = (iso) => Date.parse(iso);
 assert.deepEqual(dueWorkflows(at("2026-10-05T05:13:30Z")), ["scheduled-refresh.yml"]);
 assert.deepEqual(dueWorkflows(at("2026-10-05T05:19:59Z")), ["scheduled-refresh.yml"]);          // same 10-minute slot
 assert.deepEqual(dueWorkflows(at("2026-10-05T05:20:00Z")), []);
-assert.deepEqual(dueWorkflows(at("2026-10-05T12:20:00Z")).sort(), ["extraliga-schedule-refresh.yml", "nfl-roster-weekly.yml", "nla-schedule-refresh.yml"]);   // Monday 12:20-12:29 slot
+assert.deepEqual(dueWorkflows(at("2026-10-05T12:20:00Z")).sort(), ["nfl-roster-weekly.yml"]);   // Monday 12:20-12:29 slot
 // weekday filter: nfl-roster-weekly is Monday (2026-10-05) only
 assert.ok(dueWorkflows(at("2026-10-05T12:23:00Z")).includes("nfl-roster-weekly.yml"));             // a Monday
 assert.ok(!dueWorkflows(at("2026-10-06T12:23:00Z")).includes("nfl-roster-weekly.yml"));            // a Tuesday

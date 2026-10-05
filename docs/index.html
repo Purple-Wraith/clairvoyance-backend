@@ -22497,8 +22497,8 @@ setTimeout(async function(){
 // Click the header freshness line when it is amber/red: lists the aging files with a button that dispatches the workflow that refreshes each (GitHub API, needs the owner token with
 // "Actions: Read and write" -- if the token cannot, the GitHub page of that workflow opens so "Run workflow" is one click). Nothing is ever triggered automatically.
 const _FRESH_WF={'data.json':'scheduled-refresh.yml','nhl_schedule.json':'daily-schedules-refresh.yml','cfb_schedule.json':'daily-schedules-refresh.yml','nfl_schedule.json':'daily-schedules-refresh.yml',
-  'soccer_schedule.json':'daily-schedules-refresh.yml','nba_schedule.json':'daily-schedules-refresh.yml','liiga_schedule.json':'liiga-schedule-refresh.yml','shl_schedule.json':'shl-schedule-refresh.yml','nla_schedule.json':'nla-schedule-refresh.yml',
-  'extraliga_schedule.json':'extraliga-schedule-refresh.yml'};
+  'soccer_schedule.json':'daily-schedules-refresh.yml','nba_schedule.json':'daily-schedules-refresh.yml','liiga_schedule.json':'hockey-euro-refresh.yml','shl_schedule.json':'hockey-euro-refresh.yml','nla_schedule.json':'hockey-euro-refresh.yml',
+  'extraliga_schedule.json':'hockey-euro-refresh.yml'};
 async function dispatchWorkflow(file){
   const page='https://github.com/'+GH_RELAY_REPO+'/actions/workflows/'+file;
   let tok='';try{tok=getGHToken();}catch(e){}

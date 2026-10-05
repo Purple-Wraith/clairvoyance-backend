@@ -16,10 +16,7 @@ export const TICK_MIN = 10;          // must match the cron expression in wrangl
 // UTC schedule, mirrored from each workflow's own `schedule:` block. dow: 0=Sunday..6=Saturday; omitted = every day.
 export const SCHEDULE = [
   { wf: "scheduled-refresh.yml", at: ["05:13", "15:13", "21:13"] },
-  { wf: "shl-schedule-refresh.yml", at: ["08:15", "12:15", "21:05"] },
-  { wf: "liiga-schedule-refresh.yml", at: ["08:10", "12:10", "21:00"] },
-  { wf: "nla-schedule-refresh.yml", at: ["08:20", "12:20", "21:10"] },
-  { wf: "extraliga-schedule-refresh.yml", at: ["08:25", "12:25", "21:15"] },
+  { wf: "hockey-euro-refresh.yml", at: ["08:10", "12:10", "21:00"] },
   { wf: "daily-player-stats-refresh.yml", at: ["15:45"] },
   { wf: "opta-soccer-stats-daily.yml", at: ["11:33"] },
   { wf: "soccer-schedule-tomorrow.yml", at: ["03:50"] },
