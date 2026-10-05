@@ -93,6 +93,14 @@ class JsSide(unittest.TestCase):
         self.assertNotIn("assumes a standard", nm[1])
         self.assertNotIn("assumes a standard", nm[2])
 
+    def test_high_prob_lane_pick_is_labelled_as_such(self):
+        out = self.pg.evaluate("""()=>{const nm={mkts:[{label:'Karpat ML',side:'mlFav',tierN:0,hkLane:true,prob:.7,evVal:-.02},{label:'Ilves ML',side:'mlFav',tierN:0,prob:.7,evVal:-.02}]};
+          _attachReasoning(nm,null,null);return nm.mkts.map(m=>m.reasoning.split('\\n')[0])}""")
+        self.assertIn("— HIGH PROB (", out[0])
+        self.assertIn("— SKIP (", out[1])
+        html = (ROOT / "docs" / "app.html").read_text()
+        self.assertNotIn("unpriced by a flat moneyline", html)
+
     def test_tracker_list_shows_the_why_row_and_no_stale_nba_spread_claim(self):
         picks = [{"id": "w1", "sport": "NFL", "betType": "SPREAD", "betOn": "BAL -5.5", "hA": "BAL", "awA": "CLE", "date": "2026-10-04", "lockedAt": 1790000000000,
                   "outcome": "pending", "winProb": .67, "decOdds": 1.39, "ml": "-257", "priceSource": "estimated", "lockOrigin": "auto",
