@@ -3751,11 +3751,49 @@ def leg_locked_in_ledger(page, q: dict, date_key: str | None) -> bool:
     ))
 
 
-def run_watchdog(page, live: bool, now=None) -> list[dict]:
-    """READ-ONLY. For every product's slate (today via gather_legs, plus the rolling-horizon gatherers for today+tomorrow), list
+AUTO_LOCK_WINDOW_MIN = 150   # the watchdog only locks a leg itself when its game starts within this many minutes (the regular passes had every earlier chance)
+
+
+def _auto_lock_group(sport: str) -> str:
+    """Which existing, proven lock runner owns this sport: the rolling-horizon CFB / soccer / European-hockey passes, or the main segmented pass."""
+    if sport == "CFB":
+        return "cfb"
+    if sport in EURO_SOCCER_SPORTS:
+        return "soccer"
+    if sport in EARLY_HOCKEY_SPORTS:
+        return "hockey"
+    return "main"
+
+
+def _auto_lock(page, candidates: list[dict]) -> list[str]:
+    """Runs the SAME runners the scheduled passes use (start guard, dedupe, per-product subscriber email only when something new locked), once per
+    group that has a candidate. Returns error strings (empty = all ran)."""
+    groups = sorted({_auto_lock_group(c["sport"]) for c in candidates})
+    errors: list[str] = []
+    for g in groups:
+        log(f"  auto-lock: running the {g} lock pass for {sum(1 for c in candidates if _auto_lock_group(c['sport']) == g)} unlocked leg(s)")
+        try:
+            if g == "cfb":
+                run_cfb_evening_lock(page, True, send_email=True, to=recipients_for("cfb"))
+            elif g == "soccer":
+                run_soccer_evening_lock(page, True, send_email=True, to=recipients_for("soccer"))
+            elif g == "hockey":
+                run_hockey_evening_lock(page, True, send_email=True, to=recipients_for("hockey"))
+            else:
+                run_lock_segmented(page, True, send_email=True)
+        except Exception as exc:
+            log(f"  auto-lock {g} pass FAILED: {exc}")
+            errors.append(f"{g}: {exc}")
+    return errors
+
+
+def run_watchdog(page, live: bool, now=None, auto_lock: bool = False) -> list[dict]:
+    """Finds qualifying legs that are not in the ledger and start soon. Read-only unless auto_lock (live runs only): then any such leg whose game
+    starts within AUTO_LOCK_WINDOW_MIN is handed to the normal lock runner for its product (see _auto_lock), and the owner is told what it locked.
+    For every product's slate (today via gather_legs, plus the rolling-horizon gatherers for today+tomorrow), list
     qualifying legs that are NOT in the ledger and whose game starts within WATCHDOG_AHEAD_H hours (or started within the last
     WATCHDOG_BEHIND_H). Emails the OWNER ONLY (never a subscriber list), deduped by the hash of the leg set. Returns the urgent list."""
-    log("=== PRE-KICKOFF WATCHDOG (read-only, owner-only) ===")
+    log(f"=== PRE-KICKOFF WATCHDOG ({'auto-lock ON' if auto_lock and live else 'read-only'}, owner-only alerts) ===")
     now_ms = _now_ms(now)
     dates = horizon_dates(now)
     gathered = [("main-today", gather_legs(page), None)]
@@ -3764,6 +3802,7 @@ def run_watchdog(page, live: bool, now=None) -> list[dict]:
     gathered.append(("soccer", gather_soccer_legs_for_dates(page, dates), EURO_SOCCER_SPORTS))
     seen: set = set()
     unlocked: list[dict] = []
+    unlocked_q: list[dict] = []
     total = 0
     for name, res, only in gathered:
         # now=0: ignore the start guard here -- the watchdog WANTS to see legs of games that already started / are about to.
@@ -3784,9 +3823,31 @@ def run_watchdog(page, live: bool, now=None) -> list[dict]:
                                  "why": ("kickoff unknown" if mins is None else
                                          f"kicks off in {mins:.0f} min" if mins > 0 else f"started {-mins:.0f} min ago"),
                                  "prob": q.get("prob"), "tier": TIER_LABEL.get(q.get("tierN"), "?")})
+                unlocked_q.append(q)
     log(f"Watchdog: {total} qualifying game leg(s) across the slate, {len(unlocked)} NOT locked and within the watch window")
     for u in unlocked:
         log(f"  UNLOCKED [{u['sport']}] {u['game']} -- {u['leg']} ({u['why']})")
+    if unlocked and auto_lock:
+        cand = [u for u, _q in zip(unlocked, unlocked_q)
+                if u["startMs"] and LOCK_START_MARGIN_MIN < (u["startMs"] - now_ms) / 60000.0 <= AUTO_LOCK_WINDOW_MIN]
+        if cand and not live:
+            log(f"[DRY RUN] Would auto-lock {len(cand)} leg(s): " + "; ".join(f"[{c['sport']}] {c['game']} {c['leg']}" for c in cand))
+        elif cand:
+            errors = _auto_lock(page, cand)
+            still = [(u, q) for u, q in zip(unlocked, unlocked_q) if not leg_locked_in_ledger(page, q, q.get("lockDate"))]
+            done = [u for u in cand if not any(u is s_u for s_u, _ in still)]
+            unlocked = [u for u, _q in still]
+            unlocked_q = [q for _u, q in still]
+            if done:
+                lines = "".join(f"<li><strong>{_esc(c['sport'])}</strong> {_esc(c['game'])} — {_esc(c['leg'])} ({_esc(c['tier'])}, {(c.get('prob') or 0) * 100:.0f}%)</li>" for c in done)
+                send_owner_alert(f"Clairvoyance — WATCHDOG auto-locked {len(done)} pick(s)",
+                                 f"{_EMAIL_WRAP_OPEN}<div style=\"font-size:16px;font-weight:700\">The watchdog found {len(done)} qualifying pick(s) not yet locked "
+                                 f"with kickoff close, and locked them with the normal lock pass (subscribers were emailed as usual).</div>"
+                                 f"<ul style=\"margin:8px 0 0;padding-left:18px\">{lines}</ul>"
+                                 f"<div style=\"margin-top:10px;font-size:13px;color:#555\">Turn this off with the repo variable WATCHDOG_AUTOLOCK=false.</div>{_EMAIL_WRAP_CLOSE}")
+                write_automation_status("lastWatchdog", True, f"auto-locked {len(done)} leg(s)")
+            if errors:
+                EMAIL_FAILURES.append("watchdog auto-lock failed: " + "; ".join(errors))
     if not unlocked:
         return unlocked
     rep = {"live": True, "label": "WATCHDOG", "skippedDetail": unlocked, "failedLabels": []}
@@ -3915,10 +3976,13 @@ def main() -> None:
     ap.add_argument("--result-file", default=None,
                      help="Write this lock pass's machine-readable result (complete/ok + per-pass report) to this JSON path. The "
                           "lock workflows read `complete` from it to decide whether to record their success marker.")
+    ap.add_argument("--auto-lock", action="store_true",
+                     help="With --watchdog and --live: lock any qualifying-but-unlocked leg whose game starts within AUTO_LOCK_WINDOW_MIN using the normal "
+                          "per-product lock runner (same start guard, dedupe and subscriber emails), instead of only alerting the owner.")
     ap.add_argument("--watchdog", action="store_true",
-                     help="READ-ONLY pre-kickoff watchdog: gathers today's + tomorrow's slate for every product, finds qualifying "
-                          "legs that are still NOT locked and start soon, and emails the OWNER ONLY. Never locks, never emails "
-                          "subscribers; the only thing it writes (with --live) is the owner-alert dedupe hash in "
+                     help="Pre-kickoff watchdog: gathers today's + tomorrow's slate for every product, finds qualifying "
+                          "legs that are still NOT locked and start soon, and emails the OWNER ONLY. Read-only unless --auto-lock "
+                          "is also given; the only thing it writes on its own (with --live) is the owner-alert dedupe hash in "
                           "docs/automation_status.json.")
     args = ap.parse_args()
 
@@ -4051,7 +4115,7 @@ def main() -> None:
                 raise
         if args.watchdog:
             try:
-                run_watchdog(page, args.live)
+                run_watchdog(page, args.live, auto_lock=args.auto_lock)
             except Exception as exc:
                 log(f"watchdog failed: {exc}")
                 raise
@@ -4224,8 +4288,8 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    if _subscribers.DATA_ERRORS:            # the subscriber list could not be read: picks were locked, but only the owner could be emailed
+        EMAIL_FAILURES.extend(_subscribers.DATA_ERRORS)
     if EMAIL_FAILURES:                      # picks were locked, but an email did not go out: fail the run so it is visible
         log(f"{len(EMAIL_FAILURES)} email send failure(s): {EMAIL_FAILURES}")
         sys.exit(1)
-    if _subscribers.DATA_ERRORS:            # the subscriber list could not be read: picks were locked, but only the owner could be emailed
-        EMAIL_FAILURES.extend(_subscribers.DATA_ERRORS)

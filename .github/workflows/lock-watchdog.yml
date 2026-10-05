@@ -4,7 +4,8 @@ name: Pre-Kickoff Lock Watchdog (owner only)
 # within the next 4 hours or started within the last 3; if not, it stops there. If so, it re-scrapes hockey/NHL odds, gathers the
 # slate for every product, finds qualifying legs that are still NOT in the ledger, and emails the OWNER ONLY (LOCKS_EMAIL_TO /
 # SOCIAL_CARD_EMAIL_TO -- never a subscriber list) listing them with minutes to kickoff, so the owner knows whether a manual lock is
-# needed. It never locks anything and never emails subscribers (scripts/auto_lock_settle.py --watchdog -> run_watchdog). The alert is
+# needed. Since 2026-10-05 it also AUTO-LOCKS (live runs): a qualifying leg still unlocked with kickoff inside ~2.5 h goes to the normal per-product
+# lock runner, which emails that product's subscribers as usual. Kill switch: repo variable WATCHDOG_AUTOLOCK=false (scripts/auto_lock_settle.py --watchdog). The alert is
 # deduped by the hash of the leg set (stored in docs/automation_status.json "ownerAlerts"), so a persistent gap is reported once.
 #
 # Why it exists: the lock workflows run 5-7h after their cron time (GitHub delay audit 2026-10-02, headers of
@@ -47,6 +48,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Private data (subscriber list)
+        continue-on-error: true
+        uses: ./.github/actions/private-data
+        with:
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -92,4 +99,7 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           LOCKS_EMAIL_TO: ${{ secrets.LOCKS_EMAIL_TO }}
           SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
-        run: python3 scripts/auto_lock_settle.py --watchdog --serve-local ${{ steps.gate.outputs.live_flag }}
+        # --auto-lock (live runs only; enabled by the owner 2026-10-05): a qualifying leg still unlocked with kickoff within ~2.5 h is handed to the
+        # normal per-product lock runner (same start guard / dedupe / subscriber emails) and the owner is told. Kill switch: set the repo variable
+        # WATCHDOG_AUTOLOCK to 'false' (Settings -> Secrets and variables -> Actions -> Variables) -- the watchdog then only alerts, as before.
+        run: python3 scripts/auto_lock_settle.py --watchdog --serve-local ${{ steps.gate.outputs.live_flag }} ${{ steps.gate.outputs.live_flag != '' && vars.WATCHDOG_AUTOLOCK != 'false' && '--auto-lock' || '' }}
