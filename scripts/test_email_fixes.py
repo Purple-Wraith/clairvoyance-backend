@@ -321,8 +321,9 @@ class Lifecycle(unittest.TestCase):
 
 class HealthAlerts(unittest.TestCase):
     def setUp(self):
-        import daily_health_check as dh, weekly_health_digest as wd
+        import daily_health_check as dh, weekly_health_digest as wd, tempfile
         self.dh, self.wd = dh, wd
+        dh.ALERT_STATE_PATH = Path(tempfile.mkdtemp()) / "health_alert_state.json"      # tests must never write the real alert state
 
     def test_marker_passes_are_scoped_and_pm_slate_is_checked_late(self):
         mt = ZoneInfo("America/Denver")
@@ -379,6 +380,21 @@ class HealthAlerts(unittest.TestCase):
             dh._report(["brand new problem"], [], st, "2026-10-05"); self.assertEqual(len(sent), 4)            # ...so the next pass retries it
         finally:
             dh.ALERT_TO, dh.send_email = orig
+
+    def test_pick_of_day_marker_accepts_either_scheme_during_the_switch(self):
+        import tempfile
+        from pathlib import Path as P
+        d = P(tempfile.mkdtemp())
+        (d / "last_pick_of_day_am_date.txt").write_text("2026-10-04")
+        orig = self.dh.LOCK_MARKERS
+        self.dh.LOCK_MARKERS = [(d / "last_pick_of_day_am_checked.txt", "AM", 10)]
+        try:
+            at = datetime(2026, 10, 4, 12, 0, tzinfo=ZoneInfo("America/Denver"))
+            self.assertEqual(self.dh.check_lock_markers("full", at), [])
+            (d / "last_pick_of_day_am_date.txt").write_text("2026-10-03")
+            self.assertEqual(len(self.dh.check_lock_markers("full", at)), 1)
+        finally:
+            self.dh.LOCK_MARKERS = orig
 
     def test_cancelled_latest_run_is_not_a_failure(self):
         orig = self.dh._api_get

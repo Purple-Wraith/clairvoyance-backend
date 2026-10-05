@@ -169,10 +169,16 @@ def check_lock_markers(which: str = "full", now_mt: datetime | None = None) -> l
             continue
         if now_mt.hour < cutoff_hour:
             continue  # too early in the day to expect this yet
-        try:
-            recorded = path.read_text().strip()
-        except Exception:
-            recorded = ""
+        recorded = ""
+        # The pick-of-day slates moved from ..._date.txt to ..._checked.txt (2026-10-04); a send still counts as proof the slate ran,
+        # so either marker equal to today clears the check (also covers the one day the two schemes overlap).
+        for cand in (path, path.with_name(path.name.replace("_checked.txt", "_date.txt"))):
+            try:
+                recorded = cand.read_text().strip()
+            except Exception:
+                continue
+            if recorded == today_mt:
+                break
         if recorded != today_mt:
             problems.append(
                 f"{label}: no successful live lock recorded for {today_mt} as of "

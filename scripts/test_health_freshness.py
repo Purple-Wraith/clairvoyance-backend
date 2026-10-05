@@ -30,6 +30,7 @@ sys.path.insert(0, str(HERE))
 import daily_health_check as H  # noqa: E402
 import _scraper_health as SH  # noqa: E402
 
+H.ALERT_STATE_PATH = Path(tempfile.mkdtemp()) / "health_alert_state.json"     # never touch the real data/health_alert_state.json from a test
 NOW = datetime(2026, 10, 3, 20, 33, tzinfo=timezone.utc)      # a daily-health-check slot (14:33 MT)
 
 
