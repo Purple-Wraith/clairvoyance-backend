@@ -2183,11 +2183,14 @@ ALT_STEP = 1.0
 ALT_LINE_CFG = {
     # sport: {market: (curve, kmin, kmax)}; curve = ("normal", sigma of actual margin vs line, offset a at k=0) or ("table", ((k, win p), ...)) with linear
     # interpolation. CFB/NFL come from the settled ledger; NBA from 2,470 closing lines + final scores of the 2024-25 and 2025-26 seasons
-    # (scripts/backtest_alt_lines.py nba -- side-neutral, since the ledger holds no settled NBA totals; its NBA spread legs also carry no line number
-    # in the label ("BOS -ATS"), so only NBA totals are shifted for now).
+    # (scripts/backtest_alt_lines.py nba -- side-neutral, since the ledger holds no settled NBA totals or spreads). NBA SPREADS added 2026-10-05
+    # (owner's call): the NBA card now writes its spread legs as "<market favourite> -<line>" / "<dog> +<line>" (the old "BOS -ATS" label had no number to shift),
+    # and the curve is the same closing-line backtest (spread error sd 13.7): cushion k -> side-neutral cover rate 0:50.0 2:56.6 3:59.8 4:63.1 5:65.9 6:68.2 7:70.7 8:73.5 10:78.1,
+    # so the 67% target lands at a 6-point cushion.
     "CFB": {"OU": (("normal", 14.7, 1.9), 3.0, 9.0), "SPREAD": (("normal", 15.7, 0.8), 3.0, 10.0)},
     "NFL": {"OU": (("normal", 13.0, 0.0), 3.0, 8.0), "SPREAD": (("normal", 13.4, 0.0), 3.0, 8.0)},
-    "NBA": {"OU": (("table", ((0, .500), (2, .543), (3, .564), (4, .590), (5, .612), (6, .631), (7, .651), (8, .670), (10, .711))), 3.0, 10.0)},
+    "NBA": {"OU": (("table", ((0, .500), (2, .543), (3, .564), (4, .590), (5, .612), (6, .631), (7, .651), (8, .670), (10, .711))), 3.0, 10.0),
+            "SPREAD": (("table", ((0, .500), (2, .566), (3, .598), (4, .631), (5, .659), (6, .682), (7, .707), (8, .735), (10, .781))), 3.0, 10.0)},
 }
 # Hockey (NHL + SHL/LIIGA/NLA/EXTRALIGA), totals only, 60-65% band. 2026-10-03 (owner's call): NEVER flip a side just because the table likes the other one -- a pick keeps its OWN side
 # (OVER stays OVER, UNDER stays UNDER) and only the LINE moves, 0-3 goals toward safety, chosen per game:

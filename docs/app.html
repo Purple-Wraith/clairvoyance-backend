@@ -4766,10 +4766,11 @@ function _mvmBarHTML(m){
   }catch(e){return'';}
 }
 // ── Alternate lines (2026-10-03): spread + O/U picks are LOCKED at a safer line (ALT_LINE_CFG in scripts/auto_lock_settle.py -- keep both in sync).
-// CFB/NFL: smallest whole-point cushion k in [kmin,kmax] whose empirical win curve reaches 67%; NBA totals use a table fitted on 2,470 closing lines (scripts/backtest_alt_lines.py);
+// CFB/NFL: smallest whole-point cushion k in [kmin,kmax] whose empirical win curve reaches 67%; NBA totals AND spreads use tables fitted on 2,470 closing lines (scripts/backtest_alt_lines.py);
 // hockey totals (NHL + SHL/LIIGA/NLA/EXTRALIGA) keep their own side and move only the line (0-3 goals) to the 60-65% hit rate per game, using that league's own table + the game's model edge (NHL: closing lines; European leagues: their own scoring data). The price is an estimate, never a quote.
 const _ALT_CFG={CFB:{OU:[['normal',14.7,1.9],3,9],SPREAD:[['normal',15.7,.8],3,10]},NFL:{OU:[['normal',13,0],3,8],SPREAD:[['normal',13.4,0],3,8]},
-  NBA:{OU:[['table',[[0,.5],[2,.543],[3,.564],[4,.59],[5,.612],[6,.631],[7,.651],[8,.67],[10,.711]]],3,10]}};
+  NBA:{OU:[['table',[[0,.5],[2,.543],[3,.564],[4,.59],[5,.612],[6,.631],[7,.651],[8,.67],[10,.711]]],3,10],
+      SPREAD:[['table',[[0,.5],[2,.566],[3,.598],[4,.631],[5,.659],[6,.682],[7,.707],[8,.735],[10,.781]]],3,10]}};
 const _ALT_HK=new Set(['NHL','SHL','LIIGA','NLA','EXTRALIGA']);
 const _ALT_HK_BAND=[.60,.65],_ALT_HK_FLOOR=.58,_ALT_HK_TIE=.02,_ALT_HK_EDGE_W=.5,_ALT_HK_EDGE_CLAMP=[-.05,.08];
 const _ALT_HK_BASE0={'5.5':{OVER:.517,UNDER:.483},'6.5':{OVER:.474,UNDER:.526}};

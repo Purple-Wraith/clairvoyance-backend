@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scorecard for alternate-line locks (CFB / NFL spreads and O/Us moved to a safer line; see ALT_LINE_CFG in scripts/auto_lock_settle.py).
+"""Scorecard for alternate-line locks (CFB / NFL / NBA spreads and O/Us, and hockey totals, moved to a safer line; see ALT_LINE_CFG in scripts/auto_lock_settle.py).
 
 For every SETTLED pick that carries an `altLine` it grades two things from the final score: the pick as locked (the alternate line) and the same bet at the
 POSTED line it was moved from.  Then it prints win rate (LOCKED ADJ. = the line it was locked at) and units for both, how many results the shift flipped either way, and the average win probability
@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 STD_DEC = 1.909
-ESPN = {"NFL": "football/nfl", "CFB": "football/college-football"}
+ESPN = {"NFL": "football/nfl", "CFB": "football/college-football", "NBA": "basketball/nba"}
 ESPN_ABBR = {"WAS": "WSH", "WSH": "WSH", "JAC": "JAX"}     # ledger code -> ESPN code where they differ
 _score_cache: dict = {}
 

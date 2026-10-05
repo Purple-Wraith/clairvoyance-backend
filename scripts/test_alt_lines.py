@@ -79,6 +79,18 @@ class AltLine(unittest.TestCase):
         self.assertAlmostEqual(under["prob"], 0.67, places=3)
         self.assertEqual(under["altLine"]["shift"], 8.0)
 
+    def test_nba_spread_favourite_dog_and_the_curve(self):
+        """NBA spreads shift since 2026-10-05: the closing-line backtest puts a 6-point cushion at 68.2% (target 67%), so every shift lands at 6."""
+        fav = A._alt_shift_leg(leg("NBA", "sprdFav", "BOS -7.5"))
+        dog = A._alt_shift_leg(leg("NBA", "sprdDog", "MIA +7.5"))
+        self.assertEqual((fav["label"], fav["altLine"]["shift"]), ("BOS -1.5", 6.0))
+        self.assertEqual((dog["label"], dog["altLine"]["shift"]), ("MIA +13.5", 6.0))
+        self.assertAlmostEqual(fav["prob"], 0.682, places=3)
+        self.assertEqual(fav["priceSource"], "estimated")
+        self.assertEqual(A._alt_shift_leg(leg("NBA", "sprdFav", "BOS -3.5"))["label"], "BOS +2.5")      # a small favourite becomes a small dog
+        self.assertEqual(A._alt_shift_leg(leg("NBA", "sprdFav", "BOS -10"))["label"], "BOS -4.5")       # whole numbers land on a half point (no push): 5.5 pts reaches 67.05%
+        self.assertIsNone(A._alt_shift_leg(leg("NBA", "mlFav", "BOS ML")))                               # moneylines are still untouched
+
     def test_nba_spread_without_a_line_number_is_left_alone(self):
         self.assertIsNone(A._alt_shift_leg(leg("NBA", "sprdFav", "BOS -ATS")))
 
