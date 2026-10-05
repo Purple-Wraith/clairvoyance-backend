@@ -1,0 +1,46 @@
+name: Tests
+
+# Runs validate.py + every scripts/test_*.py (scripts/run_tests.py) on each push or PR that touches code the engine runs, so a regression
+# is caught when it is pushed instead of when a scheduled workflow breaks hours later. GitHub emails the repo owner when a run fails.
+# Read-only: no secrets, no Supabase writes (the browser tests run the app with ?nosb=1 against a local server).
+
+on:
+  push:
+    branches: [main]
+    paths: ['scripts/**', 'docs/*.html', 'docs/*.json', '.github/workflows/**', 'relay/**', 'scheduler/**']
+  pull_request:
+    paths: ['scripts/**', 'docs/*.html', 'docs/*.json', '.github/workflows/**', 'relay/**', 'scheduler/**']
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node (relay + scheduler worker tests)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          pip install -q requests beautifulsoup4 lxml playwright
+          for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed -- retrying in 20s..."; sleep 20; done
+
+      - name: Run tests
+        run: python3 scripts/run_tests.py

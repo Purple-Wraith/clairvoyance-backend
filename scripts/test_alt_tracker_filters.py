@@ -36,7 +36,7 @@ def build():
     for i, (k, sport, bt, bet, posted, line, h, a, out, days, timing, src) in enumerate(SPEC):
         p = pick(i, sport, bt, bet, posted, line, h, a, out, label=None)
         p["id"] = "f" + k
-        locked = NOW - int(days * 86400000) - 2 * 3600000
+        locked = NOW - int(days * 86400000) - 60000      # 1 minute, not hours: a 2h offset crossed midnight MT and emptied the 'today' period between 00:00 and 02:00
         p["lockedAt"] = locked
         p["date"] = datetime.fromtimestamp(locked / 1000, MT).strftime("%Y-%m-%d")
         p["priceSource"] = src
