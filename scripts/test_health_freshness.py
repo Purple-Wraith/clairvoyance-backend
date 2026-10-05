@@ -175,7 +175,7 @@ class RefreshWorkflows(unittest.TestCase):
         self.assertIn("no successful run", msg)
 
     def test_no_runs_at_all(self):
-        self.assertEqual(self.check([])[0], "alert")
+        self.assertEqual(self.check([])[0], "note")          # a brand-new / merged / renamed workflow has no history yet: logged, never emailed
 
     def test_api_error_is_only_a_note(self):
         def boom(path):

@@ -367,7 +367,9 @@ def check_refresh_workflow(filename: str, label: str, max_success_age_h: float, 
         return ("note", f"{label}: couldn't check runs ({exc})")
     runs = [r for r in (data.get("workflow_runs") or []) if r.get("conclusion") not in ("cancelled", "skipped", "neutral", None)]
     if not runs:
-        return ("alert", f"{label}: no completed runs found at all")
+        # A note, not an alert: right after a workflow is created / merged / renamed it has no history yet, and that must not email. A workflow that
+        # really never runs shows up through the data-file freshness stamps (check_data_freshness) once its files age.
+        return ("note", f"{label}: no completed runs found yet (new or renamed workflow?)")
     msgs: list[str] = []
     streak = 0
     for r in runs:
