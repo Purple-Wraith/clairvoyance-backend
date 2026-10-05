@@ -3967,7 +3967,7 @@ function _altTableHTML(rows,full){
   return`<div style="overflow-x:auto;margin-top:10px"><table style="border-collapse:collapse;font-family:var(--mono);font-size:14px;color:var(--t2);min-width:520px">
     <tr><th ${th}>LEAGUE</th><th ${th}>PICKS</th><th ${th}>LOCKED ADJ. LINE</th><th ${th}>SAME PICKS AT POSTED</th><th ${th}>SAVED / COST</th><th ${th}>AVG SHIFT</th><th ${th}></th></tr>
     ${lines||`<tr><td colspan="7" style="padding:8px 0;color:var(--t3)">NO ADJUSTED-LINE PICKS IN THIS PERIOD</td></tr>`}</table></div>
-    ${none?`<div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:8px;line-height:1.5">ENGINE SHIFTS THESE, NO PICKS YET: ${none}${full?'<br>NOT SHIFTED BY THE ENGINE YET: SOCCER, NBA SPREADS, MLS/OTHER LEAGUES — THEY APPEAR HERE AUTOMATICALLY ONCE THEY ARE':''}</div>`:''}`;
+    ${none?`<div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:8px;line-height:1.5">ENGINE SHIFTS THESE, NO PICKS YET: ${none}${full?'<br>NOT SHIFTED BY THE ENGINE YET: SOCCER, MONEYLINES, HOCKEY PUCK LINES, PROPS — THEY APPEAR HERE AUTOMATICALLY ONCE THEY ARE':''}</div>`:''}`;
 }
 function _altListHTML(rows,limit){
   const list=rows.slice().sort((a,b)=>(b.p.date||'').localeCompare(a.p.date||'')||((b.p.lockedAt||0)-(a.p.lockedAt||0)));
@@ -3977,7 +3977,7 @@ function _altListHTML(rows,limit){
     return`<div style="padding:8px 10px;margin-bottom:6px;background:rgba(0,0,0,.3);border-left:3px solid ${col};border-radius:2px;font-family:var(--mono)">
       <div style="font-size:12px;color:var(--t3);letter-spacing:1px">${_escHtml(p.date||'')} · <span style="color:var(--nc)">${_escHtml(r.league)}</span> · ${_escHtml(String(p.betType||''))} · ${_escHtml(_gameTitle(p.hA,p.awA,p.sport)||'')}</div>
       <div style="font-size:15px;color:var(--t);margin:3px 0">POSTED <b>${_escHtml(al.postedLabel||String(al.posted))}</b> <span style="color:var(--t3)">→</span> LOCKED <b style="color:#ffe600">${_escHtml(p.betOn||'')}</b> <span style="color:var(--t3);font-size:13px">(${_altShiftTxt(al)})</span></div>
-      <div style="font-size:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">${r.settled?`${_altResChip('LOCKED ADJ. LINE',r.alt)}${_altResChip('POSTED LINE',r.posted)}${r.saved?'<span class="adjr" style="color:#ffe600">SAVED BY SHIFT</span>':''}${r.cost?'<span class="adjr" style="color:var(--hc)">COST</span>':''}`:'<span class="adjr" style="color:var(--pc)">PENDING</span>'}${p.winProb?`<span style="color:var(--t3)">${Math.round(p.winProb*100)}% est.</span>`:''}</div></div>`;
+      <div style="font-size:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">${r.settled?`${_altResChip('LOCKED ADJ. LINE',r.alt)}${_altResChip('POSTED LINE',r.posted)}${r.saved?'<span class="adjr" style="color:#ffe600">SAVED BY SHIFT</span>':''}${r.cost?'<span class="adjr" style="color:var(--hc)">COST</span>':''}`:'<span class="adjr" style="color:var(--pc)">PENDING</span>'}${p.winProb?`<span style="color:var(--t3)">${Math.round(p.winProb*100)}% est.</span>`:''}</div>${_whyThisPickHTML(p)}</div>`;
   }).join('');
   return{html,more:list.length-shown.length};
 }
@@ -4678,8 +4678,10 @@ function _mcLineScore(mc,side,ouLine,opts){
   const otTxt=mc.otP!=null?` (OT/SO in ${(mc.otP*100).toFixed(0)}% of outcomes)`:'';
   return`Projected ${a.toFixed(1)}–${h.toFixed(1)} (total ${total.toFixed(1)})${otTxt}${extra}, from ${sampleTxt}.`;
 }
-function _mcLineMargin(mc,side,favName,dogName,baseSpread,favCoverP,overP,ouL){
+function _mcLineMargin(mc,side,favName,dogName,baseSpread,favCoverP,overP,ouL,favMarginMean){
   if(!mc||mc.avgMargin==null||mc.avgTotal==null)return null;
+  // mc.avgMargin is HOME-signed; the text names the FAVORITE, so use the favorite-signed margin the caller already computed (falls back to the raw value only if none was passed).
+  const _m=(favMarginMean!=null&&isFinite(favMarginMean))?favMarginMean:mc.avgMargin;
   let extra='';
   if((side==='sprdFav'||side==='sprdDog')&&favCoverP!=null&&baseSpread!=null){
     const p=side==='sprdFav'?favCoverP:1-favCoverP;
@@ -4689,7 +4691,7 @@ function _mcLineMargin(mc,side,favName,dogName,baseSpread,favCoverP,overP,ouL){
     const ouLTxt=typeof ouL==='number'?ouL.toFixed(1):ouL;
     extra=` — ${side.toUpperCase()} hits ${(p*100).toFixed(1)}% of simulated outcomes vs the ${ouLTxt} line`;
   }
-  return`Projected margin ${mc.avgMargin>=0?'+':''}${mc.avgMargin.toFixed(1)} (${favName}), total ${mc.avgTotal.toFixed(1)}${extra}, from a 25k-sim Monte Carlo.`;
+  return`Projected margin ${_m>=0?'+':''}${_m.toFixed(1)} (${favName}), total ${mc.avgTotal.toFixed(1)}${extra}, from a 25k-sim Monte Carlo.`;
 }
 function _mcLineSoccer(mc,side,ouLine){
   if(!mc||mc.avgH==null||mc.avgA==null)return null;
@@ -4734,7 +4736,7 @@ function _attachReasoning(nm,mcLineFn,richBySide){
     (nm.mkts||[]).forEach(m=>{
       const tierLbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN]||'SKIP';
       // European hockey cards only (priceSource is set nowhere else): say which price this is.
-      const pxNote=m.priceSource==='market'&&m.mktEv!=null?` · MARKET PRICE ${_mlFmt(m.mktMl)} (EV at market ${m.mktEv>=0?'+':''}${(m.mktEv*100).toFixed(1)}%)`:m.priceSource==='assumed'?' · price model-assumed (no market quote)':'';
+      const pxNote=m.priceSource==='market'&&m.mktEv!=null?` · MARKET PRICE ${_mlFmt(m.mktMl)} (EV at market ${m.mktEv>=0?'+':''}${(m.mktEv*100).toFixed(1)}%)`:m.priceSource==='assumed'?' · price model-assumed (no market quote)':(!m.priceSource&&/^(sprd|pl|rl|ah|over|under)/.test(m.side||''))?' · EV assumes a standard -110 price, not a market quote':'';
       const blNote=m.marketProb!=null&&m.modelProb!=null?` · MARKET-BLENDED: model ${(m.modelProb*100).toFixed(1)}% · no-vig market ${(m.marketProb*100).toFixed(1)}% → ${(m.prob*100).toFixed(1)}%${m.blendAlpha!=null?' (alpha '+m.blendAlpha.toFixed(2)+')':''}`:'';
       const head=`PICK: ${m.label} — ${tierLbl} (${(m.prob*100).toFixed(1)}% win prob, EV ${m.evVal>=0?'+':''}${(m.evVal*100).toFixed(1)}%${pxNote}${blNote})`;
       const mcLine=mcLineFn?mcLineFn(m.side):null;
@@ -4831,7 +4833,7 @@ function _altRowFor(sport,home,away,dateRaw,nm,off){
     const d=new Date(dateRaw);const dateKey=isNaN(d)?String(dateRaw||'').slice(0,10):d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
     const chips=[['OU',best('over','under')],['SPREAD',best('sprdFav','sprdDog')]].map(([mkt,m])=>{
       if(!m)return'';const alt=_altShift(sport,mkt,m.label,m.prob);if(!alt)return'';
-      alt.postedDec=m.dec!=null?m.dec:null;alt.postedMl=m.ml!=null?String(m.ml):null;   // the ORIGINAL posted price, kept with the pick
+      alt.postedDec=m.dec!=null?m.dec:null;alt.postedMl=m.ml!=null?String(m.ml):null;alt.postedProb=m.prob!=null?m.prob:null;   // the ORIGINAL posted price, kept with the pick
       const key=sport+'|'+dateKey+'|'+home+'|'+away+'|'+mkt;
       window._altReg[key]={sport,hA:home,awA:away,date:dateKey,alt};
       const cls=m.tierN===3?'pg':m.tierN===2?'pp':m.tierN===1?'pn':'';
@@ -4843,9 +4845,28 @@ function _altRowFor(sport,home,away,dateRaw,nm,off){
   }catch(e){return'';}
 }
 function _altLineRowHTML(sport,g,nm,off){return _altRowFor(sport,g.home,g.away,g.date,nm,off);}
+// Reasoning text for an adjusted-line pick (kept word-for-word in step with _alt_reasoning() in scripts/auto_lock_settle.py -- test_alt_js_parity.py checks it): it describes the
+// SHIFTED line and says the price is an estimate, instead of carrying the posted line's tier / EV / 'covers the 11.5-pt line' text.
+function _altModelLine(hA,awA,mkt,postedLabel){
+  try{
+    const b=mkt==='OU'?'OU':'SPREAD',c=window._reasoningCache||{};
+    const arr=c[hA+'|'+awA+'|'+b]||c[awA+'|'+hA+'|'+b]||[];
+    const e=arr.find(x=>x.label===postedLabel);
+    const line=e&&e.reasoning?String(e.reasoning).split('\n').find(l=>l.indexOf('MODEL: ')===0):null;
+    return line?line.replace(/ — .*?(?=, from )/,''):null;
+  }catch(e){return null;}
+}
+function _altReasoning(label,p,postedLabel,postedProb,shift,unit,modelLine){
+  const sh=shift%1===0?String(shift):shift.toFixed(1),u=unit+(+shift===1?'':'s');
+  const lines=[`PICK: ${label} — ADJUSTED LINE (${(p*100).toFixed(1)}% estimated win prob at this line)`,
+    `ADJUSTED LINE: moved ${sh} ${u} from the posted ${postedLabel} to ${label} for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.`,
+    `WHY: ${postedProb!=null?'at the posted line the model rated this side '+(postedProb*100).toFixed(1)+'%; the ':'the '}${sh}-${unit} cushion is priced from the historical margin curve for this market (about ${(p*100).toFixed(0)}% to cover).`];
+  if(modelLine)lines.push(modelLine);
+  return lines.join('\n');
+}
 async function _lockAltKey(key){
   const r=window._altReg[key];if(!r)return;const a=r.alt;
-  await lockPick(r.hA,r.awA,r.sport,a.label,a.prob,a.ml,a.dec,r.date,undefined,a.mkt,{priceSource:'estimated',altLine:{posted:a.posted,line:a.line,shift:a.shift,postedLabel:a.postedLabel,postedDec:a.postedDec,postedMl:a.postedMl,...(a.flip!=null?{flip:a.flip}:{})}});
+  await lockPick(r.hA,r.awA,r.sport,a.label,a.prob,a.ml,a.dec,r.date,undefined,a.mkt,{priceSource:'estimated',reasoning:_altReasoning(a.label,a.prob,a.postedLabel,a.postedProb!=null?a.postedProb:null,a.shift,_ALT_HK.has(r.sport)?'goal':'pt',_altModelLine(r.hA,r.awA,a.mkt,a.postedLabel)),altLine:{posted:a.posted,line:a.line,shift:a.shift,postedLabel:a.postedLabel,postedDec:a.postedDec,postedMl:a.postedMl,...(a.flip!=null?{flip:a.flip}:{})}});
 }
 function _bestMarketBoxHTML(tierN,tierCol,tierLabel,bestLabel,bestProb,bestEvVal){
   if(!(tierN>0))return'';
@@ -8927,7 +8948,7 @@ function _cfbGameCard(g){
   // _attachReasoning can use CFB's own already-written per-market
   // paragraphs as the rich WHY text instead of a generic fallback. No
   // behavior change to the guard itself (_cfbBothMajorConf), just later.
-  _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverP,overP,ouL),
+  _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverP,overP,ouL,favMarginMean),
     {mlFav:mlReasoning,mlDog:mlReasoning,sprdFav:sprdReasoning,sprdDog:sprdReasoning,over:ouReasoning,under:ouReasoning});
   if(_cfbBothMajorConf(D,g.home,g.away))_autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`,undefined,g.date);
   const gidSafe=(g.home+'_'+g.away).replace(/[^A-Za-z0-9_]/g,'');
@@ -9891,7 +9912,7 @@ function _nflGameCard2(g){
   // _attachReasoning runs after mlReasoning/sprdReasoning/ouReasoning exist
   // so it can use NFL's own real per-market paragraphs as the rich WHY
   // text, then _autoLockCapture reads nm.mkts' new .reasoning field.
-  _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverP,overP,ouL),
+  _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverP,overP,ouL,favMarginMean),
     {mlFav:mlReasoning,mlDog:mlReasoning,sprdFav:sprdReasoning,sprdDog:sprdReasoning,over:ouReasoning,under:ouReasoning});
   _autoLockCapture('NFL',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`,undefined,g.date);
   return`<div class="gc" style="border-left:2px solid rgba(0,120,255,.4)">

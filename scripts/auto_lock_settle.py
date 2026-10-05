@@ -2257,9 +2257,28 @@ def _alt_prob(curve, k: float) -> float:
     return pts[-1][1]
 
 
+def _alt_reasoning(new_label: str, p_alt: float, posted_label: str, posted_prob, k: float, unit: str, model_line: str | None) -> str:
+    """'Why this pick' text for an adjusted-line pick. Word-for-word the same as _altReasoning() in docs/app.html (scripts/test_alt_js_parity.py checks it): it describes the SHIFTED
+    line and says the price is an estimate, instead of carrying the posted line's tier / EV / "covers the 11.5-pt line" text."""
+    sh = f"{k:g}"
+    u = unit + ("" if float(k) == 1 else "s")
+    why = (f"at the posted line the model rated this side {posted_prob * 100:.1f}%; the " if posted_prob is not None else "the ")
+    lines = [f"PICK: {new_label} — ADJUSTED LINE ({p_alt * 100:.1f}% estimated win prob at this line)",
+             f"ADJUSTED LINE: moved {sh} {u} from the posted {posted_label} to {new_label} for a safer cover. "
+             f"The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.",
+             f"WHY: {why}{sh}-{unit} cushion is priced from the historical margin curve for this market (about {p_alt * 100:.0f}% to cover)."]
+    if model_line:
+        lines.append(model_line)
+    return "\n".join(lines)
+
+
 def _alt_finish(leg: dict, new_label: str, p_alt: float, posted: float, new_line: float, k: float, label: str) -> dict:
     dec = 1.0 / (p_alt + ALT_VIG)
     out = dict(leg)
+    # The posted-line reasoning (tier, EV, "covers the 11.5-pt line in 63.5%") does not describe the shifted pick: replace it, keeping only the model's projection facts.
+    old_r = str(leg.get("reasoning") or "")
+    model_line = next((re.sub(r" — .*?(?=, from )", "", ln) for ln in old_r.split("\n") if ln.startswith("MODEL: ")), None)
+    out["reasoning"] = _alt_reasoning(new_label, p_alt, label, leg.get("prob"), k, "goal" if leg.get("sport") in HOCKEY_SPORTS else "pt", model_line)
     out.update({"label": new_label, "prob": round(p_alt, 4), "dec": round(dec, 3), "ml": _ml_from_dec(dec),
                 "evVal": round(p_alt * dec - 1, 4), "priceSource": "estimated",
                 "altLine": {"posted": posted, "line": new_line, "shift": k, "postedLabel": label, "postedProb": leg.get("prob"),
