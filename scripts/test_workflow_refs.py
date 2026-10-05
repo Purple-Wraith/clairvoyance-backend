@@ -26,6 +26,11 @@ class WorkflowRefs(unittest.TestCase):
             self.assertFalse((WF / old).exists(), old)
         self.assertTrue((WF / "cfb-roster-monthly.yml").exists())          # deliberately kept separate
 
+    def test_nfl_roster_runs_every_other_week_only(self):
+        text = (WF / "nfl-weekly-refresh.yml").read_text()
+        self.assertIn("WEEK % 2", text)
+        self.assertIn("steps.plan.outputs.roster == '1'", text)
+
     def test_every_gh_workflow_run_names_a_real_workflow(self):
         known = set(n for n in names().values() if n)
         for f in WF.glob("*.yml"):

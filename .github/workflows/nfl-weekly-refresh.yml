@@ -1,8 +1,9 @@
-name: NFL Weekly Refresh (stats, standings, player stats, roster)
+name: NFL Weekly Refresh (stats, standings, player stats; roster every 2 weeks)
 
 # Merged 2026-10-05 from nfl-stats-weekly.yml (Tuesday) + nfl-roster-weekly.yml (Monday): both are weekly NFL pulls from the same script
-# (scripts/fetch_nfl.py), one runner now does all four modes in a row. The roster moves from Monday to Tuesday with the rest -- it barely changes
-# mid-season (venue capacity / indoor status; no realignment risk like CFB), so a day's difference does not matter.
+# (scripts/fetch_nfl.py), one runner now does the modes in a row. The roster barely changes mid-season (venue capacity / indoor status; no realignment
+# risk like CFB), so since 2026-10-05 (owner's call) it runs every OTHER Tuesday -- even ISO weeks -- or on any manual run; stats, standings and
+# player stats run every Tuesday.
 #
 # Cadence (the owner's explicit request, kept): every Tuesday morning, right after Monday Night Football closes the week, so next week's
 # stats/standings are in before Thursday's kickoff. A single Tuesday run covers team stats (offense/defense/special teams), standings
@@ -38,6 +39,13 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Plan (roster every other week)
+        id: plan
+        run: |
+          WEEK=$((10#$(date -u +%V)))
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ $((WEEK % 2)) -eq 0 ]; then echo "roster=1" >> "$GITHUB_OUTPUT"; else echo "roster=0" >> "$GITHUB_OUTPUT"; fi
+          echo "ISO week $WEEK -> roster=$(grep roster= "$GITHUB_OUTPUT" | tail -1)"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -68,6 +76,7 @@ jobs:
 
       - name: Refresh roster
         id: roster
+        if: ${{ steps.plan.outputs.roster == '1' }}
         continue-on-error: true
         run: python3 scripts/fetch_nfl.py --mode roster --push
 
@@ -80,4 +89,4 @@ jobs:
           [ "${{ steps.player_stats.outcome }}" = "failure" ] && bad="$bad player_stats"
           [ "${{ steps.roster.outcome }}" = "failure" ] && bad="$bad roster"
           if [ -n "$bad" ]; then echo "::error::NFL refresh failed for:$bad"; exit 1; fi
-          echo "all four NFL modes refreshed"
+          echo "NFL refresh OK"

@@ -239,7 +239,7 @@ REFRESH_MONITORED = [
     ("daily-player-stats-refresh.yml", "Daily player & prop stats refresh", 36, 1),
     ("cfb-refresh.yml", "CFB stats + rankings", 36, 1),
     ("cfb-roster-monthly.yml", "CFB rosters (monthly)", 35 * 24, 1),
-    ("nfl-weekly-refresh.yml", "NFL weekly refresh (stats, standings, players, roster)", 9 * 24, 1),
+    ("nfl-weekly-refresh.yml", "NFL weekly refresh (stats, standings, players; roster every 2 weeks)", 9 * 24, 1),
     # Runs every 30 min 12:00-05:00 UTC only (7h nightly gap + delay) and flakes are cheap there: alert on 3 in a row.
     ("live-tracker.yml", "Live tracker (live_data.json)", 14, 3),
 ]
