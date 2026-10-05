@@ -503,7 +503,8 @@ class PrivateData(unittest.TestCase):
         self.assertEqual(m._SYNC_RELS, ["subscribers.json", "subscriber_events.json"])
         m.add_subscriber("nfl", "a@x.com")
         self.assertTrue((Path(d) / "subscribers.json").exists())
-        self.assertFalse((ROOT / "data" / "subscribers.json").read_text().count("a@x.com"))     # nothing leaked into the public repo's file
+        legacy = ROOT / "data" / "subscribers.json"                                              # (deleted from the public repo once the private repo went live)
+        self.assertFalse(legacy.exists() and "a@x.com" in legacy.read_text())                   # nothing leaked into the public repo's file
 
     def test_legacy_fallback_when_nothing_is_configured(self):
         import tempfile
