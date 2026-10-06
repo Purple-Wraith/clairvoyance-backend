@@ -532,7 +532,8 @@ def fetch_wnba_roster() -> dict:
 
 # Min games played per team before the CURRENT season's Basketball-Reference
 # page replaces last season's as the model prior (see select_nba_team_stats).
-NBA_MIN_GAMES_FOR_CURRENT = 5
+# 5 -> 15 (2026-10-05, owner's call): a raw 5-game ortg/drtg/pace is mostly noise (reliability ~25%) and replaced a full-season prior outright; 15 games is where it carries real signal.
+NBA_MIN_GAMES_FOR_CURRENT = 15
 NBA_MIN_TEAMS_FOR_CURRENT = 24      # of 30 -- tolerate a few teams with a light early schedule
 
 # Elo / rating seed parameters (see build_nba_team_ratings)
@@ -1403,7 +1404,7 @@ def fetch_nba_playoff_bracket() -> dict:
 def nba_player_stats_season(espn_cur: dict, cur_year: int, min_games: int | None = None) -> int:
     """Season whose per-player numbers should feed injury-impact tiers: the current
     one once the median team has >= min_games played (ESPN standings), else last season.
-    min_games defaults to NBA_TIER_MIN_GP (15), NOT the 5 the team ratings switch at: a player is only tiered with >= 15 games (apply_nba_player_tiers), so flipping at 5 left
+    min_games defaults to NBA_TIER_MIN_GP (15), NOT the NBA_MIN_GAMES_FOR_CURRENT the team ratings switch at: a player is only tiered with >= 15 games (apply_nba_player_tiers), so flipping at 5 left
     ~2-3 weeks (until players reached 15 GP) with nobody tiered and every star weighted at the fallback in the app's injury impact."""
     min_games = NBA_TIER_MIN_GP if min_games is None else min_games
     gps = sorted((int(_bb_float(v.get("w")) or 0) + int(_bb_float(v.get("l")) or 0)) for v in (espn_cur or {}).values())

@@ -2392,7 +2392,10 @@ const SPORT_CAL={
   // the engine entirely, and nothing calls sportCalibrate(p,'MLB'|'WNBA')
   // anymore (grep-confirmed zero remaining callers).
   NHL:{B:0.41},  // avg model 57.8% → calibrated ~66.8% (actual 79.3%, 121-bet sample)
-  NBA:{B:0.55},  // avg model 62.0% → calibrated ~74%  (actual 86.7%) -- stale (44-bet sample), not touched this pass
+  // NBA: 0.55 -> 0 (2026-10-05, owner approved). The old +0.55 logit shift came from a 44-bet sample that was mostly Finals PROPS (actual 86.7%), not game moneylines; applied to the HOME win
+  // probability of every game it pushed the average home team to ~70% across all 870 team pairings (the real NBA home win rate is ~58-60%) -- 10-21 points above the market on real preseason lines,
+  // i.e. fake PREMIUM home moneylines. scripts/test_nba_model.py now pins the league-wide average. Re-fit from settled NBA game bets (not props) once there are ~100.
+  NBA:{B:0},
   // Soccer's 3-way (home/draw/away) market never ran through calibration
   // at all -- the biggest remaining coverage gap the adaptive-learning
   // audit found. Unlike a single win-prob sport, there's no one number to
@@ -5231,6 +5234,16 @@ function _ouAdj(hA,awA,date,baseOverP,ouL,delta){
 // paths (step buttons AND direct typing) always keep the sign current.
 function _syncSprdLabels(id){var el=document.getElementById(id);if(!el)return;var nv=Math.round((parseFloat(el.value)||0)*2)/2;var fl=document.getElementById('fav_'+id);var dl=document.getElementById('dog_'+id);if(fl)fl.textContent=(nv<0?'':'+')+(nv).toFixed(1);if(dl){var dv=-nv;dl.textContent=(dv<0?'':'+')+(dv).toFixed(1);}}
 function _adjV(id,d){var el=document.getElementById(id);if(!el)return;var v=parseFloat(el.value)||0;var nv=Math.round((v+d)*2)/2;el.value=nv.toFixed(1);if(id.indexOf('ah_wc_')===0)_syncAHLabels(id);else _syncSprdLabels(id);_hkPxRefresh(id);}
+// Reasoning for a MANUAL lock whose line the user edited: the cached card reasoning is keyed by the card's own label, so an edited line used to find nothing and store null. This says plainly
+// what was changed and how the probability was re-estimated (a flat per-point adjustment, NOT the engine's model), and keeps the card's own model-projection line when there is one.
+function _editedLineReasoning(label,p,baseLabel,baseP,perPt,mktName,modelLine){
+  const lines=[`PICK: ${label} — MANUAL LINE (${(p*100).toFixed(1)}% estimated win prob at this line)`,
+    `LINE EDITED: the line was changed by hand from ${baseLabel} to ${label}. The win probability is the card's ${(baseP*100).toFixed(1)}% for ${baseLabel}, adjusted ${(perPt*100).toFixed(1)} points of probability per point of line for this ${mktName} -- a simple estimate, not a re-run of the engine's model.`,
+    `PRICE: a standard assumed price, not a market quote.`];
+  if(modelLine)lines.push(modelLine);
+  return lines.join('\n');
+}
+function _mergeLockMeta(a,b){const o=Object.assign({},a||{},b||{});return Object.keys(o).length?o:undefined;}
 function _ouLockDir(hA,awA,date,baseOverP,baseL,inputId,dir,sport){
   var inp=document.getElementById(inputId);
   var nl=inp?parseFloat(inp.value):parseFloat(baseL);
@@ -5247,6 +5260,8 @@ function _ouLockDir(hA,awA,date,baseOverP,baseL,inputId,dir,sport){
   var delta=nl-parseFloat(baseL);
   var np=Math.min(.78,Math.max(.22,baseOverP-delta*0.07));
   var lockP=dir==='OVER'?np:1-np;
+  var _baseLbl=dir+' '+parseFloat(baseL).toFixed(1);
+  var _rsn=Math.abs(delta)>1e-9?_editedLineReasoning(dir+' '+nl.toFixed(1),lockP,_baseLbl,dir==='OVER'?baseOverP:1-baseOverP,0.07,'O/U',_altModelLine(hA,awA,'OU',_baseLbl)):null;
   // Without an explicit sport, lockPick falls back to guessing by team-code
   // membership (MLB/NHL/NBA/WNBA only) — for soccer/World Cup matchups that
   // misclassifies on any shared code (e.g. Portugal's 'POR' vs the NBA's
@@ -5260,8 +5275,8 @@ function _ouLockDir(hA,awA,date,baseOverP,baseL,inputId,dir,sport){
   // has no registered input and keeps the flat -110/1.91 exactly as before.
   var _hkL=_hkLockLeg(inputId,'ou',nl,dir);
   var _blM=_hkBlendMeta(inputId,'ou',nl,dir); // modelProb/marketProb/blendAlpha at the card's default line only
-  if(_hkL)lockPick(hA,awA,sport||'OU',dir+' '+nl.toFixed(1),lockP,_hkL.ml,_hkL.dec,date||today(),undefined,'OU',Object.assign({priceSource:_hkL.src},_blM||{}));
-  else lockPick(hA,awA,sport||'OU',dir+' '+nl.toFixed(1),lockP,'-110',1.91,date||today(),undefined,'OU',_blM||undefined);
+  if(_hkL)lockPick(hA,awA,sport||'OU',dir+' '+nl.toFixed(1),lockP,_hkL.ml,_hkL.dec,date||today(),undefined,'OU',_mergeLockMeta(Object.assign({priceSource:_hkL.src},_blM||{}),_rsn?{reasoning:_rsn}:null));
+  else lockPick(hA,awA,sport||'OU',dir+' '+nl.toFixed(1),lockP,'-110',1.91,date||today(),undefined,'OU',_mergeLockMeta(_blM,_rsn?{reasoning:_rsn}:null));
 }
 function _spreadLockDir(favN,dogN,hA,awA,date,baseP,baseSprd,inputId,dir,sport){
   var inp=document.getElementById(inputId);
@@ -5283,6 +5298,8 @@ function _spreadLockDir(favN,dogN,hA,awA,date,baseP,baseSprd,inputId,dir,sport){
   // silently disappeared from the locked bet label (e.g. "TEAM 2.5"
   // instead of "TEAM -2.5").
   var label=dir==='FAV'?favN+' -'+(Math.abs(ns)).toFixed(1):dogN+' +'+(Math.abs(ns)).toFixed(1);
+  var _baseLblS=dir==='FAV'?favN+' -'+Math.abs(parseFloat(baseSprd)).toFixed(1):dogN+' +'+Math.abs(parseFloat(baseSprd)).toFixed(1);
+  var _rsnS=Math.abs(delta)>1e-9?_editedLineReasoning(label,sp,_baseLblS,dir==='FAV'?baseP:1-baseP,0.045,'spread',_altModelLine(hA,awA,'SPREAD',_baseLblS)):null;
   // Without an explicit sport, lockPick falls back to guessing by team-code
   // membership across MLB/NHL/NBA/WNBA — several real teams share the same
   // 3-letter code across those sports (e.g. 'BOS' is the Red Sox, Bruins,
@@ -5295,8 +5312,8 @@ function _spreadLockDir(favN,dogN,hA,awA,date,baseP,baseSprd,inputId,dir,sport){
   // pattern as _ouLockDir above; other sports unchanged.
   var _hkL=_hkLockLeg(inputId,'pl',ns,dir);
   var _blM=_hkBlendMeta(inputId,'pl',ns,dir);
-  if(_hkL)lockPick(hA,awA,sport||'SPREAD',label,sp,_hkL.ml,_hkL.dec,date||today(),undefined,'SPREAD',Object.assign({priceSource:_hkL.src},_blM||{}));
-  else lockPick(hA,awA,sport||'SPREAD',label,sp,'-115',1.87,date||today(),undefined,'SPREAD',_blM||undefined);
+  if(_hkL)lockPick(hA,awA,sport||'SPREAD',label,sp,_hkL.ml,_hkL.dec,date||today(),undefined,'SPREAD',_mergeLockMeta(Object.assign({priceSource:_hkL.src},_blM||{}),_rsnS?{reasoning:_rsnS}:null));
+  else lockPick(hA,awA,sport||'SPREAD',label,sp,'-115',1.87,date||today(),undefined,'SPREAD',_mergeLockMeta(_blM,_rsnS?{reasoning:_rsnS}:null));
 }
 // Real bug, found and fixed, 2026-09-16: this function existed but had
 // zero call sites anywhere in the app -- dead code, presumably left over
@@ -13532,9 +13549,15 @@ function nbaMC(hA,awA,n=25000,ouLine=220.5){
   const aDrtg=aLive?.drtg??(aw?aw.p100.drtg:LG_DRTG);
   const pace=((hLive?.pace??(h?h.p100.pace:LG_PACE))+(aLive?.pace??(aw?aw.p100.pace:LG_PACE)))/2;
   // Projected scores per game
-  const lgAvg=113.5;
-  const hProj=((hOrtg/lgAvg)*(aDrtg/lgAvg))*lgAvg*(pace/98.8)*(1.025); // home court
-  const aProj=((aOrtg/lgAvg)*(hDrtg/lgAvg))*lgAvg*(pace/98.8);
+  // Projected points (2026-10-05, owner approved): ortg/drtg are points per 100 POSSESSIONS, so points = rating x possessions/100. The old formula multiplied them by (pace/98.8) with a
+  // league average of 113.5 -- but the real league mean rating is ~115.7, so every team scored ~2% more AND the 1.025 home factor multiplied only the home side: projected totals ran ~11 above
+  // the market (average 240 across all pairings vs ~230 real). Now: opponent-adjusted rating (vs the league mean of the live table, falling back to 115.7) x possessions, and home court
+  // is a margin shift split between the sides (+/- HCA/2) so it moves the spread, not the total.
+  const _advAll=Object.values(liveAdv).filter(t=>t&&t.ortg!=null&&t.drtg!=null);
+  const lgDrtg=_advAll.length>=10?_advAll.reduce((x,t)=>x+t.drtg,0)/_advAll.length:115.7;
+  const poss=pace/100,HCA=2.9;
+  const hProj=hOrtg*(aDrtg/lgDrtg)*poss+HCA/2;
+  const aProj=aOrtg*(hDrtg/lgDrtg)*poss-HCA/2;
   // TS%/eFG% based SD (better teams have tighter variance)
   const hTS=hLive?.ts_pct??(h?h.p100.ts_pct:LG_TS);const aTS=aLive?.ts_pct??(aw?aw.p100.ts_pct:LG_TS);
   const hSD=Math.max(8,18-(hTS-.56)*40);const aSD=Math.max(8,18-(aTS-.56)*40);
@@ -13576,6 +13599,7 @@ function nbaGetBayes(abbr){
   return{m:al/(al+bl)};
 }
 function nbaEloWP(eA,eB){return 1/(1+Math.pow(10,(eB-eA)/400));}
+const NBA_MKT_CAP=0.065;   // max distance (probability points) between the model's home win % and the no-vig market %, see nbaEns
 function nbaEns(hA,awA,espnGame){
   const nbaOUL=parseFloat(espnGame?.ou||espnGame?.overUnder||220.5);
   // Standardized to 25,000 -- was 5,000 (the lowest of any sport's real
@@ -13609,7 +13633,17 @@ function nbaEns(hA,awA,espnGame){
   const injH=computeInjuryImpact(hA,'nba');
   const injA=computeInjuryImpact(awA,'nba');
   p=Math.min(.90,Math.max(.10,p-injH.penalty+injA.penalty));
-  return{p,mc:mc.hwP,bay,elo:eloP,mcD:mc,injH,injA};
+  // Market guard-rail (2026-10-05, owner's call: 6.5 points): when a real moneyline is posted, the final home win probability may sit at most NBA_MKT_CAP above/below the NO-VIG market
+  // probability. The market already prices injuries, rest and travel; an NBA model with no settled-game calibration yet (the ledger holds none) should not claim a 20-point edge over it.
+  // No market line posted -> no cap (the model stands on its own).
+  let mkt=null,capped=false;
+  if(espnGame?.hL){
+    const _ih=1/ml2d(espnGame.hL),_ia=espnGame?.aL?1/ml2d(espnGame.aL):null;
+    mkt=_ia!=null?_ih/(_ih+_ia):_ih/1.045;     // only the home line given: strip an assumed ~4.5% vig
+    const lo=Math.max(.10,mkt-NBA_MKT_CAP),hi=Math.min(.90,mkt+NBA_MKT_CAP);
+    const pc=Math.min(hi,Math.max(lo,p));if(pc!==p){capped=true;p=pc;}
+  }
+  return{p,mc:mc.hwP,bay,elo:eloP,mcD:mc,injH,injA,mkt,capped};
 }
 function updateNBAElo(hA,awA,hWon){
   const K=20,eH=nbaEloWP(NBA_ELO[hA]||1550,NBA_ELO[awA]||1550);
@@ -13797,7 +13831,7 @@ function _nbaGameCard(espnEv){
       const ouL=_ouRaw!=null?_forceHalfLine(_ouRaw):null;
       // Model ensemble
       let hP=0.53,aP=0.47,hML,aML,hD,aD,ens={mc:0.45,bay:0.30,elo:0.25};
-      try{const e=nbaEns(hn,an,(_liveNBA?.homeML||espnHL)?{hL:_liveNBA?.homeML||espnHL}:null);if(e?.p){hP=e.p;aP=1-e.p;ens={mc:+(e.mc||.45).toFixed(3),bay:+(e.bay||.30).toFixed(3),elo:+(e.elo||.25).toFixed(3)};}}catch(e2){}
+      try{const e=nbaEns(hn,an,(_liveNBA?.homeML||espnHL)?{hL:_liveNBA?.homeML||espnHL,aL:_liveNBA?.awayML||espnAL}:null);if(e?.p){hP=e.p;aP=1-e.p;ens={mc:+(e.mc||.45).toFixed(3),bay:+(e.bay||.30).toFixed(3),elo:+(e.elo||.25).toFixed(3)};}}catch(e2){}
       // Same tie-default bug as NHL's puck-line fix (see its own comment):
       // nbaEns() returns an exact p:0.5 when nbaMC() fails entirely
       // (missing team data) -- that early return skips its own market-

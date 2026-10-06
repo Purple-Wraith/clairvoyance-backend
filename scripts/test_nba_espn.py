@@ -584,12 +584,20 @@ class Wiring(unittest.TestCase):
         self.assertEqual(len([c for c in self.espn.calls if "byteam" in c[0]]), 2)     # cached across both functions
 
     def test_season_underway_switches_to_current(self):
-        cur = scale_byteam(BYTEAM_2026, 2027, 6, 6 / 82)
+        g = cu.NBA_MIN_GAMES_FOR_CURRENT + 1                      # 15 since 2026-10-05 (was 5): a few games of raw ratings must not replace the prior
+        cur = scale_byteam(BYTEAM_2026, 2027, g, g / 82)
         self.espn.overrides["byteam:2027"] = lambda: Resp(200, cur)
         sel = cu.get_nba_team_stats_selection()
         self.assertEqual((sel["mode"], sel["seasonUsed"]), ("current", 2027))
         self.assertEqual({r["season"] for r in sel["teams"].values()}, {2027})
-        self.assertEqual({r["gp"] for r in sel["teams"].values()}, {6})
+        self.assertEqual({r["gp"] for r in sel["teams"].values()}, {g})
+
+    def test_few_games_keep_the_prior(self):
+        g = cu.NBA_MIN_GAMES_FOR_CURRENT - 1
+        cur = scale_byteam(BYTEAM_2026, 2027, g, g / 82)
+        self.espn.overrides["byteam:2027"] = lambda: Resp(200, cur)
+        sel = cu.get_nba_team_stats_selection()
+        self.assertEqual((sel["mode"], sel["seasonUsed"]), ("prior", 2026))
         self.assertEqual(self.bb_calls, [])
         # scaling every total by the same factor leaves the per-possession ratings unchanged
         self.assertAlmostEqual(sel["teams"]["OKC"]["drtg"], sel["priorRows"]["OKC"]["drtg"], delta=0.11)

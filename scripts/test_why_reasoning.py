@@ -101,6 +101,33 @@ class JsSide(unittest.TestCase):
         html = (ROOT / "docs" / "app.html").read_text()
         self.assertNotIn("unpriced by a flat moneyline", html)
 
+    def _manual_lock(self, call):
+        return self.pg.evaluate("""(call)=>{
+          window._reasoningCache={'BOS|NYK|OU':[{label:'OVER 225.5',reasoning:'PICK: OVER 225.5 — OPTIMAL (62%)\\nMODEL: Projected margin +4.0 (BOS), total 231.0 — OVER hits 62.0% of simulated outcomes vs the 225.5 line, from a 25k-sim Monte Carlo.'}],
+                                  'BOS|NYK|SPREAD':[{label:'BOS -4.5',reasoning:'PICK: BOS -4.5 — OPTIMAL (60%)\\nMODEL: Projected margin +6.0 (BOS), total 231.0, from a 25k-sim Monte Carlo.'}]};
+          let got=null;const orig=window.lockPick;window.lockPick=function(){got=[...arguments];};
+          let inp=document.getElementById('tstInp');if(!inp){inp=document.createElement('input');inp.id='tstInp';document.body.appendChild(inp);}
+          try{eval(call.js);}finally{window.lockPick=orig;}
+          return got?{label:got[3],p:got[4],meta:got[10]||null}:null}""", call)
+
+    def test_manual_lock_with_an_edited_line_stores_reasoning(self):
+        r = self._manual_lock({"js": "document.getElementById('tstInp').value='222.5';_ouLockDir('BOS','NYK','2026-10-05',.62,225.5,'tstInp','OVER','NBA')"})
+        self.assertEqual(r["label"], "OVER 222.5")
+        txt = r["meta"]["reasoning"]
+        self.assertIn("MANUAL LINE", txt)
+        self.assertIn("changed by hand from OVER 225.5 to OVER 222.5", txt)
+        self.assertIn("not a market quote", txt)
+        self.assertIn("MODEL: Projected margin +4.0 (BOS), total 231.0, from a 25k-sim Monte Carlo.", txt)      # the card's projection survives, its posted-line cover % does not
+        self.assertNotIn("vs the 225.5 line", txt)
+        r = self._manual_lock({"js": "document.getElementById('tstInp').value='-7';_spreadLockDir('BOS','NYK','BOS','NYK','2026-10-05',.6,4.5,'tstInp','FAV','NBA')"})
+        self.assertEqual(r["label"], "BOS -7.5")
+        self.assertIn("changed by hand from BOS -4.5 to BOS -7.5", r["meta"]["reasoning"])
+
+    def test_manual_lock_with_the_cards_own_line_is_unchanged(self):
+        r = self._manual_lock({"js": "document.getElementById('tstInp').value='225.5';_ouLockDir('BOS','NYK','2026-10-05',.62,225.5,'tstInp','OVER','NBA')"})
+        self.assertEqual(r["label"], "OVER 225.5")
+        self.assertIsNone(r["meta"])                                    # no override: lockPick's own cache lookup supplies the card's reasoning as before
+
     def test_tracker_list_shows_the_why_row_and_no_stale_nba_spread_claim(self):
         picks = [{"id": "w1", "sport": "NFL", "betType": "SPREAD", "betOn": "BAL -5.5", "hA": "BAL", "awA": "CLE", "date": "2026-10-04", "lockedAt": 1790000000000,
                   "outcome": "pending", "winProb": .67, "decOdds": 1.39, "ml": "-257", "priceSource": "estimated", "lockOrigin": "auto",

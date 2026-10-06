@@ -287,25 +287,25 @@ class SelectSeason(unittest.TestCase):
         self.assertEqual(len(s["teams"]), 30)
 
     def test_four_games_not_enough(self):
-        s = cu.select_nba_team_stats(mk_rows(4), mk_rows(82), 2027, 2026)
+        s = cu.select_nba_team_stats(mk_rows(cu.NBA_MIN_GAMES_FOR_CURRENT - 1), mk_rows(82), 2027, 2026)
         self.assertEqual(s["mode"], "prior")
 
-    def test_five_games_everywhere_switches_to_current(self):
-        s = cu.select_nba_team_stats(mk_rows(5), mk_rows(82), 2027, 2026)
+    def test_threshold_games_everywhere_switches_to_current(self):          # 15 since 2026-10-05 (was 5)
+        s = cu.select_nba_team_stats(mk_rows(cu.NBA_MIN_GAMES_FOR_CURRENT), mk_rows(82), 2027, 2026)
         self.assertEqual(s["mode"], "current")
         self.assertEqual(s["seasonUsed"], 2027)
         self.assertEqual({r["season"] for r in s["teams"].values()}, {2027})
 
     def test_few_teams_ready_stays_prior(self):
-        cur = mk_rows(5)
-        for a in sorted(cur)[:7]:                 # 7 teams still at 3 GP -> only 23 ready (< 24)
-            cur[a]["gp"] = 3
+        cur = mk_rows(cu.NBA_MIN_GAMES_FOR_CURRENT)
+        for a in sorted(cur)[:7]:                 # 7 teams still short -> only 23 ready (< 24)
+            cur[a]["gp"] = cu.NBA_MIN_GAMES_FOR_CURRENT - 2
         self.assertEqual(cu.select_nba_team_stats(cur, mk_rows(82), 2027, 2026)["mode"], "prior")
 
     def test_laggards_keep_their_own_prior_row_when_current_is_active(self):
-        cur = mk_rows(6)
+        cur = mk_rows(cu.NBA_MIN_GAMES_FOR_CURRENT + 1)
         for a in sorted(cur)[:3]:
-            cur[a]["gp"] = 4
+            cur[a]["gp"] = cu.NBA_MIN_GAMES_FOR_CURRENT - 1
         s = cu.select_nba_team_stats(cur, mk_rows(82), 2027, 2026)
         self.assertEqual(s["mode"], "mixed")
         self.assertEqual(s["teams"][sorted(cur)[0]]["season"], 2026)
@@ -317,7 +317,7 @@ class SelectSeason(unittest.TestCase):
         self.assertEqual(s["teams"], {})
 
     def test_prior_page_missing_but_thin_current_is_used(self):
-        s = cu.select_nba_team_stats(mk_rows(6, teams=["BOS", "NY"]), {}, 2027, 2026)
+        s = cu.select_nba_team_stats(mk_rows(cu.NBA_MIN_GAMES_FOR_CURRENT + 1, teams=["BOS", "NY"]), {}, 2027, 2026)
         self.assertEqual(s["mode"], "current")
         self.assertEqual(set(s["teams"]), {"BOS", "NY"})
 
@@ -360,13 +360,13 @@ class SelectionEndToEnd(unittest.TestCase):
         bbref_abbr = {"BKN": "BRK", "CHA": "CHO", "PHX": "PHO", "WSH": "WAS", "NO": "NOP", "UTAH": "UTA",
                       "NY": "NYK", "GS": "GSW", "SA": "SAS"}
         full_name = {ab: n for n, ab in cu._NBA_NAME_TO_ESPN.items()}
-        rows27 = "".join(games_row(bbref_abbr.get(a, a), full_name[a], 3, 3) for a in sorted(ESPN_30))
+        rows27 = "".join(games_row(bbref_abbr.get(a, a), full_name[a], 8, 8) for a in sorted(ESPN_30))
         sess = self.sess(table(rows27))
         with mock.patch.object(cu, "_ref_session", sess):
             adv = cu.fetch_nba_team_advanced()
         self.assertEqual(set(adv), ESPN_30)
         self.assertEqual({v["season"] for v in adv.values()}, {2027})
-        self.assertEqual({v["gp"] for v in adv.values()}, {6})
+        self.assertEqual({v["gp"] for v in adv.values()}, {16})
         self.assertTrue(any("using season 2027 [current]" in m for l, m in self.logs))
 
     def test_total_failure_is_loud(self):
