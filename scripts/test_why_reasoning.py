@@ -128,6 +128,52 @@ class JsSide(unittest.TestCase):
         self.assertEqual(r["label"], "OVER 225.5")
         self.assertIsNone(r["meta"])                                    # no override: lockPick's own cache lookup supplies the card's reasoning as before
 
+    def test_generated_props_carry_reasoning_and_lock_with_it(self):
+        out = self.pg.evaluate("""()=>{
+          const stats={'Jalen Brunson':{name:'Jalen Brunson',team:'NY',ppg:27.6,rpg:3.4,apg:6.8,gp:70,last5:{ppg:31,rpg:4,apg:7,n:5},stdev:{pts:7.1,reb:1.9,ast:2.4}},
+                       'Derrick White':{name:'Derrick White',team:'BOS',ppg:16.2,rpg:4.5,apg:4.9,gp:65}};
+          const props=_generateNBAProps([{h:'BOS',a:'NY'}],stats);
+          const p=props.find(x=>x.player==='Jalen Brunson'&&x.statAbbr==='PTS');
+          LOCKED_PROPS.length=0;
+          lockProp(p.team,p.player,String(p.line),p.over,p.prob,p.ml,'NBA',p.opp,p.statAbbr);                       // the LOCK button's call: no reasoning passed
+          const exact=LOCKED_PROPS.slice(-1)[0];
+          lockProp(p.team,p.player,String(p.line+2),p.over,p.prob,p.ml,'NBA',p.opp,p.statAbbr);                     // line edited by hand
+          const edited=LOCKED_PROPS.slice(-1)[0];
+          return {n:props.length,reasoning:p.reasoning,exact:exact.reasoning,edited:edited.reasoning,line:p.line,over:p.over}}""")
+        r = out["reasoning"]
+        self.assertGreater(out["n"], 0)
+        self.assertTrue(r.startswith("PICK: Jalen Brunson "), r)
+        for part in ("MODEL: projection", "season average 27.6", "last-5 form 31", "5k-sim Monte Carlo", "WHY: Jalen Brunson averages", "PRICE:", "no edge or EV is claimed"):
+            self.assertIn(part, r)
+        self.assertEqual(out["exact"], r)                                      # the LOCK button path finds it through the registry
+        self.assertIn("LINE EDITED: the line was changed by hand from", out["edited"])
+        self.assertNotIn("MODEL: projection", out["edited"])                   # the old line's projection is not carried onto a different line
+
+    def test_nhl_props_register_and_lock_with_reasoning(self):
+        out = self.pg.evaluate("""()=>{
+          const stats={'Connor McDavid':{name:'Connor McDavid',team:'EDM',ppg:1.35,gpg:0.55,apg:0.8,gp:60}};
+          const props=_generateNHLPropsLive([{h:'EDM',a:'CGY'}],stats);
+          const p=props.find(x=>x.player==='Connor McDavid'&&x.stat==='POINTS');
+          LOCKED_PROPS.length=0;
+          lockNHLProp(p.player,p.stat,p.over?'OVER':'UNDER',p.prob,p.ml,p.line);
+          return {has:!!p,reasoning:p&&p.reasoning,locked:LOCKED_PROPS.slice(-1)[0]&&LOCKED_PROPS.slice(-1)[0].reasoning}}""")
+        self.assertTrue(out["has"])
+        self.assertIn("MODEL: projection", out["reasoning"])
+        self.assertEqual(out["locked"], out["reasoning"])
+
+    def test_python_prop_lock_passes_the_reasoning_through(self):
+        calls = []
+
+        class FakePage:
+            def evaluate(self, js, arg=None):
+                calls.append((js, arg))
+                return "locked"
+        A.lock_prop_leg(FakePage(), "NBA", {"team": "NY", "player": "X", "line": 12.5, "over": True, "prob": .6, "ml": "-110", "opp": "BOS", "statAbbr": "REB", "reasoning": "PICK: x"})
+        A.lock_prop_leg(FakePage(), "NHL", {"player": "Y", "stat": "POINTS", "over": False, "prob": .6, "ml": "-110", "line": 0.5, "reasoning": "PICK: y"})
+        self.assertEqual(calls[0][1]["reasoning"], "PICK: x")
+        self.assertEqual(calls[1][1]["reasoning"], "PICK: y")
+        self.assertIn("reasoning", calls[0][0])
+
     def test_tracker_list_shows_the_why_row_and_no_stale_nba_spread_claim(self):
         picks = [{"id": "w1", "sport": "NFL", "betType": "SPREAD", "betOn": "BAL -5.5", "hA": "BAL", "awA": "CLE", "date": "2026-10-04", "lockedAt": 1790000000000,
                   "outcome": "pending", "winProb": .67, "decOdds": 1.39, "ml": "-257", "priceSource": "estimated", "lockOrigin": "auto",

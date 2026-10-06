@@ -2740,15 +2740,16 @@ def lock_prop_leg(page, sport: str, leg: dict) -> str:
     if sport == "NHL":
         return page.evaluate(
             """
-            ({ player, stat, dir, prob, ml, line }) => {
+            ({ player, stat, dir, prob, ml, line, reasoning }) => {
               const before = getP().length;
-              lockNHLProp(player, stat, dir, prob, ml, line);
+              lockNHLProp(player, stat, dir, prob, ml, line, reasoning);
               return getP().length > before ? 'locked' : 'already-locked';
             }
             """,
             {"player": leg.get("player"), "stat": leg.get("stat"),
              "dir": "OVER" if leg.get("over") is not False else "UNDER",
-             "prob": leg.get("prob") or (leg.get("conf", 0) / 100), "ml": leg.get("ml"), "line": leg.get("line")},
+             "prob": leg.get("prob") or (leg.get("conf", 0) / 100), "ml": leg.get("ml"), "line": leg.get("line"),
+             "reasoning": leg.get("reasoning") or None},
         )
     if sport == "NBA":
         # Real bug, found and fixed alongside this same audit: this used to
@@ -2767,16 +2768,16 @@ def lock_prop_leg(page, sport: str, leg: dict) -> str:
         # this purpose -- passed through here as `leg.statAbbr`.
         return page.evaluate(
             """
-            ({ team, player, line, over, prob, ml, sport, opp, stat }) => {
+            ({ team, player, line, over, prob, ml, sport, opp, stat, reasoning }) => {
               const before = getP().length;
-              lockProp(team, player, line, over, prob, ml, sport, opp, stat);
+              lockProp(team, player, line, over, prob, ml, sport, opp, stat, reasoning);
               return getP().length > before ? 'locked' : 'already-locked';
             }
             """,
             {"team": leg.get("team"), "player": leg.get("player"), "line": leg.get("line"),
              "over": leg.get("over") is not False, "prob": leg.get("prob") or (leg.get("conf", 0) / 100),
              "ml": leg.get("ml"), "sport": sport, "opp": leg.get("opp") or "",
-             "stat": leg.get("statAbbr") or ""},
+             "stat": leg.get("statAbbr") or "", "reasoning": leg.get("reasoning") or None},
         )
     # NFL branch removed 2026-09-23 alongside NFL player props leaving
     # gather_legs() entirely (see its own comment) -- a leg tagged "NFL"
