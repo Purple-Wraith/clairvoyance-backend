@@ -17855,6 +17855,7 @@ function renderCrossDeviceSync(){
   <div class="card" style="margin-bottom:12px;padding:12px">
     <div id="sync-debug-body"><div class="loading"><span class="spi"></span> LOADING SYNC DEBUG…</div></div>
     <button class="btn btn-o btn-fw" style="padding:10px;margin-top:10px" onclick="_forceFullResync(this)">⟳ FORCE FULL RESYNC</button>
+    <button class="btn btn-o btn-fw" style="padding:10px;margin-top:8px" onclick="_ledgerCompare(this)">⇄ COMPARE WITH SERVER</button>
   </div>`;
   el.innerHTML=html;
   _renderSyncDebugPanel();
@@ -17878,6 +17879,98 @@ async function _sbCountOnly(){
   if(!m)throw new Error('no count in Content-Range header');
   return parseInt(m[1],10);
 }
+// ── Ledger compare / adopt-server (2026-10-06, owner: "mobile and desktop numbers must match in every area") ──────────────────────────────────────────────────────────────
+// Each device keeps its OWN saved copy of the ledger plus a local wipe-blocklist, and a full pull only ever ADDS / settles into it: a pick this device hides (wiped locally but still live on
+// the server), holds that the server never had, or never received, silently skews its Home / Overall numbers against every other device forever. _ledgerDiff() lines this device's ledger up
+// against the server's (same visibility rules as the merge: archived retired picks and parlays are not part of the working ledger) and says exactly which picks differ;
+// _ledgerAdoptServer() makes this device match the server (nothing is destroyed: local-only picks are parked in cv_ledger_quarantine, which the page keeps for recovery).
+function _ledgerWL(list){let w=0,l=0;(list||[]).forEach(p=>{if(typeof _cvScoped==='function'&&!_cvScoped(p))return;if(p.outcome==='win')w++;else if(p.outcome==='loss')l++;});return{w,l,n:w+l};}
+function _ledgerVisibleRemote(row){
+  try{
+    const remote=row&&row.raw&&typeof row.raw==='object'?row.raw:null;if(!remote)return null;
+    const probe=Object.assign({},remote,{outcome:row.outcome||remote.outcome});
+    if(_slimPick(probe))return null;
+    if(_slimOn()&&_isParlay(remote))return null;
+    return probe;
+  }catch(e){return null;}
+}
+function _ledgerDiff(local,rows,wiped,nowMs){
+  nowMs=nowMs||Date.now();
+  const byIdLocal=new Map((local||[]).map(p=>[p.id,p]));
+  const live=new Map(),tomb=new Set();
+  (rows||[]).forEach(r=>{if(!r||!r.id)return;if(r.outcome==='_removed'){tomb.add(r.id);return;}const v=_ledgerVisibleRemote(r);if(v){v.id=v.id||r.id;live.set(r.id,Object.assign(v,{id:r.id}));}});
+  const out={onlyRemote:[],wipedLive:[],onlyLocal:[],tombLocal:[],outcomeDiff:[]};
+  live.forEach((rp,id)=>{
+    const lp=byIdLocal.get(id);
+    if(!lp){(wiped&&wiped.has(id)?out.wipedLive:out.onlyRemote).push(rp);return;}
+    if(lp.outcome!==rp.outcome&&lp.outcome!=='pending'&&rp.outcome!=='pending')out.outcomeDiff.push({local:lp,remote:rp});
+  });
+  (local||[]).forEach(lp=>{
+    if(live.has(lp.id))return;
+    if(tomb.has(lp.id)){out.tombLocal.push(lp);return;}
+    // a pick this device holds that the server does not (and never tombstoned). Fresh pending locks may simply not have synced yet -- those are not counted as drift.
+    const young=(nowMs-(lp.lockedAt||0))<3*86400000;
+    if(lp.outcome==='pending'&&young)return;
+    if(young)return;                                        // anything locked in the last 3 days may still be on its way to the server
+    if(_slimOn()&&typeof _archivable==='function'&&_archivable(lp))return;   // archived retired picks are meant to be absent from the working ledger
+    out.onlyLocal.push(lp);
+  });
+  const serverView=[...live.values()];
+  out.localWL=_ledgerWL(local);out.serverWL=_ledgerWL(serverView);
+  out.total=out.onlyRemote.length+out.wipedLive.length+out.onlyLocal.length+out.tombLocal.length+out.outcomeDiff.length;
+  return out;
+}
+function _ledgerDiffHTML(d){
+  const f=x=>`${x.w}-${x.l}`;
+  const row=(lbl,arr,col)=>arr.length?`<div style="margin-top:6px"><span style="color:${col}">${lbl}: ${arr.length}</span>${arr.slice(0,8).map(p=>{const q=p.local||p;return`<div style="font-size:13px;color:var(--t3)">${_escHtml(q.date||'')} · ${_escHtml(q.sport||'')} · ${_escHtml(String(q.betOn||''))} · ${_escHtml(String(q.outcome||''))}${p.remote?' → server '+_escHtml(String(p.remote.outcome)):''}</div>`;}).join('')}${arr.length>8?`<div style="font-size:13px;color:var(--t3)">…and ${arr.length-8} more</div>`:''}</div>`:'';
+  return`<div style="font-family:var(--mono);font-size:15px;color:var(--t2);line-height:1.7;margin-top:8px">
+    <div>THIS DEVICE (in-scope W-L): <span style="color:var(--nc)">${f(d.localWL)}</span> · SERVER VIEW: <span style="color:var(--nc)">${f(d.serverWL)}</span> · <span style="color:${d.total?'#ff9000':'#00e644'}">${d.total?d.total+' PICK(S) DIFFER':'IN SYNC'}</span></div>
+    ${row('SERVER HAS, THIS DEVICE LACKS',d.onlyRemote,'#ff9000')}${row('HIDDEN HERE (wiped locally) BUT LIVE ON SERVER',d.wipedLive,'#ff9000')}
+    ${row('THIS DEVICE ONLY (server never had them)',d.onlyLocal,'#ff9000')}${row('REMOVED ON SERVER, STILL HERE',d.tombLocal,'#ff9000')}${row('RESULT DIFFERS',d.outcomeDiff,'#ff9000')}
+  </div>`;
+}
+async function _ledgerCompare(btn){
+  const box=document.getElementById('ledger-compare-body');if(!box)return;
+  if(btn){btn.disabled=true;btn.textContent='⏳ COMPARING…';}
+  try{
+    const rows=await _fetchSupabaseBetRows(null);
+    window._ledgerLastRows=rows;
+    const d=_ledgerDiff(getP(),rows,_getWipedIds());
+    box.innerHTML=_ledgerDiffHTML(d)+(d.total?`<button class="btn btn-o btn-fw" style="padding:10px;margin-top:10px" onclick="_ledgerAdoptServer(this)">⟲ MATCH THE SERVER</button>`:'');
+  }catch(e){box.innerHTML=`<div style="color:#ff9000;font-family:var(--mono);font-size:15px">COMPARE FAILED: ${_escHtml(e.message||String(e))}</div>`;}
+  if(btn){btn.disabled=false;btn.textContent='⇄ COMPARE WITH SERVER';}
+}
+function _ledgerAdoptApply(local,rows,wipedSet,nowMs){
+  const d=_ledgerDiff(local,rows,wipedSet,nowMs);
+  const drop=new Set([...d.onlyLocal,...d.tombLocal].map(p=>p.id));
+  const unwipe=new Set(d.wipedLive.map(p=>p.id));
+  const next=(local||[]).filter(p=>!drop.has(p.id));
+  const have=new Set(next.map(p=>p.id));
+  [...d.onlyRemote,...d.wipedLive].forEach(p=>{if(!have.has(p.id)){next.push(p);have.add(p.id);}});
+  d.outcomeDiff.forEach(x=>{const t=next.find(p=>p.id===x.local.id);if(t){t.outcome=x.remote.outcome;t.settledAt=x.remote.settledAt||t.settledAt;if(x.remote.hScore!=null)t.hScore=x.remote.hScore;if(x.remote.aScore!=null)t.aScore=x.remote.aScore;}});
+  return{next,quarantine:[...d.onlyLocal,...d.tombLocal],unwipe,diff:d};
+}
+async function _ledgerAdoptServer(btn){
+  if(btn){btn.disabled=true;btn.textContent='⏳ MATCHING…';}
+  try{
+    const rows=window._ledgerLastRows||await _fetchSupabaseBetRows(null);
+    const res=_ledgerAdoptApply(getP(),rows,_getWipedIds());
+    try{const q=JSON.parse(localStorage.getItem('cv_ledger_quarantine')||'[]');localStorage.setItem('cv_ledger_quarantine',JSON.stringify(q.concat(res.quarantine).slice(-500)));}catch(e){}
+    const w=_getWipedIds();res.unwipe.forEach(id=>w.delete(id));try{localStorage.setItem('cv_wiped_ids',JSON.stringify([...w]));}catch(e){}
+    saveP(res.next);
+    try{updHdr();renderHomePage();renderOverall();}catch(e){}
+    toast(`// LEDGER MATCHED TO SERVER: ${res.diff.total} pick(s) reconciled`);
+  }catch(e){toast('// MATCH FAILED: '+(e.message||e));}
+  renderCrossDeviceSync();
+}
+// Fingerprint of the page's own code (FNV-1a over the biggest <script>): identical on desktop and mobile when they run the same app version -- the mobile transform only touches CSS/meta.
+function _cvCodeId(){
+  try{
+    let best='';document.querySelectorAll('script:not([src])').forEach(sc=>{if(sc.textContent.length>best.length)best=sc.textContent;});
+    let h=0x811c9dc5;for(let i=0;i<best.length;i++){h^=best.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}
+    return h.toString(16).padStart(8,'0')+' · '+Math.round(best.length/1000)+'k';
+  }catch(e){return 'n/a';}
+}
 async function _renderSyncDebugPanel(){
   const body=document.getElementById('sync-debug-body');if(!body)return;
   const lastFullTs=parseInt(localStorage.getItem('cv_last_full_pull_ts')||'0',10);
@@ -17892,6 +17985,9 @@ async function _renderSyncDebugPanel(){
     <div>LOCAL BET COUNT: <span style="color:var(--nc)">${localCount}</span></div>
     <div>REMOTE BET COUNT (Supabase): <span style="color:${remoteErr?'#ff9000':'var(--nc)'}">${remoteErr?_ehEsc(remoteErr):remoteCount}</span></div>
     ${diff!=null?`<div>DIFFERENCE (local − remote): <span style="color:${diffColor}">${diff>0?'+':''}${diff}</span></div>`:''}
+    <div>THIS DEVICE'S IN-SCOPE RECORD: <span style="color:var(--nc)">${_ledgerWL(getP()).w}-${_ledgerWL(getP()).l}</span> <span style="color:var(--t3)">(compare this number between your devices)</span></div>
+    <div>APP CODE ID: <span style="color:var(--t3)">${_ehEsc(_cvCodeId())}</span> <span style="color:var(--t3)">(same on every device running the same code; if your phone differs, it is on an older app version)</span></div>
+    <div id="ledger-compare-body"></div>
   </div>`;
 }
 async function _forceFullResync(btn){
