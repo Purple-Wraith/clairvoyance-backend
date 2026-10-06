@@ -52,13 +52,12 @@ on:
   # late" instead of "silently never," without needing anyone to catch it.
   workflow_run:
     workflows:
-      - "CFB Rankings + FPI Refresh"
       - "CFB Roster Refresh"
-      - "CFB Team Stats Refresh"
+      - "CFB Stats + Rankings Refresh"
+      - "NFL Weekly Refresh (stats, standings, player stats; roster every 2 weeks)"
+      - "Soccer Refresh (Tomorrow Schedule + Opta Stats)"
+      - "European Hockey Schedule + Standings Refresh"
       - "Manual Data Sync"
-      - "NFL Roster Refresh"
-      - "NFL Team Stats + Standings Refresh"
-      - "Daily Opta Soccer Stats Refresh"
       - "Scheduled Data Refresh"
       - "Daily Social Cards Email"
       - "Auto Lock + Settle"
@@ -69,7 +68,6 @@ on:
       - "SHL/Liiga Auto Lock (Evening — Tomorrow's Slate)"
       - "Landing Page Performance Refresh (manual)"
       - "Live Score Tracker"
-      - "Soccer Schedule Refresh (Tomorrow)"
       # 2026-09-01 workflow consolidation: replaced CFB Schedule + Lines
       # Refresh, NFL Schedule + Lines Refresh, Daily Soccer Schedule
       # Refresh, and Daily Soccer Standings Refresh (below), and replaced
@@ -78,8 +76,6 @@ on:
       # daily-player-stats-refresh.yml's own docstrings for why.
       - "Daily Schedules + Standings Refresh"
       - "Daily Player & Prop Stats Refresh"
-      - "NLA Schedule + Standings Refresh"
-      - "Extraliga Schedule + Standings Refresh"
     types: [completed]
   schedule:
     # Fallback safety net, not the primary path -- unconditionally

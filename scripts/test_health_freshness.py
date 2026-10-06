@@ -46,6 +46,63 @@ def utc_txt(h):
     return ago(h).strftime("%Y-%m-%d %H:%M UTC")
 
 
+class MobileSync(unittest.TestCase):
+    """check_mobile_sync with a fake GitHub API: completeness, app.html parity (with a grace window), and data freshness."""
+    def fake_root(self, data_gen="2026-10-05T12:00:00+00:00"):
+        import tempfile
+        r = Path(tempfile.mkdtemp())
+        (r / "docs").mkdir()
+        (r / "docs" / "app.html").write_text("<html>backend</html>")
+        (r / "docs" / "nhl_schedule.json").write_text("{}")
+        (r / "docs" / "data.json").write_text(json.dumps({"generated": data_gen}))
+        (r / "docs" / "CNAME").write_text("example.com")
+        return r
+
+    def api(self, names, app_sha, app_commit_age_h, now):
+        entries = [{"name": n, "sha": app_sha if n == "app.html" else "x"} for n in names]
+        def get(path):
+            if path.endswith("/contents/docs"):
+                return entries
+            if "/commits?path=docs/app.html" in path:
+                return [{"commit": {"committer": {"date": (now - timedelta(hours=app_commit_age_h)).isoformat()}}}]
+            raise AssertionError(path)
+        return get
+
+    def run_check(self, names, app_ok=True, app_age=5, mobile_gen="2026-10-05T12:00:00+00:00", root=None):
+        now = datetime(2026, 10, 5, 20, 0, tzinfo=timezone.utc)
+        root = root or self.fake_root()
+        expected = b"<html>mobile</html>"
+        sha = H._git_blob_sha(expected) if app_ok else "deadbeef"
+        raw = json.dumps({"generated": mobile_gen}).encode()
+        return H.check_mobile_sync(api_get=self.api(names, sha, app_age, now), root=root, now=now, transform=lambda b: expected, fetch_raw=lambda u: raw)
+
+    ALL = ["app.html", "index.html", "nhl_schedule.json", "data.json"]
+
+    def test_healthy_mirror_has_no_alerts(self):
+        self.assertEqual([r for r in self.run_check(self.ALL) if r[0] == "alert"], [])
+
+    def test_missing_data_files_alert_and_cname_is_not_required(self):
+        res = self.run_check(["app.html", "index.html", "data.json"])
+        self.assertTrue(any(r[0] == "alert" and "nhl_schedule.json" in r[1] for r in res))
+        self.assertFalse(any("CNAME" in r[1] for r in res))
+
+    def test_stale_mobile_app_alerts_but_a_fresh_commit_is_only_a_note(self):
+        res = self.run_check(self.ALL, app_ok=False, app_age=5)
+        self.assertTrue(any(r[0] == "alert" and "out of date" in r[1] for r in res))
+        res = self.run_check(self.ALL, app_ok=False, app_age=0.5)
+        self.assertEqual([r for r in res if r[0] == "alert"], [])
+        self.assertTrue(any(r[0] == "note" and "app.html" in r[1] for r in res))
+
+    def test_stuck_data_sync_alerts(self):
+        res = self.run_check(self.ALL, mobile_gen="2026-10-05T03:00:00+00:00")
+        self.assertTrue(any(r[0] == "alert" and "behind" in r[1] for r in res))
+
+    def test_unreadable_mobile_repo_is_only_a_note(self):
+        def boom(path): raise OSError("rate limited")
+        res = H.check_mobile_sync(api_get=boom, root=self.fake_root())
+        self.assertTrue(res and all(r[0] == "note" for r in res))
+
+
 class OddsSanity(unittest.TestCase):
     def run_with(self, odds):
         import tempfile

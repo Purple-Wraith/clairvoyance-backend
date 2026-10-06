@@ -3,19 +3,39 @@ name: Sync to Mobile Repo
 on:
   push:
     branches: [main]
+    # Everything under docs/ (every data file the app fetches, not just a hand-picked list) plus the scripts that build the mobile copy.
     paths:
-      - 'docs/app.html'
-      - 'docs/index.html'
-      - 'docs/data.json'
-      - 'docs/picks.json'
-      - 'docs/live_data.json'
-      - 'docs/version.json'
-      - 'docs/sw.js'
-      - 'docs/manifest.json'
-      - 'docs/icon-1080.png'
-      - 'docs/card.png'
+      - 'docs/**'
       - 'scripts/mobile_transform.py'
+      - 'scripts/mobile_sync.py'
+      - '.github/workflows/mobile-sync.yml'
   workflow_dispatch: {}
+  # Data refreshes push with the default GITHUB_TOKEN, and GitHub never lets such a push trigger the `push` trigger above -- so the mobile site silently stopped updating whenever
+  # the only change was a bot commit (found 2026-10-06: mobile data.json was ~4 h behind). workflow_run is exempt from that rule; this is the SAME list as pages-deploy.yml
+  # (scripts/test_workflow_refs.py keeps them equal and checks every name is a real workflow).
+  workflow_run:
+    types: [completed]
+    workflows:
+      - "CFB Roster Refresh"
+      - "CFB Stats + Rankings Refresh"
+      - "NFL Weekly Refresh (stats, standings, player stats; roster every 2 weeks)"
+      - "Soccer Refresh (Tomorrow Schedule + Opta Stats)"
+      - "European Hockey Schedule + Standings Refresh"
+      - "Manual Data Sync"
+      - "Scheduled Data Refresh"
+      - "Daily Social Cards Email"
+      - "Auto Lock + Settle"
+      - "CFB Auto Lock (Early)"
+      - "CFB Auto Lock (Evening — Tomorrow's Slate)"
+      - "European Lock (Early)"
+      - "Soccer Auto Lock (Evening — Tomorrow's Slate)"
+      - "SHL/Liiga Auto Lock (Evening — Tomorrow's Slate)"
+      - "Landing Page Performance Refresh (manual)"
+      - "Live Score Tracker"
+      - "Daily Schedules + Standings Refresh"
+      - "Daily Player & Prop Stats Refresh"
+  schedule:
+    - cron: '17 */2 * * *'      # fallback: a no-op when nothing changed
 
 # A live-score service pushes docs/live_data.json every ~3min, and each
 # push here re-triggers this workflow -- on a busy day (e.g. a burst of
@@ -54,24 +74,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Sync docs files to mobile repo
-        run: |
-          # Copy all docs files except we'll regenerate app.html and index.html
-          cp source/docs/data.json       mobile/docs/data.json        2>/dev/null || true
-          cp source/docs/picks.json      mobile/docs/picks.json       2>/dev/null || true
-          cp source/docs/live_data.json  mobile/docs/live_data.json   2>/dev/null || true
-          cp source/docs/version.json    mobile/docs/version.json     2>/dev/null || true
-          cp source/docs/sw.js           mobile/docs/sw.js            2>/dev/null || true
-          cp source/docs/manifest.json   mobile/docs/manifest.json    2>/dev/null || true
-          cp source/docs/card.png        mobile/docs/card.png         2>/dev/null || true
-          cp source/docs/icon-1080.png   mobile/docs/icon-1080.png    2>/dev/null || true
-
-      - name: Apply mobile transform to app.html
-        run: |
-          mkdir -p mobile/docs
-          python3 source/scripts/mobile_transform.py source/docs/app.html mobile/docs/app.html
-          cp mobile/docs/app.html mobile/docs/index.html
-          echo "Mobile transform done"
+      # COMPLETE mirror of docs/ (scripts/mobile_sync.py): every file byte-for-byte except app.html/index.html (transformed for mobile) and CNAME (never copied); files removed from the
+      # backend are removed here too. Before 2026-10-06 only 8 files were copied and the mobile site 404'd on ~64 of the data files the app fetches (schedules, ledger backup, engine performance...).
+      - name: Mirror docs/ into the mobile repo and apply the mobile transform
+        run: python3 source/scripts/mobile_sync.py source mobile
 
       - name: Commit and push to mobile repo
         run: |

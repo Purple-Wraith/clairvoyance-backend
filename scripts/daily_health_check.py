@@ -406,6 +406,68 @@ ARCHIVE_TAGS = {"MLB", "WNBA", "WTA", "ATP", "WC", "TEN", "XP", "MLS", "BUND"}  
 ARCHIVE_ANY_AGE = {"MLS", "BUND"}  # mirror of _ARCH_ANY_AGE: archived whatever their age
 
 
+MOBILE_REPO = "Purple-Wraith/Clairvoyance-backend-mobile"
+MOBILE_APP_GRACE_H = 2.0          # app.html on the mobile site may lag a fresh backend commit by this long (the sync runs per push, GitHub's queue can add delay)
+MOBILE_DATA_LAG_H = 3.0           # mobile data.json older than the backend's by more than this => the sync is stuck
+
+
+def _git_blob_sha(b: bytes) -> str:
+    import hashlib
+    return hashlib.sha1(b"blob %d\0" % len(b) + b).hexdigest()
+
+
+def check_mobile_sync(api_get=None, root: Path | None = None, now: datetime | None = None, transform=None, fetch_raw=None) -> list[tuple[str, str]]:
+    """The mobile site (Clairvoyance-backend-mobile, built by mobile-sync.yml / scripts/mobile_sync.py) must be a COMPLETE mirror of docs/: (1) every backend docs file present on the mobile repo
+    (the old workflow copied 8 files and ~64 data files 404'd on mobile), (2) mobile app.html == the mobile transform of the backend's app.html (grace for a fresh commit), (3) mobile data.json
+    not stale vs the backend's. Alerts; an API failure is only a note."""
+    api_get = api_get or _api_get
+    root = root or Path(__file__).resolve().parent.parent
+    now = now or datetime.now(timezone.utc)
+    out: list[tuple[str, str]] = []
+    try:
+        mob = {e["name"]: e for e in api_get(f"/repos/{MOBILE_REPO}/contents/docs")}
+    except Exception as exc:
+        return [("note", f"mobile sync check skipped (mobile repo unreadable: {exc.__class__.__name__})")]
+    want = sorted(p.name for p in (root / "docs").iterdir() if p.name != "CNAME")
+    missing = [n for n in want if n not in mob]
+    if missing:
+        out.append(("alert", f"Mobile site is missing {len(missing)} backend docs file(s): {', '.join(missing[:8])}{' ...' if len(missing) > 8 else ''} -- check Sync to Mobile Repo "
+                             f"(https://github.com/{REPO}/actions/workflows/mobile-sync.yml)"))
+    # app.html parity
+    try:
+        import subprocess, tempfile
+        tmp = Path(tempfile.mkdtemp()) / "m.html"
+        if transform:
+            expected = transform((root / "docs" / "app.html").read_bytes())
+        else:
+            subprocess.run([sys.executable, str(root / "scripts" / "mobile_transform.py"), str(root / "docs" / "app.html"), str(tmp)], check=True, capture_output=True)
+            expected = tmp.read_bytes()
+        mob_app = mob.get("app.html")
+        if mob_app and mob_app.get("sha") != _git_blob_sha(expected):
+            last = api_get(f"/repos/{REPO}/commits?path=docs/app.html&per_page=1")
+            ts = parse_stamp(last[0]["commit"]["committer"]["date"]) if last else None
+            age_h = (now - ts).total_seconds() / 3600 if ts else 99
+            if age_h > MOBILE_APP_GRACE_H:
+                out.append(("alert", f"Mobile app.html is out of date: it differs from the mobile transform of the backend's app.html, which last changed {_fmt_age(age_h)} ago"))
+            else:
+                out.append(("note", "mobile app.html differs from the backend's latest transform (a recent commit; the sync is probably still running)"))
+    except Exception as exc:
+        out.append(("note", f"mobile app.html parity check skipped ({exc.__class__.__name__})"))
+    # data freshness
+    try:
+        import urllib.request
+        def stamp_of(raw: bytes):
+            m = re.search(rb'"generated"\s*:\s*"([^"]+)"', raw[:4000])
+            return parse_stamp(m.group(1).decode()) if m else None
+        mob_raw = (fetch_raw or (lambda u: urllib.request.urlopen(u, timeout=20).read()))(f"https://raw.githubusercontent.com/{MOBILE_REPO}/main/docs/data.json")
+        a, b = stamp_of((root / "docs" / "data.json").read_bytes()), stamp_of(mob_raw)
+        if a and b and (a - b).total_seconds() / 3600 > MOBILE_DATA_LAG_H:
+            out.append(("alert", f"Mobile data.json is {_fmt_age((a - b).total_seconds() / 3600)} behind the backend's -- the mobile sync looks stuck"))
+    except Exception as exc:
+        out.append(("note", f"mobile data freshness check skipped ({exc.__class__.__name__})"))
+    return out
+
+
 ODDS_FILES = ("nhl_schedule.json", "shl_schedule.json", "liiga_schedule.json", "nla_schedule.json", "extraliga_schedule.json")
 ODDS_OVERROUND_OK = (1.0, 1.15)
 
@@ -488,6 +550,13 @@ def main() -> int:
             (problems if level == "alert" else notes).append(msg)
     except Exception as exc:  # fail-open
         notes.append(f"data freshness check crashed ({exc})")
+
+    if GITHUB_TOKEN:
+        try:
+            for level, msg in check_mobile_sync():
+                (problems if level == "alert" else notes).append(msg)
+        except Exception as exc:  # fail-open
+            notes.append(f"mobile sync check crashed ({exc})")
 
     try:
         for level, msg in check_odds_sanity():

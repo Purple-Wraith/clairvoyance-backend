@@ -31,6 +31,37 @@ class WorkflowRefs(unittest.TestCase):
         for f in WF.glob("*.yml"):
             self.assertNotIn("ubuntu-latest", f.read_text(), f.name)
 
+    @staticmethod
+    def run_trigger_names(fname):
+        text = (WF / fname).read_text()
+        i = text.index("workflow_run:")
+        block = text[i:]
+        j = re.search(r"(?m)^  [a-z_]+:", block[len("workflow_run:"):])        # the next trigger key at the same indent ends the list
+        block = block[: len("workflow_run:") + (j.start() if j else len(block))]
+        return re.findall(r'(?m)^\s*-\s*"([^"]+)"\s*$', block)
+
+    def test_workflow_run_lists_name_real_workflows_and_agree(self):
+        """Bot commits (GITHUB_TOKEN) never fire `push` workflows, so Pages and the mobile mirror rely on `workflow_run` allowlists BY NAME -- which silently went stale when four workflows were
+        merged/renamed (2026-10-05). Every name must be a real workflow, and the two lists must be identical."""
+        known = set(n for n in names().values() if n)
+        pages, mobile = self.run_trigger_names("pages-deploy.yml"), self.run_trigger_names("mobile-sync.yml")
+        self.assertGreater(len(pages), 10)
+        for n in pages + mobile:
+            self.assertIn(n, known, f"workflow_run lists a workflow that does not exist: {n}")
+        self.assertEqual(sorted(pages), sorted(mobile), "pages-deploy.yml and mobile-sync.yml must trigger on the same workflows")
+
+    def test_every_docs_writing_workflow_triggers_a_redeploy(self):
+        # Workflows that push to the repo but write nothing under docs/ (or are deliberately not redeploying) are exempt, with the reason:
+        exempt = {"pages-deploy.yml": "is the deploy", "mobile-sync.yml": "is the mirror", "tests.yml": "read-only", "daily-health-check.yml": "writes data/health_alert_state.json",
+                  "pick-of-day-social-daily.yml": "writes data/ markers", "send-expiry-reminders.yml": "writes the private repo", "lock-watchdog.yml": "owner decision 2026-10-03: no deploy per slot",
+                  "weekly-health-digest.yml": "no push", "send-demo-emails.yml": "no push", "verify-lock-workflows.yml": "no push", "landing-performance-refresh.yml": "listed by name already"}
+        listed = set(self.run_trigger_names("pages-deploy.yml"))
+        for f in sorted(WF.glob("*.yml")):
+            body = re.sub(r"(?m)^\s*#.*$", "", f.read_text())
+            if f.name in exempt or not re.search(r"git push|--push|auto_lock_settle\.py", body):
+                continue
+            self.assertIn(names()[f.name], listed, f"{f.name} pushes to the repo but is not in pages-deploy.yml's workflow_run list -- its commits would not reach the site")
+
     def test_nfl_roster_runs_every_other_week_only(self):
         text = (WF / "nfl-weekly-refresh.yml").read_text()
         self.assertIn("WEEK % 2", text)
