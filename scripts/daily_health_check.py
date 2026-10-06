@@ -406,6 +406,44 @@ ARCHIVE_TAGS = {"MLB", "WNBA", "WTA", "ATP", "WC", "TEN", "XP", "MLS", "BUND"}  
 ARCHIVE_ANY_AGE = {"MLS", "BUND"}  # mirror of _ARCH_ANY_AGE: archived whatever their age
 
 
+ODDS_FILES = ("nhl_schedule.json", "shl_schedule.json", "liiga_schedule.json", "nla_schedule.json", "extraliga_schedule.json")
+ODDS_OVERROUND_OK = (1.0, 1.15)
+
+
+def check_odds_sanity(docs_dir: Path | None = None) -> list[tuple[str, str]]:
+    """The hockey price display (units / ROI on real-priced picks) is only as good as the scraped prices, so check them every day: for every game with odds in the schedule files, each two-way
+    market (ML, puck line, the near-even O/U rung) must sum to an overround inside 1.00-1.15 and no price may be <= 1.0. Anything outside is an ALERT (a corrupt price would be locked and shown
+    as real); an empty file / no games with odds is only a note (odds are posted close to game time)."""
+    docs_dir = docs_dir or Path(__file__).resolve().parent.parent / "docs"
+    out: list[tuple[str, str]] = []
+    lo, hi = ODDS_OVERROUND_OK
+    for fname in ODDS_FILES:
+        try:
+            games = [g for g in json.loads((docs_dir / fname).read_text()).get("games", []) if g.get("odds")]
+        except Exception as exc:
+            out.append(("note", f"odds sanity: {fname} unreadable ({exc.__class__.__name__})"))
+            continue
+        bad: list[str] = []
+        def two_way(label: str, g: dict, a, b) -> None:
+            if not (a and b):
+                return
+            if a <= 1.0 or b <= 1.0 or not (lo <= 1 / a + 1 / b <= hi):
+                bad.append(f"{g.get('awayName', '?')} @ {g.get('homeName', '?')} {label} {a}/{b} (overround {1 / a + 1 / b:.3f})")
+        for g in games:
+            o = g["odds"]
+            two_way("ML", g, (o.get("ml") or {}).get("home"), (o.get("ml") or {}).get("away"))
+            for k, v in (o.get("pl") or {}).items():
+                two_way("PL " + k, g, v.get("home"), v.get("away"))
+            for line in o.get("ou") or []:
+                if line.get("over") and line.get("under") and abs(line["over"] - line["under"]) < 0.9:      # the near-even rungs; far alt-line rungs are priced lopsidedly by design
+                    two_way(f"O/U {line.get('line')}", g, line["over"], line["under"])
+        if bad:
+            out.append(("alert", f"Odds sanity: {fname}: {len(bad)} price(s) outside a normal two-way market -- {'; '.join(bad[:3])}"))
+        elif not games:
+            out.append(("note", f"odds sanity: {fname} has no games with odds right now"))
+    return out
+
+
 def check_ledger_archive(docs_dir: Path | None = None, now: datetime | None = None) -> list[tuple[str, str]]:
     """docs/ledger_archive.json is a static snapshot (see scripts/build_ledger_archive.py).  Note (never an email) when docs/picks_backup.json holds settled,
     >21-day-old picks of a retired league that the archive does not have: a stale archive would leave those picks in neither place on a slimmed device."""
@@ -450,6 +488,12 @@ def main() -> int:
             (problems if level == "alert" else notes).append(msg)
     except Exception as exc:  # fail-open
         notes.append(f"data freshness check crashed ({exc})")
+
+    try:
+        for level, msg in check_odds_sanity():
+            (problems if level == "alert" else notes).append(msg)
+    except Exception as exc:  # fail-open
+        notes.append(f"odds sanity check crashed ({exc})")
 
     try:
         for _lvl, msg in check_ledger_archive():

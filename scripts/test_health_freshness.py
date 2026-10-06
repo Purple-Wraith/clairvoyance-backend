@@ -46,6 +46,36 @@ def utc_txt(h):
     return ago(h).strftime("%Y-%m-%d %H:%M UTC")
 
 
+class OddsSanity(unittest.TestCase):
+    def run_with(self, odds):
+        import tempfile
+        d = Path(tempfile.mkdtemp())
+        for f in H.ODDS_FILES:
+            (d / f).write_text(json.dumps({"games": [{"homeName": "H", "awayName": "A", "odds": odds}] if odds else []}))
+        return H.check_odds_sanity(d)
+
+    def test_normal_prices_pass(self):
+        res = self.run_with({"ml": {"home": 1.45, "away": 2.75}, "pl": {"-1.5": {"home": 2.5, "away": 1.55}}, "ou": [{"line": 5.5, "over": 1.9, "under": 1.9}, {"line": 2.5, "over": 1.02, "under": 18.0}]})
+        self.assertEqual([r for r in res if r[0] == "alert"], [])
+
+    def test_a_corrupt_price_alerts(self):
+        res = self.run_with({"ml": {"home": 1.2, "away": 1.2}})                       # overround 1.67
+        self.assertTrue(any(r[0] == "alert" and "ML" in r[1] for r in res))
+        res = self.run_with({"ml": {"home": 0.9, "away": 3.0}})                       # a price at or below 1.0
+        self.assertTrue(any(r[0] == "alert" for r in res))
+        res = self.run_with({"ml": {"home": 2.0, "away": 2.0}})                       # overround 1.0 exactly is fine (no margin), but under 1.0 is not
+        self.assertEqual([r for r in res if r[0] == "alert"], [])
+        res = self.run_with({"ml": {"home": 2.1, "away": 2.1}})                       # 0.952 -> an arbitrage "market" is a scrape error
+        self.assertTrue(any(r[0] == "alert" for r in res))
+
+    def test_no_odds_is_only_a_note(self):
+        res = self.run_with(None)
+        self.assertTrue(res and all(r[0] == "note" for r in res))
+
+    def test_real_files_pass_today(self):
+        self.assertEqual([r for r in H.check_odds_sanity() if r[0] == "alert"], [])
+
+
 class ParseStamp(unittest.TestCase):
     def test_formats(self):
         self.assertEqual(H.parse_stamp("2026-10-03 16:32 UTC"), datetime(2026, 10, 3, 16, 32, tzinfo=timezone.utc))
