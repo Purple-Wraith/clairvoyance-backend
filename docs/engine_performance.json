@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-10-07 14:49 MT",
+  "generated_at": "2026-10-07 15:20 MT",
   "basis": "all locks (including picks locked after the game started)",
   "basis_note": "Figures count every settled pick in scope, including picks locked after the game had started. basis_detail shows how many of those there are.",
   "classifier": "scripts/lock_timing.py",
   "basis_detail": {
-    "settled_pre_start": 1061,
+    "settled_pre_start": 1062,
     "settled_locked_after_start_included": 201,
     "settled_unknown_timing_included": 2615,
     "unknown_timing_by_league": {
@@ -20,8 +20,8 @@
       "LIGA": 8,
       "PL": 7,
       "TEN": 6,
-      "NFL": 1,
-      "UNKNOWN": 1
+      "UNKNOWN": 1,
+      "NFL": 1
     }
   },
   "periods": [
@@ -29,11 +29,11 @@
       "key": "TODAY",
       "label": "TODAY",
       "sub": "",
-      "w": 2,
+      "w": 3,
       "l": 1,
-      "n": 3,
-      "pct": 0.6666666666666666,
-      "units": -0.2899999999999998,
+      "n": 4,
+      "pct": 0.75,
+      "units": 0.11000000000000032,
       "excluded_late": 0
     },
     {
@@ -51,11 +51,11 @@
       "key": "ROLLING_7D",
       "label": "ROLLING 7D",
       "sub": "",
-      "w": 150,
-      "l": 62,
-      "n": 213,
-      "pct": 0.704225352112676,
-      "units": 33.980768377562526,
+      "w": 148,
+      "l": 60,
+      "n": 209,
+      "pct": 0.7081339712918661,
+      "units": 34.07976837756253,
       "excluded_late": 0
     },
     {
@@ -66,29 +66,29 @@
       "l": 60,
       "n": 207,
       "pct": 0.7053140096618358,
-      "units": 32.91076837756253,
+      "units": 32.440768377562534,
       "excluded_late": 0
     },
     {
       "key": "LAST_MONTH",
       "label": "LAST MONTH",
       "sub": "SEP 2026",
-      "w": 798,
+      "w": 799,
       "l": 434,
-      "n": 1235,
-      "pct": 0.6461538461538462,
-      "units": 185.393411590961,
+      "n": 1236,
+      "pct": 0.6464401294498382,
+      "units": 186.26341159096106,
       "excluded_late": 0
     },
     {
       "key": "ALL_TIME",
       "label": "ALL TIME",
       "sub": "",
-      "w": 2707,
+      "w": 2708,
       "l": 1170,
-      "n": 3881,
-      "pct": 0.6975006441638752,
-      "units": 948.9645761569343,
+      "n": 3882,
+      "pct": 0.6975785677485832,
+      "units": 949.3645761569265,
       "excluded_late": 0
     }
   ]
