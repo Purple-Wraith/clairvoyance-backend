@@ -2200,7 +2200,8 @@ ALT_LINE_CFG = {
 #     minus the neutral 50% baseline of that line), clamped to [-0.05, +0.08]. A strong model pick therefore needs a smaller move, a marginal one a bigger move;
 #   * the candidate closest to HOCKEY_ALT_BAND wins; nothing below HOCKEY_ALT_FLOOR (58%) is allowed, so a pick whose own adjusted probability is already >= 58% keeps its posted line
 #     (no alt line, price stays the market's); ties within 2 points go to the smaller move.
-# A flip would only make sense if the model itself favoured the other side, and then this leg would not have qualified -- so flips are off (altLine.flip is always False).
+# A total the model already rates at HOCKEY_LANE_OU_P (62%) or better at the posted line keeps that line and its real market price (2026-10-06): the adjusted line exists for totals BELOW the lane floor.
+# Side flips (HOCKEY_ALT_FLIP) are switched off, so altLine.flip is always False unless that flag is turned back on.
 #   NHL: conditional hit rates from 2,630 games of closing totals + results (2024-25 + 2025-26, scripts/backtest_alt_lines.py nhl), with the shootout-winning goal removed
 #        (ESPN's final includes it, sportsbooks do not settle totals on it). Posted totals <= 6.0 use the 5.5 table, higher ones the 6.5 table.
 #   LIIGA / SHL / NLA / EXTRALIGA: each league's OWN table (scripts/backtest_alt_lines.py euro-archive): the league's full 2025-26 regular season (364-480 games, from Flashscore's
@@ -2214,7 +2215,7 @@ HOCKEY_ALT_FLOOR = 0.58
 HOCKEY_EDGE_W = 0.5            # share of the model's edge over the neutral line probability that is credited to every candidate
 HOCKEY_EDGE_CLAMP = (-0.05, 0.08)
 HOCKEY_ALT_TIE = 0.02
-HOCKEY_ALT_FLIP = True            # 2026-10-06 (owner): a hockey total may switch SIDES, but only when the model's own scoring distribution backs the other side (see _hockey_flip_candidates)
+HOCKEY_ALT_FLIP = False           # OFF 2026-10-06 (owner, after review): side flips stay built (see _hockey_flip_candidates) but are not used until real alt-line quotes/results exist. True re-enables; the JS mirror is _ALT_HK_FLIP in docs/app.html
 HOCKEY_FLIP_CEIL_MARGIN = 0.06     # a flip candidate may sit at most this far above the top of the band (HOCKEY_ALT_BAND)
 HOCKEY_FLIP_OVERSHOOT = 0.08       # a flip is only considered when the best SAME-side line would overshoot the band by more than this (an impractically short price)
 HOCKEY_FLIP_MAX_DROP = 0.02        # ... and the flip may not be more than this below the pick's OWN model probability at the posted line
@@ -2347,6 +2348,8 @@ def _hockey_flip_candidates(own_side: str, anchor: float, model_p: float):
 def _hockey_pick_alt(posted: float, sport: str = "NHL", own_side: str = "over", model_p: float | None = None):
     """(side, line, goals moved, probability, edge credit, flipped) for the hockey total nearest the 60-65% band, or None when the posted line already clears the floor once the game's own edge is
     credited (keep it as posted). The pick keeps its OWN side unless HOCKEY_ALT_FLIP and the model's own distribution puts the OPPOSITE side clearly closer to the band (never below the floor)."""
+    if model_p is not None and model_p >= HOCKEY_LANE_OU_P:
+        return None                       # already at the lane floor on the posted line: keep it, at the real market price
     anchor = posted if posted != int(posted) else posted - 0.5
     base = 5.5 if anchor <= 6.0 else 6.5
     table = HOCKEY_OU_EURO.get(sport) or HOCKEY_OU_NHL[base]

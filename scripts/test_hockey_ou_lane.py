@@ -5,6 +5,7 @@ is LEAN/SKIP; the adjusted-line shift then moves them toward the 60-65% band.  d
     python3 scripts/test_hockey_ou_lane.py
 """
 import functools, http.server, socketserver, sys, threading, unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -42,12 +43,17 @@ class Python(unittest.TestCase):
         shifted = A._apply_alt_lines(q)
         self.assertEqual(len(shifted), 1)
         self.assertTrue(shifted[0]["lane"])
-        self.assertIn(shifted[0]["label"], ("OVER 5.5", "OVER 6.5"))                # shifted toward safety, or left when it already clears the floor
-        if shifted[0]["label"] != "OVER 6.5":
-            self.assertEqual(shifted[0]["priceSource"], "estimated")
+        self.assertEqual(shifted[0]["label"], "OVER 6.5")                           # at the lane floor already: posted line and real price kept
+        self.assertNotEqual(shifted[0].get("priceSource"), "estimated")
+        self.assertFalse(shifted[0].get("altLine"))
 
 
 class Flip(unittest.TestCase):
+    def _flip_on(self):
+        pt = mock.patch.object(A, "HOCKEY_ALT_FLIP", True)
+        pt.start()
+        self.addCleanup(pt.stop)
+
     """A side-flipped hockey total (e.g. posted OVER 5.5 -> locked UNDER 6.5): grading of the POSTED pick must use the original side, and the email must say the side switched."""
     def flip_pick(self, h, a):
         return {"id": "f1", "sport": "NHL", "betType": "OU", "betOn": "UNDER 6.5", "hA": "H", "awA": "A", "hScore": h, "aScore": a, "outcome": "pending",
@@ -72,6 +78,7 @@ class Flip(unittest.TestCase):
         self.assertIn("Moved from the posted OVER 5.5", A._leg_html(q))
 
     def test_the_locked_leg_is_on_the_new_side(self):
+        self._flip_on()                        # flips are OFF by default (2026-10-06)
         out = A._alt_shift_leg({"kind": "GAME", "sport": "NHL", "hA": "H", "awA": "A", "side": "over", "label": "OVER 5.5", "prob": .55, "ml": "-110", "dec": 1.91, "tierN": 2, "evVal": .02})
         self.assertEqual((out["label"], out["side"], out["altLine"]["flip"]), ("UNDER 6.5", "under", True))
 
