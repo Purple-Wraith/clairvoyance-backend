@@ -133,27 +133,25 @@ class AltLine(unittest.TestCase):
         f = A._alt_shift_leg(leg("NHL", "over", "OVER 5.5", prob=0.55))
         self.assertEqual((f["label"], f["altLine"]["flip"]), ("UNDER 6.5", True))                        # the owner's example: OVER 5.5 -> UNDER 6.5
         self.assertAlmostEqual(f["prob"], 0.611, places=2)
-        g = A._alt_shift_leg(leg("NHL", "over", "OVER 5.5", prob=0.61))
-        self.assertEqual((g["label"], g["altLine"]["flip"]), ("UNDER 7.5", True))
         h = A._alt_shift_leg(leg("NHL", "under", "UNDER 6.5", prob=0.55))
         self.assertEqual((h["label"], h["altLine"]["flip"]), ("OVER 5.5", True))                          # the owner's other example: UNDER 6.5 -> OVER 5.5
-        h2 = A._alt_shift_leg(leg("NHL", "under", "UNDER 6.5", prob=0.58))
+        h2 = A._alt_shift_leg(leg("NHL", "under", "UNDER 6.5", prob=0.54))
         self.assertEqual((h2["label"], h2["altLine"]["flip"]), ("OVER 5.5", True))
         self.assertIn("opposite side", f["reasoning"])
         self.assertIn("OVER 5.5", f["reasoning"])
         # moderate same-side shifts and strong picks are NOT flipped
-        self.assertEqual(A._alt_shift_leg(leg("NHL", "over", "OVER 6.5", prob=0.60))["label"], "OVER 5.5")
-        self.assertFalse(A._alt_shift_leg(leg("NHL", "over", "OVER 6.5", prob=0.60))["altLine"]["flip"])
+        self.assertEqual(A._alt_shift_leg(leg("NHL", "over", "OVER 6.5", prob=0.54))["label"], "OVER 5.5")
+        self.assertFalse(A._alt_shift_leg(leg("NHL", "over", "OVER 6.5", prob=0.54))["altLine"]["flip"])
         self.assertIsNone(A._alt_shift_leg(leg("SHL", "under", "UNDER 5.5", prob=0.70)))
         # a whole-number posted line never flips (push handling)
-        w = A._alt_shift_leg(leg("NHL", "over", "OVER 6.0", prob=0.61))
+        w = A._alt_shift_leg(leg("NHL", "over", "OVER 6.0", prob=0.54))
         self.assertTrue(w is None or not w["altLine"]["flip"])
 
     def test_flips_are_off_by_default(self):
         self.assertFalse(A.HOCKEY_ALT_FLIP)
         for sport in ("NHL", "SHL"):
             for side, label in (("over", "OVER 5.5"), ("under", "UNDER 6.5")):
-                for mp in (None, 0.52, 0.55, 0.61):
+                for mp in (None, 0.52, 0.55, 0.555):
                     out = A._alt_shift_leg(leg(sport, side, label, prob=mp))
                     if out:
                         self.assertFalse(out["altLine"]["flip"])
@@ -161,13 +159,13 @@ class AltLine(unittest.TestCase):
                         self.assertEqual(out["label"].split()[0], label.split()[0])
 
     def test_a_total_at_the_lane_floor_keeps_its_posted_line_at_its_real_price(self):
-        self.assertEqual(A.HOCKEY_LANE_OU_P, 0.62)
+        self.assertEqual(A.HOCKEY_LANE_OU_P, 0.56)
         for sport in ("NHL", "LIIGA", "SHL", "NLA", "EXTRALIGA"):
             for side, label in (("over", "OVER 5.5"), ("under", "UNDER 5.5"), ("over", "OVER 6.5"), ("under", "UNDER 6.5"), ("over", "OVER 6.0")):
-                for mp in (0.62, 0.63, 0.70):
+                for mp in (0.56, 0.58, 0.62, 0.70):
                     self.assertIsNone(A._alt_shift_leg(leg(sport, side, label, prob=mp)), (sport, label, mp))   # no altLine, price stays the market's
         # just under the floor the adjusted line still applies
-        self.assertIsNotNone(A._alt_shift_leg(leg("NHL", "over", "OVER 5.5", prob=0.55)))
+        self.assertIsNotNone(A._alt_shift_leg(leg("NHL", "over", "OVER 5.5", prob=0.555)))
 
     def test_hockey_moves_the_line_toward_safety_on_the_same_side(self):
         # (probabilities chosen where the same-side shift is moderate, so no flip applies)
@@ -181,7 +179,7 @@ class AltLine(unittest.TestCase):
 
     def test_the_games_own_edge_changes_the_probability(self):
         weak = A._alt_shift_leg(leg("NHL", "under", "UNDER 5.5", prob=0.52))
-        strong = A._alt_shift_leg(leg("NHL", "under", "UNDER 5.5", prob=0.60))
+        strong = A._alt_shift_leg(leg("NHL", "under", "UNDER 5.5", prob=0.55))
         self.assertGreater(strong["prob"], weak["prob"])
         self.assertGreater(strong["altLine"]["edgeAdj"], weak["altLine"]["edgeAdj"])
         self.assertEqual(weak["altLine"]["modelP"], 0.52)

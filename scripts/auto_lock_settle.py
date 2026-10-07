@@ -345,7 +345,7 @@ HOCKEY_TIER_EV = {"LEAN": 0.01, "OPTIMAL": 0.03, "PREMIUM": 0.05}      # EV floo
 HOCKEY_TIER_PROB = {"LEAN": 0.55, "OPTIMAL": 0.62, "PREMIUM": 0.67}
 HOCKEY_LANE_ML_P = 0.65            # high-probability lane: moneyline win probability floor
 HOCKEY_LANE_PLDOG_P = 0.65         # high-probability lane: +1.5 puck-line (underdog side) cover probability floor
-HOCKEY_LANE_OU_P = 0.62            # high-probability lane: over/under hit probability floor (added 2026-10-06, owner)
+HOCKEY_LANE_OU_P = 0.56            # high-probability lane: over/under hit probability floor (added 2026-10-06 at 62%, lowered to 56% the same day by the owner: on a live slate the best NHL total was 56.6%, so 62% locked ~none)
 HOCKEY_LANE_EV_MIN = -0.07         # high-probability lane: EV at the real price may not be worse than this
 HOCKEY_ODDS_MAX_AGE_H = 18         # a posted price older than this is not trusted (mirrors HOCKEY_ODDS_MAX_AGE_H in app.html)
 HOCKEY_LANE_LABEL = "HIGH PROB"
@@ -2200,7 +2200,7 @@ ALT_LINE_CFG = {
 #     minus the neutral 50% baseline of that line), clamped to [-0.05, +0.08]. A strong model pick therefore needs a smaller move, a marginal one a bigger move;
 #   * the candidate closest to HOCKEY_ALT_BAND wins; nothing below HOCKEY_ALT_FLOOR (58%) is allowed, so a pick whose own adjusted probability is already >= 58% keeps its posted line
 #     (no alt line, price stays the market's); ties within 2 points go to the smaller move.
-# A total the model already rates at HOCKEY_LANE_OU_P (62%) or better at the posted line keeps that line and its real market price (2026-10-06): the adjusted line exists for totals BELOW the lane floor.
+# A total the model already rates at HOCKEY_LANE_OU_P (56%) or better at the posted line keeps that line and its real market price (2026-10-06): the adjusted line exists for totals BELOW the lane floor.
 # Side flips (HOCKEY_ALT_FLIP) are switched off, so altLine.flip is always False unless that flag is turned back on.
 #   NHL: conditional hit rates from 2,630 games of closing totals + results (2024-25 + 2025-26, scripts/backtest_alt_lines.py nhl), with the shootout-winning goal removed
 #        (ESPN's final includes it, sportsbooks do not settle totals on it). Posted totals <= 6.0 use the 5.5 table, higher ones the 6.5 table.

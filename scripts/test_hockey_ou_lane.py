@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hockey over/unders in the HIGH PROB lane (owner decision 2026-10-06, floor 62%): NHL + SHL/Liiga/NLA/Extraliga totals with a real posted price now qualify even when the value tier
+"""Hockey over/unders in the HIGH PROB lane (owner decision 2026-10-06, floor 56% (first 62%)): NHL + SHL/Liiga/NLA/Extraliga totals with a real posted price now qualify even when the value tier
 is LEAN/SKIP; the adjusted-line shift then moves them toward the 60-65% band.  docs/app.html (_hkLaneRow, HOCKEY_LANE_OU_P) and scripts/auto_lock_settle.py (build_qualifying) must agree.
 
     python3 scripts/test_hockey_ou_lane.py
@@ -23,8 +23,8 @@ def result(sport, markets):
 
 class Python(unittest.TestCase):
     def test_constant_and_legend(self):
-        self.assertEqual(A.HOCKEY_LANE_OU_P, 0.62)
-        self.assertIn("62%", A.build_locks_email_html([{"kind": "GAME", "sport": "NHL", "hA": "H", "awA": "A", "side": "over", "label": "OVER 5.5", "prob": .63, "ml": "-110", "dec": 1.91,
+        self.assertEqual(A.HOCKEY_LANE_OU_P, 0.56)
+        self.assertIn("56%", A.build_locks_email_html([{"kind": "GAME", "sport": "NHL", "hA": "H", "awA": "A", "side": "over", "label": "OVER 5.5", "prob": .63, "ml": "-110", "dec": 1.91,
                                                          "tierN": 1, "evVal": -.04, "lane": True, "mcSummary": None, "best": None, "startMs": None}], True, 1))
 
     def test_a_lane_flagged_total_qualifies_through_the_lane_even_at_low_tier(self):
@@ -39,7 +39,7 @@ class Python(unittest.TestCase):
         self.assertEqual(A.build_qualifying(result("SHL", [market("under", "UNDER 5.5", .70, tier=1, lane=True, real=False)]), now=1), [])
 
     def test_the_adjusted_line_shift_still_runs_on_a_lane_total_and_keeps_the_lane_flag(self):
-        q = A.build_qualifying(result("NHL", [market("over", "OVER 6.5", .62, tier=1, lane=True)]), now=1)
+        q = A.build_qualifying(result("NHL", [market("over", "OVER 6.5", .58, tier=1, lane=True)]), now=1)
         shifted = A._apply_alt_lines(q)
         self.assertEqual(len(shifted), 1)
         self.assertTrue(shifted[0]["lane"])
@@ -110,14 +110,14 @@ class Js(unittest.TestCase):
         return self.pg.evaluate("([s,p,d,r])=>_hkLaneRow({hk:true,priceReal:r,mktDec:d,side:s,prob:p})", [side, prob, dec, real])
 
     def test_totals_qualify_at_62_and_not_below(self):
-        self.assertTrue(self.lane("over", 0.62))
+        self.assertTrue(self.lane("over", 0.56))
         self.assertTrue(self.lane("under", 0.70))
-        self.assertFalse(self.lane("over", 0.61))
-        self.assertFalse(self.lane("under", 0.55))
+        self.assertFalse(self.lane("over", 0.555))
+        self.assertFalse(self.lane("under", 0.50))
 
     def test_price_and_ev_guards_still_apply_to_totals(self):
         self.assertFalse(self.lane("over", 0.64, real=False))                  # no real price
-        self.assertFalse(self.lane("over", 0.62, dec=1.30))                    # EV at a 1.30 price is far worse than -7%
+        self.assertFalse(self.lane("over", 0.60, dec=1.30))                    # EV at a 1.30 price is far worse than -7%
 
     def test_ml_and_puck_line_rules_are_unchanged(self):
         self.assertTrue(self.lane("mlFav", 0.65))

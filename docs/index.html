@@ -3204,7 +3204,7 @@ const HOCKEY_MKT_PRICE_TIERING=true;
 const HOCKEY_REQUIRE_REAL_PRICE=true;
 const HOCKEY_TIER_PROB={LEAN:.55,OPTIMAL:.62,PREMIUM:.67};
 const HOCKEY_TIER_EV={LEAN:.01,OPTIMAL:.03,PREMIUM:.05};
-const HOCKEY_LANE_ML_P=.65,HOCKEY_LANE_PLDOG_P=.65,HOCKEY_LANE_OU_P=.62,HOCKEY_LANE_EV_MIN=-.07;   // OU_P added 2026-10-06 (owner): hockey totals can use the lane too, at 62%
+const HOCKEY_LANE_ML_P=.65,HOCKEY_LANE_PLDOG_P=.65,HOCKEY_LANE_OU_P=.56,HOCKEY_LANE_EV_MIN=-.07;   // OU_P added 2026-10-06 (owner): hockey totals can use the lane too; 62% at first, lowered to 56% the same day (best NHL total on a live slate was 56.6%)
 const HOCKEY_LANE_LABEL='HIGH PROB';
 const HOCKEY_ODDS_MAX_AGE_H=18;
 // A pre-game price older than HOCKEY_ODDS_MAX_AGE_H is not trusted (a failed odds refresh can leave an old `odds` carried
