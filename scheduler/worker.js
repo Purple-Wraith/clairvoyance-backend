@@ -6,7 +6,8 @@
 // (workflow_dispatch). The workflows' own `schedule:` entries stay in place as a fallback, so nothing is lost if this Worker is ever off.
 //
 // Deliberately NOT here: the lock / settle / email workflows. Their scheduled runs choose behaviour from `github.event.schedule`, and a dispatched run
-// does not carry it; they are left on GitHub's cron plus the watchdog.
+// does not carry it; they are left on GitHub's cron plus the watchdog. The WATCHDOG itself is here (evening slots only): it does not read `github.event.schedule`,
+// and `gated=true` gives a dispatched run the scheduled behaviour.
 //
 // Needs one secret: GH_TOKEN, a fine-grained token limited to this repo with "Actions: Read and write". Without it the Worker only logs.
 
@@ -23,6 +24,9 @@ export const SCHEDULE = [
   { wf: "cfb-refresh.yml", at: ["14:33"] },
   { wf: "cfb-refresh.yml", at: ["02:17"], dow: [1] },
   { wf: "nfl-weekly-refresh.yml", at: ["13:53"], dow: [2] },
+  // Evening lock coverage (2026-10-07): the pre-kickoff watchdog auto-locks any qualifying leg 10-150 min before kickoff. gated=true makes the dispatched run behave exactly
+  // like a scheduled slot (LIVE_MODE variable + kickoff gate); without it a dispatch is the manual dry-run path. 15:30 / 17:30 / 19:30 MT.
+  { wf: "lock-watchdog.yml", at: ["21:30", "23:30", "01:30"], inputs: { gated: "true" } },
 ];
 
 const slotOf = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return Math.floor((h * 60 + m) / TICK_MIN); };

@@ -59,5 +59,9 @@ assert.deepEqual(await runTick({ GH_TOKEN: "t" }, at("2026-10-05T00:01:00Z"), g.
 g = fakeGitHub();
 await runTick({ GH_TOKEN: "t" }, at("2026-10-05T03:50:00Z"), g.fetchImpl);
 assert.deepEqual(JSON.parse(g.calls.find((c) => c.method === "POST").body), { ref: "main", inputs: { which: "tomorrow" } });
+// the evening watchdog slots fire on the dot, gated (scheduled-run behaviour), and the workflow accepts that input
+assert.deepEqual(dueEntries(at("2026-10-07T23:30:00Z")).map((e) => [e.wf, e.inputs]), [["lock-watchdog.yml", { gated: "true" }]]);
+assert.ok(dueWorkflows(at("2026-10-08T01:30:00Z")).includes("lock-watchdog.yml") && dueWorkflows(at("2026-10-07T21:30:00Z")).includes("lock-watchdog.yml"));
+assert.match(readFileSync(new URL("lock-watchdog.yml", wfDir), "utf8"), /gated:[\s\S]*type: boolean/);
 assert.equal(TICK_MIN, 10);
 console.log("scheduler OK:", SCHEDULE.length, "workflows");

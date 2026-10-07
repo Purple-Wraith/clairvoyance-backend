@@ -98,6 +98,13 @@ class AutoLock(unittest.TestCase):
         self.assertIn("steps.gate.outputs.live_flag != '' && vars.WATCHDOG_AUTOLOCK != 'false' && '--auto-lock'", wf)
         self.assertIn("uses: ./.github/actions/private-data", wf)         # recipients_for() needs the subscriber list
 
+    def test_evening_slots_exist_and_a_gated_dispatch_behaves_like_a_scheduled_slot(self):
+        wf = (Path(__file__).resolve().parent.parent / ".github" / "workflows" / "lock-watchdog.yml").read_text()
+        for cron in ("'30 21 * * *'", "'30 23 * * *'", "'30 1 * * *'"):
+            self.assertIn(f"cron: {cron}", wf)                                   # GitHub fallback slots for the evening
+        self.assertIn('"${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.gated }}" != "true"', wf)   # manual dispatch = old dry-run path; gated = scheduled path
+        self.assertIn("gated:", wf)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

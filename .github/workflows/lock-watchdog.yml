@@ -16,7 +16,9 @@ name: Pre-Kickoff Lock Watchdog (owner only)
 # roughly 3 AM - 11 PM MT; a slot that lands when no game is near is a ~15-second no-op. It is also dispatched by nothing else.
 # EVENING SLOTS added 2026-10-06 (owner: "so no games in the evening are missed"): the last nominal slot used to be 19:30Z (1:30 PM MT), so the evening
 # (NHL 5-8 PM MT puck drops; NBA from ~Oct 21, West-coast tips at 8:30 PM MT) was only covered when an earlier slot happened to land late. 21:30Z, 23:30Z and 01:30Z
-# add real coverage for kickoffs through ~10 PM MT.
+# add real coverage for kickoffs through ~10 PM MT. Those same three times are ALSO fired on the dot by the Cloudflare scheduler Worker (scheduler/worker.js,
+# dispatch with gated=true: same LIVE_MODE + kickoff-gate behaviour as a scheduled slot), because GitHub's own cron lands 1-4 h late; the cron entries stay as the fallback.
+# A duplicate run is harmless (lock dedupe) -- the lock-watchdog concurrency group runs them one after the other.
 # Dry-run by default like every lock workflow (LIVE_MODE repo variable): not live -> it only logs what it WOULD email.
 
 on:
@@ -36,6 +38,11 @@ on:
     inputs:
       live:
         description: 'Actually email the owner (unchecked = log only)'
+        required: false
+        type: boolean
+        default: false
+      gated:
+        description: 'Behave like a scheduled slot (LIVE_MODE repo variable decides live/dry-run, and the kickoff gate can stop the run early). Sent by the Cloudflare scheduler Worker, which fires the evening slots on time.'
         required: false
         type: boolean
         default: false
@@ -71,7 +78,7 @@ jobs:
         run: |
           echo "LANDED $(date -u +%Y-%m-%dT%H:%M:%SZ) ($(TZ=America/Denver date '+%a %m-%d %H:%M') MT) schedule='${{ github.event.schedule }}' event=${{ github.event_name }}"
           echo "LANDED $(date -u +%Y-%m-%dT%H:%M:%SZ) ($(TZ=America/Denver date '+%a %m-%d %H:%M') MT) schedule='${{ github.event.schedule }}'" >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.gated }}" != "true" ]; then
             echo "live_flag=${{ inputs.live == true && '--live' || '' }}" >> "$GITHUB_OUTPUT"
             echo "near=1" >> "$GITHUB_OUTPUT"
           else
