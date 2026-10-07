@@ -14,6 +14,9 @@ name: Pre-Kickoff Lock Watchdog (owner only)
 #
 # Slots every ~2 hours (nominal UTC; MDT = UTC-6). Delays for nominal 11:30-13:00Z are +3..7h and for 17-23Z +2..5h, so these land
 # roughly 3 AM - 11 PM MT; a slot that lands when no game is near is a ~15-second no-op. It is also dispatched by nothing else.
+# EVENING SLOTS added 2026-10-06 (owner: "so no games in the evening are missed"): the last nominal slot used to be 19:30Z (1:30 PM MT), so the evening
+# (NHL 5-8 PM MT puck drops; NBA from ~Oct 21, West-coast tips at 8:30 PM MT) was only covered when an earlier slot happened to land late. 21:30Z, 23:30Z and 01:30Z
+# add real coverage for kickoffs through ~10 PM MT.
 # Dry-run by default like every lock workflow (LIVE_MODE repo variable): not live -> it only logs what it WOULD email.
 
 on:
@@ -26,6 +29,9 @@ on:
     - cron: '30 15 * * *'
     - cron: '30 17 * * *'
     - cron: '30 19 * * *'
+    - cron: '30 21 * * *'
+    - cron: '30 23 * * *'
+    - cron: '30 1 * * *'
   workflow_dispatch:
     inputs:
       live:
