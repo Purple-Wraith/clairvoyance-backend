@@ -344,6 +344,7 @@ HOCKEY_TIER_EV = {"LEAN": 0.01, "OPTIMAL": 0.03, "PREMIUM": 0.05}      # EV floo
 HOCKEY_TIER_PROB = {"LEAN": 0.55, "OPTIMAL": 0.62, "PREMIUM": 0.67}
 HOCKEY_LANE_ML_P = 0.65            # high-probability lane: moneyline win probability floor
 HOCKEY_LANE_PLDOG_P = 0.65         # high-probability lane: +1.5 puck-line (underdog side) cover probability floor
+HOCKEY_LANE_OU_P = 0.62            # high-probability lane: over/under hit probability floor (added 2026-10-06, owner)
 HOCKEY_LANE_EV_MIN = -0.07         # high-probability lane: EV at the real price may not be worse than this
 HOCKEY_ODDS_MAX_AGE_H = 18         # a posted price older than this is not trusted (mirrors HOCKEY_ODDS_MAX_AGE_H in app.html)
 HOCKEY_LANE_LABEL = "HIGH PROB"
@@ -2960,8 +2961,8 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
         'only probability is shown for those. A hockey pick at the posted line is only ever made when a real market price exists for it; hockey totals moved to an adjusted line are the exception (see ADJUSTED LINE).</div>'
         '<div style="font-size:13px;color:#eee;line-height:1.6;margin-top:10px">'
         f'<span style="background:{_LANE_COLOR};color:#000;font-weight:700;font-size:11px;padding:1px 7px;border-radius:3px">'
-        f'{HOCKEY_LANE_LABEL}</span> hockey only: a moneyline pick (or a +1.5 puck-line underdog) the model gives at least '
-        f'{_pct(HOCKEY_LANE_ML_P)} to win (cover), whose price is not worse than {_evp(HOCKEY_LANE_EV_MIN)} EV. These are '
+        f'{HOCKEY_LANE_LABEL}</span> hockey only: a moneyline pick, a +1.5 puck-line underdog, or an over/under the model gives at least '
+        f'{_pct(HOCKEY_LANE_ML_P)} to win (cover) -- {_pct(HOCKEY_LANE_OU_P)} for an over/under --, whose price is not worse than {_evp(HOCKEY_LANE_EV_MIN)} EV. These are '
         'built to hit often, at short prices: expect a high win rate and a return close to break-even after the bookmakers\' margin, '
         'not a value edge. They are included even when the grade would otherwise be LEAN or SKIP, and are labelled so you can '
         'tell them apart from the value picks.</div>'

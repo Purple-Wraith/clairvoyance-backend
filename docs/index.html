@@ -3192,7 +3192,7 @@ window.addEventListener('load',function(){try{_pbWrapRenderers();_pbUpdateBar();
 // scripts/verify_hockey_rules.py fails if they ever differ. Evidence: scripts/backtest_hockey_models.py tiers.
 //  - Value lane: tier() graded on the REAL price. Probability floors are the app-wide .55/.62/.67; the EV floors are
 //    +1/+3/+5% over the real (vig-inclusive) price. QUALIFYING_TIERS={2,3} (OPTIMAL/PREMIUM) unchanged.
-//  - High-probability lane (hkLane): an ML pick, or a +1.5 puck-line DOG, with blended win/cover probability >= the floor and
+//  - High-probability lane (hkLane): an ML pick, a +1.5 puck-line DOG, or a TOTAL (HOCKEY_LANE_OU_P, 2026-10-06), with blended win/cover probability >= the floor and
 //    EV at the real price not worse than HOCKEY_LANE_EV_MIN qualifies even when its tier is LEAN/SKIP. Replaces the old blunt
 //    "any ML >= 75% regardless of price" rule for hockey. NOTE the EV floor is negative on purpose: a FAIRLY priced leg shows
 //    EV = -(bookmaker margin), about -4% (ML/O-U) to -6.5% (+/-1.5 puck line) on the Flashscore consensus prices, so -7% means "a normally
@@ -3204,7 +3204,7 @@ const HOCKEY_MKT_PRICE_TIERING=true;
 const HOCKEY_REQUIRE_REAL_PRICE=true;
 const HOCKEY_TIER_PROB={LEAN:.55,OPTIMAL:.62,PREMIUM:.67};
 const HOCKEY_TIER_EV={LEAN:.01,OPTIMAL:.03,PREMIUM:.05};
-const HOCKEY_LANE_ML_P=.65,HOCKEY_LANE_PLDOG_P=.65,HOCKEY_LANE_EV_MIN=-.07;
+const HOCKEY_LANE_ML_P=.65,HOCKEY_LANE_PLDOG_P=.65,HOCKEY_LANE_OU_P=.62,HOCKEY_LANE_EV_MIN=-.07;   // OU_P added 2026-10-06 (owner): hockey totals can use the lane too, at 62%
 const HOCKEY_LANE_LABEL='HIGH PROB';
 const HOCKEY_ODDS_MAX_AGE_H=18;
 // A pre-game price older than HOCKEY_ODDS_MAX_AGE_H is not trusted (a failed odds refresh can leave an old `odds` carried
@@ -3270,13 +3270,14 @@ function _hkTierRow(m,mktT){
   if(HOCKEY_REQUIRE_REAL_PRICE&&!m.priceReal)return 0;
   return tier(m.prob,m.evVal,mktT,m.marketProb!=null,{p:HOCKEY_TIER_PROB,e:HOCKEY_TIER_EV});
 }
-// -> true when the row qualifies through the HIGH-PROBABILITY lane: ML, or the +1.5 puck-line dog; real price required.
+// -> true when the row qualifies through the HIGH-PROBABILITY lane: ML, the +1.5 puck-line dog, or a total (over/under); real price required.
 function _hkLaneRow(m){
   if(!m.hk||!m.priceReal||m.mktDec==null)return false;
   const e=ev(m.prob,m.mktDec); // EV at the REAL price regardless of how tiering is configured
   if(e<HOCKEY_LANE_EV_MIN)return false;
   if(m.side==='mlFav'||m.side==='mlDog')return m.prob>=HOCKEY_LANE_ML_P;
   if(m.side==='plDog'||m.side==='sprdDog')return m.prob>=HOCKEY_LANE_PLDOG_P;
+  if(m.side==='over'||m.side==='under')return m.prob>=HOCKEY_LANE_OU_P;      // a TOTAL with a real posted price; the adjusted-line shift then moves it into the 60-65% band when needed
   return false;
 }
 // Chip pill for an ML chip, read from the SAME _evalMkts row the lock pipeline uses (so the pill can never disagree).
