@@ -406,6 +406,38 @@ ARCHIVE_TAGS = {"MLB", "WNBA", "WTA", "ATP", "WC", "TEN", "XP", "MLS", "BUND"}  
 ARCHIVE_ANY_AGE = {"MLS", "BUND"}  # mirror of _ARCH_ANY_AGE: archived whatever their age
 
 
+PAGES_STUCK_H = 1.5               # a Pages deploy run that is still waiting/queued/pending after this long is stuck: it blocks every deploy behind it (they get cancelled), so the live site stops updating
+PAGES_MAX_SUCCESS_AGE_H = 9.0     # a normal day has a successful (or no-op skipped) Pages run at least every 4 h (the fallback cron); older than this means deploys are not landing
+
+
+def check_pages_deploy(api_get=None, now: datetime | None = None) -> list[tuple[str, str]]:
+    """The LIVE site only changes when 'Deploy Pages' succeeds.  2026-10-06 incident: one run sat in 'waiting' (GitHub-side, no reviewers) for 17 hours, every newer run was cancelled
+    behind it, and the site served ~18 h old data while all the other checks stayed green.  Alerts on (1) a run stuck waiting/queued/pending, (2) no successful run for too long.
+    An API failure is only a note."""
+    api_get = api_get or _api_get
+    now = now or datetime.now(timezone.utc)
+    out: list[tuple[str, str]] = []
+    try:
+        runs = api_get(f"/repos/{REPO}/actions/workflows/pages-deploy.yml/runs?per_page=50").get("workflow_runs") or []
+    except Exception as exc:
+        return [("note", f"Pages deploy check skipped ({exc.__class__.__name__})")]
+
+    def age_h(r) -> float:
+        return (now - datetime.fromisoformat(r["created_at"].replace("Z", "+00:00"))).total_seconds() / 3600
+
+    stuck = [r for r in runs if r.get("status") in ("waiting", "queued", "pending") and age_h(r) > PAGES_STUCK_H]
+    if stuck:
+        old = max(stuck, key=age_h)
+        out.append(("alert", f"Pages deploy stuck: a 'Deploy Pages' run has been {old['status']} for {age_h(old):.1f}h, which blocks every newer deploy (the live site stops updating) -- "
+                             f"cancel it in Actions: {old.get('html_url') or run_link('pages-deploy.yml')}"))
+    ok = [r for r in runs if r.get("conclusion") == "success"]
+    if not ok:
+        out.append(("alert", "Pages deploy: no successful 'Deploy Pages' run in the last 50 runs -- the live site may not be updating"))
+    elif age_h(ok[0]) > PAGES_MAX_SUCCESS_AGE_H:
+        out.append(("alert", f"Pages deploy: last successful deploy was {age_h(ok[0]):.1f}h ago (expected within {PAGES_MAX_SUCCESS_AGE_H:g}h) -- the live site is serving old data"))
+    return out
+
+
 MOBILE_REPO = "Purple-Wraith/Clairvoyance-backend-mobile"
 MOBILE_APP_GRACE_H = 2.0          # app.html on the mobile site may lag a fresh backend commit by this long (the sync runs per push, GitHub's queue can add delay)
 MOBILE_DATA_LAG_H = 3.0           # mobile data.json older than the backend's by more than this => the sync is stuck
@@ -557,6 +589,11 @@ def main() -> int:
                 (problems if level == "alert" else notes).append(msg)
         except Exception as exc:  # fail-open
             notes.append(f"mobile sync check crashed ({exc})")
+        try:
+            for level, msg in check_pages_deploy():
+                (problems if level == "alert" else notes).append(msg)
+        except Exception as exc:  # fail-open
+            notes.append(f"pages deploy check crashed ({exc})")
 
     try:
         for level, msg in check_odds_sanity():

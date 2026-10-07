@@ -526,5 +526,41 @@ class RunLinkTests(unittest.TestCase):
         self.assertEqual(H.run_link(None), "")
 
 
+class PagesDeploy(unittest.TestCase):
+    """check_pages_deploy: a stuck 'waiting' run and an old last-success both alert (2026-10-06 incident: stuck run blocked every deploy for 17 h)."""
+    NOW = datetime(2026, 10, 6, 20, 0, tzinfo=timezone.utc)
+
+    def run_check(self, runs):
+        def get(path):
+            assert "pages-deploy.yml/runs" in path, path
+            return {"workflow_runs": runs}
+        return H.check_pages_deploy(api_get=get, now=self.NOW)
+
+    def r(self, hours_ago, status="completed", conclusion="success"):
+        return {"created_at": (self.NOW - timedelta(hours=hours_ago)).isoformat(), "status": status, "conclusion": conclusion, "html_url": "https://example/run"}
+
+    def test_healthy(self):
+        self.assertEqual(self.run_check([self.r(0.2, "in_progress", None), self.r(1), self.r(3, conclusion="cancelled")]), [])
+
+    def test_a_run_stuck_waiting_alerts(self):
+        out = self.run_check([self.r(0.1, "pending", None), self.r(2, conclusion="cancelled"), self.r(17, "waiting", None), self.r(18)])
+        self.assertTrue(any(l == "alert" and "stuck" in m and "17." in m for l, m in out), out)
+
+    def test_a_fresh_queued_run_is_not_stuck(self):
+        self.assertEqual(self.run_check([self.r(0.3, "waiting", None), self.r(2)]), [])
+
+    def test_old_last_success_alerts(self):
+        out = self.run_check([self.r(1, conclusion="cancelled"), self.r(12)])
+        self.assertTrue(any(l == "alert" and "12." in m for l, m in out), out)
+
+    def test_no_success_at_all_alerts(self):
+        self.assertTrue(any(l == "alert" for l, _ in self.run_check([self.r(1, conclusion="cancelled")])))
+
+    def test_api_failure_is_only_a_note(self):
+        def boom(path):
+            raise OSError("down")
+        self.assertEqual([l for l, _ in H.check_pages_deploy(api_get=boom, now=self.NOW)], ["note"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
