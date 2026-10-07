@@ -19,6 +19,8 @@ CASES = [
     ("NFL", "SPREAD", "sprdDog", "NYG +3.5", .60), ("NFL", "OU", "under", "UNDER 44.5", .60),
     ("CFB", "SPREAD", "sprdFav", "UGA -14.5", .60), ("CFB", "OU", "over", "OVER 58.5", .60),
     ("NHL", "OU", "over", "OVER 6.5", .62), ("SHL", "OU", "under", "UNDER 5.5", .60),
+    ("NHL", "OU", "over", "OVER 5.5", .62), ("NHL", "OU", "over", "OVER 5.5", .55), ("NHL", "OU", "over", "OVER 5.5", .70), ("NHL", "OU", "under", "UNDER 6.5", .66),
+    ("NHL", "OU", "under", "UNDER 5.5", .60), ("SHL", "OU", "over", "OVER 5.5", .64), ("LIIGA", "OU", "under", "UNDER 6.5", .62), ("NLA", "OU", "over", "OVER 6.0", .62),
     ("NBA", "SPREAD", "sprdFav", "BOS -ATS", .60), ("NBA", "ML", "mlFav", "BOS ML", .60),
 ]
 

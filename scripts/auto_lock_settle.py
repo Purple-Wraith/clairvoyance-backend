@@ -59,6 +59,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import subprocess
@@ -2213,6 +2214,10 @@ HOCKEY_ALT_FLOOR = 0.58
 HOCKEY_EDGE_W = 0.5            # share of the model's edge over the neutral line probability that is credited to every candidate
 HOCKEY_EDGE_CLAMP = (-0.05, 0.08)
 HOCKEY_ALT_TIE = 0.02
+HOCKEY_ALT_FLIP = True            # 2026-10-06 (owner): a hockey total may switch SIDES, but only when the model's own scoring distribution backs the other side (see _hockey_flip_candidates)
+HOCKEY_FLIP_CEIL_MARGIN = 0.06     # a flip candidate may sit at most this far above the top of the band (HOCKEY_ALT_BAND)
+HOCKEY_FLIP_OVERSHOOT = 0.08       # a flip is only considered when the best SAME-side line would overshoot the band by more than this (an impractically short price)
+HOCKEY_FLIP_MAX_DROP = 0.02        # ... and the flip may not be more than this below the pick's OWN model probability at the posted line
 # {j goals from the anchor line: P(OVER anchor+j) for j<0, P(UNDER anchor+j) for j>0}
 HOCKEY_OU_NHL = {
     5.5: {-3: 0.961, -2: 0.848, -1: 0.731, 1: 0.611, 2: 0.769, 3: 0.851},
@@ -2260,14 +2265,22 @@ def _alt_prob(curve, k: float) -> float:
 
 def _alt_reasoning(new_label: str, p_alt: float, posted_label: str, posted_prob, k: float, unit: str, model_line: str | None) -> str:
     """'Why this pick' text for an adjusted-line pick. Word-for-word the same as _altReasoning() in docs/app.html (scripts/test_alt_js_parity.py checks it): it describes the SHIFTED
-    line and says the price is an estimate, instead of carrying the posted line's tier / EV / "covers the 11.5-pt line" text."""
+    line and says the price is an estimate, instead of carrying the posted line's tier / EV / "covers the 11.5-pt line" text. A hockey total that switched SIDES says so."""
     sh = f"{k:g}"
     u = unit + ("" if float(k) == 1 else "s")
-    why = (f"at the posted line the model rated this side {posted_prob * 100:.1f}%; the " if posted_prob is not None else "the ")
-    lines = [f"PICK: {new_label} — ADJUSTED LINE ({p_alt * 100:.1f}% estimated win prob at this line)",
-             f"ADJUSTED LINE: moved {sh} {u} from the posted {posted_label} to {new_label} for a safer cover. "
-             f"The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.",
-             f"WHY: {why}{sh}-{unit} cushion is priced from the historical margin curve for this market (about {p_alt * 100:.0f}% to cover)."]
+    ps, ns = re.match(r"^(OVER|UNDER)\b", posted_label or ""), re.match(r"^(OVER|UNDER)\b", new_label or "")
+    flipped = bool(ps and ns and ps.group(1) != ns.group(1))
+    if flipped:
+        move = (f"ADJUSTED LINE: switched to the opposite side, from the posted {posted_label} to {new_label}. The model's own scoring distribution puts {p_alt * 100:.0f}% on {new_label}; "
+                f"staying on the original side would have meant an impractically short price. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.")
+        why = (f"at the posted line the model rated {posted_label} {posted_prob * 100:.1f}%; the other side is priced from the same scoring distribution." if posted_prob is not None
+               else "the other side is priced from the model's own scoring distribution.")
+    else:
+        move = (f"ADJUSTED LINE: moved {sh} {u} from the posted {posted_label} to {new_label} for a safer cover. "
+                f"The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.")
+        why = (f"at the posted line the model rated this side {posted_prob * 100:.1f}%; the " if posted_prob is not None else "the ") + \
+              f"{sh}-{unit} cushion is priced from the historical margin curve for this market (about {p_alt * 100:.0f}% to cover)."
+    lines = [f"PICK: {new_label} — ADJUSTED LINE ({p_alt * 100:.1f}% estimated win prob at this line)", move, f"WHY: {why}"]
     if model_line:
         lines.append(model_line)
     return "\n".join(lines)
@@ -2287,9 +2300,53 @@ def _alt_finish(leg: dict, new_label: str, p_alt: float, posted: float, new_line
     return out
 
 
+def _pois_cdf(k: int, mu: float) -> float:
+    if k < 0:
+        return 0.0
+    term = total = math.exp(-mu)
+    for i in range(1, k + 1):
+        term *= mu / i
+        total += term
+    return min(1.0, total)
+
+
+def _pois_mu_for(own_side: str, anchor: float, p: float) -> float:
+    """Mean total goals of the Poisson distribution that gives the pick's own side probability `p` at the posted half-point line (60 fixed bisection steps, mirrored in app.html)."""
+    k = int(math.floor(anchor))                     # OVER anchor <=> total >= k+1 ; UNDER anchor <=> total <= k
+    def f(mu: float) -> float:
+        return (1.0 - _pois_cdf(k, mu)) if own_side == "over" else _pois_cdf(k, mu)
+    lo, hi = 0.5, 15.0
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        if (f(mid) < p) == (own_side == "over"):    # OVER prob rises with mu, UNDER prob falls
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
+def _hockey_flip_candidates(own_side: str, anchor: float, model_p: float):
+    """[(m, side, line, p)] for the OPPOSITE side at 1-3 goals past the posted line, priced from the model's own distribution: a Poisson total whose own-side probability at the posted line equals
+    the pick's blended model probability. E.g. OVER 5.5 at 62% -> mean 6.43 -> UNDER 6.5 53.8%, UNDER 7.5 68.4%."""
+    mu = _pois_mu_for(own_side, anchor, model_p)
+    out = []
+    for m in (1, 2, 3):
+        if own_side == "over":
+            line = anchor + m
+            p = _pois_cdf(int(math.floor(line)), mu)                 # UNDER line
+            out.append((m, "under", line, p))
+        else:
+            line = anchor - m
+            if line <= 0:
+                continue
+            p = 1.0 - _pois_cdf(int(math.floor(line)), mu)           # OVER line
+            out.append((m, "over", line, p))
+    return out
+
+
 def _hockey_pick_alt(posted: float, sport: str = "NHL", own_side: str = "over", model_p: float | None = None):
-    """(side, line, goals moved, probability, edge credit) for the hockey total on the pick's OWN side nearest the 60-65% band, or None when the posted line already clears the
-    floor once the game's own edge is credited (keep it as posted)."""
+    """(side, line, goals moved, probability, edge credit, flipped) for the hockey total nearest the 60-65% band, or None when the posted line already clears the floor once the game's own edge is
+    credited (keep it as posted). The pick keeps its OWN side unless HOCKEY_ALT_FLIP and the model's own distribution puts the OPPOSITE side clearly closer to the band (never below the floor)."""
     anchor = posted if posted != int(posted) else posted - 0.5
     base = 5.5 if anchor <= 6.0 else 6.5
     table = HOCKEY_OU_EURO.get(sport) or HOCKEY_OU_NHL[base]
@@ -2302,21 +2359,40 @@ def _hockey_pick_alt(posted: float, sport: str = "NHL", own_side: str = "over", 
     for m in (1, 2, 3):
         j = -m if own_side == "over" else m
         cands.append((m, anchor + j, min(0.95, table[j] + adj)))
+
+    def keyof(m: int, p: float):
+        dist = 0.0 if lo <= p <= hi else (lo - p if p < lo else p - hi)
+        return (int(dist / HOCKEY_ALT_TIE + 1e-9), m)
+
     best = None
     for m, line, p in cands:
         if p < HOCKEY_ALT_FLOOR or line <= 0:
             continue
-        dist = 0.0 if lo <= p <= hi else (lo - p if p < lo else p - hi)
-        key = (int(dist / HOCKEY_ALT_TIE + 1e-9), m)
+        key = keyof(m, p)
         if best is None or key < best[0]:
             best = (key, m, line, p)
+    # opposite-side candidates, from the model's own distribution -- only for a half-point posted line (a whole-number line would need push handling) and a real model probability
+    if HOCKEY_ALT_FLIP and model_p is not None and posted != int(posted) and 0.05 < model_p < 0.95:
+        flip_best = None
+        for m, side, line, p in _hockey_flip_candidates(own_side, anchor, model_p):
+            if p < HOCKEY_ALT_FLOOR or p > hi + HOCKEY_FLIP_CEIL_MARGIN:
+                continue
+            key = keyof(m, p)
+            if flip_best is None or key < flip_best[0]:
+                flip_best = (key, m, side, line, p)
+        # A flip is only taken when the best SAME-side line would OVERSHOOT the band (a very short, impractical price: e.g. OVER 5.5 at 64% -> OVER 4.5 at ~79%) and the other side's own probability sits in
+        # the band and is not materially below the pick's own model probability. A pick whose same-side result is fine (posted line kept, or a moderate shift) is never flipped.
+        overshoot = best is not None and best[3] > hi + HOCKEY_FLIP_OVERSHOOT
+        if flip_best is not None and overshoot and flip_best[4] >= model_p - HOCKEY_FLIP_MAX_DROP:
+            _k, m, side, line, p = flip_best
+            return side, line, abs(line - posted), p, adj, True
     if best is None:                      # nothing clears the floor: take the largest move rather than leave a sub-58% pick
         m, line, p = cands[-1]
     else:
         _k, m, line, p = best
     if m == 0:
         return None
-    return own_side, line, m, p, adj
+    return own_side, line, m, p, adj, False
 
 
 def _alt_shift_hockey(leg: dict) -> dict | None:
@@ -2328,10 +2404,12 @@ def _alt_shift_hockey(leg: dict) -> dict | None:
     res = _hockey_pick_alt(posted, leg.get("sport") or "NHL", m.group(1).lower(), leg.get("prob"))
     if res is None:
         return None
-    side, line, moved, p_alt, adj = res
+    side, line, moved, p_alt, adj, flipped = res
     new_label = f"{side.upper()} {_fmt_line(line, False)}"
     out = _alt_finish(leg, new_label, p_alt, posted, line, float(moved), label)
-    out["altLine"]["flip"] = False
+    out["altLine"]["flip"] = flipped
+    if flipped:
+        out["side"] = side                      # the locked pick is on the OPPOSITE side now (side is "over"/"under")
     out["altLine"]["edgeAdj"] = round(adj, 4)
     out["altLine"]["modelP"] = leg.get("prob")
     return out
@@ -2839,11 +2917,16 @@ def _leg_html(q: dict) -> str:
         alt = q.get("altLine")
         if alt:
             # An ADJUSTED-LINE pick (spread / total moved to a safer line): the posted-line tier and EV do not describe it, and its price is an estimate -- say so instead of showing them.
+            # (The wording is built here, not inside the f-string: Python 3.11 -- what CI runs -- forbids backslashes in f-string expressions.)
+            if alt.get("flip"):
+                moved_txt = "Switched to the opposite side from the posted " + _esc(alt.get("postedLabel") or alt.get("posted")) + " (the model's own scoring distribution backs this side)."
+            else:
+                moved_txt = "Moved from the posted " + _esc(alt.get("postedLabel") or alt.get("posted")) + " to a safer line."
             return (f'<div style="padding:5px 0">'
                     f'<span style="background:#ffe600;color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
                     f'border-radius:3px;display:inline-block;margin-bottom:3px">ADJUSTED LINE</span>'
                     f'<div style="font-size:14px;color:#eee">{_esc(q["label"])} — {prob*100:.0f}%</div>'
-                    f'<div style="font-size:12px;color:#bbb;margin-top:2px">Moved from the posted {_esc(alt.get("postedLabel") or alt.get("posted"))} to a safer line. '
+                    f'<div style="font-size:12px;color:#bbb;margin-top:2px">{moved_txt} '
                     f'The price at this line is an estimate, not a bookmaker quote — your book may not offer it, so check before you bet.</div>'
                     f'</div>')
         if q.get("lane"):

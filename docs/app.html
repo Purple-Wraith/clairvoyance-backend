@@ -3881,10 +3881,10 @@ const _ALT_STD_DEC=1.909;
 const _ALT_COVERAGE=[['CFB','SPREAD + TOTAL'],['NFL','SPREAD + TOTAL'],['NBA','SPREAD + TOTAL'],['NHL','TOTAL'],['SHL','TOTAL'],['LIIGA','TOTAL'],['NLA','TOTAL'],['EXTRALIGA','TOTAL']];
 function _altOf(p){const a=p&&p.altLine;return a&&typeof a==='object'&&isFinite(+a.line)&&isFinite(+a.posted)?a:null;}
 // Result of the pick's bet at `line`, from the stored final score: 'win'|'loss'|'push'|null (no usable score / unknown shape).
-function _altGradeAt(p,line){
+function _altGradeAt(p,line,betText){
   if(p.hScore==null||p.aScore==null)return null;
   const h=Number(p.hScore),a=Number(p.aScore);if(!isFinite(h)||!isFinite(a))return null;
-  const bt=String(p.betType||'').toUpperCase(),bet=String(p.betOn||'');
+  const bt=String(p.betType||'').toUpperCase(),bet=String(betText!=null?betText:(p.betOn||''));
   if(bt==='OU'||bt==='O/U'||bt==='TOTAL'){const over=/^\s*OVER/i.test(bet),tot=h+a;if(tot===line)return'push';return((tot>line)===over)?'win':'loss';}
   if(bt==='SPREAD'){
     const m=bet.match(/^\s*([A-Za-z0-9&.'-]+)/);if(!m)return null;
@@ -3903,7 +3903,7 @@ function _altRows(picks){
     if(settled){
       // the posted-line result is only trusted when recomputing the LOCKED line from the same score reproduces the stored outcome (a shootout goal or a hand-entered score can break that)
       const ra=_altGradeAt(p,+al.line);
-      posted=(ra!==null&&ra!==p.outcome)?null:_altGradeAt(p,+al.posted);
+      posted=(ra!==null&&ra!==p.outcome)?null:_altGradeAt(p,+al.posted,al.flip?al.postedLabel:null);   // a side-flipped total: the POSTED pick was the other side
     }
     out.push({p,al,league:_leagueDisplayLabel(_normSport(p)).label,settled,alt:settled?p.outcome:'pending',posted,
       saved:settled&&p.outcome==='win'&&posted==='loss',cost:settled&&p.outcome==='loss'&&posted==='win'});
@@ -4779,6 +4779,9 @@ const _ALT_CFG={CFB:{OU:[['normal',14.7,1.9],3,9],SPREAD:[['normal',15.7,.8],3,1
       SPREAD:[['table',[[0,.5],[2,.566],[3,.598],[4,.631],[5,.659],[6,.682],[7,.707],[8,.735],[10,.781]]],3,10]}};
 const _ALT_HK=new Set(['NHL','SHL','LIIGA','NLA','EXTRALIGA']);
 const _ALT_HK_BAND=[.60,.65],_ALT_HK_FLOOR=.58,_ALT_HK_TIE=.02,_ALT_HK_EDGE_W=.5,_ALT_HK_EDGE_CLAMP=[-.05,.08];
+const _ALT_HK_FLIP=true,_ALT_HK_FLIP_CEIL=.06,_ALT_HK_FLIP_OVERSHOOT=.08,_ALT_HK_FLIP_MAX_DROP=.02;   // 2026-10-06 (owner): a hockey total may switch sides when the model's own scoring distribution backs the other side (mirror of HOCKEY_ALT_FLIP in auto_lock_settle.py)
+function _altPoisCdf(k,mu){if(k<0)return 0;let term=Math.exp(-mu),tot=term;for(let i=1;i<=k;i++){term*=mu/i;tot+=term;}return Math.min(1,tot);}
+function _altPoisMu(own,anchor,p){const k=Math.floor(anchor);const f=mu=>own==='OVER'?1-_altPoisCdf(k,mu):_altPoisCdf(k,mu);let lo=.5,hi=15;for(let i=0;i<60;i++){const mid=(lo+hi)/2;if((f(mid)<p)===(own==='OVER'))lo=mid;else hi=mid;}return(lo+hi)/2;}
 const _ALT_HK_BASE0={'5.5':{OVER:.517,UNDER:.483},'6.5':{OVER:.474,UNDER:.526}};
 const _ALT_HK_NHL={'5.5':{'-3':.961,'-2':.848,'-1':.731,'1':.611,'2':.769,'3':.851},'6.5':{'-3':.879,'-2':.787,'-1':.589,'1':.736,'2':.831,'3':.915}};
 const _ALT_HK_EURO={LIIGA:{'-3':.915,'-2':.805,'-1':.609,'1':.707,'2':.833,'3':.915},SHL:{'-3':.911,'-2':.770,'-1':.590,'1':.714,'2':.840,'3':.916},
@@ -4811,6 +4814,24 @@ function _altShift(sport,mkt,label,modelP){
       const dist=(p>=_ALT_HK_BAND[0]&&p<=_ALT_HK_BAND[1])?0:(p<_ALT_HK_BAND[0]?_ALT_HK_BAND[0]-p:p-_ALT_HK_BAND[1]);
       const key=[Math.floor(dist/_ALT_HK_TIE+1e-9),mv];
       if(!best||key[0]<best.key[0]||(key[0]===best.key[0]&&key[1]<best.key[1]))best={key,mv,line,p};
+    }
+    // opposite-side candidates priced from the model's own distribution (a Poisson total whose own-side probability at the posted line equals the pick's probability); taken only when CLEARLY closer to the band
+    if(_ALT_HK_FLIP&&modelP!=null&&!isNaN(modelP)&&posted!==Math.floor(posted)&&modelP>.05&&modelP<.95){
+      const mu=_altPoisMu(own,anchor,modelP);let fb=null;
+      for(let m=1;m<=3;m++){
+        const line=own==='OVER'?anchor+m:anchor-m;if(line<=0)continue;
+        const p=own==='OVER'?_altPoisCdf(Math.floor(line),mu):1-_altPoisCdf(Math.floor(line),mu);
+        if(p<_ALT_HK_FLOOR||p>_ALT_HK_BAND[1]+_ALT_HK_FLIP_CEIL)continue;
+        const dist=(p>=_ALT_HK_BAND[0]&&p<=_ALT_HK_BAND[1])?0:(p<_ALT_HK_BAND[0]?_ALT_HK_BAND[0]-p:p-_ALT_HK_BAND[1]);
+        const key=[Math.floor(dist/_ALT_HK_TIE+1e-9),m];
+        if(!fb||key[0]<fb.key[0]||(key[0]===fb.key[0]&&key[1]<fb.key[1]))fb={key,m,line,p};
+      }
+      // only when the best same-side line would OVERSHOOT the band (very short price) and the flip is not materially below the pick's own probability
+      if(fb&&best&&best.p>_ALT_HK_BAND[1]+_ALT_HK_FLIP_OVERSHOOT&&fb.p>=modelP-_ALT_HK_FLIP_MAX_DROP){
+        const side=own==='OVER'?'UNDER':'OVER';
+        const rf=_altFinish(label,side+' '+fb.line.toFixed(1),fb.p,posted,fb.line,Math.abs(fb.line-posted),mkt);
+        rf.flip=true;rf.edgeAdj=adj;rf.modelP=modelP;return rf;
+      }
     }
     const pick=best||{mv:cands[3][0],line:cands[3][1],p:cands[3][2]};
     if(pick.mv===0)return null;
@@ -4862,9 +4883,16 @@ function _altModelLine(hA,awA,mkt,postedLabel){
 }
 function _altReasoning(label,p,postedLabel,postedProb,shift,unit,modelLine){
   const sh=shift%1===0?String(shift):shift.toFixed(1),u=unit+(+shift===1?'':'s');
-  const lines=[`PICK: ${label} — ADJUSTED LINE (${(p*100).toFixed(1)}% estimated win prob at this line)`,
-    `ADJUSTED LINE: moved ${sh} ${u} from the posted ${postedLabel} to ${label} for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.`,
-    `WHY: ${postedProb!=null?'at the posted line the model rated this side '+(postedProb*100).toFixed(1)+'%; the ':'the '}${sh}-${unit} cushion is priced from the historical margin curve for this market (about ${(p*100).toFixed(0)}% to cover).`];
+  const ps=String(postedLabel||'').match(/^(OVER|UNDER)\b/),ns=String(label||'').match(/^(OVER|UNDER)\b/),flipped=!!(ps&&ns&&ps[1]!==ns[1]);
+  let move,why;
+  if(flipped){
+    move=`ADJUSTED LINE: switched to the opposite side, from the posted ${postedLabel} to ${label}. The model's own scoring distribution puts ${(p*100).toFixed(0)}% on ${label}; staying on the original side would have meant an impractically short price. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.`;
+    why=postedProb!=null?`at the posted line the model rated ${postedLabel} ${(postedProb*100).toFixed(1)}%; the other side is priced from the same scoring distribution.`:`the other side is priced from the model's own scoring distribution.`;
+  }else{
+    move=`ADJUSTED LINE: moved ${sh} ${u} from the posted ${postedLabel} to ${label} for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.`;
+    why=`${postedProb!=null?'at the posted line the model rated this side '+(postedProb*100).toFixed(1)+'%; the ':'the '}${sh}-${unit} cushion is priced from the historical margin curve for this market (about ${(p*100).toFixed(0)}% to cover).`;
+  }
+  const lines=[`PICK: ${label} — ADJUSTED LINE (${(p*100).toFixed(1)}% estimated win prob at this line)`,move,`WHY: ${why}`];
   if(modelLine)lines.push(modelLine);
   return lines.join('\n');
 }

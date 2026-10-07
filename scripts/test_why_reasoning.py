@@ -70,7 +70,7 @@ class JsSide(unittest.TestCase):
         model = "MODEL: Projected margin +14.1 (BAL), total 44.2, from a 25k-sim Monte Carlo."
         for label, p, posted_label, posted_p, k, unit, ml in (("BAL -5.5", .673, "BAL -11.5", .635, 6, "pt", model), ("UNDER 233.5", .67, "UNDER 225.5", .6, 8, "pt", None),
                                                               ("MIA +13.5", .682, "MIA +7.5", None, 6.5, "pt", None), ("OVER 5.5", .61, "OVER 6.5", .58, 1, "goal", None),
-                                                              ("OVER 4.5", .64, "OVER 6.5", .5, 2, "goal", None)):
+                                                              ("OVER 4.5", .64, "OVER 6.5", .5, 2, "goal", None), ("UNDER 6.5", .611, "OVER 5.5", .55, 1, "goal", None), ("UNDER 7.5", .684, "OVER 5.5", .62, 2, "goal", None)):
             py = A._alt_reasoning(label, p, posted_label, posted_p, k, unit, ml)
             js = self.pg.evaluate("([a,b,c,d,e,f,g])=>_altReasoning(a,b,c,d,e,f,g)", [label, p, posted_label, posted_p, k, unit, ml])
             self.assertEqual(js, py, label)

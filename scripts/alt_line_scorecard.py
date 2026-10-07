@@ -89,14 +89,14 @@ def margin_total(p: dict):
         return None
 
 
-def grade(p: dict, line: float):
-    """Result of the pick's bet at `line`: 'win' | 'loss' | 'push' | None (cannot grade)."""
+def grade(p: dict, line: float, bet_override: str | None = None):
+    """Result of the pick's bet at `line`: 'win' | 'loss' | 'push' | None (cannot grade). `bet_override` grades a different bet text (the POSTED pick of a side-flipped total)."""
     sc = margin_total(p)
     if sc is None:
         return None
     h, a = sc
     bt = (p.get("betType") or "").upper()
-    bet = str(p.get("betOn") or "")
+    bet = str(bet_override if bet_override is not None else (p.get("betOn") or ""))
     if bt in ("OU", "O/U", "TOTAL"):
         side = "OVER" if bet.upper().startswith("OVER") else "UNDER"
         tot = h + a
@@ -135,7 +135,7 @@ def main() -> int:
     rows = []
     for p in settled:
         al = p["altLine"]
-        alt_res = grade(p, float(al["line"])); post_res = grade(p, float(al["posted"]))
+        alt_res = grade(p, float(al["line"])); post_res = grade(p, float(al["posted"]), al.get("postedLabel") if al.get("flip") else None)   # a side-flipped total: the POSTED pick was the other side
         # trust the stored outcome for the alternate line; the recomputed one is a cross-check
         rows.append((p, p["outcome"], post_res, alt_res))
     if not rows:

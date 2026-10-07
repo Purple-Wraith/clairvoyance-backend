@@ -99,22 +99,52 @@ class AltLine(unittest.TestCase):
         self.assertAlmostEqual(A._alt_prob(curve, 9.0), (0.670 + 0.711) / 2, places=3)
         self.assertEqual(A._alt_prob(curve, 20), 0.711)
 
-    def test_hockey_never_flips_a_side(self):
+    def test_hockey_keeps_its_side_unless_the_same_side_shift_would_overshoot(self):
+        """A flip (opposite side) happens only when the best same-side line would overshoot the 60-65% band (an impractically short price) AND the model's own distribution puts the other side in the
+        band at no less than the pick's own probability (owner decision 2026-10-06). Everywhere else the side never changes."""
+        flips = 0
         for sport in ("NHL", "LIIGA", "SHL", "NLA", "EXTRALIGA"):
             for side, label in (("over", "OVER 5.5"), ("under", "UNDER 5.5"), ("over", "OVER 6.5"), ("under", "UNDER 6.5"), ("over", "OVER 4.5")):
                 for mp in (None, 0.52, 0.60, 0.72):
                     out = A._alt_shift_leg(leg(sport, side, label, prob=mp))
-                    if out:
+                    if not out:
+                        continue
+                    if out["altLine"]["flip"]:
+                        flips += 1
+                        self.assertIsNotNone(mp)                                                            # never without a model probability
+                        self.assertNotEqual(out["label"].split()[0], label.split()[0])
+                        self.assertGreaterEqual(out["prob"], A.HOCKEY_ALT_FLOOR)
+                        self.assertLessEqual(out["prob"], A.HOCKEY_ALT_BAND[1] + A.HOCKEY_FLIP_CEIL_MARGIN + 1e-9)
+                        self.assertGreaterEqual(out["prob"], mp - A.HOCKEY_FLIP_MAX_DROP - 1e-9)
+                    else:
                         self.assertEqual(out["label"].split()[0], label.split()[0], (sport, label, mp))
                         self.assertEqual(out["side"], side)
-                        self.assertFalse(out["altLine"]["flip"])
+        self.assertGreater(flips, 0)                                                                      # the flip path is reachable
+
+    def test_hockey_flip_examples(self):
+        f = A._alt_shift_leg(leg("NHL", "over", "OVER 5.5", prob=0.55))
+        self.assertEqual((f["label"], f["altLine"]["flip"]), ("UNDER 6.5", True))                        # the owner's example: OVER 5.5 -> UNDER 6.5
+        self.assertAlmostEqual(f["prob"], 0.611, places=2)
+        g = A._alt_shift_leg(leg("NHL", "over", "OVER 5.5", prob=0.62))
+        self.assertEqual((g["label"], g["altLine"]["flip"]), ("UNDER 7.5", True))
+        h = A._alt_shift_leg(leg("NHL", "under", "UNDER 6.5", prob=0.55))
+        self.assertEqual((h["label"], h["altLine"]["flip"]), ("OVER 5.5", True))                          # the owner's other example: UNDER 6.5 -> OVER 5.5
+        h2 = A._alt_shift_leg(leg("NHL", "under", "UNDER 6.5", prob=0.62))
+        self.assertEqual((h2["label"], h2["altLine"]["flip"]), ("OVER 4.5", True))
+        self.assertIn("opposite side", f["reasoning"])
+        self.assertIn("OVER 5.5", f["reasoning"])
+        # moderate same-side shifts and strong picks are NOT flipped
+        self.assertEqual(A._alt_shift_leg(leg("NHL", "over", "OVER 6.5", prob=0.62))["label"], "OVER 5.5")
+        self.assertFalse(A._alt_shift_leg(leg("NHL", "over", "OVER 6.5", prob=0.62))["altLine"]["flip"])
+        self.assertIsNone(A._alt_shift_leg(leg("SHL", "under", "UNDER 5.5", prob=0.70)))
+        # a whole-number posted line never flips (push handling)
+        w = A._alt_shift_leg(leg("NHL", "over", "OVER 6.0", prob=0.62))
+        self.assertTrue(w is None or not w["altLine"]["flip"])
 
     def test_hockey_moves_the_line_toward_safety_on_the_same_side(self):
-        self.assertEqual(A._alt_shift_leg(leg("NHL", "over", "OVER 5.5", prob=0.55))["label"], "OVER 4.5")
+        # (probabilities chosen where the same-side shift is moderate, so no flip applies)
         self.assertEqual(A._alt_shift_leg(leg("NHL", "under", "UNDER 5.5", prob=0.55))["label"], "UNDER 6.5")
         self.assertEqual(A._alt_shift_leg(leg("NHL", "over", "OVER 6.5", prob=0.55))["label"], "OVER 5.5")
-        self.assertEqual(A._alt_shift_leg(leg("NHL", "under", "UNDER 6.5", prob=0.55))["label"], "UNDER 7.5")
-        self.assertEqual(A._alt_shift_leg(leg("LIIGA", "over", "OVER 5.5", prob=0.55))["label"], "OVER 4.5")
 
     def test_a_strong_model_pick_keeps_its_posted_line(self):
         # edge credit lifts the posted line itself over the 58% floor -> no alt line at all

@@ -47,6 +47,35 @@ class Python(unittest.TestCase):
             self.assertEqual(shifted[0]["priceSource"], "estimated")
 
 
+class Flip(unittest.TestCase):
+    """A side-flipped hockey total (e.g. posted OVER 5.5 -> locked UNDER 6.5): grading of the POSTED pick must use the original side, and the email must say the side switched."""
+    def flip_pick(self, h, a):
+        return {"id": "f1", "sport": "NHL", "betType": "OU", "betOn": "UNDER 6.5", "hA": "H", "awA": "A", "hScore": h, "aScore": a, "outcome": "pending",
+                "altLine": {"posted": 5.5, "line": 6.5, "shift": 1.0, "postedLabel": "OVER 5.5", "flip": True}}
+
+    def test_scorecard_grades_the_posted_pick_on_its_original_side(self):
+        import alt_line_scorecard as S
+        p = self.flip_pick(4, 3)                       # 7 goals: UNDER 6.5 loses, the posted OVER 5.5 would have won
+        self.assertEqual(S.grade(p, 6.5), "loss")
+        self.assertEqual(S.grade(p, 5.5, "OVER 5.5"), "win")
+        self.assertEqual(S.grade(p, 5.5), "loss")      # without the override it would have graded the wrong side
+        q = self.flip_pick(3, 3)                       # exactly 6: both win (the overlap)
+        self.assertEqual((S.grade(q, 6.5), S.grade(q, 5.5, "OVER 5.5")), ("win", "win"))
+
+    def test_email_says_the_side_switched(self):
+        q = {"kind": "GAME", "sport": "NHL", "hA": "H", "awA": "A", "side": "under", "label": "UNDER 6.5", "prob": .611, "ml": "-157", "dec": 1.57, "tierN": 2, "evVal": -.05,
+             "priceSource": "estimated", "altLine": {"posted": 5.5, "line": 6.5, "shift": 1.0, "postedLabel": "OVER 5.5", "flip": True}}
+        html = A._leg_html(q)
+        self.assertIn("Switched to the opposite side from the posted OVER 5.5", html)
+        self.assertNotIn("Moved from", html)
+        q["altLine"]["flip"] = False
+        self.assertIn("Moved from the posted OVER 5.5", A._leg_html(q))
+
+    def test_the_locked_leg_is_on_the_new_side(self):
+        out = A._alt_shift_leg({"kind": "GAME", "sport": "NHL", "hA": "H", "awA": "A", "side": "over", "label": "OVER 5.5", "prob": .55, "ml": "-110", "dec": 1.91, "tierN": 2, "evVal": .02})
+        self.assertEqual((out["label"], out["side"], out["altLine"]["flip"]), ("UNDER 6.5", "under", True))
+
+
 class Quiet(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a, **k):
         pass
@@ -88,6 +117,12 @@ class Js(unittest.TestCase):
         self.assertFalse(self.lane("mlFav", 0.64))
         self.assertTrue(self.lane("plDog", 0.65))
         self.assertFalse(self.lane("plFav", 0.90))                             # a -1.5 favourite never uses the lane
+
+    def test_tracker_grades_the_posted_pick_of_a_flip_on_its_original_side(self):
+        r = self.pg.evaluate("""()=>{const p={id:'f1',sport:'NHL',betType:'OU',betOn:'UNDER 6.5',hA:'H',awA:'A',hScore:4,aScore:3,outcome:'loss',date:'2026-10-08',lockedAt:Date.now(),
+          altLine:{posted:5.5,line:6.5,shift:1,postedLabel:'OVER 5.5',flip:true}};const row=_altRows([p])[0];return {posted:row.posted,cost:row.cost,saved:row.saved}}""")
+        self.assertEqual(r["posted"], "win")
+        self.assertTrue(r["cost"])                                  # lost at the locked line, would have won at the posted one
 
     def test_js_and_python_floors_agree(self):
         self.assertEqual(self.pg.evaluate("HOCKEY_LANE_OU_P"), A.HOCKEY_LANE_OU_P)
