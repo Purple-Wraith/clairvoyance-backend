@@ -57,7 +57,7 @@ concurrency:
 jobs:
   watchdog:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -103,7 +103,9 @@ jobs:
         timeout-minutes: 8
         env:
           TZ: America/Denver
-        run: python3 scripts/lock_prep.py --jobs hockey,nhl,nba,data-nhl --no-push --per-job-timeout 240 --total-timeout 300
+        # Hard OS-level kill (2026-10-08): the 21:30Z run hung in THIS step for 30 minutes -- the step's own timeout-minutes and lock_prep's per-job timeouts never fired -- and was cancelled
+        # at the job limit, so that slot did nothing. `timeout -k` is independent of the runner and of the script; the step is fail-open, so the watchdog itself still runs afterwards.
+        run: timeout -k 15 420 python3 scripts/lock_prep.py --jobs hockey,nhl,nba,data-nhl --no-push --per-job-timeout 240 --total-timeout 300 || echo "::warning::odds refresh ended early (exit $?) -- continuing with the data already on disk"
 
       - name: Run watchdog (read-only; owner-only email)
         if: ${{ steps.gate.outputs.near == '1' }}
