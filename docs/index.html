@@ -3780,7 +3780,7 @@ function _gradeLabel(p){
   const t=tier(p.winProb,ev(p.winProb,dec),p.betType||'ML',p.marketProb!=null);
   return['SKIP','LEAN','OPTIMAL','PREMIUM'][t]||null;
 }
-// Grade tags for a spread / O-U box: ONE TAG PER SIDE, each naming the side it grades ("▲ OVER · LEAN", "▼ UNDER · SKIP"; "OTT -1.5 · SKIP", "PHI +1.5 · HIGH PROB"), filling the box bottom.
+// Grade tags for a spread / O-U box: ONE TAG PER SIDE, each naming the side it grades ("▲ OVER 5.5 · LEAN", "▼ UNDER 5.5 · SKIP"; "OTT -1.5 · SKIP", "PHI +1.5 · HIGH PROB"), filling the box bottom.
 // (2026-10-08, owner: a single unlabelled "SKIP" did not say whether it was the over or the under, or the favourite or the dog.) Same tier + HIGH PROB lane rules as the chips.
 function _boxGradeHTML(nm,sidesA,sidesB){
   try{
@@ -3791,7 +3791,8 @@ function _boxGradeHTML(nm,sidesA,sidesB){
       const lane=m.hkLane&&m.tierN<2,t=m.tierN||0;
       const lbl=lane?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPTIMAL','PREMIUM'][t];
       const cls=lane?'pq':['ph','pn','pp','pg'][t];
-      const side=m.side==='over'?'\u25B2 OVER':m.side==='under'?'\u25BC UNDER':String(m.label||'');
+      const ln=String(m.label||'').replace(/^(OVER|UNDER)\s*/i,'').trim();   // the line, e.g. '5.5'
+      const side=m.side==='over'?'\u25B2 OVER'+(ln?' '+ln:''):m.side==='under'?'\u25BC UNDER'+(ln?' '+ln:''):String(m.label||'');
       const full=String(m.label||side)+' \u2014 '+lbl;
       return`<span class="pill pbx ${cls}" title="${_escHtml(full)}">${_escHtml(side)} \u00B7 ${lbl}</span>`;
     };
