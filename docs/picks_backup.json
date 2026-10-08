@@ -69088,6 +69088,40 @@
     "priceSource": "estimated"
   },
   {
+    "id": "2026-10-09_BYU_ISU_CFB_BYU-3.5",
+    "date": "2026-10-09",
+    "hA": "BYU",
+    "awA": "ISU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "BYU -3.5",
+    "winProb": 0.679,
+    "ml": "-262",
+    "decOdds": 1.381,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791446543697,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: BYU -3.5 \u2014 ADJUSTED LINE (67.9% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted BYU -10.0 to BYU -3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 67.7%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +16.9 (BYU), total 36.1, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -10,
+      "line": -3.5,
+      "shift": 6.5,
+      "postedLabel": "BYU -10.0",
+      "postedProb": 0.6766660388710114,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1791598500000,
+    "leadMin": 2533,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Liberec",
     "id": "2026-10-09_Liberec_Karlovy Vary_EXTRALIGA_KarlovyVary+1.5",
     "ml": "-263",
@@ -69144,111 +69178,145 @@
     "priceSource": "market"
   },
   {
-    "id": "2026-10-09_M\u00e1laga_Espanyol_LIGA_M\u00e1laga+0.5",
-    "date": "2026-10-09",
     "hA": "M\u00e1laga",
-    "awA": "Espanyol",
-    "sport": "LIGA",
-    "league": "LIGA",
-    "betType": "SPREAD",
-    "betOn": "M\u00e1laga +0.5",
-    "winProb": 0.6136455150166562,
+    "id": "2026-10-09_M\u00e1laga_Espanyol_LIGA_M\u00e1laga+0.5",
     "ml": "-110",
-    "decOdds": 1.91,
+    "awA": "Espanyol",
+    "date": "2026-10-09",
+    "betOn": "M\u00e1laga +0.5",
+    "sport": "LIGA",
     "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1791446279693,
-    "hScore": null,
     "aScore": null,
+    "hScore": null,
+    "league": "LIGA",
     "source": "manual",
+    "betType": "SPREAD",
+    "decOdds": 1.91,
+    "leadMin": 2102,
+    "outcome": "pending",
+    "startMs": 1791572400000,
+    "winProb": 0.6136455150166562,
+    "lockedAt": 1791446279693,
+    "reasoning": "PICK: M\u00e1laga +0.5 \u2014 OPTIMAL (61.4% win prob, EV +17.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.11\u20130.99 goals (xG 1.13/0.99), BTTS 42%, from a 25k-sim Monte Carlo.",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 0.94
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1.0425,
-        "away": 0.98775
+        "away": 0.98775,
+        "home": 1.0425
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 0.94,
+        "home": 0.94
       }
-    },
-    "reasoning": "PICK: M\u00e1laga +0.5 \u2014 OPTIMAL (61.4% win prob, EV +17.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.11\u20130.99 goals (xG 1.13/0.99), BTTS 42%, from a 25k-sim Monte Carlo.",
-    "startMs": 1791572400000,
-    "leadMin": 2102,
-    "lockTiming": "pre"
+    }
   },
   {
-    "id": "2026-10-09_M\u00e1laga_Espanyol_LIGA_UNDER2.5",
-    "date": "2026-10-09",
     "hA": "M\u00e1laga",
-    "awA": "Espanyol",
-    "sport": "LIGA",
-    "league": "LIGA",
-    "betType": "OU",
-    "betOn": "UNDER 2.5",
-    "winProb": 0.6456531338591441,
+    "id": "2026-10-09_M\u00e1laga_Espanyol_LIGA_UNDER2.5",
     "ml": "-110",
+    "awA": "Espanyol",
+    "date": "2026-10-09",
+    "betOn": "UNDER 2.5",
+    "sport": "LIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "LIGA",
+    "source": "manual",
+    "betType": "OU",
     "decOdds": 1.91,
+    "leadMin": 2102,
+    "outcome": "pending",
+    "startMs": 1791572400000,
+    "winProb": 0.6456531338591441,
+    "lockedAt": 1791446279559,
+    "reasoning": "PICK: UNDER 2.5 \u2014 OPTIMAL (64.6% win prob, EV +23.3% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.11\u20130.99 goals (xG 1.13/0.99), BTTS 42% \u2014 OVER 2.5 hits 35.4% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: M\u00e1laga 0.99 xG/G vs Espanyol 1.13 xG/G. 3-way: Home 41% / Draw 38% / Away 47%. MC proj: 0.99 \u2013 1.11 (2.11 total vs 2.5 line, BTTS 42%). Goal spread: Espanyol -0.5 covers 39%, M\u00e1laga +0.5 covers 61% (proj margin -0.12). Combined xG 2.11 supports a tighter, lower-scoring line. Kelly 25.6%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: M\u00e1laga +0.5 (OPTIMAL). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Form (H) +4%, Fbref (A) -6%, Standings (A) -6%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.98775,
+        "home": 1.0425
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 0.94,
+        "home": 0.94
+      }
+    }
+  },
+  {
+    "id": "2026-10-09_SJSU_WYO_CFB_OVER37.5",
+    "date": "2026-10-09",
+    "hA": "SJSU",
+    "awA": "WYO",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "OVER 37.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1791446279559,
+    "lockedAt": 1791446543495,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "form": {
-        "home": 1.0425,
-        "away": 0.98775
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
+    "reasoning": "PICK: OVER 37.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted OVER 42.5 to OVER 37.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 65.8%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +7.0 (SJSU), total 47.2, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 42.5,
+      "line": 37.5,
+      "shift": 5,
+      "postedLabel": "OVER 42.5",
+      "postedProb": 0.6584507314913571,
+      "postedDec": 1.909,
+      "postedMl": "-110"
     },
-    "reasoning": "PICK: UNDER 2.5 \u2014 OPTIMAL (64.6% win prob, EV +23.3% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.11\u20130.99 goals (xG 1.13/0.99), BTTS 42% \u2014 OVER 2.5 hits 35.4% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: M\u00e1laga 0.99 xG/G vs Espanyol 1.13 xG/G. 3-way: Home 41% / Draw 38% / Away 47%. MC proj: 0.99 \u2013 1.11 (2.11 total vs 2.5 line, BTTS 42%). Goal spread: Espanyol -0.5 covers 39%, M\u00e1laga +0.5 covers 61% (proj margin -0.12). Combined xG 2.11 supports a tighter, lower-scoring line. Kelly 25.6%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: M\u00e1laga +0.5 (OPTIMAL). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Form (H) +4%, Fbref (A) -6%, Standings (A) -6%.",
-    "startMs": 1791572400000,
-    "leadMin": 2102,
+    "startMs": 1791594000000,
+    "leadMin": 2458,
     "lockTiming": "pre"
   },
   {
@@ -69308,6 +69376,40 @@
     "priceSource": "market"
   },
   {
+    "id": "2026-10-09_USU_WSU_CFB_OVER39.5",
+    "date": "2026-10-09",
+    "hA": "USU",
+    "awA": "WSU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "OVER 39.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791446543267,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 39.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted OVER 44.5 to OVER 39.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 67.8%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +3.2 (USU), total 50.1, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 44.5,
+      "line": 39.5,
+      "shift": 5,
+      "postedLabel": "OVER 44.5",
+      "postedProb": 0.6783404177054917,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1791594000000,
+    "leadMin": 2458,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Vitkovice",
     "id": "2026-10-09_Vitkovice_Pardubice_EXTRALIGA_PardubiceML",
     "ml": "-227",
@@ -69334,6 +69436,40 @@
     "lockTiming": "pre",
     "marketProb": 0.6436,
     "priceSource": "market"
+  },
+  {
+    "id": "2026-10-09_WASH_IOWA_CFB_IOWA+9.5",
+    "date": "2026-10-09",
+    "hA": "WASH",
+    "awA": "IOWA",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "IOWA +9.5",
+    "winProb": 0.679,
+    "ml": "-262",
+    "decOdds": 1.381,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791446543113,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: IOWA +9.5 \u2014 ADJUSTED LINE (67.9% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted IOWA +3.0 to IOWA +9.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 69.3%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin -5.3 (WASH), total 32.3, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 3,
+      "line": 9.5,
+      "shift": 6.5,
+      "postedLabel": "IOWA +3.0",
+      "postedProb": 0.6925285233593583,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1791594000000,
+    "leadMin": 2458,
+    "lockTiming": "pre"
   },
   {
     "hA": "LAD @ ARI",
