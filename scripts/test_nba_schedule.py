@@ -479,5 +479,34 @@ class LockPassMerge(unittest.TestCase):
         self.assertIn("_nbaGameCard(espnEv)", blk)
 
 
+class RegularSeasonDays(unittest.TestCase):
+    """The NBA tab's date dropdown: regular-season game days only (no preseason / play-in / playoffs), carried when ESPN hiccups."""
+    CAL = ["2026-10-03", "2026-10-19", "2026-10-20", "2026-10-21", "2027-04-11", "2027-04-14", "2027-05-01"]
+    TYPE2 = {"startDate": "2026-10-20T07:00Z", "endDate": "2027-04-12T06:59Z"}
+
+    def test_filters_to_the_regular_season_range(self):
+        core = {F.ESPN_CORE_SEASON_TYPE.format(year=2027): self.TYPE2}
+        rng, days = F.regular_season_days({"_calendar": self.CAL}, 2027, get=FakeESPN(core=core))
+        self.assertEqual(rng, {"start": "2026-10-20", "end": "2027-04-12"})
+        self.assertEqual(days, ["2026-10-20", "2026-10-21", "2027-04-11"])             # preseason (10-03, 10-19) and playoffs (04-14, 05-01) are out
+
+    def test_failure_keeps_the_previous_values(self):
+        prev = {"regularSeason": {"start": "a", "end": "b"}, "regularSeasonDays": ["2026-10-20"]}
+        rng, days = F.regular_season_days({"_calendar": self.CAL}, 2027, get=FakeESPN(), prev_doc=prev)       # core call 404s
+        self.assertEqual((rng, days), (prev["regularSeason"], prev["regularSeasonDays"]))
+        rng, days = F.regular_season_days({}, 2027, get=FakeESPN(), prev_doc=prev)                            # no calendar in the response
+        self.assertEqual(days, ["2026-10-20"])
+        self.assertEqual(F.regular_season_days({}, 2027, get=FakeESPN()), (None, None))
+
+    def test_build_schedule_writes_the_days(self):
+        core = {F.ESPN_CORE_SEASON_TYPE.format(year=2027): self.TYPE2}
+        board = {"leagues": [{"season": {"year": 2027, "displayName": "2026-27"}, "calendar": [c + "T07:00Z" for c in self.CAL]}], "events": []}
+        espn = FakeESPN({d: board for d in ("20261002", "20261003", "20261004", "20261005")}, core=core)
+        pay = F.build_schedule({}, days=2, now=NOW, get=espn, sleep=NOSLEEP)
+        self.assertEqual(pay["regularSeasonDays"], ["2026-10-20", "2026-10-21", "2027-04-11"])
+        self.assertEqual(pay["regularSeason"]["start"], "2026-10-20")
+        self.assertNotIn("_calendar", json.dumps(pay))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

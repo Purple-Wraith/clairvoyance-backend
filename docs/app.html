@@ -1516,12 +1516,14 @@ body{line-height:1.5}
     <div class="sa" id="nba-sa">
 
       <div id="nba-tab-games" class="tab act">
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center">
-          <div style="font-family:var(--orb);font-size:27px;font-weight:900;letter-spacing:4px;background:linear-gradient(135deg,var(--vc),var(--pc));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:14px">NBA SEASON COMPLETED</div>
-          <div style="font-family:var(--mono);font-size:16px;letter-spacing:3px;color:var(--t3);margin-bottom:12px">FINALS CONCLUDED · CHAMPIONS CROWNED</div>
-          <div style="font-family:var(--mono);font-size:17px;color:var(--t3);max-width:320px;line-height:1.7">NBA Today module returns with the 2026–27 season opener. Game picks, ensemble model, EV grades, and live odds refresh every night throughout the regular season and playoffs.</div>
-          <div style="margin-top:20px;font-family:var(--orb);font-size:16px;letter-spacing:3px;color:var(--vc)">RETURNING · OCTOBER 2026</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+          <div class="sh" style="margin:0"><span class="i"></span> SCHEDULE · LEAGUE-WIDE</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="nba-filter-day" onchange="renderNBAUpcoming(true)" style="padding:6px 8px;background:rgba(4,0,12,.9);border:1px solid rgba(0,240,255,.25);color:var(--t);font-family:var(--mono);font-size:15px;border-radius:2px"></select>
+            <button class="btn btn-o btn-sm" onclick="renderNBAUpcoming(true)">↻</button>
+          </div>
         </div>
+        <div id="nba-upcoming"><div class="loading"><span class="spi"></span></div></div>
       </div>
       <div id="nba-tab-stats" class="tab">
         <div class="sh"><span class="p"></span> NBA TEAM RATINGS</div>
@@ -14057,8 +14059,8 @@ const espnSprdNum=-_sprdL;const sprdFav=_mktFav;const sprdLbl=sprdFav+' '+espnSp
   ${pre?'':_footballLocksDisabledHTML({isLive:live})}${`<div class="brow${pre?'':' lockoff'}"${pre?'':' inert aria-disabled="true"'}>
     <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${hn}','${an}','NBA','${hn}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${today()}')"><div class="cht">ML ${hn}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
     <div class="${aCS.c} chip" style="flex:1" onclick="lockPick('${hn}','${an}','NBA','${an}',${aP.toFixed(3)},'${aML}',${aD.toFixed(3)},'${today()}')"><div class="cht">ML ${an}</div><div class="cho">${_mlFmt(aML)}</div><div class="chp">${(aP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${aCS.pl}">${aCS.lb}</span></div>${_highHitBadgeHTML(aP)}</div>
-    <div class="gbox" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">SPREAD</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nba_${hn}_${an}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${espnSprdNum}" id="sprd_nba_${hn}_${an}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nba_${hn}_${an}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=aP?hn:an}','${hP>=aP?an:hn}','${hn}','${an}','${today()}',${sprdP.toFixed(3)},'${espnSprdNum}','sprd_nba_${hn}_${an}','FAV','NBA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=aP?hn:an}</div><div id="fav_sprd_nba_${hn}_${an}" style="font-size:11px;opacity:.85">-${_forceHalfLine(Math.abs(espnSprdNum)||1.5)}</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=aP?hn:an}','${hP>=aP?an:hn}','${hn}','${an}','${today()}',${sprdP.toFixed(3)},'${espnSprdNum}','sprd_nba_${hn}_${an}','DOG','NBA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=aP?an:hn}</div><div id="dog_sprd_nba_${hn}_${an}" style="font-size:11px;opacity:.85">+${_forceHalfLine(Math.abs(espnSprdNum)||1.5)}</div></button></div>${typeof _nmNBA!=='undefined'?_boxGradeHTML(_nmNBA,['plFav','sprdFav','ahFav'],['plDog','sprdDog','ahDog']):''}</div>
-    ${ouLBox?`<div class="gbox gbox2" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE${ouL==null?' · MODEL':''}</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nba_${hn}_${an}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${ouLBox}" id="ouinp_nba_${hn}_${an}" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nba_${hn}_${an}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_ouLockDir('${hn}','${an}','${today()}',${ouP.toFixed(3)},'${ouLBox}','ouinp_nba_${hn}_${an}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_ouLockDir('${hn}','${an}','${today()}',${ouP.toFixed(3)},'${ouLBox}','ouinp_nba_${hn}_${an}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▼ UNDER</button></div>${typeof _nmNBA!=='undefined'?_boxGradeHTML(_nmNBA,['over'],['under']):''}</div>`:''}
+    <div class="gbox" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">SPREAD</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('sprd_nba_${hn}_${an}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${espnSprdNum}" id="sprd_nba_${hn}_${an}" style="width:64px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center" oninput="_syncSprdLabels(this.id)"><button onclick="event.stopPropagation();_adjV('sprd_nba_${hn}_${an}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:2px;width:100%"><button onclick="event.stopPropagation();_spreadLockDir('${hP>=aP?hn:an}','${hP>=aP?an:hn}','${hn}','${an}','${today()}',${sprdP.toFixed(3)},'${espnSprdNum}','sprd_nba_${hn}_${an}','FAV','NBA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=aP?hn:an}</div><div id="fav_sprd_nba_${hn}_${an}" style="font-size:11px;opacity:.85">-${_forceHalfLine(Math.abs(espnSprdNum)||1.5)}</div></button><button onclick="event.stopPropagation();_spreadLockDir('${hP>=aP?hn:an}','${hP>=aP?an:hn}','${hn}','${an}','${today()}',${sprdP.toFixed(3)},'${espnSprdNum}','sprd_nba_${hn}_${an}','DOG','NBA')" style="flex:1;font-size:13px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center"><div>${hP>=aP?an:hn}</div><div id="dog_sprd_nba_${hn}_${an}" style="font-size:11px;opacity:.85">+${_forceHalfLine(Math.abs(espnSprdNum)||1.5)}</div></button></div>${typeof _nmNBA!=='undefined'?_boxGradeHTML(_nmNBA,['plFav','sprdFav','ahFav'],['plDog','sprdDog','ahDog']):''}</div>
+    ${ouLBox?`<div class="gbox gbox2" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE${ouL==null?' · MODEL':''}</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nba_${hn}_${an}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${ouLBox}" id="ouinp_nba_${hn}_${an}" style="width:64px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nba_${hn}_${an}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_ouLockDir('${hn}','${an}','${today()}',${ouP.toFixed(3)},'${ouLBox}','ouinp_nba_${hn}_${an}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_ouLockDir('${hn}','${an}','${today()}',${ouP.toFixed(3)},'${ouLBox}','ouinp_nba_${hn}_${an}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▼ UNDER</button></div>${typeof _nmNBA!=='undefined'?_boxGradeHTML(_nmNBA,['over'],['under']):''}</div>`:''}
   </div>`}
   <div style="padding:8px 10px;background:rgba(4,0,12,.5);border-top:1px solid rgba(255,255,255,.05);margin-top:2px">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
@@ -14082,7 +14084,7 @@ const espnSprdNum=-_sprdL;const sprdFav=_mktFav;const sprdLbl=sprdFav+' '+espnSp
 }
 
 async function renderNBAGames(day){
-  const el=document.getElementById('nba-games');if(!el)return;
+  const el=document.getElementById('nba-games');if(!el)return renderNBAUpcoming();   // the MATCHES tab is the date-dropdown schedule now (renderNBAUpcoming)
   const dateStr=day==='tomorrow'?getTomorrowET():todayESPN();
   el.innerHTML='<div class="loading"><span class="spi"></span> FETCHING ESPN…</div>';
   try{
@@ -14094,6 +14096,50 @@ async function renderNBAGames(day){
     el.innerHTML=events.map(e=>_nbaGameCard(e)).join('');
   }catch(e){el.innerHTML='<div class="empty">ESPN UNAVAILABLE — CHECK CONNECTION</div>';}
 }
+// ══ NBA SCHEDULE TAB (2026-10-08, owner): the MATCHES tab now works like the other leagues -- a date dropdown (regular-season game days only; preseason, play-in and playoff games never appear) and one
+// game card per game, the same card the engine grades and locks from. Days come from docs/nba_schedule.json (regularSeasonDays, scripts/fetch_nba.py: ESPN's season calendar bounded by the
+// regular-season type's start/end); the games for the chosen day come live from ESPN's scoreboard (it serves any day, incl. future ones) filtered to season type 2. Like the NHL list, days that
+// have passed drop off the dropdown; today stays all day.
+let _nbaUpTok=0,_nbaUpAt=0,_nbaUpIso='';
+function _nbaPopulateDayFilter(days){
+  const sel=document.getElementById('nba-filter-day');if(!sel)return;
+  const todayIso=_nbaEtToday(),keep=sel.value;
+  const list=days.filter(d=>d>=todayIso);
+  const use=list.length?list:days.slice(-1);                       // season over: show the final day rather than an empty list
+  if(sel.dataset.key===use.join(',')&&sel.options.length)return;
+  sel.innerHTML=use.map(d=>`<option value="${d}">${d===todayIso?'GAMES \u00B7 ':''}${_scheduleDayLabel(d).toUpperCase()}</option>`).join('');   // same wording as the NHL dropdown
+  sel.value=use.includes(keep)?keep:use[0];                          // first game day on or after today (opening night before the season starts)
+  sel.dataset.key=use.join(',');
+}
+async function renderNBAUpcoming(force){
+  const el=document.getElementById('nba-upcoming');if(!el)return;
+  if(!window._NBA_SCHED){try{await loadNBASchedule();}catch(e){}}
+  const days=(window._NBA_SCHED&&window._NBA_SCHED.regularSeasonDays)||[];
+  if(!days.length){el.innerHTML='<div class="empty">NBA REGULAR-SEASON SCHEDULE NOT LOADED YET</div>';return;}
+  _nbaPopulateDayFilter(days);
+  const sel=document.getElementById('nba-filter-day'),iso=sel&&sel.value;
+  if(!iso){el.innerHTML='<div class="empty">NO SCHEDULE DATA</div>';return;}
+  // other code paths re-run this whenever data refreshes; don't refetch ESPN for the same day inside 45 s unless the user asked
+  if(!force&&iso===_nbaUpIso&&Date.now()-_nbaUpAt<45000&&el.querySelector('.gc'))return;
+  const tok=++_nbaUpTok;
+  el.innerHTML='<div class="loading"><span class="spi"></span> FETCHING ESPN\u2026</div>';
+  try{
+    const ds=iso.replace(/-/g,'');
+    const r=await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${ds}&limit=50`,{mode:'cors',cache:'no-cache'});
+    const d=await r.json();
+    if(tok!==_nbaUpTok)return;                                       // a newer day was picked meanwhile
+    const events=(d.events||[]).filter(e=>Number(e.season&&e.season.type)===2).sort((a,b)=>new Date(a.date)-new Date(b.date));   // regular season only
+    await Promise.allSettled([_nbaPrefetchInj(),_nbaPrefetchRest(ds)]);
+    if(tok!==_nbaUpTok)return;
+    const todayIso=_nbaEtToday();
+    const label=(iso===todayIso?'TODAY \u00B7 ':'')+_scheduleDayLabel(iso);
+    let html=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--nc);margin:0 0 8px;border-bottom:1px solid rgba(0,240,255,.15);padding-bottom:4px">// ${label} \u2014 ${events.length} GAME${events.length===1?'':'S'}</div>`;
+    html+=events.length?events.map(e=>{try{return _nbaGameCard(e);}catch(err){return'';}}).join(''):'<div class="empty" style="padding:14px">NO GAMES SCHEDULED</div>';
+    el.innerHTML=html;
+    _nbaUpIso=iso;_nbaUpAt=Date.now();
+  }catch(e){if(tok===_nbaUpTok)el.innerHTML='<div class="empty">ESPN UNAVAILABLE \u2014 CHECK CONNECTION</div>';}
+}
+window.renderNBAUpcoming=renderNBAUpcoming;
 // NBA info row: players OUT / day-to-day (live ESPN injuries, matched on team displayName) + back-to-back (a team that played yesterday).
 var _NBA_INJ={ts:0,by:{}};
 async function _nbaPrefetchInj(){

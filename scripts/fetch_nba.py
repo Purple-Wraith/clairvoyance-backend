@@ -306,7 +306,11 @@ def fetch_day(day: str, get=None, now: datetime | None = None) -> tuple[list[dic
         if g and g["id"] not in seen:
             seen.add(g["id"])
             games.append(g)
-    season = ((resp.get("leagues") or [{}])[0].get("season")) or {}
+    league0 = (resp.get("leagues") or [{}])[0]
+    season = dict(league0.get("season") or {})
+    cal = league0.get("calendar")
+    if isinstance(cal, list):
+        season["_calendar"] = [str(c)[:10] for c in cal if isinstance(c, str) and len(c) >= 10]   # every ET day of the season that has games (preseason + regular + playoffs)
     return games, season
 
 
@@ -399,6 +403,32 @@ def core_odds_fallback(games: list[dict], now: datetime, get=None, sleep=time.sl
     return gained
 
 
+ESPN_CORE_SEASON_TYPE = "https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/{year}/types/2"
+
+
+def regular_season_days(season_info: dict, season_year: int, get=None, prev_doc: dict | None = None) -> tuple[dict | None, list[str] | None]:
+    """-> ({"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}, [every ET day with a REGULAR-season game]) -- the NBA tab's date dropdown (preseason, play-in and playoffs excluded).
+    Days come from ESPN's season calendar (carried inside the scoreboard response), bounded by the regular-season type's own start/end dates.  Any failure keeps the previous
+    file's values, so a flaky call never empties the dropdown."""
+    get = get or get_json
+    prev_rng, prev_days = (prev_doc or {}).get("regularSeason"), (prev_doc or {}).get("regularSeasonDays")
+    try:
+        cal = (season_info or {}).get("_calendar")
+        if not cal:
+            raise RuntimeError("no calendar in the scoreboard response")
+        t = get(ESPN_CORE_SEASON_TYPE.format(year=season_year))
+        start, end = str(t.get("startDate") or "")[:10], str(t.get("endDate") or "")[:10]
+        if len(start) != 10 or len(end) != 10:
+            raise RuntimeError("regular-season dates missing")
+        days = sorted({d for d in cal if start <= d <= end})
+        if not days:
+            raise RuntimeError("no regular-season days in the calendar")
+        return {"start": start, "end": end}, days
+    except Exception as exc:
+        _log(f"  regular-season days: kept previous ({exc})")
+        return (prev_rng if isinstance(prev_rng, dict) else None), (prev_days if isinstance(prev_days, list) else None)
+
+
 # ── build ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 def build_schedule(prev_doc: dict, days: int = DEFAULT_DAYS, now: datetime | None = None, get=None, sleep=time.sleep,
                    core_odds: bool = True) -> dict | None:
@@ -459,11 +489,16 @@ def build_schedule(prev_doc: dict, days: int = DEFAULT_DAYS, now: datetime | Non
     _log(f"{len(games)} games ({sum(1 for g in games if g['preseason'])} preseason, {with_line} with a line, "
          f"{len(carried)} carried, {len(odds_carried)} lines carried, {core_gained} core-odds fills); "
          f"{len(wanted) - len(failed)}/{len(wanted)} days ok")
+    reg_range, reg_days = regular_season_days(season_info, sy, get=get, prev_doc=prev_doc)
+    out_extra = {}
+    if reg_days:
+        out_extra = {"regularSeason": reg_range, "regularSeasonDays": reg_days}
     return {
         "season": label,
         "seasonYear": sy,
         "source": SOURCE,
         "window": {"from": wanted[0], "to": wanted[-1], "tz": "America/New_York"},
+        **out_extra,
         "meta": {"days_ok": len(wanted) - len(failed), "days_failed": sorted(failed), "events": n_events, "games": len(games),
                  "with_line": with_line, "carried": carried, "odds_carried": odds_carried, "core_odds_fills": core_gained},
         "games": games,
