@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NHL Edge blend (clairvoyance_update.fetch_nhl_edge): last season's share FADES with games played -- w = max(0, 1 - games/20): 25% at 15 games, GONE from 20 (owner, 2026-10-08).
+"""NHL Edge blend (clairvoyance_update.fetch_nhl_edge): last season's share FADES with games played -- owner's curve 90% @2, 70% @5, 40% @10, 20% @15 games, GONE from 20 (owner, 2026-10-08).
 
     /usr/bin/python3 scripts/test_nhl_prior_fade.py     (needs bs4, like clairvoyance_update itself)
 """
@@ -14,10 +14,11 @@ import clairvoyance_update as C  # noqa: E402
 class Fade(unittest.TestCase):
     def test_weight_curve_and_gone_at_20(self):
         w = C._nhl_prior_weight
-        self.assertAlmostEqual(w(2), 0.9, places=3)
-        self.assertAlmostEqual(w(5), 0.75, places=3)
-        self.assertAlmostEqual(w(10), 0.5, places=3)
-        self.assertAlmostEqual(w(15), 0.25, places=3)
+        self.assertEqual((w(2), w(5), w(10), w(15), w(20)), (0.9, 0.7, 0.4, 0.2, 0.0))   # the owner's five points
+        self.assertAlmostEqual(w(1), 0.95, places=3)                      # straight lines between them
+        self.assertAlmostEqual(w(3), 0.8333, places=3)
+        self.assertAlmostEqual(w(12), 0.32, places=3)
+        self.assertAlmostEqual(w(17.5), 0.1, places=3)
         self.assertEqual(w(20), 0.0)                                    # 20 games: this season's stats only
         self.assertEqual(w(21), 0.0)
         self.assertEqual(w(82), 0.0)
@@ -50,9 +51,9 @@ class Fade(unittest.TestCase):
         late = self.edge(20, 20)
         e, m, l = early["teamRates"]["AAA"], mid["teamRates"]["AAA"], late["teamRates"]["AAA"]
         self.assertAlmostEqual(e["gf60"], 4.0 * 0.1 + 3.0 * 0.9, places=3)               # 3.10: nearly last season's 3.0
-        self.assertAlmostEqual(m["gf60"], 4.0 * 0.75 + 3.0 * 0.25, places=3)             # 3.75 at 15 games
+        self.assertAlmostEqual(m["gf60"], 4.0 * 0.8 + 3.0 * 0.2, places=3)               # 3.80 at 15 games
         self.assertEqual(l["gf60"], 4.0)                                                  # 20 games: this season only
-        self.assertEqual((e["priorW"], m["priorW"], l["priorW"]), (0.9, 0.25, 0.0))
+        self.assertEqual((e["priorW"], m["priorW"], l["priorW"]), (0.9, 0.2, 0.0))
         self.assertEqual(l["pp"], 0.3)
         self.assertEqual(l["pk"], 0.7)
         self.assertAlmostEqual(early["goalies"]["AAA"]["sv"], 0.88 * 0.1 + 0.92 * 0.9, places=3)    # goalie fades on his own games

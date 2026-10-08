@@ -1788,17 +1788,22 @@ def _nhl_current_season_id() -> str:
 
 
 _NHL_PRIOR_SEASON_WEIGHT = 0.25  # last season's share used by the MoneyPuck blend (OFF) and _nhl_blend's default; the NHL edge blend below uses the games-based fade instead
-_NHL_PRIOR_FULL_GP = 20          # 2026-10-08 (owner): last season's share is reduced as games pile up and is GONE once a team (or goalie) has 20 games -- from then on only this season's stats count.
-                                 # w = max(0, 1 - games/20): 90% at 2 games, 75% at 5, 50% at 10, 25% at 15, 0% from game 20. (Early on a 2-5 game sample is mostly noise: NJD's goals against per 60 was 4.0 after 2 games.)
+_NHL_PRIOR_CURVE = ((0, 1.0), (2, 0.90), (5, 0.70), (10, 0.40), (15, 0.20), (20, 0.0))
+_NHL_PRIOR_FULL_GP = _NHL_PRIOR_CURVE[-1][0]   # 2026-10-08 (owner): last season's share is reduced as games pile up and is GONE once a team (or goalie) has 20 games -- from then on only this season's stats count.
+                                               # Owner's points: 90% at 2 games, 70% at 5, 40% at 10, 20% at 15, 0% at 20+; straight lines between them (and from 100% at 0 games). Early on a 2-5 game
+                                               # sample is mostly noise (NJD's goals against per 60 was 4.0 after 2 games).
 
 def _nhl_prior_weight(games) -> float:
-    """Share of the NHL edge blend that comes from last season for a team (or goalie) with `games` current-season games played: linear from 100% at 0 games to 0% at 20.
-    Unknown/zero games -> 1.0 (all prior; _nhl_blend already degrades to whichever side exists)."""
+    """Share of the NHL edge blend that comes from last season for a team (or goalie) with `games` current-season games played: the owner's curve in _NHL_PRIOR_CURVE,
+    interpolated linearly, 0 from 20 games. Unknown/zero games -> 1.0 (all prior; _nhl_blend already degrades to whichever side exists)."""
     try:
         g = max(0.0, float(games))
     except (TypeError, ValueError):
         return 1.0
-    return round(max(0.0, 1.0 - g / _NHL_PRIOR_FULL_GP), 4)
+    for (g0, w0), (g1, w1) in zip(_NHL_PRIOR_CURVE, _NHL_PRIOR_CURVE[1:]):
+        if g <= g1:
+            return round(w0 + (w1 - w0) * (g - g0) / (g1 - g0), 4)
+    return 0.0
 
 def _nhl_prior_season_id(season: str) -> str:
     start = int(season[:4]) - 1
@@ -1923,7 +1928,7 @@ def fetch_nhl_edge() -> dict:
 
     Explicit direction: last season carries a share of every rate stat in
     the NHL MC sims that FADES as games pile up (2026-10-08, owner):
-    w = max(0, 1 - games/20) -- see _nhl_prior_weight (none from game 20); it was a flat
+    the owner's curve (90% at 2 games, 70% at 5, 40% at 10, 20% at 15, none from 20) -- see _nhl_prior_weight; it was a flat
     25% before and 2-5 game samples swung the sims. Every stat here is
     fetched for BOTH the real current season and last season, then blended
     with that weight via _nhl_blend()
