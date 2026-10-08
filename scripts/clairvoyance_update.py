@@ -1787,14 +1787,25 @@ def _nhl_current_season_id() -> str:
     return f"{start_year}{start_year + 1}"
 
 
-_NHL_PRIOR_SEASON_WEIGHT = 0.25  # explicit direction: 2025-26 (and going forward, "last season") counts for a fixed 25% of every rate stat feeding the NHL MC sims, permanently -- not a sample-size-adaptive shrinkage that fades out once the new season has enough games.
+_NHL_PRIOR_SEASON_WEIGHT = 0.25  # the permanent FLOOR on last season's share of every rate stat feeding the NHL MC sims (owner's original direction: 2025-26, and going forward "last season", never drops below 25%)
+_NHL_PRIOR_FADE_K = 10           # 2026-10-08 (owner): the prior's share FADES as games pile up -- w = max(floor, K/(K+games)): 83% at 2 games, 67% at 5, 50% at 10, 33% at 20, back at the 25% floor from game 30.
+                                 # Early on a team's own 2-5 game sample is mostly noise (NJD's goals against per 60 was 4.0 after 2 games), so last season carries most of the weight, then hands over.
+
+def _nhl_prior_weight(games) -> float:
+    """Share of the blend that comes from last season for a team (or goalie) with `games` current-season games played: K/(K+games), never below the 25% floor.
+    Unknown/zero games -> 1.0 (all prior; _nhl_blend already degrades to whichever side exists)."""
+    try:
+        g = max(0.0, float(games))
+    except (TypeError, ValueError):
+        return 1.0
+    return round(max(_NHL_PRIOR_SEASON_WEIGHT, _NHL_PRIOR_FADE_K / (_NHL_PRIOR_FADE_K + g)), 4)
 
 def _nhl_prior_season_id(season: str) -> str:
     start = int(season[:4]) - 1
     return f"{start}{start + 1}"
 
 def _nhl_blend(current, prior, w_prior: float = _NHL_PRIOR_SEASON_WEIGHT):
-    """current*0.75 + prior*0.25, degrading to whichever side is real
+    """current*(1-w_prior) + prior*w_prior (w_prior defaults to the 25% floor; fetch_nhl_edge passes the games-based fading weight), degrading to whichever side is real
     when only one exists (e.g. a rookie goalie with no 2025-26 NHL
     record, or a team stat before the new season has logged any real
     games yet)."""
@@ -1891,6 +1902,7 @@ def _nhl_fetch_team_summary(season: str) -> dict:
             "ga60": t.get("goalsAgainstPerGame"),
             "pp":   t.get("powerPlayPct"),
             "pk":   t.get("penaltyKillPct"),
+            "gp":   t.get("gamesPlayed"),
         }
     return out
 
@@ -1909,10 +1921,12 @@ def fetch_nhl_edge() -> dict:
     already comes from the separate, working MoneyPuck integration
     (NHL[abbr].mp) -- not duplicated here.
 
-    Explicit direction: 2025-26 season data should carry a fixed 25%
-    weight in the NHL MC sims going forward, permanently (not just an
-    early-season stopgap). Every stat here is now fetched for BOTH the
-    real current season and 2025-26, then blended 75/25 via _nhl_blend()
+    Explicit direction: last season carries a share of every rate stat in
+    the NHL MC sims that FADES as games pile up (2026-10-08, owner):
+    w = max(25% floor, K/(K+games)) -- see _nhl_prior_weight; it was a flat
+    25% before and 2-5 game samples swung the sims. Every stat here is
+    fetched for BOTH the real current season and last season, then blended
+    with that weight via _nhl_blend()
     -- degrading cleanly to 100% of whichever season is real when the
     other has no data yet (e.g. a rookie goalie, or before the new
     season has any real games logged).
@@ -1931,11 +1945,11 @@ def fetch_nhl_edge() -> dict:
     docs/app.html's own fetchNHLEdge() now reads this instead of
     re-fetching live.
     """
-    log("NHL Edge stats (goalies + zone starts + team rates, current + 25%% 2025-26)…")
+    log("NHL Edge stats (goalies + zone starts + team rates, current + fading-weight last season, 25%% floor)…")
     current_season = _nhl_current_season_id()
     prior_season = _nhl_prior_season_id(current_season)
     out: dict = {"season": current_season, "priorSeason": prior_season,
-                 "priorSeasonWeight": _NHL_PRIOR_SEASON_WEIGHT,
+                 "priorSeasonWeight": _NHL_PRIOR_SEASON_WEIGHT, "priorFadeK": _NHL_PRIOR_FADE_K,
                  "goalies": {}, "zoneStart": {}, "teamRates": {}}
 
     # Goalies: blend by the SAME PERSON's prior-season row, not just
@@ -1948,8 +1962,8 @@ def fetch_nhl_edge() -> dict:
             prior_stat = pri_g_name.get(cur["name"])
             out["goalies"][abbr] = {
                 "name": cur["name"],
-                "sv":  _nhl_blend(cur["sv"],  prior_stat["sv"]  if prior_stat else None),
-                "gaa": _nhl_blend(cur["gaa"], prior_stat["gaa"] if prior_stat else None),
+                "sv":  _nhl_blend(cur["sv"],  prior_stat["sv"]  if prior_stat else None, _nhl_prior_weight(cur["gp"])),
+                "gaa": _nhl_blend(cur["gaa"], prior_stat["gaa"] if prior_stat else None, _nhl_prior_weight(cur["gp"])),
                 "gp":  cur["gp"],
             }
         else:
@@ -1961,22 +1975,26 @@ def fetch_nhl_edge() -> dict:
 
     # Zone starts and team rates: team-level, no identity-matching needed.
     cur_zs, pri_zs = _nhl_fetch_team_percentages(current_season), _nhl_fetch_team_percentages(prior_season)
+    cur_tr, pri_tr = _nhl_fetch_team_summary(current_season), _nhl_fetch_team_summary(prior_season)
     for abbr in set(cur_zs) | set(pri_zs):
-        blended = _nhl_blend(cur_zs.get(abbr), pri_zs.get(abbr))
+        w = _nhl_prior_weight((cur_tr.get(abbr) or {}).get("gp"))
+        blended = _nhl_blend(cur_zs.get(abbr), pri_zs.get(abbr), w)
         if blended is not None:
             out["zoneStart"][abbr] = round(blended, 1)
 
-    cur_tr, pri_tr = _nhl_fetch_team_summary(current_season), _nhl_fetch_team_summary(prior_season)
     for abbr in set(cur_tr) | set(pri_tr):
         c, p = cur_tr.get(abbr, {}), pri_tr.get(abbr, {})
+        w = _nhl_prior_weight(c.get("gp"))
         out["teamRates"][abbr] = {
-            "gf60": _nhl_blend(c.get("gf60"), p.get("gf60")),
-            "ga60": _nhl_blend(c.get("ga60"), p.get("ga60")),
-            "pp":   _nhl_blend(c.get("pp"),   p.get("pp")),
-            "pk":   _nhl_blend(c.get("pk"),   p.get("pk")),
+            "gf60": _nhl_blend(c.get("gf60"), p.get("gf60"), w),
+            "ga60": _nhl_blend(c.get("ga60"), p.get("ga60"), w),
+            "pp":   _nhl_blend(c.get("pp"),   p.get("pp"),   w),
+            "pk":   _nhl_blend(c.get("pk"),   p.get("pk"),   w),
+            "gp":   c.get("gp") or 0,
+            "priorW": w,
         }
 
-    vlog(f"  NHL Edge ({current_season} + 25% {prior_season}): {len(out['goalies'])} team goalies, "
+    vlog(f"  NHL Edge ({current_season} + fading {prior_season}, floor 25%): {len(out['goalies'])} team goalies, "
          f"{len(out['zoneStart'])} zone-starts, {len(out['teamRates'])} team rates")
     return out
 
