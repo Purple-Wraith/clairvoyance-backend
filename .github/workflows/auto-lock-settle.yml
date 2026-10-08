@@ -129,6 +129,9 @@ on:
     - cron: '37 19 * * *'
     - cron: '17 1 * * *'
     - cron: '37 3 * * *'
+    # 2026-10-08 (owner: keep LAST SETTLE fresh): a fifth gated settle-only slot for the morning/midday gap -- nominal 12:37Z lands ~3-7 h late = ~9:40 AM-1:40 PM MT, between
+    # the 05:27Z pass (lands ~4:30-6:10 AM MT) and the 16:17Z slot (lands 1:20-3:20 PM MT), when the header's LAST SETTLE used to age past its 8 h warning.
+    - cron: '37 12 * * *'
   workflow_dispatch:
     inputs:
       live:
@@ -154,7 +157,7 @@ permissions:
 # queued gated run cancel a pending digest (GitHub keeps one pending run per group). Concurrent ledger writers are safe -- the push side
 # of _doSupabaseSync pulls and reconciles first and never regresses a settled row.
 concurrency:
-  group: auto-lock-settle-${{ (github.event.schedule == '21 18 * * *' || github.event.schedule == '44 22 * * *') && 'other' || (github.event.schedule == '17 16 * * *' || github.event.schedule == '37 19 * * *' || github.event.schedule == '17 1 * * *' || github.event.schedule == '37 3 * * *') && 'gated' || 'lock' }}
+  group: auto-lock-settle-${{ (github.event.schedule == '21 18 * * *' || github.event.schedule == '44 22 * * *') && 'other' || (github.event.schedule == '17 16 * * *' || github.event.schedule == '37 19 * * *' || github.event.schedule == '17 1 * * *' || github.event.schedule == '37 3 * * *' || github.event.schedule == '37 12 * * *') && 'gated' || 'lock' }}
   cancel-in-progress: false
 
 jobs:
@@ -231,7 +234,7 @@ jobs:
               echo "step_flags=--lock --final-lock-check" >> "$GITHUB_OUTPUT"
             fi
             echo "live_flag=${{ vars.LIVE_MODE == 'true' && '--live' || '' }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "17 16 * * *" ] || [ "${{ github.event.schedule }}" = "37 19 * * *" ] || [ "${{ github.event.schedule }}" = "17 1 * * *" ] || [ "${{ github.event.schedule }}" = "37 3 * * *" ]; then
+          elif [ "${{ github.event.schedule }}" = "17 16 * * *" ] || [ "${{ github.event.schedule }}" = "37 19 * * *" ] || [ "${{ github.event.schedule }}" = "17 1 * * *" ] || [ "${{ github.event.schedule }}" = "37 3 * * *" ] || [ "${{ github.event.schedule }}" = "37 12 * * *" ]; then
             # GATED SETTLE-ONLY slot (see the cron comment above). Explicit branch on purpose: falling through to the generic
             # else-branch below would let it run a catch-up LOCK (9am-12pm MT with no lock recorded) or send the lock-missed
             # alert email -- a settle-only slot must do neither.
@@ -363,6 +366,31 @@ jobs:
             else
               echo "run_heavy=skip" >> "$GITHUB_OUTPUT"
               echo "::notice::settle gate (stage 2): no pending pick's game is final in the fresh results -- no-op (no ledger pull)."
+            fi
+          fi
+
+      - name: Settle heartbeat (gated slot found nothing to settle)
+        # 2026-10-08 (owner): a gated settle-only slot that finds nothing pending used to end without writing anything, so the header's LAST SETTLE
+        # aged to its 8 h warning on quiet days even though the settle check had run. It now records "checked, nothing pending" (no browser, no Supabase).
+        if: ${{ steps.flags.outputs.gated == '1' && steps.flags.outputs.live_flag == '--live' && (steps.flags.outputs.should_run == '0' || steps.presettle.outputs.run_heavy == 'skip') }}
+        continue-on-error: true
+        env:
+          TZ: America/Denver
+        run: |
+          python3 scripts/settle_heartbeat.py
+          git add docs/automation_status.json
+          if git diff --cached --quiet; then
+            echo "No change"
+          else
+            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: lastSettle heartbeat (nothing pending)"
+            if ! git push origin main; then
+              git fetch origin main
+              if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase --autostash origin/main; then
+                git push origin main || echo "::warning::settle heartbeat: push failed after rebase, next slot will retry"
+              else
+                git rebase --abort
+                echo "::warning::settle heartbeat: rebase conflict, skipped"
+              fi
             fi
           fi
 

@@ -1012,7 +1012,7 @@ body{line-height:1.5}
           <button class="btn btn-p btn-sm" onclick="renderNHLPropsLive(window._nhlPropFilter||'all')">↻</button>
         </div>
         <div style="background:rgba(10,0,24,.8);border:1px solid rgba(102,144,255,.2);border-radius:2px;padding:8px 12px;margin-bottom:10px;font-family:var(--mono);font-size:15px;line-height:1.8">
-          KEY: <span style="color:var(--vc);font-weight:700">PREMIUM</span> <span style="color:var(--t3)">≥67% + EV&gt;5%</span> &nbsp;·&nbsp; <span style="color:var(--nc);font-weight:700">OPTIMAL</span> <span style="color:var(--t3)">≥62% + EV&gt;3%</span> &nbsp;·&nbsp; <span style="color:var(--ic);font-weight:700">LEAN</span> <span style="color:var(--t3)">55–62%</span> &nbsp;·&nbsp; <span style="color:var(--hc);font-weight:700">SKIP</span> <span style="color:var(--t3)">&lt;55%</span>
+          KEY: <span style="color:var(--gc);font-weight:700">PREMIUM</span> <span style="color:var(--t3)">≥67% + EV&gt;5%</span> &nbsp;·&nbsp; <span style="color:var(--pc);font-weight:700">OPTIMAL</span> <span style="color:var(--t3)">≥62% + EV&gt;3%</span> &nbsp;·&nbsp; <span style="color:var(--nc);font-weight:700">LEAN</span> <span style="color:var(--t3)">55–62%</span> &nbsp;·&nbsp; <span style="color:var(--hc);font-weight:700">SKIP</span> <span style="color:var(--t3)">&lt;55%</span>
         </div>
         <div id="nhl-props-filter" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">
           <button class="btn btn-o btn-sm act" onclick="renderNHLPropsLive('all')">ALL</button>
@@ -3603,7 +3603,7 @@ function _nhlGoalieRowHTML(hn,an,dateIso,espnEv,inline){
 }
 // Market-scan footer text for one _evalMkts row (same wording on every hockey card).
 function _hkScanTxt(m){
-  return m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed');
+  return m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:_gradeName(m))+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed');
 }
 // Lock-time price lookup for _ouLockDir/_spreadLockDir: the price of the
 // exact side/line actually being locked, or null when this input isn't a
@@ -3780,6 +3780,10 @@ function _gradeLabel(p){
   const t=tier(p.winProb,ev(p.winProb,dec),p.betType||'ML',p.marketProb!=null);
   return['SKIP','LEAN','OPTIMAL','PREMIUM'][t]||null;
 }
+// ONE source for grade names + colours on every game card / scan line (2026-10-08, owner: grades and colours uniform across sports and leagues).
+// Colours are the pill scheme (.pg gold, .pp magenta, .pn cyan, .ph red-pink, .pq green) -- text that mentions a grade must use the same hue as its tag.
+function _gradeName(m){return(m&&m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:(['SKIP','LEAN','OPTIMAL','PREMIUM'][m&&m.tierN]||'SKIP');}
+function _gradeColVar(name){return name==='PREMIUM'?'var(--gc)':name==='OPTIMAL'?'var(--pc)':name===HOCKEY_LANE_LABEL?'#39ff14':name==='LEAN'?'var(--nc)':name==='SKIP'?'var(--hc)':'var(--t3)';}
 // Grade tags for a spread / O-U box: ONE TAG PER SIDE, each naming the side it grades ("▲ OVER 5.5 · LEAN", "▼ UNDER 5.5 · SKIP"; "OTT -1.5 · SKIP", "PHI +1.5 · HIGH PROB"), filling the box bottom.
 // (2026-10-08, owner: a single unlabelled "SKIP" did not say whether it was the over or the under, or the favourite or the dog.) Same tier + HIGH PROB lane rules as the chips.
 function _boxGradeHTML(nm,sidesA,sidesB){
@@ -7686,7 +7690,7 @@ function renderNHLTonight(){
     ${_mcProjBarHTML(mc,g.ou||5.5,g.h,g.a,{dec:2})}
     ${_bestMarketBoxHTML(_nm2.tierN,_nm2.col,_nm2.lbl,_nm2.best.label,_nm2.best.prob,_nm2.best.evVal)}${_mvmBarHTML(_nm2.best)}${_altRowFor('NHL',g.h,g.a,g.date,_nm2)}
     <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-    <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm2.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
+    <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm2.mkts.map(m=>m.label+':'+_gradeName(m)).join(' · ')}</div>
   </div>
   <div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px">
     <span class="mono" style="font-size:16px;color:var(--t3)">MC:${(ens.mc*100).toFixed(0)}% xGF:${(ens.xgf*100).toFixed(0)}% ELO:${(ens.elo*100).toFixed(0)}% · PROJ ${mc?mc.avgH.toFixed(1)+'-'+mc.avgA.toFixed(1):'—'} · OT ${mc?(mc.otP*100).toFixed(0):0}%</span>
@@ -8974,7 +8978,7 @@ function _cfbGameCard(g){
     {label:`UNDER ${ouL.toFixed(1)}`,prob:underP,dec:1.909,ml:'-110',side:'under'},
   ].map(m=>({...m,evVal:ev(m.prob,m.dec)}));
   const nm=_evalMkts(rawMkts);
-  const _mktGrade=side=>{const m=nm.mkts.find(x=>x.side===side);const lbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN];const col=m.tierN===3?'var(--gc)':m.tierN===2?'var(--nc)':m.tierN===1?'var(--ic)':'var(--t3)';return{m,lbl,col};};
+  const _mktGrade=side=>{const m=nm.mkts.find(x=>x.side===side);const lbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN];const col=_gradeColVar(lbl);return{m,lbl,col};};
   const mlGrade=hP>=aP?_mktGrade('mlFav'):_mktGrade('mlDog');
   const sprdGrade=favCoverP>=dogCoverP?_mktGrade('sprdFav'):_mktGrade('sprdDog');
   const ouGrade=overP>=underP?_mktGrade('over'):_mktGrade('under');
@@ -9072,7 +9076,7 @@ function _cfbGameCard(g){
         </div>`;
       })()}
       ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}${_altLineRowHTML('CFB',g,nm,!!liveStatus)}
-      <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
+      <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+_gradeName(m)).join(' · ')}</div>
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">ENSEMBLE: MC ${(ens.mc*100).toFixed(0)}% / BAY ${(ens.bay*100).toFixed(0)}% / ELO ${(ens.elo*100).toFixed(0)}% win prob (weighted MC/BAY/ELO ${(100-ens.eloWeight*100).toFixed(0)}%/ELO ${(ens.eloWeight*100).toFixed(0)}% blend applied — see MODEL tab to adjust)</div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">MONEYLINE REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${mlReasoning}</div></div>
@@ -9950,7 +9954,7 @@ function _nflGameCard2(g){
   // undifferentiated paragraph regardless of which market a reader actually
   // cared about grading. _mktGrade mirrors CFB's own helper exactly, reading
   // the same nm.mkts array this function already builds above.
-  const _mktGrade=side=>{const m=nm.mkts.find(x=>x.side===side);const lbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN];const col=m.tierN===3?'var(--gc)':m.tierN===2?'var(--nc)':m.tierN===1?'var(--ic)':'var(--t3)';return{m,lbl,col};};
+  const _mktGrade=side=>{const m=nm.mkts.find(x=>x.side===side);const lbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN];const col=_gradeColVar(lbl);return{m,lbl,col};};
   const mlGrade=hP>=aP?_mktGrade('mlFav'):_mktGrade('mlDog');
   const sprdGrade=favCoverP>=dogCoverP?_mktGrade('sprdFav'):_mktGrade('sprdDog');
   const ouGrade=overP>=underP?_mktGrade('over'):_mktGrade('under');
@@ -10008,7 +10012,7 @@ function _nflGameCard2(g){
     <div style="padding:8px 10px;background:rgba(0,120,255,.04);border-top:1px solid rgba(0,120,255,.1)">
       ${_mcProjBarHTML({avgH:mc.avgH,avgA:mc.avgA,avgT:mc.avgTotal,overP:overP},ouL.toFixed(1),g.home,g.away,{n:mc.n,dec:1})}
       ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}${_altLineRowHTML('NFL',g,nm,!!liveStatus)}
-      <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
+      <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+_gradeName(m)).join(' · ')}</div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">MONEYLINE REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${mlReasoning}</div></div>
         <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">SPREAD REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${sprdReasoning}</div></div>
@@ -10730,7 +10734,7 @@ function renderNHLGamesOffline(){
     ${_mcProjBarHTML(mc,_ouLOff,g.h,g.a,{dec:2})}
     ${_bestMarketBoxHTML(_nmOff.tierN,_nmOff.col,_nmOff.lbl,_nmOff.best.label,_nmOff.best.prob,_nmOff.best.evVal)}${_mvmBarHTML(_nmOff.best)}${_altRowFor('NHL',g.h,g.a,g.date,_nmOff)}
     <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-    <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nmOff.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
+    <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nmOff.mkts.map(m=>m.label+':'+_gradeName(m)).join(' · ')}</div>
   </div>
   <div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px">
     <span class="mono" style="font-size:16px;color:var(--t3)">MC:${(ens.mc*100).toFixed(0)}% xGF:${(ens.xgf*100).toFixed(0)}% ELO:${(ens.elo*100).toFixed(0)}% · PROJ ${mc?mc.avgH.toFixed(1)+'-'+mc.avgA.toFixed(1):'—'}</span>
@@ -12349,7 +12353,7 @@ function _liigaMatchCardRaw(g){
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}${topTier>0?_mvmBarHTML(bm):''}${_altRowFor('LIIGA',g.homeName,g.awayName,g.date,nm)}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:_gradeName(m))+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
   </div>`;
 }
@@ -12492,7 +12496,7 @@ function _nlaMatchCardRaw(g){
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}${topTier>0?_mvmBarHTML(bm):''}${_altRowFor('NLA',g.homeName,g.awayName,g.date,nm)}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:_gradeName(m))+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
   </div>`;
 }
@@ -12631,7 +12635,7 @@ function _extraligaMatchCardRaw(g){
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}${topTier>0?_mvmBarHTML(bm):''}${_altRowFor('EXTRALIGA',g.homeName,g.awayName,g.date,nm)}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:_gradeName(m))+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
   </div>`;
 }
@@ -12951,7 +12955,7 @@ function _shlMatchCardRaw(g){
       ${_mcProjBarHTML(mc,ouL,g.homeName,g.awayName,{dec:2,exact:true})}
       ${topTier>0?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,bm.label,bm.prob,bm.evVal):''}${topTier>0?_mvmBarHTML(bm):''}${_altRowFor('SHL',g.homeName,g.awayName,g.date,nm)}
       <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPT','PREM'][m.tierN])+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+((m.hkLane&&m.tierN<2)?HOCKEY_LANE_LABEL:_gradeName(m))+(m.priceSource==='market'?' @'+_mlFmt(m.mktMl)+' MKT (EV '+(m.mktEv>=0?'+':'')+(m.mktEv*100).toFixed(1)+'%)':' @assumed')).join(' · ')}</div>
     </div>
   </div>`;
 }
@@ -13734,7 +13738,7 @@ function renderNBATonightGames(){
     const pick=hP>=aP?g.h:g.a;
     const pickP=Math.max(hP,aP);
     const grade=pickP>=.72?'PREMIUM':pickP>=.65?'OPTIMAL':pickP>=.57?'LEAN':'SKIP';
-    const gradeCol={PREMIUM:'var(--gc)',OPTIMAL:'var(--nc)',LEAN:'var(--ic)',SKIP:'var(--t3)'}[grade];
+    const gradeCol={PREMIUM:'var(--gc)',OPTIMAL:'var(--pc)',LEAN:'var(--nc)',SKIP:'var(--hc)'}[grade];
     return `<div class="card" style="margin-bottom:10px;border-left:3px solid ${gradeCol}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
         <div style="font-family:var(--mono);font-size:17px;color:var(--t3)">${g.ctx} · G${g.gn} · ${g.time} · ${g.net}</div>
@@ -14061,7 +14065,7 @@ const espnSprdNum=-_sprdL;const sprdFav=_mktFav;const sprdLbl=sprdFav+' '+espnSp
     }):''}
     ${pre?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,_bmNBA.label,_bmNBA.prob,_bmNBA.evVal)+_mvmBarHTML(_bmNBA):''}${_altRowFor('NBA',hn,an,espnEv.date,_nmNBA,!pre)}
     <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
-    <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nmNBA.mkts.map(m=>m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN]).join(' · ')}</div>
+    <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nmNBA.mkts.map(m=>m.label+':'+_gradeName(m)).join(' · ')}</div>
   </div>
   <div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px">
     <span class="mono" style="font-size:16px;color:var(--t3)">MC:${(ens.mc*100).toFixed(0)}% BAY:${(ens.bay*100).toFixed(0)}% ELO:${(ens.elo*100).toFixed(0)}%${espnHL?' ESPN:blended':''}</span>
@@ -14213,7 +14217,7 @@ function renderSCFPreview(el){const D=window.__CV_DATA||{};
       {p:'Logan Stankoven',stat:'GOALS',line:'Anytime',note:'8G in 10GP. Pure finisher. VGK gap in D coverage creates opportunities.',grade:'OPTIMAL'},
       {p:'Jack Eichel',stat:'PTS',line:'O/U 0.5',note:'17pts in 12GP, 2pt pace. OVER -140 when healthy.',grade:'OPTIMAL'},
       {p:'Jackson Blake',stat:'PTS',line:'O/U 0.5',note:'14pts in 12GP. Quiet but consistent. Value at even money.',grade:'LEAN'},
-    ].map(pp=>{const gc=pp.grade==='PREMIUM'?'var(--gc)':pp.grade==='OPTIMAL'?'var(--nc)':'var(--ic)';return`<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+    ].map(pp=>{const gc=pp.grade==='PREMIUM'?'var(--gc)':pp.grade==='OPTIMAL'?'var(--pc)':'var(--nc)';return`<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
         <span style="font-family:'Orbitron',sans-serif;font-size:19px;font-weight:700;color:var(--t)">${pp.p}</span>
         <span style="font-family:var(--mono);font-size:16px;padding:2px 6px;border:1px solid ${gc};color:${gc};border-radius:2px">${pp.grade}</span>
@@ -14362,7 +14366,7 @@ function renderNBAFinalsPreview(el){const D=window.__CV_DATA||{};
   </div>`;
   const propHtml=`<div class="card" style="border-left:3px solid var(--pc);margin-bottom:10px">
     <div style="font-family:var(--mono);font-size:17px;color:rgba(240,0,255,.9);letter-spacing:2px;margin-bottom:8px">// FINALS PROP MODEL TARGETS</div>
-    ${props.map(pp=>{const gc=pp.grade==='PREMIUM'?'var(--gc)':pp.grade==='OPTIMAL'?'var(--nc)':'var(--ic)';return`<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+    ${props.map(pp=>{const gc=pp.grade==='PREMIUM'?'var(--gc)':pp.grade==='OPTIMAL'?'var(--pc)':'var(--nc)';return`<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
         <span style="font-family:'Orbitron',sans-serif;font-size:18px;font-weight:700;color:var(--t)">${pp.p}</span>
         <div style="display:flex;align-items:center;gap:5px">
@@ -14794,7 +14798,7 @@ async function renderNBADailyProps(){
   var games=(window._nbaTodayGames||NBA_TONIGHT||[]);
   _nbaDPData=_generateNBAProps(games,statsData);
   if(!_nbaDPData.length){el.innerHTML='<div class="empty">NO NBA PROPS GENERATED — NO GAMES OR STATS</div>';return;}
-  var gradeC={PREMIUM:'var(--vc)',OPTIMAL:'var(--nc)',LEAN:'var(--ic)',SKIP:'var(--t3)'};
+  var gradeC={PREMIUM:'var(--gc)',OPTIMAL:'var(--pc)',LEAN:'var(--nc)',SKIP:'var(--hc)'};
   el.innerHTML='<div style="margin-bottom:8px;font-family:var(--mono);font-size:14px;color:var(--t3)">'+_nbaDPData.length+' PROPS · MC-simulated vs season avg</div>'
     +_nbaDPData.map(function(p,i){
     var c=gradeC[p.grade]||'var(--t3)';
@@ -19377,8 +19381,8 @@ function _tpWeekToggle(d){
 }
 window.renderTopPicksWeek=renderTopPicksWeek;window._tpWeekToggle=_tpWeekToggle;
 function _topPickRowHTML(e){
-  const col=e.tierN===3?'var(--gc)':e.tierN===2?'var(--nc)':'var(--ic)';
   const lbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][e.tierN];
+  const col=_gradeColVar(lbl);
   const m=e.marketInfo||{};
   // Explicit color spec, 2026-09-30: matchup line neon magenta, pick
   // label neon cyan (regardless of sport -- was per-sport/per-tier
@@ -20858,7 +20862,7 @@ async function renderNHLPropsLive(filter){
     if((filter==='all'&&txt==='all')||(filter==='points'&&txt.includes('point'))||(filter==='goals'&&txt.includes('goal'))||(filter==='saves'&&txt.includes('save'))||(filter==='shots'&&txt.includes('shot'))||(filter==='top'&&txt.includes('top')))b.classList.add('act');
   });
   const dateEl=document.getElementById('nhl-props-date-line');
-  const gradeC={PREMIUM:'var(--gc)',OPTIMAL:'var(--nc)',LEAN:'var(--ic)',SKIP:'var(--hc)'};
+  const gradeC={PREMIUM:'var(--gc)',OPTIMAL:'var(--pc)',LEAN:'var(--nc)',SKIP:'var(--hc)'};
   const gradeOrder={PREMIUM:0,OPTIMAL:1,LEAN:2,SKIP:4};
   // NHL_PROPS_DATA is a permanently-empty hardcoded const (no SCF-era hand
   // curation exists this season) -- the real feed is Linemate via
@@ -21480,7 +21484,7 @@ function generatePickCard(picks,title){
   const maxPicks=Math.min(picks.length,5);let y=70;
   for(let i=0;i<maxPicks;i++){
     const pk=picks[i];
-    const gradeColor=pk.grade==='PREMIUM'?'#ffdd00':pk.grade==='OPTIMAL'?'#00f0ff':'#6690ff';
+    const gradeColor=pk.grade==='PREMIUM'?'#ffdd00':pk.grade==='OPTIMAL'?'#f000ff':'#00f0ff';
     // Card bg
     ctx.fillStyle='rgba(10,0,24,.9)';ctx.fillRect(12,y,W-24,68);
     ctx.strokeStyle=gradeColor+'44';ctx.lineWidth=1;ctx.strokeRect(12,y,W-24,68);
@@ -27489,9 +27493,9 @@ function _socSpreadProb(hxg,axg,homeLine){
 
 function _socTier(p){
   if(p>=0.67)return{g:'PREMIUM',c:'var(--gc)'};
-  if(p>=0.62)return{g:'OPTIMAL',c:'var(--nc)'};
-  if(p>=0.55)return{g:'LEAN',c:'var(--ic)'};
-  return{g:'SKIP',c:'var(--t3)'};
+  if(p>=0.62)return{g:'OPTIMAL',c:'var(--pc)'};
+  if(p>=0.55)return{g:'LEAN',c:'var(--nc)'};
+  return{g:'SKIP',c:'var(--hc)'};
 }
 
 var _leagueScoreCache={},_leagueScoreCacheTs={},_LEAGUE_TTL=300000;
@@ -28027,7 +28031,7 @@ function _renderSocMatchCardRaw(g,leagueKey){
     // showing up as inline text buried inside the paragraph below.
     +_bestMarketBoxHTML(topT,topCol,topLabel,_bm.label,_bm.prob,_bm.evVal)
     +'<div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">'+explanation+'</div>'
-    +'<div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: '+_mkts.mkts.map(function(m){return m.label+':'+['SKIP','LEAN','OPT','PREM'][m.tierN];}).join(' · ')+'</div>'
+    +'<div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: '+_mkts.mkts.map(function(m){return m.label+':'+_gradeName(m);}).join(' · ')+'</div>'
     +'</div>'
     +'<div style="display:flex;gap:5px;margin-top:6px;align-items:center;flex-wrap:wrap;padding:0 4px 4px">'
     +'<span class="mono" style="font-size:16px;color:var(--t3)">xG: '+g.home+' '+hxg.toFixed(2)+' · '+g.away+' '+axg.toFixed(2)+' · H:'+Math.round(hP*100)+'% D:'+Math.round(dP*100)+'% A:'+Math.round(aP*100)+'%</span>'
@@ -30219,7 +30223,7 @@ function _simRender(el,sport,home,away,N,r){
   var hEV=ev_(r.hP,hD),aEV=ev_(r.aP,aD);
   var favTeam=r.hP>=r.aP?home:away,favP=Math.max(r.hP,r.aP),favEV=r.hP>=r.aP?hEV:aEV;
   var tier=favP>=.67&&favEV>=.05?'PREMIUM':favP>=.62&&favEV>=.03?'OPTIMAL':favP>=.55?'LEAN':'EDGE';
-  var tierCol=tier==='PREMIUM'?'var(--gc)':tier==='OPTIMAL'?'var(--nc)':tier==='LEAN'?'var(--ic)':'var(--t3)';
+  var tierCol=_gradeColVar(tier);
   var unit={mlb:'runs',nba:'pts',nhl:'goals',wnba:'pts',wc:'goals'}[sport]||'pts';
   var tMin=Math.min.apply(null,r.trend),tMax=Math.max.apply(null,r.trend),tOK=(tMax-tMin)<.09;
   /* League tag for sim header */
