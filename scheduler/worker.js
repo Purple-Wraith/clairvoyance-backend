@@ -80,6 +80,54 @@ export async function runTick(env, when, fetchImpl = fetch) {
   return out;
 }
 
+// ── Owner trigger (POST /trigger) ────────────────────────────────────────────────────────────────────────────────────────────────────
+// The app header's "LOCK NOW" / "SETTLE NOW" buttons call this. The GitHub token never leaves the Worker; the browser sends a shared secret (TRIGGER_KEY, a Worker secret you set
+// once: `npx wrangler secret put TRIGGER_KEY`). Only two fixed actions exist and each maps to a fixed workflow + inputs -- nothing the caller sends is passed through to GitHub.
+export const TRIGGERS = {
+  lock: { wf: "auto-lock-settle.yml", inputs: { mode: "lock", live: "true" }, label: "LOCK" },        // locks every qualifying pick that has not started (no subscriber email -- that is the workflow's own 'lock' mode)
+  settle: { wf: "auto-lock-settle.yml", inputs: { mode: "settle", live: "true" }, label: "SETTLE" },
+};
+export const ALLOWED_ORIGINS = ["https://clairvoyanceengine.info", "https://www.clairvoyanceengine.info", "https://purple-wraith.github.io", "http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:8765", "http://127.0.0.1:8765"];
+const corsFor = (origin) => (ALLOWED_ORIGINS.includes(origin) ? { "access-control-allow-origin": origin, "vary": "origin", "access-control-allow-methods": "POST, OPTIONS", "access-control-allow-headers": "content-type" } : { "vary": "origin" });
+const json = (obj, status, extra = {}) => new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json", ...extra } });
+
+/** Constant-time string comparison (equal length or not, the loop runs over the longer one). */
+export function safeEqual(a, b) {
+  a = String(a ?? ""); b = String(b ?? "");
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  return diff === 0;
+}
+
+/** True when a manually dispatched run of this workflow is already waiting or running (stops double taps / spam). */
+async function manualRunActive(env, wf, fetchImpl) {
+  const r = await gh(env, `/actions/workflows/${wf}/runs?event=workflow_dispatch&per_page=5`, {}, fetchImpl);
+  if (!r.ok) throw new Error(`runs lookup ${wf} -> HTTP ${r.status}`);
+  const runs = (await r.json()).workflow_runs || [];
+  return runs.some((x) => ["queued", "in_progress", "waiting", "pending", "requested"].includes(x.status));
+}
+
+export async function handleTrigger(request, env, fetchImpl = fetch, sleep = (ms) => new Promise((r) => setTimeout(r, ms))) {
+  const cors = corsFor(request.headers.get("origin") || "");
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+  if (request.method !== "POST") return json({ error: "POST only" }, 405, cors);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "bad request" }, 400, cors); }
+  if (!env.TRIGGER_KEY) return json({ error: "trigger key not configured on the Worker (wrangler secret put TRIGGER_KEY)" }, 503, cors);
+  if (!safeEqual(body && body.key, env.TRIGGER_KEY)) { await sleep(500); return json({ error: "wrong key" }, 401, cors); }   // the pause slows key guessing
+  const t = TRIGGERS[body.action];
+  if (!t) return json({ error: "unknown action" }, 400, cors);
+  if (!env.GH_TOKEN) return json({ error: "GH_TOKEN secret not set on the Worker" }, 503, cors);
+  try {
+    if (await manualRunActive(env, t.wf, fetchImpl)) return json({ error: `a manual ${t.label} run is already queued or running` }, 409, cors);
+    const r = await gh(env, `/actions/workflows/${t.wf}/dispatches`, { method: "POST", body: JSON.stringify({ ref: "main", inputs: t.inputs }) }, fetchImpl);
+    if (r.status !== 204) return json({ error: `GitHub refused the dispatch (HTTP ${r.status})` }, 502, cors);
+    return json({ ok: true, action: body.action, message: `${t.label} started` }, 200, cors);
+  } catch (e) {
+    return json({ error: `dispatch failed: ${e.message}` }, 502, cors);
+  }
+}
+
 export default {
   async scheduled(event, env, ctx) {
     const results = await runTick(env, event.scheduledTime);
@@ -88,7 +136,8 @@ export default {
     if (failed.length) throw new Error("scheduler: " + failed.map((f) => `${f.wf} ${f.result}`).join("; "));   // shows as a failed invocation in the dashboard
   },
   // GET / -> what the next ticks would start (no secrets, no side effects); handy for checking the table.
-  async fetch(request) {
+  async fetch(request, env) {
+    if (new URL(request.url).pathname === "/trigger") return handleTrigger(request, env || {});
     const now = Date.now();
     const next = [];
     for (let i = 0; i < 6 * 24 * 2; i++) {            // next 48 h, tick by tick

@@ -1,6 +1,6 @@
 // node scheduler/test_scheduler.mjs -- offline: slot matching, weekday filters, dedupe, dispatch, failure reporting (GitHub API faked)
 import assert from "node:assert/strict";
-import { dueWorkflows, dueEntries, runTick, SCHEDULE, TICK_MIN } from "./worker.js";
+import { dueWorkflows, dueEntries, runTick, SCHEDULE, TICK_MIN, handleTrigger, safeEqual, TRIGGERS, ALLOWED_ORIGINS } from "./worker.js";
 import { readFileSync, readdirSync } from "node:fs";
 
 const at = (iso) => Date.parse(iso);
@@ -64,4 +64,48 @@ assert.deepEqual(dueEntries(at("2026-10-07T23:30:00Z")).map((e) => [e.wf, e.inpu
 assert.ok(dueWorkflows(at("2026-10-08T01:30:00Z")).includes("lock-watchdog.yml") && dueWorkflows(at("2026-10-07T21:30:00Z")).includes("lock-watchdog.yml"));
 assert.match(readFileSync(new URL("lock-watchdog.yml", wfDir), "utf8"), /gated:[\s\S]*type: boolean/);
 assert.equal(TICK_MIN, 10);
-console.log("scheduler OK:", SCHEDULE.length, "workflows");
+
+// ── owner trigger (POST /trigger) ──
+const req = (body, { method = "POST", origin = "https://clairvoyanceengine.info" } = {}) =>
+  new Request("https://w.example/trigger", { method, headers: { "content-type": "application/json", origin }, body: method === "POST" ? JSON.stringify(body) : undefined });
+const env = { GH_TOKEN: "t", TRIGGER_KEY: "k".repeat(32) };
+const nosleep = async () => {};
+const ghFake = ({ active = false, dispatch = 204 } = {}) => {
+  const calls = [];
+  return { calls, fetchImpl: async (url, init = {}) => {
+    calls.push({ url, method: init.method || "GET", body: init.body });
+    if (url.includes("/runs?")) return { ok: true, status: 200, json: async () => ({ workflow_runs: active ? [{ status: "in_progress" }] : [{ status: "completed" }] }) };
+    return { ok: true, status: dispatch, json: async () => ({}) };
+  } };
+};
+assert.ok(safeEqual("abc", "abc") && !safeEqual("abc", "abd") && !safeEqual("abc", "abcd") && !safeEqual("", "x") && !safeEqual(undefined, "x"));
+assert.deepEqual(Object.keys(TRIGGERS).sort(), ["lock", "settle"]);
+let r = await handleTrigger(req({ action: "lock", key: "wrong" }), env, ghFake().fetchImpl, nosleep);
+assert.equal(r.status, 401);
+r = await handleTrigger(req({ action: "lock", key: env.TRIGGER_KEY }), { GH_TOKEN: "t" }, ghFake().fetchImpl, nosleep);
+assert.equal(r.status, 503);                                                                           // key secret not set yet
+r = await handleTrigger(req({ action: "lock", key: env.TRIGGER_KEY }), { TRIGGER_KEY: env.TRIGGER_KEY }, ghFake().fetchImpl, nosleep);
+assert.equal(r.status, 503);                                                                           // GH token missing
+r = await handleTrigger(req({ action: "reboot", key: env.TRIGGER_KEY }), env, ghFake().fetchImpl, nosleep);
+assert.equal(r.status, 400);                                                                           // only the two fixed actions
+for (const [action, mode] of [["lock", "lock"], ["settle", "settle"]]) {
+  const f = ghFake();
+  r = await handleTrigger(req({ action, key: env.TRIGGER_KEY, inputs: { mode: "digest" }, wf: "evil.yml" }), env, f.fetchImpl, nosleep);
+  assert.equal(r.status, 200);
+  const post = f.calls.find((c) => c.method === "POST");
+  assert.ok(post.url.endsWith("/workflows/auto-lock-settle.yml/dispatches"));
+  assert.deepEqual(JSON.parse(post.body), { ref: "main", inputs: { mode, live: "true" } });             // nothing the caller sends is passed through
+}
+r = await handleTrigger(req({ action: "lock", key: env.TRIGGER_KEY }), env, ghFake({ active: true }).fetchImpl, nosleep);
+assert.equal(r.status, 409);
+r = await handleTrigger(req({ action: "lock", key: env.TRIGGER_KEY }), env, ghFake({ dispatch: 403 }).fetchImpl, nosleep);
+assert.equal(r.status, 502);
+r = await handleTrigger(req({}, { method: "OPTIONS" }), env, ghFake().fetchImpl, nosleep);
+assert.equal(r.status, 204);
+assert.equal(r.headers.get("access-control-allow-origin"), "https://clairvoyanceengine.info");
+r = await handleTrigger(req({ action: "lock", key: "x" }, { origin: "https://evil.example" }), env, ghFake().fetchImpl, nosleep);
+assert.equal(r.headers.get("access-control-allow-origin"), null);                                      // browsers on other sites cannot read the answer
+r = await handleTrigger(req(null, { method: "GET" }), env, ghFake().fetchImpl, nosleep);
+assert.equal(r.status, 405);
+assert.ok(ALLOWED_ORIGINS.includes("https://clairvoyanceengine.info") && ALLOWED_ORIGINS.includes("https://purple-wraith.github.io"));
+console.log("scheduler OK:", SCHEDULE.length, "workflows + owner trigger");

@@ -265,6 +265,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
      room instead of exactly filling its column. */
   html #hdr-automation-status,html #hdr-automation-status-left{font-size:7px!important;gap:2px!important;letter-spacing:0!important}
   html #hdr-automation-status div,html #hdr-automation-status-left div{white-space:nowrap}
+  html .hdr-trig{font-size:7px!important;padding:1px 4px!important;letter-spacing:.3px!important}html .hdr-trig-x{display:none}
   /* Adaptive tab's "Performance Snapshot" row (renderAdaptiveLearning) --
      4 cards each with a 27px hero number, fine at desktop widths but on
      a ~375px phone each card's actual width (~85px in a straight 4-up
@@ -575,6 +576,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 @media(max-width:560px){.slate2{gap:6px 10px}.slate2 .seg button{padding:8px 9px}}
 .hhb{position:absolute;top:3px;right:3px;z-index:2;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.3px;line-height:1;padding:2px 4px;border-radius:2px;background:rgba(255,221,0,.15);border:1px solid var(--gc);color:var(--gc);white-space:nowrap}.brow:has(.hhb)>.chip{padding-top:calc(var(--cpy) + 14px)!important}
 .cgrade{margin:6px calc(-1*var(--cpx)) calc(-1*var(--cpy));margin-top:auto}.cgrade .pill{display:block;width:100%;text-align:center;border-radius:0;padding:5px 4px}
+.hdr-trig{font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:2px 7px;background:rgba(240,0,255,.08);border:1px solid rgba(240,0,255,.5);color:var(--pc);border-radius:2px;cursor:pointer;white-space:nowrap;line-height:1.2}.hdr-trig:hover{background:rgba(240,0,255,.2)}.hdr-trig:disabled{opacity:.5;cursor:wait}
 .cgrade2{display:flex;flex-direction:column;gap:1px}.cgrade .pill.pbx{font-size:12px;letter-spacing:.3px;padding:3px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cht{font-size:17px;letter-spacing:.5px;font-family:var(--mono);text-transform:uppercase;margin-bottom:2px}.cho{font-family:var(--mono);font-size:25px;font-weight:700}.chp{font-size:18px;margin-top:2px;font-family:var(--mono)}
 .pill{display:inline-block;font-size:16px;font-weight:700;letter-spacing:1px;padding:2px 6px;border-radius:1px;text-transform:uppercase;font-family:var(--mono)}
@@ -775,7 +777,10 @@ body{line-height:1.5}
 <header id="hdr">
   <div class="hdr-l" style="display:flex;align-items:center;gap:6px">
     <span id="live-dot" title="Live games in progress" style="display:none;width:8px;height:8px;background:var(--hc);border-radius:50%;margin-left:6px;animation:blink 1s infinite;vertical-align:middle"></span>
-    <div id="hdr-automation-status-left" style="font-family:var(--mono);font-size:15px;letter-spacing:.3px;line-height:1.3"></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-start;gap:3px">
+      <div id="hdr-automation-status-left" style="font-family:var(--mono);font-size:15px;letter-spacing:.3px;line-height:1.3"></div>
+      <button type="button" class="hdr-trig" id="hdr-trig-lock" onclick="_hdrTrigger('lock')" title="Run a lock pass now (locks every qualifying pick that has not started)">&#9654; LOCK<span class="hdr-trig-x"> NOW</span></button>
+    </div>
   </div>
   <div class="logo" style="display:flex;flex-direction:column;align-items:center;gap:3px">CLAIRVOYANCE
     <div style="display:flex;align-items:center;gap:0;justify-content:center">
@@ -788,7 +793,10 @@ body{line-height:1.5}
     <div id="hdr-fresh" class="fresh" title="Data freshness"></div>
   </div>
   <div class="hdr-r" style="display:flex;align-items:center;justify-content:flex-end">
-    <div id="hdr-automation-status" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-family:var(--mono);font-size:15px;letter-spacing:.3px;line-height:1.3"></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+      <div id="hdr-automation-status" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-family:var(--mono);font-size:15px;letter-spacing:.3px;line-height:1.3"></div>
+      <button type="button" class="hdr-trig" id="hdr-trig-settle" onclick="_hdrTrigger('settle')" title="Run a settle pass now (grades every finished game)">&#9654; SETTLE<span class="hdr-trig-x"> NOW</span></button>
+    </div>
   </div>
 </header>
 <div id="cv-ticker" style="display:none"></div>
@@ -20072,6 +20080,30 @@ function renderHomePage(){
   setInterval(tickClock,1000);
 })();
 // ── Header LAST LOCK / LAST SETTLE automation-health indicators ────────────
+// ── Header "LOCK NOW" / "SETTLE NOW" buttons (owner request 2026-10-08) ────────────────────────────────────────────────────────────────────────────────
+// POSTs to the scheduler Worker (scheduler/worker.js, POST /trigger), which dispatches the real workflow with the GitHub token it holds. The browser only ever sends a shared
+// secret (TRIGGER_KEY, set on the Worker with `wrangler secret put TRIGGER_KEY`); it is asked for once and kept in this device's localStorage. Wrong key -> forgotten again.
+const _TRIGGER_URL='https://clairvoyance-scheduler.clairvoyance-reese.workers.dev/trigger';
+async function _hdrTrigger(kind){
+  const label=kind==='lock'?'LOCK':'SETTLE';
+  const btn=document.getElementById('hdr-trig-'+kind);
+  const what=kind==='lock'?'Run a LOCK pass now? It locks every qualifying pick that has not started yet (no subscriber email).':'Run a SETTLE pass now? It grades every finished game.';
+  if(!confirm(what))return;
+  let key=null;try{key=localStorage.getItem('cv_trigger_key');}catch(e){}
+  if(!key){key=prompt('Owner trigger key (kept on this device):');if(!key)return;key=key.trim();}
+  const orig=btn?btn.innerHTML:'';if(btn){btn.disabled=true;btn.textContent='\u2026 STARTING';}
+  let msg,col='var(--hc)';
+  try{
+    const r=await fetch(_TRIGGER_URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:kind,key})});
+    let j={};try{j=await r.json();}catch(e){}
+    if(r.ok&&j.ok){msg=label+' STARTED \u2014 GitHub is running it; the header updates when it finishes (a few minutes).';col='var(--nc)';try{localStorage.setItem('cv_trigger_key',key);}catch(e){}}
+    else if(r.status===401){try{localStorage.removeItem('cv_trigger_key');}catch(e){}msg='Wrong trigger key \u2014 tap again to re-enter it.';}
+    else msg=(j&&j.error)||('Could not start '+label+' (HTTP '+r.status+')');
+  }catch(e){msg='Could not reach the scheduler Worker \u2014 check the connection.';}
+  if(btn){btn.disabled=false;btn.innerHTML=orig;}
+  try{toast(msg,col);}catch(e){alert(msg);}
+}
+window._hdrTrigger=_hdrTrigger;
 // Reads docs/automation_status.json, written by scripts/auto_lock_settle.py
 // after every real --live lock/settle run (same-origin, no CORS concerns).
 // Built directly in response to a real incident: a scheduled lock trigger
@@ -20121,7 +20153,7 @@ function renderHomePage(){
       const failed=s.ok===false;
       const color=failed?'#ff1a1a':stale?'#ff9000':'#00e644';
       const icon=failed?'✗':stale?'⚠':'✓';
-      const staleNote=(stale&&!failed)?` (${ageHrs<48?Math.round(ageHrs)+'h ago':Math.round(ageHrs/24)+'d ago'})`:'';
+      const staleNote=(stale&&!failed)?` (${ageHrs<48?Math.round(ageHrs)+(isMobile?'h':'h ago'):Math.round(ageHrs/24)+(isMobile?'d':'d ago')})`:'';   // phone: '(8h)' -- the full note pushed the right-hand chip off the 390px header
       // tsMT is always "YYYY-MM-DD H:MM AM/PM MT" (see auto_lock_settle.py's
       // own strftime) -- stripping the leading date is safe and
       // deterministic, not a guess at the string's shape.
