@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NHL Edge blend (clairvoyance_update.fetch_nhl_edge): last season's share FADES with games played -- w = max(25% floor, K/(K+games)), K=10 (owner, 2026-10-08).
+"""NHL Edge blend (clairvoyance_update.fetch_nhl_edge): last season's share FADES with games played -- w = max(0, 1 - games/20): 25% at 15 games, GONE from 20 (owner, 2026-10-08).
 
     /usr/bin/python3 scripts/test_nhl_prior_fade.py     (needs bs4, like clairvoyance_update itself)
 """
@@ -12,15 +12,15 @@ import clairvoyance_update as C  # noqa: E402
 
 
 class Fade(unittest.TestCase):
-    def test_weight_curve_and_floor(self):
+    def test_weight_curve_and_gone_at_20(self):
         w = C._nhl_prior_weight
-        self.assertEqual(C._NHL_PRIOR_SEASON_WEIGHT, 0.25)
-        self.assertAlmostEqual(w(2), 0.8333, places=3)
-        self.assertAlmostEqual(w(5), 0.6667, places=3)
+        self.assertAlmostEqual(w(2), 0.9, places=3)
+        self.assertAlmostEqual(w(5), 0.75, places=3)
         self.assertAlmostEqual(w(10), 0.5, places=3)
-        self.assertAlmostEqual(w(20), 0.3333, places=3)
-        self.assertEqual(w(30), 0.25)
-        self.assertEqual(w(82), 0.25)                                   # never below the permanent floor
+        self.assertAlmostEqual(w(15), 0.25, places=3)
+        self.assertEqual(w(20), 0.0)                                    # 20 games: this season's stats only
+        self.assertEqual(w(21), 0.0)
+        self.assertEqual(w(82), 0.0)
         self.assertEqual(w(0), 1.0)
         self.assertEqual(w(None), 1.0)
         self.assertEqual(w("x"), 1.0)
@@ -44,20 +44,22 @@ class Fade(unittest.TestCase):
              mock.patch.object(C, "_nhl_fetch_team_summary", side_effect=lambda s: cur_t if s.startswith("2026") else pri_t):
             return C.fetch_nhl_edge()
 
-    def test_early_season_leans_on_last_season_and_late_season_on_this_one(self):
+    def test_early_season_leans_on_last_season_and_20_games_uses_only_this_one(self):
         early = self.edge(2, 2)
-        late = self.edge(40, 40)
-        e, l = early["teamRates"]["AAA"], late["teamRates"]["AAA"]
-        self.assertAlmostEqual(e["gf60"], 4.0 * (1 - 0.8333) + 3.0 * 0.8333, places=2)    # ~3.17: nearly last season's 3.0
-        self.assertAlmostEqual(l["gf60"], 4.0 * 0.75 + 3.0 * 0.25, places=3)              # 3.75: the old flat 75/25
-        self.assertEqual(e["priorW"], 0.8333)
-        self.assertEqual(l["priorW"], 0.25)
-        self.assertLess(early["goalies"]["AAA"]["sv"] - 0.88, 0.04 * 0.84)               # goalie too: close to last season's .92
-        self.assertAlmostEqual(late["goalies"]["AAA"]["sv"], 0.88 * 0.75 + 0.92 * 0.25, places=3)
-        self.assertGreater(early["zoneStart"]["AAA"], 50.0)
-        self.assertLess(early["zoneStart"]["AAA"], late["zoneStart"]["AAA"])             # this season's 52.0 counts for more later
-        self.assertEqual(early["priorSeasonWeight"], 0.25)
-        self.assertEqual(early["priorFadeK"], 10)
+        mid = self.edge(15, 15)
+        late = self.edge(20, 20)
+        e, m, l = early["teamRates"]["AAA"], mid["teamRates"]["AAA"], late["teamRates"]["AAA"]
+        self.assertAlmostEqual(e["gf60"], 4.0 * 0.1 + 3.0 * 0.9, places=3)               # 3.10: nearly last season's 3.0
+        self.assertAlmostEqual(m["gf60"], 4.0 * 0.75 + 3.0 * 0.25, places=3)             # 3.75 at 15 games
+        self.assertEqual(l["gf60"], 4.0)                                                  # 20 games: this season only
+        self.assertEqual((e["priorW"], m["priorW"], l["priorW"]), (0.9, 0.25, 0.0))
+        self.assertEqual(l["pp"], 0.3)
+        self.assertEqual(l["pk"], 0.7)
+        self.assertAlmostEqual(early["goalies"]["AAA"]["sv"], 0.88 * 0.1 + 0.92 * 0.9, places=3)    # goalie fades on his own games
+        self.assertEqual(late["goalies"]["AAA"]["sv"], 0.88)
+        self.assertEqual(late["zoneStart"]["AAA"], 52.0)
+        self.assertLess(early["zoneStart"]["AAA"], mid["zoneStart"]["AAA"])
+        self.assertEqual(early["priorFullGp"], 20)
 
     def test_a_team_with_no_current_games_uses_last_season_fully(self):
         out = self.edge(0, 0)

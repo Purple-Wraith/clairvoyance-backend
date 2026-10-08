@@ -6808,8 +6808,8 @@ function applyNHLEdgeData(edge){
   // hand-typed NHL[] table (refreshed by hand or not at all). Real, all
   // 32 teams, current season blended with 2025-26 (fetch_nhl_edge's
   // teamRates, clairvoyance_update.py): last season's share fades with
-  // games played, w = max(25% floor, 10/(10+GP)) -- 83% after 2 games,
-  // 50% after 10, the 25% floor from game 30 (owner, 2026-10-08).
+  // games played, w = max(0, 1 - GP/20) -- 90% after 2 games, 50% after
+  // 10, 25% after 15, none from game 20 (owner, 2026-10-08).
   for(const[abbr,r]of Object.entries(edge.teamRates||{})){
     if(!NHL[abbr])continue;
     if(r.gf60!=null)NHL[abbr].gf60=r.gf60;
