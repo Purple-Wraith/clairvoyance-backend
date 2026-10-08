@@ -575,6 +575,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 @media(max-width:560px){.slate2{gap:6px 10px}.slate2 .seg button{padding:8px 9px}}
 .hhb{position:absolute;top:3px;right:3px;z-index:2;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.3px;line-height:1;padding:2px 4px;border-radius:2px;background:rgba(255,221,0,.15);border:1px solid var(--gc);color:var(--gc);white-space:nowrap}.brow:has(.hhb)>.chip{padding-top:calc(var(--cpy) + 14px)!important}
 .cgrade{margin:6px calc(-1*var(--cpx)) calc(-1*var(--cpy));margin-top:auto}.cgrade .pill{display:block;width:100%;text-align:center;border-radius:0;padding:5px 4px}
+.cgrade2{display:flex;flex-direction:column;gap:1px}.cgrade .pill.pbx{font-size:12px;letter-spacing:.3px;padding:3px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cht{font-size:17px;letter-spacing:.5px;font-family:var(--mono);text-transform:uppercase;margin-bottom:2px}.cho{font-family:var(--mono);font-size:25px;font-weight:700}.chp{font-size:18px;margin-top:2px;font-family:var(--mono)}
 .pill{display:inline-block;font-size:16px;font-weight:700;letter-spacing:1px;padding:2px 6px;border-radius:1px;text-transform:uppercase;font-family:var(--mono)}
 .pn{background:var(--nc);color:#0b0612}.pv{background:var(--vc);color:#000}.ph{background:var(--hc);color:#0b0612}.pg{background:linear-gradient(90deg,var(--gc),var(--g2));color:#0b0612}.pi{background:var(--ic);color:#000}.pp{background:var(--pc);color:#0b0612}.pq{background:#39ff14;color:#0b0612}
@@ -3779,18 +3780,23 @@ function _gradeLabel(p){
   const t=tier(p.winProb,ev(p.winProb,dec),p.betType||'ML',p.marketProb!=null);
   return['SKIP','LEAN','OPTIMAL','PREMIUM'][t]||null;
 }
-// Grade tag for a spread / O-U box: the better graded of its two sides (same tier + HIGH PROB lane rules as the chips), filling the box bottom.
+// Grade tags for a spread / O-U box: ONE TAG PER SIDE, each naming the side it grades ("▲ OVER · LEAN", "▼ UNDER · SKIP"; "OTT -1.5 · SKIP", "PHI +1.5 · HIGH PROB"), filling the box bottom.
+// (2026-10-08, owner: a single unlabelled "SKIP" did not say whether it was the over or the under, or the favourite or the dog.) Same tier + HIGH PROB lane rules as the chips.
 function _boxGradeHTML(nm,sidesA,sidesB){
   try{
     const ms=(nm&&nm.mkts)||[];
     const find=ks=>ms.find(m=>ks.indexOf(m.side)>=0);
-    const a=find(sidesA),b=find(sidesB);
-    const rank=m=>m?((m.hkLane&&m.tierN<2)?1.5:(m.tierN||0)):-1;
-    const m=rank(a)>=rank(b)?a:b;if(!m)return'';
-    const lane=m.hkLane&&m.tierN<2,t=m.tierN||0;
-    const lbl=lane?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPTIMAL','PREMIUM'][t];
-    const cls=lane?'pq':['ph','pn','pp','pg'][t];
-    return`<div class="cgrade"><span class="pill ${cls}">${lane?'// '+lbl:t>=2?(t===3?lbl:'// '+lbl):'// '+lbl}</span></div>`;
+    const tag=m=>{
+      if(!m)return'';
+      const lane=m.hkLane&&m.tierN<2,t=m.tierN||0;
+      const lbl=lane?HOCKEY_LANE_LABEL:['SKIP','LEAN','OPTIMAL','PREMIUM'][t];
+      const cls=lane?'pq':['ph','pn','pp','pg'][t];
+      const side=m.side==='over'?'\u25B2 OVER':m.side==='under'?'\u25BC UNDER':String(m.label||'');
+      const full=String(m.label||side)+' \u2014 '+lbl;
+      return`<span class="pill pbx ${cls}" title="${_escHtml(full)}">${_escHtml(side)} \u00B7 ${lbl}</span>`;
+    };
+    const out=tag(find(sidesA))+tag(find(sidesB));
+    return out?`<div class="cgrade cgrade2">${out}</div>`:'';
   }catch(e){return'';}
 }
 function _gradeChipHtml(p){
