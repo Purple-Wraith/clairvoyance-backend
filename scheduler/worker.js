@@ -27,6 +27,11 @@ export const SCHEDULE = [
   // Evening lock coverage (2026-10-07): the pre-kickoff watchdog auto-locks any qualifying leg 10-150 min before kickoff. gated=true makes the dispatched run behave exactly
   // like a scheduled slot (LIVE_MODE variable + kickoff gate); without it a dispatch is the manual dry-run path. 15:30 / 17:30 / 19:30 MT.
   { wf: "lock-watchdog.yml", at: ["21:30", "23:30", "01:30"], inputs: { gated: "true" } },
+  // PRE-DROP SWEEPS (2026-10-09, owner: "so no games in the evening are missed"): on 2026-10-08 the 3-hourly slots left a gap right before the 7 PM ET puck drops -- seven legs qualified on the last
+  // odds readings and were only seen 30-155 min AFTER the games started (the auto-lock refuses started games). One run ~40 min before each common evening start (NHL/NBA 23:00, 23:30, 00:00, 00:30,
+  // 01:00, 02:00, 02:30 UTC) refreshes the odds, re-grades the slate and auto-locks whatever now qualifies, with the 10-minute start guard still in force. Worker-only (workerOnly): GitHub's own cron
+  // would land hours late, so these have no fallback entry in the workflow; the 3-hourly slots above remain the fallback.
+  { wf: "lock-watchdog.yml", at: ["22:20", "22:50", "23:20", "23:50", "00:20", "01:20", "01:50"], inputs: { gated: "true" }, workerOnly: true },
 ];
 
 const slotOf = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return Math.floor((h * 60 + m) / TICK_MIN); };

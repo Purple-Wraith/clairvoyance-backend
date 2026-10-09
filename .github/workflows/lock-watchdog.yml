@@ -19,6 +19,8 @@ name: Pre-Kickoff Lock Watchdog (owner only)
 # add real coverage for kickoffs through ~10 PM MT. Those same three times are ALSO fired on the dot by the Cloudflare scheduler Worker (scheduler/worker.js,
 # dispatch with gated=true: same LIVE_MODE + kickoff-gate behaviour as a scheduled slot), because GitHub's own cron lands 1-4 h late; the cron entries stay as the fallback.
 # A duplicate run is harmless (lock dedupe) -- the lock-watchdog concurrency group runs them one after the other.
+# PRE-DROP SWEEPS (2026-10-09): the Worker also dispatches this workflow (gated=true) at 22:20, 22:50, 23:20, 23:50, 00:20, 01:20 and 01:50 UTC -- ~40 min before the usual 7:00-10:30 PM ET
+# puck drops / tip-offs -- so a leg that only qualifies on the last odds readings is locked BEFORE the game (the start guard still refuses anything inside 10 min). Worker-only: no cron twin here.
 # Dry-run by default like every lock workflow (LIVE_MODE repo variable): not live -> it only logs what it WOULD email.
 
 on:

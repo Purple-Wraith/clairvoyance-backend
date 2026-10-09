@@ -25,7 +25,7 @@ for (const s of SCHEDULE) {
   const text = readFileSync(new URL(s.wf, wfDir), "utf8");
   assert.match(text, /workflow_dispatch/, `${s.wf} cannot be dispatched`);
   const crons = [...text.matchAll(/cron:\s*'(\d+) (\d+) \* \* ([^']+)'/g)].map((m) => `${String(m[2]).padStart(2, "0")}:${String(m[1]).padStart(2, "0")}`);
-  for (const t of s.at) assert.ok(crons.includes(t), `${s.wf}: ${t} UTC is not one of its own cron times (${crons.join(", ")})`);
+  if (!s.workerOnly) for (const t of s.at) assert.ok(crons.includes(t), `${s.wf}: ${t} UTC is not one of its own cron times (${crons.join(", ")})`);   // workerOnly slots deliberately have no GitHub cron twin
 }
 
 // fake GitHub
@@ -63,6 +63,13 @@ assert.deepEqual(JSON.parse(g.calls.find((c) => c.method === "POST").body), { re
 assert.deepEqual(dueEntries(at("2026-10-07T23:30:00Z")).map((e) => [e.wf, e.inputs]), [["lock-watchdog.yml", { gated: "true" }]]);
 assert.ok(dueWorkflows(at("2026-10-08T01:30:00Z")).includes("lock-watchdog.yml") && dueWorkflows(at("2026-10-07T21:30:00Z")).includes("lock-watchdog.yml"));
 assert.match(readFileSync(new URL("lock-watchdog.yml", wfDir), "utf8"), /gated:[\s\S]*type: boolean/);
+// pre-drop sweeps: one tick ~40 min before each common evening start, dispatched gated, worker-only
+for (const hhmm of ["22:20", "22:50", "23:20", "23:50", "00:20", "01:20", "01:50"]) {
+  const iso = `2026-10-08T${hhmm}:30Z`;
+  const when = hhmm < "10:00" ? iso.replace("2026-10-08", "2026-10-09") : iso;
+  assert.ok(dueWorkflows(at(when)).includes("lock-watchdog.yml"), `${hhmm} should dispatch the watchdog`);
+}
+assert.ok(SCHEDULE.filter((e) => e.wf === "lock-watchdog.yml" && e.workerOnly).every((e) => e.inputs && e.inputs.gated === "true"));
 assert.equal(TICK_MIN, 10);
 
 // ── owner trigger (POST /trigger) ──
