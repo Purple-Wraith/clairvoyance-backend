@@ -65794,7 +65794,7 @@
   {
     "hA": "Hameenlinna",
     "id": "2026-10-03_Hameenlinna_Karpat_LIIGA_Karpat-1.5",
-    "ml": "+225",
+    "ml": "-110",
     "awA": "Karpat",
     "date": "2026-10-03",
     "betOn": "Karpat -1.5",
@@ -65805,19 +65805,12 @@
     "league": "LIIGA",
     "source": "manual",
     "betType": "SPREAD",
-    "decOdds": 3.25,
-    "leadMin": 440,
+    "decOdds": 1.87,
     "outcome": "loss",
-    "startMs": 1791036000000,
-    "winProb": 0.302,
-    "lockedAt": 1791009585542,
-    "modelProb": 0.3304,
-    "reasoning": "PICK: Karpat -1.5 \u2014 SKIP (30.2% win prob, EV -1.8% \u00b7 MARKET PRICE +225 (EV at market -1.8%) \u00b7 MARKET-BLENDED: model 33.0% \u00b7 no-vig market 29.2% \u2192 30.2% (alpha 0.72))\nMODEL: Projected 2.8\u20132.7 (total 5.5) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).",
-    "settledAt": 1791054911142,
-    "blendAlpha": 0.725,
-    "lockTiming": "pre",
-    "marketProb": 0.2919,
-    "priceSource": "market"
+    "winProb": 0.7261971848406227,
+    "lockedAt": 1790937133606,
+    "reasoning": "PICK: Karpat -1.5 \u2014 PREMIUM (72.6% win prob, EV +35.8%)\nMODEL: Projected 2.8\u20132.7 (total 5.5) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Hameenlinna 2.24/3.07 (8GP this season, 60GP prior) vs Karpat 2.70/2.97 (8GP, 60GP prior). G/M-derived line: 5.5 (Hameenlinna 5.10, Karpat 5.52). Record: Hameenlinna 2-5-1OTW vs Karpat 4-3-1OTL. MC proj: Karpat 2.8 \u2013 Hameenlinna 2.7 (5.5 total vs 5.5 line). Karpat -1.5 covers in 72.6% of the model's blended scoring+margin projection (dog covers 27.4%). Ensemble: MC 70% / Bayesian log5 30%. Full-unit play \u00b7 Also: Karpat ML (OPTIMAL), UNDER 5.5 (LEAN).",
+    "settledAt": 1791054911142
   },
   {
     "hA": "ILL",
@@ -70330,6 +70323,34 @@
         "home": 0.94
       }
     }
+  },
+  {
+    "id": "2026-10-09_Pelicans_Karpat_LIIGA_Karpat+1.5",
+    "date": "2026-10-09",
+    "hA": "Pelicans",
+    "awA": "Karpat",
+    "sport": "LIIGA",
+    "league": "LIIGA",
+    "betType": "SPREAD",
+    "betOn": "Karpat +1.5",
+    "winProb": 0.6694563240579732,
+    "ml": "-250",
+    "decOdds": 1.4,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791551410735,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: Karpat +1.5 \u2014 HIGH PROB (66.9% win prob, EV -6.3% \u00b7 MARKET PRICE -250 (EV at market -6.3%) \u00b7 MARKET-BLENDED: model 66.6% \u00b7 no-vig market 67.1% \u2192 66.9% (alpha 0.72))\nMODEL: Projected 2.7\u20132.8 (total 5.4) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Pelicans 2.36/2.43 (9GP this season, 60GP prior) vs Karpat 2.86/2.98 (11GP, 60GP prior). G/M-derived line: 5.5 (Pelicans 4.64, Karpat 5.62). Record: Pelicans 5-4 vs Karpat 5-3-1OTW-2OTL. Exact-Poisson proj: Karpat 2.7 \u2013 Pelicans 2.8 (5.4 total vs 5.5 line). Karpat +1.5 covers in 66.9% of the model's blended scoring+margin projection (fav covers 33.1%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.77): model 62.3% \u00b7 no-vig market 55.3% \u2192 56.9%; Puck line market blend (alpha 0.72): model 33.4% \u00b7 no-vig market 32.9% \u2192 33.1%; O/U market blend (alpha 0.68): model 46.0% \u00b7 no-vig market 41.4% \u2192 42.9%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.6665,
+    "marketProb": 0.6706,
+    "blendAlpha": 0.725,
+    "startMs": 1791559800000,
+    "leadMin": 140,
+    "lockTiming": "pre"
   },
   {
     "hA": "SJSU",
