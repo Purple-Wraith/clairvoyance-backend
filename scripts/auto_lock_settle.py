@@ -1869,15 +1869,7 @@ def gather_legs(page) -> dict:
               propDiag.nba = { games: games.length, stats: stats ? Object.keys(stats).length : 0, generated: generated.length };
             } else propDiag.nba = { skipped: 'fn missing' };
           } catch (e) { propDiag.nba = { error: e.message }; }
-          try {
-            if (typeof _generateNHLPropsLive === 'function' && typeof _fetchNHLPlayerStats === 'function') {
-              const stats = await _fetchNHLPlayerStats();
-              const games = window._nhlTodayGames || [];
-              const generated = stats ? _generateNHLPropsLive(games, stats) : [];
-              generated.forEach(p => propLegs.push({ ...p, sportTag: 'NHL' }));
-              propDiag.nhl = { games: games.length, stats: stats ? Object.keys(stats).length : 0, generated: generated.length };
-            } else propDiag.nhl = { skipped: 'fn missing' };
-          } catch (e) { propDiag.nhl = { error: e.message }; }
+          propDiag.nhl = { skipped: 'NHL player props removed 2026-10-09, explicit request' };
           // NFL player props REMOVED from generation entirely, 2026-09-23,
           // explicit request after a real settled-bet audit found TD props
           // specifically badly overconfident (49.1% actual vs 79.5% avg
@@ -2820,19 +2812,7 @@ def lock_prop_leg(page, sport: str, leg: dict) -> str:
     # duplicate, so `after > before` here now correctly means "was this
     # exact prop actually already locked" rather than being untestable.
     if sport == "NHL":
-        return page.evaluate(
-            """
-            ({ player, stat, dir, prob, ml, line, reasoning }) => {
-              const before = getP().length;
-              lockNHLProp(player, stat, dir, prob, ml, line, reasoning);
-              return getP().length > before ? 'locked' : 'already-locked';
-            }
-            """,
-            {"player": leg.get("player"), "stat": leg.get("stat"),
-             "dir": "OVER" if leg.get("over") is not False else "UNDER",
-             "prob": leg.get("prob") or (leg.get("conf", 0) / 100), "ml": leg.get("ml"), "line": leg.get("line"),
-             "reasoning": leg.get("reasoning") or None},
-        )
+        return "skipped"          # NHL player props were removed 2026-10-09 (owner request): gather_legs no longer generates any, and lockNHLProp no longer exists
     if sport == "NBA":
         # Real bug, found and fixed alongside this same audit: this used to
         # call lockProp() with no `stat` arg at all, and lockProp()'s betOn

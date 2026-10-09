@@ -966,7 +966,6 @@ body{line-height:1.5}
   <div id="hk-nhl" class="subp act" style="overflow:hidden">
     <nav class="inav" id="nhl-in">
       <button class="nb" onclick="T('nhl','games')">GAMES</button>
-      <button class="nb" onclick="T('nhl','props')">PROPS</button>
       <button class="nb" onclick="T('nhl','model')">MODEL</button>
       <button class="nb" onclick="T('nhl','config')">CONFIG</button>
     </nav>
@@ -1011,27 +1010,7 @@ body{line-height:1.5}
         <div style="background:rgba(10,0,24,.8);border:1px solid rgba(77,121,255,.3);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:19px;color:var(--t);line-height:1.8">GSAx = GOALS SAVED ABOVE EXPECTED · HDSv% = HIGH-DANGER SAVE%<br>SOURCE: NHL EDGE GOALIE DATA + SAVE LOCATION BREAKDOWN</div>
         <div id="goalies"></div>
       </div>
-      <div id="nhl-tab-props" class="tab">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div>
-            <div class="sh" style="margin:0">NHL PLAYER PROPS</div>
-            <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:2px" id="nhl-props-date-line">SOURCE: LINEMATE.IO/NHL · TRENDS · LIVE MATCHUP ANALYSIS</div>
-          </div>
-          <button class="btn btn-p btn-sm" onclick="renderNHLPropsLive(window._nhlPropFilter||'all')">↻</button>
-        </div>
-        <div style="background:rgba(10,0,24,.8);border:1px solid rgba(102,144,255,.2);border-radius:2px;padding:8px 12px;margin-bottom:10px;font-family:var(--mono);font-size:15px;line-height:1.8">
-          KEY: <span style="color:var(--gc);font-weight:700">PREMIUM</span> <span style="color:var(--t3)">≥67% + EV&gt;5%</span> &nbsp;·&nbsp; <span style="color:var(--pc);font-weight:700">OPTIMAL</span> <span style="color:var(--t3)">≥62% + EV&gt;3%</span> &nbsp;·&nbsp; <span style="color:var(--nc);font-weight:700">LEAN</span> <span style="color:var(--t3)">55–62%</span> &nbsp;·&nbsp; <span style="color:var(--hc);font-weight:700">SKIP</span> <span style="color:var(--t3)">&lt;55%</span>
-        </div>
-        <div id="nhl-props-filter" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">
-          <button class="btn btn-o btn-sm act" onclick="renderNHLPropsLive('all')">ALL</button>
-          <button class="btn btn-o btn-sm" onclick="renderNHLPropsLive('points')">POINTS</button>
-          <button class="btn btn-o btn-sm" onclick="renderNHLPropsLive('goals')">GOALS</button>
-          <button class="btn btn-o btn-sm" onclick="renderNHLPropsLive('saves')">SAVES</button>
-          <button class="btn btn-o btn-sm" onclick="renderNHLPropsLive('shots')">SHOTS</button>
-          <button class="btn btn-o btn-sm" onclick="renderNHLPropsLive('top')">TOP PICKS</button>
-        </div>
-        <div id="nhl-scf-props" style="margin-bottom:14px"></div>
-      </div>
+      <!-- NHL PLAYER PROPS tab removed 2026-10-09 (owner request): no NHL props are generated, shown or locked any more. -->
       <div id="nhl-tab-puck" class="tab">
         <div class="sh"><span class="m"></span> MONEYPUCK ANALYTICS</div>
         <div style="background:rgba(10,0,24,.8);border:1px solid rgba(255,102,0,.3);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:19px;color:var(--mc);line-height:1.7">SOURCE: MONEYPUCK.COM/TEAMS.HTM · UPDATED DAILY MIDNIGHT MST</div>
@@ -1124,7 +1103,6 @@ body{line-height:1.5}
     </div>
     <nav id="mn2" style="display:none">
       <button class="mb" onclick="T('nhl','games')"><span class="mbi"></span>GAMES</button>
-      <button class="mb" onclick="T('nhl','props')"><span class="mbi"></span>PROPS</button>
       <button class="mb" onclick="T('nhl','model')"><span class="mbi"></span>MODEL</button>
       <button class="mb" onclick="T('nhl','config')"><span class="mbi"></span>CONFIG</button>
     </nav>
@@ -5579,7 +5557,7 @@ function _isJunkPred(p){return/^test[_-]/i.test(p.id||'');}
 const _ARCH_TAGS=new Set(['MLB','WNBA','WTA','ATP','WC','TEN','XP','MLS','BUND']);
 // MLS + Bundesliga were retired 2026-09-23/27 and have no live picks, so ALL their settled picks are archived whatever their age (an age cut would hide picks later without them being in the archive file).
 const _ARCH_ANY_AGE=new Set(['MLS','BUND']);
-const _ARCH_SUM={n:2431,w:1684,l:747};   // retired-league picks: settled count / wins / losses (filled by scripts/build_ledger_archive.py)
+const _ARCH_SUM={n:2446,w:1695,l:751};   // retired-league picks: settled count / wins / losses (filled by scripts/build_ledger_archive.py)
 function _slimOn(){try{if(/[?&]slim=1(?:&|$)/.test(location.search||''))return true;if(/[?&]slim=0(?:&|$)/.test(location.search||''))return false;return navigator.webdriver!==true;}catch(e){return true;}}
 let _archCutV='',_archCutAt=0;
 function _archCut(){const n=Date.now();if(!_archCutV||n-_archCutAt>60000){_archCutV=_mtDateOf(n-21*86400000)||'';_archCutAt=n;}return _archCutV;}
@@ -5610,12 +5588,17 @@ function getP(){
   return out;
 }
 function _gpClone(p){return p&&typeof p==='object'&&!Array.isArray(p)?Object.assign({},p):p;}
+// RETAGGED PICKS (owner request 2026-10-09): 15 WNBA player props had been locked with sport 'NBA' and showed up under NBA > Locked (and in NBA figures). They were retagged to WNBA on Supabase
+// (backup in data/purged/wnba_props_retag_20261009.json); a device that still holds the old copies is healed here on load, because those rows are older than a device's pull window.
+const _CV_RETAG_WNBA=new Set(["prop_1781216188993","prop_1781748996653","prop_1781749084001","prop_1781749144521","prop_1781749153231","prop_1781749159750","prop_1782261750976","prop_1782261910581","prop_1782331083030","prop_1782331093098","prop_1782418819954","prop_1782418848915","prop_1782418855037","prop_1782418886547","prop_1782418894502"]);
 function _getPRaw(){
   const raw=S.g('preds',[])||[];
   const w=_getWipedIds();
   let filtered=raw.filter(p=>!_isJunkPred(p)&&!_slimPick(p));   // also self-heals archived picks out of localStorage
   if(w.size)filtered=filtered.filter(p=>!w.has(p.id));
-  if(filtered.length<raw.length)S.s('preds',filtered); // self-heal: remove any re-seeded wiped/junk picks
+  let retagged=false;
+  filtered.forEach(p=>{if(p&&_CV_RETAG_WNBA.has(p.id)&&(p.sport!=='WNBA'||p.league!=='WNBA')){p.sport='WNBA';p.league='WNBA';retagged=true;}});
+  if(filtered.length<raw.length||retagged)S.s('preds',filtered); // self-heal: remove any re-seeded wiped/junk picks (and apply the WNBA retag)
   return filtered;
 }
 // One-time cleanup for a real regression: soccer's per-league type tags
@@ -14041,11 +14024,10 @@ const espnSprdNum=-_sprdL;const sprdFav=_mktFav;const sprdLbl=sprdFav+' '+espnSp
         ${_teamLogoHTML('nba',an,'a',44,{url:a?.team?.logo,name:aFull})}<span class="gtm" style="color:var(--t)">${an}</span>
         <span style="color:var(--t3);font-size:15px;font-family:var(--mono)">at</span>
         ${_teamLogoHTML('nba',hn,'h',44,{url:h?.team?.logo,name:hFull})}<span class="gtm" style="color:var(--t)">${hn}</span>
-        <button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px" onclick="event.stopPropagation();_toggleMatchupRadar('nba_${_nbaGidSafe}')">COMPARE</button>
       </div>
       ${espnHL?`<div class="gsp">ESPN: <span style="color:var(--pc)">${hn} ${espnHL>0?'+':''}${espnHL}</span> \xb7 <span style="color:var(--t2)">${an} ${espnAL>0?'+':''}${espnAL}</span>${ouL?` \xb7 <span style="color:var(--vc)">O/U ${ouL}</span>`:''}</div>`:''}
     </div>
-    <div style="text-align:right"><div class="np mono" style="font-size:19px">${statusDot}${statusTxt}</div></div>
+    <div style="text-align:right"><div class="np mono" style="font-size:19px">${statusDot}${statusTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('nba_${_nbaGidSafe}')">COMPARE</button></div>
   </div>
   ${_nbaInfoRowHTML(hFull,aFull,hn,an)}
   <div id="radar_nba_${_nbaGidSafe}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(240,0,255,.1)">
@@ -20496,7 +20478,7 @@ function T(sport,tabId){const D=window.__CV_DATA||{};
   // with every other sport instead of the one-off blue.
   const cls='act';
   document.querySelectorAll(`#${navId} .nb,#${mnId} .mb`).forEach(b=>{if(b.getAttribute('onclick')?.includes(`'${tabId}'`))b.classList.add(cls);});
-  if(sport==='nhl'){if(tabId==='picks')renderNHLPicks();if(tabId==='games'){renderNHLTonight();renderNHLGames();renderNHLUpcoming();};if(tabId==='goalies')renderGoaliesFromBackend();if(tabId==='props'){renderProps();renderNHLSCFProps();setTimeout(()=>renderNHLPropsLive(window._nhlPropFilter||'all'),50);}if(tabId==='edge')renderNHLEdge('team');if(tabId==='puck')renderMoneyPuck();if(tabId==='history')renderNHLHistory();if(tabId==='live'){
+  if(sport==='nhl'){if(tabId==='picks')renderNHLPicks();if(tabId==='games'){renderNHLTonight();renderNHLGames();renderNHLUpcoming();};if(tabId==='goalies')renderGoaliesFromBackend();if(tabId==='edge')renderNHLEdge('team');if(tabId==='puck')renderMoneyPuck();if(tabId==='history')renderNHLHistory();if(tabId==='live'){
   startNHLLive();renderNHLLiveBets();
   const liveEl=document.getElementById('nhl-live-scores-main');
   if(liveEl){
@@ -20822,240 +20804,15 @@ async function refreshNHLLive(){const D=window.__CV_DATA||{};
   }
 }
 function startNHLLive(){if(_nhlLiveIv)clearInterval(_nhlLiveIv);refreshNHLLive();_nhlLiveIv=setInterval(refreshNHLLive,30000);}
-function renderNHLSCFProps(){/* superseded by renderNHLPropsLive */}
 
-// ── NHL Props Live ───────────────────────────────────────────────────────────
-// ═══ NHL PLAYER PROPS — LIVE (ESPN + MC) ══════════════════════
-// Mirrors _fetchNBAPlayerStats/_generateNBAProps and their WNBA twins:
-// a client-side ESPN stats fetch feeding a Monte Carlo prop sim with real
-// opponent-defense adjustment (_propOppDefFactor('NHL',...), already built
-// this session off the real 32-team patchNHLStandings expansion) and real
-// UNDER support. NHL never had ANY model-generated props before this --
-// only a hand-curated (permanently empty) NHL_PROPS_DATA const and
-// whatever Linemate happened to have. This is the live fallback tier,
-// used exactly like WNBA's when Linemate doesn't have enough real props.
+// NHL PLAYER PROPS removed 2026-10-09 (owner request): the PROPS tab, the live prop generator (_generateNHLPropsLive / its ESPN stats fetch), the lock buttons (lockNHLProp / _adjLockNHL*) and the
+// automated prop locking are gone. Settlement of any already-locked historical NHL prop is untouched (autoSettlePropsESPN / parsePropBetOn are shared). The stubs below only keep old call sites
+// (ops buttons, refresh timers) harmless.
 var _nhlStatsCache=null,_nhlStatsCacheDate='';
-// Real shape is stats.categories[].leaders[] (same discovery as the
-// basketball fix above, see _basketballStatsFromLeaders) -- the old
-// `(d.athletes||[]).forEach(...)` iterated a key that has never existed
-// on this endpoint, so NHL player props have never actually generated
-// until this fix.
-function _nhlStatsFromLeaders(d){
-  var cats=(d.stats&&d.stats.categories)||[];
-  var byId={};
-  var catByName={};cats.forEach(function(c){catByName[c.name]=c;});
-  ['points','goals','assists'].forEach(function(name){
-    var cat=catByName[name];if(!cat)return;
-    (cat.leaders||[]).forEach(function(leader){
-      var aid=leader.athlete&&leader.athlete.id;
-      if(!aid||byId[aid])return;
-      byId[aid]=leader;
-    });
-  });
-  var flat=function(leader){
-    var out={};
-    var splits=leader.statistics&&leader.statistics.splits;
-    ((splits&&splits.categories)||[]).forEach(function(cat){
-      (cat.stats||[]).forEach(function(s){if(s.name)out[s.name]=parseFloat(s.value)||0;});
-    });
-    return out;
-  };
-  var byName={};
-  Object.values(byId).forEach(function(leader){
-    var name=leader.athlete&&leader.athlete.displayName;if(!name)return;
-    var team=(leader.team&&leader.team.abbreviation)||'';
-    var s=flat(leader);
-    var gp=Math.max(1,Math.round(s.games||1));
-    byName[name.toLowerCase()]={name,team,gp,
-      gpg:+(s.avgGoals||0).toFixed(2),
-      apg:+((s.assists||0)/gp).toFixed(2),
-      ppg:+(s.pointsPerGame||0).toFixed(2),
-      shpg:+(s.avgShots||0).toFixed(1)
-    };
-  });
-  return byName;
-}
-async function _fetchNHLPlayerStats(){
-  var td=typeof today==='function'?today():'';
-  if(_nhlStatsCacheDate===td&&_nhlStatsCache)return _nhlStatsCache;
-  try{
-    var ctrl=new AbortController();setTimeout(function(){ctrl.abort();},9000);
-    var r=await fetch('https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/statistics?limit=300',{signal:ctrl.signal});
-    var d=await r.json();
-    var byName=_nhlStatsFromLeaders(d);
-    if(!Object.keys(byName).length){var bundled=await _fetchBundledPlayerStats('nhl');if(bundled)byName=bundled;}
-    _nhlStatsCache=byName;_nhlStatsCacheDate=td;
-    console.log('[CV] NHL stats loaded: '+Object.keys(byName).length+' players');
-    return byName;
-  }catch(e){
-    console.warn('[CV] NHL stats fetch err:',e);
-    var bundled=await _fetchBundledPlayerStats('nhl');
-    if(bundled){_nhlStatsCache=bundled;_nhlStatsCacheDate=td;return bundled;}
-    return null;
-  }
-}
-function _generateNHLPropsLive(games,statsData){
-  if(!statsData||!games||!games.length)return[];
-  var props=[];
-  var p2ml=function(p){return p>=.5?Math.round(-p/(1-p)*100):Math.round((1-p)/p*100);};
-  var mlStr=function(ml){return ml>0?'+'+ml:''+ml;};
-  var players=Object.values(statsData);
-  games.forEach(function(g){
-    var hn=g.h||g.hA||g.home,an=g.a||g.awA||g.away;if(!hn||!an)return;
-    var gamePlayers=players.filter(function(p){
-      return(p.team===hn||p.team===an)&&p.gp>=5;
-    }).sort(function(a,b){return b.ppg-a.ppg;}).slice(0,10);
-    var seen=new Set();
-    gamePlayers.forEach(function(pl){
-      var opp=pl.team===hn?an:hn;
-      var oppDef=_propOppDefFactor('NHL',opp);
-      var factor=oppDef.factor;
-      var oppNote=oppDef.note?'No real opponent defensive data available for '+opp+' yet — projection uses season average only, no matchup adjustment applied. '
-        :'Opp '+opp+' GA/60 '+oppDef.raw.toFixed(2)+' vs a '+oppDef.lgAvg.toFixed(2)+' league average'+(oppDef.realAvg?' computed from every currently-loaded team':' (assumed baseline)')+', a '+(factor*100).toFixed(0)+'% '+(factor>=0?'boost':'reduction')+' folded into the projection. ';
-      function push(statKey,label,minAvg,cv){
-        var pKey=pl.name+'_'+statKey;if(seen.has(pKey))return;
-        var base=pl[statKey];if(base==null||base<minAvg)return;
-        seen.add(pKey);
-        var line=parseFloat(_forceHalfLine(base));
-        var adjMu=Math.max(0.05,base*(1+factor));
-        var sigma=Math.max(minAvg*0.5,base*cv);
-        var mc=propMC(adjMu,sigma,line,5000);
-        var pick=adjMu>=line?'OVER':'UNDER';
-        var conf=pick==='OVER'?mc.overP*100:(1-mc.overP)*100;
-        var grade=(Math.abs(factor)<0.01&&Math.abs(conf-50)<4)?'SKIP':_propGradeByConf(conf);
-        var ml=p2ml(pick==='OVER'?mc.overP:1-mc.overP);
-        props.push(_withPropReasoning({player:pl.name,t:pl.team,team:pl.team,opp,hA:hn,awA:an,
-          stat:label,line,over:pick==='OVER',ml:mlStr(ml),prob:conf/100,conf:Math.round(conf),
-          grade,hitRate:mc.hitRate+'%',adjustor:+(adjMu-base).toFixed(2),src:'ESPN Stats + MC Sim (5k)',
-          mu:+adjMu.toFixed(2),sigma:+sigma.toFixed(2),base:+base.toFixed(2),
-          basis:pl.name+' averages '+base.toFixed(2)+' '+label+' across '+pl.gp+' games this season. '+oppNote+'No head-to-head history vs '+opp+' this season is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.'}));
-      }
-      push('ppg','POINTS',0.5,0.7);
-      push('gpg','GOALS',0.25,0.9);
-      push('apg','ASSISTS',0.25,0.9);
-    });
-  });
-  return props.sort(function(a,b){return b.prob-a.prob;});
-}
-async function renderNHLPropsLive(filter){
-  window._nhlPropFilter=filter||'all';
-  const el=document.getElementById('nhl-scf-props');if(!el)return;
-  document.querySelectorAll('#nhl-props-filter button').forEach(b=>{
-    b.classList.remove('act');const txt=b.textContent.toLowerCase();
-    if((filter==='all'&&txt==='all')||(filter==='points'&&txt.includes('point'))||(filter==='goals'&&txt.includes('goal'))||(filter==='saves'&&txt.includes('save'))||(filter==='shots'&&txt.includes('shot'))||(filter==='top'&&txt.includes('top')))b.classList.add('act');
-  });
-  const dateEl=document.getElementById('nhl-props-date-line');
-  const gradeC={PREMIUM:'var(--gc)',OPTIMAL:'var(--pc)',LEAN:'var(--nc)',SKIP:'var(--hc)'};
-  const gradeOrder={PREMIUM:0,OPTIMAL:1,LEAN:2,SKIP:4};
-  // NHL_PROPS_DATA is a permanently-empty hardcoded const (no SCF-era hand
-  // curation exists this season) -- the real feed is Linemate via
-  // window._remoteNHLProps / __CV_DATA.linemate.props.nhl, exactly like the
-  // NBA/WNBA/NFL Linemate panels already read. Reading only the empty const
-  // meant this tab showed "NO NHL PROPS" every single day regardless of
-  // whether real data had loaded.
-  let src='Linemate';
-  let data=(window._remoteNHLProps&&window._remoteNHLProps.length)?[...window._remoteNHLProps]
-    :(window.__CV_DATA?.linemate?.props?.nhl&&window.__CV_DATA.linemate.props.nhl.length)?[...window.__CV_DATA.linemate.props.nhl]
-    :(typeof NHL_PROPS_DATA!=='undefined'?[...NHL_PROPS_DATA]:[]);
-  data=data.map(p=>({
-    player:p.player||p.name,t:p.t||p.team,pos:p.pos||'',
-    stat:p.stat||p.category||p.prop||'',
-    line:p.line!=null?p.line:p.threshold,
-    over:p.over!=null?p.over:(p.bet||p.direction||'OVER').toUpperCase()==='OVER',
-    ml:p.ml,conf:p.conf!=null?p.conf:(p.prob!=null?Math.round(p.prob*100):55),
-    grade:p.grade||_propGradeByConf(p.conf!=null?p.conf:55),
-    hitRate:p.hitRate||p.l10||p.l5||'--',basis:p.basis||'',opp:p.opp,src:p.src||'Linemate'
-  }));
-  // Warmed regardless of tier -- even when real Linemate props cover the
-  // slate, _modelLineForProp still needs this cache to show a real
-  // independently-computed model line next to each real market prop below.
-  _fetchNHLPlayerStats().catch(()=>{});
-  // Live ESPN+MC fallback tier -- same threshold/pattern as WNBA's 3-tier
-  // system: when Linemate doesn't have enough real market props loaded,
-  // fall back to a real model-generated slate instead of an empty tab.
-  if(data.length<3){
-    try{
-      let liveGames=window._nhlTodayGames||[];
-      if(!liveGames.length){try{await renderNHLGames();liveGames=window._nhlTodayGames||[];}catch(e){}}
-      if(liveGames.length){
-        const liveStats=await _fetchNHLPlayerStats();
-        if(liveStats&&Object.keys(liveStats).length){
-          const liveProps=_generateNHLPropsLive(liveGames,liveStats);
-          if(liveProps.length>data.length){data=liveProps;src='ESPN Stats + MC Sim (5k)';}
-        }
-      }
-    }catch(e){console.warn('[CV] NHL live props fallback err:',e);}
-  }
-  if(filter==='points')data=data.filter(p=>(p.stat||'').toLowerCase().includes('point'));
-  else if(filter==='goals')data=data.filter(p=>(p.stat||'').toLowerCase().includes('goal'));
-  else if(filter==='saves')data=data.filter(p=>(p.stat||'').toLowerCase().includes('save'));
-  else if(filter==='shots')data=data.filter(p=>(p.stat||'').toLowerCase().includes('shot'));
-  else if(filter==='top')data=data.filter(p=>p.grade==='PREMIUM'||p.grade==='OPTIMAL');
-  data.sort((a,b)=>(gradeOrder[a.grade]||3)-(gradeOrder[b.grade]||3)||b.conf-a.conf);
-  if(dateEl)dateEl.textContent=src==='Linemate'?'SOURCE: LINEMATE.IO/NHL · TRENDS · LIVE MATCHUP ANALYSIS':'SOURCE: ESPN 2026 SEASON STATS · MONTE CARLO 5K SIMS';
-  if(!data.length){el.innerHTML='<div class="empty">NO NHL PROPS — OFFSEASON</div>';try{renderPropsTracker();}catch(e){}return;}
-  const banner='';
-  const top=data.filter(p=>p.grade==='PREMIUM'||p.grade==='OPTIMAL').slice(0,3);
-  const topBanner=top.length?`<div style="background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:8px 12px;margin-bottom:10px">
-    <div style="font-family:var(--mono);font-size:15px;color:var(--nc);margin-bottom:6px;letter-spacing:1.5px">TOP PROPS · G4 SCF · LINEMATE + STATISTICAL ANALYSIS</div>
-    ${top.map(p=>`<div style="font-family:var(--mono);font-size:17px;color:var(--t);margin-bottom:3px">\u2192 ${p.player} ${p.over?'OVER':'UNDER'} ${p.line} ${p.stat} \u00b7 ${p.conf}% \u00b7 HIT: ${p.hitRate||'--'}</div>`).join('')}
-  </div>`:'';
-  el.innerHTML=banner+topBanner+data.map(p=>{
-    const gc=gradeC[p.grade]||'var(--t3)';
-    const mlLabel=p.ml?(parseFloat(p.ml)>0?'+'+p.ml:p.ml):'\u2014';
-    const probColor=p.conf>=67?'var(--nc)':p.conf>=60?'var(--vc)':'var(--t2)';
-    const ev=((p.conf/100)*ml2d(p.ml||'-110')-1)*100;
-    const teamColor=p.t==='VGK'?'var(--gc)':'var(--ic)';
-    return`<div class="card" style="margin-bottom:9px;border-left:3px solid ${gc}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px">
-        <div>
-          <span style="font-family:var(--orb);font-size:23px;font-weight:700">${p.player}</span>
-          <span style="font-family:var(--mono);font-size:15px;padding:1px 6px;border:1px solid ${teamColor};color:${teamColor};border-radius:2px;margin-left:6px">${p.t}</span>
-          <span style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-left:4px">${p.pos||''}</span>
-        </div>
-        <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
-          <span style="font-family:var(--mono);font-size:15px;padding:2px 5px;border:1px solid rgba(255,255,255,.15);color:var(--t3);border-radius:2px">HIT:${p.hitRate||'--'}</span>
-          <span style="font-family:var(--mono);font-size:15px;padding:2px 6px;border:1px solid ${gc};color:${gc};border-radius:2px;font-weight:700">${p.grade}</span>
-        </div>
-      </div>
-      <div style="font-family:var(--mono);font-size:23px;color:${p.over?'var(--gc)':'var(--pc)'};margin-bottom:4px;font-weight:700">${p.over?'\u25b2 OVER':'\u25bc UNDER'} ${p.line} ${p.stat} <span style="font-size:18px;font-weight:400;color:${parseFloat(p.ml||'0')>0?'var(--nc)':'var(--t3)'}">${mlLabel}</span></div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-        <div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${probColor}">${p.conf}%</div>
-        <div style="flex:1;background:rgba(255,255,255,.06);border-radius:1px;height:4px;overflow:hidden"><div style="width:${Math.min(100,p.conf)}%;height:100%;background:${probColor};border-radius:1px;transition:width .4s"></div></div>
-        <div style="font-family:var(--mono);font-size:15px;color:${ev>=0?'var(--nc)':'var(--hc)'}">${ev>=0?'+':''}${ev.toFixed(1)}% EV</div>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;padding:5px 8px;background:rgba(255,255,255,.03);border-radius:2px;border:1px solid rgba(255,255,255,.06)">
-        <div style="flex:1;text-align:center">
-          <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px;margin-bottom:2px">MODEL PROB</div>
-          <div style="font-family:var(--orb);font-size:19px;font-weight:700;color:${probColor}">${p.conf}%</div>
-        </div>
-        <div style="width:1px;height:30px;background:rgba(255,255,255,.1)"></div>
-        <div style="flex:1;text-align:center">
-          <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px;margin-bottom:2px">MKT IMPLIED</div>
-          <div style="font-family:var(--orb);font-size:19px;font-weight:700;color:var(--t2)">${(100/ml2d(p.ml||'-110')).toFixed(1)}%</div>
-        </div>
-        <div style="width:1px;height:30px;background:rgba(255,255,255,.1)"></div>
-        <div style="flex:1;text-align:center">
-          <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px;margin-bottom:2px">EDGE</div>
-          <div style="font-family:var(--orb);font-size:19px;font-weight:700;color:${ev>=0?'var(--nc)':'var(--hc)'}">${ev>=0?'+':''}${ev.toFixed(1)}%</div>
-        </div>
-      </div>
-      ${p.src&&p.src.indexOf('MC Sim')>=0?_recPropLineHTML(p.line,_findMarketProp('nhl',p.player,p.stat),p.stat):_recPropLineHTML(_modelLineForProp('nhl',p.player,p.stat,p.opp),{line:p.line,ml:p.ml},p.stat)}
-      <div style="font-family:var(--mono);font-size:17px;color:var(--t2);line-height:1.7;margin-bottom:6px">${p.basis}</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px">
-        <span style="font-family:var(--mono);font-size:15px;color:var(--t3)">SRC: ${p.src||'Linemate'} \u00b7 vs ${p.opp||'\u2014'}</span>
-        <div style="display:flex;gap:5px;align-items:center">
-          <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">LINE</span>
-          <input type="number" step="0.5" value="${p.line}" id="padj_nhll_${p.player.replace(/\W+/g,'_')}_${p.stat}" style="width:58px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);color:var(--t);font-family:var(--mono);font-size:17px;padding:2px 6px;border-radius:2px;text-align:center">
-          <button class="btn btn-o btn-sm" style="font-size:14px;padding:2px 5px" onclick="_adjLockNHLDelta('padj_nhll_${p.player.replace(/\W+/g,'_')}_${p.stat}',-0.5,'${p.player.replace(/'/g,"\\'")}','${p.stat}','${p.over?'OVER':'UNDER'}',${(p.conf/100).toFixed(2)},'${p.ml||'-110'}')">-½</button>
-          <button class="btn btn-n btn-sm" style="color:var(--nc)" onclick="_adjLockNHLO('padj_nhll_${p.player.replace(/\W+/g,'_')}_${p.stat}','${p.player.replace(/'/g,"\\'")}','${p.stat}',${(p.conf/100).toFixed(2)},'${p.ml||'-110'}')">▲O</button><button class="btn btn-o btn-sm" style="color:var(--hc)" onclick="_adjLockNHLU('padj_nhll_${p.player.replace(/\W+/g,'_')}_${p.stat}','${p.player.replace(/'/g,"\\'")}','${p.stat}',${(p.conf/100).toFixed(2)},'${p.ml||'-110'}')">▼U</button>
-          <button class="btn btn-o btn-sm" style="font-size:14px;padding:2px 5px" onclick="_adjLockNHLDelta('padj_nhll_${p.player.replace(/\W+/g,'_')}_${p.stat}',0.5,'${p.player.replace(/'/g,"\\'")}','${p.stat}','${p.over?'OVER':'UNDER'}',${(p.conf/100).toFixed(2)},'${p.ml||'-110'}')">+½</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-  try{renderPropsTracker();}catch(e){}
-}
+function renderNHLSCFProps(){}
+async function _fetchNHLPlayerStats(){return null;}
+function _generateNHLPropsLive(){return[];}
+function renderNHLPropsLive(){}
 window.renderNHLPropsLive=renderNHLPropsLive;
 
 function renderNHLLiveBets(){const el=document.getElementById('nhl-live-bets');if(!el)return;const bets=getP().filter(p=>p.sport==='NHL'&&p.outcome==='pending');if(!bets.length){el.innerHTML='<div class="empty">NO ACTIVE NHL BETS</div>';return;}el.innerHTML=bets.map(p=>_pickRowHTML(p,{mode:'pending',wrapClass:'card',dateLbl:p.date||'',actions:''})).join('');}
@@ -21067,26 +20824,13 @@ function _adjLock(inputId,team,player,stat,over,conf,ml,sport,opp){
   var dir=over?'O':'U';
   lockProp(team,player,stat+' '+dir+line,over,conf,ml,sport,opp);
 }
-function _adjLockNHL(inputId,player,stat,dir,conf,ml){
-  var inp=document.getElementById(inputId);
-  var line=inp?parseFloat(inp.value):0;
-  if(isNaN(line))line=0;
-  lockNHLProp(player,stat,dir,conf,ml,line);
-}
 function _adjLockDelta(inputId,delta,team,player,stat,over,conf,ml,sport,opp){
   var inp=document.getElementById(inputId);
   if(inp)inp.value=(parseFloat(inp.value)+delta).toFixed(1);
   _adjLock(inputId,team,player,stat,over,conf,ml,sport,opp);
 }
-function _adjLockNHLDelta(inputId,delta,player,stat,dir,conf,ml){
-  var inp=document.getElementById(inputId);
-  if(inp)inp.value=(parseFloat(inp.value)+delta).toFixed(1);
-  _adjLockNHL(inputId,player,stat,dir,conf,ml);
-}
 function _adjLockO(inputId,team,player,stat,conf,ml,sport,opp){_adjLock(inputId,team,player,stat,true,conf,ml,sport,opp);}
 function _adjLockU(inputId,team,player,stat,conf,ml,sport,opp){_adjLock(inputId,team,player,stat,false,conf,ml,sport,opp);}
-function _adjLockNHLO(inputId,player,stat,conf,ml){_adjLockNHL(inputId,player,stat,'OVER',conf,ml);}
-function _adjLockNHLU(inputId,player,stat,conf,ml){_adjLockNHL(inputId,player,stat,'UNDER',conf,ml);}
 function lockProp(team,player,line,over,conf,ml,sport,opp,stat,reasoning){
   // Prefer the sport the caller actually knows it's rendering (every
   // call site is itself sport-specific — the WNBA props tab knows it's
@@ -21145,38 +20889,6 @@ function lockProp(team,player,line,over,conf,ml,sport,opp,stat,reasoning){
   const preds=getP();preds.push(prop);saveP(preds);updHdr();
   toast(`// PROP LOCKED: ${player} ${over?'OVER':'UNDER'} ${line}`);try{window.showBetPopup({type:'lock',betOn:betOnStr,sport,betType:'PROP',ml,prob:conf||0.60,decOdds:dec});}catch(ex){}
   renderPropsTracker();
-}
-function lockNHLProp(player,stat,dir,prob,ml,line,reasoning){
-  const over=dir==='OVER';
-  const mlNum=parseFloat(ml||'-110');
-  const dec=mlNum>0?mlNum/100+1:100/Math.abs(mlNum)+1;
-  const mlLabel=mlNum>0?'+'+mlNum:String(mlNum);
-  const fullBet=line!=null
-    ?`${player} ${stat} ${dir} ${line} (${mlLabel})`
-    :`${player} ${stat} ${dir} (${mlLabel})`;
-  // Real bug, found auditing lock/settle: no dedup at all (Date.now()-
-  // based id, always unique) -- same real duplicate-lock risk as
-  // lockProp(), fixed the same way. See that function's own comment for
-  // why this matters given the pipeline's own multiple-passes-per-day
-  // design.
-  const propId=`nhl_prop_${today()}_${player}_${stat}_${dir}_${line}`.replace(/\s/g,'');
-  if(LOCKED_PROPS.some(p=>p.id===propId)){toast(`// ALREADY LOCKED: ${fullBet}`);return;}
-  const prop={
-    id:propId,player,team:'NHL',
-    line:line!=null?String(line):`${dir} ${stat}`,
-    over,conf:prob,ml:mlNum,lockedAt:Date.now(),outcome:'pending',date:today(),
-    sport:'NHL',league:'NHL',betType:'PROP',
-    betOn:fullBet,
-    propPlayer:player,propStat:stat,propDir:dir,
-    winProb:prob,hA:'NHL',awA:'',decOdds:dec,wager:0,
-    src:'Linemate/SCF',
-  };
-  const _pr=reasoning||(line!=null?_propReasonFor(player,stat,line,dir):null);if(_pr)prop.reasoning=_pr;
-  LOCKED_PROPS.push(prop);
-  localStorage.setItem('locked_props',JSON.stringify(LOCKED_PROPS));
-  const preds=getP();preds.push(prop);saveP(preds);updHdr();
-  toast(`// LOCKED: ${fullBet}`);try{window.showBetPopup({type:'lock',betOn:fullBet,sport:'NHL',league:'NHL',betType:'PROP',ml:mlNum,prob,decOdds:dec});}catch(ex){}
-  try{renderPropsTracker();}catch(e){}
 }
 function renderPropsTracker(){const targets=['nhl-props-tracker','nba-props-tracker'];targets.forEach(id=>{const el=document.getElementById(id);if(!el)return;if(!LOCKED_PROPS.length){el.innerHTML='<div class="empty">NO LOCKED PROPS</div>';return;}el.innerHTML=LOCKED_PROPS.map((p,i)=>{const oc=p.outcome==='win'?'var(--nc)':p.outcome==='loss'?'var(--hc)':'var(--gc)';return`<div class="card" style="margin-bottom:6px;border-left:2px solid ${oc}"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-family:var(--orb);font-size:19px;font-weight:700">${p.player}</div><div style="font-family:var(--mono);font-size:17px;color:var(--t2)">${p.over?'▲ OVER':'▼ UNDER'} ${p.line} · ${p.team} · ${p.ml}</div></div><div style="display:flex;gap:4px;align-items:center"><span style="font-family:var(--mono);font-size:16px;padding:2px 5px;border:1px solid ${oc};color:${oc};border-radius:2px">${p.outcome.toUpperCase()}</span><button style="background:var(--hc);color:#fff;border:none;border-radius:2px;width:18px;height:18px;cursor:pointer;font-size:17px" onclick="LOCKED_PROPS.splice(${i},1);localStorage.setItem('locked_props',JSON.stringify(LOCKED_PROPS));renderPropsTracker()">×</button></div></div></div>`;}).join('');});}
 async function refreshNBALive(){const D=window.__CV_DATA||{};
@@ -22311,7 +22023,6 @@ function patchLinemateProps(linemate){
   // matched anything, so this silently never hydrated from the bundle.
   if(linemate?.trends?.nhl?.length&&!window._remoteNHLTrends?.length)window._remoteNHLTrends=linemate.trends.nhl;
   if(linemate?.props?.nhl?.length&&!window._remoteNHLProps?.length)window._remoteNHLProps=linemate.props.nhl;
-  try{const hp=document.getElementById('nhl-tab-props');if(hp&&hp.classList.contains('act')){renderProps();renderNHLPropsLive(window._nhlPropFilter||'all');}}catch(e){}
 }
 function exportLockedProps(){
   const props=getP();
@@ -31255,7 +30966,6 @@ window._clvScanAllSports=_clvScanAllSports;
   <div class="ndl"><button onclick="SS('hk');hideAllND()">NHL</button>
     <div class="ndl-sub">
       <button onclick="SS('hk');T('nhl','games');hideAllND()">Games</button>
-      <button onclick="SS('hk');T('nhl','props');hideAllND()">Props</button>
       <button onclick="SS('hk');T('nhl','model');hideAllND()">Model</button>
       <button onclick="SS('hk');T('nhl','config');hideAllND()">Config</button>
     </div>

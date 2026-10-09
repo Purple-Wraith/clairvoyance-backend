@@ -93,6 +93,19 @@ class Tab(unittest.TestCase):
         self.assertTrue(any("▲ OVER" in t and "▼ UNDER" in t for t in r["tags"]), r["tags"])   # labelled per-side grade tags with the line
         pg.close()
 
+    def test_compare_button_sits_in_the_right_hand_block_like_the_other_leagues_and_opens_the_radar(self):
+        pg = self.page("2026-10-10")
+        self.options(pg)
+        pg.select_option("#nba-filter-day", "2026-10-21")
+        pg.wait_for_function("document.querySelectorAll('#nba-upcoming .gc').length>0")
+        r = pg.evaluate("""()=>{const g=document.querySelector('#nba-upcoming .gc');const b=[...g.querySelectorAll('.gch button')].find(x=>x.textContent.trim()==='COMPARE');
+          const right=b&&b.parentElement&&b.parentElement.querySelector('.np');return {has:!!b,withTime:!!right,radar:g.querySelector('[id^="radar_nba_"]')&&getComputedStyle(g.querySelector('[id^="radar_nba_"]')).display}}""")
+        self.assertTrue(r["has"] and r["withTime"], r)                              # under the tip-off time, where NHL/CFB/NFL/Euro cards put it
+        self.assertEqual(r["radar"], "none")
+        pg.evaluate("[...document.querySelector('#nba-upcoming .gc').querySelectorAll('.gch button')].find(x=>x.textContent.trim()==='COMPARE').click()")
+        self.assertEqual(pg.evaluate("getComputedStyle(document.querySelector('#nba-upcoming [id^=\"radar_nba_\"]')).display"), "block")
+        pg.close()
+
     def test_old_placeholder_is_gone(self):
         pg = self.page()
         self.assertNotIn("RETURNING · OCTOBER 2026", pg.content())

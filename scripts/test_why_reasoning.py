@@ -149,17 +149,11 @@ class JsSide(unittest.TestCase):
         self.assertIn("LINE EDITED: the line was changed by hand from", out["edited"])
         self.assertNotIn("MODEL: projection", out["edited"])                   # the old line's projection is not carried onto a different line
 
-    def test_nhl_props_register_and_lock_with_reasoning(self):
-        out = self.pg.evaluate("""()=>{
-          const stats={'Connor McDavid':{name:'Connor McDavid',team:'EDM',ppg:1.35,gpg:0.55,apg:0.8,gp:60}};
-          const props=_generateNHLPropsLive([{h:'EDM',a:'CGY'}],stats);
-          const p=props.find(x=>x.player==='Connor McDavid'&&x.stat==='POINTS');
-          LOCKED_PROPS.length=0;
-          lockNHLProp(p.player,p.stat,p.over?'OVER':'UNDER',p.prob,p.ml,p.line);
-          return {has:!!p,reasoning:p&&p.reasoning,locked:LOCKED_PROPS.slice(-1)[0]&&LOCKED_PROPS.slice(-1)[0].reasoning}}""")
-        self.assertTrue(out["has"])
-        self.assertIn("MODEL: projection", out["reasoning"])
-        self.assertEqual(out["locked"], out["reasoning"])
+    def test_nhl_player_props_are_gone(self):
+        """NHL player props were removed 2026-10-09 (owner request): no generator output, no lock function, no tab."""
+        out = self.pg.evaluate("""()=>({gen:_generateNHLPropsLive([{h:'EDM',a:'CGY'}],{'Connor McDavid':{name:'Connor McDavid',team:'EDM',ppg:1.35}}).length,
+          lock:typeof lockNHLProp,tab:!!document.getElementById('nhl-tab-props'),btn:document.body.innerHTML.includes("T('nhl','props')")})""")
+        self.assertEqual(out, {"gen": 0, "lock": "undefined", "tab": False, "btn": False})
 
     def test_python_prop_lock_passes_the_reasoning_through(self):
         calls = []
@@ -169,9 +163,9 @@ class JsSide(unittest.TestCase):
                 calls.append((js, arg))
                 return "locked"
         A.lock_prop_leg(FakePage(), "NBA", {"team": "NY", "player": "X", "line": 12.5, "over": True, "prob": .6, "ml": "-110", "opp": "BOS", "statAbbr": "REB", "reasoning": "PICK: x"})
-        A.lock_prop_leg(FakePage(), "NHL", {"player": "Y", "stat": "POINTS", "over": False, "prob": .6, "ml": "-110", "line": 0.5, "reasoning": "PICK: y"})
+        self.assertEqual(A.lock_prop_leg(FakePage(), "NHL", {"player": "Y", "stat": "POINTS", "over": False, "prob": .6, "ml": "-110", "line": 0.5, "reasoning": "PICK: y"}), "skipped")
+        self.assertEqual(len(calls), 1)                                          # NHL props are never locked any more: the page is not even called
         self.assertEqual(calls[0][1]["reasoning"], "PICK: x")
-        self.assertEqual(calls[1][1]["reasoning"], "PICK: y")
         self.assertIn("reasoning", calls[0][0])
 
     def test_tracker_list_shows_the_why_row_and_no_stale_nba_spread_claim(self):

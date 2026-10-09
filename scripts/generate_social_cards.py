@@ -506,6 +506,13 @@ _PERIOD_TILES_JS = """
             ['LAST_MONTH', 'LAST MONTH', lastMonthLbl, p => p.lockedAt && p.lockedAt >= firstOfLastMonth.getTime() && p.lockedAt < firstOfMonth.getTime()],
             ['ALL_TIME', 'ALL TIME', '', p => true],
           ];
+          // ROLLING 7D is a SLIDING window: a figure frozen at this file's build time disagrees with the engine terminal a few hours later (the window drops old picks as the clock moves).
+          // So the file also carries the picks that can fall inside any rolling window of the next ~2 days -- [lockedAtMs, 1=win|0=loss, units] -- and the landing page recomputes ROLLING 7D
+          // from them with the VIEWER'S clock, using exactly the rule above (lockedAt >= now - 7 days). Same pick set as every period here (allBets), pushes excluded.
+          window.__rolling7Series = allBets
+            .filter(p => p.lockedAt && p.lockedAt >= now - 9 * 86400000 && (p.outcome === 'win' || p.outcome === 'loss'))
+            .sort((a, b) => a.lockedAt - b.lockedAt)
+            .map(p => [p.lockedAt, p.outcome === 'win' ? 1 : 0, p.outcome === 'win' ? +(((parseFloat(p.decOdds) || 2) - 1)).toFixed(4) : -1]);
           return windows.map(([key, label, sub, f]) => {
             const perf = hCalc(allBets.filter(f));
             const full = hCalc(allRaw.filter(f));
@@ -693,7 +700,14 @@ def write_landing_json(page, now_mt: datetime, pf: dict | None = None, out_dir: 
             res = fn(page, land_pf)
             if res:
                 basis = _landing_basis(basis_fn(pf)) if LANDING_INCLUDES_LATE else basis_fn(pf)
-                (out_dir / name).write_text(json.dumps({"generated_at": stamp, **basis, **wrap(res)}, indent=2))
+                extra = {}
+                if name.startswith("engine_performance"):
+                    # the sliding-window source for ROLLING 7D (see _PERIOD_TILES_JS); [] if the page could not provide it, and the landing page then uses the precomputed period
+                    try:
+                        extra = {"rolling7_series": page.evaluate("() => window.__rolling7Series || []")}
+                    except Exception:
+                        extra = {"rolling7_series": []}
+                (out_dir / name).write_text(json.dumps({"generated_at": stamp, **basis, **wrap(res), **extra}, separators=(",", ":") if extra else None, indent=None if extra else 2))
                 log(f"Wrote {out_dir / name}")
         except Exception as e:
             log(f"WARNING: {name} snapshot failed: {e}")
