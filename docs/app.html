@@ -19605,14 +19605,14 @@ async function renderTopPicksToday(force,dateStr){
 }
 window.renderTopPicksToday=renderTopPicksToday;
 // ══ HOME > MOMENTUM (interactive, 2026-10-09 owner request) ═══════════════════════════════════════════════════════════════════════════════════════
-// "// MOMENTUM — LAST 7D VS ALL-TIME": is the recent window running hot or cold against the all-time baseline.  The headline numbers keep the ORIGINAL rules so the widget can never disagree with the
+// "// MOMENTUM — LAST 7D VS ALL-TIME" (windows: rolling 7D / 14D, THIS MONTH, LAST MONTH): is the recent window running hot or cold against the all-time baseline.  The headline numbers keep the ORIGINAL rules so the widget can never disagree with the
 // cards beside it: the window stats use lockedAt >= now - N days (7D = exactly the ROLLING 7D card), the baseline is the all-time win% of the same in-scope picks (_cvScoped), hot/cold = +/-5 points
-// with at least 5 settled bets.  New: window chips (7D / 14D / 30D), metric (WIN % / UNITS), view (DAILY bars / TREND line), sport filter, hover/tap/keyboard tooltips, a baseline line + hot/cold band,
+// with at least 5 settled bets.  New: window chips (7D / 14D / THIS MONTH / LAST MONTH), metric (WIN % / UNITS), view (DAILY bars / TREND line), sport filter, hover/tap/keyboard tooltips, a baseline line + hot/cold band,
 // and click-to-pin a day to see the picks behind it.  State lives in window._momS (survives the 60 s home re-render); data in window._momData (built by _momBuild from the home page's kept bets).
 window._momS=window._momS||{win:7,metric:'pct',view:'bars',sport:'ALL',pin:null,cur:null};
 const _MOM_SPORTS=['ALL','FOOTBALL','BASKETBALL','HOCKEY','SOCCER'];
-const _MOM_KEEP_DAYS=64;       // enough history for a 30-day rolling window ending 30 days ago
-function _momBuild(kept,nowMs){
+const _MOM_KEEP_DAYS=75;       // enough history for LAST MONTH (up to ~62 days back) plus the rolling windows
+function _momBuild(kept,nowMs,moFrom,lmFrom){
   const cut=nowMs-_MOM_KEEP_DAYS*86400000;
   const sport=p=>{try{return window._broadSportOf(p._spUC||window._normSport(p))||'OTHER';}catch(e){return'OTHER';}};
   const allTime={ALL:{w:0,l:0,u:0}};_MOM_SPORTS.forEach(s=>{allTime[s]=allTime[s]||{w:0,l:0,u:0};});
@@ -19623,26 +19623,40 @@ function _momBuild(kept,nowMs){
     [allTime.ALL,allTime[sp]].forEach(a=>{if(!a)return;if(p.outcome==='win')a.w++;else a.l++;a.u+=u;});
     if((p.lockedAt||0)>=cut||(p.date&&Date.parse(p.date+'T12:00:00')>=cut))picks.push({d:p.date||'',lk:p.lockedAt||0,o:p.outcome==='win'?1:0,u,dec,sp,lg:p._spUC||'',bet:p.betOn||'',gm:(p.awA&&p.hA&&p.awA!==p.hA)?p.awA+' @ '+p.hA:(p.hA||'')});
   });
-  return{now:nowMs,allTime,picks};
+  return{now:nowMs,allTime,picks,moFrom:moFrom||null,lmFrom:lmFrom||null};
 }
 function _momAgg(list){const w=list.reduce((a,p)=>a+p.o,0),n=list.length,l=n-w,u=list.reduce((a,p)=>a+p.u,0);return{w,l,n,pct:n?w/n:null,u};}
+function _momDs(ms){return new Date(ms).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});}
+function _momAdd(ds,k){const d=new Date(ds+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+k);return d.toISOString().slice(0,10);}
+// The four windows: rolling 7D / 14D (lockedAt within N days, same as the ROLLING cards) and THIS MONTH / LAST MONTH (lockedAt inside the calendar month, same boundaries as the THIS MONTH / LAST MONTH cards).
+function _momSpan(){
+  const D=window._momData,S=window._momS,today=_momDs(D.now);
+  if(S.win==='tm'||S.win==='lm'){
+    const tmFrom=D.moFrom?_momDs(D.moFrom):today.slice(0,8)+'01';
+    const isTM=S.win==='tm',from=isTM?tmFrom:(D.lmFrom?_momDs(D.lmFrom):_momAdd(tmFrom,-1).slice(0,8)+'01'),to=isTM?today:_momAdd(tmFrom,-1);
+    const lo=isTM?(D.moFrom||Date.parse(tmFrom+'T00:00:00')):(D.lmFrom||Date.parse(from+'T00:00:00')),hi=isTM?Infinity:(D.moFrom||Date.parse(tmFrom+'T00:00:00'));
+    return{month:true,from,to,lo,hi,title:isTM?'THIS MONTH':'LAST MONTH',tile:isTM?'THIS MO':'LAST MO',n:Math.round((Date.parse(to+'T12:00:00Z')-Date.parse(from+'T12:00:00Z'))/864e5)+1};
+  }
+  const n=+S.win||7;
+  return{month:false,n:Math.max(14,n),win:n,to:today,from:_momAdd(today,-(Math.max(14,n)-1)),lo:D.now-n*864e5,hi:Infinity,title:'LAST '+n+'D',tile:n+'D'};
+}
 function _momDays(){
   const D=window._momData,S=window._momS;if(!D)return null;
-  const N=Math.max(14,S.win),pool=S.sport==='ALL'?D.picks:D.picks.filter(p=>p.sp===S.sport);
+  const sp=_momSpan(),pool=S.sport==='ALL'?D.picks:D.picks.filter(p=>p.sp===S.sport);
   const days=[];
-  for(let i=N-1;i>=0;i--){
-    const ds=new Date(D.now-i*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+  for(let i=0;i<sp.n;i++){
+    const ds=_momAdd(sp.from,i);
     const day=pool.filter(p=>p.d===ds),a=_momAgg(day);
     days.push({ds,day,n:a.n,w:a.w,l:a.l,pct:a.pct,u:a.u});
   }
-  // trend view: win% / cumulative units over the trailing S.win game dates ending on each day
+  // trend view: win% / cumulative units over the trailing N game dates (rolling windows) or from the 1st of the month (month windows) ending on each day
   let cum=0;
   days.forEach((d,i)=>{
     cum+=d.u;d.cum=cum;
-    const from=new Date(D.now-(N-1-i)*86400000-(S.win-1)*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+    const from=sp.month?sp.from:_momAdd(d.ds,-(sp.win-1));
     const win=pool.filter(p=>p.d>=from&&p.d<=d.ds),a=_momAgg(win);d.roll=a;
   });
-  return{days,pool};
+  return{days,pool,span:sp};
 }
 function _momStatus(win,base){
   const MIN_N=5,THRESH=0.05;
@@ -19726,22 +19740,22 @@ function _momPinHTML(days){
 function _momHTML(){
   const D=window._momData,S=window._momS;
   if(!D)return'';
-  const days=_momDays(),pool=days.pool,list=days.days;
+  const days=_momDays(),pool=days.pool,list=days.days,sp=days.span;
   const base0=D.allTime[S.sport]||D.allTime.ALL,baseN=base0.w+base0.l,base=baseN?base0.w/baseN:null;
-  const winPicks=pool.filter(p=>p.lk>=D.now-S.win*86400000),win=_momAgg(winPicks);
+  const winPicks=pool.filter(p=>p.lk>=sp.lo&&p.lk<sp.hi),win=_momAgg(winPicks);
   const st=_momStatus(win,base);
   const streak=(()=>{const s=pool.filter(p=>p.lk).sort((a,b)=>a.lk-b.lk);let n=0,t=null;for(let i=s.length-1;i>=0;i--){if(t===null){t=s[i].o;n=1;}else if(s[i].o===t)n++;else break;}return n?{n,t}:null;})();
   const gaugePos=st.delta==null?50:Math.max(2,Math.min(98,50+st.delta*100*(50/15)));
   const col=st.col==='var(--t3)'?'#9aabb8':st.col;
-  const chips=`<div class="mom-chips"><span class="mom-l">WINDOW</span>${[7,14,30].map(n=>_momChip('win',n,n+'D',S.win===n)).join('')}<span class="mom-l">METRIC</span>${_momChip('metric','pct','WIN %',S.metric==='pct')}${_momChip('metric','u','UNITS',S.metric==='u')}<span class="mom-l">VIEW</span>${_momChip('view','bars','DAILY',S.view==='bars')}${_momChip('view','line','TREND',S.view==='line')}</div>
+  const chips=`<div class="mom-chips"><span class="mom-l">WINDOW</span>${[[7,'7D'],[14,'14D'],['tm','THIS MONTH'],['lm','LAST MONTH']].map(([v,l])=>_momChip('win',v,l,String(S.win)===String(v))).join('')}<span class="mom-l">METRIC</span>${_momChip('metric','pct','WIN %',S.metric==='pct')}${_momChip('metric','u','UNITS',S.metric==='u')}<span class="mom-l">VIEW</span>${_momChip('view','bars','DAILY',S.view==='bars')}${_momChip('view','line','TREND',S.view==='line')}</div>
     <div class="mom-chips"><span class="mom-l">SPORT</span>${_MOM_SPORTS.map(s=>_momChip('sport',s,s,S.sport===s)).join('')}</div>`;
   const tile=(k,v,sub,c)=>`<div class="mom-tile"><div class="mom-k">${k}</div><div class="mom-v" style="color:${c||'var(--t)'}">${v}</div><div class="mom-s">${sub||'&nbsp;'}</div></div>`;
-  const tiles=`<div class="mom-tiles">${tile(S.win+'D WIN %',win.pct!=null?(win.pct*100).toFixed(1)+'%':'--',`${win.w}W-${win.l}L · n${win.n}`,col)}${tile('ALL-TIME',base!=null?(base*100).toFixed(1)+'%':'--',`${base0.w}W-${base0.l}L`)}${tile('VS BASELINE',st.delta!=null?(st.delta>=0?'+':'')+(st.delta*100).toFixed(1)+'pp':'--',`<span class="mom-gauge"><i style="left:${gaugePos}%;background:${col}"></i></span>`,col)}${tile(S.win+'D UNITS',_momU(win.u),streak?`STREAK ${streak.n}${streak.t?'W':'L'}`:'',win.u>=0?'#00e644':'#ff2090')}</div>`;
+  const tiles=`<div class="mom-tiles">${tile(sp.tile+' WIN %',win.pct!=null?(win.pct*100).toFixed(1)+'%':'--',`${win.w}W-${win.l}L · n${win.n}`,col)}${tile('ALL-TIME',base!=null?(base*100).toFixed(1)+'%':'--',`${base0.w}W-${base0.l}L`)}${tile('VS BASELINE',st.delta!=null?(st.delta>=0?'+':'')+(st.delta*100).toFixed(1)+'pp':'--',`<span class="mom-gauge"><i style="left:${gaugePos}%;background:${col}"></i></span>`,col)}${tile(sp.tile+' UNITS',_momU(win.u),streak?`STREAK ${streak.n}${streak.t?'W':'L'}`:'',win.u>=0?'#00e644':'#ff2090')}</div>`;
   const _el=document.getElementById('mom-widget'),W=Math.max(280,Math.round(_el&&_el.clientWidth?_el.clientWidth-24:Math.min(1100,document.documentElement.clientWidth-64)));window._momW=W;setTimeout(_momFit,0);
   const svg=_momChartSVG(list,base,W,S,col);
-  const hint=S.view==='bars'?'DAILY '+(S.metric==='pct'?'WIN %':'UNITS')+' BY GAME DATE · GREEN = AT/ABOVE ALL-TIME':'TRAILING '+S.win+'-DAY '+(S.metric==='pct'?'WIN % (3+ BETS) · SHADED BAND = ±5pp OF ALL-TIME':'CUMULATIVE UNITS');
+  const hint=S.view==='bars'?'DAILY '+(S.metric==='pct'?'WIN %':'UNITS')+' BY GAME DATE · GREEN = AT/ABOVE ALL-TIME':(sp.month?'MONTH-TO-DATE ':'TRAILING '+sp.win+'-DAY ')+(S.metric==='pct'?'WIN % (3+ BETS) · SHADED BAND = ±5pp OF ALL-TIME':'CUMULATIVE UNITS');
   return`<div class="mom-accent" style="background:${col}"></div>
-    <div class="mom-top"><span class="mom-title">// MOMENTUM — LAST ${S.win}D VS ALL-TIME</span><span class="mom-badge" style="color:${col}">${st.arrow} ${st.lbl}</span></div>
+    <div class="mom-top"><span class="mom-title">// MOMENTUM — ${sp.title} VS ALL-TIME</span><span class="mom-badge" style="color:${col}">${st.arrow} ${st.lbl}</span></div>
     ${chips}${tiles}
     <div class="mom-chartwrap" id="mom-chart">${svg}<div class="mom-tip" id="mom-tip" role="status" aria-live="polite"></div></div>
     <div class="mom-hint">${hint} · HOVER, TAP OR USE ← → · CLICK A DAY FOR ITS PICKS</div>
@@ -19756,7 +19770,7 @@ function _momTipFor(i){
   const head=`<b>${_momDateLbl(d.ds).toUpperCase()}</b>`;
   if(S.view==='line'){
     const r=d.roll;
-    return S.metric==='pct'?`${head}<br>${S.win}D ENDING HERE: ${r.n?`${r.w}W-${r.l}L · ${(r.pct*100).toFixed(0)}%`:'no bets'}${r.n>=3&&base!=null?`<br>${(r.pct-base>=0?'+':'')+((r.pct-base)*100).toFixed(1)}pp vs all-time`:''}`:`${head}<br>CUMULATIVE ${_momU(d.cum)}<br>DAY ${_momU(d.u)} · ${d.n} bet${d.n===1?'':'s'}`;
+    return S.metric==='pct'?`${head}<br>${days.span.month?'MONTH TO DATE':days.span.win+'D ENDING HERE'}: ${r.n?`${r.w}W-${r.l}L · ${(r.pct*100).toFixed(0)}%`:'no bets'}${r.n>=3&&base!=null?`<br>${(r.pct-base>=0?'+':'')+((r.pct-base)*100).toFixed(1)}pp vs all-time`:''}`:`${head}<br>CUMULATIVE ${_momU(d.cum)}<br>DAY ${_momU(d.u)} · ${d.n} bet${d.n===1?'':'s'}`;
   }
   if(!d.n)return`${head}<br>no settled bets`;
   return`${head}<br>${d.w}W-${d.l}L · ${(d.pct*100).toFixed(0)}%${base!=null?` (${(d.pct-base>=0?'+':'')+((d.pct-base)*100).toFixed(0)}pp)`:''}<br>${_momU(d.u)} · ${d.n} bet${d.n===1?'':'s'}`;
@@ -19785,7 +19799,7 @@ function _momCursor(i){
     const chip=e.target.closest&&e.target.closest('[data-mom]');
     if(chip){
       const [g,v]=chip.dataset.mom.split(':'),S=window._momS;
-      if(g==='win')S.win=+v;else if(g==='metric')S.metric=v;else if(g==='view')S.view=v;else if(g==='sport')S.sport=v;else if(g==='pin'){S.pin=null;}
+      if(g==='win')S.win=(v==='tm'||v==='lm')?v:+v;else if(g==='metric')S.metric=v;else if(g==='view')S.view=v;else if(g==='sport')S.sport=v;else if(g==='pin'){S.pin=null;}
       if(g!=='pin')S.pin=null;S.cur=null;_momRender();return;
     }
     const hit=e.target.closest&&e.target.closest('.mom-hit');
@@ -19897,7 +19911,7 @@ function renderHomePage(){
     const rAll = hCalc(keptBets);
 
     // ── MOMENTUM WIDGET: interactive since 2026-10-09 (see _momBuild/_momHTML above renderHomePage; same hot/cold rules as the original 2026-10-02 widget).
-    try{window._momData=_momBuild(keptBets,now);}catch(e){window._momData=null;}
+    try{window._momData=_momBuild(keptBets,now,firstOfMonth.getTime(),firstOfLastMonth.getTime());}catch(e){window._momData=null;}
     const momentumHtml=`<div id="mom-widget" class="card mom2">${_momHTML()}</div>`;
 
     // League performance — mirrors the Overall tab's BY LEAGUE grouping,

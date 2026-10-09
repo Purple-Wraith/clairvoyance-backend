@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Home > "// MOMENTUM — LAST 7D VS ALL-TIME" (interactive, 2026-10-09): the headline numbers keep the original rules (window = lockedAt within N days, so 7D equals the ROLLING 7D card; baseline = all-time
-win% of in-scope picks; hot/cold = +/-5 points with 5+ settled bets) and every visual is interactive: window / metric / view / sport chips, tooltips on hover + tap + arrow keys, click-a-day to pin its picks.
+win% of in-scope picks; hot/cold = +/-5 points with 5+ settled bets) and every visual is interactive: window (7D / 14D / THIS MONTH / LAST MONTH) / metric / view / sport chips, tooltips on hover + tap + arrow keys, click-a-day to pin its picks.
 
     python3 scripts/test_home_momentum.py
 """
@@ -20,7 +20,7 @@ class Quiet(http.server.SimpleHTTPRequestHandler):
 def ledger(now_ms):
     """Deterministic in-scope picks: one per (day offset, slot); outcome pattern fixed so the expected numbers are computed independently below."""
     rows, k = [], 0
-    for off in range(0, 40):
+    for off in range(0, 75):
         for slot in range(3):
             k += 1
             win = (k % 4) != 0                                  # 75% wins overall
@@ -82,12 +82,30 @@ class Momentum(unittest.TestCase):
 
     def test_chips_change_window_metric_view_and_sport(self):
         pg = self.page()
-        pg.locator(".mom-chip:has-text('30D')").click()
-        self.assertIn("LAST 30D", pg.inner_text("#mom-widget .mom-title"))
-        win = [r for r in self.rows if r["lockedAt"] >= self.now - 30 * 86400000]
-        w, l, _ = self.agg(win)
+        pg.locator(".mom-chip:has-text('14D')").click()
+        self.assertIn("LAST 14D", pg.inner_text("#mom-widget .mom-title"))
+        w, l, _ = self.agg([r for r in self.rows if r["lockedAt"] >= self.now - 14 * 86400000])
         self.assertIn(f"{w}W-{l}L", pg.inner_text("#mom-widget .mom-tile"))
-        self.assertEqual(pg.locator("#mom-widget .mom-bar2, #mom-widget .mom-empty").count(), 30)       # one bar per day of the 30D window
+        self.assertEqual(pg.locator("#mom-widget .mom-bar2, #mom-widget .mom-empty").count(), 14)
+        self.assertEqual(pg.locator(".mom-chip:has-text('30D')").count(), 0)                            # the old 30D window is gone
+        mo, lmo = pg.evaluate("[mstFirstOfMonth(getMSTNow()).getTime(),mstFirstOfMonth(new Date(getMSTNow().getFullYear(),getMSTNow().getMonth()-1,1)).getTime()]")
+        today = dt.datetime.fromtimestamp(self.now / 1000, MT)
+        pg.locator(".mom-chip:has-text('THIS MONTH')").click()
+        self.assertIn("THIS MONTH VS ALL-TIME", pg.inner_text("#mom-widget .mom-title"))
+        w, l, _ = self.agg([r for r in self.rows if r["lockedAt"] >= mo])
+        self.assertIn(f"{w}W-{l}L", pg.inner_text("#mom-widget .mom-tile"))
+        self.assertEqual(pg.locator("#mom-widget .mom-bar2, #mom-widget .mom-empty").count(), today.day)   # 1st of the month .. today
+        pg.locator(".mom-chip:has-text('LAST MONTH')").click()
+        self.assertIn("LAST MONTH VS ALL-TIME", pg.inner_text("#mom-widget .mom-title"))
+        w, l, u = self.agg([r for r in self.rows if lmo <= r["lockedAt"] < mo])
+        self.assertIn(f"{w}W-{l}L", pg.inner_text("#mom-widget .mom-tile"))
+        days_last = (today.replace(day=1) - dt.timedelta(days=1)).day
+        self.assertEqual(pg.locator("#mom-widget .mom-bar2, #mom-widget .mom-empty").count(), days_last)
+        pg.locator(".mom-chip:has-text('TREND')").click()
+        self.assertGreater(pg.locator("#mom-widget path.mom-line").count(), 0)
+        self.assertIn("MONTH-TO-DATE", pg.inner_text("#mom-widget .mom-hint"))
+        pg.locator(".mom-chip:has-text('DAILY')").click()
+        pg.locator(".mom-chip:has-text('14D')").click()
         pg.locator(".mom-chip:has-text('TREND')").click()
         self.assertGreater(pg.locator("#mom-widget path.mom-line").count(), 0)
         self.assertEqual(pg.locator("#mom-widget .mom-bar2").count(), 0)
@@ -95,7 +113,7 @@ class Momentum(unittest.TestCase):
         self.assertIn("CUMULATIVE UNITS", pg.inner_text("#mom-widget .mom-hint"))
         pg.locator(".mom-chip:has-text('DAILY')").click()
         pg.locator(".mom-chip:has-text('HOCKEY')").click()
-        sp = [r for r in self.rows if r["sport"] == "NHL" and r["lockedAt"] >= self.now - 30 * 86400000]
+        sp = [r for r in self.rows if r["sport"] == "NHL" and r["lockedAt"] >= self.now - 14 * 86400000]
         w2, l2, _ = self.agg(sp)
         self.assertIn(f"{w2}W-{l2}L", pg.inner_text("#mom-widget .mom-tile"))
         pg.locator(".mom-chip:has-text('SOCCER')").click()
