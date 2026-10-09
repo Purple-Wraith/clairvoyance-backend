@@ -661,17 +661,33 @@ def get_sport_performance(page, pf: dict | None = None) -> dict | None:
             // home page's own 'today' toggle and TODAY summary card use, not
             // a "locked in the last 24h" count.
             today: p => p.date === today(),
+            // 2026-10-09 (owner): ROLLING 7D by league -- same rule as the home page's ROLLING 7D card (lockedAt within the last 7 days).
+            rolling7: p => p.lockedAt && p.lockedAt >= Date.now() - 7 * 86400000,
             all: p => true,
           };
           const section = (label, f) => {
             const kept = settledOf(allBets).filter(f), full = settledOf(allRaw).filter(f);
             return { label, leagues: byLeague(kept), excluded_late: nCovered(full) - nCovered(kept) };
           };
+          // ROLLING 7D is a SLIDING window, so a section frozen at this file's build time drifts from the engine terminal as the clock moves. The file therefore also carries, per league label,
+          // the picks that can fall inside any rolling 7-day window over the next ~2 days -- [lockedAtMs, 1=win|0=loss, units] -- and the landing page recomputes ROLLING 7D per league from them
+          // with the viewer's clock (same pick set as every section here: allBets, covered leagues only, pushes excluded).
+          const rolling7_series = {};
+          const nowMs = Date.now();
+          settledOf(allBets).forEach(p => {
+            if (!p.lockedAt || p.lockedAt < nowMs - 9 * 86400000 || (p.outcome !== 'win' && p.outcome !== 'loss')) return;
+            const lm = leagueMap.find(x => window._normSport(p) === x.code);
+            if (!lm) return;
+            (rolling7_series[lm.lbl] = rolling7_series[lm.lbl] || []).push([p.lockedAt, p.outcome === 'win' ? 1 : 0, p.outcome === 'win' ? +(((parseFloat(p.decOdds) || 2) - 1)).toFixed(4) : -1]);
+          });
+          Object.values(rolling7_series).forEach(a => a.sort((x, y) => x[0] - y[0]));
           return {
             today: section('TODAY', win.today),
             lastMonth: section(lastMonthLbl, win.lastMonth),
             thisMonth: section(thisMonthLbl, win.thisMonth),
+            rolling7: section('ROLLING 7D', win.rolling7),
             allTime: section('ALL TIME', win.all),
+            rolling7_series,
           };
         }
         """,

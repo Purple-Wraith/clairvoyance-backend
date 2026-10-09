@@ -760,6 +760,149 @@ body{line-height:1.5}
 #sp-analytics{font-size:18px}
 #sp-analytics table{font-size:17px!important}
 #sp-analytics .empty{font-size:18px!important}
+/* Analytics > Visuals (interactive layer, 2026-10-09) */
+.vz-card{margin-bottom:14px}
+.vz-sh{font-size:17px!important;margin-top:0}
+.vz-note{font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:10px;line-height:1.5}
+.vz-sub{font-family:var(--mono);font-size:12px;color:var(--t3);margin:6px 0;line-height:1.5}
+.vz-chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.vz-between{justify-content:space-between;align-items:center}
+.vz-chip{font-family:var(--mono);font-size:14px;letter-spacing:1px;min-height:38px;padding:4px 12px;border:1px solid rgba(255,255,255,.22);background:rgba(4,0,12,.75);color:var(--t2);border-radius:3px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:color .15s,border-color .15s,background .15s,box-shadow .15s}
+.vz-chip small{font-size:11px;opacity:.75}
+.vz-chip:hover{border-color:var(--vz-c,var(--nc));color:var(--t)}
+.vz-chip[aria-pressed=true]{color:var(--vz-c,var(--nc));border-color:var(--vz-c,var(--nc));background:rgba(255,255,255,.07);box-shadow:0 0 10px -2px var(--vz-c,var(--nc))}
+.vz-leg i{display:inline-block;width:12px;height:12px;border-radius:2px;flex-shrink:0}
+.vz-leg[aria-pressed=true]{color:var(--t);border-color:rgba(255,255,255,.4);box-shadow:none}
+.vz-leg[aria-pressed=false]{opacity:.5;text-decoration:line-through}
+.vz-chip:focus-visible,.vz-chart:focus-visible,.vz-dot:focus-visible,.vz-cell:focus-visible,.vz-tb:focus-visible,.vz-rb:focus-visible,.vz-x:focus-visible{outline:2px solid var(--gc);outline-offset:2px}
+.vz-filter{padding-bottom:10px!important}
+.vz-chart{position:relative;touch-action:pan-y;-webkit-user-select:none;user-select:none;max-width:100%;overflow:hidden}
+.vz-chart svg{display:block;max-width:100%;height:auto}
+.vz-scrub{cursor:crosshair}
+.vz-ax{font-family:var(--mono);font-size:12px;fill:rgba(220,190,255,.78)}
+.vz-pt{cursor:pointer;outline:none}
+.vz-pt:focus-visible circle+circle{stroke:#fff;stroke-width:2.5}
+.vz-tip{position:fixed;z-index:99999;display:none;pointer-events:none;background:rgba(4,0,12,.97);border:1px solid rgba(240,0,255,.55);border-radius:4px;padding:8px 11px;font-family:var(--mono);font-size:14px;line-height:1.5;color:var(--t);box-shadow:0 0 18px rgba(240,0,255,.28);min-width:160px;max-width:min(310px,92vw)}
+.vz-tt{font-family:var(--orb);font-size:12px;letter-spacing:1px;font-weight:700;margin-bottom:4px}
+.vz-tr{display:flex;justify-content:space-between;gap:14px}
+.vz-tr span{color:var(--t3);font-size:12px;letter-spacing:.5px;white-space:nowrap}
+.vz-tr b{font-weight:400;text-align:right;word-break:break-word}
+.vz-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:6px;margin:6px 0 10px}
+.vz-st{background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.07);border-radius:3px;padding:6px 8px}
+.vz-st span{display:block;font-family:var(--mono);font-size:11px;letter-spacing:1px;color:var(--t3)}
+.vz-st b{font-family:var(--orb);font-size:15px;font-weight:700;color:var(--t);white-space:nowrap}
+.vz-detail,.vz-drill{margin-top:10px;padding:10px 12px;background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.1);border-radius:4px;min-height:44px}
+.vz-detail:empty{display:none}
+.vz-strip .vz-detail,.vz-pw .vz-detail{margin-top:4px;margin-bottom:8px}
+.vz-hint{font-family:var(--mono);font-size:12px;letter-spacing:1px;color:var(--t3);text-align:center;padding:6px}
+.vz-dh{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-family:var(--orb);font-size:14px;color:var(--t);margin-bottom:8px}
+.vz-dg{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px 12px}
+.vz-dc span{display:block;font-family:var(--mono);font-size:11px;color:var(--t3);letter-spacing:1px}
+.vz-dc b{font-family:var(--mono);font-size:14px;font-weight:400;color:var(--t)}
+.vz-res,.vz-gr{font-family:var(--mono);font-size:12px;letter-spacing:1px;padding:1px 7px;border:1px solid;border-radius:3px;white-space:nowrap}
+.vz-x{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:1px;min-height:34px;padding:2px 10px;background:none;border:1px solid rgba(255,255,255,.25);color:var(--t2);border-radius:3px;cursor:pointer}
+.vz-strip{margin-bottom:12px}
+.vz-striph{display:flex;justify-content:space-between;align-items:baseline;gap:6px;flex-wrap:wrap;margin-bottom:3px}
+.vz-dots{display:flex;flex-wrap:wrap}
+.vz-dot{width:22px;height:22px;padding:0;background:none;border:0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .2s}
+.vz-dot i{display:block;border-radius:50%;transition:transform .12s}
+.vz-dot:hover i,.vz-dot:focus-visible i{transform:scale(1.5)}
+.vz-dot.sel i{outline:2px solid #fff;outline-offset:2px}
+.vz-off-sw .vz-dot[data-o=win],.vz-off-sl .vz-dot[data-o=loss],.vz-off-sp .vz-dot[data-o=push]{opacity:.1}
+.vz-prow{display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.06);border-radius:3px;margin-bottom:5px}
+.vz-pname{flex:1;min-width:0}
+.vz-pdots{flex-shrink:0;flex-wrap:nowrap}
+.vz-pdots .vz-dot{width:20px}
+.vz-pct{position:relative;font-family:var(--mono);font-size:14px;font-weight:700;min-width:46px;text-align:right;padding-bottom:6px;flex-shrink:0}
+.vz-pct i{position:absolute;right:0;bottom:0;height:3px;border-radius:2px;opacity:.85;max-width:100%}
+.vz-tbars{margin:6px 0 14px}
+.vz-tb{display:grid;grid-template-columns:92px 1fr 86px;align-items:center;gap:10px;width:100%;min-height:44px;background:none;border:0;border-bottom:1px solid rgba(255,255,255,.06);padding:4px 4px;cursor:pointer;text-align:left;color:var(--t);transition:background .15s}
+.vz-tb:hover,.vz-tb[aria-pressed=true]{background:rgba(255,255,255,.06)}
+.vz-tbl{font-family:var(--orb);font-size:13px;font-weight:700}
+.vz-trk{position:relative;height:16px;background:rgba(255,255,255,.08);border-radius:3px}
+.vz-bar{position:absolute;top:0;bottom:0;border-radius:3px;display:block}
+.vz-claim{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;opacity:.9}
+.vz-tbleg{font-family:var(--mono);font-size:11px;color:var(--t3);margin-top:6px}
+.vz-tbleg .vz-claim{position:static;display:inline-block;height:10px;vertical-align:middle}
+.vz-tbv b{font-family:var(--orb);font-size:15px}
+.vz-tbv small{display:block;font-family:var(--mono);font-size:11px;color:var(--t3)}
+.vz-hrow{display:grid;grid-template-columns:106px repeat(3,minmax(0,1fr));gap:5px;align-items:center;margin-bottom:6px}
+.vz-rrow{display:grid;grid-template-columns:106px repeat(4,minmax(0,1fr));gap:4px;align-items:center;margin-bottom:6px}
+.vz-cell{display:block;width:100%;text-align:center;padding:9px 4px;border-radius:4px;border:1px solid rgba(255,255,255,.12);cursor:pointer;color:var(--t);min-height:50px;font:inherit;transition:transform .12s,border-color .12s}
+button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.55)}
+.vz-cell[aria-pressed=true]{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.35)!important}
+.vz-na{padding:14px 4px;font-family:var(--mono);font-size:11px;color:var(--t3);background:rgba(255,255,255,.02);cursor:default;border-color:transparent;min-height:0}
+.vz-rp{display:grid;grid-template-columns:76px 1fr auto 58px;gap:8px;align-items:center;padding:6px 0;border-top:1px solid rgba(255,255,255,.06);font-family:var(--mono);font-size:13px}
+.vz-rpd{color:var(--t3)}
+.vz-rpb{min-width:0}
+.vz-rpb b{font-weight:400;color:var(--t)}
+.vz-rpb small{display:block;color:var(--t3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vz-rpu{text-align:right}
+.vz-rb{display:grid;grid-template-columns:minmax(110px,160px) 1fr 84px;gap:10px;align-items:center;width:100%;min-height:42px;background:none;border:0;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer;color:var(--t);text-align:left;padding:3px 4px;transition:background .15s}
+.vz-rb:hover{background:rgba(255,255,255,.06)}
+.vz-rbl b{font-family:var(--orb);font-size:12px}
+.vz-rbl small{font-family:var(--mono);font-size:13px;color:var(--t2)}
+.vz-rtrk{position:relative;height:14px;background:rgba(255,255,255,.05);border-radius:3px}
+.vz-rtrk::after{content:'';position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:rgba(255,255,255,.4)}
+.vz-rbv{font-family:var(--orb);font-size:14px;font-weight:700;text-align:right}
+.vz-rbv small{display:block;font-family:var(--mono);font-size:11px;color:var(--t3);font-weight:400}
+.vz-line{transition:opacity .25s}
+.vz-fade,.vz-band,.vz-counts,.vz-dd,.vz-trend,.vz-diag,.vz-g-win,.vz-g-loss{transition:opacity .3s}
+.vz-off-band .vz-band,.vz-off-counts .vz-counts,.vz-off-diag .vz-diag,.vz-off-dd .vz-dd,.vz-off-win .vz-g-win,.vz-off-loss .vz-g-loss,.vz-off-trend .vz-trend{opacity:0;pointer-events:none}
+.vz-pulse{transform-box:fill-box;transform-origin:center;animation:vz-pulse 2.2s ease-out infinite}
+@keyframes vz-pulse{0%{transform:scale(1);opacity:.9}100%{transform:scale(3.4);opacity:0}}
+@keyframes vz-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes vz-fadein{from{opacity:0}to{opacity:1}}
+@keyframes vz-pop{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:scale(1)}}
+@keyframes vz-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.vz-anim .vz-line{stroke-dasharray:1;stroke-dashoffset:1;animation:vz-draw .9s ease-out .05s forwards}
+.vz-anim .vz-fade{animation:vz-fadein .6s ease-out .45s backwards}
+.vz-anim .vz-pop{transform-box:fill-box;transform-origin:center;animation:vz-pop .45s ease-out var(--d,.4s) backwards}
+.vz-anim .vz-bar{transform-origin:left center;animation:vz-grow .7s ease-out backwards}
+.vz-anim .vz-dot i{animation:vz-pop .35s ease-out backwards}
+@media(max-width:560px){
+  .vz-hrow{grid-template-columns:70px repeat(3,minmax(0,1fr))}
+  .vz-rrow{grid-template-columns:70px repeat(4,minmax(0,1fr))}
+  .vz-tb{grid-template-columns:76px 1fr 82px;gap:8px}
+  .vz-rb{grid-template-columns:96px 1fr 70px;gap:8px}
+  .vz-prow{flex-wrap:wrap}
+  .vz-pname{flex-basis:calc(100% - 62px)}
+  .vz-pct{order:2}
+  .vz-pdots{order:3;flex-basis:100%}
+  .vz-chip{padding:4px 10px;font-size:13px}
+  .vz-rp{grid-template-columns:62px 1fr auto 46px;gap:6px}
+}
+/* classes (not inline font-size, which the app's mobile font cap would flatten to 8px) */
+.vz-cl{font-family:var(--mono);font-size:14px;letter-spacing:1px}
+.vz-cl small{font-size:.8em;opacity:.75}
+.vz-emptyc{padding:18px;font-size:15px!important}
+.vz-ax10{font-size:10px}
+.vz-ax11{font-size:11px}
+.vz-fin{font-size:13px}
+.vz-hh{text-align:center;font-family:var(--mono);font-size:12px;letter-spacing:1px}
+.vz-hhs{font-size:10px;opacity:.75;color:var(--t3)}
+.vz-cv{font-family:var(--orb);font-size:16px;font-weight:700;color:var(--t)}
+.vz-cs{font-family:var(--mono);font-size:11px;color:var(--t2)}
+.vz-rl{font-family:var(--orb);font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis}
+.vz-sl{font-family:var(--orb);font-size:15px;font-weight:700}
+.vz-pn{font-family:var(--orb);font-size:15px;font-weight:700;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vz-ps{font-family:var(--mono);font-size:12px;color:var(--pc)}
+@media(max-width:560px){
+  .vz-cl{font-size:12px;letter-spacing:.5px}
+  .vz-cv{font-size:14px}
+  .vz-hh,.vz-cs{font-size:10px}
+  .vz-hhs{font-size:9px}
+  .vz-rl{font-size:8.5px;text-overflow:clip}
+  .vz-st b{font-size:12.5px}
+  .vz-stats{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
+  .vz-sl{font-size:13px}
+  .vz-pn{font-size:14px}
+}
+@media (prefers-reduced-motion:reduce){
+  .vz-anim *,.vz-pulse{animation:none!important}
+  .vz-anim .vz-line{stroke-dasharray:none;stroke-dashoffset:0}
+  .vz-chip,.vz-dot i,.vz-cell,.vz-tb,.vz-rb,.vz-fade,.vz-band,.vz-counts,.vz-dd,.vz-trend,.vz-diag,.vz-g-win,.vz-g-loss{transition:none}
+}
 </style>
 </head>
 <body>
@@ -29207,303 +29350,520 @@ function _vzOpenSplinePath(pts){
   return d;
 }
 
+// ═══ INTERACTIVE LAYER (2026-10-09, owner: "enhance the visuals and make them interactive") ═══════════════════════════
+// Every chart below keeps its original data + record basis (_vzSettled / _aP, _pbIn / _vzPnl price basis, _cvScoped via
+// _normSport). What changed: shared sport filter chips, hover / tap / keyboard tooltips, scrub crosshair, drill-downs, legend
+// toggles, sort options and a short first-render animation. State lives in _vzS (module scope); the chart geometry for each
+// rendered chart is kept in _vzReg so ONE set of delegated listeners (bound once on #analytics-visuals-content) can drive them.
+const _vzS={flt:'ALL',per:'ALL',lg:'ALL',roiMode:'roi',roiSort:'default',roiView:'matrix',plSort:'vol',tier:null,
+  off:{band:false,counts:false,diag:false,dd:false,win:false,loss:false,trend:false,sw:false,sl:false,sp:false}};
+let _vzCtx=null,_vzReg={},_vzUid=0,_vzHot=null,_vzRaf=0,_vzLastMove=null,_vzNoAnim=false;
+const _VZ_UP='#00e644',_VZ_DN='#ff2090',_VZ_PUSH='#ffdd00',_VZ_AX='rgba(220,190,255,.78)';
+const _VZ_KEYS=['cal','eq','tier','streak','pl','sc','roi'];
+function _vzEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function _vzSign(v,d){d=d==null?1:d;return(v>=0?'+':'−')+Math.abs(v).toFixed(d);}
+function _vzOutCol(o){return o==='win'?_VZ_UP:o==='push'?_VZ_PUSH:_VZ_DN;}
+const _VZ_MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function _vzDate(d){const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||'');return m?_VZ_MON[+m[2]-1]+' '+(+m[3])+" '"+m[1].slice(2):(d||'—');}
+function _vzShiftDate(d,days){return new Date(Date.parse(d+'T00:00:00Z')+days*864e5).toISOString().slice(0,10);}
+function _vzMatchup(p){return(p.awA&&p.hA)?p.awA+' @ '+p.hA:(p.betOn||'');}
+function _vzChartW(){const el=document.getElementById('analytics-visuals-content');const w=el?el.clientWidth-(window.matchMedia&&matchMedia('(max-width:480px)').matches?20:36):0;return w>200?Math.min(1600,Math.round(w)):640;}
+function _vzDateY(d,y){const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||'');return m?_VZ_MON[+m[2]-1]+' '+(+m[3])+(y?" '"+m[1].slice(2):''):(d||'—');}
+function _vzNice(lo,hi,cnt){
+  const span=(hi-lo)||1,raw=span/cnt,mag=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/mag;
+  const step=(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*mag;
+  const a=Math.floor(lo/step+1e-9)*step,b=Math.ceil(hi/step-1e-9)*step,ticks=[];
+  for(let v=a;v<=b+step/2;v+=step)ticks.push(+v.toFixed(6));
+  return{lo:a,hi:b,ticks,step};
+}
+function _vzWilson(w,n){const z=1.96,p=w/n,d=1+z*z/n,c=p+z*z/(2*n),a=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n));return[Math.max(0,(c-a)/d)*100,Math.min(1,(c+a)/d)*100];}
+// Aggregate a list of settled picks: record, units / ROI on the chosen price basis (only _pbIn picks count toward units AND the ROI denominator).
+function _vzAgg(bets){
+  let w=0,l=0,ps=0,u=0,nIn=0,od=0,nOd=0;
+  bets.forEach(p=>{
+    if(p.outcome==='win')w++;else if(p.outcome==='loss')l++;else if(p.outcome==='push')ps++;
+    if(_pbIn(p)){u+=_vzPnl(p);nIn++;}
+    const o=parseFloat(p.decOdds);if(o>1){od+=o;nOd++;}
+  });
+  const n=bets.length;
+  return{n,w,l,ps,u,nIn,pct:n?w/n*100:0,roi:nIn?u/nIn*100:0,avgOdds:nOd?od/nOd:0};
+}
+function _vzGrade(ctx,p){let g=ctx.gr.get(p);if(g===undefined){g=_gradeLabel(p)||'';ctx.gr.set(p,g);}return g;}
+function _vzGradeChip(g){if(!g)return'';const c=_gradeColVar(g);return`<span class="vz-gr" style="color:${c};border-color:${c}">${_vzEsc(g)}</span>`;}
+function _vzTipRows(title,rows,accent){
+  return`<div class="vz-tt" style="color:${accent||'var(--nc)'}">${title}</div>`+rows.map(r=>`<div class="vz-tr"><span>${r[0]}</span><b${r[2]?` style="color:${r[2]}"`:''}>${r[1]}</b></div>`).join('');
+}
+function _vzPickTipHTML(p){
+  const oc=_vzOutCol(p.outcome),g=_gradeLabel(p);
+  const pn=_pbIn(p)?_vzSign(_vzPnl(p),2)+'u':'n/a (other price basis)';
+  const rows=[['GAME',_vzEsc(_vzMatchup(p))],['BET',_vzEsc(p.betOn||'—')]];
+  if(p.winProb!=null)rows.push(['MODEL PROB',(p.winProb*100).toFixed(1)+'%']);
+  if(parseFloat(p.decOdds)>1)rows.push(['ODDS',parseFloat(p.decOdds).toFixed(2)]);
+  if(g)rows.push(['GRADE',_vzEsc(g),_gradeColVar(g)]);
+  rows.push(['RESULT',_vzEsc((p.outcome||'').toUpperCase()),oc],['UNITS',pn,oc]);
+  return _vzTipRows(_vzDate(p.date)+' · '+_vzEsc(window._normSport(p))+(p.betType?' · '+_vzEsc(p.betType):''),rows,oc);
+}
+function _vzPickDetailHTML(p){
+  const oc=_vzOutCol(p.outcome),g=_gradeLabel(p);
+  const cell=(k,v,c)=>`<div class="vz-dc"><span>${k}</span><b${c?` style="color:${c}"`:''}>${v}</b></div>`;
+  const u=_pbIn(p)?_vzSign(_vzPnl(p),2)+'u':'—';
+  return`<div class="vz-dh"><span class="vz-res" style="color:${oc};border-color:${oc}">${_vzEsc((p.outcome||'').toUpperCase())}</span><b>${_vzEsc(p.betOn||'—')}</b>${_vzGradeChip(g)}</div>`
+    +`<div class="vz-dg">${cell('GAME',_vzEsc(_vzMatchup(p)))}${cell('DATE',_vzDate(p.date))}${cell('LEAGUE',_vzEsc(window._normSport(p)))}${cell('TYPE',_vzEsc(p.betType||'—'))}${cell('MODEL PROB',p.winProb!=null?(p.winProb*100).toFixed(1)+'%':'—')}${cell('ODDS',parseFloat(p.decOdds)>1?parseFloat(p.decOdds).toFixed(2):'—')}${cell('UNITS',u,oc)}</div>`;
+}
+const _VZ_DETAIL_HINT='<div class="vz-hint">TAP OR CLICK A POINT TO PIN THAT PICK HERE</div>';
+function _vzHead(icon,title){return`<div class="sh vz-sh"><span class="${icon}"></span> ${title}</div>`;}
+function _vzChip(act,v,label,on,col){return`<button type="button" class="vz-chip" data-vzact="${act}" data-v="${_vzEsc(v)}" aria-pressed="${on?'true':'false'}"${col?` style="--vz-c:${col}"`:''}><span class="vz-cl">${label}</span></button>`;}
+function _vzLegend(key,label,swatch){return`<button type="button" class="vz-chip vz-leg" data-vzact="leg" data-v="${key}" aria-pressed="${_vzS.off[key]?'false':'true'}"><i style="${swatch}"></i><span class="vz-cl">${label}</span></button>`;}
+function _vzReport(kind,props){const id=String(++_vzUid);_vzReg[id]=Object.assign({kind,id},props);return id;}
+function _vzEmptyChart(msg){return`<div class="empty vz-emptyc">${msg}</div>`;}
+// Hover / tap tooltip: ONE fixed-position element shared by every chart.
+function _vzTipEl(){let t=document.getElementById('vz-tip');if(!t){t=document.createElement('div');t.id='vz-tip';t.className='vz-tip';t.setAttribute('role','status');document.body.appendChild(t);}return t;}
+function _vzTipShow(html,x,y,pad){
+  const t=_vzTipEl();pad=pad==null?14:pad;t.innerHTML=html;t.style.display='block';
+  const w=t.offsetWidth,h=t.offsetHeight;
+  let L=x-w/2,T=y-h-pad;if(T<6)T=y+pad+10;
+  L=Math.max(6,Math.min(L,window.innerWidth-w-6));T=Math.max(6,Math.min(T,window.innerHeight-h-6));
+  t.style.left=L+'px';t.style.top=T+'px';
+}
+function _vzTipHide(){const t=document.getElementById('vz-tip');if(t&&t.style.display!=='none')t.style.display='none';}
+// SVG user-space point -> client pixels (the chart is rendered at 1 user unit ~ 1 px but may be scaled by CSS).
+function _vzClient(host,r,x,y){const b=host.querySelector('svg').getBoundingClientRect();return{x:b.left+x*b.width/r.W,y:b.top+y*b.height/r.H,sc:b.width/r.W,left:b.left,top:b.top};}
+function _vzUser(host,r,cx,cy){const b=host.querySelector('svg').getBoundingClientRect();return{x:(cx-b.left)*r.W/b.width,y:(cy-b.top)*r.H/b.height};}
+// Pinned-pick panel: the one next to the clicked strip / player row when the card has several, else the card's own; any other panel in the card is cleared.
+function _vzSetDetail(el,html){
+  const s=el.closest('.vz-slot');if(!s)return;
+  const near=el.closest('.vz-strip,.vz-pw'),d=(near&&near.querySelector('.vz-detail'))||s.querySelector('.vz-detail');
+  s.querySelectorAll('.vz-detail').forEach(x=>{if(x!==d&&!x.querySelector('.vz-hint'))x.innerHTML='';});
+  if(d)d.innerHTML=html;
+}
+function _vzAttr(el,o){Object.keys(o).forEach(k=>el.setAttribute(k,o[k]));}
+
 // ── #1: Reliability / calibration curve ───────────────────────────────
-// Buckets settled, probability-tagged picks by their stored winProb (5pp
-// bands from 50% up, plus a catch-all <50% bucket for underdog value
-// bets), plots real win rate per bucket as a smoothed curve against the
-// y=x "perfectly calibrated" dashed diagonal. Buckets under `minN` render
-// smaller/fainter (not hidden — hiding a thin bucket would silently erase
-// exactly the kind of small-sample overconfidence this chart exists to
-// surface) so a 2-bet 100% bucket doesn't visually outweigh a 40-bet 58%
-// one.
-function _vzCalibrationChartSVG(bets,colorHex,minN){
-  minN=minN||8;
-  const bands=[{lo:0,hi:50,lbl:'<50'},{lo:50,hi:55},{lo:55,hi:60},{lo:60,hi:65},{lo:65,hi:70},{lo:70,hi:75},{lo:75,hi:80},{lo:80,hi:85},{lo:85,hi:90},{lo:90,hi:101,lbl:'90+'}];
-  const bucketed=bands.map(b=>{
+// Buckets settled, probability-tagged picks by their stored winProb (5pp bands from 50% up, plus a catch-all <50% bucket for
+// underdog value bets) and plots the real win rate per bucket against the y=x "perfectly calibrated" diagonal. Buckets under
+// `minN` render smaller/fainter (never hidden: hiding a thin bucket would erase exactly the small-sample overconfidence this
+// chart exists to surface). New: 95% Wilson interval band, per-bucket sample-size bars, hover/tap/keyboard bin tooltip.
+const _VZ_BANDS=[{lo:0,hi:50,lbl:'<50%'},{lo:50,hi:55},{lo:55,hi:60},{lo:60,hi:65},{lo:65,hi:70},{lo:70,hi:75},{lo:75,hi:80},{lo:80,hi:85},{lo:85,hi:90},{lo:90,hi:101,lbl:'90%+'}];
+function _vzCalBins(bets){
+  return _VZ_BANDS.map(b=>{
     const bb=bets.filter(p=>{const wp=(p.winProb||0)*100;return wp>=b.lo&&wp<b.hi;});
     if(!bb.length)return null;
-    const w=bb.filter(p=>p.outcome==='win').length;
-    const mid=(b.lo+Math.min(b.hi,100))/2;
-    return{mid,n:bb.length,acc:w/bb.length*100};
+    const w=bb.filter(p=>p.outcome==='win').length,n=bb.length,ci=_vzWilson(w,n);
+    return{lbl:b.lbl||(b.lo+'–'+b.hi+'%'),mid:(b.lo+Math.min(b.hi,100))/2,n,w,l:bb.filter(p=>p.outcome==='loss').length,acc:w/n*100,lo:ci[0],hi:ci[1]};
   }).filter(Boolean);
-  if(bucketed.length<2)return null;
-  const W=640,H=300,ML=46,MR=14,MT=20,MB=38;
-  const plotW=W-ML-MR,plotH=H-MT-MB;
-  const xOf=v=>ML+(v/100)*plotW;
-  const yOf=v=>MT+plotH-(v/100)*plotH;
-  const gridY=[0,25,50,75,100].map(v=>`<line x1="${ML}" y1="${yOf(v).toFixed(1)}" x2="${W-MR}" y2="${yOf(v).toFixed(1)}" stroke="rgba(255,255,255,.07)" stroke-width="1"/><text x="${ML-7}" y="${(yOf(v)+4).toFixed(1)}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.55)">${v}%</text>`).join('');
-  const gridX=[0,25,50,75,100].map(v=>`<text x="${xOf(v).toFixed(1)}" y="${H-MB+18}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.55)">${v}%</text>`).join('');
-  const diag=`<line x1="${xOf(0).toFixed(1)}" y1="${yOf(0).toFixed(1)}" x2="${xOf(100).toFixed(1)}" y2="${yOf(100).toFixed(1)}" stroke="rgba(255,255,255,.4)" stroke-width="1.5" stroke-dasharray="5,5"/>`;
-  const pts=bucketed.map(b=>[xOf(b.mid),yOf(b.acc)]);
-  const path=_vzOpenSplinePath(pts);
-  const gid='vzCalibGlow'+Math.round(Math.random()*1e9);
-  // Labels alternate above/below their dot by bucket index parity (rather
-  // than always above) — with 10 bands often sitting close together in y
-  // when the curve is roughly flat across a stretch, always-above labels
-  // collided into unreadable overlapping text. A small pill background
-  // behind each label keeps it legible over the curve/gridlines too.
-  const dots=bucketed.map((b,i)=>{
-    const dim=b.n<minN;
-    const r=dim?3:5.5;
-    const op=dim?0.45:1;
-    const[x,y]=pts[i];
-    const above=i%2===0;
-    const ly=above?y-14:y+20;
-    const lbl=`${b.acc.toFixed(0)}% n${b.n}`;
-    const lw=lbl.length*5.6+6;
-    return`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${colorHex}" fill-opacity="${op}" filter="url(#${gid})"><title>Predicted ~${b.mid.toFixed(0)}% — actual ${b.acc.toFixed(1)}% (n=${b.n})</title></circle>`
-      +`<rect x="${(x-lw/2).toFixed(1)}" y="${(ly-9).toFixed(1)}" width="${lw.toFixed(1)}" height="13" rx="3" fill="rgba(4,0,12,.72)"/>`
-      +`<text x="${x.toFixed(1)}" y="${(ly+1).toFixed(1)}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="rgba(230,230,255,${dim?0.55:0.9})">${lbl}</text>`;
-  }).join('');
-  return`<svg viewBox="0 0 ${W} ${H}" width="100%" height="280" role="img" aria-label="Calibration curve: predicted win probability vs actual win rate">`
-    +`<defs>${_vzGlowDefs(gid,colorHex,3)}</defs>`
-    +gridY+gridX+diag
-    +`<path d="${path}" fill="none" stroke="${colorHex}" stroke-width="2.5" filter="url(#${gid})"/>`
-    +dots
-    +`<text x="${ML}" y="14" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.7)">ACTUAL WIN RATE ↑</text>`
-    +`<text x="${W-MR}" y="${H-6}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.7)">PREDICTED WIN PROB →</text>`
-    +`</svg>`;
 }
-function _vzCalibrationCardHTML(allSettled){
-  const withProb=allSettled.filter(p=>p.winProb!=null);
-  if(withProb.length<10)return _vzEmptyCardHTML('RELIABILITY CURVE — PREDICTED VS ACTUAL','Needs at least 10 settled, probability-tagged bets to plot a meaningful curve.');
-  const tabs=[];
-  const pushTab=(label,bets,hex)=>{
-    if(bets.length<10)return;
-    const svg=_vzCalibrationChartSVG(bets,hex,8);
-    if(!svg)return;
-    tabs.push({label,svg:`<div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-bottom:6px">${bets.length} settled, probability-tagged bets</div>${svg}`});
-  };
-  pushTab('ALL',withProb,'#00f0ff');
-  _VZ_LEAGUE_CODES.forEach(code=>pushTab(code,withProb.filter(p=>window._normSport(p)===code),_VZ_LEAGUE_HEX[code]||'#00f0ff'));
-  return`<div class="card" style="margin-bottom:14px">
-    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="nc"></span> RELIABILITY CURVE — PREDICTED VS ACTUAL</div>
-    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Buckets every settled pick by the win probability the model gave it at lock time, then plots how often that bucket actually won. The dashed diagonal is "perfectly calibrated" — a curve sitting below it means the model was overconfident there. Small/faint points are low-sample buckets (under 8 bets) and shouldn't be trusted as hard as the bigger ones. Switch leagues below — this is the exact view that caught SHL/LIIGA/NLA/Extraliga grading PREMIUM at ~75% predicted while actually hitting 50-65%; averaging all hockey together would hide that.</div>
-    ${tabs.length?_radarTabPanelHTML('vzcalib',tabs):'<div class="empty">NO SINGLE LEAGUE HAS 10+ PROBABILITY-TAGGED SETTLED BETS YET</div>'}
+function _vzCalTip(b,minN){
+  const gap=b.acc-b.mid,gc=gap>=0?_VZ_UP:_VZ_DN;
+  return _vzTipRows('PREDICTED '+b.lbl,[['ACTUAL WIN RATE',b.acc.toFixed(1)+'%'],['RECORD',b.w+'W–'+b.l+'L'+(b.n-b.w-b.l?'–'+(b.n-b.w-b.l)+'P':'')],['SAMPLE','n = '+b.n+(b.n<minN?' (LOW)':''),b.n<minN?_VZ_PUSH:''],['95% BAND',b.lo.toFixed(0)+'–'+b.hi.toFixed(0)+'%'],['VS BAND MIDPOINT',_vzSign(gap)+'pp '+(gap>=0?'(under-confident)':'(over-confident)'),gc]],'#00f0ff');
+}
+function _vzCalibrationChartSVG(ctx,bets,colorHex,minN,anim){
+  const bins=_vzCalBins(bets);
+  if(bins.length<2)return null;
+  const W=ctx.W,compact=W<480,H=compact?270:320,ML=compact?40:48,MR=12,MT=26,MB=compact?36:40;
+  const plotW=W-ML-MR,plotH=H-MT-MB;
+  const xOf=v=>ML+(v/100)*plotW,yOf=v=>MT+plotH-(v/100)*plotH;
+  const gid='vzCalGlow'+(++_vzUid);
+  const gridY=[0,25,50,75,100].map(v=>`<line x1="${ML}" y1="${yOf(v).toFixed(1)}" x2="${W-MR}" y2="${yOf(v).toFixed(1)}" stroke="rgba(255,255,255,.08)"/><text x="${ML-7}" y="${(yOf(v)+4).toFixed(1)}" text-anchor="end" class="vz-ax">${v}%</text>`).join('');
+  const gridX=[0,25,50,75,100].map(v=>`<text x="${xOf(v).toFixed(1)}" y="${H-MB+17}" text-anchor="middle" class="vz-ax">${v}%</text>`).join('');
+  const diag=`<line class="vz-diag" x1="${xOf(0).toFixed(1)}" y1="${yOf(0).toFixed(1)}" x2="${xOf(100).toFixed(1)}" y2="${yOf(100).toFixed(1)}" stroke="rgba(255,255,255,.5)" stroke-width="1.5" stroke-dasharray="5,5"/>`;
+  const pts=bins.map(b=>[xOf(b.mid),yOf(b.acc)]);
+  const up=bins.map(b=>[xOf(b.mid),yOf(b.hi)]),lo=bins.map(b=>[xOf(b.mid),yOf(b.lo)]).reverse();
+  const band=`<path class="vz-band vz-fade" d="${_vzOpenSplinePath(up)} L${lo[0][0].toFixed(1)},${lo[0][1].toFixed(1)} ${_vzOpenSplinePath(lo).replace(/^M[^C]*/,'')} Z" fill="${colorHex}" fill-opacity=".14" stroke="none"/>`;
+  const maxN=Math.max.apply(null,bins.map(b=>b.n)),bw=Math.max(7,Math.min(26,plotW*0.035));
+  const counts=`<g class="vz-counts vz-fade">`+bins.map(b=>{const h=Math.max(2,b.n/maxN*plotH*0.2),x=xOf(b.mid);return`<rect x="${(x-bw/2).toFixed(1)}" y="${(MT+plotH-h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${colorHex}" fill-opacity=".28"/>`+(compact?'':`<text x="${x.toFixed(1)}" y="${(MT+plotH-h-3).toFixed(1)}" text-anchor="middle" class="vz-ax vz-ax10">n${b.n}</text>`);}).join('')+`</g>`;
+  const dots=bins.map((b,i)=>{
+    const dim=b.n<minN,[x,y]=pts[i],above=i%2===0,ly=above?y-13:y+21,lbl=b.acc.toFixed(0)+'%',lw=lbl.length*6.4+8;
+    return`<g class="vz-pt vz-pop" data-vzi="${i}" tabindex="0" role="button" aria-label="Predicted ${_vzEsc(b.lbl)}: actual ${b.acc.toFixed(1)} percent, ${b.n} bets" style="--d:${(0.5+i*0.04).toFixed(2)}s">`
+      +`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="14" fill="transparent"/>`
+      +`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${dim?3.4:5.6}" fill="${colorHex}" fill-opacity="${dim?.5:1}" filter="url(#${gid})"/>`
+      +(compact?'':`<rect x="${(x-lw/2).toFixed(1)}" y="${(ly-10).toFixed(1)}" width="${lw.toFixed(1)}" height="14" rx="3" fill="rgba(4,0,12,.75)"/><text x="${x.toFixed(1)}" y="${(ly+1).toFixed(1)}" text-anchor="middle" class="vz-ax vz-ax11" style="fill:rgba(236,236,255,${dim?.6:.95})">${lbl}</text>`)
+      +`</g>`;
+  }).join('');
+  const colW=Math.max(14,plotW*0.05);
+  const id=_vzReport('cal',{W,H,ML,MT,plotH,pts,bins,minN,colW,i:-1,
+    at(host,i,src){
+      if(i<0||i>=bins.length)return;this.i=i;const b=bins[i],c=_vzClient(host,this,pts[i][0],pts[i][1]);
+      const hl=host.querySelector('.vz-hl'),ring=host.querySelector('.vz-ring');
+      _vzAttr(hl,{x:(pts[i][0]-colW/2).toFixed(1),width:colW.toFixed(1)});hl.style.display='';
+      _vzAttr(ring,{cx:pts[i][0].toFixed(1),cy:pts[i][1].toFixed(1)});ring.style.display='';
+      _vzTipShow(_vzCalTip(b,minN),c.x,c.y,12);
+    },
+    move(host,cx,cy,focus){
+      if(focus){this.at(host,this.i<0?0:this.i,'focus');return;}
+      const u=_vzUser(host,this,cx,cy);let best=0,bd=1e9;
+      pts.forEach((p,i)=>{const d=Math.abs(p[0]-u.x);if(d<bd){bd=d;best=i;}});
+      this.at(host,best,'move');
+    },
+    leave(host){host.querySelector('.vz-hl').style.display='none';host.querySelector('.vz-ring').style.display='none';},
+    key(host,e){
+      const k=e.key;if(k!=='ArrowLeft'&&k!=='ArrowRight'&&k!=='Home'&&k!=='End')return false;
+      let i=this.i<0?0:this.i;i=k==='Home'?0:k==='End'?bins.length-1:Math.max(0,Math.min(bins.length-1,i+(k==='ArrowRight'?1:-1)));
+      const pt=host.querySelector('.vz-pt[data-vzi="'+i+'"]');if(pt)pt.focus();this.at(host,i,'key');return true;
+    }});
+  const aria='Calibration chart, '+bins.length+' probability bins. Tab to a point or use arrow keys for details.';
+  const svg=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true" focusable="false"><defs>${_vzGlowDefs(gid,colorHex,3)}</defs>`
+    +gridY+gridX+diag+counts+band
+    +`<rect class="vz-hl" x="0" y="${MT}" width="${colW.toFixed(1)}" height="${plotH}" fill="#fff" fill-opacity=".07" style="display:none"/>`
+    +`<path class="vz-line" pathLength="1" d="${_vzOpenSplinePath(pts)}" fill="none" stroke="${colorHex}" stroke-width="2.5" filter="url(#${gid})"/>`
+    +dots+`<circle class="vz-ring" r="10" fill="none" stroke="#fff" stroke-width="1.5" style="display:none;pointer-events:none"/>`
+    +`<text x="${ML}" y="14" class="vz-ax">ACTUAL WIN RATE ↑</text><text x="${W-MR}" y="${H-5}" text-anchor="end" class="vz-ax">PREDICTED WIN PROB →</text></svg>`;
+  return`<div class="vz-chart" data-vzid="${id}" role="group" aria-label="${aria}">${svg}</div>`;
+}
+function _vzCalibrationCardHTML(ctx,anim){
+  const title='RELIABILITY CURVE — PREDICTED VS ACTUAL';
+  const withProb=ctx.f.filter(p=>p.winProb!=null);
+  if(withProb.length<10)return _vzEmptyCardHTML(title,ctx.g?'Needs at least 10 settled, probability-tagged '+ctx.g.label.toLowerCase()+' bets — try the ALL slice.':'Needs at least 10 settled, probability-tagged bets to plot a meaningful curve.');
+  const leagues=_VZ_LEAGUE_CODES.filter(c=>(!ctx.g||ctx.g.codes.includes(c))&&withProb.filter(p=>ctx.sp(p)===c).length>=10);
+  if(_vzS.lg!=='ALL'&&leagues.indexOf(_vzS.lg)<0)_vzS.lg='ALL';
+  const sel=_vzS.lg,bets=sel==='ALL'?withProb:withProb.filter(p=>ctx.sp(p)===sel);
+  const hex=sel==='ALL'?(ctx.g?ctx.g.hex:'#00f0ff'):(_VZ_LEAGUE_HEX[sel]||'#00f0ff');
+  const svg=_vzCalibrationChartSVG(ctx,bets,hex,8,anim);
+  const chips=[_vzChip('lg','ALL','ALL',sel==='ALL','#00f0ff')].concat(leagues.map(c=>_vzChip('lg',c,c,sel===c,_VZ_LEAGUE_HEX[c]||'#00f0ff'))).join('');
+  const leg=_vzLegend('band','95% BAND','background:'+hex+';opacity:.4')+_vzLegend('counts','SAMPLE BARS','background:'+hex+';opacity:.7')+_vzLegend('diag','PERFECT','border-top:2px dashed #fff;height:0;background:none');
+  return`<div class="card vz-card">${_vzHead('nc',title)}
+    <div class="vz-note">Buckets every settled pick by the win probability the model gave it at lock time, then plots how often that bucket actually won. The dashed diagonal is "perfectly calibrated" — a curve sitting below it means the model was overconfident there. Small/faint points are low-sample buckets (under 8 bets) and shouldn't be trusted as hard as the bigger ones. Hover, tap or arrow-key a point for its exact numbers; the shaded band is the 95% range the true win rate could plausibly sit in, and the bars underneath are how many bets each bucket holds. Switch leagues below — this is the exact view that caught SHL/LIIGA/NLA/Extraliga grading PREMIUM at ~75% predicted while actually hitting 50-65%; averaging all hockey together would hide that.</div>
+    <div class="vz-chips" role="group" aria-label="League">${chips}</div>
+    <div class="vz-sub">${bets.length} settled, probability-tagged bets${sel==='ALL'&&ctx.g?' · '+ctx.g.label:''}</div>
+    <div class="vz-chips vz-legrow" role="group" aria-label="Chart layers">${leg}</div>
+    ${svg||_vzEmptyChart('NOT ENOUGH SPREAD ACROSS PROBABILITY BANDS')}
   </div>`;
 }
 
 // ── #2: Equity curve ───────────────────────────────────────────────────
-// Running cumulative units won/lost, in real settlement order — an area
-// + line chart (gradient fill under the curve, glow stroke) so drawdowns
-// and hot streaks are visible, not just the single final number.
-function _vzEquityChartSVG(bets,colorHex){
-  bets=bets.filter(_pbIn); // price-basis filter (Part C): curve is units, so only picks on the chosen basis
-  if(bets.length<2)return null;
-  let cum=0;
-  const series=bets.map(p=>{cum+=_vzPnl(p);return cum;});
-  const n=series.length;
-  const minV=Math.min(0,...series),maxV=Math.max(0,...series);
-  const span=(maxV-minV)||1;
-  const W=640,H=300,ML=54,MR=14,MT=24,MB=24;
-  const plotW=W-ML-MR,plotH=H-MT-MB;
-  const xOf=i=>ML+(n===1?0:(i/(n-1))*plotW);
-  const yOf=v=>MT+plotH-((v-minV)/span)*plotH;
-  const zeroY=yOf(0);
-  const pts=series.map((v,i)=>[xOf(i),yOf(v)]);
-  const path=_vzOpenSplinePath(pts);
-  const areaPath=path+` L${pts[n-1][0].toFixed(1)},${zeroY.toFixed(1)} L${pts[0][0].toFixed(1)},${zeroY.toFixed(1)} Z`;
-  const gid='vzEqGlow'+Math.round(Math.random()*1e9);
-  const gradId='vzEqGrad'+Math.round(Math.random()*1e9);
-  const lineCol=series[n-1]>=0?'#00e644':'#ff2090';
-  const steps=4,gridY=[];
-  for(let i=0;i<=steps;i++){const v=minV+span*(i/steps);gridY.push(`<line x1="${ML}" y1="${yOf(v).toFixed(1)}" x2="${W-MR}" y2="${yOf(v).toFixed(1)}" stroke="rgba(255,255,255,.06)" stroke-width="1"/><text x="${ML-7}" y="${(yOf(v)+4).toFixed(1)}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.55)">${v>=0?'+':''}${v.toFixed(1)}u</text>`);}
-  const zeroLine=(minV<0&&maxV>0)?`<line x1="${ML}" y1="${zeroY.toFixed(1)}" x2="${W-MR}" y2="${zeroY.toFixed(1)}" stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-dasharray="3,3"/>`:'';
-  return`<svg viewBox="0 0 ${W} ${H}" width="100%" height="280" role="img" aria-label="Cumulative units won or lost over time">`
-    +`<defs>${_vzGlowDefs(gid,lineCol,3)}<linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${lineCol}" stop-opacity="0.35"/><stop offset="100%" stop-color="${lineCol}" stop-opacity="0.02"/></linearGradient></defs>`
-    +gridY.join('')+zeroLine
-    +`<path d="${areaPath}" fill="url(#${gradId})" stroke="none"/>`
-    +`<path d="${path}" fill="none" stroke="${lineCol}" stroke-width="2.5" filter="url(#${gid})"/>`
-    +`<circle cx="${pts[n-1][0].toFixed(1)}" cy="${pts[n-1][1].toFixed(1)}" r="4.5" fill="${lineCol}" filter="url(#${gid})"/>`
-    +`<text x="${W-MR}" y="16" text-anchor="end" font-family="var(--mono)" font-size="12" fill="${lineCol}">FINAL: ${series[n-1]>=0?'+':''}${series[n-1].toFixed(1)}u</text>`
-    +`</svg>`;
+// Running cumulative units won/lost, in real settlement order. New: period chips (rebased to 0 at the start of the period,
+// measured back from the latest settled date in the ledger), drawdown shading, endpoint marker, scrub crosshair + tooltip.
+function _vzEqSeries(ctx){
+  let bets=ctx.f.filter(_pbIn); // price-basis filter (Part C): curve is units, so only picks on the chosen basis
+  const days={'7D':7,'30D':30,'90D':90}[_vzS.per];
+  if(days&&ctx.last){const cut=_vzShiftDate(ctx.last,-(days-1));bets=bets.filter(p=>(p.date||'')>=cut);}
+  let cum=0,peak=0,mdd=0,mddI=-1;
+  const rows=bets.map((p,i)=>{cum+=_vzPnl(p);if(cum>peak)peak=cum;const dd=peak-cum;if(dd>mdd){mdd=dd;mddI=i;}return{p,cum,peak,dd};});
+  return{bets,rows,mdd,mddI,final:cum,peak};
 }
-function _vzEquityCardHTML(allSettled){
-  if(allSettled.length<10)return _vzEmptyCardHTML('EQUITY CURVE — CUMULATIVE UNITS','Needs at least 10 settled bets to show a meaningful curve.','pc');
-  const tabs=[];
-  const pushTab=(label,bets,hex)=>{if(bets.length<5)return;const svg=_vzEquityChartSVG(bets,hex);if(!svg)return;tabs.push({label,svg});};
-  pushTab('ALL',allSettled,'#00f0ff');
-  _VZ_SPORT_GROUPS.forEach(g=>pushTab(g.label,allSettled.filter(p=>g.codes.includes(window._normSport(p))),g.hex));
-  return`<div class="card" style="margin-bottom:14px">
-    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="pc"></span> EQUITY CURVE — CUMULATIVE UNITS</div>
-    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Running total of units won/lost, in the order bets actually settled. Shows real drawdowns and hot streaks along the way, not just a single end number.</div>
-    ${tabs.length?_radarTabPanelHTML('vzequity',tabs):'<div class="empty">NOT ENOUGH DATA YET</div>'}
+function _vzEquityChartSVG(ctx,s,lineBase,anim){
+  const rows=s.rows,n=rows.length;
+  if(n<2)return null;
+  const W=ctx.W,compact=W<480,H=compact?250:300,ML=compact?46:56,MR=12,MT=26,MB=28;
+  const plotW=W-ML-MR,plotH=H-MT-MB;
+  const series=rows.map(r=>r.cum);
+  const nz=_vzNice(Math.min(0,...series),Math.max(0,...series),4);
+  const span=(nz.hi-nz.lo)||1;
+  const xOf=i=>ML+(i/(n-1))*plotW,yOf=v=>MT+plotH-((v-nz.lo)/span)*plotH;
+  const zeroY=yOf(0),pts=series.map((v,i)=>[xOf(i),yOf(v)]);
+  const path=_vzOpenSplinePath(pts);
+  const gid='vzEqGlow'+(++_vzUid),gradId='vzEqGrad'+_vzUid;
+  const lineCol=s.final>=0?_VZ_UP:_VZ_DN;
+  const dec=nz.step<1?1:0;
+  const gridY=nz.ticks.map(v=>`<line x1="${ML}" y1="${yOf(v).toFixed(1)}" x2="${W-MR}" y2="${yOf(v).toFixed(1)}" stroke="rgba(255,255,255,.07)"/><text x="${ML-7}" y="${(yOf(v)+4).toFixed(1)}" text-anchor="end" class="vz-ax">${v>0?'+':v<0?'−':''}${Math.abs(v).toFixed(dec)}u</text>`).join('');
+  const xt=compact?3:5,gridX=[];
+  const yr=(Date.parse((rows[n-1].p.date||'')+'T00:00:00Z')-Date.parse((rows[0].p.date||'')+'T00:00:00Z'))>300*864e5;
+  for(let k=0;k<xt;k++){const i=Math.round(k/(xt-1)*(n-1));gridX.push(`<text x="${xOf(i).toFixed(1)}" y="${H-8}" text-anchor="${k===0?'start':k===xt-1?'end':'middle'}" class="vz-ax">${_vzDateY(rows[i].p.date,yr)}</text>`);}
+  const zeroLine=(nz.lo<0&&nz.hi>0)?`<line x1="${ML}" y1="${zeroY.toFixed(1)}" x2="${W-MR}" y2="${zeroY.toFixed(1)}" stroke="rgba(255,255,255,.3)" stroke-dasharray="3,3"/>`:'';
+  const areaPath=path+` L${pts[n-1][0].toFixed(1)},${zeroY.toFixed(1)} L${pts[0][0].toFixed(1)},${zeroY.toFixed(1)} Z`;
+  // drawdown shading: polygon between the running-peak line and the curve (only where the curve sits below its peak)
+  let dd='';
+  if(s.mdd>0){
+    const top=rows.map((r,i)=>[xOf(i),yOf(r.peak)]);
+    dd=`<path class="vz-dd vz-fade" d="M${top.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' L')} L${pts.slice().reverse().map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' L')} Z" fill="rgba(255,32,144,.22)" stroke="none"/>`;
+  }
+  const last=pts[n-1];
+  const id=_vzReport('eq',{W,H,ML,MR,MT,plotW,pts,rows,n,i:n-1,sc:null,
+    at(host,i,src){
+      i=Math.max(0,Math.min(n-1,i));this.i=i;const r=rows[i],c=_vzClient(host,this,pts[i][0],pts[i][1]),p=r.p;
+      const g=host.querySelector('.vz-xh');g.style.display='';
+      _vzAttr(g.children[0],{x1:pts[i][0].toFixed(1),x2:pts[i][0].toFixed(1)});
+      _vzAttr(g.children[1],{y1:pts[i][1].toFixed(1),y2:pts[i][1].toFixed(1)});
+      _vzAttr(g.children[2],{cx:pts[i][0].toFixed(1),cy:pts[i][1].toFixed(1)});
+      const oc=_vzOutCol(p.outcome),tr=[['PICK',_vzEsc(_vzMatchup(p))],['BET',_vzEsc(p.betOn||'—')],['RESULT',_vzEsc((p.outcome||'').toUpperCase())+' '+_vzSign(_vzPnl(p),2)+'u',oc],['RUNNING',_vzSign(r.cum,2)+'u',r.cum>=0?_VZ_UP:_VZ_DN]];
+      if(r.dd>0.005)tr.push(['DRAWDOWN','−'+r.dd.toFixed(2)+'u from peak',_VZ_DN]);
+      _vzTipShow(_vzTipRows(_vzDate(p.date)+' · BET '+(i+1)+' OF '+n,tr,lineCol),c.x,c.y,14);
+      host.setAttribute('aria-valuenow',i+1);host.setAttribute('aria-valuetext',_vzDate(p.date)+', running '+_vzSign(r.cum,2)+' units');
+    },
+    move(host,cx,cy,focus){
+      if(focus){this.at(host,this.i,'focus');return;}
+      const u=_vzUser(host,this,cx,cy);this.at(host,Math.round((u.x-ML)/plotW*(n-1)),'move');
+    },
+    leave(host){host.querySelector('.vz-xh').style.display='none';},
+    key(host,e){
+      const k=e.key,step=e.shiftKey?10:1;let i=this.i;
+      if(k==='ArrowLeft')i-=step;else if(k==='ArrowRight')i+=step;else if(k==='Home')i=0;else if(k==='End')i=n-1;else return false;
+      this.at(host,i,'key');return true;
+    }});
+  const svg=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true" focusable="false">`
+    +`<defs>${_vzGlowDefs(gid,lineCol,3)}<linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${lineCol}" stop-opacity="0.35"/><stop offset="100%" stop-color="${lineCol}" stop-opacity="0.02"/></linearGradient></defs>`
+    +gridY+gridX.join('')+zeroLine
+    +`<path class="vz-fade" d="${areaPath}" fill="url(#${gradId})" stroke="none"/>`+dd
+    +`<path class="vz-line" pathLength="1" d="${path}" fill="none" stroke="${lineCol}" stroke-width="2.5" filter="url(#${gid})"/>`
+    +`<g class="vz-fade"><circle class="vz-pulse" cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="5" fill="none" stroke="${lineCol}" stroke-width="1.5"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="4.6" fill="${lineCol}" filter="url(#${gid})"/></g>`
+    +`<text x="${W-MR}" y="15" text-anchor="end" class="vz-ax vz-fin" style="fill:${lineCol}">${lineBase}: ${_vzSign(s.final)}u</text>`
+    +`<g class="vz-xh" style="display:none;pointer-events:none"><line y1="${MT}" y2="${MT+(H-MT-MB)}" stroke="rgba(255,255,255,.55)" stroke-dasharray="3,3"/><line x1="${ML}" x2="${W-MR}" stroke="rgba(255,255,255,.25)" stroke-dasharray="2,4"/><circle r="5.5" fill="#04000c" stroke="${lineCol}" stroke-width="2.5"/></g></svg>`;
+  return`<div class="vz-chart vz-scrub" data-vzid="${id}" tabindex="0" role="slider" aria-label="Equity curve over ${n} settled bets. Arrow keys scrub, shift for bigger steps." aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${n}">${svg}</div>`;
+}
+function _vzEquityCardHTML(ctx,anim){
+  const title='EQUITY CURVE — CUMULATIVE UNITS';
+  if(ctx.all.length<10)return _vzEmptyCardHTML(title,'Needs at least 10 settled bets to show a meaningful curve.','pc');
+  const s=_vzEqSeries(ctx);
+  const label=_vzS.per==='ALL'?'FINAL':'LAST '+_vzS.per;
+  const chips=['ALL','90D','30D','7D'].map(k=>_vzChip('per',k,k,_vzS.per===k,'#ff2090')).join('');
+  const svg=s.rows.length>=2?_vzEquityChartSVG(ctx,s,label,anim):null;
+  const w=s.bets.filter(p=>p.outcome==='win').length,l=s.bets.filter(p=>p.outcome==='loss').length;
+  const st=(k,v,c)=>`<div class="vz-st"><span>${k}</span><b${c?` style="color:${c}"`:''}>${v}</b></div>`;
+  const stats=s.rows.length?`<div class="vz-stats">${st('UNITS',_vzSign(s.final)+'u',s.final>=0?_VZ_UP:_VZ_DN)}${st('BETS',s.rows.length)}${st('RECORD',w+'W–'+l+'L')}${st('PEAK',_vzSign(s.peak)+'u')}${st('MAX DRAWDOWN',s.mdd>0?'−'+s.mdd.toFixed(1)+'u':'none',s.mdd>0?_VZ_DN:'')}</div>`:'';
+  const empty=ctx.f.length<5&&ctx.g?_vzEmptyChart('NOT ENOUGH '+ctx.g.label+' BETS YET'):_vzEmptyChart(_vzS.per==='ALL'?'NOT ENOUGH DATA YET':'FEWER THAN 2 SETTLED BETS IN THE LAST '+_vzS.per.replace('D',' DAYS')+' — TRY A LONGER PERIOD');
+  return`<div class="card vz-card">${_vzHead('pc',title)}
+    <div class="vz-note">Running total of units won/lost, in the order bets actually settled. Shows real drawdowns and hot streaks along the way, not just a single end number. Drag, hover or tap along the line to read any point; the pink shading is every stretch spent below the previous high. Period chips re-zero the curve at the start of that window (counted back from the latest settled date). The sport chips at the top slice this chart.</div>
+    <div class="vz-chips vz-between"><div class="vz-chips" role="group" aria-label="Period">${chips}</div><div class="vz-chips" role="group" aria-label="Chart layers">${_vzLegend('dd','DRAWDOWN','background:rgba(255,32,144,.7)')}</div></div>
+    ${stats}${svg||empty}
   </div>`;
 }
 
-// ── #3: Sport × confidence-tier heatmap ───────────────────────────────
-// Each tier claims a minimum win-probability floor — the exact thresholds
-// tier() itself grades every real pick with (LEAN 55%+, OPTIMAL 62%+,
-// PREMIUM 67%+; see tier()'s own `if(p>=.67&&e>=.05)return 3;...` ladder
-// and renderBySportAnalytics' calBands, which already uses these same
-// cutoffs for its own CALIBRATION rows) — used here as the "claimed"
-// floor since the app has never defined a separate target-accuracy table
-// per tier; grading floor is the only real, already-established number to
-// compare actual settled accuracy against. _gradeLabel(p) recomputes each
-// pick's tier from its stored winProb/decOdds/betType the same way the
-// rest of the app does, rather than trusting a possibly-stale label.
-function _vzTierHeatmapHTML(allSettled){
+// ── #3: Sport × confidence-tier heatmap + grade bars ──────────────────
+// Each tier claims a minimum win-probability floor — the exact thresholds tier() itself grades every real pick with (LEAN 55%+,
+// OPTIMAL 62%+, PREMIUM 67%+; see tier()'s own `if(p>=.67&&e>=.05)return 3;...` ladder and renderBySportAnalytics' calBands) — used
+// as the "claimed" floor since the app has never defined a separate target-accuracy table per tier. _gradeLabel(p) recomputes each
+// pick's tier from its stored winProb/decOdds/betType the same way the rest of the app does, rather than trusting a possibly-stale
+// label. New: a grade bar per tier (win % vs the claimed floor tick, in the uniform grade colours) and click-to-drill on bars AND
+// heatmap cells (record, win %, units, ROI, recent picks).
+const _VZ_FLOOR={LEAN:55,OPTIMAL:62,PREMIUM:67};
+function _vzTierBets(ctx,sel){
+  let b=ctx.f.filter(p=>_vzGrade(ctx,p)===sel.g);
+  if(sel.s){const g=_VZ_SPORT_GROUPS.find(x=>x.k===sel.s);if(g)b=b.filter(p=>g.codes.includes(ctx.sp(p)));}
+  return b;
+}
+function _vzTierTip(title,a,floor,accent){
+  const rows=[['RECORD',a.w+'W–'+a.l+'L'+(a.ps?'–'+a.ps+'P':'')],['WIN %',a.pct.toFixed(1)+'%']];
+  if(floor)rows.push(['CLAIMED',floor+'%+'],['VS CLAIM',_vzSign(a.pct-floor)+'pp',a.pct>=floor?_VZ_UP:_VZ_DN]);
+  rows.push(['UNITS',a.nIn?_vzSign(a.u)+'u':'—'],['ROI',a.nIn?_vzSign(a.roi)+'%':'—'],['SAMPLE','n = '+a.n]);
+  return _vzEsc(_vzTipRows(title,rows,accent));
+}
+function _vzTierBarsHTML(ctx){
+  const order=['PREMIUM','OPTIMAL','LEAN',HOCKEY_LANE_LABEL,'SKIP'];
+  const rows=order.map(k=>{
+    const a=_vzAgg(ctx.f.filter(p=>_vzGrade(ctx,p)===k));
+    if(a.n<5)return'';
+    const c=_gradeColVar(k),fl=_VZ_FLOOR[k],sel=_vzS.tier&&_vzS.tier.g===k&&!_vzS.tier.s;
+    return`<button type="button" class="vz-tb" data-vzact="tier" data-v="${_vzEsc(k)}" aria-pressed="${sel?'true':'false'}" aria-label="${_vzEsc(k)}: ${a.pct.toFixed(0)} percent win rate over ${a.n} picks. Activate to drill in." data-vztip="${_vzTierTip(_vzEsc(k)+(ctx.g?' · '+ctx.g.label:''),a,fl,c)}">`
+      +`<span class="vz-tbl" style="color:${c}">${_vzEsc(k)}</span>`
+      +`<span class="vz-trk"><i class="vz-bar" style="left:0;width:${a.pct.toFixed(1)}%;background:${c};box-shadow:0 0 8px -1px ${c}"></i>${fl?`<u class="vz-claim" style="left:${fl}%" title="claims ${fl}%+"></u>`:''}</span>`
+      +`<span class="vz-tbv"><b>${a.pct.toFixed(0)}%</b><small>n${a.n}${fl?' · '+_vzSign(a.pct-fl)+'pp':''}</small></span></button>`;
+  }).join('');
+  return rows?`<div class="vz-tbars" role="group" aria-label="Win rate by grade">${rows}<div class="vz-tbleg"><u class="vz-claim"></u> = the win rate that grade claims at its floor</div></div>`:'';
+}
+function _vzTierHeatmapHTML(ctx){
   const TIERS=[{k:'LEAN',floor:55},{k:'OPTIMAL',floor:62},{k:'PREMIUM',floor:67}];
-  const rows=_VZ_SPORT_GROUPS.map(g=>{
-    const bets=allSettled.filter(p=>g.codes.includes(window._normSport(p)));
+  const rows=_VZ_SPORT_GROUPS.filter(g=>!ctx.g||ctx.g===g).map(g=>{
+    const bets=ctx.f.filter(p=>g.codes.includes(ctx.sp(p)));
     const cells=TIERS.map(t=>{
-      const tb=bets.filter(p=>_gradeLabel(p)===t.k);
+      const tb=bets.filter(p=>_vzGrade(ctx,p)===t.k);
       if(tb.length<5)return{empty:true,n:tb.length};
-      const w=tb.filter(p=>p.outcome==='win').length;
-      const acc=w/tb.length*100;
-      return{empty:false,n:tb.length,acc,delta:acc-t.floor};
+      const a=_vzAgg(tb);
+      return{empty:false,n:tb.length,acc:a.pct,delta:a.pct-t.floor,a};
     });
-    return{label:g.label,color:g.color,cells};
+    return{label:g.label,k:g.k,color:g.color,cells};
   }).filter(r=>r.cells.some(c=>!c.empty));
   if(!rows.length)return null;
-  const header=TIERS.map(t=>`<div style="text-align:center;font-family:var(--mono);font-size:12px;color:var(--t3);letter-spacing:1px">${t.k}<br><span style="font-size:10px;opacity:.7">claims ${t.floor}%+</span></div>`).join('');
+  const header=TIERS.map(t=>`<div class="vz-hh" style="color:${_gradeColVar(t.k)}">${t.k}<br><span class="vz-hhs">claims ${t.floor}%+</span></div>`).join('');
   const body=rows.map(r=>{
-    const cellsHtml=r.cells.map(c=>{
-      if(c.empty)return`<div style="text-align:center;padding:14px 4px;font-family:var(--mono);font-size:11px;color:var(--t3);background:rgba(255,255,255,.02);border-radius:4px">n/a${c.n?' (n='+c.n+')':''}</div>`;
-      const bg=_vzDeltaColor(c.delta,15);
+    const cellsHtml=r.cells.map((c,ti)=>{
+      if(c.empty)return`<div class="vz-cell vz-na">n/a${c.n?' (n='+c.n+')':''}</div>`;
+      const t=TIERS[ti],bg=_vzDeltaColor(c.delta,15);
       const glow=Math.abs(c.delta)>=5?`0 0 14px ${c.delta>=0?'rgba(0,230,68,.35)':'rgba(255,32,96,.35)'}`:'none';
-      return`<div style="text-align:center;padding:9px 4px;border-radius:4px;background:${bg};box-shadow:${glow};border:1px solid rgba(255,255,255,.08)">`
-        +`<div style="font-family:var(--orb);font-size:17px;font-weight:700;color:var(--t)">${c.acc.toFixed(0)}%</div>`
-        +`<div style="font-family:var(--mono);font-size:10px;color:var(--t2)">${c.delta>=0?'+':''}${c.delta.toFixed(1)}pp · n${c.n}</div>`
-        +`</div>`;
+      const sel=_vzS.tier&&_vzS.tier.g===t.k&&_vzS.tier.s===r.k;
+      return`<button type="button" class="vz-cell" data-vzact="tier" data-v="${t.k}|${r.k}" aria-pressed="${sel?'true':'false'}" aria-label="${r.label} ${t.k}: ${c.acc.toFixed(0)} percent over ${c.n} picks" style="background:${bg};box-shadow:${glow}" data-vztip="${_vzTierTip(r.label+' · '+t.k,c.a,t.floor,_gradeColVar(t.k))}">`
+        +`<div class="vz-cv">${c.acc.toFixed(0)}%</div>`
+        +`<div class="vz-cs">${_vzSign(c.delta)}pp · n${c.n}</div></button>`;
     }).join('');
-    return`<div style="display:grid;grid-template-columns:78px 1fr 1fr 1fr;gap:5px;align-items:center;margin-bottom:6px">`
-      +`<div style="font-family:var(--orb);font-size:13px;font-weight:700;color:${r.color}">${r.label}</div>`
-      +cellsHtml+`</div>`;
+    return`<div class="vz-hrow"><div class="vz-rl" style="color:${r.color}">${r.label}</div>${cellsHtml}</div>`;
   }).join('');
-  return`<div style="display:grid;grid-template-columns:78px 1fr 1fr 1fr;gap:5px;margin-bottom:8px"><div></div>${header}</div>${body}`;
+  return`<div class="vz-hrow" style="margin-bottom:8px"><div></div>${header}</div>${body}`;
 }
-function _vzTierCardHTML(allSettled){
-  const grid=_vzTierHeatmapHTML(allSettled);
-  if(!grid)return _vzEmptyCardHTML('SPORT × CONFIDENCE TIER — REAL VS CLAIMED','No sport/tier combination has 5+ settled bets yet.','vc');
-  return`<div class="card" style="margin-bottom:14px">
-    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="vc"></span> SPORT × CONFIDENCE TIER — REAL VS CLAIMED</div>
-    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Each tier (LEAN/OPTIMAL/PREMIUM) claims a minimum win-probability floor — the same 55%/62%/67% cutoffs tier() itself grades every real pick with. Green means that sport is beating its tier's own floor in real settled results; red means it's underdelivering. Cells need at least 5 settled bets to show a number.</div>
-    ${grid}
+function _vzTierDrillHTML(ctx){
+  const sel=_vzS.tier;
+  if(!sel)return'<div class="vz-drill vz-hint">TAP A GRADE BAR OR A HEATMAP CELL TO DRILL INTO ITS PICKS</div>';
+  const bets=_vzTierBets(ctx,sel),a=_vzAgg(bets),c=_gradeColVar(sel.g),fl=_VZ_FLOOR[sel.g];
+  const sg=sel.s?_VZ_SPORT_GROUPS.find(x=>x.k===sel.s):null;
+  const st=(k,v,col)=>`<div class="vz-st"><span>${k}</span><b${col?` style="color:${col}"`:''}>${v}</b></div>`;
+  const recent=bets.slice(-8).reverse().map(p=>{
+    const oc=_vzOutCol(p.outcome);
+    return`<div class="vz-rp"><span class="vz-rpd">${_vzDate(p.date)}</span><span class="vz-rpb"><b>${_vzEsc(p.betOn||'—')}</b> <small>${_vzEsc(_vzMatchup(p))}${p.winProb!=null?' · '+(p.winProb*100).toFixed(0)+'%':''}</small></span><span class="vz-res" style="color:${oc};border-color:${oc}">${_vzEsc((p.outcome||'').toUpperCase())}</span><span class="vz-rpu" style="color:${oc}">${_pbIn(p)?_vzSign(_vzPnl(p),2)+'u':'—'}</span></div>`;
+  }).join('');
+  return`<div class="vz-drill" style="border-color:${c}" aria-live="polite">`
+    +`<div class="vz-dh">${_vzGradeChip(sel.g)}<b>${sg?sg.label:'ALL SPORTS'}${ctx.g&&!sg?' · '+ctx.g.label:''}</b><button type="button" class="vz-x" data-vzact="tierx" data-v="x" aria-label="Close drill-down"><span class="vz-cl">✕ CLOSE</span></button></div>`
+    +(a.n?`<div class="vz-stats">${st('RECORD',a.w+'W–'+a.l+'L'+(a.ps?'–'+a.ps+'P':''))}${st('WIN %',a.pct.toFixed(1)+'%')}${st('CLAIMED',fl?fl+'%+':'—')}${st('VS CLAIM',fl?_vzSign(a.pct-fl)+'pp':'—',fl?(a.pct>=fl?_VZ_UP:_VZ_DN):'')}${st('UNITS',a.nIn?_vzSign(a.u)+'u':'—',a.nIn?(a.u>=0?_VZ_UP:_VZ_DN):'')}${st('ROI',a.nIn?_vzSign(a.roi)+'%':'—',a.nIn?(a.roi>=0?_VZ_UP:_VZ_DN):'')}${st('AVG ODDS',a.avgOdds?a.avgOdds.toFixed(2):'—')}</div><div class="vz-sub" style="margin-top:8px">LAST ${Math.min(8,a.n)} OF ${a.n} PICKS (NEWEST FIRST)</div>${recent}`:'<div class="vz-hint">NO SETTLED PICKS IN THIS SLICE</div>')
+    +`</div>`;
+}
+function _vzTierCardHTML(ctx){
+  const grid=_vzTierHeatmapHTML(ctx);
+  if(!grid)return _vzEmptyCardHTML('SPORT × CONFIDENCE TIER — REAL VS CLAIMED',ctx.g?'No '+ctx.g.label.toLowerCase()+'/tier combination has 5+ settled bets yet — try the ALL slice.':'No sport/tier combination has 5+ settled bets yet.','vc');
+  return`<div class="card vz-card">${_vzHead('vc','SPORT × CONFIDENCE TIER — REAL VS CLAIMED')}
+    <div class="vz-note">Each tier (LEAN/OPTIMAL/PREMIUM) claims a minimum win-probability floor — the same 55%/62%/67% cutoffs tier() itself grades every real pick with. Green means that sport is beating its tier's own floor in real settled results; red means it's underdelivering. Cells need at least 5 settled bets to show a number. The bars show each grade's real win rate against its claimed floor (the white tick); tap a bar or a cell to open that grade's record, units, ROI and recent picks.</div>
+    ${_vzTierBarsHTML(ctx)}${grid}${_vzTierDrillHTML(ctx)}
   </div>`;
 }
 
-// ── #4: Win/loss streak sparkline strip ───────────────────────────────
-// Same dot-strip visual language as renderOverall's own "PERIOD
-// PERFORMANCE" recent-form strip (formDots — green/push-yellow/red dots
-// with a glow box-shadow, hover/tap tooltip via showDotTip), just one
-// strip per sport instead of one strip for the whole portfolio, so a hot
-// or cold streak in a specific sport is visible at a glance instead of
-// averaged into the aggregate.
-function _vzStreakStripHTML(allSettled){
-  const groups=_VZ_SPORT_GROUPS.map(g=>{
-    const bets=allSettled.filter(p=>g.codes.includes(window._normSport(p)));
+// ── #4: Win/loss streak dot strips ────────────────────────────────────
+// One strip per sport (last 40 settled bets, oldest→newest). Dots are real buttons now: hover/tap/focus shows the matchup,
+// click pins the pick in the detail panel underneath, and the legend chips dim wins / losses / pushes so a streak stands out.
+function _vzDotHTML(id,k,p,last,sz){
+  const c=_vzOutCol(p.outcome);
+  return`<button type="button" class="vz-dot" data-vzp="${id}:${k}" data-o="${_vzEsc(p.outcome)}" tabindex="${last?0:-1}" aria-label="${_vzEsc(_vzDate(p.date)+' '+(p.betOn||'')+' '+(p.outcome||''))}"><i style="width:${sz}px;height:${sz}px;background:${c};box-shadow:0 0 5px ${c}aa"></i></button>`;
+}
+function _vzStreakStripHTML(ctx){
+  const flat=[],id=_vzReport('streak',{bets:flat});
+  const groups=_VZ_SPORT_GROUPS.filter(g=>!ctx.g||ctx.g===g).map(g=>{
+    const bets=ctx.f.filter(p=>g.codes.includes(ctx.sp(p)));
     if(bets.length<5)return null;
     const recent=bets.slice(-40);
-    const w=recent.filter(p=>p.outcome==='win').length;
-    const l=recent.filter(p=>p.outcome==='loss').length;
+    const w=recent.filter(p=>p.outcome==='win').length,l=recent.filter(p=>p.outcome==='loss').length;
     let streak=0,stType='';
     for(let i=recent.length-1;i>=0;i--){const o=recent[i].outcome;if(!stType){stType=o;streak=1;}else if(o===stType)streak++;else break;}
-    const dots=recent.map(p=>{
-      const c=p.outcome==='win'?'#00e644':p.outcome==='push'?'#ffdd00':'#ff2090';
-      const tip=`${p.date||''} ${(p.betOn||'').replace(/"/g,"'")} — ${(p.outcome||'').toUpperCase()}`;
-      return`<span class="form-dot" data-tip="${tip.replace(/"/g,"'")}" style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${c};box-shadow:0 0 5px ${c}aa;flex-shrink:0;cursor:pointer" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2000)"></span>`;
-    }).join('');
-    return{label:g.label,color:g.color,dots,w,l,streak,stType,n:recent.length};
+    let bw=0,bl=0,cw=0,cl=0;
+    recent.forEach(p=>{if(p.outcome==='win'){cw++;cl=0;if(cw>bw)bw=cw;}else if(p.outcome==='loss'){cl++;cw=0;if(cl>bl)bl=cl;}else{cw=0;cl=0;}});
+    const dots=recent.map((p,i)=>{flat.push(p);return _vzDotHTML(id,flat.length-1,p,i===recent.length-1,12);}).join('');
+    return{label:g.label,color:g.color,dots,w,l,streak,stType,n:recent.length,bw,bl};
   }).filter(Boolean);
   if(!groups.length)return null;
-  return groups.map(g=>`<div style="margin-bottom:12px">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;flex-wrap:wrap;gap:4px">
-      <span style="font-family:var(--orb);font-size:15px;font-weight:700;color:${g.color}">${g.label}</span>
-      <span style="font-family:var(--mono);font-size:12px;color:var(--t3)">last ${g.n} · <span style="color:#00e644">${g.w}W</span>-<span style="color:#ff2090">${g.l}L</span>${g.streak>=3?` · <span style="color:${g.stType==='win'?'#00e644':'#ff2090'}">${g.streak}${g.stType==='win'?'W':'L'} streak</span>`:''}</span>
+  return groups.map(g=>`<div class="vz-strip">
+    <div class="vz-striph">
+      <span class="vz-sl" style="color:${g.color}">${g.label}</span>
+      <span class="vz-sub" style="margin:0">last ${g.n} · <span style="color:${_VZ_UP}">${g.w}W</span>-<span style="color:${_VZ_DN}">${g.l}L</span> · ${(g.w/Math.max(1,g.w+g.l)*100).toFixed(0)}%${g.streak>=3?` · <span style="color:${g.stType==='win'?_VZ_UP:_VZ_DN}">${g.streak}${g.stType==='win'?'W':'L'} streak</span>`:''} · best run <span style="color:${_VZ_UP}">${g.bw}W</span> / worst <span style="color:${_VZ_DN}">${g.bl}L</span></span>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:4px">${g.dots}</div>
+    <div class="vz-dots" role="group" aria-label="${g.label} last ${g.n} settled bets, oldest to newest">${g.dots}</div>
+    <div class="vz-detail" aria-live="polite"></div>
   </div>`).join('');
 }
-function _vzStreakCardHTML(allSettled){
-  const strip=_vzStreakStripHTML(allSettled);
-  if(!strip)return _vzEmptyCardHTML('RECENT FORM — WIN/LOSS STREAKS BY SPORT','No sport has 5+ settled bets yet.','hc');
-  return`<div class="card" style="margin-bottom:14px">
-    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="hc"></span> RECENT FORM — WIN/LOSS STREAKS BY SPORT</div>
-    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Each dot is one settled bet, oldest→newest left to right (last 40 per sport). Green = win, pink = loss, yellow = push. Hover or tap a dot for the matchup.</div>
+function _vzStreakCardHTML(ctx){
+  const strip=_vzStreakStripHTML(ctx);
+  if(!strip)return _vzEmptyCardHTML('RECENT FORM — WIN/LOSS STREAKS BY SPORT',ctx.g?'No '+ctx.g.label.toLowerCase()+' bets settled yet — try the ALL slice.':'No sport has 5+ settled bets yet.','hc');
+  const leg=_vzLegend('sw','WINS','background:'+_VZ_UP)+_vzLegend('sl','LOSSES','background:'+_VZ_DN)+_vzLegend('sp','PUSHES','background:'+_VZ_PUSH);
+  return`<div class="card vz-card">${_vzHead('hc','RECENT FORM — WIN/LOSS STREAKS BY SPORT')}
+    <div class="vz-note">Each dot is one settled bet, oldest→newest left to right (last 40 per sport). Green = win, pink = loss, yellow = push. Hover, tap or arrow-key a dot for the matchup; click it to pin the full pick underneath. Turn a result off in the legend to make the streaks of the other stand out.</div>
+    <div class="vz-chips vz-legrow" role="group" aria-label="Show or dim results">${leg}</div>
     ${strip}
   </div>`;
 }
 
 // ── #5: Player prop trend sparklines ──────────────────────────────────
-// Reuses _vzPlayerPropAggregates() (the same aggregation
-// renderByPlayerAnalytics itself calls, extracted from that function this
-// session specifically so this wouldn't need a second, divergent copy of
-// its name-parsing/league-filtering logic) and adds a per-player recent-
-// form dot strip next to the existing hit-rate number.
-function _vzPlayerSparklineSectionHTML(){
-  const players=_vzPlayerPropAggregates().filter(p=>(p.w+p.l)>=3).slice(0,16);
-  if(!players.length)return _vzEmptyCardHTML('PLAYER PROP FORM — RECENT TREND','Needs players with at least 3 settled prop bets.','mc');
+// Reuses _vzPlayerPropAggregates() (the same aggregation renderByPlayerAnalytics itself calls — see its extraction comment) and adds
+// a per-player recent-form dot strip next to the all-time hit rate. New: sort chips (volume / hit rate / units), clickable dots,
+// units per player, hit-rate meter. The aggregates are read once per render (ctx.players) so chip clicks never re-run _aP().
+function _vzPlayerSparklineSectionHTML(ctx){
+  const title='PLAYER PROP FORM — RECENT TREND';
+  let players=ctx.players.filter(p=>(p.w+p.l)>=3&&(!ctx.g||ctx.g.codes.includes(p.sport)));
+  if(!players.length)return _vzEmptyCardHTML(title,ctx.g?'No '+ctx.g.label.toLowerCase()+' player has 3+ settled prop bets yet — try the ALL slice.':'Needs players with at least 3 settled prop bets.','mc');
+  const key=_vzS.plSort,rate=p=>p.w/Math.max(1,p.w+p.l);
+  players=players.slice().sort((a,b)=>key==='hit'?(rate(b)-rate(a))||((b.w+b.l)-(a.w+a.l)):key==='units'?(b.u-a.u)||((b.w+b.l)-(a.w+a.l)):((b.w+b.l)-(a.w+a.l))).slice(0,16);
+  const flat=[],id=_vzReport('pl',{bets:flat});
   const rows=players.map(pl=>{
-    const n=pl.w+pl.l;const acc=n?pl.w/n:null;
-    const recent=pl.bets.slice(-10);
-    const dots=recent.map(p=>{
-      const c=p.outcome==='win'?'#00e644':p.outcome==='push'?'#ffdd00':'#ff2090';
-      return`<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c};box-shadow:0 0 4px ${c}aa;flex-shrink:0"></span>`;
-    }).join('');
-    return`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.06);border-radius:3px;margin-bottom:5px">
-      <div style="flex:1;min-width:0">
-        <div style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${pl.name}</div>
-        <div style="font-family:var(--mono);font-size:12px;color:var(--pc)">${pl.sport||'—'} · ${n} props</div>
-      </div>
-      <div style="display:flex;gap:3px;flex-shrink:0">${dots}</div>
-      <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:${acc!=null&&acc>=.55?'#00e644':acc!=null&&acc<.45?'#ff2090':'var(--t3)'};min-width:38px;text-align:right;flex-shrink:0">${acc!==null?(acc*100).toFixed(0)+'%':'--'}</div>
-    </div>`;
+    const n=pl.w+pl.l,acc=n?pl.w/n:null,recent=pl.bets.slice(-10);
+    const dots=recent.map((p,i)=>{flat.push(p);return _vzDotHTML(id,flat.length-1,p,i===recent.length-1,10);}).join('');
+    const ac=acc!=null&&acc>=.55?_VZ_UP:acc!=null&&acc<.45?_VZ_DN:'var(--t3)';
+    return`<div class="vz-pw"><div class="vz-prow">
+      <div class="vz-pname"><div class="vz-pn">${_vzEsc(pl.name)}</div>
+        <div class="vz-ps">${_vzEsc(pl.sport||'—')} · ${n} props · <span style="color:${pl.u>=0?_VZ_UP:_VZ_DN}">${_vzSign(pl.u)}u</span></div></div>
+      <div class="vz-dots vz-pdots" role="group" aria-label="${_vzEsc(pl.name)} last ${recent.length} props">${dots}</div>
+      <div class="vz-pct" style="color:${ac}">${acc!==null?(acc*100).toFixed(0)+'%':'--'}<i style="width:${acc!=null?(acc*100).toFixed(0):0}%;background:${ac}"></i></div>
+    </div><div class="vz-detail" aria-live="polite"></div></div>`;
   }).join('');
-  return`<div class="card" style="margin-bottom:14px">
-    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="mc"></span> PLAYER PROP FORM — RECENT TREND</div>
-    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Each row's dot strip is that player's last 10 settled prop bets (oldest→newest, left→right) next to their all-time hit rate — a quick read on who's hot or cold right now. Top ${players.length} players by bet volume.</div>
+  const chips=[['vol','VOLUME'],['hit','HIT RATE'],['units','UNITS']].map(c=>_vzChip('plsort',c[0],c[1],key===c[0],'#ff7700')).join('');
+  const leg=_vzLegend('sw','WINS','background:'+_VZ_UP)+_vzLegend('sl','LOSSES','background:'+_VZ_DN)+_vzLegend('sp','PUSHES','background:'+_VZ_PUSH);
+  return`<div class="card vz-card">${_vzHead('mc',title)}
+    <div class="vz-note">Each row's dot strip is that player's last 10 settled prop bets (oldest→newest, left→right) next to their all-time hit rate — a quick read on who's hot or cold right now. Top ${players.length} players, ranked by ${key==='hit'?'hit rate':key==='units'?'units won':'bet volume'} (3+ settled props). Tap a dot to pin that prop below.</div>
+    <div class="vz-chips vz-between"><div class="vz-chips" role="group" aria-label="Sort players">${chips}</div><div class="vz-chips" role="group" aria-label="Show or dim results">${leg}</div></div>
     ${rows}
   </div>`;
 }
 
 // ── #6: Model confidence vs outcome (scoped down from ensemble agreement) ─
-// See the big comment at the top of this section for why: MC/Bayesian/Elo
-// component probabilities aren't persisted per locked pick today. This
-// plots the one confidence number that IS persisted — winProb — against
-// the real outcome (jittered so overlapping points stay visible), with a
-// bucketed real-win-rate trend curve overlaid as a rough visual stand-in
-// for "does more model confidence actually track with being right."
-function _vzConfidenceScatterSVG(bets,colorHex){
+// See the big comment at the top of this section for why: MC/Bayesian/Elo component probabilities aren't persisted per locked
+// pick today. This plots the one confidence number that IS persisted — winProb — against the real outcome (jittered so overlapping
+// points stay visible), with a bucketed real-win-rate trend overlaid. New: the jitter is now seeded per pick (stable across
+// renders so hover/selection stay put), every dot is hoverable/tappable (nearest-dot hit test), trend nodes carry their bucket
+// stats, and win / loss / trend are legend toggles.
+function _vzJit(p,i,salt){
+  const s=(p.id||(p.date+'|'+p.betOn+'|'+i))+'|'+salt;let h=2166136261;
+  for(let k=0;k<s.length;k++){h^=s.charCodeAt(k);h=Math.imul(h,16777619);}
+  return((h>>>0)%10000)/10000;
+}
+function _vzConfidenceScatterSVG(ctx,bets,colorHex,anim){
   if(bets.length<15)return null;
-  const W=640,H=300,ML=46,MR=14,MT=20,MB=38;
+  const W=ctx.W,compact=W<480,H=compact?280:340,ML=compact?42:50,MR=14,MT=22,MB=38;
   const plotW=W-ML-MR,plotH=H-MT-MB;
   const xFrac=wp=>Math.max(0,Math.min(1,(wp*100-40)/60)); // map 40%-100% winProb across the plot
   const winY=MT+plotH*0.16,lossY=MT+plotH*0.84;
-  const pts=bets.map(p=>{
-    const x=ML+xFrac(p.winProb)*plotW+(Math.random()-0.5)*9;
-    const yBase=p.outcome==='win'?winY:lossY;
-    const y=yBase+(Math.random()-0.5)*plotH*0.26;
-    return{x,y,win:p.outcome==='win'};
+  const pts=bets.map((p,i)=>{
+    const win=p.outcome==='win';
+    return{x:ML+xFrac(p.winProb)*plotW+(_vzJit(p,i,'x')-0.5)*9,y:(win?winY:lossY)+(_vzJit(p,i,'y')-0.5)*plotH*0.26,win,p};
   });
-  const dots=pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${p.win?'#00e644':'#ff2090'}" fill-opacity="0.5"/>`).join('');
-  const buckets=[];
+  const wins=pts.filter(q=>q.win),losses=pts.filter(q=>!q.win);
+  const circ=q=>`<circle cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="3"/>`;
+  const nodes=[];
   for(let lo=40;lo<100;lo+=10){
     const bb=bets.filter(p=>{const wp=p.winProb*100;return wp>=lo&&wp<lo+10;});
-    if(bb.length>=5){const w=bb.filter(p=>p.outcome==='win').length;buckets.push([ML+xFrac((lo+5)/100)*plotW, lossY-(w/bb.length)*(lossY-winY)]);}
+    if(bb.length>=5){const w=bb.filter(p=>p.outcome==='win').length;nodes.push({lo,n:bb.length,w,rate:w/bb.length*100,x:ML+xFrac((lo+5)/100)*plotW,y:lossY-(w/bb.length)*(lossY-winY)});}
   }
-  const trendPath=buckets.length>=2?_vzOpenSplinePath(buckets):'';
-  const gid='vzScatGlow'+Math.round(Math.random()*1e9);
-  const axisX=[40,55,70,85,100].map(v=>`<text x="${(ML+xFrac(v/100)*plotW).toFixed(1)}" y="${H-MB+18}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.55)">${v}%</text>`).join('');
-  return`<svg viewBox="0 0 ${W} ${H}" width="100%" height="280" role="img" aria-label="Model confidence vs actual outcome scatter">`
-    +`<defs>${_vzGlowDefs(gid,colorHex,3)}</defs>`
-    +`<line x1="${ML}" y1="${winY.toFixed(1)}" x2="${W-MR}" y2="${winY.toFixed(1)}" stroke="rgba(0,230,68,.25)" stroke-width="1"/>`
-    +`<text x="${ML-6}" y="${(winY+4).toFixed(1)}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="rgba(0,230,68,.7)">WIN</text>`
-    +`<line x1="${ML}" y1="${lossY.toFixed(1)}" x2="${W-MR}" y2="${lossY.toFixed(1)}" stroke="rgba(255,32,144,.25)" stroke-width="1"/>`
-    +`<text x="${ML-6}" y="${(lossY+4).toFixed(1)}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="rgba(255,32,144,.7)">LOSS</text>`
-    +axisX+dots
-    +(trendPath?`<path d="${trendPath}" fill="none" stroke="${colorHex}" stroke-width="2.5" filter="url(#${gid})"/>`:'')
-    +`<text x="${W-MR}" y="14" text-anchor="end" font-family="var(--mono)" font-size="11" fill="rgba(220,190,255,.7)">MODEL CONFIDENCE (winProb) →</text>`
-    +`</svg>`;
+  const trendPath=nodes.length>=2?_vzOpenSplinePath(nodes.map(q=>[q.x,q.y])):'';
+  const gid='vzScatGlow'+(++_vzUid);
+  const axisX=[40,55,70,85,100].map(v=>`<line x1="${(ML+xFrac(v/100)*plotW).toFixed(1)}" x2="${(ML+xFrac(v/100)*plotW).toFixed(1)}" y1="${MT}" y2="${MT+plotH}" stroke="rgba(255,255,255,.045)"/><text x="${(ML+xFrac(v/100)*plotW).toFixed(1)}" y="${H-MB+18}" text-anchor="middle" class="vz-ax">${v}%</text>`).join('');
+  const order=pts.map((q,i)=>i).sort((a,b)=>pts[a].x-pts[b].x);
+  const id=_vzReport('sc',{W,H,pts,nodes,order,hov:-1,sel:-1,k:0,
+    vis(q){return q.win?!_vzS.off.win:!_vzS.off.loss;},
+    ring(host,cls,q){const r=host.querySelector(cls);if(!q){r.style.display='none';return;}_vzAttr(r,{cx:q.x.toFixed(1),cy:q.y.toFixed(1)});r.style.display='';},
+    showPt(host,i){
+      const q=pts[i];this.hov=i;this.ring(host,'.vz-ring',q);const c=_vzClient(host,this,q.x,q.y);
+      _vzTipShow(_vzPickTipHTML(q.p),c.x,c.y,10);
+    },
+    at(host,ni){ // trend node (mouse nearest-hit, or keyboard focus on a node)
+      const q=nodes[ni];if(!q)return;this.hov=-1;this.ring(host,'.vz-ring',null);const c=_vzClient(host,this,q.x,q.y);
+      _vzTipShow(_vzTipRows('CONFIDENCE '+q.lo+'–'+(q.lo+10)+'%',[['REAL WIN RATE',q.rate.toFixed(1)+'%'],['RECORD',q.w+'W–'+(q.n-q.w)+'L'],['SAMPLE','n = '+q.n],['VS MIDPOINT',_vzSign(q.rate-(q.lo+5))+'pp',q.rate>=q.lo+5?_VZ_UP:_VZ_DN]],colorHex),c.x,c.y,12);
+    },
+    move(host,cx,cy,focus){
+      if(focus){this.showPt(host,order[this.k]);return;}
+      const u=_vzUser(host,this,cx,cy);
+      if(!_vzS.off.trend){let bi=-1,bd=196;nodes.forEach((q,i)=>{const d=(q.x-u.x)*(q.x-u.x)+(q.y-u.y)*(q.y-u.y);if(d<bd){bd=d;bi=i;}});if(bi>=0){this.at(host,bi);return;}}
+      let best=-1,bd=144;
+      for(let i=0;i<pts.length;i++){const q=pts[i];if(!this.vis(q))continue;const d=(q.x-u.x)*(q.x-u.x)+(q.y-u.y)*(q.y-u.y);if(d<bd){bd=d;best=i;}}
+      if(best<0){this.leave(host);_vzTipHide();return;}
+      this.showPt(host,best);
+    },
+    leave(host){this.hov=-1;this.ring(host,'.vz-ring',null);},
+    pick(host){
+      if(this.hov<0)return;this.sel=this.hov;this.ring(host,'.vz-sel',pts[this.sel]);_vzSetDetail(host,_vzPickDetailHTML(pts[this.sel].p));
+    },
+    click(host){this.pick(host);},
+    key(host,e){
+      const k=e.key;
+      if(k==='Enter'||k===' '){this.hov=order[this.k];this.pick(host);return true;}
+      if(k!=='ArrowLeft'&&k!=='ArrowRight'&&k!=='Home'&&k!=='End')return false;
+      const dir=k==='ArrowRight'?1:-1;let j=this.k;
+      if(k==='Home'){j=0;}else if(k==='End'){j=order.length-1;}
+      else{do{j+=dir;}while(j>=0&&j<order.length&&!this.vis(pts[order[j]]));}
+      if(j<0||j>=order.length)return true;
+      this.k=j;this.showPt(host,order[j]);return true;
+    }});
+  const nodeEls=nodes.map((q,i)=>`<g class="vz-pt" data-vzi="${i}" tabindex="0" role="button" aria-label="Confidence ${q.lo} to ${q.lo+10} percent: real win rate ${q.rate.toFixed(0)} percent over ${q.n} bets"><circle cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="14" fill="transparent"/><circle cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="4.8" fill="${colorHex}" stroke="#04000c" stroke-width="1.5"/></g>`).join('');
+  const svg=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true" focusable="false"><defs>${_vzGlowDefs(gid,colorHex,3)}</defs>`
+    +`<line x1="${ML}" y1="${winY.toFixed(1)}" x2="${W-MR}" y2="${winY.toFixed(1)}" stroke="rgba(0,230,68,.28)"/><text x="${ML-6}" y="${(winY+4).toFixed(1)}" text-anchor="end" class="vz-ax" style="fill:rgba(0,230,68,.9)">WIN</text>`
+    +`<line x1="${ML}" y1="${lossY.toFixed(1)}" x2="${W-MR}" y2="${lossY.toFixed(1)}" stroke="rgba(255,32,144,.28)"/><text x="${ML-6}" y="${(lossY+4).toFixed(1)}" text-anchor="end" class="vz-ax" style="fill:rgba(255,32,144,.95)">LOSS</text>`
+    +axisX
+    +`<g class="vz-g-win vz-fade" fill="${_VZ_UP}" fill-opacity=".5">${wins.map(circ).join('')}</g><g class="vz-g-loss vz-fade" fill="${_VZ_DN}" fill-opacity=".5">${losses.map(circ).join('')}</g>`
+    +`<g class="vz-trend">`+(trendPath?`<path class="vz-line" pathLength="1" d="${trendPath}" fill="none" stroke="${colorHex}" stroke-width="2.5" filter="url(#${gid})"/>`:'')+nodeEls+`</g>`
+    +`<circle class="vz-ring" r="7" fill="none" stroke="#fff" stroke-width="1.6" style="display:none;pointer-events:none"/><circle class="vz-sel" r="8.5" fill="none" stroke="#ffdd00" stroke-width="2" style="display:none;pointer-events:none"/>`
+    +`<text x="${W-MR}" y="14" text-anchor="end" class="vz-ax">MODEL CONFIDENCE (winProb) →</text></svg>`;
+  return`<div class="vz-chart" data-vzid="${id}" tabindex="0" role="group" aria-label="Scatter of ${bets.length} settled picks by model confidence and outcome. Arrow keys step through dots, Enter pins one." aria-roledescription="scatter plot">${svg}</div>`;
 }
-function _vzConfidenceScatterSectionHTML(allSettled){
-  const withProb=allSettled.filter(p=>p.winProb!=null);
-  if(withProb.length<15)return _vzEmptyCardHTML('MODEL CONFIDENCE VS OUTCOME','Needs at least 15 settled, probability-tagged bets.','vc');
-  const svg=_vzConfidenceScatterSVG(withProb,'#bbff00');
-  return`<div class="card" style="margin-bottom:14px">
-    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="vc"></span> MODEL CONFIDENCE VS OUTCOME</div>
-    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Originally scoped as an ensemble-agreement chart — how much the MC/Bayesian/Elo components disagreed on a game vs whether the pick was right. Those three numbers are only ever computed on the fly when a card renders and aren't saved onto the locked pick itself, so there's no real per-pick disagreement signal in the ledger to plot honestly. This instead plots the one confidence number that IS persisted — the model's final blended win probability — against the real outcome (dots jittered so overlapping points stay visible). The curve is the real win-rate trend across that same confidence range.</div>
-    ${svg||'<div class="empty">NOT ENOUGH DATA</div>'}
+function _vzConfidenceScatterSectionHTML(ctx,anim){
+  const title='MODEL CONFIDENCE VS OUTCOME';
+  const withProb=ctx.f.filter(p=>p.winProb!=null);
+  if(withProb.length<15)return _vzEmptyCardHTML(title,ctx.g?'Needs at least 15 settled, probability-tagged '+ctx.g.label.toLowerCase()+' bets — try the ALL slice.':'Needs at least 15 settled, probability-tagged bets.','vc');
+  const svg=_vzConfidenceScatterSVG(ctx,withProb,'#bbff00',anim);
+  const leg=_vzLegend('win','WINS','background:'+_VZ_UP)+_vzLegend('loss','LOSSES','background:'+_VZ_DN)+_vzLegend('trend','WIN-RATE TREND','background:#bbff00');
+  return`<div class="card vz-card">${_vzHead('vc',title)}
+    <div class="vz-note">Originally scoped as an ensemble-agreement chart — how much the MC/Bayesian/Elo components disagreed on a game vs whether the pick was right. Those three numbers are only ever computed on the fly when a card renders and aren't saved onto the locked pick itself, so there's no real per-pick disagreement signal in the ledger to plot honestly. This instead plots the one confidence number that IS persisted — the model's final blended win probability — against the real outcome (dots jittered so overlapping points stay visible). The curve is the real win-rate trend across that same confidence range; hover or tap a dot for its pick, click to pin it below, and tap a curve node for that confidence bucket's record.</div>
+    <div class="vz-chips vz-legrow" role="group" aria-label="Chart layers">${leg}</div>
+    <div class="vz-sub">${withProb.length} settled, probability-tagged bets${ctx.g?' · '+ctx.g.label:''}</div>
+    ${svg||_vzEmptyChart('NOT ENOUGH DATA')}
+    <div class="vz-detail" aria-live="polite">${_VZ_DETAIL_HINT}</div>
   </div>`;
 }
 
@@ -29516,60 +29876,214 @@ function _vzTypeOf(p){
   if(bt==='ML')return'ML';
   return null;
 }
-function _vzRoiMatrixHTML(allSettled){
+function _vzRoiRows(ctx){
   const TYPES=['ML','SPREAD','OU','PROP'];
-  const rows=_VZ_SPORT_GROUPS.map(g=>{
-    const bets=allSettled.filter(p=>g.codes.includes(window._normSport(p)));
+  return _VZ_SPORT_GROUPS.filter(g=>!ctx.g||ctx.g===g).map(g=>{
+    const bets=ctx.f.filter(p=>g.codes.includes(ctx.sp(p)));
     const cells=TYPES.map(t=>{
       const tb=bets.filter(p=>_vzTypeOf(p)===t&&_pbIn(p)); // price-basis filter (Part C): ROI cells use only picks on the chosen basis
-      if(tb.length<5)return{empty:true,n:tb.length};
-      const units=tb.reduce((a,p)=>a+_vzPnl(p),0);
-      return{empty:false,n:tb.length,units,roi:units/tb.length*100};
+      if(tb.length<5)return{empty:true,n:tb.length,t,g};
+      const a=_vzAgg(tb);
+      return{empty:false,n:tb.length,units:a.u,roi:a.u/tb.length*100,w:a.w,l:a.l,ps:a.ps,pct:a.pct,avgOdds:a.avgOdds,t,g};
     });
-    return{label:g.label,color:g.color,cells};
+    const live=cells.filter(c=>!c.empty),un=live.reduce((a,c)=>a+c.units,0),nn=live.reduce((a,c)=>a+c.n,0);
+    return{label:g.label,color:g.color,cells,tot:{units:un,n:nn,roi:nn?un/nn*100:0}};
   }).filter(r=>r.cells.some(c=>!c.empty));
+}
+function _vzRoiTip(c){
+  return _vzEsc(_vzTipRows(c.g.label+' · '+c.t,[['ROI',_vzSign(c.roi)+'%',c.roi>=0?_VZ_UP:_VZ_DN],['UNITS',_vzSign(c.units)+'u',c.units>=0?_VZ_UP:_VZ_DN],['RECORD',c.w+'W–'+c.l+'L'+(c.ps?'–'+c.ps+'P':'')],['WIN %',c.pct.toFixed(1)+'%'],['AVG ODDS',c.avgOdds?c.avgOdds.toFixed(2):'—'],['SAMPLE','n = '+c.n]],c.g.hex));
+}
+function _vzRoiMatrixHTML(ctx){
+  const rows=_vzRoiRows(ctx);
   if(!rows.length)return null;
-  const header=TYPES.map(t=>`<div style="text-align:center;font-family:var(--mono);font-size:12px;color:var(--t3);letter-spacing:1px">${t}</div>`).join('');
+  const mode=_vzS.roiMode,val=c=>mode==='roi'?c.roi:c.units,sortK=_vzS.roiSort;
+  const maxU=Math.max(5,...rows.map(r=>Math.max(...r.cells.filter(c=>!c.empty).map(c=>Math.abs(c.units))))),scale=mode==='roi'?25:maxU*0.7;
+  const fmt=c=>mode==='roi'?[_vzSign(c.roi)+'%',_vzSign(c.units)+'u']:[_vzSign(c.units)+'u',_vzSign(c.roi)+'%'];
+  if(_vzS.roiView==='bars'){
+    let list=[];rows.forEach(r=>r.cells.forEach(c=>{if(!c.empty)list.push(c);}));
+    if(sortK==='best')list.sort((a,b)=>val(b)-val(a));else if(sortK==='worst')list.sort((a,b)=>val(a)-val(b));else if(sortK==='volume')list.sort((a,b)=>b.n-a.n);
+    const mx=Math.max(1e-9,...list.map(c=>Math.abs(val(c))));
+    return`<div class="vz-rbars" role="list">`+list.map(c=>{
+      const v=val(c),pos=v>=0,col=pos?_VZ_UP:_VZ_DN,w=Math.abs(v)/mx*50,f=fmt(c);
+      return`<button type="button" class="vz-rb" role="listitem" data-vztip="${_vzRoiTip(c)}" aria-label="${c.g.label} ${c.t}: ${f[0]} (${f[1]}) over ${c.n} bets"><span class="vz-rbl"><b style="color:${c.g.color}">${c.g.label}</b> <small>${c.t}</small></span><span class="vz-rtrk"><i class="vz-bar vz-rbar" style="${pos?'left:50%':'right:50%'};width:${w.toFixed(1)}%;background:${col};transform-origin:${pos?'left':'right'} center"></i></span><span class="vz-rbv" style="color:${col}">${f[0]}<small>n${c.n}</small></span></button>`;
+    }).join('')+`</div>`;
+  }
+  const rowVal=r=>mode==='roi'?r.tot.roi:r.tot.units;
+  if(sortK==='best')rows.sort((a,b)=>rowVal(b)-rowVal(a));else if(sortK==='worst')rows.sort((a,b)=>rowVal(a)-rowVal(b));else if(sortK==='volume')rows.sort((a,b)=>b.tot.n-a.tot.n);
+  const TYPES=['ML','SPREAD','OU','PROP'];
+  const header=TYPES.map(t=>`<div class="vz-hh" style="color:var(--t3)">${t}</div>`).join('');
   const body=rows.map(r=>{
     const cellsHtml=r.cells.map(c=>{
-      if(c.empty)return`<div style="text-align:center;padding:14px 4px;font-family:var(--mono);font-size:11px;color:var(--t3);background:rgba(255,255,255,.02);border-radius:4px">n/a${c.n?' (n='+c.n+')':''}</div>`;
-      const bg=_vzDeltaColor(c.roi,25);
-      const glow=Math.abs(c.roi)>=10?`0 0 14px ${c.roi>=0?'rgba(0,230,68,.35)':'rgba(255,32,96,.35)'}`:'none';
-      return`<div style="text-align:center;padding:9px 4px;border-radius:4px;background:${bg};box-shadow:${glow};border:1px solid rgba(255,255,255,.08)">`
-        +`<div style="font-family:var(--orb);font-size:16px;font-weight:700;color:var(--t)">${c.roi>=0?'+':''}${c.roi.toFixed(1)}%</div>`
-        +`<div style="font-family:var(--mono);font-size:10px;color:var(--t2)">${c.units>=0?'+':''}${c.units.toFixed(1)}u · n${c.n}</div>`
-        +`</div>`;
+      if(c.empty)return`<div class="vz-cell vz-na">n/a${c.n?' (n='+c.n+')':''}</div>`;
+      const v=val(c),bg=_vzDeltaColor(v,scale),f=fmt(c);
+      const glow=Math.abs(v)>=scale*0.4?`0 0 14px ${v>=0?'rgba(0,230,68,.35)':'rgba(255,32,96,.35)'}`:'none';
+      return`<button type="button" class="vz-cell" style="background:${bg};box-shadow:${glow}" data-vztip="${_vzRoiTip(c)}" aria-label="${r.label} ${c.t}: ${f[0]} (${f[1]}) over ${c.n} bets"><div class="vz-cv">${f[0]}</div><div class="vz-cs">${f[1]} · n${c.n}</div></button>`;
     }).join('');
-    return`<div style="display:grid;grid-template-columns:72px 1fr 1fr 1fr 1fr;gap:4px;align-items:center;margin-bottom:6px">`
-      +`<div style="font-family:var(--orb);font-size:13px;font-weight:700;color:${r.color}">${r.label}</div>`
-      +cellsHtml+`</div>`;
+    return`<div class="vz-rrow"><div class="vz-rl" style="color:${r.color}">${r.label}</div>${cellsHtml}</div>`;
   }).join('');
-  return`<div style="display:grid;grid-template-columns:72px 1fr 1fr 1fr 1fr;gap:4px;margin-bottom:8px"><div></div>${header}</div>${body}`;
+  return`<div class="vz-rrow" style="margin-bottom:8px"><div></div>${header}</div>${body}`;
 }
-function _vzRoiCardHTML(allSettled){
-  const grid=_vzRoiMatrixHTML(allSettled);
-  if(!grid)return _vzEmptyCardHTML('BET TYPE × SPORT — ROI','No sport/bet-type combination has 5+ settled bets yet.','gc');
-  return`<div class="card" style="margin-bottom:14px">
-    <div class="sh" style="font-size:17px!important;margin-top:0"><span class="gc"></span> BET TYPE × SPORT — ROI</div>
-    <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:8px;line-height:1.5">Real return on investment per unit staked, broken out by sport and bet type. Green cells are profitable, red are not — unit total and sample size are shown underneath so a hot cell with 5 bets doesn't look as trustworthy as one with 60.</div>
+function _vzRoiCardHTML(ctx){
+  const grid=_vzRoiMatrixHTML(ctx);
+  if(!grid)return _vzEmptyCardHTML('BET TYPE × SPORT — ROI',ctx.g?'No '+ctx.g.label.toLowerCase()+'/bet-type combination has 5+ settled bets yet — try the ALL slice.':'No sport/bet-type combination has 5+ settled bets yet.','gc');
+  const grp=(act,cur,opts,col)=>`<div class="vz-chips" role="group" aria-label="${act}">${opts.map(o=>_vzChip(act,o[0],o[1],cur===o[0],col)).join('')}</div>`;
+  return`<div class="card vz-card">${_vzHead('gc','BET TYPE × SPORT — ROI')}
+    <div class="vz-note">Real return on investment per unit staked, broken out by sport and bet type. Green cells are profitable, red are not — unit total and sample size are shown underneath so a hot cell with 5 bets doesn't look as trustworthy as one with 60. Flip between ROI % and raw units, view it as a matrix or ranked bars, and re-sort; hover or tap any cell or bar for its record, win % and average odds.</div>
+    <div class="vz-chips vz-between">${grp('roimode',_vzS.roiMode,[['roi','ROI %'],['units','UNITS']],'#ffdd00')}${grp('roiview',_vzS.roiView,[['matrix','MATRIX'],['bars','BARS']],'#00f0ff')}${grp('roisort',_vzS.roiSort,[['default','DEFAULT'],['best','BEST'],['worst','WORST'],['volume','VOLUME']],'#f000ff')}</div>
     ${grid}
   </div>`;
 }
 
 // ── Top-level dispatcher — wired to the VISUALS sub-nav button/setSub ──
+const _VZ_CARDS={cal:_vzCalibrationCardHTML,eq:_vzEquityCardHTML,tier:_vzTierCardHTML,streak:_vzStreakCardHTML,pl:_vzPlayerSparklineSectionHTML,sc:_vzConfidenceScatterSectionHTML,roi:_vzRoiCardHTML};
+function _vzMakeCtx(all){
+  const g=_VZ_SPORT_GROUPS.find(x=>x.k===_vzS.flt)||null,spm=new Map();
+  const sp=p=>{let s=spm.get(p);if(s===undefined){s=window._normSport(p);spm.set(p,s);}return s;};
+  const f=g?all.filter(p=>g.codes.includes(sp(p))):all;
+  return{all,f,g,sp,gr:new Map(),players:_vzPlayerPropAggregates(),last:all.length?all[all.length-1].date:'',W:_vzChartW()};
+}
+function _vzSlot(k,ctx,anim){
+  let h='';
+  try{h=_VZ_CARDS[k](ctx,anim);}catch(e){try{console.warn('[vz]',k,e);}catch(_){}h=_vzEmptyCardHTML('CHART UNAVAILABLE','This chart hit an error while rendering.');}
+  const off=Object.keys(_vzS.off).filter(x=>_vzS.off[x]).map(x=>'vz-off-'+x).join(' ');
+  return`<div class="vz-slot ${off}${anim?' vz-anim':''}" id="vz-c-${k}">${h}</div>`;
+}
+function _vzFilterRowHTML(ctx){
+  const cnt=g=>g?ctx.all.filter(p=>g.codes.includes(ctx.sp(p))).length:ctx.all.length;
+  const chips=[_vzChip('flt','ALL','ALL <small>'+ctx.all.length+'</small>',_vzS.flt==='ALL','#00f0ff')].concat(_VZ_SPORT_GROUPS.map(g=>_vzChip('flt',g.k,g.label+' <small>'+cnt(g)+'</small>',_vzS.flt===g.k,g.hex))).join('');
+  return`<div class="card vz-card vz-filter"><div class="vz-sub" style="margin:0 0 6px">SLICE EVERY CHART BY SPORT · ${ctx.f.length} OF ${ctx.all.length} SETTLED BETS</div><div class="vz-chips" role="group" aria-label="Filter every chart by sport">${chips}</div></div>`;
+}
 function renderAnalyticsVisuals(){
   const el=document.getElementById('analytics-visuals-content');if(!el)return;
   const allSettled=_vzSettled();
   if(!allSettled.length){el.innerHTML=_vzEmptyCardHTML('ANALYTICS VISUALS','No settled bets yet — every chart below needs real graded history to plot.');return;}
-  el.innerHTML=_vzCalibrationCardHTML(allSettled)
-    +_vzEquityCardHTML(allSettled)
-    +_vzTierCardHTML(allSettled)
-    +_vzStreakCardHTML(allSettled)
-    +_vzPlayerSparklineSectionHTML()
-    +_vzConfidenceScatterSectionHTML(allSettled)
-    +_vzRoiCardHTML(allSettled);
+  _vzReg={};_vzHot=null;_vzTipHide();
+  if(!_VZ_SPORT_GROUPS.some(g=>g.k===_vzS.flt))_vzS.flt='ALL';
+  const ctx=_vzMakeCtx(allSettled),anim=!_vzNoAnim;
+  _vzCtx=ctx;
+  el.innerHTML=_vzFilterRowHTML(ctx)+_VZ_KEYS.map(k=>_vzSlot(k,ctx,anim)).join('');
+  _vzBind(el);
 }
 window.renderAnalyticsVisuals=renderAnalyticsVisuals;
+function _vzRerender(key,anim){
+  const slot=document.getElementById('vz-c-'+key);if(!slot||!_vzCtx)return;
+  const ae=document.activeElement;let sel=null;
+  if(ae&&slot.contains(ae)&&ae.dataset&&ae.dataset.vzact)sel='[data-vzact="'+ae.dataset.vzact+'"][data-v="'+ae.dataset.v+'"]';
+  _vzTipHide();_vzHot=null;
+  slot.classList.toggle('vz-anim',!!anim);
+  slot.innerHTML=_VZ_CARDS[key](_vzCtx,!!anim);
+  if(sel){const n=slot.querySelector(sel);if(n)n.focus({preventScroll:true});}
+}
+
+// ── Delegated events: bound ONCE on #analytics-visuals-content (innerHTML swaps never lose them) ──
+function _vzTarget(el){return el&&el.closest?el.closest('[data-vzid],[data-vzp],[data-vztip]'):null;}
+function _vzPickOf(t){const a=(t.dataset.vzp||'').split(':'),r=_vzReg[a[0]];return r?r.bets[+a[1]]:null;}
+function _vzLeave(t){
+  if(t&&t.dataset&&t.dataset.vzid){const r=_vzReg[t.dataset.vzid];if(r&&r.leave)r.leave(t);}
+  _vzTipHide();
+}
+function _vzSetHot(t){if(_vzHot&&_vzHot!==t)_vzLeave(_vzHot);_vzHot=t;}
+function _vzShowFor(t,x,y,focus){
+  if(t.dataset.vzid){const r=_vzReg[t.dataset.vzid];if(r&&r.move)r.move(t,x,y,focus);return;}
+  const b=t.getBoundingClientRect();
+  if(t.dataset.vzp){const p=_vzPickOf(t);if(p)_vzTipShow(_vzPickTipHTML(p),b.left+b.width/2,b.top,4);}
+  else if(t.dataset.vztip)_vzTipShow(t.dataset.vztip,focus?b.left+b.width/2:x,focus?b.top:y,focus?4:14);
+}
+function _vzMoveNow(){
+  _vzRaf=0;const m=_vzLastMove;if(!m)return;
+  if(m.t!==_vzHot)_vzSetHot(m.t);
+  if(m.t)_vzShowFor(m.t,m.x,m.y,false);
+}
+function _vzOnMove(e){
+  if(e.pointerType==='touch'&&!(e.target.closest&&e.target.closest('[data-vzid]')))return; // touch scrubs charts only; elsewhere the page scrolls
+  _vzLastMove={t:_vzTarget(e.target),x:e.clientX,y:e.clientY};
+  if(!_vzRaf)_vzRaf=requestAnimationFrame(_vzMoveNow);
+}
+function _vzOnDown(e){
+  const t=_vzTarget(e.target);
+  if(!t){_vzSetHot(null);_vzTipHide();return;}
+  _vzSetHot(t);_vzShowFor(t,e.clientX,e.clientY,false);
+}
+function _vzToggleLeg(a){
+  const k=a.dataset.v;_vzS.off[k]=!_vzS.off[k];
+  a.setAttribute('aria-pressed',_vzS.off[k]?'false':'true');
+  // dropping vz-anim also cancels any entry animation still running, which would otherwise hold the opacity this toggle is changing
+  document.querySelectorAll('.vz-slot').forEach(s=>{s.classList.remove('vz-anim');s.classList.toggle('vz-off-'+k,_vzS.off[k]);});
+  document.querySelectorAll('.vz-leg[data-v="'+k+'"]').forEach(b=>b.setAttribute('aria-pressed',_vzS.off[k]?'false':'true'));
+  _vzTipHide();
+}
+function _vzAct(a){
+  const act=a.dataset.vzact,v=a.dataset.v;_vzTipHide();
+  if(act==='leg'){_vzToggleLeg(a);return;}
+  if(act==='flt'){
+    _vzS.flt=v;_vzNoAnim=false;_vzS.tier=null;
+    window.renderAnalyticsVisuals();
+    const n=document.querySelector('[data-vzact="flt"][data-v="'+v+'"]');if(n)n.focus({preventScroll:true});
+    return;
+  }
+  if(act==='per'){_vzS.per=v;_vzRerender('eq',true);}
+  else if(act==='lg'){_vzS.lg=v;_vzRerender('cal',true);}
+  else if(act==='plsort'){_vzS.plSort=v;_vzRerender('pl',false);}
+  else if(act==='roimode'){_vzS.roiMode=v;_vzRerender('roi',false);}
+  else if(act==='roisort'){_vzS.roiSort=v;_vzRerender('roi',false);}
+  else if(act==='roiview'){_vzS.roiView=v;_vzRerender('roi',true);}
+  else if(act==='tier'){
+    const q=v.split('|'),cur=_vzS.tier;
+    _vzS.tier=(cur&&cur.g===q[0]&&(cur.s||null)===(q[1]||null))?null:{g:q[0],s:q[1]||null};
+    _vzRerender('tier',false);
+  }
+  else if(act==='tierx'){_vzS.tier=null;_vzRerender('tier',false);}
+}
+function _vzOnClick(e){
+  const a=e.target.closest('[data-vzact]');
+  if(a){_vzAct(a);return;}
+  const d=e.target.closest('[data-vzp]');
+  if(d){
+    const p=_vzPickOf(d);if(!p)return;
+    const slot=d.closest('.vz-slot');if(slot)slot.querySelectorAll('.vz-dot.sel').forEach(x=>x.classList.remove('sel'));
+    d.classList.add('sel');_vzSetDetail(d,_vzPickDetailHTML(p));return;
+  }
+  const h=e.target.closest('[data-vzid]');
+  if(h){const r=_vzReg[h.dataset.vzid];if(r&&r.click)r.click(h,e);}
+}
+function _vzOnKey(e){
+  if(e.key==='Escape'){_vzTipHide();return;}
+  const dot=e.target.closest&&e.target.closest('.vz-dot');
+  if(dot&&(e.key==='ArrowLeft'||e.key==='ArrowRight'||e.key==='Home'||e.key==='End')){
+    const sibs=Array.prototype.slice.call(dot.parentNode.children);let i=sibs.indexOf(dot);
+    i=e.key==='Home'?0:e.key==='End'?sibs.length-1:Math.max(0,Math.min(sibs.length-1,i+(e.key==='ArrowRight'?1:-1)));
+    sibs.forEach(s=>s.tabIndex=-1);sibs[i].tabIndex=0;sibs[i].focus();e.preventDefault();return;
+  }
+  const h=e.target.closest&&e.target.closest('[data-vzid]');
+  if(h){const r=_vzReg[h.dataset.vzid];if(r&&r.key&&r.key(h,e))e.preventDefault();}
+}
+function _vzOnFocus(e){
+  const el=e.target;if(!el.matches||!el.matches(':focus-visible'))return;
+  const host=el.closest('[data-vzid]'),ch=el.closest('[data-vzi]');
+  if(host&&ch&&host!==ch){const r=_vzReg[host.dataset.vzid];if(r&&r.at){_vzSetHot(host);r.at(host,+ch.dataset.vzi,'focus');}return;}
+  const t=_vzTarget(el);if(t){_vzSetHot(t);_vzShowFor(t,0,0,true);}
+}
+let _vzResizeT=0;
+function _vzBind(root){
+  if(root._vzB)return;root._vzB=1;
+  root.addEventListener('pointermove',_vzOnMove);
+  root.addEventListener('pointerdown',_vzOnDown);
+  root.addEventListener('pointerleave',e=>{if(e.pointerType==='touch')return;_vzLastMove=null;_vzSetHot(null);_vzTipHide();});
+  root.addEventListener('click',_vzOnClick);
+  root.addEventListener('keydown',_vzOnKey);
+  root.addEventListener('focusin',_vzOnFocus);
+  root.addEventListener('focusout',()=>{_vzTipHide();});
+  document.addEventListener('pointerdown',e=>{if(!(e.target.closest&&e.target.closest('#analytics-visuals-content')))_vzTipHide();});
+  document.addEventListener('scroll',_vzTipHide,true);
+  window.addEventListener('resize',()=>{
+    clearTimeout(_vzResizeT);
+    _vzResizeT=setTimeout(()=>{
+      const el=document.getElementById('analytics-visuals-content');
+      if(!el||!el.offsetParent||!_vzCtx||Math.abs(_vzChartW()-_vzCtx.W)<24)return;
+      _vzNoAnim=true;try{window.renderAnalyticsVisuals();}finally{_vzNoAnim=false;}
+    },220);
+  });
+}
 
 /* ── Window exports for standalone Simulator + Tracker ──────────── */
 window.getP    = typeof getP    ==='function' ? getP    : function(){return [];};
