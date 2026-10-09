@@ -49,6 +49,31 @@ export function dueWorkflows(when) {
   return [...new Set(dueEntries(when).map((s) => s.wf))];
 }
 
+// ── Kickoff-aware pre-drop sweeps ────────────────────────────────────────────────────────────────────────────────────────────────────
+// docs/kickoffs.json (scripts/build_kickoffs.py, generated into every Pages deploy) lists every upcoming game start the engine locks, in any sport. About SWEEP_LEAD_MIN minutes before EACH start the
+// Worker runs the pre-kickoff watchdog (gated=true: the same gate / LIVE_MODE / auto-lock behaviour as a scheduled slot), so a pick that only qualifies on the last odds readings is locked before the
+// game -- evening NHL/NBA, early-morning European soccer and hockey, Saturday CFB, Sunday NFL -- with no hand-kept list of times. If the file cannot be read, the fixed sweep times in SCHEDULE still run.
+export const KICKOFFS_URL = "https://clairvoyanceengine.info/kickoffs.json";
+export const SWEEP_LEAD_MIN = 40;          // the 10-minute tick that contains (start - 40 min) fires, so a sweep runs 40-50 min before the start; the lock guard still refuses anything inside 10 min
+export const SWEEP_ENTRY = { wf: "lock-watchdog.yml", inputs: { gated: "true" } };
+
+/** Starts ({t: ISO, sports}) whose sweep falls in the tick that contains `when`. */
+export function sweepsDue(when, starts, leadMin = SWEEP_LEAD_MIN) {
+  const tickMs = TICK_MIN * 60000, slot = Math.floor(new Date(when).getTime() / tickMs);
+  return (starts || []).filter((x) => { const t = Date.parse(x && (x.t || x)); return Number.isFinite(t) && Math.floor((t - leadMin * 60000) / tickMs) === slot; });
+}
+
+async function loadStarts(fetchImpl) {
+  try {
+    const r = await fetchImpl(KICKOFFS_URL, { cf: { cacheTtl: 240 } });
+    if (!r.ok) return [];
+    const j = await r.json();
+    return Array.isArray(j && j.starts) ? j.starts : [];
+  } catch (e) {
+    return [];
+  }
+}
+
 async function gh(env, path, init = {}, fetchImpl = fetch) {
   return fetchImpl(`https://api.github.com/repos/${REPO}${path}`, {
     ...init,
@@ -72,7 +97,13 @@ async function alreadyRunning(env, wf, fetchImpl) {
 /** Starts every workflow due at `when`. Returns [{wf, result}] where result is "dispatched" | "skipped: ..." | "error: ...". */
 export async function runTick(env, when, fetchImpl = fetch) {
   const out = [];
-  for (const { wf, inputs } of dueEntries(when)) {
+  const entries = dueEntries(when).slice();
+  if (env.GH_TOKEN) {
+    const due = sweepsDue(when, await loadStarts(fetchImpl));
+    const have = entries.some((e) => e.wf === SWEEP_ENTRY.wf && JSON.stringify(e.inputs || {}) === JSON.stringify(SWEEP_ENTRY.inputs));
+    if (due.length && !have) entries.push({ ...SWEEP_ENTRY, kickoff: due.map((x) => x.t).join(",") });
+  }
+  for (const { wf, inputs } of entries) {
     if (!env.GH_TOKEN) { out.push({ wf, result: "skipped: GH_TOKEN secret not set" }); continue; }
     try {
       if (await alreadyRunning(env, wf, fetchImpl)) { out.push({ wf, result: "skipped: already queued or running" }); continue; }
@@ -144,6 +175,12 @@ export default {
   async fetch(request, env) {
     if (new URL(request.url).pathname === "/trigger") return handleTrigger(request, env || {});
     const now = Date.now();
+    const starts = await loadStarts(fetch);
+    const kickoffSweeps = [];
+    for (let i = 0; i < 6 * 24 * 2 && kickoffSweeps.length < 10; i++) {          // next 48 h of kickoff-aware sweeps
+      const t = now + i * TICK_MIN * 60000, due = sweepsDue(t, starts);
+      if (due.length) kickoffSweeps.push({ at: new Date(t).toISOString(), forStarts: due.map((x) => x.t), sports: [...new Set(due.flatMap((x) => x.sports || []))] });
+    }
     const next = [];
     for (let i = 0; i < 6 * 24 * 2; i++) {            // next 48 h, tick by tick
       const t = now + i * TICK_MIN * 60000;
@@ -151,6 +188,6 @@ export default {
       if (due.length) next.push({ at: new Date(t).toISOString(), due });
       if (next.length >= 10) break;
     }
-    return new Response(JSON.stringify({ tickMinutes: TICK_MIN, next }, null, 2), { headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify({ tickMinutes: TICK_MIN, next, kickoffStarts: starts.length, kickoffSweeps }, null, 2), { headers: { "content-type": "application/json" } });
   },
 };

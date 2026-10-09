@@ -146,17 +146,34 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Make sure the kickoff list is live (self-heal)
+        # 2026-10-09: docs/kickoffs.json (built in the next step) is what the scheduler Worker reads to run the pre-kickoff watchdog before every game. If a no-change deploy would
+        # skip while the live site has no such file yet, deploy anyway.
+        if: steps.check.outputs.skip == 'true'
+        run: |
+          if ! curl -sfI --max-time 15 https://clairvoyanceengine.info/kickoffs.json > /dev/null; then
+            echo "kickoffs.json is not live yet -- deploying anyway."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+        id: kick
+        continue-on-error: true
+
+      - name: Build kickoff list (for the scheduler Worker)
+        if: steps.check.outputs.skip != 'true' || steps.kick.outputs.skip == 'false'
+        continue-on-error: true
+        run: python3 scripts/build_kickoffs.py
+
       - name: Setup Pages
-        if: steps.check.outputs.skip != 'true'
+        if: steps.check.outputs.skip != 'true' || steps.kick.outputs.skip == 'false'
         uses: actions/configure-pages@v5
 
       - name: Upload artifact
-        if: steps.check.outputs.skip != 'true'
+        if: steps.check.outputs.skip != 'true' || steps.kick.outputs.skip == 'false'
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs
 
       - name: Deploy to GitHub Pages
         id: deployment
-        if: steps.check.outputs.skip != 'true'
+        if: steps.check.outputs.skip != 'true' || steps.kick.outputs.skip == 'false'
         uses: actions/deploy-pages@v4

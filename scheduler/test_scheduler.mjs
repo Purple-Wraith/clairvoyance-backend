@@ -1,6 +1,6 @@
 // node scheduler/test_scheduler.mjs -- offline: slot matching, weekday filters, dedupe, dispatch, failure reporting (GitHub API faked)
 import assert from "node:assert/strict";
-import { dueWorkflows, dueEntries, runTick, SCHEDULE, TICK_MIN, handleTrigger, safeEqual, TRIGGERS, ALLOWED_ORIGINS } from "./worker.js";
+import { dueWorkflows, dueEntries, runTick, SCHEDULE, TICK_MIN, handleTrigger, safeEqual, TRIGGERS, ALLOWED_ORIGINS, sweepsDue, KICKOFFS_URL, SWEEP_LEAD_MIN } from "./worker.js";
 import { readFileSync, readdirSync } from "node:fs";
 
 const at = (iso) => Date.parse(iso);
@@ -115,4 +115,45 @@ assert.equal(r.headers.get("access-control-allow-origin"), null);               
 r = await handleTrigger(req(null, { method: "GET" }), env, ghFake().fetchImpl, nosleep);
 assert.equal(r.status, 405);
 assert.ok(ALLOWED_ORIGINS.includes("https://clairvoyanceengine.info") && ALLOWED_ORIGINS.includes("https://purple-wraith.github.io"));
+// ── kickoff-aware sweeps ──
+assert.equal(SWEEP_LEAD_MIN, 40);
+const starts = [{ t: "2026-10-10T11:30Z", sports: ["PL"] }, { t: "2026-10-10T16:00Z", sports: ["CFB"] }, { t: "2026-10-10T16:05Z", sports: ["CFB"] }];
+// PL start 11:30Z -> sweep tick contains 10:50Z = the 10:50-10:59 tick
+assert.equal(sweepsDue(at("2026-10-10T10:50:30Z"), starts).length, 1);
+assert.equal(sweepsDue(at("2026-10-10T10:59:59Z"), starts).length, 1);
+assert.equal(sweepsDue(at("2026-10-10T10:40:00Z"), starts).length, 0);
+assert.equal(sweepsDue(at("2026-10-10T11:00:00Z"), starts).length, 0);
+// two starts 5 min apart whose sweep ticks coincide -> one tick, both listed (one dispatch)
+assert.equal(sweepsDue(at("2026-10-10T15:20:00Z"), starts).length, 2);
+assert.deepEqual(sweepsDue(at("2026-10-10T10:50:00Z"), ["2026-10-10T11:30Z"]).length, 1);                  // plain ISO strings work too
+assert.deepEqual(sweepsDue(at("2026-10-10T10:50:00Z"), [{ t: "garbage" }, null]), []);
+function kickoffGitHub(startsList, opts = {}) {
+  const base = ghFake(opts);
+  const calls = base.calls;
+  const fetchImpl = async (url, init = {}) => {
+    if (url === KICKOFFS_URL) { calls.push({ url, method: "GET" }); return { ok: !opts.kickoffsDown, status: opts.kickoffsDown ? 500 : 200, json: async () => ({ starts: startsList }) }; }
+    return base.fetchImpl(url, init);
+  };
+  return { calls, fetchImpl };
+}
+let kg = kickoffGitHub(starts);
+let res = await runTick({ GH_TOKEN: "t" }, at("2026-10-10T10:50:30Z"), kg.fetchImpl);
+assert.deepEqual(res.map((e) => [e.wf, e.result]), [["lock-watchdog.yml", "dispatched"]]);
+assert.deepEqual(JSON.parse(kg.calls.find((c) => c.method === "POST").body), { ref: "main", inputs: { gated: "true" } });
+kg = kickoffGitHub(starts);
+assert.deepEqual(await runTick({ GH_TOKEN: "t" }, at("2026-10-10T11:20:00Z"), kg.fetchImpl), []);        // no start 40 min away -> nothing
+// a fixed sweep tick that ALSO has a kickoff sweep dispatches the watchdog once, not twice
+kg = kickoffGitHub([{ t: "2026-10-08T23:00Z", sports: ["NHL"] }]);
+res = await runTick({ GH_TOKEN: "t" }, at("2026-10-08T22:20:30Z"), kg.fetchImpl);
+assert.equal(res.filter((e) => e.wf === "lock-watchdog.yml").length, 1);
+// kickoffs file unreadable -> fixed slots still run, nothing breaks
+kg = kickoffGitHub(starts, { kickoffsDown: true });
+res = await runTick({ GH_TOKEN: "t" }, at("2026-10-08T22:20:30Z"), kg.fetchImpl);
+assert.deepEqual(res.map((e) => e.result), ["dispatched"]);
+kg = kickoffGitHub(starts, { kickoffsDown: true });
+assert.deepEqual(await runTick({ GH_TOKEN: "t" }, at("2026-10-10T10:50:30Z"), kg.fetchImpl), []);        // and no phantom dispatch
+// no token -> no network at all (also not for the kickoffs file)
+kg = kickoffGitHub(starts);
+await runTick({}, at("2026-10-10T10:50:30Z"), kg.fetchImpl);
+assert.equal(kg.calls.length, 0);
 console.log("scheduler OK:", SCHEDULE.length, "workflows + owner trigger");
