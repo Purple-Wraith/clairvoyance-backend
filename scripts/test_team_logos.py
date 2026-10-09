@@ -39,6 +39,7 @@ ALLOWED_CALLERS = {
     # the same card renderers under the wrapper that closes the lock row for live/final games (see _closeLocksHTML in docs/app.html)
     "_nhlUpcomingCardRaw", "_renderSocMatchCardRaw", "_liigaMatchCardRaw", "_shlMatchCardRaw", "_nlaMatchCardRaw", "_extraligaMatchCardRaw",
     "_pickLogo",  # in-app locked-pick rows (pending/settled lists) -- in-app only, never an export or email
+    "_scCardHTML",  # the SCORES tab's score cards -- in-app only
 }
 LOGO_HOSTS = ("a.espncdn.com", "static.flashscore.com")
 PNG_1X1 = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360f8cfc0f00f0002c60180e5e7b4b30000000049454e44ae426082")
@@ -110,7 +111,7 @@ class StaticChecks(unittest.TestCase):
     def test_no_script_or_email_builder_references_logos(self):
         allowed = {"build_team_logos.py", "_flashscore_logos.py", "test_team_logos.py", "fetch_liiga.py", "fetch_shl.py", "fetch_nla.py",
                    "fetch_extraliga.py", "auto_lock_settle.py", "generate_pick_of_day_social.py", "generate_social_cards.py",
-                   "test_settle_pass_sim.py",
+                   "test_settle_pass_sim.py", "test_scores_tab.py",   # (the SCORES-tab test stubs ESPN payloads whose team logos are the helper's input)
                    # PRE-EXISTING, unrelated to the card logos: stores ESPN's logo URL strings in docs/soccer_standings.json (URLs only,
                    # never rendered by the app, not an export/email/landing figure).
                    "scrape_soccer_standings.py",

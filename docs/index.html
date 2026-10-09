@@ -646,6 +646,40 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 #cv-ticker .tkl.w{border-color:#00e644;color:#00e644}#cv-ticker .tkl.l{border-color:#ff1a1a;color:#ff1a1a}
 @keyframes tkscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){#cv-ticker .tk-track.go{animation:none}#cv-ticker{overflow-x:auto}}
+/* SCORES tab (renderScores): day bar, league / status chips, grid of compact score cards */
+#sc-root{max-width:1200px;margin:0 auto}
+.sc-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:10px}
+.sc-bar .sc-grow{flex:1 1 auto}
+.sc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.sc-btn{font-family:var(--mono);font-size:12px;letter-spacing:.08em;line-height:1.2;min-height:34px;padding:5px 9px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;color:var(--t2);cursor:pointer;white-space:nowrap}
+.sc-btn:hover{border-color:var(--nc);color:var(--t)}
+.sc-btn[aria-pressed="true"]{border-color:var(--pc);color:var(--pc);background:var(--p3)}
+.sc-btn:focus-visible,.sc-date:focus-visible{outline:2px solid var(--nc);outline-offset:1px}
+.sc-btn .sc-n{color:var(--t3);margin-left:5px}.sc-btn[aria-pressed="true"] .sc-n{color:inherit}
+.sc-date{font-family:var(--mono);font-size:14px;min-height:34px;padding:4px 8px;background:var(--b1);border:1px solid var(--pc);border-radius:3px;color:var(--pc);color-scheme:dark}
+.sc-day{font-family:var(--orb);font-size:15px;font-weight:700;letter-spacing:1.5px;color:var(--t);padding:0 4px}
+.sc-meta{font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--t3);margin:2px 0 10px}
+.sc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:8px}
+.sc-card{min-width:0;padding:8px 10px;background:rgba(34,36,46,.55);border:1px solid var(--w2);border-left:3px solid var(--w3);border-radius:3px;font-family:var(--mono)}
+.sc-card.st-in{border-left-color:var(--hc)}.sc-card.st-pre{border-left-color:var(--nc)}.sc-card.st-post{border-left-color:rgba(255,255,255,.28)}
+.sc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:6px;font-size:11px;letter-spacing:.08em}
+.sc-lg{color:var(--nc);border:1px solid currentColor;border-radius:2px;padding:0 5px;white-space:nowrap}
+.sc-st{min-width:0;color:var(--t3);text-align:right;line-height:1.25;overflow-wrap:anywhere}
+.sc-card.st-in .sc-st{color:var(--hc);font-weight:700}
+.sc-pulse{display:inline-block;width:7px;height:7px;margin-right:5px;border-radius:50%;background:var(--hc);animation:scpulse 1.4s ease-in-out infinite}
+@keyframes scpulse{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.sc-pulse{animation:none}}
+.sc-row{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:2px 0;color:var(--t)}
+.sc-tm{display:flex;align-items:center;min-width:0;font-size:14px;overflow:hidden}
+.sc-tm>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-sc{font-family:var(--orb);font-size:18px;font-weight:700;flex:none;min-width:1.2em;text-align:right}
+.sc-card.st-post .sc-row.lose{color:var(--t3)}.sc-card.st-post .sc-row.lose .sc-sc{font-weight:400}
+.sc-card.st-pre .sc-sc{color:var(--t3);font-weight:400}
+.sc-lk{margin-top:6px;display:flex;flex-direction:column;gap:3px}
+.sc-pick{font-size:11px;padding:1px 6px;border:1px solid var(--nc);border-radius:2px;color:var(--nc);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-pick.w{border-color:var(--rc);color:var(--rc)}.sc-pick.l{border-color:var(--hc);color:var(--hc)}
+.sc-empty{padding:26px 10px;text-align:center;font-family:var(--mono);font-size:14px;letter-spacing:.08em;color:var(--t3)}
+@media (max-width:480px){.sc-date{flex:1 1 130px}}
 @media (max-width:768px){.fresh{font-size:8px!important;letter-spacing:.2px}#cv-ticker{font-size:11px}#cv-ticker .tk{padding:0 12px}#hdr{flex:0 0 calc(48px + env(safe-area-inset-top,0px))!important}}
 .tpw>summary{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;cursor:pointer;padding:8px 10px;background:rgba(10,0,24,.7);border-left:2px solid var(--nc);border-radius:2px;font-family:var(--mono);font-size:13px;list-style:none}.tpw>summary::-webkit-details-marker{display:none}.tpw>summary::before{content:'▸';color:var(--nc)}.tpw[open]>summary::before{content:'▾'}
 .tpw .tpwd{color:var(--pc);letter-spacing:1px;min-width:92px}.tpw .tpwt{font-weight:700}.tpw .tpwa{color:var(--t3);font-size:12px}.tpw .tpwb{padding:2px 4px 8px}.tpw0>summary{list-style:none;cursor:pointer}.tpw0>summary::-webkit-details-marker{display:none}
@@ -1125,6 +1159,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
 <div id="cv-ticker" style="display:none"></div>
 <nav id="sbar">
   <button class="sp act" onclick="navTap(this,'home')" onmouseenter="showND(this,'home')" onmouseleave="startHideND()">HOME</button>
+  <button class="sp" onclick="navTap(this,'scores')">SCORES</button>
   <button class="sp" onclick="navTap(this,'toppicks')" onmouseenter="showND(this,'toppicks')" onmouseleave="startHideND()">TOP PICKS</button>
   <button class="sp" onclick="navTap(this,'ovr')" onmouseenter="showND(this,'ovr')" onmouseleave="startHideND()">OVERALL</button>
   <button class="sp" onclick="navTap(this,'analytics')" onmouseenter="showND(this,'analytics')" onmouseleave="startHideND()">ANALYTICS</button>
@@ -1156,6 +1191,13 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
     <div id="home-games"             style="display:none"></div>
     <div id="home-date-display"      style="display:none"></div>
     <div id="home-locked"            style="display:none"></div>
+  </div>
+</div>
+
+<!-- SCORES: every league's games for one day (live / upcoming / final); renderScores below the ticker code -->
+<div id="sp-scores" class="spane">
+  <div class="sa" style="padding:16px">
+    <div id="sc-root"><div class="loading"><span class="spi"></span></div></div>
   </div>
 </div>
 
@@ -20415,6 +20457,7 @@ function SS(s){
   const mn11=document.getElementById('mn11');if(mn11)mn11.style.display=s==='fut'?'flex':'none';
   const _t=(fn)=>{try{fn();}catch(e){console.warn('SS render',e);}};
   if(s==='home'){_t(renderHomePage);}
+  if(s==='scores'){_t(()=>renderScores());}
   if(s==='toppicks'){_t(renderTopPicksToday);_t(renderTopPicksWeek);_t(renderTopPicksHeatmap);}
   if(s==='hk'){_t(()=>setSub('hk','nhl'));_t(()=>T('nhl','games'));_t(renderNHLGames);_t(renderNHLTonight);_t(renderGoalies);_t(renderMoneyPuck);}
   if(s==='nba'){_t(()=>{setSub('nba','nba');});_t(()=>{T('nba','games');renderNBATonightGames();renderNBAGames();renderNBABracket();});}
@@ -22225,10 +22268,10 @@ const _LV_ALIAS={PL:['PL','PL_SOC','SOC_PL'],'LA LIGA':['LIGA','SOC_LIGA'],'SERI
 async function _fetchT(url,opts,ms){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms||15000);try{return await fetch(url,{...(opts||{}),signal:c.signal});}finally{clearTimeout(t);}}
 const _LV_NHL_FIX={LA:'LAK',NJ:'NJD',SJ:'SJS',TB:'TBL',UTAH:'UTA'};   // ESPN abbreviations -> the NHL-API codes the rest of the app (and ledger) uses (same map as scripts/fetch_nhl.py ESPN_ABBR_FIX)
 let _LV={ts:0,games:[],timer:0,lg:{},relay:{ts:0,games:[],ok:false,pendingConfirm:false},conf:{}};
-async function _lvEspn(def){
+async function _lvEspn(def,day){   // day = 'YYYYMMDD' for another day's scoreboard (the SCORES tab); omitted = ESPN's current day
   const out=[];
   try{
-    const r=await _fetchT('https://site.api.espn.com/apis/site/v2/sports/'+def.path+'/scoreboard'+(def.q||''),{cache:'no-store'},15000);
+    const r=await _fetchT('https://site.api.espn.com/apis/site/v2/sports/'+def.path+'/scoreboard'+(day?(def.q?def.q+'&':'?')+'dates='+day:(def.q||'')),{cache:'no-store'},15000);
     if(!r.ok)return null;const j=await r.json();
     (j.events||[]).forEach(e=>{
       if(def.k==='nba'&&e.season&&e.season.type===1)return;   // NBA preseason is not tracked anywhere (no locks, no ticker, no polling) -- regular season opens ~Oct 21
@@ -22238,7 +22281,7 @@ async function _lvEspn(def){
       const soccer=def.path.indexOf('soccer/')===0;
       const nm=t=>soccer?(t.team.displayName||t.team.shortDisplayName):(def.k==='nhl'?(_LV_NHL_FIX[t.team.abbreviation]||t.team.abbreviation):t.team.abbreviation);
       out.push({k:def.k,tag:def.tag,id:e.id,home:nm(h),away:nm(a),
-        homeScore:+h.score,awayScore:+a.score,state:ty.state,period:stt.period,displayClock:stt.displayClock,note:ty.shortDetail,startMs:Date.parse(e.date),seasonType:(e.season&&e.season.type)||null});
+        homeScore:+h.score,awayScore:+a.score,homeLogo:h.team.logo,awayLogo:a.team.logo,state:ty.state,period:stt.period,displayClock:stt.displayClock,note:ty.shortDetail,startMs:Date.parse(e.date),seasonType:(e.season&&e.season.type)||null});
     });
     return out;
   }catch(e){return null;}
@@ -22343,7 +22386,7 @@ async function refreshLive(force){
         // success: the relay's own gate (a final awaiting its confirmation poll is re-checked in 90 s); failure: retry every 5 min only while a game is in its window, else hourly -- never every 2 min around the clock
         rs.next=ok?(_LV.relay.pendingConfirm?Date.now()+90000:_lvRelayNext(Date.now())):Math.max(_lvRelayNext(Date.now()),Date.now()+300000);}
     }
-    if(res.length||force){try{_lvApplyToCards();}catch(e){}renderTicker();try{_tpRefreshResults();}catch(e){}}
+    if(res.length||force){try{_lvApplyToCards();}catch(e){}renderTicker();try{_tpRefreshResults();}catch(e){}try{_scOnLive();}catch(e){}}
   }catch(e){}
   _lvSchedule();
 }
@@ -22554,6 +22597,153 @@ setTimeout(async function(){
   try{const inp=document.getElementById('relay-url-input');if(inp)inp.value=_lvRelayUrl();}catch(e){}
   try{renderTicker();}catch(e){}
 },5000);
+// ── SCORES tab (owner request 2026-10-09) ───────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// One grid of every game on one day across every league the live layer above covers (_LV_ESPN + Liiga / SHL / NLA / Extraliga): LIVE, UPCOMING and FINAL together, with a day selector and league / status chips.
+//   Today: reads _LV.games (the ticker's own feed) + _tkEuroGames(), so it never adds a second poller. Any other day: the same ESPN scoreboards via _lvEspn(def,'YYYYMMDD'), cached 5 min (30 min for past days).
+//   Auto-refresh only while this tab is on screen, the document is visible and the day is today: every 90 s, if an ESPN game is live, the leagues with a live game are marked due and the live layer's own
+//   refreshLive() re-fetches just those; the grid repaints whenever the live layer lands new data (_scOnLive).  No Supabase traffic at all.  The day is taken in America/Denver, like today() everywhere else.
+const _SC={day:null,lg:'ALL',st:'ALL',cache:{},busy:{},euroP:null,sig:''};   // day null = follow today()
+const _SC_ORDER=_LV_ESPN.map(d=>d.tag).concat(['LIIGA','SHL','NLA','EXTRALIGA']);
+const _SC_ST=[['ALL','ALL'],['in','LIVE'],['pre','UPCOMING'],['post','FINAL']];
+function _scDay(){return _SC.day||today();}
+function _scDayOf(ms){return new Date(ms).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});}
+function _scShift(day,n){const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
+function _scDayLabel(day){return new Date(day+'T12:00:00Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:'UTC'}).toUpperCase();}
+function _scVisible(){const p=document.getElementById('sp-scores');return !!p&&p.classList.contains('act')&&!document.hidden;}
+function _scBucket(g){return g.state==='in'?'in':(g.state==='post'&&!/postpon|cancel/i.test(g.note||''))?'post':'pre';}   // a postponed / cancelled game is not a result
+// the European hockey games of one day: the live layer's own entries (relay / in progress / final) where it has them, otherwise derived from the schedule file (upcoming, final, or awaiting its result)
+function _scEuro(day){
+  const out=[],now=Date.now(),live=_tkEuroGames(),seen=new Set();
+  [['LIIGA',typeof _LIIGA_DATA!=='undefined'?_LIIGA_DATA:null],['SHL',typeof _SHL_DATA!=='undefined'?_SHL_DATA:null],['NLA',typeof _NLA_DATA!=='undefined'?_NLA_DATA:null],['EXTRALIGA',typeof _EXTRALIGA_DATA!=='undefined'?_EXTRALIGA_DATA:null]].forEach(([tag,LG])=>{
+    ((LG&&LG.games)||[]).forEach(g=>{
+      const t=_startMsOf(g.date);if(t==null||_scDayOf(t)!==day)return;
+      const home=g.homeName||g.home,away=g.awayName||g.away,tm=LG.teams||{};
+      const lv=live.find(x=>x.tag===tag&&_tkMatch(x.home,home)&&_tkMatch(x.away,away));
+      const logos={homeLogo:(tm[g.home]||{}).logo,awayLogo:(tm[g.away]||{}).logo};
+      if(lv){seen.add(lv);out.push(Object.assign({},lv,logos));return;}
+      const fin=g.state==='post'&&g.homeScore!=null;
+      out.push(Object.assign({k:tag.toLowerCase(),tag,id:g.id,home,away,startMs:t},logos,fin?{state:'post',homeScore:g.homeScore,awayScore:g.awayScore,note:'Final'}
+        :t>now?{state:'pre',note:''}:{state:'post',homeScore:null,awayScore:null,note:'RESULT PENDING',pending:true}));
+    });
+  });
+  live.forEach(x=>{if(!seen.has(x)&&_scDayOf(x.startMs)===day)out.push(x);});   // relay games the schedule files do not list yet
+  return out;
+}
+function _scGames(day){
+  let espn,ts,missing=[],ready=true;
+  if(day===today()){espn=_LV.games.filter(g=>_scDayOf(g.startMs)===day||g.state==='in');ts=Math.max(_LV.ts||0,(_LV.relay&&_LV.relay.ts)||0);ready=!!_LV.ts||!!Object.keys(_LV.lg).length;missing=_LV_ESPN.filter(d=>_LV.lg[d.k]&&!_LV.lg[d.k].ts).map(d=>d.tag);}   // ready once the live layer has tried every league once
+  else{const c=_SC.cache[day];espn=c?c.games:[];ts=c?c.ts:0;missing=c?c.missing:[];ready=!!c;}
+  return{games:espn.concat(_scEuro(day)),ts,missing,ready};
+}
+async function _scFetchDay(day,force){
+  const c=_SC.cache[day],ttl=c&&c.missing.length?60000:day<today()?1800000:300000;
+  if(!force&&c&&Date.now()-c.ts<ttl)return;
+  if(_SC.busy[day])return _SC.busy[day];
+  const ymd=day.replace(/-/g,'');
+  _SC.busy[day]=Promise.all(_LV_ESPN.map(d=>_lvEspn(d,ymd).then(r=>[d,r]))).then(res=>{
+    const games=[],missing=[];res.forEach(([d,r])=>{if(r)games.push(...r);else missing.push(d.tag);});
+    _SC.cache[day]={ts:Date.now(),games,missing};
+    const ks=Object.keys(_SC.cache);if(ks.length>14)ks.sort((a,b)=>_SC.cache[a].ts-_SC.cache[b].ts).slice(0,ks.length-14).forEach(k=>{delete _SC.cache[k];});
+  }).finally(()=>{delete _SC.busy[day];});
+  return _SC.busy[day];
+}
+// engine picks locked on a game: same matching as the ticker (league alias + fuzzy team names), by the pick's own date
+function _scLocks(g,day,picks){
+  const al=_LV_ALIAS[g.tag]||[g.tag];
+  return picks.filter(p=>p.date===day&&al.includes(String(window._normSport?window._normSport(p):(p.league||p.sport||'')).toUpperCase())&&_tkMatch(p.hA,g.home)&&_tkMatch(p.awA,g.away));
+}
+function _scStatus(g,b){
+  if(b==='in')return _tkLiveStatus({g});
+  if(b==='post')return g.pending?(g.note||'RESULT PENDING'):/^final/i.test(g.note||'')?g.note.toUpperCase():'FINAL';
+  if(/postpon|cancel/i.test(g.note||''))return g.note;
+  return new Date(g.startMs).toLocaleTimeString([],{hour:'numeric',minute:'2-digit',timeZoneName:'short'});   // the viewer's own time zone
+}
+function _scCardHTML(x){
+  const g=x.g,b=x.b,sport=g.k==='nba'||g.k==='nhl'||g.k==='cfb'||g.k==='nfl'?g.k:_LV_ESPN.some(d=>d.k===g.k)?'soccer':g.k;
+  const show=b!=='pre'&&g.homeScore!=null&&g.awayScore!=null&&!isNaN(g.homeScore)&&!isNaN(g.awayScore);
+  const win=b==='post'&&show&&g.homeScore!==g.awayScore?(g.homeScore>g.awayScore?'h':'a'):'';
+  const row=(side,name,sc,logo)=>`<div class="sc-row${win&&win!==side?' lose':''}"><span class="sc-tm">${_teamLogoHTML(sport,name,side,22,{url:logo,name})}<span>${_escHtml(name)}</span></span><span class="sc-sc">${show?sc:'–'}</span></div>`;
+  const st=_scStatus(g,b),lk=x.locks.map(p=>`<div class="sc-pick${p.outcome==='win'?' w':p.outcome==='loss'?' l':''}" title="Engine pick locked on this game: ${_escHtml(p.betOn)}">LOCKED ${_escHtml(p.betOn)}${p.outcome==='win'?' ✓':p.outcome==='loss'?' ✗':''}</div>`).join('');
+  return`<div class="sc-card st-${b}" role="listitem" data-b="${b}" data-lg="${_escHtml(g.tag)}" aria-label="${_escHtml(g.tag+': '+g.away+(show?' '+g.awayScore:'')+' at '+g.home+(show?' '+g.homeScore:'')+', '+(b==='in'?'live, ':'')+st)}">`
+    +`<div class="sc-top"><span class="sc-lg">${_escHtml(g.tag)}</span><span class="sc-st">${b==='in'?'<span class="sc-pulse" aria-hidden="true"></span>':''}${_escHtml(st)}</span></div>`
+    +row('a',g.away,g.awayScore,g.awayLogo)+row('h',g.home,g.homeScore,g.homeLogo)
+    +(lk?`<div class="sc-lk">${lk}</div>`:'')+`</div>`;
+}
+function _scPaint(quiet){
+  const root=document.getElementById('sc-root');if(!root)return;
+  const ae=document.activeElement;
+  if(quiet&&ae&&ae.id==='sc-date'&&root.contains(ae))return;   // a poll repaint must not close the open date picker
+  const day=_scDay(),isToday=day===today(),SD=_scGames(day);
+  let picks=[];try{picks=getP().filter(p=>p&&p.id&&p.hA&&p.outcome!=='_removed'&&p.date===day);}catch(e){}
+  const all=SD.games.map(g=>({g,b:_scBucket(g)})).sort((a,c)=>{
+    const o={in:0,pre:1,post:2};
+    return o[a.b]-o[c.b]||(a.b==='post'?c.g.startMs-a.g.startMs:a.g.startMs-c.g.startMs)||_SC_ORDER.indexOf(a.g.tag)-_SC_ORDER.indexOf(c.g.tag);   // LIVE, then UPCOMING by start, then FINALS (latest first)
+  });
+  all.forEach(x=>{x.locks=_scLocks(x.g,day,picks);});
+  const tags=_SC_ORDER.filter(t=>all.some(x=>x.g.tag===t));
+  if(SD.ready&&_SC.lg!=='ALL'&&!tags.includes(_SC.lg))_SC.lg='ALL';
+  const inLg=all.filter(x=>_SC.lg==='ALL'||x.g.tag===_SC.lg),inSt=all.filter(x=>_SC.st==='ALL'||x.b===_SC.st);
+  const shown=all.filter(x=>(_SC.lg==='ALL'||x.g.tag===_SC.lg)&&(_SC.st==='ALL'||x.b===_SC.st));
+  const nLive=all.filter(x=>x.b==='in').length;
+  const btn=(a,v,txt,on,n)=>`<button type="button" class="sc-btn" data-sc="${a}" data-v="${_escHtml(v)}" data-scf="${a}:${_escHtml(v)}" aria-pressed="${on?'true':'false'}">${_escHtml(txt)}${n!=null?`<span class="sc-n">${n}</span>`:''}</button>`;
+  const nav=(a,v,txt,label)=>`<button type="button" class="sc-btn" data-sc="${a}" data-v="${v}" data-scf="${a}${v}" aria-label="${label}">${txt}</button>`;
+  let body;
+  if(!SD.ready)body='<div class="loading"><span class="spi"></span></div>';
+  else if(!all.length)body=`<div class="sc-empty">NO GAMES SCHEDULED FOR ${_scDayLabel(day)}</div>`;
+  else if(!shown.length)body=`<div class="sc-empty">NO GAMES MATCH THESE FILTERS<br><br><button type="button" class="sc-btn" data-sc="reset" data-scf="reset">SHOW ALL</button></div>`;
+  else body=`<div class="sc-grid" role="list">${shown.map(_scCardHTML).join('')}</div>`;
+  const upd=SD.ts?'UPDATED '+new Date(SD.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'';
+  const html=`<div class="sh" style="margin-top:0"><span class="h"></span> SCORES</div>`
+    +`<div class="sc-bar">${nav('day','-1','‹ PREV','Previous day')}${btn('today','0','TODAY',isToday)}${nav('day','1','NEXT ›','Next day')}`
+    +`<span class="sc-day" aria-live="polite">${_scDayLabel(day)}</span>`
+    +`<input type="date" id="sc-date" class="sc-date" data-scf="date" value="${day}" aria-label="Choose a date">`
+    +`<span class="sc-grow"></span>${nav('refresh','0','↻ REFRESH','Refresh scores')}</div>`
+    +`<div class="sc-chips" role="group" aria-label="Filter by league">${btn('lg','ALL','ALL LEAGUES',_SC.lg==='ALL',inSt.length)}${tags.map(t=>btn('lg',t,t,_SC.lg===t,inSt.filter(x=>x.g.tag===t).length)).join('')}</div>`
+    +`<div class="sc-chips" role="group" aria-label="Filter by status">${_SC_ST.map(([v,l])=>btn('st',v,l,_SC.st===v,v==='ALL'?inLg.length:inLg.filter(x=>x.b===v).length)).join('')}</div>`
+    +`<div class="sc-meta" role="status">${SD.ready?`${all.length} GAME${all.length===1?'':'S'}${nLive?' · '+nLive+' LIVE':''}${upd?' · '+upd:''}${isToday&&nLive?' · AUTO-REFRESHING':''}`:'LOADING…'}${SD.missing.length?' · NO DATA FROM '+SD.missing.join(', '):''}</div>`
+    +body;
+  if(html===_SC.sig&&root.firstChild)return;
+  const fk=ae&&root.contains(ae)?ae.getAttribute('data-scf'):null;
+  root.innerHTML=html;_SC.sig=html;
+  if(fk){const n=root.querySelector('[data-scf="'+fk.replace(/"/g,'\\"')+'"]');if(n)n.focus({preventScroll:true});}
+}
+function _scEnsureEuro(){
+  if(_SC.euroP)return;
+  _SC.euroP=Promise.all(['loadLiigaScheduleData','loadShlScheduleData','loadNlaScheduleData','loadExtraligaScheduleData'].map(n=>{try{return typeof window[n]==='function'?window[n]():null;}catch(e){return null;}})).then(()=>{if(_scVisible())_scPaint();});
+}
+function renderScores(force){
+  const day=_scDay();
+  _scEnsureEuro();
+  if(day===today()){if(force||!_LV.ts)refreshLive(!!force);}
+  else{const d=day;_scFetchDay(d,!!force).then(()=>{if(_scDay()===d)_scPaint();});}
+  _scPaint();
+}
+window.renderScores=renderScores;
+function _scGo(day){_SC.day=day===today()?null:day;renderScores();}
+function _scOnLive(){if(_scVisible()&&_scDay()===today())_scPaint(true);}
+(function(){
+  const root=document.getElementById('sc-root');if(!root)return;
+  root.addEventListener('click',e=>{
+    const b=e.target.closest('[data-sc]');if(!b||!root.contains(b))return;
+    const a=b.getAttribute('data-sc'),v=b.getAttribute('data-v');
+    if(a==='lg')_SC.lg=v;else if(a==='st')_SC.st=v;else if(a==='reset'){_SC.lg='ALL';_SC.st='ALL';}
+    else if(a==='day')return _scGo(_scShift(_scDay(),+v));
+    else if(a==='today')return _scGo(today());
+    else if(a==='refresh')return renderScores(true);
+    _scPaint();
+  });
+  root.addEventListener('change',e=>{if(e.target.id==='sc-date'&&/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)){e.target.blur();_scGo(e.target.value);}});   // blur: the picker is done, so poll repaints may resume
+})();
+// the only timer: nothing happens while the tab is hidden / off screen / on another day.  A live ESPN game -> mark its league due so the live layer's own refreshLive() re-fetches it (it repaints via _scOnLive).
+function _scTick(){
+  if(!_scVisible()||_scDay()!==today())return;
+  try{
+    const lk=new Set(_LV.games.filter(g=>g.state==='in').map(g=>g.k));
+    if(lk.size){lk.forEach(k=>{if(_LV.lg[k])_LV.lg[k].next=0;});refreshLive();}
+  }catch(e){}
+  _scPaint(true);   // also moves the European hockey games (derived from their start times) through their states
+}
+setInterval(_scTick,90000);
 // ── Stale data: UPDATE NOW ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // Click the header freshness line when it is amber/red: lists the aging files with a button that dispatches the workflow that refreshes each (GitHub API, needs the owner token with
 // "Actions: Read and write" -- if the token cannot, the GitHub page of that workflow opens so "Run workflow" is one click). Nothing is ever triggered automatically.
