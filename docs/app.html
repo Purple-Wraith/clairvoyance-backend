@@ -953,6 +953,136 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
   .vz-anim .vz-line{stroke-dasharray:none;stroke-dashoffset:0}
   .vz-chip,.vz-dot i,.vz-cell,.vz-tb,.vz-rb,.vz-fade,.vz-band,.vz-counts,.vz-dd,.vz-trend,.vz-diag,.vz-g-win,.vz-g-loss{transition:none}
 }
+/* Analytics > Trends (interactive layer, 2026-10-09). Shares the vz-* chip / card / drill look with Visuals; everything below is tv-* so the two tabs stay independent.
+   All text sizes live in classes (not inline font-size) because the phone rules cap every inline font-size at 8px. */
+.tv-hdr{font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--t3);margin:0 0 10px}
+.tv-s{font-family:var(--mono);font-size:13px;color:var(--t3)}
+.tv-s2{font-family:var(--mono);font-size:13px;color:var(--t2);line-height:1.5}
+.tv-dim{color:var(--t3)}
+.tv-lg{font-family:var(--orb);font-size:15px;font-weight:700;color:var(--pc)}
+.tv-lgc{font-family:var(--mono);font-size:12px;padding:1px 6px;border:1px solid var(--nc);color:var(--nc);border-radius:2px;white-space:nowrap}
+.tv-pv{font-family:var(--mono);font-size:16px;font-weight:700}
+.tv-ch{font-family:var(--mono);font-size:14px;letter-spacing:2px;font-weight:700;margin:2px 0 6px}
+.tv-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.tv-gridn{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;margin-top:6px;align-items:start}
+.tv-slot.tv-anim{animation:vz-fadein .4s ease-out calc(var(--i,0)*.04s) backwards}
+.tv-edge{border-left:3px solid var(--tv-e,var(--nc))!important}
+.tv-more{margin-top:6px}
+.tv-list{max-height:330px;overflow-y:auto;overscroll-behavior:contain}
+/* ranked row (hot/cold, self-assessment, journal, props) */
+.tv-row{display:grid;grid-template-columns:minmax(96px,150px) 1fr 132px;gap:10px;align-items:center;width:100%;min-height:46px;background:none;border:0;border-bottom:1px solid rgba(255,255,255,.06);border-left:3px solid var(--tv-c,transparent);padding:4px 6px;color:var(--t);text-align:left;cursor:pointer;transition:background .15s}
+.tv-row:hover,.tv-row[aria-pressed=true]{background:rgba(255,255,255,.06)}
+.tv-row:focus-visible,.tv-cb:focus-visible,.tv-tile:focus-visible,.tv-tr:focus-visible,.tv-th:focus-visible,.tv-xb:focus-visible,.tv-call:focus-visible,.tv-rch:focus-visible,.tv-chart:focus-visible{outline:2px solid var(--gc);outline-offset:2px}
+.tv-rl{display:flex;flex-direction:column;min-width:0}
+.tv-rl small{font-family:var(--mono);font-size:12px;color:var(--t3)}
+.tv-rsn{font-family:var(--mono);font-size:13px;color:var(--t);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tv-rv{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
+.tv-rv b{font-family:var(--mono);font-size:16px;font-weight:700}
+.tv-rv small{font-family:var(--mono);font-size:11px;color:var(--t3)}
+.tv-trk{position:relative;height:14px;background:rgba(255,255,255,.07);border-radius:3px;display:block}
+.tv-bar{position:absolute;left:0;top:0;bottom:0;border-radius:3px;display:block;transition:width .3s}
+.tv-mk{position:absolute;top:-3px;bottom:-3px;width:2px;background:rgba(255,255,255,.55);border-radius:1px;text-decoration:none;display:block;transition:opacity .3s}
+.tv-trk6{height:10px;margin-top:6px}
+.tv-trk4{height:6px;margin:6px 0}
+.tv-ci{position:absolute;top:50%;height:2px;margin-top:-1px;background:rgba(255,255,255,.75);border-radius:1px;display:block;transition:opacity .3s}
+.tv-ci::before,.tv-ci::after{content:'';position:absolute;top:-3px;bottom:-3px;width:1px;background:rgba(255,255,255,.75)}
+.tv-ci::before{left:0}.tv-ci::after{right:0}
+.tv-tg{background:#fff}
+/* calibration band */
+.tv-cb{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid rgba(255,255,255,.06);padding:8px 6px 10px;cursor:pointer;color:var(--t);min-height:52px;transition:background .15s}
+.tv-cb:hover,.tv-cb[aria-pressed=true]{background:rgba(255,255,255,.06)}
+.tv-cbh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.tv-cbl{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:14px;color:var(--t2)}
+.tv-cbl i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.tv-cbv{display:inline-flex;gap:10px;align-items:baseline}
+.tv-cbv b{font-family:var(--mono);font-size:16px}
+.tv-cbv em{font-family:var(--mono);font-size:13px;font-style:normal}
+.tv-cbv small{font-family:var(--mono);font-size:12px;color:var(--t3)}
+/* recency */
+.tv-rc{display:flex;flex-direction:column;padding:8px 10px;background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.07);border-radius:3px}
+.tv-rch{border-radius:3px;cursor:default}
+.tv-rt{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.tv-rc .vz-dots{margin-top:4px}
+.tv-rc .vz-detail{margin-top:6px}
+/* recent vs historical table */
+.tv-tbl{margin:8px 0}
+.tv-tr{display:grid;grid-template-columns:1fr 1fr 1fr 1.4fr;gap:8px;align-items:center;width:100%;min-height:44px;background:none;border:0;border-bottom:1px solid rgba(255,255,255,.06);padding:2px 6px;color:var(--t);text-align:left;cursor:pointer;transition:background .15s}
+.tv-tr:hover,.tv-tr[aria-pressed=true]{background:rgba(255,255,255,.06)}
+.tv-trh{cursor:default;border-bottom:1px solid rgba(77,121,255,.3)}
+.tv-trh:hover{background:none}
+.tv-th{background:none;border:0;color:var(--t2);text-align:left;padding:8px 0;min-height:40px;cursor:pointer;font-family:var(--mono)}
+.tv-th[aria-sort]{color:var(--nc)}
+.tv-th:hover{color:var(--pc)}
+.tv-cc{font-family:var(--mono);font-size:14px;color:var(--t2)}
+.tv-cc b{font-size:15px}
+.tv-cc small{font-size:12px;color:var(--t3)}
+.tv-dl{display:flex;flex-direction:column;gap:3px}
+.tv-dv{position:relative;display:block;height:4px;background:rgba(255,255,255,.07);border-radius:2px}
+.tv-dv i{position:absolute;top:0;bottom:0;border-radius:2px;display:block}
+/* near misses + win/loss analysis (expandable rows) */
+.tv-xr{border-bottom:1px solid rgba(255,255,255,.05)}
+.tv-xb{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid var(--tv-c,transparent);padding:7px 8px;cursor:pointer;color:var(--t);min-height:46px}
+.tv-xb:hover,.tv-xb[aria-expanded=true]{background:rgba(255,255,255,.05)}
+.tv-xrh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tv-mu{font-family:var(--mono);font-size:14px;color:var(--t2)}
+.tv-bo{font-family:var(--mono);font-size:14px;color:var(--vc)}
+.tv-oc{font-family:var(--mono);font-size:13px}
+.tv-xrs{display:block;font-family:var(--mono);font-size:13px;color:var(--t3);margin-top:3px;line-height:1.5}
+.tv-gauge{display:block;height:3px;background:rgba(255,255,255,.07);border-radius:2px;margin-top:5px;max-width:240px}
+.tv-gauge i{display:block;height:100%;background:var(--vc);border-radius:2px}
+.tv-xd{margin:2px 8px 8px 11px}
+/* self-assessment call-outs + bet-type tiles */
+.tv-calls{margin-top:10px;padding-top:6px;border-top:1px solid rgba(255,255,255,.07)}
+.tv-call{display:block;width:100%;text-align:left;background:none;border:0;padding:8px 4px;min-height:40px;cursor:pointer}
+.tv-cs{font-family:var(--mono);font-size:15px}
+.tv-call:hover,.tv-call[aria-pressed=true]{background:rgba(255,255,255,.06)}
+.tv-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.tv-tile{display:flex;flex-direction:column;align-items:center;text-align:center;background:rgba(10,0,24,.8);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:10px 8px;min-height:104px;cursor:pointer;color:var(--t);transition:border-color .15s,transform .12s}
+.tv-tile:hover{border-color:rgba(255,255,255,.5);transform:translateY(-1px)}
+.tv-tile[aria-pressed=true]{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.3)}
+.tv-tile .tv-trk{width:100%}
+.tv-tl{font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:2px}
+.tv-tv{font-family:var(--orb);font-size:24px;font-weight:700}
+/* rolling chart */
+.tv-chart{touch-action:pan-y}
+.tv-band,.tv-avg,.tv-g-roll,.tv-fade{transition:opacity .3s}
+.tv-off-roll .tv-g-roll,.tv-off-band .tv-band,.tv-off-avg .tv-avg,.tv-off-tgt .tv-tg,.tv-off-ci .tv-ci{opacity:0;pointer-events:none}
+.tv-off-sw .vz-dot[data-o=win],.tv-off-sl .vz-dot[data-o=loss],.tv-off-sp .vz-dot[data-o=push]{opacity:.1}
+.tv-pinbox{margin-top:8px}
+@keyframes tv-pulse-fix{from{opacity:0}to{opacity:1}}
+.tv-anim .tv-line{stroke-dasharray:1;stroke-dashoffset:1;animation:vz-draw .9s ease-out .05s forwards}
+.tv-anim .tv-fade{animation:vz-fadein .6s ease-out .45s backwards}
+.tv-anim .tv-bar{transform-origin:left center;animation:vz-grow .7s ease-out backwards}
+.tv-anim .vz-dot i{animation:vz-pop .35s ease-out backwards}
+.tv-anim .tv-tile{animation:vz-fadein .5s ease-out backwards}
+@media(max-width:700px){
+  .tv-grid2{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .tv-row{grid-template-columns:86px 1fr 112px;gap:8px}
+  .tv-lg{font-size:12px}
+  .tv-rv small{white-space:normal}
+  .tv-rv b{font-size:15px}
+  .tv-rv small{font-size:10px}
+  .tv-rsn{font-size:12px;white-space:normal;line-height:1.25}
+  .tv-tr{grid-template-columns:84px 1fr 1fr 1.1fr;gap:4px;padding:2px 4px}
+  .tv-cc{font-size:12px}.tv-cc b{font-size:13px}.tv-cc small{font-size:10px}
+  .tv-th .vz-cl{font-size:11px;letter-spacing:0}
+  .tv-cbl{font-size:12px}.tv-cbv b{font-size:15px}.tv-cbv em{font-size:12px}
+  .tv-mu,.tv-bo{font-size:13px}.tv-xrs{font-size:12px}
+  .tv-cs{font-size:13px}
+  .tv-slot .vz-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tv-gridn{grid-template-columns:1fr}
+  .tv-slot .vz-rp{grid-template-columns:70px 1fr auto 56px;gap:5px}
+  .tv-slot .vz-rpd{white-space:nowrap;font-size:12px}
+}
+@media (prefers-reduced-motion:reduce){
+  .tv-anim *,.tv-slot.tv-anim{animation:none!important}
+  .tv-anim .tv-line{stroke-dasharray:none;stroke-dashoffset:0}
+  .tv-bar,.tv-band,.tv-avg,.tv-g-roll,.tv-fade,.tv-mk,.tv-ci,.tv-row,.tv-cb,.tv-tile,.tv-tr{transition:none}
+}
+
+.tv-slot .vz-st b{white-space:normal;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -16976,458 +17106,7 @@ function _ovrArchMore(){const A=window._ovrArch;A.shown=Math.max(A.shown||0,100)
 
 
 
-// ═══ OVERALL TRENDS ═══════════════════════════════════════════════════════
-function renderOverallTrends(){
-  const el=document.getElementById('ovr-trends');if(!el)return;
-  // Real bug, found auditing Analytics > Trends (this function is what
-  // that sub-tab actually renders, via renderAnalyticsTrends' DOM-id
-  // swap wrapper): getP()'s order is id-string sorted, not chronological
-  // -- the per-sport streak below (sb.slice(-10), then a forward run-
-  // length loop) needs real chronological order to mean anything. Same
-  // fix as adaptiveTick()/renderOverall's own settledByDate.
-  // Retired-league removal, 2026-09-30 follow-up: this used to pull the
-  // raw unfiltered ledger, so combos/streaks/self-assessment all mixed in
-  // leagues the app no longer bets (confirmed live: BUND still surfacing
-  // in COLD SPOTS). Scoped to the same active-league allowlist Bet History
-  // Analytics now uses.
-  const _ACTIVE_LEAGUES=new Set(['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','FB','PL','LIGA','CL','SERIEA']);
-  const all=_aP().filter(p=>p.outcome!=='pending'&&_ACTIVE_LEAGUES.has(window._normSport(p)))
-    .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
-  if(all.length<5){el.innerHTML='<div class="empty">NOT ENOUGH DATA — SETTLE MORE PICKS TO SEE TRENDS</div>';return;}
-
-  // ── Helpers ──────────────────────────────────────────────────────────────
-  const pnl=_pbPnl; // price-basis aware (Part C); window._PB defaults to 'all'
-  // Color convention, 2026-09-30 follow-up: green for good/win signal, red
-  // for bad/loss signal (was cyan/lime/hot-pink) -- lime stays as the
-  // existing middle "OPTIMAL tier" marker, a separate pre-existing signal.
-  const pctCol=r=>r>=.62?'#00e644':r>=.52?'var(--vc)':'#ff1a1a';
-  const uCol=u=>u>=0?'#00e644':'#ff1a1a';
-  const now=Date.now();
-  const d7=now-7*86400000; const d30=now-30*86400000; const d90=now-90*86400000;
-  const recent=all.filter(p=>_pickTs(p)>=d30);
-  const historical=all.filter(p=>_pickTs(p)<d30);
-  function _pickTs(p){return p.lockedAt||new Date((p.date||'2000-01-01')+'T12:00:00').getTime();}
-  function perfOf(bets){const w=bets.filter(p=>p.outcome==='win').length;const l=bets.filter(p=>p.outcome==='loss').length;const u=bets.reduce((a,p)=>a+pnl(p),0);return{w,l,n:bets.length,acc:bets.length?w/bets.length:null,u};}
-
-  // ── Sport × bet-type hot/cold combos ─────────────────────────────────────
-  // Real bug, found auditing Trends accuracy 2026-09-30: this grouped by
-  // the raw p.sport field instead of _normSport(p) -- same class of bug
-  // already fixed for Bet History's BY LEAGUE breakdown last session.
-  // Confirmed live: 133 real NFL picks are stored with the ambiguous raw
-  // tag sport:'FOOTBALL' (not 'NFL'), so they fell into a fabricated
-  // "FOOTBALL" combo bucket instead of NFL's real one -- HOT SPOTS was
-  // showing "FOOTBALL ML 100% +17.1u (13W-0L)" as if "FOOTBALL" were a
-  // real league, while the true NFL_ML combo (properly normalized) is
-  // 11W-1L, and CFB_ML was undercounted by 7 real picks that leaked into
-  // the same fake bucket.
-  const combos={};
-  for(const p of all){const sp=window._normSport(p)||'?';const k=sp+'_'+(p.betType||'ML');if(!combos[k])combos[k]={key:k,sport:sp,type:p.betType,n:0,w:0,u:0};combos[k].n++;if(p.outcome==='win'){combos[k].w++;combos[k].u+=_pbPnl(p);}else if(p.outcome==='loss')combos[k].u+=_pbPnl(p);}
-  const hotList=Object.values(combos).filter(c=>c.n>=3).sort((a,b)=>(b.w/b.n)-(a.w/a.n));
-  const hot=hotList.slice(0,5),cold=hotList.slice(-5).reverse();
-  // Uniform aesthetic, 2026-09-30 follow-up: every sport/league label in
-  // Trends is now the same neon magenta instead of a per-sport map.
-  const trendCard=(c,type)=>{const acc=c.w/c.n;const col=type==='hot'?'#00e644':'#ff1a1a';const uc=uCol(c.u);
-    return`<div style="padding:8px;margin-bottom:5px;background:rgba(10,4,24,.85);border:1px solid rgba(255,255,255,.07);border-left:3px solid ${col};border-radius:3px">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:var(--pc)">${c.sport}</span>
-        <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">${c.type}</span>
-        <span style="font-family:var(--mono);font-size:17px;font-weight:700;color:${col}">${(acc*100).toFixed(0)}%</span>
-        <span style="font-family:var(--mono);font-size:15px;color:${uc}">${c.u>=0?'+':''}${c.u.toFixed(1)}u</span>
-      </div>
-      <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:2px">${c.w}W-${c.n-c.w}L · ${c.n} bets</div>
-    </div>`;};
-
-  // ── Recency streaks — all tracked sports ─────────────────────────────────
-  const trackedSports=['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','PL','LIGA','CL','SERIEA']; // trimmed to _ACTIVE_LEAGUES, 2026-09-30 -- MLB/WNBA/CBB/NCAAB/KHL/SOC/WC/BUND/BL/MLS all retired
-  const sportStreaks={};
-  for(const sp of trackedSports){
-    const sb=all.filter(p=>window._normSport(p)===sp).slice(-10);
-    if(sb.length<2)continue;
-    const w=sb.filter(p=>p.outcome==='win').length;
-    let cur=0,curT='';
-    for(const p of sb){if(!curT||p.outcome===curT)cur++;else cur=1;curT=p.outcome;}
-    const r7=all.filter(p=>window._normSport(p)===sp&&_pickTs(p)>=d7);
-    const r7w=r7.filter(p=>p.outcome==='win').length;
-    sportStreaks[sp]={n:sb.length,w,l:sb.length-w,acc:w/sb.length,curStreak:cur,curType:curT,r7n:r7.length,r7acc:r7.length?r7w/r7.length:null};
-  }
-
-  // ── Trend comparison: recent vs historical ────────────────────────────────
-  // Same stale 4-league coverage bug as Self-Assessment below -- expanded
-  // to the full trackedSports scope so hockey's minors and soccer aren't
-  // silently invisible from the recent-vs-historical comparison either.
-  const trendComp=trackedSports.map(sp=>{
-    const rb=recent.filter(p=>window._normSport(p)===sp);const hb=historical.filter(p=>window._normSport(p)===sp);
-    if(!rb.length&&!hb.length)return null;
-    const rp=perfOf(rb);const hp=perfOf(hb);
-    // Real bug, found auditing Trends accuracy 2026-09-30: a sport with
-    // zero recent bets (rp.acc===null, e.g. NBA/CFB off-season gaps) had
-    // its null accuracy coerced to 0 by the `||0` fallback, so the delta
-    // math read that as "accuracy collapsed to 0%" and rendered a bright
-    // red "-77%" decline arrow for a sport that simply hasn't played
-    // recently -- not one that's actually performing worse. Delta is now
-    // null (renders as a neutral "~", no fabricated percentage) unless
-    // both buckets have at least 2 real bets to compare.
-    const delta=(rp.n>=2&&hp.n>=2)?(rp.acc-hp.acc):null;
-    return{sp,rp,hp,delta};
-  }).filter(Boolean);
-
-  // ── Near misses — all sports, all bet types ───────────────────────────────
-  // Extracts a prop's real numeric line from betOn. Confirmed live against
-  // the real ledger this format is genuinely inconsistent across feeds:
-  // "Jalen Brunson PTS OVER 27.5", the goalie/skater "Carter Hart Saves
-  // (O/U 22.5)" parenthetical, "Colby Parkinson OVER 27.5 Receiving Yards"
-  // (extra trailing text after the number), and "Brett Howden Shots OVER
-  // 1.5 (-120)" (trailing odds) all need the number read from right after
-  // the OVER/UNDER keyword, not the old trailing-digit regex, which broke
-  // on every format except the plainest one. "Anytime TD"/"Anytime Goal"
-  // markets are excluded outright -- they're a binary yes/no occurrence,
-  // not a countable stat with a real line, so "missed by N" is meaningless
-  // for them (confirmed: the old code let these default to line=0, which
-  // fabricated 5 false "near misses" out of nothing every time
-  // playerResult happened to be 0 or 1).
-  function _propLineOf(betOn){
-    if(!betOn)return null;
-    if(/anytime/i.test(betOn))return null;
-    let m=/O\/U\s*([\d.]+)/i.exec(betOn);if(m)return parseFloat(m[1]);
-    m=/(OVER|UNDER)\s+([\d.]+)/i.exec(betOn);if(m)return parseFloat(m[2]);
-    return null;
-  }
-  const nearMiss=all.filter(p=>p.outcome==='loss').map(p=>{
-    // Team game ML: lost by ≤2
-    if(p.betType==='ML'&&p.hScore!=null&&p.aScore!=null){
-      const margin=Math.abs((p.hScore||0)-(p.aScore||0));
-      return margin<=2?{p,marginStr:`margin: ${margin}`}:null;
-    }
-    // Spread/RL: missed covering by ≤1.5 -- same cover-margin formula
-    // _gradeSettledPick uses for Top Picks grading, reused here since it's
-    // the correct math (actual signed margin + the picked line), not the
-    // raw score differential the old code showed for every bet type
-    // (confirmed live, real bug: "CMU at MIA UNDER 54.5" showed "margin:
-    // 49" -- the literal 52-3 score gap -- for a bet that actually missed
-    // its OU number by half a point; the same wrong-metric bug applied
-    // here too before Spread/RL was even included in this filter at all).
-    if((p.betType==='SPREAD'||p.betType==='RL')&&p.hScore!=null&&p.aScore!=null){
-      const m=/^(.+?)\s([+-][\d.]+)$/.exec(p.betOn||'');if(!m)return null;
-      const team=m[1],lineVal=parseFloat(m[2]);
-      const pickedHome=team===p.hA;
-      if(!pickedHome&&team!==p.awA)return null;
-      const pickedScore=pickedHome?p.hScore:p.aScore,oppScore=pickedHome?p.aScore:p.hScore;
-      const margin=(pickedScore-oppScore)+lineVal;
-      return(margin<0&&Math.abs(margin)<=1.5)?{p,marginStr:`missed cover by ${Math.abs(margin).toFixed(1)}`}:null;
-    }
-    // O/U: total within 1.5 of line
-    if(p.betType==='OU'&&p.hScore!=null&&p.aScore!=null){
-      const total=(p.hScore||0)+(p.aScore||0);const line=parseFloat((p.betOn||'').replace(/OVER|UNDER/gi,'').trim()||'0');
-      if(isNaN(line))return null;
-      const margin=Math.abs(total-line);
-      return margin<=1.5?{p,marginStr:`missed total by ${margin.toFixed(1)}`}:null;
-    }
-    // Props: playerResult within 2 of a real numeric line
-    if(p.betType==='PROP'&&p.playerResult!=null){
-      const line=_propLineOf(p.betOn||'');
-      if(line==null)return null;
-      const margin=Math.abs(Number(p.playerResult)-line);
-      return margin<=2?{p,marginStr:`missed by ${margin.toFixed(1)}`}:null;
-    }
-    return null;
-  }).filter(Boolean).slice(-12).reverse();
-
-  // ── Confidence calibration ────────────────────────────────────────────────
-  // Real bug, found auditing Trends accuracy 2026-09-30: these bands used
-  // 70%/62%/55% cutoffs, but the app's actual tier() function (the one
-  // that grades every locked pick PREMIUM/OPTIMAL/LEAN/SKIP) has always
-  // used 67%/62%/55%. The whole point of this section is "predicted vs
-  // actual" against the app's own real tiers -- using an invented 70%
-  // boundary instead of tier()'s real 67% meant 103 real bets (69W-34L,
-  // 67.0% actual) were bucketed as "OPTIMAL 62-70%" and compared against
-  // the wrong 62% target, when they're genuinely PREMIUM-tier picks per
-  // the engine that locked them. Aligned to tier()'s real cutoffs.
-  const confBands=[
-    {l:'PREMIUM 67%+',min:.67,max:1,target:.67},
-    {l:'OPTIMAL 62-67%',min:.62,max:.67,target:.62},
-    {l:'LEAN 55-62%',min:.55,max:.62,target:.55},
-    {l:'SKIP <55%',  min:0,  max:.55,target:.50},
-  ];
-  const confData=confBands.map(b=>{
-    const bets=all.filter(p=>{const wp=p.winProb||p.conf||0;return wp>=b.min&&wp<b.max;});
-    const w=bets.filter(p=>p.outcome==='win').length;
-    const acc=bets.length?w/bets.length:null;
-    const u=bets.reduce((a,p)=>a+pnl(p),0);
-    const drift=acc!==null?acc-b.target:null;
-    return{...b,n:bets.length,w,acc,u,drift};
-  });
-
-  // ── Self-assessment ───────────────────────────────────────────────────────
-  // Real coverage bug, found auditing Trends accuracy 2026-09-30: this
-  // only ever checked NBA/NHL/NFL/CFB, silently leaving 8 of the app's 12
-  // real active leagues (all of hockey's minors + all 4 soccer leagues)
-  // out of STRONGEST/WEAKEST entirely. Confirmed live: EXTRALIGA
-  // (81.8%, n=22) actually outperforms NHL (80.6%, n=129) point-estimate-
-  // wise, so "STRONGEST: NHL" wasn't even the top result among the app's
-  // own real portfolio -- just the top result among a stale 4-league
-  // subset. Expanded to the same trackedSports scope Recency already uses.
-  const spStats=trackedSports.map(s=>{const sb=all.filter(p=>window._normSport(p)===s);const p=perfOf(sb);return{s,...p};}).filter(d=>d.n>=3);
-  spStats.sort((a,b)=>(b.acc||0)-(a.acc||0));
-  const bestSp=spStats[0],worstSp=spStats[spStats.length-1];
-  // Real bug, found auditing Trends accuracy 2026-09-30: checked raw
-  // betType against 'PL' (a value that has never once appeared in the
-  // real ledger -- 0 matches, always filtered out) while never checking
-  // 'SPREAD' at all, the actual field name for every real point-spread
-  // bet. Confirmed live: 240 active-league SPREAD bets (the single
-  // largest bet-type category after ML and O/U -- roughly a fifth of the
-  // whole portfolio) were completely invisible in BY BET TYPE and never
-  // eligible for the BEST TYPE callout. Folded RL/SPREAD/ATS/PL into one
-  // 'Spread' bucket, matching By Bet Analytics' own getType() convention.
-  const _typeOf=p=>{const bt=(p.betType||'').toUpperCase();return(bt==='RL'||bt==='SPREAD'||bt==='ATS'||bt==='PL')?'Spread':bt;};
-  const typeStats=['ML','Spread','OU','PROP'].map(t=>{const tb=all.filter(p=>_typeOf(p)===t);const p=perfOf(tb);return{t,...p};}).filter(d=>d.n>=3);
-  typeStats.sort((a,b)=>(b.acc||0)-(a.acc||0));
-  const bestType=typeStats[0];
-
-  // ── Win analysis ─────────────────────────────────────────────────────────
-  const wins=all.filter(p=>p.outcome==='win').slice(-8).reverse();
-  const winAnalysis=wins.map(p=>{
-    const factors=[];
-    if((p.winProb||0)>=0.67)factors.push('PREMIUM confidence');
-    else if((p.winProb||0)>=0.62)factors.push('OPTIMAL tier');
-    if(p.ml&&parseFloat(p.ml)<0)factors.push('favourite');
-    if(p.ml&&parseFloat(p.ml)>100)factors.push('underdog value');
-    if(p.betType==='PROP')factors.push('player prop');
-    if(p.betType==='ML')factors.push('moneyline');
-    const ev=p.decOdds&&p.winProb?(p.winProb*(parseFloat(p.decOdds)||2)-1)*100:null;
-    if(ev!==null&&ev>=5)factors.push(`+${ev.toFixed(1)}% EV`);
-    return{p,factors};
-  });
-
-  // ── Loss analysis ─────────────────────────────────────────────────────────
-  const losses=all.filter(p=>p.outcome==='loss').slice(-8).reverse();
-  const lossAnalysis=losses.map(p=>{
-    const factors=[];
-    if((p.winProb||0)<0.55)factors.push('low confidence');
-    if(p.ml&&parseFloat(p.ml)>0)factors.push('underdog pick');
-    if(p.ml&&parseFloat(p.ml)<-200)factors.push('heavy favourite risk');
-    if(p.betType==='OU')factors.push('total bet');
-    if(p.betType==='PROP')factors.push('player prop variance');
-    return{p,factors};
-  });
-
-  // ── Bet journal reason analysis ───────────────────────────────────────────
-  const reasonAnalysis=analyzeJournalReasons();
-
-  // ── BUILD HTML ─────────────────────────────────────────────────────────────
-  let h='';
-
-  // Header
-  h+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--t3);margin-bottom:10px">// ENGINE TREND ANALYSIS · ${all.length} SETTLED BETS</div>`;
-
-  // ── Section 1: Hot / Cold Spots ──
-  h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-    <div class="card" style="padding:10px">
-      <div style="font-family:var(--mono);font-size:15px;color:#00e644;letter-spacing:2px;margin-bottom:8px">// HOT SPOTS</div>
-      ${hot.map(c=>trendCard(c,'hot')).join('')||'<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">Need more data</div>'}
-    </div>
-    <div class="card" style="padding:10px">
-      <div style="font-family:var(--mono);font-size:15px;color:#ff1a1a;letter-spacing:2px;margin-bottom:8px">// COLD SPOTS</div>
-      ${cold.map(c=>trendCard(c,'cold')).join('')||'<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">Need more data</div>'}
-    </div>
-  </div>`;
-
-  // ── Section 2: Recent trends by sport (last 10 + 7D) ──
-  if(Object.keys(sportStreaks).length){
-    h+=`<div class="card" style="margin-bottom:12px;padding:10px">
-      <div style="font-family:var(--mono);font-size:15px;color:var(--pc);letter-spacing:2px;margin-bottom:8px">// RECENCY — LAST 10 + LAST 7 DAYS BY SPORT</div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px">
-        ${Object.entries(sportStreaks).map(([sp,s])=>{
-          const col='var(--pc)';const sc=s.curType==='win'?'#00e644':'#ff1a1a';
-          const r7str=s.r7n>=2?`7D: ${s.r7acc!==null?(s.r7acc*100).toFixed(0)+'%':'--'} (${s.r7n})`:'';
-          return`<div style="padding:8px;background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.07);border-radius:3px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-              <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:${col}">${sp}</span>
-              <span style="font-family:var(--mono);font-size:15px;color:${pctCol(s.acc)};font-weight:700">${(s.acc*100).toFixed(0)}%</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:14px;color:var(--t2)">${s.w}W-${s.l}L L10 · <span style="color:${sc}">${s.curStreak}${s.curType==='win'?'W':'L'} streak</span></div>
-            ${r7str?`<div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:1px">${r7str}</div>`:''}
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`;
-  }
-
-  // ── Section 3: Recent vs Historical trend comparison ──
-  if(trendComp.some(t=>t.rp.n>=2||t.hp.n>=2)){
-    h+=`<div class="card" style="margin-bottom:12px;padding:10px">
-      <div style="font-family:var(--mono);font-size:15px;color:var(--nc);letter-spacing:2px;margin-bottom:8px">// RECENT (30D) vs HISTORICAL TRENDS</div>
-      <div style="overflow-x:auto"><table class="dt" style="font-size:15px;min-width:280px">
-        <thead><tr><th>SPORT</th><th>RECENT ACC</th><th>HIST ACC</th><th>TREND</th></tr></thead>
-        <tbody>
-          ${trendComp.map(t=>{
-            const arrow=t.delta===null?'~':t.delta>0.04?'▲':t.delta<-0.04?'▼':'~';
-            const dc=t.delta===null?'var(--t3)':t.delta>0.04?'#00e644':t.delta<-0.04?'#ff1a1a':'var(--t3)';
-            return`<tr>
-              <td style="color:var(--pc);font-weight:700">${t.sp}</td>
-              <td style="color:${t.rp.acc!==null?pctCol(t.rp.acc):'var(--t3)'};">${t.rp.acc!==null?(t.rp.acc*100).toFixed(0)+'%':'—'} (${t.rp.n})</td>
-              <td style="color:${t.hp.acc!==null?pctCol(t.hp.acc):'var(--t3)'};">${t.hp.acc!==null?(t.hp.acc*100).toFixed(0)+'%':'—'} (${t.hp.n})</td>
-              <td style="color:${dc};font-weight:700">${arrow}${t.delta!==null?' '+(t.delta>0?'+':'')+(t.delta*100).toFixed(0)+'%':''}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table></div>
-    </div>`;
-  }
-
-  // ── Section 4: Near Misses — all sports, all bet types ──
-  h+=`<div class="card" style="margin-bottom:12px;padding:10px">
-    <div style="font-family:var(--mono);font-size:15px;color:var(--vc);letter-spacing:2px;margin-bottom:8px">// NEAR MISSES — LOSSES BY RAZOR MARGIN (ALL SPORTS & PROPS)</div>
-    ${nearMiss.length?nearMiss.map(({p,marginStr})=>{
-      const mu=_gameTitle(p.hA,p.awA,p.sport);
-      const sc='var(--pc)';
-      return`<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-          ${_sportBadgeHtml(window._normSport(p),()=>sc)}
-          <span style="font-family:var(--mono);font-size:15px;color:var(--t2)">${mu}</span>
-          <span style="font-family:var(--mono);font-size:15px;color:var(--vc)">${_expandBetOn(p.betOn||'',p.sport)}</span>
-        </div>
-        <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:2px">${p.betType} · <span style="color:#ff1a1a">${marginStr}</span> · ${p.date||''}</div>
-      </div>`;
-    }).join(''):'<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">No near misses found</div>'}
-  </div>`;
-
-  // ── Section 5: Confidence calibration (enhanced) ──
-  h+=`<div class="card" style="margin-bottom:12px;padding:10px">
-    <div style="font-family:var(--mono);font-size:15px;color:var(--ic);letter-spacing:2px;margin-bottom:8px">// CONFIDENCE CALIBRATION — PREDICTED vs ACTUAL</div>
-    ${confData.map(b=>{
-      const col=b.acc!==null?pctCol(b.acc):'var(--t3)';
-      const driftCol=b.drift===null?'var(--t3)':b.drift>0.04?'#00e644':b.drift<-0.04?'#ff1a1a':'var(--t2)';
-      const barW=b.acc!==null?Math.round(b.acc*100):0;
-      const targetW=Math.round(b.target*100);
-      return`<div style="margin-bottom:8px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-          <span style="font-family:var(--mono);font-size:15px;color:var(--t2)">${b.l}</span>
-          <div style="display:flex;gap:10px">
-            <span style="font-family:var(--mono);font-size:15px;color:${col};font-weight:700">${b.acc!==null?(b.acc*100).toFixed(0)+'%':'--'}</span>
-            <span style="font-family:var(--mono);font-size:14px;color:${driftCol}">${b.drift!==null?(b.drift>0?'+':'')+(b.drift*100).toFixed(0)+'% drift':''}</span>
-            <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">${b.n} bets</span>
-          </div>
-        </div>
-        <div style="position:relative;height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:visible">
-          <div style="height:100%;width:${barW}%;background:${col};border-radius:3px;transition:width .4s"></div>
-          <div style="position:absolute;top:-3px;left:${targetW}%;width:2px;height:12px;background:rgba(255,255,255,.35);border-radius:1px" title="Target: ${targetW}%"></div>
-        </div>
-      </div>`;
-    }).join('')}
-    <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-top:5px">White marker = target win rate for that tier</div>
-  </div>`;
-
-  // ── Section 6: Self-Assessment (enhanced) ──
-  h+=`<div class="card" style="margin-bottom:12px;padding:10px;border-left:3px solid #00e644">
-    <div style="font-family:var(--mono);font-size:15px;color:#00e644;letter-spacing:2px;margin-bottom:8px">// SELF-ASSESSMENT</div>
-    ${spStats.map(d=>{const bar=d.acc!==null?Math.round(d.acc*100):0;const col=pctCol(d.acc||0);return`<div style="margin-bottom:6px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:2px">
-        <span style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--pc)">${d.s}</span>
-        <div style="display:flex;gap:8px">
-          <span style="font-family:var(--mono);font-size:15px;color:${col};font-weight:700">${d.acc!==null?(d.acc*100).toFixed(1)+'%':'--'}</span>
-          <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">${d.w}W-${d.l}L</span>
-          <span style="font-family:var(--mono);font-size:14px;color:${uCol(d.u)}">${d.u>=0?'+':''}${d.u.toFixed(1)}u</span>
-        </div>
-      </div>
-      <div style="height:4px;background:rgba(255,255,255,.07);border-radius:2px"><div style="width:${bar}%;height:100%;background:${col};border-radius:2px"></div></div>
-    </div>`;}).join('')}
-    <div style="border-top:1px solid rgba(255,255,255,.07);margin-top:8px;padding-top:8px">
-      ${bestSp?`<div style="font-family:var(--mono);font-size:16px;color:#00e644;margin-bottom:3px">▲ STRONGEST: ${bestSp.s} — ${(bestSp.acc*100).toFixed(0)}% (${bestSp.n} bets)</div>`:''}
-      ${worstSp&&worstSp.s!==bestSp?.s?`<div style="font-family:var(--mono);font-size:16px;color:#ff1a1a;margin-bottom:3px">▼ WEAKEST: ${worstSp.s} — ${(worstSp.acc*100).toFixed(0)}% (${worstSp.n} bets)</div>`:''}
-      ${bestType?`<div style="font-family:var(--mono);font-size:16px;color:var(--vc)">✓ BEST TYPE: ${bestType.t} — ${(bestType.acc*100).toFixed(0)}%</div>`:''}
-    </div>
-  </div>`;
-
-  // ── Section 7: By Bet Type ──
-  if(typeStats.length){
-    h+=`<div class="card" style="margin-bottom:12px;padding:10px">
-      <div style="font-family:var(--mono);font-size:15px;color:var(--mc);letter-spacing:2px;margin-bottom:8px">// BY BET TYPE</div>
-      <div style="display:flex;gap:5px;flex-wrap:wrap">
-        ${typeStats.map(t=>`<div style="flex:1;min-width:70px;text-align:center;background:rgba(10,0,24,.8);border:1px solid rgba(255,255,255,.08);border-radius:3px;padding:9px">
-          <div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:3px">${t.t}</div>
-          <div style="font-family:var(--orb);font-size:24px;font-weight:700;color:${pctCol(t.acc||0)}">${t.acc!==null?(t.acc*100).toFixed(0)+'%':'--'}</div>
-          <div style="font-family:var(--mono);font-size:14px;color:var(--t2);margin-top:2px">${t.w}W-${t.l}L</div>
-          <div style="font-family:var(--mono);font-size:14px;color:${uCol(t.u)}">${t.u>=0?'+':''}${t.u.toFixed(1)}u</div>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  }
-
-  // ── Section 8: Win Analysis ──
-  if(winAnalysis.length){
-    h+=`<div class="card" style="margin-bottom:12px;padding:10px;border-left:3px solid #00e644">
-      <div style="font-family:var(--mono);font-size:15px;color:#00e644;letter-spacing:2px;margin-bottom:8px">// WIN ANALYSIS — LAST ${winAnalysis.length}</div>
-      ${winAnalysis.map(({p,factors})=>{const sc='var(--pc)';const mu=_gameTitle(p.hA,p.awA,p.sport);return`<div style="padding:6px 0;border-bottom:1px solid rgba(0,230,68,.07)">
-        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:2px">
-          ${_sportBadgeHtml(window._normSport(p),()=>sc)}
-          <span style="font-family:var(--mono);font-size:15px;color:var(--t)">${_expandBetOn(p.betOn||'',p.sport)}</span>
-          <span style="font-family:var(--mono);font-size:14px;color:#00e644">WIN</span>
-        </div>
-        <div style="font-family:var(--mono);font-size:14px;color:var(--t3)">${mu} · ${p.date||''} · ${p.ml||''}</div>
-        <div style="font-family:var(--mono);font-size:14px;color:#00e644;margin-top:2px">WHY IT WON: ${factors.length?factors.join(' · '):'model edge confirmed'}</div>
-      </div>`;}).join('')}
-    </div>`;
-  }
-
-  // ── Section 9: Loss Analysis ──
-  if(lossAnalysis.length){
-    h+=`<div class="card" style="margin-bottom:12px;padding:10px;border-left:3px solid #ff1a1a">
-      <div style="font-family:var(--mono);font-size:15px;color:#ff1a1a;letter-spacing:2px;margin-bottom:8px">// LOSS ANALYSIS — LAST ${lossAnalysis.length}</div>
-      ${lossAnalysis.map(({p,factors})=>{const sc='var(--pc)';const mu=_gameTitle(p.hA,p.awA,p.sport);return`<div style="padding:6px 0;border-bottom:1px solid rgba(255,26,26,.07)">
-        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:2px">
-          ${_sportBadgeHtml(window._normSport(p),()=>sc)}
-          <span style="font-family:var(--mono);font-size:15px;color:var(--t)">${_expandBetOn(p.betOn||'',p.sport)}</span>
-          <span style="font-family:var(--mono);font-size:14px;color:#ff1a1a">LOSS</span>
-        </div>
-        <div style="font-family:var(--mono);font-size:14px;color:var(--t3)">${mu} · ${p.date||''} · ${p.ml||''}</div>
-        <div style="font-family:var(--mono);font-size:14px;color:#ff1a1a;margin-top:2px">POSSIBLE FACTORS: ${factors.length?factors.join(' · '):'none identified'}</div>
-      </div>`;}).join('')}
-    </div>`;
-  }
-
-  // ── Section 10: Bet journal reason performance ──
-  const reasonAnalysis2=analyzeJournalReasons();
-  if(reasonAnalysis2.length){
-    h+=`<div class="card" style="margin-bottom:12px;padding:10px">
-      <div style="font-family:var(--mono);font-size:15px;color:var(--mc);letter-spacing:2px;margin-bottom:8px">// BET JOURNAL — WHY I BET PERFORMANCE</div>
-      ${reasonAnalysis2.map(([r,d])=>{const acc=d.w/d.n;const uc=uCol(d.u);return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-        <span style="font-family:var(--mono);font-size:15px;color:var(--t2)">${r}</span>
-        <div style="display:flex;gap:10px">
-          <span style="font-family:var(--mono);font-size:15px;color:${pctCol(acc)};font-weight:700">${(acc*100).toFixed(0)}%</span>
-          <span style="font-family:var(--mono);font-size:14px;color:${uc}">${d.u>=0?'+':''}${d.u.toFixed(1)}u</span>
-          <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">${d.n} bets</span>
-        </div>
-      </div>`;}).join('')}
-    </div>`;
-  }
-
-  // ── Section 11: Player Props performance ──
-  const propBets=all.filter(p=>p.betType==='PROP');
-  if(propBets.length>=2){
-    const playerMap={};
-    for(const p of propBets){
-      const betOn=p.betOn||'';
-      const player=betOn.replace(/(OVER|UNDER)[\s\S]*/i,'').trim()||betOn;
-      if(!playerMap[player])playerMap[player]={w:0,l:0,sport:p.sport};
-      if(p.outcome==='win')playerMap[player].w++;else if(p.outcome==='loss')playerMap[player].l++;
-    }
-    const propW=propBets.filter(p=>p.outcome==='win').length;const propL=propBets.filter(p=>p.outcome==='loss').length;
-    const propAcc=(propW+propL)?propW/(propW+propL):null;
-    const playerRows=Object.entries(playerMap).filter(([,d])=>d.w+d.l>=2).sort((a,b)=>(b[1].w+b[1].l)-(a[1].w+a[1].l));
-    h+=`<div class="card" style="margin-bottom:12px;padding:10px">
-      <div style="font-family:var(--mono);font-size:15px;color:var(--mc);letter-spacing:2px;margin-bottom:6px">// PLAYER PROPS PERFORMANCE</div>
-      <div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:8px">OVERALL: <span style="color:${pctCol(propAcc||0)};font-weight:700">${propAcc!==null?(propAcc*100).toFixed(0)+'%':'--'}</span> · ${propW}W/${propL}L · ${propBets.length} props</div>
-      ${playerRows.length?`<div style="display:flex;flex-direction:column;gap:4px">
-        ${playerRows.map(([player,d])=>{const tot=d.w+d.l;const acc=d.w/tot;const col=pctCol(acc);const sc='var(--pc)';return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-          <div><span style="font-family:var(--mono);font-size:15px;color:var(--t)">${player}</span><span style="font-family:var(--mono);font-size:13px;color:${sc};margin-left:5px">${d.sport}</span></div>
-          <div style="display:flex;gap:8px"><span style="font-family:var(--mono);font-size:16px;font-weight:700;color:${col}">${(acc*100).toFixed(0)}%</span><span style="font-family:var(--mono);font-size:14px;color:var(--t3)">${d.w}W-${d.l}L</span></div>
-        </div>`;}).join('')}
-      </div>`:''}
-    </div>`;
-  }
-
-  el.innerHTML=h;
-}
+// ═══ OVERALL TRENDS ═══ moved: see the ANALYTICS — TRENDS block near the end of this script (renderAnalyticsTrends).
 
 // ═══ INSTANT CALIBRATION TRIGGER ══════════════════════════════════════════
 function triggerInstantCalibration(){
@@ -28555,18 +28234,7 @@ window.renderTeamResults=renderTeamResults;
 // actually stored on real locked bets (grade is derived at render time
 // via tier(), not persisted), so that section silently showed nothing
 // for real data anyway.
-function renderAnalyticsTrends(){
-  const el=document.getElementById('analytics-trends-content');if(!el)return;
-  const _orig=document.getElementById('ovr-trends');
-  if(_orig)_orig.id='__ovr_trends_tmp';
-  el.id='ovr-trends';
-  try{renderOverallTrends();}catch(e){el.innerHTML='<div class="empty">'+e.message+'</div>';}
-  el.id='analytics-trends-content';
-  if(_orig)_orig.id='ovr-trends';
-}
-window.renderAnalyticsTrends=renderAnalyticsTrends;
-function renderBetTrends(){renderAnalyticsTrends();}
-window.renderBetTrends=renderBetTrends;
+// renderAnalyticsTrends / renderBetTrends: see the ANALYTICS — TRENDS block near the end of this script.
 
 
 function renderAnalyticsByBet(){
@@ -30279,6 +29947,823 @@ function _vzBind(root){
       const el=document.getElementById('analytics-visuals-content');
       if(!el||!el.offsetParent||!_vzCtx||Math.abs(_vzChartW()-_vzCtx.W)<24)return;
       _vzNoAnim=true;try{window.renderAnalyticsVisuals();}finally{_vzNoAnim=false;}
+    },220);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// ANALYTICS — TRENDS sub-tab (interactive layer, 2026-10-09, owner: "enhance analytics sub tab, trends, and enhance
+// visual and make them interactive"). Replaces the old renderOverallTrends() + its renderAnalyticsTrends() id-swap wrapper
+// (the older renderTrends() near the Overall tab renders into a div that no longer exists and was left alone).
+//
+// Every original view is kept with the same data and record basis: base set = _aP() (lock-timing aware) settled picks in the
+// active-league allowlist, chronological; units via _pbPnl / _pbIn (price basis); leagues grouped by window._normSport (never
+// the raw p.sport tag — 133 NFL picks are stored as 'FOOTBALL'); a push counts toward n (win % = w / n) exactly as before.
+// Real bugs fixed in the original and kept fixed here: prop-line parsing reads the number after OVER/UNDER, Spread/RL/SPREAD/ATS/PL
+// fold into one 'Spread' bucket, calibration bands use tier()'s real 67/62/55 cutoffs, and a sport with no recent bets shows a
+// neutral "~" trend instead of a fabricated collapse.
+// New: shared sport + period chips, a rolling win-rate line, hover / tap / keyboard tooltips on every number, click-to-drill into
+// the underlying picks, sortable ranked rows, legend toggles and a short first-render animation. State lives in _tvS; the
+// derived data for the current slice is cached in _tvCtx so a chip click never re-runs _aP() outside the wrapped renderer
+// (which is what applies the lock-timing filter). ONE set of delegated listeners is bound once on #analytics-trends-content.
+// This block deliberately shares only CSS class names with the Visuals tab (vz-chip, vz-card, ...) — its JS, state and tooltip
+// element (#tv-tip) are its own, so neither tab's document-level listeners can interfere with the other.
+// ════════════════════════════════════════════════════════════════════════
+const _TV_ACTIVE=new Set(['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','FB','PL','LIGA','CL','SERIEA']);
+const _TV_TRACK=['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','PL','LIGA','CL','SERIEA'];
+const _TV_GROUPS=[
+  {k:'BASKETBALL',label:'BASKETBALL',codes:['NBA'],hex:'#f000ff'},
+  {k:'HOCKEY',label:'HOCKEY',codes:['NHL','SHL','LIIGA','NLA','EXTRALIGA'],hex:'#6690ff'},
+  {k:'FOOTBALL',label:'FOOTBALL',codes:['NFL','CFB'],hex:'#ff2090'},
+  {k:'SOCCER',label:'SOCCER',codes:['PL','LIGA','CL','SERIEA'],hex:'#ffdd00'}
+];
+const _TV_PERIODS=[['ALL','ALL',0],['90D','90D',90],['30D','30D',30],['7D','7D',7]];
+const _TV_UP='#00e644',_TV_DN='#ff2090',_TV_PUSH='#ffdd00';
+const _tvS={flt:'ALL',per:'ALL',roll:25,hsort:'wp',hmin:3,rn:10,rsort:'default',cmpw:30,cmpk:'def',cmpd:1,cmpset:'recent',
+  nmt:'ALL',nms:'recent',nmN:12,sasort:'wp',winN:8,winF:null,lossN:8,lossF:null,jrs:'wp',prs:'n',prAll:false,
+  dr:{},dn:{},pin:null,open:{},
+  off:{roll:false,band:false,avg:false,tgt:false,ci:false,sw:false,sl:false,sp:false}};
+let _tvCtx=null,_tvReg={},_tvUid=0,_tvHot=null,_tvRaf=0,_tvLastMove=null,_tvNoAnim=false,_tvResizeT=0;
+const _TV_KEYS=['sum','hot','rec','cmp','nm','cal','sa','bt','win','loss','jr','pr'];
+function _tvEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function _tvSign(v,d){d=d==null?1:d;return(v>=0?'+':'−')+Math.abs(v).toFixed(d);}
+const _TV_MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function _tvDate(d,noY){const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||'');return m?_TV_MON[+m[2]-1]+' '+(+m[3])+(noY?'':" '"+m[1].slice(2)):(d||'—');}
+function _tvCol(r){return r>=.62?_TV_UP:r>=.52?'var(--vc)':_TV_DN;}
+function _tvUcol(u){return u>=0?_TV_UP:_TV_DN;}
+function _tvOc(o){return o==='win'?_TV_UP:o==='push'?_TV_PUSH:_TV_DN;}
+function _tvMatch(p){return(p.awA&&p.hA)?p.awA+' @ '+p.hA:(p.betOn||'');}
+function _tvPct(a,d){return a==null?'--':(a*100).toFixed(d||0)+'%';}
+function _tvWilson(w,n){const z=1.96,p=w/n,d=1+z*z/n,c=p+z*z/(2*n),a=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n));return[Math.max(0,(c-a)/d)*100,Math.min(1,(c+a)/d)*100];}
+function _tvPickTs(p){return p.lockedAt||new Date((p.date||'2000-01-01')+'T12:00:00').getTime();}
+// Aggregate a list of settled picks. u sums _pbPnl (0 for picks outside the chosen price basis); nIn counts the picks that do count toward units/ROI.
+function _tvAgg(bets){
+  let w=0,l=0,ps=0,u=0,nIn=0,od=0,nOd=0;
+  for(const p of bets){
+    if(p.outcome==='win')w++;else if(p.outcome==='loss')l++;else if(p.outcome==='push')ps++;
+    u+=_pbPnl(p);if(_pbIn(p))nIn++;
+    const o=parseFloat(p.decOdds);if(o>1){od+=o;nOd++;}
+  }
+  const n=bets.length;
+  return{n,w,l,ps,u,nIn,acc:n?w/n:null,roi:nIn?u/nIn*100:null,avgOdds:nOd?od/nOd:0};
+}
+function _tvRec(a){return a.w+'W–'+a.l+'L'+(a.ps?'–'+a.ps+'P':'');}
+function _tvUnits(a){return a.nIn?_tvSign(a.u)+'u':'—';}
+// ── base data + context ───────────────────────────────────────────────
+function _tvBase(){
+  return _aP().filter(p=>p.outcome!=='pending'&&_TV_ACTIVE.has(window._normSport(p)))
+    .sort((a,b)=>{const da=a.date||'',db=b.date||'';return da<db?-1:da>db?1:(a.lockedAt||0)-(b.lockedAt||0);});
+}
+function _tvChartW(){const el=document.getElementById('analytics-trends-content');const w=el?el.clientWidth-(window.matchMedia&&matchMedia('(max-width:480px)').matches?20:36):0;return w>200?Math.min(1600,Math.round(w)):640;}
+function _tvMakeCtx(all){
+  const now=Date.now(),spm=new Map(),tsm=new Map();
+  const sp=p=>{let s=spm.get(p);if(s===undefined){s=window._normSport(p)||'?';spm.set(p,s);}return s;};
+  const ts=p=>{let t=tsm.get(p);if(t===undefined){t=_tvPickTs(p);tsm.set(p,t);}return t;};
+  const g=_TV_GROUPS.find(x=>x.k===_tvS.flt)||null;
+  const per=_TV_PERIODS.find(x=>x[0]===_tvS.per)||_TV_PERIODS[0],cut=per[2]?now-per[2]*864e5:0;
+  const fs=g?all.filter(p=>g.codes.includes(sp(p))):all;
+  const f=cut?fs.filter(p=>ts(p)>=cut):fs;
+  // bet-journal reasons were never scoped by _aP()/active leagues (analyzeJournalReasons reads getP()); the slice chips still apply
+  let jb=getP().filter(p=>p.outcome!=='pending'&&p.reason);
+  const jHas=_tvJournal(jb).length>0;
+  if(g)jb=jb.filter(p=>g.codes.includes(sp(p)));
+  if(cut)jb=jb.filter(p=>ts(p)>=cut);
+  return{all,fs,f,g,sp,ts,now,jb,jHas,per,cut,W:_tvChartW()};
+}
+// ── small markup helpers ──────────────────────────────────────────────
+function _tvHead(icon,title){return`<div class="sh vz-sh"><span class="${icon}"></span> ${title}</div>`;}
+function _tvChip(act,v,label,on,col){return`<button type="button" class="vz-chip" data-tva="${act}" data-v="${_tvEsc(v)}" aria-pressed="${on?'true':'false'}"${col?` style="--vz-c:${col}"`:''}><span class="vz-cl">${label}</span></button>`;}
+function _tvGrp(act,cur,opts,col,label){return`<div class="vz-chips" role="group" aria-label="${_tvEsc(label)}">${opts.map(o=>_tvChip(act,o[0],o[1],String(cur)===String(o[0]),col)).join('')}</div>`;}
+function _tvLeg(key,label,swatch){return`<button type="button" class="vz-chip vz-leg" data-tva="leg" data-v="${key}" aria-pressed="${_tvS.off[key]?'false':'true'}"><i style="${swatch}"></i><span class="vz-cl">${label}</span></button>`;}
+function _tvEmpty(title,note,icon){
+  return`<div class="card vz-card">${_tvHead(icon||'nc',title)}<div class="empty vz-emptyc">NOT ENOUGH DATA YET<br><span class="tv-s">${note||'Check back once more bets from this slice have settled.'}</span></div></div>`;
+}
+function _tvTipRows(title,rows,accent){
+  return`<div class="vz-tt" style="color:${accent||'var(--nc)'}">${title}</div>`+rows.map(r=>`<div class="vz-tr"><span>${r[0]}</span><b${r[2]?` style="color:${r[2]}"`:''}>${r[1]}</b></div>`).join('');
+}
+function _tvAggTip(title,a,accent,extra){
+  const rows=[['WIN RATE',_tvPct(a.acc,1),_tvCol(a.acc||0)],['RECORD',_tvRec(a)],['SAMPLE','n = '+a.n+(a.n<10?' (SMALL)':''),a.n<10?_TV_PUSH:''],['UNITS',_tvUnits(a),a.nIn?_tvUcol(a.u):''],['ROI',a.roi==null?'—':_tvSign(a.roi)+'%',a.roi==null?'':_tvUcol(a.roi)]];
+  if(a.avgOdds)rows.push(['AVG ODDS',a.avgOdds.toFixed(2)]);
+  return _tvTipRows(title,rows.concat(extra||[]),accent);
+}
+function _tvTipAttr(html){return` data-tvtip="${_tvEsc(html)}"`;}
+function _tvPickTip(p){
+  const oc=_tvOc(p.outcome),g=_gradeLabel(p);
+  const pn=_pbIn(p)?_tvSign(_pbPnl(p),2)+'u':'n/a (other price basis)';
+  const rows=[['GAME',_tvEsc(_tvMatch(p))],['BET',_tvEsc(p.betOn||'—')]];
+  if(p.winProb!=null)rows.push(['MODEL PROB',(p.winProb*100).toFixed(1)+'%']);
+  if(parseFloat(p.decOdds)>1)rows.push(['ODDS',parseFloat(p.decOdds).toFixed(2)]);
+  if(g)rows.push(['GRADE',_tvEsc(g),_gradeColVar(g)]);
+  rows.push(['RESULT',_tvEsc((p.outcome||'').toUpperCase()),oc],['UNITS',pn,oc]);
+  return _tvTipRows(_tvDate(p.date)+' · '+_tvEsc(window._normSport(p))+(p.betType?' · '+_tvEsc(p.betType):''),rows,oc);
+}
+function _tvGradeChip(g){if(!g)return'';const c=_gradeColVar(g);return`<span class="vz-gr" style="color:${c};border-color:${c}">${_tvEsc(g)}</span>`;}
+function _tvPickDetail(p,extra){
+  const oc=_tvOc(p.outcome),g=_gradeLabel(p);
+  const cell=(k,v,c)=>`<div class="vz-dc"><span>${k}</span><b${c?` style="color:${c}"`:''}>${v}</b></div>`;
+  const u=_pbIn(p)?_tvSign(_pbPnl(p),2)+'u':'—';
+  const sc=(p.hScore!=null&&p.aScore!=null)?_tvEsc(p.awA||'AWAY')+' '+p.aScore+' – '+p.hScore+' '+_tvEsc(p.hA||'HOME'):'—';
+  return`<div class="vz-dh"><span class="vz-res" style="color:${oc};border-color:${oc}">${_tvEsc((p.outcome||'').toUpperCase())}</span><b>${_tvEsc(p.betOn||'—')}</b>${_tvGradeChip(g)}</div>`
+    +`<div class="vz-dg">${cell('GAME',_tvEsc(_tvMatch(p)))}${cell('DATE',_tvDate(p.date))}${cell('LEAGUE',_tvEsc(window._normSport(p)))}${cell('TYPE',_tvEsc(p.betType||'—'))}${cell('FINAL',sc)}${cell('MODEL PROB',p.winProb!=null?(p.winProb*100).toFixed(1)+'%':'—')}${cell('ODDS',parseFloat(p.decOdds)>1?parseFloat(p.decOdds).toFixed(2):'—')}${cell('UNITS',u,oc)}${extra||''}</div>`;
+}
+function _tvPickRow(p){
+  const oc=_tvOc(p.outcome);
+  return`<div class="vz-rp"><span class="vz-rpd">${_tvDate(p.date)}</span><span class="vz-rpb"><b>${_tvEsc(p.betOn||'—')}</b> <small>${_tvEsc(window._normSport(p))} · ${_tvEsc(_tvMatch(p))}${p.winProb!=null?' · '+(p.winProb*100).toFixed(0)+'%':''}</small></span><span class="vz-res" style="color:${oc};border-color:${oc}">${_tvEsc((p.outcome||'').toUpperCase())}</span><span class="vz-rpu" style="color:${oc}">${_pbIn(p)?_tvSign(_pbPnl(p),2)+'u':'—'}</span></div>`;
+}
+// Drill-down panel: the underlying picks (newest first) for whatever row / tile / band was clicked.
+function _tvDrill(sec,title,bets,accent,sub){
+  const a=_tvAgg(bets),n=_tvS.dn[sec]||10,list=bets.slice().reverse();
+  const st=(k,v,col)=>`<div class="vz-st"><span>${k}</span><b${col?` style="color:${col}"`:''}>${v}</b></div>`;
+  const rows=list.slice(0,n).map(_tvPickRow).join('');
+  return`<div class="vz-drill tv-drill" style="border-color:${accent||'var(--nc)'}" aria-live="polite">`
+    +`<div class="vz-dh"><b>${title}</b><button type="button" class="vz-x" data-tva="drillx" data-sec="${sec}" aria-label="Close drill-down"><span class="vz-cl">✕ CLOSE</span></button></div>`
+    +(sub?`<div class="vz-sub" style="margin-top:-4px">${sub}</div>`:'')
+    +(a.n?`<div class="vz-stats">${st('RECORD',_tvRec(a))}${st('WIN %',_tvPct(a.acc,1),_tvCol(a.acc||0))}${st('UNITS',_tvUnits(a),a.nIn?_tvUcol(a.u):'')}${st('ROI',a.roi==null?'—':_tvSign(a.roi)+'%',a.roi==null?'':_tvUcol(a.roi))}${st('AVG ODDS',a.avgOdds?a.avgOdds.toFixed(2):'—')}</div>`:'')
+    +`<div class="tv-list">${rows||'<div class="vz-hint">NO PICKS</div>'}</div>`
+    +(list.length>n?`<button type="button" class="vz-chip tv-more" data-tva="more" data-sec="${sec}"><span class="vz-cl">SHOW 10 MORE (${list.length-n} LEFT)</span></button>`:'')
+    +`</div>`;
+}
+// Ranked-row button used by hot/cold, self-assessment, journal, props.
+function _tvRowHTML(o){
+  const pr=o.sel;
+  return`<button type="button" class="tv-row" data-tva="drill" data-sec="${o.sec}" data-k="${_tvEsc(o.key)}" aria-pressed="${pr?'true':'false'}" aria-label="${_tvEsc(o.aria)}"${_tvTipAttr(o.tip)}${o.col?` style="--tv-c:${o.col}"`:''}>`
+    +`<span class="tv-rl">${o.label}</span>`
+    +`<span class="tv-trk"><i class="tv-bar" style="width:${Math.max(0,Math.min(100,o.pct)).toFixed(1)}%;background:${o.barCol}"></i>${o.mark!=null?`<u class="tv-mk" style="left:${o.mark}%"></u>`:''}</span>`
+    +`<span class="tv-rv"><b style="color:${o.valCol}">${o.val}</b><small>${o.sub}</small></span></button>`;
+}
+function _tvPlayerKey(p){const b=p.betOn||'';return b.replace(/(OVER|UNDER)[\s\S]*/i,'').trim()||b;}
+// ── tooltip (own element; same look as the Visuals tab's) ─────────────
+function _tvTipEl(){let t=document.getElementById('tv-tip');if(!t){t=document.createElement('div');t.id='tv-tip';t.className='vz-tip';t.setAttribute('role','status');document.body.appendChild(t);}return t;}
+function _tvTipShow(html,x,y,pad){
+  const t=_tvTipEl();pad=pad==null?14:pad;t.innerHTML=html;t.style.display='block';
+  const w=t.offsetWidth,h=t.offsetHeight;
+  let L=x-w/2,T=y-h-pad;if(T<6)T=y+pad+10;
+  L=Math.max(6,Math.min(L,window.innerWidth-w-6));T=Math.max(6,Math.min(T,window.innerHeight-h-6));
+  t.style.left=L+'px';t.style.top=T+'px';
+}
+function _tvTipHide(){const t=document.getElementById('tv-tip');if(t&&t.style.display!=='none')t.style.display='none';}
+function _tvReport(kind,props){const id=String(++_tvUid);_tvReg[id]=Object.assign({kind,id},props);return id;}
+function _tvAttr(el,o){Object.keys(o).forEach(k=>el.setAttribute(k,o[k]));}
+
+// ── #0: filter card ───────────────────────────────────────────────────
+function _tvFilterHTML(ctx){
+  const inPer=bets=>ctx.cut?bets.filter(p=>ctx.ts(p)>=ctx.cut):bets;
+  const nG=g=>inPer(ctx.all.filter(p=>g.codes.includes(ctx.sp(p)))).length;
+  const sportChips=[_tvChip('flt','ALL','ALL <small>'+inPer(ctx.all).length+'</small>',_tvS.flt==='ALL','#00f0ff')].concat(_TV_GROUPS.map(g=>_tvChip('flt',g.k,g.label+' <small>'+nG(g)+'</small>',_tvS.flt===g.k,g.hex))).join('');
+  const perChips=_TV_PERIODS.map(x=>{
+    const bets=ctx.g?ctx.all.filter(p=>ctx.g.codes.includes(ctx.sp(p))):ctx.all;
+    const n=x[2]?bets.filter(p=>ctx.ts(p)>=ctx.now-x[2]*864e5).length:bets.length;
+    return _tvChip('per',x[0],x[1]+' <small>'+n+'</small>',_tvS.per===x[0],'#ff2090');
+  }).join('');
+  return`<div class="card vz-card vz-filter"><div class="vz-sub" style="margin:0 0 6px">SLICE EVERY SECTION BY SPORT · <span id="tv-count">${ctx.f.length} OF ${ctx.all.length}</span> SETTLED BETS</div>`
+    +`<div class="vz-chips" role="group" aria-label="Filter every section by sport">${sportChips}</div>`
+    +`<div class="vz-sub" style="margin:8px 0 2px">PERIOD · LAST N DAYS BY LOCK TIME (RECENCY AND RECENT-VS-HISTORICAL KEEP THEIR OWN FIXED WINDOWS)</div>`
+    +`<div class="vz-chips" role="group" aria-label="Filter every section by period">${perChips}</div></div>`;
+}
+
+// ── #1: rolling win rate ──────────────────────────────────────────────
+function _tvStat(k,v,col){return`<div class="vz-st"><span>${k}</span><b${col?` style="color:${col}"`:''}>${v}</b></div>`;}
+function _tvRollTip(ctx,bets,i,w,pre,avg){
+  const p=bets[i],wins=pre[i+1]-pre[i+1-w],ci=_tvWilson(wins,w),acc=wins/w*100,oc=_tvOc(p.outcome);
+  let l=0;for(let k=i+1-w;k<=i;k++)if(bets[k].outcome==='loss')l++;
+  return _tvTipRows('BET '+(i+1)+' OF '+bets.length+' · '+_tvDate(p.date),[['GAME',_tvEsc(_tvMatch(p))],['BET',_tvEsc(p.betOn||'—')],['RESULT',_tvEsc((p.outcome||'').toUpperCase()),oc],
+    ['ROLLING '+w,acc.toFixed(1)+'%',_tvCol(acc/100)],['WINDOW RECORD',wins+'W–'+l+'L'+(w-wins-l?'–'+(w-wins-l)+'P':'')],['95% BAND',ci[0].toFixed(0)+'–'+ci[1].toFixed(0)+'%'],
+    ['SLICE AVERAGE',avg.toFixed(1)+'%'],['VS AVERAGE',_tvSign(acc-avg)+'pp',acc>=avg?_TV_UP:_TV_DN]],'#00f0ff');
+}
+function _tvRollDetail(ctx,bets,i,w){
+  const win=bets.slice(i+1-w,i+1),a=_tvAgg(win);
+  return`<div class="vz-dh"><b>PINNED · BETS ${i+2-w}–${i+1} (${_tvDate(win[0].date)} → ${_tvDate(win[win.length-1].date)})</b><button type="button" class="vz-x" data-tva="unpin" aria-label="Clear pinned window"><span class="vz-cl">✕ CLEAR</span></button></div>`
+    +`<div class="vz-stats">${_tvStat('RECORD',_tvRec(a))}${_tvStat('WIN %',_tvPct(a.acc,1),_tvCol(a.acc||0))}${_tvStat('UNITS',_tvUnits(a),a.nIn?_tvUcol(a.u):'')}${_tvStat('ROI',a.roi==null?'—':_tvSign(a.roi)+'%',a.roi==null?'':_tvUcol(a.roi))}</div>`
+    +`<div class="tv-list">${win.slice().reverse().map(_tvPickRow).join('')}</div>`;
+}
+function _tvRollSVG(ctx,bets,w){
+  const n=bets.length,W=ctx.W,compact=W<480,H=compact?250:300,ML=compact?38:46,MR=12,MT=24,MB=compact?32:36;
+  const plotW=W-ML-MR,plotH=H-MT-MB,first=w-1,span=Math.max(1,n-1-first);
+  const pre=[0];for(const p of bets)pre.push(pre[pre.length-1]+(p.outcome==='win'?1:0));
+  const val=i=>(pre[i+1]-pre[i+1-w])/w*100,avg=pre[n]/n*100;
+  let mn=avg,mx=avg;for(let i=first;i<n;i++){const v=val(i);if(v<mn)mn=v;if(v>mx)mx=v;}
+  let yLo=Math.max(0,Math.floor((mn-4)/10)*10),yHi=Math.min(100,Math.ceil((mx+4)/10)*10);
+  if(yHi-yLo<20){yLo=Math.max(0,yHi-20);yHi=yLo+20;}
+  const xOf=i=>ML+(i-first)/span*plotW,yOf=v=>MT+plotH-(Math.max(yLo,Math.min(yHi,v))-yLo)/(yHi-yLo)*plotH;
+  const step=yHi-yLo>60?20:10,gid='tvGlow'+(++_tvUid),gid2='tvFill'+_tvUid;
+  let grid='';for(let v=yLo;v<=yHi;v+=step)grid+=`<line x1="${ML}" y1="${yOf(v).toFixed(1)}" x2="${W-MR}" y2="${yOf(v).toFixed(1)}" stroke="rgba(255,255,255,.08)"/><text x="${ML-7}" y="${(yOf(v)+4).toFixed(1)}" text-anchor="end" class="vz-ax">${v}%</text>`;
+  const nx=compact?3:5;let gx='';
+  for(let k=0;k<nx;k++){const i=Math.round(first+span*k/(nx-1));gx+=`<text x="${xOf(i).toFixed(1)}" y="${H-MB+17}" text-anchor="${k===0?'start':k===nx-1?'end':'middle'}" class="vz-ax">${_tvDate(bets[i].date)}</text>`;}
+  const cnt=n-first,sstep=Math.max(1,Math.ceil(cnt/Math.max(60,Math.floor(plotW/2.2))));
+  const idx=[];for(let i=first;i<n;i+=sstep)idx.push(i);if(idx[idx.length-1]!==n-1)idx.push(n-1);
+  const pts=idx.map(i=>[xOf(i),yOf(val(i))]),line='M'+pts.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' L');
+  const area=line+` L${xOf(n-1).toFixed(1)},${(MT+plotH).toFixed(1)} L${xOf(first).toFixed(1)},${(MT+plotH).toFixed(1)} Z`;
+  const bandU=idx.map(i=>{const c=_tvWilson(pre[i+1]-pre[i+1-w],w);return[xOf(i),yOf(c[1])];}),bandL=idx.map(i=>{const c=_tvWilson(pre[i+1]-pre[i+1-w],w);return[xOf(i),yOf(c[0])];}).reverse();
+  const band='M'+bandU.concat(bandL).map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' L')+' Z';
+  const id=_tvReport('roll',{W,H,ML,MT,plotH,n,w,first,bets,i:-1,pin:null,
+    idxAt(host,cx){const b=host.querySelector('svg').getBoundingClientRect(),ux=(cx-b.left)*W/b.width,i=Math.round(first+(ux-ML)/plotW*span);return Math.max(first,Math.min(n-1,i));},
+    at(host,i){
+      if(i<first||i>=n)return;this.i=i;
+      const b=host.querySelector('svg').getBoundingClientRect(),sc=b.width/W,x=xOf(i),y=yOf(val(i));
+      const xh=host.querySelector('.tv-xh'),ring=host.querySelector('.tv-ring');
+      _tvAttr(xh,{x1:x.toFixed(1),x2:x.toFixed(1)});xh.style.display='';
+      _tvAttr(ring,{cx:x.toFixed(1),cy:y.toFixed(1)});ring.style.display='';
+      host.setAttribute('aria-valuenow',String(i+1));host.setAttribute('aria-valuetext','Bet '+(i+1)+' of '+n+': rolling '+w+' win rate '+val(i).toFixed(1)+' percent');
+      _tvTipShow(_tvRollTip(ctx,bets,i,w,pre,avg),b.left+x*sc,b.top+y*sc,12);
+    },
+    move(host,cx,cy,focus){this.at(host,focus?(this.i<0?n-1:this.i):this.idxAt(host,cx));},
+    leave(host){host.querySelector('.tv-xh').style.display='none';host.querySelector('.tv-ring').style.display='none';},
+    setPin(host,i){
+      this.pin=i;_tvS.pin=i;const pm=host.querySelector('.tv-pinm');
+      if(i==null){pm.style.display='none';}else{_tvAttr(pm,{cx:xOf(i).toFixed(1),cy:yOf(val(i)).toFixed(1)});pm.style.display='';}
+      const d=host.closest('.tv-slot').querySelector('.vz-detail');
+      if(d)d.innerHTML=i==null?'<div class="vz-hint">TAP OR CLICK THE LINE (OR PRESS ENTER) TO PIN A ROLLING WINDOW AND SEE ITS PICKS</div>':_tvRollDetail(ctx,bets,i,w);
+    },
+    click(host,e){this.setPin(host,this.idxAt(host,e.clientX));},
+    key(host,e){
+      const k=e.key;
+      if(k==='Enter'||k===' '){this.setPin(host,this.i<0?n-1:this.i);return true;}
+      if(k!=='ArrowLeft'&&k!=='ArrowRight'&&k!=='Home'&&k!=='End'&&k!=='PageUp'&&k!=='PageDown')return false;
+      let i=this.i<0?n-1:this.i;const big=(k==='PageUp'||k==='PageDown'||e.shiftKey)?10:1;
+      i=k==='Home'?first:k==='End'?n-1:Math.max(first,Math.min(n-1,i+((k==='ArrowRight'||k==='PageDown')?big:-big)));
+      this.at(host,i);return true;
+    }});
+  const pin=_tvS.pin!=null&&_tvS.pin>=first&&_tvS.pin<n?_tvS.pin:null;
+  _tvReg[id].pin=pin;
+  const aria='Rolling '+w+'-bet win rate over '+n+' settled bets, from '+_tvDate(bets[first].date)+' to '+_tvDate(bets[n-1].date)+'. Arrow keys move along the line, Enter pins a window.';
+  const svg=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true" focusable="false"><defs>${`<filter id="${gid}" x="-20%" y="-60%" width="140%" height="220%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`}<linearGradient id="${gid2}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00f0ff" stop-opacity=".28"/><stop offset="1" stop-color="#00f0ff" stop-opacity="0"/></linearGradient></defs>`
+    +grid+gx
+    +`<path class="tv-band tv-fade" d="${band}" fill="#00f0ff" fill-opacity=".12" stroke="none"/>`
+    +`<g class="tv-g-roll"><path class="tv-fade" d="${area}" fill="url(#${gid2})" stroke="none"/></g>`
+    +`<line class="tv-avg tv-fade" x1="${ML}" x2="${W-MR}" y1="${yOf(avg).toFixed(1)}" y2="${yOf(avg).toFixed(1)}" stroke="#ffdd00" stroke-width="1.5" stroke-dasharray="6,5"/>`
+        +`<g class="tv-g-roll"><path class="tv-line" pathLength="1" d="${line}" fill="none" stroke="#00f0ff" stroke-width="2.4" stroke-linejoin="round" filter="url(#${gid})"/></g>`
+    +`<g class="tv-avg tv-fade"><rect x="${W-MR-74}" y="${(yOf(avg)-17).toFixed(1)}" width="72" height="14" rx="3" fill="rgba(4,0,12,.8)"/><text class="vz-ax" x="${W-MR-6}" y="${(yOf(avg)-6).toFixed(1)}" text-anchor="end" style="fill:#ffdd00">AVG ${avg.toFixed(1)}%</text></g>`
+    +`<line class="tv-xh" x1="0" x2="0" y1="${MT}" y2="${MT+plotH}" stroke="rgba(255,255,255,.35)" style="display:none;pointer-events:none"/>`
+    +`<circle class="tv-ring" r="7" fill="#00f0ff" stroke="#fff" stroke-width="1.5" style="display:none;pointer-events:none"/>`
+    +`<circle class="tv-pinm" r="8" fill="none" stroke="#ffdd00" stroke-width="2.5" style="${pin!=null?'':'display:none;'}pointer-events:none"${pin!=null?` cx="${xOf(pin).toFixed(1)}" cy="${yOf(val(pin)).toFixed(1)}"`:''}/>`
+    +`<text x="${ML}" y="14" class="vz-ax">ROLLING ${w}-BET WIN RATE ↑</text><text x="${W-MR}" y="14" text-anchor="end" class="vz-ax">OLDEST → NEWEST</text></svg>`;
+  return{html:`<div class="vz-chart tv-chart" data-tvid="${id}" role="slider" tabindex="0" aria-label="${_tvEsc(aria)}" aria-valuemin="${first+1}" aria-valuemax="${n}" aria-valuenow="${n}">${svg}</div>`,id,pin,pre,first};
+}
+function _tvSumCard(ctx){
+  const f=ctx.f,title='ROLLING WIN RATE — IS THE EDGE HOLDING?';
+  if(!f.length)return _tvEmpty(title,'No settled bets in this slice — try a wider sport or period.','nc');
+  const a=_tvAgg(f);let st=0,stT='';
+  for(let i=f.length-1;i>=0;i--){const o=f[i].outcome;if(!stT){stT=o;st=1;}else if(o===stT)st++;else break;}
+  const stats=`<div class="vz-stats">${_tvStat('BETS',String(a.n))}${_tvStat('RECORD',_tvRec(a))}${_tvStat('WIN %',_tvPct(a.acc,1),_tvCol(a.acc||0))}${_tvStat('UNITS'+_pbMixedLabel().toUpperCase().replace(/[()]/g,''),_tvUnits(a),a.nIn?_tvUcol(a.u):'')}${_tvStat('STREAK',st+(stT==='win'?'W':stT==='loss'?'L':'P'),stT==='win'?_TV_UP:stT==='loss'?_TV_DN:_TV_PUSH)}</div>`;
+  const w=_tvS.roll;
+  const win=_tvGrp('roll',w,[[10,'10 BETS'],[25,'25 BETS'],[50,'50 BETS']],'#00f0ff','Rolling window size');
+  const leg=_tvLeg('roll','ROLLING WIN %','background:#00f0ff')+_tvLeg('band','95% BAND','background:rgba(0,240,255,.35)')+_tvLeg('avg','SLICE AVERAGE','background:#ffdd00');
+  let chart;
+  if(f.length<w+2)chart=`<div class="empty vz-emptyc">NEED MORE THAN ${w+1} SETTLED BETS FOR A ${w}-BET ROLLING LINE<br><span class="tv-s">${f.length} in this slice — try a shorter window or a wider slice.</span></div>`;
+  else{const r=_tvRollSVG(ctx,f,w);chart=r.html+`<div class="vz-detail tv-pinbox" aria-live="polite">${r.pin!=null?_tvRollDetail(ctx,f,r.pin,w):'<div class="vz-hint">TAP OR CLICK THE LINE (OR PRESS ENTER) TO PIN A ROLLING WINDOW AND SEE ITS PICKS</div>'}</div>`;}
+  return`<div class="card vz-card">${_tvHead('nc',title)}
+    <div class="vz-note">Win rate over a sliding window of the last N settled bets in this slice, oldest to newest — the fastest way to see whether results are drifting. The shaded band is the 95% Wilson interval for each window (wide = small sample) and the dashed line is the slice's overall win rate. Hover, tap or arrow-key along the line for each window's record; click to pin it and list its picks.</div>
+    ${stats}<div class="vz-chips vz-between">${win}<div class="vz-chips vz-legrow" role="group" aria-label="Show or hide series">${leg}</div></div>${chart}</div>`;
+}
+
+// ── #2: hot / cold spots ──────────────────────────────────────────────
+function _tvCombos(f,sp){
+  const c={};
+  for(const p of f){
+    const s=sp(p),t=p.betType||'ML',k=s+'_'+t;
+    if(!c[k])c[k]={key:k,sport:s,type:t,n:0,w:0,u:0,bets:[]};
+    const o=c[k];o.n++;o.bets.push(p);
+    if(p.outcome==='win'){o.w++;o.u+=_pbPnl(p);}else if(p.outcome==='loss')o.u+=_pbPnl(p);
+  }
+  return Object.values(c);
+}
+function _tvHotCard(ctx){
+  const title='HOT / COLD SPOTS',min=_tvS.hmin,sk=_tvS.hsort;
+  const combos=_tvCombos(ctx.f,ctx.sp),by={};combos.forEach(c=>by[c.key]=c);
+  const list=combos.filter(c=>c.n>=min).sort((a,b)=>sk==='u'?b.u-a.u:(b.w/b.n)-(a.w/a.n));
+  const opts=`<div class="vz-chips vz-between">${_tvGrp('hsort',sk,[['wp','WIN %'],['u','UNITS']],'#00e644','Rank hot and cold spots by')}${_tvGrp('hmin',min,[[3,'MIN 3'],[5,'MIN 5'],[10,'MIN 10']],'#ffdd00','Minimum bets per combo')}</div>`;
+  if(!list.length)return`<div class="card vz-card">${_tvHead('gc',title)}${opts}<div class="empty vz-emptyc">NEED MORE DATA<br><span class="tv-s">No sport / bet-type combination has ${min}+ settled bets in this slice yet.</span></div></div>`;
+  const nh=Math.min(5,Math.ceil(list.length/2)),nc=Math.min(5,Math.floor(list.length/2));
+  const hot=list.slice(0,nh),cold=nc?list.slice(-nc).reverse():[];
+  const dr=_tvS.dr.hot,drc=dr?by[dr]:null;
+  const row=(c,type)=>{
+    const a=_tvAgg(c.bets),col=type==='hot'?_TV_UP:_TV_DN;
+    return _tvRowHTML({sec:'hot',key:c.key,sel:dr===c.key,col,aria:c.sport+' '+c.type+': '+Math.round(a.acc*100)+' percent over '+c.n+' bets',
+      tip:_tvAggTip(_tvEsc(c.sport)+' · '+_tvEsc(c.type),a,col),
+      label:`<b class="tv-lg">${_tvEsc(c.sport)}</b><small>${_tvEsc(c.type)}</small>`,pct:a.acc*100,mark:50,barCol:col,valCol:col,val:Math.round(a.acc*100)+'%',
+      sub:`<span style="color:${_tvUcol(c.u)}">${_tvUnits(a)}</span> · ${_tvRec(a)}`});
+  };
+  const col=(t,rows,type,note)=>`<div class="tv-col"><div class="tv-ch" style="color:${type==='hot'?_TV_UP:_TV_DN}">// ${t}</div>${rows.map(c=>row(c,type)).join('')||'<div class="vz-hint">NONE</div>'}</div>`;
+  const drill=drc?_tvDrill('hot',_tvEsc(drc.sport)+' · '+_tvEsc(drc.type),drc.bets,hot.includes(drc)?_TV_UP:_TV_DN):`<div class="vz-drill vz-hint">TAP A ROW TO LIST THE PICKS BEHIND IT</div>`;
+  return`<div class="card vz-card">${_tvHead('gc',title)}
+    <div class="vz-note">Sport × bet-type combinations (min ${min} settled bets), ranked by ${sk==='u'?'units':'win rate'}. The white tick marks 50%; the colour of a row follows its column. Hover, tap or focus a row for its ROI and average odds; click it to list its picks.</div>
+    ${opts}<div class="tv-grid2">${col('HOT SPOTS',hot,'hot')}${col('COLD SPOTS',cold,'cold')}</div>${drill}</div>`;
+}
+
+// ── #3: recency by sport ──────────────────────────────────────────────
+function _tvRecencyCards(ctx){
+  const N=_tvS.rn,d7=ctx.now-7*864e5,out=[];
+  for(const s of _TV_TRACK){
+    const all=ctx.fs.filter(p=>ctx.sp(p)===s),sb=all.slice(-N);
+    if(sb.length<2)continue;
+    const w=sb.filter(p=>p.outcome==='win').length;
+    let cur=0,curT='';for(const p of sb){if(!curT||p.outcome===curT)cur++;else cur=1;curT=p.outcome;}
+    const r7=all.filter(p=>ctx.ts(p)>=d7),r7w=r7.filter(p=>p.outcome==='win').length;
+    let bw=0,cw=0;sb.forEach(p=>{if(p.outcome==='win'){cw++;if(cw>bw)bw=cw;}else cw=0;});
+    out.push({sp:s,bets:sb,n:sb.length,w,l:sb.length-w,acc:w/sb.length,cur,curT,bw,r7n:r7.length,r7acc:r7.length?r7w/r7.length:null,u:_tvAgg(sb).u});
+  }
+  const k=_tvS.rsort;
+  if(k==='acc')out.sort((a,b)=>b.acc-a.acc);
+  else if(k==='r7')out.sort((a,b)=>(b.r7n>=2?b.r7acc:-1)-(a.r7n>=2?a.r7acc:-1));
+  return out;
+}
+function _tvDotHTML(id,k,p,last){
+  const c=_tvOc(p.outcome);
+  return`<button type="button" class="vz-dot" data-tvp="${id}:${k}" data-o="${_tvEsc(p.outcome)}" tabindex="${last?0:-1}" aria-label="${_tvEsc(_tvDate(p.date)+' '+(p.betOn||'')+' '+(p.outcome||''))}"><i style="width:12px;height:12px;background:${c};box-shadow:0 0 5px ${c}aa"></i></button>`;
+}
+function _tvRecencyCard(ctx){
+  const title='RECENCY — LAST '+_tvS.rn+' + LAST 7 DAYS BY SPORT',cards=_tvRecencyCards(ctx);
+  if(!cards.length)return _tvEmpty(title,ctx.g?'No '+ctx.g.label.toLowerCase()+' league has 2+ settled bets yet — try the ALL slice.':'No league has 2+ settled bets yet.','pc');
+  const flat=[],id=_tvReport('rec',{bets:flat});
+  const items=cards.map(c=>{
+    const sc=c.curT==='win'?_TV_UP:c.curT==='push'?_TV_PUSH:_TV_DN,sl=c.curT==='win'?'W':c.curT==='push'?'P':'L';
+    const r7=c.r7n>=2?`7D: ${c.r7acc!==null?Math.round(c.r7acc*100)+'%':'--'} (${c.r7n})`:`7D: too few bets (${c.r7n})`;
+    const dots=c.bets.map((p,i)=>{flat.push(p);return _tvDotHTML(id,flat.length-1,p,i===c.bets.length-1);}).join('');
+    const tip=_tvTipRows(_tvEsc(c.sp)+' · LAST '+c.n,[['WIN RATE',Math.round(c.acc*100)+'%',_tvCol(c.acc)],['RECORD',c.w+'W–'+c.l+'L'],['CURRENT RUN',c.cur+sl,sc],['BEST WIN RUN',c.bw+'W'],['UNITS',_tvSign(c.u)+'u',_tvUcol(c.u)],['LAST 7 DAYS',c.r7n>=2?Math.round(c.r7acc*100)+'% ('+c.r7n+' bets)':c.r7n+' bet'+(c.r7n===1?'':'s')+' (too few)']],'#f000ff');
+    return`<div class="tv-rc"><div class="tv-rch" tabindex="0" role="group" aria-label="${_tvEsc(c.sp+': '+Math.round(c.acc*100)+' percent over the last '+c.n+' bets')}"${_tvTipAttr(tip)}>
+      <div class="tv-rt"><b class="tv-lg">${_tvEsc(c.sp)}</b><b class="tv-pv" style="color:${_tvCol(c.acc)}">${Math.round(c.acc*100)}%</b></div>
+      <div class="tv-s2">${c.w}W–${c.l}L L${c.n} · <span style="color:${sc}">${c.cur}${sl} streak</span></div>
+      ${r7?`<div class="tv-s2 tv-dim">${r7}</div>`:''}</div>
+      <div class="vz-dots" role="group" aria-label="${_tvEsc(c.sp)} last ${c.n} settled bets, oldest to newest">${dots}</div>
+      <div class="vz-detail" aria-live="polite"></div></div>`;
+  }).join('');
+  const leg=_tvLeg('sw','WINS','background:'+_TV_UP)+_tvLeg('sl','LOSSES','background:'+_TV_DN)+_tvLeg('sp','PUSHES','background:'+_TV_PUSH);
+  return`<div class="card vz-card">${_tvHead('pc',title)}
+    <div class="vz-note">Fixed windows: each league's last ${_tvS.rn} settled bets (oldest → newest) and its last 7 days, from the sport slice only — the period chip does not apply here. Each dot is one bet: hover, tap or arrow-key it for the matchup, click it to pin the full pick.</div>
+    <div class="vz-chips vz-between">${_tvGrp('rn',_tvS.rn,[[10,'LAST 10'],[20,'LAST 20'],[30,'LAST 30']],'#f000ff','Bets per league')}${_tvGrp('rsort',_tvS.rsort,[['default','DEFAULT'],['acc','WIN %'],['r7','LAST 7D']],'#00f0ff','Sort leagues')}</div>
+    <div class="vz-chips vz-legrow" role="group" aria-label="Show or dim results">${leg}</div>
+    <div class="tv-gridn">${items}</div></div>`;
+}
+
+// ── #4: recent vs historical ──────────────────────────────────────────
+function _tvCmpRows(ctx){
+  const cut=ctx.now-_tvS.cmpw*864e5,rec=ctx.fs.filter(p=>ctx.ts(p)>=cut),his=ctx.fs.filter(p=>ctx.ts(p)<cut);
+  return _TV_TRACK.map((sp,i)=>{
+    const rb=rec.filter(p=>ctx.sp(p)===sp),hb=his.filter(p=>ctx.sp(p)===sp);
+    if(!rb.length&&!hb.length)return null;
+    const rp=_tvAgg(rb),hp=_tvAgg(hb);
+    const delta=(rp.n>=2&&hp.n>=2)?(rp.acc-hp.acc):null; // null (neutral "~") unless both buckets have 2+ bets
+    return{sp,rb,hb,rp,hp,delta,ord:i};
+  }).filter(Boolean);
+}
+function _tvCmpCard(ctx){
+  const title='RECENT ('+_tvS.cmpw+'D) vs HISTORICAL TRENDS';
+  const rows=_tvCmpRows(ctx);
+  const win=_tvGrp('cmpw',_tvS.cmpw,[[7,'7D'],[14,'14D'],[30,'30D'],[60,'60D']],'#00f0ff','Recent window length');
+  if(!rows.some(t=>t.rp.n>=2||t.hp.n>=2))return`<div class="card vz-card">${_tvHead('nc',title)}${win}<div class="empty vz-emptyc">NOT ENOUGH DATA YET<br><span class="tv-s">No league has 2+ bets in either bucket.</span></div></div>`;
+  const k=_tvS.cmpk,dir=_tvS.cmpd;
+  const nul=(v,asc)=>v==null?(asc?1e9:-1e9):v;
+  const keyf={sp:r=>r.sp,rp:r=>nul(r.rp.acc,0),hp:r=>nul(r.hp.acc,0),dl:r=>nul(r.delta,0),def:r=>r.ord}[k]||(r=>r.ord);
+  const sorted=rows.slice().sort((a,b)=>{const x=keyf(a),y=keyf(b);const c=x<y?-1:x>y?1:0;return(c||a.ord-b.ord)*(k==='def'?1:dir);});
+  const th=(key,label,cls)=>`<button type="button" class="tv-th ${cls||''}" data-tva="cmps" data-v="${key}" aria-label="Sort by ${label}"${k===key?` aria-sort="${dir>0?'ascending':'descending'}"`:''}><span class="vz-cl">${label}${k===key?(dir>0?' ▲':' ▼'):''}</span></button>`;
+  const maxd=Math.max(.2,...rows.map(r=>Math.abs(r.delta||0)));
+  const dr=_tvS.dr.cmp,drow=dr?rows.find(r=>r.sp===dr):null;
+  const body=sorted.map(t=>{
+    const arrow=t.delta===null?'~':t.delta>0.04?'▲':t.delta<-0.04?'▼':'~';
+    const dc=t.delta===null?'var(--t3)':t.delta>0.04?_TV_UP:t.delta<-0.04?_TV_DN:'var(--t3)';
+    const cell=(a,lbl)=>a.acc!==null?`<b style="color:${_tvCol(a.acc)}">${Math.round(a.acc*100)}%</b> <small>(${a.n})</small>`:`<b style="color:var(--t3)">—</b> <small>(${a.n})</small>`;
+    const tip=_tvTipRows(_tvEsc(t.sp)+' · LAST '+_tvS.cmpw+'D vs BEFORE',[['RECENT',t.rp.acc!==null?_tvPct(t.rp.acc,1)+' · '+_tvRec(t.rp):'no bets','' ],['HISTORICAL',t.hp.acc!==null?_tvPct(t.hp.acc,1)+' · '+_tvRec(t.hp):'no bets',''],['RECENT UNITS',_tvUnits(t.rp)],['HIST UNITS',_tvUnits(t.hp)],['SWING',t.delta===null?'~ (need 2+ bets each side)':_tvSign(t.delta*100,1)+'pp',dc]],'#00f0ff');
+    const w=t.delta===null?0:Math.min(50,Math.abs(t.delta)/maxd*50);
+    return`<button type="button" class="tv-tr" data-tva="drill" data-sec="cmp" data-k="${_tvEsc(t.sp)}" aria-pressed="${dr===t.sp?'true':'false'}" aria-label="${_tvEsc(t.sp+': recent '+(t.rp.acc!==null?Math.round(t.rp.acc*100)+' percent':'none')+', historical '+(t.hp.acc!==null?Math.round(t.hp.acc*100)+' percent':'none'))}"${_tvTipAttr(tip)}>
+      <span class="tv-lg">${_tvEsc(t.sp)}</span><span class="tv-cc">${cell(t.rp)}</span><span class="tv-cc">${cell(t.hp)}</span>
+      <span class="tv-cc tv-dl"><b style="color:${dc}">${arrow}${t.delta!==null?' '+(t.delta>0?'+':'')+Math.round(t.delta*100)+'%':''}</b><span class="tv-dv"><i style="${t.delta<0?'right:50%':'left:50%'};width:${w.toFixed(1)}%;background:${dc}"></i></span></span></button>`;
+  }).join('');
+  let drill='<div class="vz-drill vz-hint">TAP A LEAGUE TO LIST ITS RECENT OR HISTORICAL PICKS</div>';
+  if(drow){
+    const set=_tvS.cmpset,bets=set==='recent'?drow.rb:drow.hb;
+    drill=_tvDrill('cmp',_tvEsc(drow.sp)+' · '+(set==='recent'?'LAST '+_tvS.cmpw+' DAYS':'BEFORE THE LAST '+_tvS.cmpw+' DAYS'),bets,'var(--nc)',_tvGrp('cmpset',set,[['recent','RECENT'],['hist','HISTORICAL']],'#00f0ff','Which bucket to list'));
+  }
+  return`<div class="card vz-card">${_tvHead('nc',title)}
+    <div class="vz-note">Fixed window: each league's win rate over the last ${_tvS.cmpw} days against everything before it, from the sport slice only — the period chip does not apply here. ~ means fewer than 2 bets on one side, so no swing is claimed. Click a column header to sort; click a league to list its picks.</div>
+    ${win}
+    <div class="tv-tbl" role="table" aria-label="Recent versus historical accuracy by league"><div class="tv-tr tv-trh" role="row">${th('sp','SPORT')}${th('rp','RECENT ACC')}${th('hp','HIST ACC')}${th('dl','TREND')}</div>${body}</div>${drill}</div>`;
+}
+
+// ── #5: near misses ───────────────────────────────────────────────────
+// Extracts a prop's numeric line from betOn: the number right after OVER/UNDER or the "(O/U 22.5)" parenthetical, never trailing odds;
+// "Anytime TD/Goal" markets are binary, so "missed by N" is meaningless for them and they are excluded.
+function _tvPropLine(betOn){
+  if(!betOn)return null;
+  if(/anytime/i.test(betOn))return null;
+  let m=/O\/U\s*([\d.]+)/i.exec(betOn);if(m)return parseFloat(m[1]);
+  m=/(OVER|UNDER)\s+([\d.]+)/i.exec(betOn);if(m)return parseFloat(m[2]);
+  return null;
+}
+function _tvNearMisses(f){
+  const out=[];
+  for(const p of f){
+    if(p.outcome!=='loss')continue;
+    let r=null;
+    if(p.betType==='ML'&&p.hScore!=null&&p.aScore!=null){
+      const margin=Math.abs((p.hScore||0)-(p.aScore||0));
+      if(margin<=2)r={kind:'ML',m:margin,lim:2,str:`margin: ${margin}`};
+    }else if((p.betType==='SPREAD'||p.betType==='RL')&&p.hScore!=null&&p.aScore!=null){
+      const mm=/^(.+?)\s([+-][\d.]+)$/.exec(p.betOn||'');
+      if(mm){
+        const team=mm[1],lineVal=parseFloat(mm[2]),pickedHome=team===p.hA;
+        if(pickedHome||team===p.awA){
+          const pickedScore=pickedHome?p.hScore:p.aScore,oppScore=pickedHome?p.aScore:p.hScore,margin=(pickedScore-oppScore)+lineVal;
+          if(margin<0&&Math.abs(margin)<=1.5)r={kind:'SPREAD',m:Math.abs(margin),lim:1.5,str:`missed cover by ${Math.abs(margin).toFixed(1)}`};
+        }
+      }
+    }else if(p.betType==='OU'&&p.hScore!=null&&p.aScore!=null){
+      const total=(p.hScore||0)+(p.aScore||0),line=parseFloat((p.betOn||'').replace(/OVER|UNDER/gi,'').trim()||'0');
+      if(!isNaN(line)){const margin=Math.abs(total-line);if(margin<=1.5)r={kind:'OU',m:margin,lim:1.5,str:`missed total by ${margin.toFixed(1)}`};}
+    }else if(p.betType==='PROP'&&p.playerResult!=null){
+      const line=_tvPropLine(p.betOn||'');
+      if(line!=null){const margin=Math.abs(Number(p.playerResult)-line);if(margin<=2)r={kind:'PROP',m:margin,lim:2,str:`missed by ${margin.toFixed(1)}`};}
+    }
+    if(r){r.p=p;out.push(r);}
+  }
+  return out; // chronological
+}
+function _tvXrow(sec,id,head,sub,gauge,detail,col){
+  const open=!!_tvS.open[sec+':'+id];
+  return`<div class="tv-xr"><button type="button" class="tv-xb" data-tva="xp" data-sec="${sec}" data-k="${_tvEsc(id)}" aria-expanded="${open?'true':'false'}" style="--tv-c:${col}"><span class="tv-xrh">${head}</span><span class="tv-xrs">${sub}</span>${gauge||''}</button><div class="vz-detail tv-xd"${open?'':' hidden'}>${detail}</div></div>`;
+}
+function _tvNearCard(ctx){
+  const title='NEAR MISSES — LOSSES BY RAZOR MARGIN (ALL SPORTS & PROPS)';
+  const allNm=_tvNearMisses(ctx.f),t=_tvS.nmt,s=_tvS.nms,N=_tvS.nmN;
+  const types=[['ALL','ALL'],['ML','ML'],['SPREAD','SPREAD'],['OU','O/U'],['PROP','PROP']];
+  const opts=`<div class="vz-chips vz-between">${_tvGrp('nmt',t,types.map(x=>[x[0],x[1]+' <small>'+(x[0]==='ALL'?allNm.length:allNm.filter(r=>r.kind===x[0]).length)+'</small>']),'#bbff00','Filter by bet type')}${_tvGrp('nms',s,[['recent','NEWEST'],['closest','CLOSEST']],'#00f0ff','Sort near misses')}</div>`;
+  let list=t==='ALL'?allNm.slice():allNm.filter(r=>r.kind===t);
+  const total=list.length;
+  list=s==='closest'?list.slice().reverse().sort((a,b)=>a.m-b.m):list.slice().reverse();
+  const shown=list.slice(0,N);
+  const body=shown.length?shown.map((r,i)=>{
+    const p=r.p,mu=_gameTitle(p.hA,p.awA,p.sport),close=Math.max(0,Math.min(1,1-r.m/(r.lim+0.001)));
+    const head=`<span class="tv-lgc">${_tvEsc(ctx.sp(p))}</span><span class="tv-mu">${_tvEsc(mu)}</span><span class="tv-bo">${_tvEsc(_expandBetOn(p.betOn||'',p.sport))}</span>`;
+    const sub=`${_tvEsc(p.betType)} · <span style="color:${_TV_DN}">${_tvEsc(r.str)}</span> · ${_tvEsc(p.date||'')}`;
+    const gauge=`<span class="tv-gauge" title="Closeness to the line"><i style="width:${(close*100).toFixed(0)}%"></i></span>`;
+    return _tvXrow('nm',p.id||('i'+allNm.indexOf(r)),head,sub,gauge,_tvPickDetail(p),'var(--vc)');
+  }).join(''):'<div class="vz-hint">NO NEAR MISSES FOUND IN THIS SLICE</div>';
+  return`<div class="card vz-card">${_tvHead('vc',title)}
+    <div class="vz-note">Losses that missed by a hair: moneylines lost by 2 or less, spreads missed by ≤1.5, totals within 1.5 and props within 2 of the line. The bar under each row shows how close it was. Tap a row to expand its final score and details.</div>
+    ${opts}${body}
+    ${total>N?`<button type="button" class="vz-chip tv-more" data-tva="nmmore"><span class="vz-cl">SHOW 12 MORE (${total-N} LEFT)</span></button>`:''}
+    <div class="vz-sub">SHOWING ${shown.length} OF ${total}</div></div>`;
+}
+
+// ── #6: confidence calibration ────────────────────────────────────────
+const _TV_BANDS=[
+  {l:'PREMIUM 67%+',g:'PREMIUM',min:.67,max:1,target:.67},
+  {l:'OPTIMAL 62-67%',g:'OPTIMAL',min:.62,max:.67,target:.62},
+  {l:'LEAN 55-62%',g:'LEAN',min:.55,max:.62,target:.55},
+  {l:'SKIP <55%',g:'SKIP',min:0,max:.55,target:.50}
+];
+function _tvCalCard(ctx){
+  const title='CONFIDENCE CALIBRATION — PREDICTED vs ACTUAL';
+  const data=_TV_BANDS.map((b,i)=>{
+    const bets=ctx.f.filter(p=>{const wp=p.winProb||p.conf||0;return wp>=b.min&&wp<b.max;});
+    const a=_tvAgg(bets);
+    return{...b,i,bets,a,n:a.n,acc:a.acc,drift:a.acc!==null?a.acc-b.target:null};
+  });
+  const dr=_tvS.dr.cal,drb=dr!=null?data[+dr]:null;
+  const rows=data.map(b=>{
+    const col=b.acc!==null?_tvCol(b.acc):'var(--t3)',gc=_gradeColVar(b.g);
+    const driftCol=b.drift===null?'var(--t3)':b.drift>0.04?_TV_UP:b.drift<-0.04?_TV_DN:'var(--t2)';
+    const ci=b.n?_tvWilson(b.a.w,b.n):null,tw=Math.round(b.target*100);
+    const tip=_tvTipRows(_tvEsc(b.l)+' · PREDICTED '+Math.round(b.min*100)+'–'+(b.max>=1?'100':Math.round(b.max*100))+'%',[['ACTUAL WIN RATE',_tvPct(b.acc,1),col],['TARGET (TIER FLOOR)',tw+'%'],['DRIFT',b.drift===null?'—':_tvSign(b.drift*100)+'pp',driftCol],['RECORD',_tvRec(b.a)],['SAMPLE','n = '+b.n+(b.n&&b.n<10?' (SMALL)':''),b.n&&b.n<10?_TV_PUSH:''],['95% BAND',ci?ci[0].toFixed(0)+'–'+ci[1].toFixed(0)+'%':'—'],['UNITS',_tvUnits(b.a),b.a.nIn?_tvUcol(b.a.u):'']],gc);
+    return`<button type="button" class="tv-cb" data-tva="drill" data-sec="cal" data-k="${b.i}" aria-pressed="${dr==b.i&&dr!=null?'true':'false'}" aria-label="${_tvEsc(b.l+': '+(b.acc!==null?Math.round(b.acc*100)+' percent actual':'no bets')+', '+b.n+' bets')}"${_tvTipAttr(tip)}>
+      <span class="tv-cbh"><span class="tv-cbl"><i style="background:${gc};box-shadow:0 0 6px ${gc}"></i>${_tvEsc(b.l)}</span><span class="tv-cbv"><b style="color:${col}">${b.acc!==null?Math.round(b.acc*100)+'%':'--'}</b><em style="color:${driftCol}">${b.drift!==null?(Math.round(b.drift*100)>0?'+':Math.round(b.drift*100)<0?'−':'')+Math.abs(Math.round(b.drift*100))+'% drift':''}</em><small>${b.n} bets</small></span></span>
+      <span class="tv-trk tv-trk6"><i class="tv-bar" style="width:${b.acc!==null?Math.round(b.acc*100):0}%;background:${col}"></i>${ci?`<i class="tv-ci" style="left:${ci[0].toFixed(1)}%;width:${(ci[1]-ci[0]).toFixed(1)}%"></i>`:''}<u class="tv-mk tv-tg" style="left:${tw}%" title="Target: ${tw}%"></u></span></button>`;
+  }).join('');
+  const leg=_tvLeg('tgt','TARGET MARKER','background:#fff')+_tvLeg('ci','95% INTERVAL','background:rgba(255,255,255,.5)');
+  const drill=drb?_tvDrill('cal',_tvEsc(drb.l),drb.bets,_gradeColVar(drb.g),'Picks whose stored model probability falls in this band.'):'<div class="vz-drill vz-hint">TAP A BAND TO LIST THE PICKS BEHIND IT</div>';
+  return`<div class="card vz-card">${_tvHead('ic',title)}
+    <div class="vz-note">Each tier's real win rate against the floor its grade claims (tier()'s real 67% / 62% / 55% cutoffs). The white tick is the target; the thin white bar is the 95% interval, so a band that looks off-target but whose interval still covers the tick is just noise. Drift is in percentage points.</div>
+    <div class="vz-chips vz-legrow" role="group" aria-label="Show or hide markers">${leg}</div>${rows}${drill}</div>`;
+}
+
+// ── #7: self-assessment ───────────────────────────────────────────────
+function _tvSelfCard(ctx){
+  const title='SELF-ASSESSMENT';
+  const spStats=_TV_TRACK.map(s=>{const bets=ctx.f.filter(p=>ctx.sp(p)===s),a=_tvAgg(bets);return{s,bets,a,n:a.n,w:a.w,acc:a.acc,u:a.u};}).filter(d=>d.n>=3);
+  // acc-sorted copy drives STRONGEST / WEAKEST; the display order follows the sort chip (default = win % as before)
+  const byAcc=spStats.slice().sort((a,b)=>(b.acc||0)-(a.acc||0)),bestSp=byAcc[0],worstSp=byAcc[byAcc.length-1];
+  // BY BET TYPE shares the 'Spread' fold: RL / SPREAD / ATS / PL are one bucket
+  const typeOf=p=>{const bt=(p.betType||'').toUpperCase();return(bt==='RL'||bt==='SPREAD'||bt==='ATS'||bt==='PL')?'Spread':bt;};
+  const typeStats=['ML','Spread','OU','PROP'].map(t=>{const bets=ctx.f.filter(p=>typeOf(p)===t),a=_tvAgg(bets);return{t,bets,a,n:a.n,w:a.w,acc:a.acc,u:a.u};}).filter(d=>d.n>=3).sort((a,b)=>(b.acc||0)-(a.acc||0));
+  const bestType=typeStats[0];
+  ctx.typeStats=typeStats;
+  const sk=_tvS.sasort;
+  const disp=spStats.slice().sort((a,b)=>sk==='u'?b.u-a.u:sk==='n'?b.n-a.n:(b.acc||0)-(a.acc||0));
+  if(!disp.length)return _tvEmpty(title,'No league has 3+ settled bets in this slice yet — try a wider sport or period.','vc');
+  const dr=_tvS.dr.sa,drs=dr&&dr.indexOf('sp:')===0?spStats.find(d=>d.s===dr.slice(3)):dr&&dr.indexOf('ty:')===0?typeStats.find(d=>d.t===dr.slice(3)):null;
+  const rows=disp.map(d=>{const col=_tvCol(d.acc||0);
+    return _tvRowHTML({sec:'sa',key:'sp:'+d.s,sel:dr==='sp:'+d.s,aria:d.s+': '+Math.round((d.acc||0)*100)+' percent over '+d.n+' bets',tip:_tvAggTip(_tvEsc(d.s),d.a,'#f000ff'),
+      label:`<b class="tv-lg">${_tvEsc(d.s)}</b>`,pct:(d.acc||0)*100,mark:null,barCol:col,valCol:col,val:_tvPct(d.acc,1),sub:`${_tvRec(d.a)} · <span style="color:${_tvUcol(d.u)}">${_tvUnits(d.a)}</span>`});
+  }).join('');
+  const call=(key,col,txt)=>`<button type="button" class="tv-call" data-tva="drill" data-sec="sa" data-k="${_tvEsc(key)}" style="color:${col}" aria-pressed="${dr===key?'true':'false'}"><span class="tv-cs">${txt}</span></button>`;
+  const sum=(bestSp?call('sp:'+bestSp.s,_TV_UP,`▲ STRONGEST: ${_tvEsc(bestSp.s)} — ${Math.round(bestSp.acc*100)}% (${bestSp.n} bets)`):'')
+    +(worstSp&&worstSp.s!==bestSp?.s?call('sp:'+worstSp.s,_TV_DN,`▼ WEAKEST: ${_tvEsc(worstSp.s)} — ${Math.round(worstSp.acc*100)}% (${worstSp.n} bets)`):'')
+    +(bestType?call('ty:'+bestType.t,'var(--vc)',`✓ BEST TYPE: ${_tvEsc(bestType.t)} — ${Math.round(bestType.acc*100)}%`):'');
+  const drill=drs?_tvDrill('sa',_tvEsc(dr.indexOf('sp:')===0?drs.s:'BET TYPE · '+drs.t),drs.bets,'var(--nc)'):'<div class="vz-drill vz-hint">TAP A LEAGUE OR A CALL-OUT TO LIST ITS PICKS</div>';
+  return`<div class="card vz-card tv-edge" style="--tv-e:${_TV_UP}">${_tvHead('vc',title)}
+    <div class="vz-note">Every league with 3+ settled bets, from the sport and period slice. Sort by win rate, units or volume; hover or tap a row for ROI and average odds. The call-outs always use win rate and open that league's (or bet type's) picks.</div>
+    ${_tvGrp('sasort',sk,[['wp','WIN %'],['u','UNITS'],['n','BETS']],'#00e644','Sort leagues')}${rows}<div class="tv-calls">${sum}</div>${drill}</div>`;
+}
+
+// ── #8: by bet type ───────────────────────────────────────────────────
+function _tvTypeCard(ctx){
+  const title='BY BET TYPE',ts=ctx.typeStats||[];
+  if(!ts.length)return _tvEmpty(title,'No bet type has 3+ settled bets in this slice yet.','mc');
+  const dr=_tvS.dr.bt,drt=dr?ts.find(d=>d.t===dr):null;
+  const tiles=ts.map(d=>{const col=_tvCol(d.acc||0);
+    return`<button type="button" class="tv-tile" data-tva="drill" data-sec="bt" data-k="${_tvEsc(d.t)}" aria-pressed="${dr===d.t?'true':'false'}" aria-label="${_tvEsc(d.t+': '+Math.round((d.acc||0)*100)+' percent over '+d.n+' bets')}"${_tvTipAttr(_tvAggTip(_tvEsc(d.t),d.a,'#ff7700'))}>
+      <span class="tv-tl">${_tvEsc(d.t)}</span><span class="tv-tv" style="color:${col}">${d.acc!==null?Math.round(d.acc*100)+'%':'--'}</span>
+      <span class="tv-trk tv-trk4"><i class="tv-bar" style="width:${Math.round((d.acc||0)*100)}%;background:${col}"></i></span>
+      <span class="tv-s2">${_tvRec(d.a)}</span><span class="tv-s2" style="color:${_tvUcol(d.u)}">${_tvUnits(d.a)}</span></button>`;}).join('');
+  const drill=drt?_tvDrill('bt','BET TYPE · '+_tvEsc(drt.t),drt.bets,'#ff7700'):'<div class="vz-drill vz-hint">TAP A BET TYPE TO LIST ITS PICKS</div>';
+  return`<div class="card vz-card">${_tvHead('mc',title)}
+    <div class="vz-note">ML, Spread (RL / SPREAD / ATS / PL combined), O/U and props with 3+ settled bets, best win rate first.</div>
+    <div class="tv-tiles">${tiles}</div>${drill}</div>`;
+}
+
+// ── #9 / #10: win and loss analysis ───────────────────────────────────
+function _tvWinFactors(p){
+  const f=[];
+  if((p.winProb||0)>=0.67)f.push('PREMIUM confidence');else if((p.winProb||0)>=0.62)f.push('OPTIMAL tier');
+  if(p.ml&&parseFloat(p.ml)<0)f.push('favourite');
+  if(p.ml&&parseFloat(p.ml)>100)f.push('underdog value');
+  if(p.betType==='PROP')f.push('player prop');
+  if(p.betType==='ML')f.push('moneyline');
+  const ev=p.decOdds&&p.winProb?(p.winProb*(parseFloat(p.decOdds)||2)-1)*100:null;
+  if(ev!==null&&ev>=5)f.push(`+${ev.toFixed(1)}% EV`);
+  return f;
+}
+function _tvLossFactors(p){
+  const f=[];
+  if((p.winProb||0)<0.55)f.push('low confidence');
+  if(p.ml&&parseFloat(p.ml)>0)f.push('underdog pick');
+  if(p.ml&&parseFloat(p.ml)<-200)f.push('heavy favourite risk');
+  if(p.betType==='OU')f.push('total bet');
+  if(p.betType==='PROP')f.push('player prop variance');
+  return f;
+}
+function _tvAnalysisCard(ctx,kind){
+  const win=kind==='win',sec=kind,N=win?_tvS.winN:_tvS.lossN,fk=win?'winF':'lossF',col=win?_TV_UP:_TV_DN;
+  const base=ctx.f.filter(p=>p.outcome===(win?'win':'loss')).slice(-N).reverse();
+  const title=(win?'WIN':'LOSS')+' ANALYSIS — LAST '+base.length;
+  if(!base.length)return _tvEmpty((win?'WIN':'LOSS')+' ANALYSIS',win?'No settled wins in this slice yet.':'No settled losses in this slice yet.',win?'vc':'hc');
+  const rows=base.map(p=>({p,factors:win?_tvWinFactors(p):_tvLossFactors(p)}));
+  const fkey=f=>/% EV$/.test(f)?'+5% EV or better':f; // the EV factor carries the exact number, which would make every pick its own chip
+  const tally={};rows.forEach(r=>{const seen={};r.factors.forEach(f=>{const k=fkey(f);if(!seen[k]){seen[k]=1;tally[k]=(tally[k]||0)+1;}});});
+  let sel=_tvS[fk];if(sel&&!tally[sel])sel=_tvS[fk]=null;
+  const shown=sel?rows.filter(r=>r.factors.some(f=>fkey(f)===sel)):rows;
+  const chips=Object.keys(tally).sort((a,b)=>tally[b]-tally[a]).map(f=>_tvChip(win?'winf':'lossf',f,_tvEsc(f)+' <small>'+tally[f]+'</small>',sel===f,col)).join('');
+  const lbl=win?'WHY IT WON':'POSSIBLE FACTORS',none=win?'model edge confirmed':'none identified';
+  const items=shown.map(({p,factors},i)=>{
+    const mu=_gameTitle(p.hA,p.awA,p.sport);
+    const head=`<span class="tv-lgc">${_tvEsc(ctx.sp(p))}</span><span class="tv-bo">${_tvEsc(_expandBetOn(p.betOn||'',p.sport))}</span><span class="tv-oc" style="color:${col}">${win?'WIN':'LOSS'}</span>`;
+    const sub=`${_tvEsc(mu)} · ${_tvEsc(p.date||'')} · ${_tvEsc(p.ml||'')}<br><span style="color:${col}">${lbl}: ${factors.length?_tvEsc(factors.join(' · ')):none}</span>`;
+    return _tvXrow(sec,p.id||('i'+i),head,sub,'',_tvPickDetail(p),col);
+  }).join('');
+  return`<div class="card vz-card tv-edge" style="--tv-e:${col}">${_tvHead(win?'vc':'hc',title)}
+    <div class="vz-note">The most recent settled ${win?'wins':'losses'} in this slice with the simple signals that were present. Tap a factor to keep only the picks that had it; tap a row to expand its details.</div>
+    <div class="vz-chips vz-between">${_tvGrp(win?'winn':'lossn',N,[[8,'LAST 8'],[16,'LAST 16'],[30,'LAST 30']],col,'Number of picks')}</div>
+    <div class="vz-chips" role="group" aria-label="Filter by factor">${chips}</div>${items}
+    <div class="vz-sub">SHOWING ${shown.length} OF ${base.length}</div></div>`;
+}
+
+// ── #11: bet journal ──────────────────────────────────────────────────
+function _tvJournal(bets){
+  const by={};
+  for(const b of bets){
+    const r=b.reason||'NO REASON';
+    if(!by[r])by[r]={n:0,w:0,u:0,bets:[]};
+    by[r].n++;by[r].bets.push(b);
+    const pnl=b.outcome==='win'?(parseFloat(b.decOdds)||2)-1:b.outcome==='push'?0:-1; // same raw math as analyzeJournalReasons (not price-basis aware)
+    if(b.outcome==='win')by[r].w++;
+    by[r].u+=pnl;
+  }
+  return Object.entries(by).filter(([,d])=>d.n>=2).sort((a,b)=>(b[1].w/b[1].n)-(a[1].w/a[1].n));
+}
+function _tvJournalCard(ctx){
+  const title='BET JOURNAL — WHY I BET PERFORMANCE';
+  const sk=_tvS.jrs,rows=_tvJournal(ctx.jb);
+  if(!ctx.jHas)return''; // no journal reasons anywhere: the section never appeared before either
+  if(!rows.length)return _tvEmpty(title,'No journal reason has 2+ settled bets in this slice.','mc');
+  rows.sort((a,b)=>sk==='u'?b[1].u-a[1].u:sk==='n'?b[1].n-a[1].n:(b[1].w/b[1].n)-(a[1].w/a[1].n));
+  const dr=_tvS.dr.jr,drr=dr?rows.find(r=>r[0]===dr):null;
+  const html=rows.map(([r,d])=>{
+    const acc=d.w/d.n,a=_tvAgg(d.bets);
+    return _tvRowHTML({sec:'jr',key:r,sel:dr===r,aria:r+': '+Math.round(acc*100)+' percent over '+d.n+' bets',tip:_tvTipRows(_tvEsc(r),[['WIN RATE',_tvPct(acc,1),_tvCol(acc)],['RECORD',_tvRec(a)],['SAMPLE','n = '+d.n],['UNITS (RAW)',_tvSign(d.u)+'u',_tvUcol(d.u)]],'#ff7700'),
+      label:`<span class="tv-rsn">${_tvEsc(r)}</span>`,pct:acc*100,mark:50,barCol:_tvCol(acc),valCol:_tvCol(acc),val:Math.round(acc*100)+'%',sub:`<span style="color:${_tvUcol(d.u)}">${_tvSign(d.u)}u</span> · ${d.n} bets`});
+  }).join('');
+  const drill=drr?_tvDrill('jr',_tvEsc(drr[0]),drr[1].bets,'#ff7700'):'<div class="vz-drill vz-hint">TAP A REASON TO LIST ITS PICKS</div>';
+  return`<div class="card vz-card">${_tvHead('mc',title)}
+    <div class="vz-note">Win rate by the reason tagged when each bet was locked (2+ bets). Journal units use the raw per-bet result, as before, and are not affected by the price-basis bar.</div>
+    ${_tvGrp('jrs',sk,[['wp','WIN %'],['u','UNITS'],['n','BETS']],'#ff7700','Sort reasons')}<div class="tv-rows">${html}</div>${drill}</div>`;
+}
+
+// ── #12: player props ─────────────────────────────────────────────────
+function _tvPropsCard(ctx){
+  const title='PLAYER PROPS PERFORMANCE',all=ctx.all.filter(p=>p.betType==='PROP');
+  if(all.length<2)return''; // the section never appeared below 2 props anywhere
+  const propBets=ctx.f.filter(p=>p.betType==='PROP');
+  if(propBets.length<2)return _tvEmpty(title,'Fewer than 2 prop bets in this slice — try a wider sport or period.','mc');
+  const pm={};
+  for(const p of propBets){
+    const player=_tvPlayerKey(p);
+    if(!pm[player])pm[player]={w:0,l:0,sport:p.sport,bets:[]};
+    pm[player].bets.push(p);
+    if(p.outcome==='win')pm[player].w++;else if(p.outcome==='loss')pm[player].l++;
+  }
+  const propW=propBets.filter(p=>p.outcome==='win').length,propL=propBets.filter(p=>p.outcome==='loss').length;
+  const propAcc=(propW+propL)?propW/(propW+propL):null;
+  const sk=_tvS.prs;
+  const list=Object.entries(pm).filter(([,d])=>d.w+d.l>=2).map(([k,d])=>({k,...d,a:_tvAgg(d.bets)}));
+  list.sort((a,b)=>sk==='wp'?(b.w/(b.w+b.l))-(a.w/(a.w+a.l)):sk==='u'?b.a.u-a.a.u:(b.w+b.l)-(a.w+a.l));
+  const CAP=15,vis=_tvS.prAll?list:list.slice(0,CAP);
+  const dr=_tvS.dr.pr,drp=dr?list.find(d=>d.k===dr):null;
+  const html=vis.map(d=>{const tot=d.w+d.l,acc=d.w/tot,col=_tvCol(acc);
+    return _tvRowHTML({sec:'pr',key:d.k,sel:dr===d.k,aria:d.k+': '+Math.round(acc*100)+' percent over '+tot+' props',tip:_tvAggTip(_tvEsc(d.k),d.a,'#ff7700'),
+      label:`<span class="tv-rsn">${_tvEsc(d.k)}</span><small>${_tvEsc(d.sport)}</small>`,pct:acc*100,mark:50,barCol:col,valCol:col,val:Math.round(acc*100)+'%',sub:`${d.w}W–${d.l}L`});
+  }).join('');
+  const drill=drp?_tvDrill('pr',_tvEsc(drp.k),drp.bets,'#ff7700'):(list.length?'<div class="vz-drill vz-hint">TAP A PLAYER TO LIST THEIR PROP PICKS</div>':'');
+  return`<div class="card vz-card">${_tvHead('mc',title)}
+    <div class="vz-note">OVERALL: <b style="color:${_tvCol(propAcc||0)}">${propAcc!==null?Math.round(propAcc*100)+'%':'--'}</b> · ${propW}W/${propL}L · ${propBets.length} props. Players (or player + stat) with 2+ settled props, from the slice.</div>
+    ${list.length?_tvGrp('prs',sk,[['n','VOLUME'],['wp','WIN %'],['u','UNITS']],'#ff7700','Sort players'):''}<div class="tv-rows">${html}</div>
+    ${list.length>CAP?`<button type="button" class="vz-chip tv-more" data-tva="prall" aria-pressed="${_tvS.prAll?'true':'false'}"><span class="vz-cl">${_tvS.prAll?'SHOW TOP '+CAP:'SHOW ALL '+list.length}</span></button>`:''}${drill}</div>`;
+}
+
+// ── dispatcher ────────────────────────────────────────────────────────
+const _TV_CARDS={sum:_tvSumCard,hot:_tvHotCard,rec:_tvRecencyCard,cmp:_tvCmpCard,nm:_tvNearCard,cal:_tvCalCard,sa:_tvSelfCard,bt:_tvTypeCard,
+  win:c=>_tvAnalysisCard(c,'win'),loss:c=>_tvAnalysisCard(c,'loss'),jr:_tvJournalCard,pr:_tvPropsCard};
+function _tvSlot(k,ctx,anim,i){
+  let h='';
+  try{h=_TV_CARDS[k](ctx);}catch(e){try{console.warn('[tv]',k,e);}catch(_){}h=_tvEmpty('SECTION UNAVAILABLE','This section hit an error while rendering.');}
+  const off=Object.keys(_tvS.off).filter(x=>_tvS.off[x]).map(x=>'tv-off-'+x).join(' ');
+  return`<div class="tv-slot ${off}${anim?' tv-anim':''}" id="tv-c-${k}" style="--i:${i}">${h}</div>`;
+}
+function renderAnalyticsTrends(){
+  const el=document.getElementById('analytics-trends-content');if(!el)return;
+  try{
+    const all=_tvBase();
+    _tvReg={};_tvHot=null;_tvTipHide();
+    if(all.length<5){_tvCtx=null;el.innerHTML='<div class="empty">NOT ENOUGH DATA — SETTLE MORE PICKS TO SEE TRENDS</div>';return;}
+    if(!_TV_GROUPS.some(g=>g.k===_tvS.flt))_tvS.flt='ALL';
+    _tvS.pin=null;
+    const ctx=_tvMakeCtx(all),anim=!_tvNoAnim;
+    _tvCtx=ctx;
+    // sections are built in display order; the self-assessment card runs before by-bet-type because it computes the bet-type stats the tiles show
+    el.innerHTML=`<div class="tv-hdr">// ENGINE TREND ANALYSIS · <span id="tv-hdrn">${ctx.f.length}</span> SETTLED BETS${ctx.f.length!==all.length?' (OF '+all.length+')':''}</div>`+_tvFilterHTML(ctx)+_TV_KEYS.map((k,i)=>_tvSlot(k,ctx,anim,i)).join('');
+    _tvBind(el);
+  }catch(e){el.innerHTML='<div class="empty">'+_tvEsc(e.message)+'</div>';try{console.warn('[tv]',e);}catch(_){}}
+}
+window.renderAnalyticsTrends=renderAnalyticsTrends;
+function renderBetTrends(){renderAnalyticsTrends();}
+window.renderBetTrends=renderBetTrends;
+function _tvRerender(key,anim){
+  const slot=document.getElementById('tv-c-'+key);if(!slot||!_tvCtx)return;
+  const ae=document.activeElement;let sel=null;
+  if(ae&&slot.contains(ae)&&ae.dataset){
+    if(ae.dataset.tva&&ae.dataset.v!=null)sel='[data-tva="'+ae.dataset.tva+'"][data-v="'+CSS.escape(ae.dataset.v)+'"]';
+    else if(ae.dataset.tva&&ae.dataset.k!=null)sel='[data-tva="'+ae.dataset.tva+'"][data-k="'+CSS.escape(ae.dataset.k)+'"]';
+  }
+  _tvTipHide();_tvHot=null;
+  slot.classList.toggle('tv-anim',!!anim);
+  // the self-assessment tiles read ctx.typeStats, which the SA card builds: keep that order when either is redrawn
+  if(key==='bt'&&!_tvCtx.typeStats)_TV_CARDS.sa(_tvCtx);
+  let h='';
+  try{h=_TV_CARDS[key](_tvCtx);}catch(e){try{console.warn('[tv]',key,e);}catch(_){}h=_tvEmpty('SECTION UNAVAILABLE','This section hit an error while rendering.');}
+  slot.innerHTML=h;
+  if(sel){const n=slot.querySelector(sel);if(n)n.focus({preventScroll:true});}
+}
+
+// ── delegated events: bound ONCE on #analytics-trends-content ─────────
+function _tvTarget(el){return el&&el.closest?el.closest('[data-tvid],[data-tvp],[data-tvtip]'):null;}
+function _tvPickOf(t){const a=(t.dataset.tvp||'').split(':'),r=_tvReg[a[0]];return r?r.bets[+a[1]]:null;}
+function _tvLeave(t){
+  if(t&&t.dataset&&t.dataset.tvid){const r=_tvReg[t.dataset.tvid];if(r&&r.leave)r.leave(t);}
+  _tvTipHide();
+}
+function _tvSetHot(t){if(_tvHot&&_tvHot!==t)_tvLeave(_tvHot);_tvHot=t;}
+function _tvShowFor(t,x,y,focus){
+  if(t.dataset.tvid){const r=_tvReg[t.dataset.tvid];if(r&&r.move)r.move(t,x,y,focus);return;}
+  const b=t.getBoundingClientRect();
+  if(t.dataset.tvp){const p=_tvPickOf(t);if(p)_tvTipShow(_tvPickTip(p),b.left+b.width/2,b.top,4);}
+  else if(t.dataset.tvtip)_tvTipShow(t.dataset.tvtip,focus?b.left+b.width/2:x,focus?b.top:y,focus?4:14);
+}
+function _tvMoveNow(){
+  _tvRaf=0;const m=_tvLastMove;if(!m)return;
+  if(m.t!==_tvHot)_tvSetHot(m.t);
+  if(m.t)_tvShowFor(m.t,m.x,m.y,false);
+}
+function _tvOnMove(e){
+  if(e.pointerType==='touch'&&!(e.target.closest&&e.target.closest('[data-tvid]')))return; // touch scrubs the chart only; elsewhere the page scrolls
+  _tvLastMove={t:_tvTarget(e.target),x:e.clientX,y:e.clientY};
+  if(!_tvRaf)_tvRaf=requestAnimationFrame(_tvMoveNow);
+}
+function _tvOnDown(e){
+  const t=_tvTarget(e.target);
+  if(!t){_tvSetHot(null);_tvTipHide();return;}
+  _tvSetHot(t);_tvShowFor(t,e.clientX,e.clientY,false);
+}
+function _tvToggleLeg(a){
+  const k=a.dataset.v;_tvS.off[k]=!_tvS.off[k];
+  document.querySelectorAll('.tv-slot').forEach(s=>{s.classList.remove('tv-anim');s.classList.toggle('tv-off-'+k,_tvS.off[k]);});
+  document.querySelectorAll('#analytics-trends-content .vz-leg[data-v="'+k+'"]').forEach(b=>b.setAttribute('aria-pressed',_tvS.off[k]?'false':'true'));
+  _tvTipHide();
+}
+function _tvFullRender(focusSel){
+  window.renderAnalyticsTrends();
+  if(focusSel){const n=document.querySelector(focusSel);if(n)n.focus({preventScroll:true});}
+}
+function _tvAct(a){
+  const act=a.dataset.tva,v=a.dataset.v,sec=a.dataset.sec;_tvTipHide();
+  const num=()=>+v;
+  if(act==='leg'){_tvToggleLeg(a);return;}
+  if(act==='flt'||act==='per'){
+    _tvS[act]=v;_tvNoAnim=false;_tvS.dr={};_tvS.dn={};_tvS.winF=null;_tvS.lossF=null;_tvS.open={};
+    _tvFullRender('[data-tva="'+act+'"][data-v="'+v+'"]');return;
+  }
+  if(act==='roll'){_tvS.roll=num();_tvS.pin=null;_tvRerender('sum',true);}
+  else if(act==='hsort'){_tvS.hsort=v;_tvS.dr.hot=null;_tvRerender('hot',false);}
+  else if(act==='hmin'){_tvS.hmin=num();_tvS.dr.hot=null;_tvRerender('hot',false);}
+  else if(act==='rn'){_tvS.rn=num();_tvRerender('rec',true);}
+  else if(act==='rsort'){_tvS.rsort=v;_tvRerender('rec',false);}
+  else if(act==='cmpw'){_tvS.cmpw=num();_tvS.dr.cmp=null;_tvRerender('cmp',false);}
+  else if(act==='cmps'){if(_tvS.cmpk===v)_tvS.cmpd=-_tvS.cmpd;else{_tvS.cmpk=v;_tvS.cmpd=v==='sp'?1:-1;}_tvRerender('cmp',false);}
+  else if(act==='cmpset'){_tvS.cmpset=v;_tvS.dn.cmp=10;_tvRerender('cmp',false);}
+  else if(act==='nmt'){_tvS.nmt=v;_tvS.nmN=12;_tvRerender('nm',false);}
+  else if(act==='nms'){_tvS.nms=v;_tvRerender('nm',false);}
+  else if(act==='nmmore'){_tvS.nmN+=12;_tvRerender('nm',false);}
+  else if(act==='sasort'){_tvS.sasort=v;_tvRerender('sa',false);}
+  else if(act==='winn'){_tvS.winN=num();_tvS.winF=null;_tvRerender('win',false);}
+  else if(act==='lossn'){_tvS.lossN=num();_tvS.lossF=null;_tvRerender('loss',false);}
+  else if(act==='winf'){_tvS.winF=_tvS.winF===v?null:v;_tvRerender('win',false);}
+  else if(act==='lossf'){_tvS.lossF=_tvS.lossF===v?null:v;_tvRerender('loss',false);}
+  else if(act==='jrs'){_tvS.jrs=v;_tvRerender('jr',false);}
+  else if(act==='prs'){_tvS.prs=v;_tvRerender('pr',false);}
+  else if(act==='prall'){_tvS.prAll=!_tvS.prAll;_tvRerender('pr',false);}
+  else if(act==='drill'){
+    const k=a.dataset.k;_tvS.dr[sec]=_tvS.dr[sec]===k?null:k;_tvS.dn[sec]=10;
+    _tvRerender(sec,false);
+    if(_tvS.dr[sec]){const d=document.querySelector('#tv-c-'+sec+' .tv-drill');if(d&&d.scrollIntoView)d.scrollIntoView({block:'nearest',behavior:'smooth'});}
+  }
+  else if(act==='drillx'){
+    const k=_tvS.dr[sec];_tvS.dr[sec]=null;_tvRerender(sec,false);
+    if(k!=null){const n=document.querySelector('#tv-c-'+sec+' [data-tva="drill"][data-k="'+CSS.escape(String(k))+'"]');if(n)n.focus({preventScroll:true});}
+  }
+  else if(act==='more'){_tvS.dn[sec]=(_tvS.dn[sec]||10)+10;_tvRerender(sec,false);}
+  else if(act==='xp'){
+    const key=sec+':'+a.dataset.k,d=a.nextElementSibling,open=!_tvS.open[key];
+    _tvS.open[key]=open;a.setAttribute('aria-expanded',open?'true':'false');if(d)d.hidden=!open;
+  }
+  else if(act==='unpin'){const h=a.closest('.tv-slot').querySelector('[data-tvid]');if(h){const r=_tvReg[h.dataset.tvid];if(r)r.setPin(h,null);}}
+}
+function _tvOnClick(e){
+  const a=e.target.closest('[data-tva]');
+  if(a){_tvAct(a);return;}
+  const d=e.target.closest('[data-tvp]');
+  if(d){
+    const p=_tvPickOf(d);if(!p)return;
+    const card=d.closest('.tv-rc');
+    if(card){
+      card.parentNode.querySelectorAll('.vz-dot.sel').forEach(x=>x.classList.remove('sel'));
+      d.classList.add('sel');const pan=card.querySelector('.vz-detail');
+      card.parentNode.querySelectorAll('.vz-detail').forEach(x=>{if(x!==pan)x.innerHTML='';});
+      if(pan)pan.innerHTML=_tvPickDetail(p);
+    }
+    return;
+  }
+  const h=e.target.closest('[data-tvid]');
+  if(h){const r=_tvReg[h.dataset.tvid];if(r&&r.click)r.click(h,e);}
+}
+function _tvOnKey(e){
+  if(e.key==='Escape'){_tvTipHide();return;}
+  const dot=e.target.closest&&e.target.closest('.vz-dot');
+  if(dot&&(e.key==='ArrowLeft'||e.key==='ArrowRight'||e.key==='Home'||e.key==='End')){
+    const sibs=Array.prototype.slice.call(dot.parentNode.children);let i=sibs.indexOf(dot);
+    i=e.key==='Home'?0:e.key==='End'?sibs.length-1:Math.max(0,Math.min(sibs.length-1,i+(e.key==='ArrowRight'?1:-1)));
+    sibs.forEach(s=>s.tabIndex=-1);sibs[i].tabIndex=0;sibs[i].focus();e.preventDefault();return;
+  }
+  const h=e.target.closest&&e.target.closest('[data-tvid]');
+  if(h&&h===e.target){const r=_tvReg[h.dataset.tvid];if(r&&r.key&&r.key(h,e))e.preventDefault();}
+}
+function _tvOnFocus(e){
+  const el=e.target;if(!el.matches||!el.matches(':focus-visible'))return;
+  const t=_tvTarget(el);if(t){_tvSetHot(t);_tvShowFor(t,0,0,true);}
+}
+function _tvBind(root){
+  if(root._tvB)return;root._tvB=1;
+  root.addEventListener('pointermove',_tvOnMove);
+  root.addEventListener('pointerdown',_tvOnDown);
+  root.addEventListener('pointerleave',e=>{if(e.pointerType==='touch')return;_tvLastMove=null;_tvSetHot(null);_tvTipHide();});
+  root.addEventListener('click',_tvOnClick);
+  root.addEventListener('keydown',_tvOnKey);
+  root.addEventListener('focusin',_tvOnFocus);
+  root.addEventListener('focusout',()=>{_tvTipHide();});
+  document.addEventListener('pointerdown',e=>{if(!(e.target.closest&&e.target.closest('#analytics-trends-content')))_tvTipHide();});
+  document.addEventListener('scroll',_tvTipHide,true);
+  window.addEventListener('resize',()=>{
+    clearTimeout(_tvResizeT);
+    _tvResizeT=setTimeout(()=>{
+      const el=document.getElementById('analytics-trends-content');
+      if(!el||!el.offsetParent||!_tvCtx||Math.abs(_tvChartW()-_tvCtx.W)<24)return;
+      _tvNoAnim=true;try{window.renderAnalyticsTrends();}finally{_tvNoAnim=false;}
     },220);
   });
 }
