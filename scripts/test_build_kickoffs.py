@@ -74,11 +74,11 @@ class Wiring(unittest.TestCase):
         self.assertIn("python3 scripts/build_kickoffs.py", wf[i:i + 400])
         self.assertLess(i, wf.index("name: Upload artifact"))                    # built BEFORE the artifact is uploaded
         self.assertIn("continue-on-error: true", wf[i:i + 400])                  # a failure must never block a deploy
-        self.assertIn("https://clairvoyanceengine.info/kickoffs.json", wf)       # self-heal when the file is not live yet
+        self.assertIn("https://purple-wraith.github.io/clairvoyance-backend/kickoffs.json", wf)       # self-heal when the file is not live yet
 
     def test_worker_reads_the_same_url(self):
         w = (HERE.parent / "scheduler" / "worker.js").read_text()
-        self.assertIn('KICKOFFS_URL = "https://clairvoyanceengine.info/kickoffs.json"', w)
+        self.assertIn('KICKOFFS_URL = "https://purple-wraith.github.io/clairvoyance-backend/kickoffs.json"', w)
 
 
 if __name__ == "__main__":

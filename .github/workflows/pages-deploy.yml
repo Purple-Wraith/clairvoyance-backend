@@ -151,7 +151,7 @@ jobs:
         # skip while the live site has no such file yet, deploy anyway.
         if: steps.check.outputs.skip == 'true'
         run: |
-          if ! curl -sfI --max-time 15 https://clairvoyanceengine.info/kickoffs.json > /dev/null; then
+          if ! curl -sfI --max-time 15 https://purple-wraith.github.io/clairvoyance-backend/kickoffs.json > /dev/null; then
             echo "kickoffs.json is not live yet -- deploying anyway."
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi

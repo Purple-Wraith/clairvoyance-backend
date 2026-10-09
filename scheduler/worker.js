@@ -53,7 +53,8 @@ export function dueWorkflows(when) {
 // docs/kickoffs.json (scripts/build_kickoffs.py, generated into every Pages deploy) lists every upcoming game start the engine locks, in any sport. About SWEEP_LEAD_MIN minutes before EACH start the
 // Worker runs the pre-kickoff watchdog (gated=true: the same gate / LIVE_MODE / auto-lock behaviour as a scheduled slot), so a pick that only qualifies on the last odds readings is locked before the
 // game -- evening NHL/NBA, early-morning European soccer and hockey, Saturday CFB, Sunday NFL -- with no hand-kept list of times. If the file cannot be read, the fixed sweep times in SCHEDULE still run.
-export const KICKOFFS_URL = "https://clairvoyanceengine.info/kickoffs.json";
+// (the app + this file are served by GitHub Pages at purple-wraith.github.io/clairvoyance-backend; clairvoyanceengine.info does not point at this site)
+export const KICKOFFS_URL = "https://purple-wraith.github.io/clairvoyance-backend/kickoffs.json";
 export const SWEEP_LEAD_MIN = 40;          // the 10-minute tick that contains (start - 40 min) fires, so a sweep runs 40-50 min before the start; the lock guard still refuses anything inside 10 min
 export const SWEEP_ENTRY = { wf: "lock-watchdog.yml", inputs: { gated: "true" } };
 
