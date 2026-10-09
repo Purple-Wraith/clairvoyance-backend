@@ -8,6 +8,7 @@ Expected numbers are recomputed here from the fixture (not read back from the co
 
     python3 scripts/test_analytics_visuals.py
 """
+import time
 import datetime, functools, http.server, random, re, threading, unittest
 from pathlib import Path
 
@@ -108,6 +109,17 @@ class Visuals(unittest.TestCase):
             prev = cur
         return prev
 
+    def expect_op(self, pg, sel, want, timeout_ms=4000):
+        """Opacity settles via a CSS transition, so poll instead of reading once (a single read raced the transition on a loaded CI runner)."""
+        end = time.time() + timeout_ms / 1000
+        got = None
+        while time.time() < end:
+            got = self.op(pg, sel)
+            if got == want:
+                return
+            pg.wait_for_timeout(100)
+        self.assertEqual(got, want)
+
     def tip(self, pg):
         t = pg.locator("#vz-tip")
         return t.inner_text() if t.is_visible() else ""
@@ -202,7 +214,7 @@ class Visuals(unittest.TestCase):
         pg.click("#vz-c-eq [data-vzact=leg][data-v=dd]")
         self.assertEqual(pg.locator("#vz-c-eq [data-v=dd]").get_attribute("aria-pressed"), "false")
         self.assertIn("vz-off-dd", pg.locator("#vz-c-eq").get_attribute("class"))
-        self.assertEqual(self.op(pg, "#vz-c-eq .vz-dd"), "0")
+        self.expect_op(pg, "#vz-c-eq .vz-dd", "0")
         self.done(pg)
 
     def test_equity_keyboard_scrub(self):
@@ -249,9 +261,9 @@ class Visuals(unittest.TestCase):
         pg.click("#vz-c-cal [data-vzact=lg][data-v=NFL]"); pg.wait_for_timeout(200)
         self.assertIn("%d settled, probability-tagged" % len([p for p in LEDGER if p["sport"] == "NFL"]), pg.locator("#vz-c-cal").inner_text())
         pg.click("#vz-c-cal [data-vzact=leg][data-v=band]")
-        self.assertEqual(self.op(pg, "#vz-c-cal .vz-band"), "0")
+        self.expect_op(pg, "#vz-c-cal .vz-band", "0")
         pg.click("#vz-c-cal [data-vzact=leg][data-v=band]")
-        self.assertEqual(self.op(pg, "#vz-c-cal .vz-band"), "1")
+        self.expect_op(pg, "#vz-c-cal .vz-band", "1")
         self.done(pg)
 
     def test_calibration_keyboard_focus_shows_bin(self):
@@ -322,7 +334,7 @@ class Visuals(unittest.TestCase):
         self.assertIn("GAME", det)
         self.assertIn("sel", dot.get_attribute("class"))
         pg.click("#vz-c-streak [data-vzact=leg][data-v=sw]")
-        self.assertEqual(self.op(pg, "#vz-c-streak .vz-dot[data-o=win]"), "0.1")
+        self.expect_op(pg, "#vz-c-streak .vz-dot[data-o=win]", "0.1")
         self.done(pg)
 
     def test_streak_roving_arrow_keys(self):
@@ -359,7 +371,7 @@ class Visuals(unittest.TestCase):
         self.assertIn("WIN", pg.locator("#vz-c-sc .vz-detail").inner_text())
         self.assertTrue(pg.locator("#vz-c-sc .vz-sel").evaluate("e=>e.style.display!=='none'"))
         pg.click("#vz-c-sc [data-vzact=leg][data-v=win]")
-        self.assertEqual(self.op(pg, "#vz-c-sc .vz-g-win"), "0")
+        self.expect_op(pg, "#vz-c-sc .vz-g-win", "0")
         self.done(pg)
 
     def test_scatter_trend_node_has_bucket_stats(self):
