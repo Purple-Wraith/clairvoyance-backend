@@ -1163,6 +1163,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
   <button class="sp" onclick="navTap(this,'toppicks')" onmouseenter="showND(this,'toppicks')" onmouseleave="startHideND()">TOP PICKS</button>
   <button class="sp" onclick="navTap(this,'ovr')" onmouseenter="showND(this,'ovr')" onmouseleave="startHideND()">OVERALL</button>
   <button class="sp" onclick="navTap(this,'analytics')" onmouseenter="showND(this,'analytics')" onmouseleave="startHideND()">ANALYTICS</button>
+  <button class="sp" onclick="navTap(this,'profit')" onmouseenter="showND(this,'profit')" onmouseleave="startHideND()">PROFIT</button>
   <button class="sp" onclick="navTap(this,'nba')" onmouseenter="showND(this,'nba')" onmouseleave="startHideND()">BASKETBALL</button>
   <button class="sp" onclick="navTap(this,'fb')" onmouseenter="showND(this,'fb')" onmouseleave="startHideND()">FOOTBALL</button>
   <button class="sp" onclick="navTap(this,'hk')" onmouseenter="showND(this,'hk')" onmouseleave="startHideND()">HOCKEY</button>
@@ -2322,6 +2323,26 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
   </div>
 </div>
 
+<!-- PT-PAGE:BEGIN -->
+<!-- PROFIT / ROI TRACKER (owner only): personal bankroll ledger, stored in this browser; optional sync through the scheduler Worker -->
+<div id="sp-profit" class="spane">
+  <nav class="snav">
+    <button class="sb2 act" onclick="_ptSubTo('dash');setSub('profit','dash');renderProfit()">TRACKER</button>
+    <button class="sb2" onclick="_ptSubTo('entries');setSub('profit','entries');renderProfit()">ENTRIES</button>
+  </nav>
+  <div id="profit-dash" class="subp act"><div class="sa"><div class="tab act" style="padding:12px 12px 82px">
+    <div class="pt-top"><div><div class="pt-h">PROFIT / ROI TRACKER</div><div class="pt-hs">PRIVATE BANKROLL LEDGER &middot; DRAFTKINGS &middot; PRIZEPICKS &middot; HARD ROCK &middot; STORED ON THIS DEVICE</div></div><div class="pt-syncbar"></div></div>
+    <section class="pt-card" id="pt-add" aria-label="Quick add"><div class="pt-ch"><div><div class="pt-ct">QUICK ADD</div><div class="pt-cs">DEPOSITS, WITHDRAWALS, PROFIT / LOSS AND BALANCE SNAPSHOTS &middot; ENTER SUBMITS</div></div></div><div id="pt-add-body"></div><div id="pt-recent"></div></section>
+    <div id="pt-kpi"></div>
+    <div id="pt-view"></div>
+    <div id="pt-charts"></div>
+  </div></div></div>
+  <div id="profit-entries" class="subp"><div class="sa"><div class="tab act" style="padding:12px 12px 82px">
+    <div class="pt-top"><div><div class="pt-h">ENTRIES &amp; DATA</div><div class="pt-hs">EVERY MONEY EVENT &middot; EDIT, DELETE, EXPORT, BACK UP</div></div><div class="pt-syncbar"></div></div>
+    <div id="pt-ent"></div>
+  </div></div></div>
+</div>
+<!-- PT-PAGE:END -->
 <!-- GLOBAL LIVE -->
 <div id="sp-live" class="spane">
   <nav class="snav"><button class="sb2 act" onclick="SS('live')">LIVE NOW</button></nav>
@@ -20464,6 +20485,7 @@ function SS(s){
   if(s==='live'){_t(()=>T('live','games'));_t(startNHLLive);_t(startNBALive);}
   if(s==='ovr'){_t(()=>T('ovr','dash'));_t(renderOverall);_t(renderOverallHistory);_t(renderAdaptiveLearning);}
   if(s==='analytics'){_t(()=>renderBySportAnalytics('all'));}
+  if(s==='profit'){_t(renderProfit);}
   if(s==='fut'){_t(()=>{renderFuturesPanes('nba');});}
   if(s==='news'){_t(()=>T('news','all'));_t(renderNewsAll);}
   if(s==='soc'){_t(()=>T('bl','matches'));_t(()=>renderLeagueMatches('bl'));}
@@ -32316,6 +32338,1457 @@ window._clvScanAllSports=_clvScanAllSports;
 
 
 
+<!-- PT-CODE:BEGIN -->
+<style id="pt-css">
+/* ═══ PROFIT / ROI TRACKER (owner only). All text sizes live in classes: the phone rules cap inline font-size and every <button>'s own font to 8px, so button text sits in <span>s with their own size. ═══ */
+#sp-profit{--pt-line:rgba(255,255,255,.1)}
+#sp-profit [hidden]{display:none!important}
+.pt-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px 14px;margin-bottom:12px}
+.pt-h{font-family:var(--orb);font-size:22px;font-weight:900;letter-spacing:3px;color:var(--pc);text-shadow:0 0 10px rgba(240,0,255,.55)}
+.pt-hs{font-family:var(--mono);font-size:12px;letter-spacing:1px;color:var(--t3);margin-top:3px;line-height:1.5}
+.pt-card{background:rgba(10,4,22,.92);border:1px solid rgba(77,40,120,.55);box-shadow:0 0 8px rgba(240,0,255,.05),inset 0 0 8px rgba(0,0,0,.3);border-radius:3px;padding:12px;margin-bottom:12px;position:relative;min-width:0}
+.pt-ch{display:flex;justify-content:space-between;align-items:flex-start;gap:8px 12px;flex-wrap:wrap;margin-bottom:8px}
+.pt-ct{font-family:var(--orb);font-size:15px;font-weight:700;letter-spacing:2px;color:var(--t)}
+.pt-cs{font-family:var(--mono);font-size:11px;letter-spacing:.6px;color:var(--t3);margin-top:3px;line-height:1.5}
+.pt-l{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;color:var(--t3);text-transform:uppercase}
+.pt-dim{font-family:var(--mono);font-size:11px;color:var(--t3);letter-spacing:.5px}
+.pt-mt{margin-top:10px;margin-bottom:6px}
+.pt-note{font-family:var(--mono);font-size:12px;color:var(--t3);line-height:1.5;margin-top:8px}
+.pt-fr{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;margin-bottom:8px}
+.pt-fr>.pt-l{min-width:52px}
+.pt-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
+.pt-chips-tight{gap:4px}
+.pt-seg{display:inline-flex;gap:6px}
+/* chips + buttons: the <button> carries box + hit area, the <span> carries the text size */
+.pt-chip{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0;background:rgba(4,0,12,.75);border:1px solid rgba(255,255,255,.22);border-radius:3px;color:var(--t2);cursor:pointer;transition:border-color .15s,box-shadow .15s,color .15s}
+.pt-chip>span{font-family:var(--mono);font-size:13px;letter-spacing:1px;padding:0 12px;white-space:nowrap}
+.pt-chip:hover{border-color:var(--pt-c,var(--nc));color:var(--t)}
+.pt-chip[aria-pressed=true]{color:var(--pt-c,var(--nc));border-color:var(--pt-c,var(--nc));background:rgba(255,255,255,.07);box-shadow:0 0 10px -2px var(--pt-c,var(--nc))}
+.pt-chip:disabled{opacity:.35;cursor:not-allowed}
+.pt-chip-add{border-style:dashed}
+.pt-leg>i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-left:10px;flex-shrink:0}
+.pt-leg>span{padding-left:7px}
+.pt-leg[aria-pressed=false]{opacity:.45;text-decoration:line-through;box-shadow:none}
+.pt-b{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0;background:rgba(240,0,255,.08);border:1px solid rgba(240,0,255,.5);border-radius:3px;color:var(--pc);cursor:pointer;transition:background .15s,box-shadow .15s}
+.pt-b>span{font-family:var(--orb);font-size:13px;font-weight:700;letter-spacing:2px;padding:0 16px;white-space:nowrap}
+.pt-b:hover{background:rgba(240,0,255,.22)}
+.pt-b:disabled{opacity:.4;cursor:not-allowed}
+.pt-b-main{background:linear-gradient(135deg,rgba(240,0,255,.3),rgba(102,144,255,.22));box-shadow:0 0 12px rgba(240,0,255,.25);min-height:44px}
+.pt-b-sec{background:rgba(0,240,255,.06);border-color:rgba(0,240,255,.45);color:var(--nc)}
+.pt-b-sec:hover{background:rgba(0,240,255,.16)}
+.pt-b-sm{min-height:34px}
+.pt-b-sm>span{font-family:var(--mono);font-size:12px;font-weight:400;letter-spacing:1px;padding:0 11px}
+.pt-b-del{border-color:rgba(255,32,144,.55);color:var(--hc);background:rgba(255,32,144,.06)}
+.pt-b-del:hover{background:rgba(255,32,144,.2)}
+.pt-chip:focus-visible,.pt-b:focus-visible,.pt-chart:focus-visible,.pt-hc:focus-visible,.pt-stat:focus-visible,.pt-in:focus-visible{outline:2px solid var(--gc);outline-offset:2px}
+/* sync */
+.pt-sync{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pt-stat{display:inline-flex;align-items:center;min-height:34px;padding:0;background:rgba(4,0,12,.75);border:1px solid rgba(255,255,255,.28);border-radius:3px;cursor:pointer}
+.pt-stat>span{font-family:var(--mono);font-size:12px;letter-spacing:1px;padding:0 11px;white-space:nowrap}
+.pt-stat.local{color:var(--t2)}.pt-stat.ok{color:#00e644;border-color:rgba(0,230,68,.55)}.pt-stat.err{color:var(--hc);border-color:var(--hc);box-shadow:0 0 10px -3px var(--hc)}.pt-stat.busy{color:var(--gc);border-color:var(--gc)}
+.pt-warn{flex:1 1 100%;margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--gc);border:1px solid rgba(255,221,0,.4);background:rgba(255,221,0,.06);padding:6px 9px;border-radius:3px;line-height:1.5}
+/* form */
+.pt-fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:4px}
+.pt-fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.pt-fld-note{grid-column:1/-1}
+.pt-in{width:100%;min-width:0;min-height:42px;background:rgba(6,0,15,.9);border:1px solid var(--w2);color:var(--t);font-family:var(--mono);font-size:15px;padding:8px 10px;border-radius:2px;outline:none;-webkit-appearance:none;appearance:none;-webkit-user-select:text;user-select:text}
+.pt-in:focus{border-color:var(--nc);box-shadow:0 0 8px rgba(0,240,255,.25)}
+.pt-in[aria-invalid=true]{border-color:var(--hc);box-shadow:0 0 8px rgba(255,32,144,.3)}
+input[type=date].pt-in{color-scheme:dark}
+.pt-nb{align-items:center}.pt-nb .pt-in{max-width:240px}
+.pt-hint{font-family:var(--mono);font-size:12px;color:var(--t3);line-height:1.5;margin-top:8px}
+.pt-err{font-family:var(--mono);font-size:13px;color:var(--hc);min-height:0;margin-top:4px}
+.pt-err:not(:empty){margin:8px 0 2px;padding:6px 9px;border:1px solid rgba(255,32,144,.5);background:rgba(255,32,144,.07);border-radius:3px}
+.pt-fa{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.pt-notoday{align-self:flex-start}
+/* KPI tiles */
+.pt-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:8px}
+.pt-tile{background:rgba(10,4,22,.92);border:1px solid rgba(77,40,120,.5);border-radius:3px;padding:9px 11px;min-width:0}
+.pt-t-big{grid-column:span 2}
+.pt-t-bal{grid-column:1/-1;display:grid;grid-template-columns:minmax(190px,.8fr) minmax(0,1.6fr);gap:2px 22px;align-items:center}
+.pt-t-bal .pt-bks{grid-column:2;grid-row:1/4}
+.pt-k{font-family:var(--mono);font-size:10.5px;letter-spacing:1.5px;color:var(--t3)}
+.pt-v{font-family:var(--orb);font-size:21px;font-weight:700;margin:3px 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt-t-big .pt-v{font-size:30px}
+.pt-s{font-family:var(--mono);font-size:11px;color:var(--t3);min-height:14px;line-height:1.4}
+.pt-tiles2 .pt-tile{padding:7px 10px}.pt-tiles2 .pt-v{font-size:17px}
+.pt-bk{display:grid;grid-template-columns:10px 96px minmax(0,1fr) auto;gap:8px;align-items:center;font-family:var(--mono);font-size:12px;padding:3px 0}
+.pt-bk i{width:10px;height:10px;border-radius:2px}
+.pt-bkn{color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt-bkb{height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden}
+.pt-bkb u{display:block;height:100%;border-radius:4px;text-decoration:none}
+.pt-bkv{color:var(--t);text-align:right;min-width:78px}
+.pt-bkt{grid-template-columns:106px 1fr auto;border-top:1px solid var(--pt-line);margin-top:3px;padding-top:6px}.pt-bkt .pt-bkn{grid-column:1/3}
+.pt-dimr{opacity:.4}
+.pt-emptyc{text-align:center;padding:22px 14px}
+.pt-empt{font-family:var(--orb);font-size:17px;font-weight:700;letter-spacing:3px;color:var(--pc)}
+.pt-empt2{font-family:var(--mono);font-size:13px;color:var(--t3);text-align:center;padding:26px 10px;line-height:1.6}
+.pt-empt2 .pt-b{margin-top:10px}
+.pt-emptyc .pt-note{max-width:480px;margin:8px auto 14px}
+/* charts */
+.pt-tools{justify-content:flex-end}
+.pt-legend{margin:0 0 8px}
+.pt-chart{position:relative;touch-action:pan-y;-webkit-user-select:none;user-select:none;max-width:100%;overflow:hidden;cursor:crosshair}
+.pt-svg{display:block;max-width:100%;height:auto}
+.pt-gl{stroke:rgba(255,255,255,.07);stroke-width:1}
+.pt-zero{stroke:rgba(255,255,255,.34);stroke-width:1}
+.pt-ax{font-family:var(--mono);font-size:11px;fill:rgba(220,190,255,.78)}
+.pt-line{fill:none;stroke-width:2.4;stroke-linejoin:round;stroke-linecap:round}
+.pt-line2{stroke-width:2}
+.pt-line-tot{stroke-width:1.6;opacity:.75}
+.pt-area{opacity:.14}
+.pt-ddarea{fill:rgba(255,32,144,.24)}
+.pt-ddpeak{fill:none;stroke:rgba(255,32,144,.6);stroke-width:1;stroke-dasharray:3 3}
+.pt-mk-d{fill:#ffdd00;opacity:.95}.pt-mk-w{fill:none;stroke:#ff7700;stroke-width:1.6}
+.pt-end{fill:rgba(0,0,0,.65);stroke-width:2.2}
+.pt-nil{fill:rgba(255,255,255,.28)}
+.pt-roiline{fill:none;stroke:#00f0ff;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.pt-roidot{fill:#00f0ff;stroke:#050010;stroke-width:1}
+.pt-curb{fill:rgba(255,255,255,.06)}
+.pt-curl{stroke:rgba(0,240,255,.75);stroke-width:1}
+.pt-curd{fill:#050010;stroke-width:2.2}
+.pt-pinband{fill:rgba(255,221,0,.08);stroke:#ffdd00;stroke-width:1;stroke-dasharray:4 3}
+.pt-ax2{fill:#00f0ff}
+.pt-tip{position:fixed;z-index:100000;display:none;pointer-events:none;background:rgba(4,0,12,.97);border:1px solid rgba(240,0,255,.55);border-radius:4px;padding:8px 11px;font-family:var(--mono);font-size:13px;line-height:1.5;color:var(--t);box-shadow:0 0 18px rgba(240,0,255,.28);min-width:170px;max-width:min(310px,92vw)}
+.pt-tt{font-family:var(--orb);font-size:11px;letter-spacing:1px;font-weight:700;margin-bottom:4px}
+.pt-tr{display:flex;justify-content:space-between;gap:14px}
+.pt-tr span{color:var(--t3);font-size:11px;letter-spacing:.5px;white-space:nowrap}
+.pt-tr b{font-weight:400;text-align:right}
+.pt-sw{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.pt-drill:empty{display:none}
+.pt-drill{margin-top:10px;padding:10px 12px;background:rgba(10,0,24,.7);border:1px solid rgba(255,221,0,.35);border-radius:4px}
+.pt-dh{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;font-family:var(--orb);font-size:13px;color:var(--t);margin-bottom:8px}
+.pt-dh>.pt-b{margin-left:auto}
+.pt-dh b{letter-spacing:1px;font-size:12px}
+/* heat / calendar */
+.pt-heat{overflow:hidden}
+.pt-heatin{width:max-content;max-width:100%;margin:0 auto}
+.pt-hrow{display:flex;gap:6px}
+.pt-hrl0{width:14px;flex:0 0 14px}
+.pt-hmon{display:flex;gap:3px;height:15px;margin-bottom:3px}
+.pt-hml{flex:0 0 var(--c);font-family:var(--mono);font-size:10px;color:var(--t3);white-space:nowrap}
+.pt-hrls{display:grid;grid-template-rows:repeat(7,var(--c));gap:3px;width:14px;flex:0 0 14px}
+.pt-hrl{font-family:var(--mono);font-size:10px;color:var(--t3);display:flex;align-items:center}
+.pt-hgrid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,var(--c));grid-auto-columns:var(--c);gap:3px}
+.pt-hc{position:relative;display:block;padding:0;border:1px solid rgba(255,255,255,.07);border-radius:3px;cursor:pointer;min-width:0}
+.pt-hc:hover{border-color:rgba(255,255,255,.65)}
+.pt-hc.today{outline:1px solid var(--nc);outline-offset:0}
+.pt-hc.pin{outline:2px solid var(--gc);outline-offset:1px}
+.pt-hc.none{cursor:pointer}
+.pt-hf{visibility:hidden;pointer-events:none}.pt-hfd{visibility:visible;opacity:.3;border-style:dashed}
+.pt-hcs{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:10px;line-height:1.15;color:var(--t);overflow:hidden}
+.pt-hcs b{font-weight:400;font-size:10px;opacity:.8;align-self:flex-start;margin:2px 0 0 4px;line-height:1}
+.pt-hcs em{font-style:normal;font-size:11px;font-weight:700}
+.pt-cal{margin:0 auto;width:max-content;max-width:100%}
+.pt-calh,.pt-calg{display:grid;grid-template-columns:repeat(7,var(--c));gap:4px}
+.pt-calh{margin-bottom:4px}
+.pt-calg{grid-auto-rows:var(--c)}
+.pt-hrlm{justify-content:center;font-size:10px}
+.pt-calt{font-family:var(--orb);font-size:12px;letter-spacing:1.5px;color:var(--t);padding:0 6px;white-space:nowrap}
+.pt-calnav{align-items:center}
+.pt-heatleg{display:flex;align-items:center;gap:4px;justify-content:flex-end;margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--t3)}
+.pt-heatleg i{width:14px;height:10px;border-radius:2px;display:inline-block}
+/* rows */
+.pt-list{display:flex;flex-direction:column;gap:6px}
+.pt-r{display:grid;grid-template-columns:70px 100px minmax(0,1fr) auto auto;grid-template-areas:"d t b a x" "n n n n n";gap:4px 12px;align-items:center;padding:8px 10px;background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.06);border-radius:3px;font-family:var(--mono);font-size:13px}
+.pt-rd{grid-area:d;color:var(--t2);line-height:1.2}.pt-rd small{display:block;font-size:10px;color:var(--t3);letter-spacing:1px}
+.pt-rt{grid-area:t;justify-self:start;border:1px solid var(--pt-c);color:var(--pt-c);border-radius:3px;padding:1px 8px}
+.pt-rt>span{font-size:11px;letter-spacing:1px}
+.pt-rb{grid-area:b;display:flex;align-items:center;gap:7px;min-width:0;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt-rb i{width:9px;height:9px;border-radius:2px;flex:0 0 9px}
+.pt-ra{grid-area:a;text-align:right;font-family:var(--orb);font-size:14px;font-weight:700;white-space:nowrap}
+.pt-rx{grid-area:x;display:flex;gap:6px}
+.pt-rn{grid-area:n;color:var(--t3);font-size:12px;line-height:1.5;word-break:break-word}
+.pt-rn b{font-weight:400}
+.pt-edit{display:block}
+.pt-hl{animation:pt-flash 2.6s ease-out;box-shadow:0 0 0 1px var(--vc) inset,0 0 14px rgba(187,255,0,.3)}
+@keyframes pt-flash{0%{background:rgba(187,255,0,.28)}100%{background:rgba(10,0,24,.7)}}
+.pt-more{text-align:center;margin-top:10px}
+.pt-datab{margin-top:10px}
+.pt-confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1 1 100%;border:1px solid var(--hc);background:rgba(255,32,144,.07);border-radius:3px;padding:8px 10px}
+.pt-confirm-t{font-family:var(--mono);font-size:12px;line-height:1.5;flex:1 1 240px;color:var(--t)}
+.pt-toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom,0px));transform:translate(-50%,220px);display:flex;align-items:center;gap:12px;background:rgba(14,0,35,.97);border:1px solid #f000ff;border-radius:3px;padding:9px 14px;font-family:var(--mono);font-size:13px;max-width:min(560px,94vw);box-shadow:0 0 18px rgba(240,0,255,.35);z-index:100001;transition:transform .25s;pointer-events:none}
+.pt-toast.show{transform:translate(-50%,0);pointer-events:auto}
+.pt-toast-t{line-height:1.4;word-break:break-word}
+.pt-undo{min-height:34px;flex-shrink:0}
+/* first-render animation (respects prefers-reduced-motion; the JS also skips the class) */
+@keyframes pt-draw{to{stroke-dashoffset:0}}
+@keyframes pt-fadein{from{opacity:0}to{opacity:1}}
+@keyframes pt-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.pt-anim .pt-line{stroke-dasharray:1;stroke-dashoffset:1;animation:pt-draw .9s ease-out .05s forwards}
+.pt-anim .pt-fade{animation:pt-fadein .6s ease-out .45s backwards}
+.pt-anim .pt-bar{animation:pt-grow .55s ease-out var(--d,0ms) backwards}
+@media (prefers-reduced-motion:reduce){
+  .pt-anim .pt-line,.pt-anim .pt-fade,.pt-anim .pt-bar,.pt-hl{animation:none!important}
+  .pt-anim .pt-line{stroke-dasharray:none;stroke-dashoffset:0}
+  .pt-chip,.pt-b,.pt-toast{transition:none}
+}
+@media (max-width:768px){
+  .pt-h{font-size:15px;letter-spacing:2px}
+  .pt-hs{font-size:10px;letter-spacing:.5px}
+  .pt-card{padding:9px}
+  .pt-ct{font-size:12px;letter-spacing:1.4px}
+  .pt-cs{font-size:10px}
+  .pt-chip>span{font-size:12px;padding:0 10px}
+  .pt-b>span{font-size:12px;padding:0 13px;letter-spacing:1.4px}
+  .pt-b-sm>span{font-size:11px;padding:0 9px}
+  .pt-in{font-size:16px}
+  .pt-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pt-t-big .pt-v{font-size:25px}
+  .pt-v{font-size:18px}.pt-tiles2 .pt-v{font-size:15px}
+  .pt-t-bal{grid-template-columns:minmax(0,1fr)}
+  .pt-t-bal .pt-bks{grid-column:1;grid-row:auto;margin-top:8px}
+  .pt-bk{grid-template-columns:10px 84px minmax(0,1fr) auto}
+  .pt-bkv{min-width:70px}
+  .pt-r{grid-template-columns:52px minmax(0,1fr) auto;grid-template-areas:"d t a" "d b a" "n n n" "x x x";gap:3px 10px}
+  .pt-rx{justify-content:flex-start;margin-top:4px}
+  .pt-ra{font-size:13px}
+  .pt-tip{font-size:12px;min-width:150px}
+  .pt-ax{font-size:10px}
+  .pt-calt{font-size:11px}
+  .pt-fa .pt-b{flex:1 1 140px}
+}
+</style>
+<script id="pt-js">
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   PROFIT / ROI TRACKER  (owner request 2026-10-09)  --  the owner's PERSONAL bankroll ledger at DraftKings / PrizePicks / Hard Rock.
+   Completely separate from the engine's own pick record (never reads getP()/the picks ledger) and NEVER written to Supabase or any public file.
+
+   Money events are entered by hand and stored in this browser (localStorage 'cv_profit_v1'). Optional cross-device sync goes through the scheduler Worker
+   (GET/PUT /profit, header x-owner-key = the same key the header LOCK NOW / SETTLE NOW buttons use); with no key configured NOTHING leaves the browser.
+
+   Entry = {id, ts (epoch ms of creation/last edit), date 'YYYY-MM-DD' (America/Denver), type, book, amount, stake?, note?}
+     DEPOSIT / WITHDRAWAL : amount > 0 (money in / out)
+     PROFIT_LOSS          : amount = signed net result; stake (optional) = amount risked -> yield
+     BALANCE              : snapshot of the book's balance. Applied END OF DAY (after that day's other entries); the app turns it into an automatic signed
+                            "adjustment" P/L so the book's computed balance (deposits - withdrawals + P/L) equals the snapshot.
+   Per book: balance = deposits - withdrawals + P/L (+ snapshot adjustments). Profit = sum of P/L incl. adjustments. Bankroll ROI = profit / total deposits.
+   Yield = profit of the entries that carry a stake / their total stake (adjustments and unstaked entries are excluded from both sides).
+   Weeks start Monday (America/Denver); months are calendar months. Period ROI = period profit / cumulative deposits through the end of that period.
+   Everything pure is a small top-level function prefixed _pt so it can be unit-tested from the browser and re-computed independently (scripts/test_profit_tracker.py).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+const _PT_KEY='cv_profit_v1';
+const _PT_TYPES=['DEPOSIT','WITHDRAWAL','PROFIT_LOSS','BALANCE'];
+const _PT_TLBL={DEPOSIT:'DEPOSIT',WITHDRAWAL:'WITHDRAWAL',PROFIT_LOSS:'P/L',BALANCE:'BALANCE'};
+const _PT_TCOL={DEPOSIT:'#00f0ff',WITHDRAWAL:'#ff7700',PROFIT_LOSS:'#bbff00',BALANCE:'#f000ff'};
+const _PT_BOOKS=['DraftKings','PrizePicks','Hard Rock'];
+const _PT_BCOL={'DraftKings':'#00f0ff','PrizePicks':'#f000ff','Hard Rock':'#ffdd00'};
+const _PT_XCOL=['#bbff00','#ff7700','#6690ff','#00ffaa','#ff2090'];
+const _PT_UP='#00e644',_PT_DN='#ff2090',_PT_GOLD='#ffdd00',_PT_MINUS='−';
+const _PT_MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const _PT_MONL=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+const _PT_DOW=['MON','TUE','WED','THU','FRI','SAT','SUN'];
+
+// ── dates (pure calendar arithmetic on 'YYYY-MM-DD' strings; no timezone involved except _ptToday) ─────────────────────────────────
+function _ptIsDate(s){
+  if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;
+  const y=+s.slice(0,4),m=+s.slice(5,7),d=+s.slice(8,10),t=new Date(Date.UTC(y,m-1,d));
+  return t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;
+}
+function _ptDayNum(s){return Math.round(Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/86400000);}
+function _ptFromDayNum(n){return new Date(n*86400000).toISOString().slice(0,10);}
+function _ptAddDays(s,n){return _ptFromDayNum(_ptDayNum(s)+n);}
+function _ptDow(s){return(((_ptDayNum(s)+3)%7)+7)%7;}                      // 0 = Monday ... 6 = Sunday (1970-01-01 was a Thursday)
+function _ptWeekStart(s){return _ptAddDays(s,-_ptDow(s));}                  // the Monday on or before s
+function _ptMonthKey(s){return s.slice(0,7);}
+function _ptPeriodKey(s,view){return view==='month'?s.slice(0,7):_ptWeekStart(s);}
+function _ptNextKey(k,view){
+  if(view==='month'){let y=+k.slice(0,4),m=+k.slice(5,7)+1;if(m>12){m=1;y++;}return y+'-'+(m<10?'0':'')+m;}
+  return _ptAddDays(k,7);
+}
+function _ptPrevKey(k,view){
+  if(view==='month'){let y=+k.slice(0,4),m=+k.slice(5,7)-1;if(m<1){m=12;y--;}return y+'-'+(m<10?'0':'')+m;}
+  return _ptAddDays(k,-7);
+}
+function _ptShiftKey(k,view,n){for(let i=0;i<Math.abs(n);i++)k=n>0?_ptNextKey(k,view):_ptPrevKey(k,view);return k;}
+function _ptPeriodStart(k,view){return view==='month'?k+'-01':k;}
+function _ptPeriodEnd(k,view){return view==='month'?_ptAddDays(_ptNextKey(k,'month')+'-01',-1):_ptAddDays(k,6);}
+let _ptTodayOv=null;                                                      // tests pin "today" here
+const _ptDF=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Denver',year:'numeric',month:'2-digit',day:'2-digit'});
+function _ptToday(ms){
+  if(ms==null&&_ptTodayOv)return _ptTodayOv;
+  const p={};_ptDF.formatToParts(new Date(ms==null?Date.now():ms)).forEach(x=>{p[x.type]=x.value;});
+  return p.year+'-'+p.month+'-'+p.day;
+}
+function _ptMD(d){return _PT_MON[+d.slice(5,7)-1]+' '+(+d.slice(8,10));}                     // "Oct 5"
+function _ptMDY(d){return _ptMD(d)+", "+d.slice(0,4);}                                      // "Oct 5, 2026"
+function _ptLabel(k,view){return view==='month'?_PT_MON[+k.slice(5,7)-1]+(k.slice(5,7)==='01'?" '"+k.slice(2,4):''):_ptMD(k);}
+function _ptLabelLong(k,view){
+  if(view==='month')return _PT_MONL[+k.slice(5,7)-1]+' '+k.slice(0,4);
+  const e=_ptPeriodEnd(k,'week');return 'WEEK OF '+_ptMD(k).toUpperCase()+' – '+_ptMD(e).toUpperCase()+(k.slice(0,4)!==e.slice(0,4)?' '+e.slice(0,4):'')+', '+k.slice(0,4);
+}
+
+// ── numbers ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+function _ptRound(x){return(x<0?-1:1)*Math.round(Math.abs(x)*100+1e-7)/100;}               // to cents, symmetric around zero
+function _ptParseNum(s){
+  if(typeof s==='number')return s;
+  s=String(s==null?'':s).replace(/[\s$,]/g,'').replace(/^−/,'-');
+  return /^[+-]?(\d+\.?\d*|\.\d+)$/.test(s)?parseFloat(s):NaN;
+}
+const _ptNF=new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const _ptNF0=new Intl.NumberFormat('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+function _ptMoney(v){v=_ptRound(v);return(v<0?_PT_MINUS:'')+'$'+_ptNF.format(Math.abs(v));}
+function _ptSigned(v){v=_ptRound(v);return(v>0?'+':v<0?_PT_MINUS:'')+'$'+_ptNF.format(Math.abs(v));}
+function _ptCompact(v){
+  const a=Math.abs(v),s=v<0?_PT_MINUS:'';
+  if(a>=1e6)return s+'$'+(a/1e6).toFixed(a>=1e7?0:1).replace(/\.0$/,'')+'M';
+  if(a>=1e4)return s+'$'+(a/1e3).toFixed(0)+'k';
+  if(a>=1e3)return s+'$'+(a/1e3).toFixed(1).replace(/\.0$/,'')+'k';
+  return s+'$'+(a>=100||Number.isInteger(a)?_ptNF0.format(a):a.toFixed(1).replace(/\.0$/,''));
+}
+function _ptPct(r,d){return r==null||!isFinite(r)?'—':(r*100).toFixed(d==null?1:d)+'%';}
+function _ptPctS(r,d){return r==null||!isFinite(r)?'—':(r>0?'+':r<0?_PT_MINUS:'')+Math.abs(r*100).toFixed(d==null?1:d)+'%';}
+function _ptCol(v){return v>0?_PT_UP:v<0?_PT_DN:'var(--t2)';}
+function _ptEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function _ptNice(lo,hi,cnt){
+  lo=Math.min(lo,0);hi=Math.max(hi,0);if(hi-lo<1e-9)hi=lo+1;
+  const raw=(hi-lo)/cnt,mag=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/mag;
+  const step=(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*mag;
+  const a=Math.floor(lo/step+1e-9)*step,b=Math.ceil(hi/step-1e-9)*step,ticks=[];
+  for(let v=a;v<=b+step/2;v+=step)ticks.push(+v.toFixed(6));
+  return{lo:a,hi:b,ticks,step};
+}
+
+// ── entries: normalise / validate ────────────────────────────────────────────────────────────────────────────────────────────────
+function _ptClean(e){
+  if(!e||typeof e!=='object')return null;
+  const id=typeof e.id==='string'?e.id.slice(0,80):'';if(!id)return null;
+  const ts=+e.ts;if(!isFinite(ts))return null;
+  if(_PT_TYPES.indexOf(e.type)<0)return null;
+  if(!_ptIsDate(e.date))return null;
+  const book=String(e.book==null?'':e.book).trim().slice(0,24);if(!book)return null;
+  const amount=typeof e.amount==='number'?e.amount:_ptParseNum(e.amount);if(!isFinite(amount))return null;
+  const o={id,ts,date:e.date,type:e.type,book,amount:_ptRound(amount)};
+  const st=typeof e.stake==='number'?e.stake:_ptParseNum(e.stake);
+  if(e.type==='PROFIT_LOSS'&&isFinite(st)&&st>0)o.stake=_ptRound(st);
+  const note=e.note==null?'':String(e.note).trim().slice(0,200);if(note)o.note=note;
+  return o;
+}
+/** Validates form input (strings) -> {ok, errors:{field:msg}, entry:{date,type,book,amount,stake?,note?}}. f.sign = +1 win / -1 loss (P/L only). */
+function _ptValidate(f,today){
+  const err={},type=f.type;
+  if(_PT_TYPES.indexOf(type)<0)err.type='Pick a type';
+  const book=String(f.book==null?'':f.book).trim();
+  if(!book)err.book='Pick a book';
+  if(!_ptIsDate(f.date))err.date='Enter a valid date';
+  else if(today&&f.date>_ptAddDays(today,1))err.date='Date is in the future';
+  let v=_ptParseNum(f.amount);
+  if(!isFinite(v))err.amount=String(f.amount||'').trim()?'Not a number':'Enter an amount';
+  else if(Math.abs(v)>1e7)err.amount='Amount is too large';
+  let amount=v,stake;
+  if(isFinite(v)&&!err.amount){
+    if(type==='DEPOSIT'||type==='WITHDRAWAL'){if(!(v>0))err.amount=(type==='DEPOSIT'?'Deposit':'Withdrawal')+' must be more than $0';}
+    else if(type==='BALANCE'){if(v<0)err.amount='A balance cannot be negative';}
+    else if(type==='PROFIT_LOSS'){amount=(f.sign<0?-1:1)*Math.abs(v);}
+  }
+  if(type==='PROFIT_LOSS'&&String(f.stake==null?'':f.stake).trim()!==''){
+    const s=_ptParseNum(f.stake);
+    if(!isFinite(s)||!(s>0))err.stake='Stake must be more than $0';
+    else if(s>1e7)err.stake='Stake is too large';
+    else stake=s;
+  }
+  if(type==='PROFIT_LOSS'&&isFinite(amount)&&amount===0&&stake==null&&!err.amount)err.amount='A $0 result needs a stake (a push)';
+  const note=String(f.note==null?'':f.note).trim();
+  if(note.length>200)err.note='Note is over 200 characters';
+  if(Object.keys(err).length)return{ok:false,errors:err};
+  const entry={date:f.date,type,book,amount:_ptRound(amount)};
+  if(stake!=null)entry.stake=_ptRound(stake);
+  if(note)entry.note=note;
+  return{ok:true,errors:{},entry};
+}
+
+// ── ledger maths ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+function _ptCmp(a,b){
+  return a.date<b.date?-1:a.date>b.date?1:((a.type==='BALANCE')-(b.type==='BALANCE'))||(a.ts-b.ts)||(a.id<b.id?-1:a.id>b.id?1:0);
+}
+/** Effective rows, chronological (date, snapshots LAST within a day, then creation time). A BALANCE entry becomes an 'adj' row whose pl makes the book's balance equal the snapshot.
+ *  row = {id, date, ts, book, kind:'dep'|'wd'|'pl'|'adj', dep, wd, pl, stake, st (pl of staked rows), bal (the book's balance after this row)} */
+function _ptEff(entries){
+  const list=entries.slice().sort(_ptCmp),bal={},out=[];
+  list.forEach(e=>{
+    const b=bal[e.book]||0,r={id:e.id,date:e.date,ts:e.ts,book:e.book,kind:'',dep:0,wd:0,pl:0,stake:0,st:0,bal:0};
+    if(e.type==='DEPOSIT'){r.kind='dep';r.dep=e.amount;bal[e.book]=_ptRound(b+e.amount);}
+    else if(e.type==='WITHDRAWAL'){r.kind='wd';r.wd=e.amount;bal[e.book]=_ptRound(b-e.amount);}
+    else if(e.type==='PROFIT_LOSS'){r.kind='pl';r.pl=e.amount;if(e.stake>0){r.stake=e.stake;r.st=e.amount;}bal[e.book]=_ptRound(b+e.amount);}
+    else{r.kind='adj';r.pl=_ptRound(e.amount-b);bal[e.book]=_ptRound(e.amount);}
+    r.bal=bal[e.book];out.push(r);
+  });
+  return out;
+}
+function _ptBalances(rows){const b={};rows.forEach(r=>{b[r.book]=r.bal;});return b;}   // rows chronological: last row of a book = its balance
+function _ptTotals(rows){
+  let dep=0,wd=0,pl=0,stk=0,stp=0,n=0;
+  rows.forEach(r=>{dep+=r.dep;wd+=r.wd;pl+=r.pl;stk+=r.stake;stp+=r.st;if(r.kind==='pl')n++;});
+  dep=_ptRound(dep);wd=_ptRound(wd);pl=_ptRound(pl);stk=_ptRound(stk);stp=_ptRound(stp);
+  return{deposits:dep,withdrawals:wd,profit:pl,balance:_ptRound(dep-wd+pl),staked:stk,stakedProfit:stp,roi:dep>0?pl/dep:null,yld:stk>0?stp/stk:null,nPL:n,n:rows.length};
+}
+function _ptSumRange(rows,from,to){let s=0;rows.forEach(r=>{if(r.date>=from&&r.date<=to)s+=r.pl;});return _ptRound(s);}
+/** Contiguous periods from `from` to `to` (period keys; defaults = first/last row), with running totals so a sliced window keeps its history. */
+function _ptPeriods(rows,view,from,to){
+  const by={};rows.forEach(r=>{const k=_ptPeriodKey(r.date,view);(by[k]||(by[k]=[])).push(r);});
+  const keys=Object.keys(by).sort();
+  if(!from)from=keys[0];if(!to)to=keys[keys.length-1];
+  const out=[];if(!from||!to)return out;
+  if(keys.length&&keys[0]<from)from=keys[0];
+  if(keys.length&&keys[keys.length-1]>to)to=keys[keys.length-1];
+  let cp=0,cd=0,cw=0,cs=0,cst=0,peak=0;
+  for(let k=from,guard=0;k<=to&&guard<8000;k=_ptNextKey(k,view),guard++){
+    const rs=by[k]||[];
+    let pl=0,dep=0,wd=0,stk=0,stp=0,act=false;
+    rs.forEach(r=>{pl+=r.pl;dep+=r.dep;wd+=r.wd;stk+=r.stake;stp+=r.st;if(r.kind==='pl'||(r.kind==='adj'&&r.pl!==0))act=true;});
+    pl=_ptRound(pl);dep=_ptRound(dep);wd=_ptRound(wd);stk=_ptRound(stk);stp=_ptRound(stp);
+    cp=_ptRound(cp+pl);cd=_ptRound(cd+dep);cw=_ptRound(cw+wd);cs=_ptRound(cs+stk);cst=_ptRound(cst+stp);
+    if(cp>peak)peak=cp;
+    out.push({key:k,start:_ptPeriodStart(k,view),end:_ptPeriodEnd(k,view),label:_ptLabel(k,view),n:rs.length,active:act,
+      profit:pl,dep,wd,staked:stk,stakedProfit:stp,cumProfit:cp,cumDep:cd,cumWd:cw,cumStaked:cs,cumStakedProfit:cst,bal:_ptRound(cd-cw+cp),
+      roi:cd>0?pl/cd:null,cumRoi:cd>0?cp/cd:null,yld:stk>0?stp/stk:null,cumYld:cs>0?cst/cs:null,peak,dd:_ptRound(cp-peak)});
+  }
+  return out;
+}
+/** best / worst / winning share / longest green streak over ACTIVE periods (those with at least one P/L or adjustment row; idle periods neither extend nor break a streak). */
+function _ptStats(periods){
+  const act=periods.filter(p=>p.active);
+  let best=null,worst=null,wins=0,run=0,longest=0;
+  act.forEach(p=>{
+    if(!best||p.profit>best.profit)best=p;
+    if(!worst||p.profit<worst.profit)worst=p;
+    if(p.profit>0){wins++;run++;if(run>longest)longest=run;}else run=0;
+  });
+  return{nActive:act.length,best,worst,wins,winPct:act.length?wins/act.length:null,streak:longest};
+}
+function _ptMaxDD(periods){let m=0;periods.forEach(p=>{if(p.dd<m)m=p.dd;});return m;}
+function _ptDaily(rows){
+  const d={};
+  rows.forEach(r=>{const o=d[r.date]||(d[r.date]={pl:0,n:0});o.pl=_ptRound(o.pl+r.pl);o.n++;});
+  return d;
+}
+/** Window of the last N periods ending at the final one (ALL = everything). */
+function _ptSlice(periods,rng){const n=rng==='ALL'?0:parseInt(rng,10)||0;return n>0&&periods.length>n?periods.slice(periods.length-n):periods;}
+function _ptBounds(effAll,view,today){
+  if(!effAll.length)return null;
+  let first=effAll[0].date,last=effAll[0].date;
+  effAll.forEach(r=>{if(r.date<first)first=r.date;if(r.date>last)last=r.date;});
+  const t=today||_ptToday();if(t>last)last=t;
+  return{from:_ptPeriodKey(first,view),to:_ptPeriodKey(last,view)};
+}
+
+// ── merge (sync + import) ────────────────────────────────────────────────────────────────────────────────────────────────────────
+/** Union by id; the newest ts wins (ties broken deterministically so the merge is commutative); a tombstone beats an entry whose ts is <= the tombstone's ts. */
+function _ptMerge(a,b){
+  const em=new Map(),tm=new Map();
+  [a,b].forEach(src=>{
+    ((src&&src.entries)||[]).forEach(e=>{
+      const c=_ptClean(e);if(!c)return;
+      const o=em.get(c.id);
+      if(!o||c.ts>o.ts||(c.ts===o.ts&&JSON.stringify(c)>JSON.stringify(o)))em.set(c.id,c);
+    });
+    ((src&&src.tombstones)||[]).forEach(t=>{
+      if(!t||typeof t.id!=='string'||!t.id||!isFinite(+t.ts))return;
+      const o=tm.get(t.id);if(!o||+t.ts>o.ts)tm.set(t.id,{id:t.id.slice(0,80),ts:+t.ts});
+    });
+  });
+  const entries=[];
+  em.forEach(e=>{const t=tm.get(e.id);if(t&&t.ts>=e.ts)return;entries.push(e);});
+  entries.sort(_ptCmp);
+  const tombstones=Array.from(tm.values()).sort((x,y)=>x.id<y.id?-1:x.id>y.id?1:0);
+  return{entries,tombstones};
+}
+function _ptSame(a,b){
+  const x=_ptMerge(a,{}),y=_ptMerge(b,{});
+  return JSON.stringify(x)===JSON.stringify(y);
+}
+
+// ── export ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+function _ptCsvCell(v,text){
+  let s=v==null?'':String(v);
+  if(text&&/^[=+\-@\t\r]/.test(s))s="'"+s;                      // spreadsheet formula-injection guard for free text
+  return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function _ptCsv(entries){
+  const rows=entries.slice().sort(_ptCmp),L=['date,type,book,amount,stake,note,id,created'];
+  rows.forEach(e=>{L.push([e.date,e.type,_ptCsvCell(e.book,1),e.amount,e.stake==null?'':e.stake,_ptCsvCell(e.note,1),e.id,new Date(e.ts).toISOString()].map((c,i)=>i===2||i===5?c:_ptCsvCell(c,0)).join(','));});
+  return L.join('\r\n')+'\r\n';
+}
+
+// ── state + storage (localStorage, every access wrapped: private mode / blocked storage must never crash the page) ────────────────────
+let _ptState={entries:[],tombstones:[],rev:0,books:[]};
+let _ptLoaded=false,_ptMem=false,_ptUid=0,_ptSaveErr=false;
+function _ptLoad(){
+  if(_ptLoaded)return;_ptLoaded=true;
+  try{
+    const raw=localStorage.getItem(_PT_KEY);
+    if(raw){
+      const j=JSON.parse(raw),m=_ptMerge({entries:j.entries||[],tombstones:[]},{tombstones:j.tombstones||[]});
+      _ptState={entries:m.entries,tombstones:m.tombstones,rev:j.rev>0?Math.floor(j.rev):0,books:Array.isArray(j.books)?j.books.filter(b=>typeof b==='string').map(b=>b.trim().slice(0,24)).filter(Boolean):[]};
+    }
+  }catch(e){_ptMem=true;}
+}
+function _ptSave(){
+  try{localStorage.setItem(_PT_KEY,JSON.stringify({entries:_ptState.entries,tombstones:_ptState.tombstones,rev:_ptState.rev,books:_ptState.books}));_ptSaveErr=false;return true;}
+  catch(e){_ptSaveErr=true;return false;}
+}
+function _ptBookList(){
+  const out=_PT_BOOKS.slice();
+  (_ptState.books||[]).forEach(b=>{if(out.indexOf(b)<0)out.push(b);});
+  _ptState.entries.forEach(e=>{if(out.indexOf(e.book)<0)out.push(e.book);});
+  return out;
+}
+function _ptBookCol(b){
+  if(_PT_BCOL[b])return _PT_BCOL[b];
+  const i=_ptBookList().indexOf(b)-_PT_BOOKS.length;return _PT_XCOL[((i%_PT_XCOL.length)+_PT_XCOL.length)%_PT_XCOL.length];
+}
+function _ptNewId(){return'e'+Date.now().toString(36)+(++_ptUid).toString(36)+Math.random().toString(36).slice(2,6);}
+function _ptFind(id){return _ptState.entries.find(e=>e.id===id)||null;}
+function _ptTomb(id){return _ptState.tombstones.find(t=>t.id===id)||null;}
+
+// ── mutations (add / replace-by-id / tombstone-delete); each returns what the UI needs, none touches the DOM ─────────────────────────
+function _ptAddEntry(fields){
+  const e=_ptClean(Object.assign({},fields,{id:_ptNewId(),ts:Date.now()}));if(!e)return null;
+  _ptState.entries.push(e);_ptState.entries.sort(_ptCmp);
+  return e;
+}
+function _ptReplaceEntry(id,fields){
+  const old=_ptFind(id);if(!old)return null;
+  const e=_ptClean(Object.assign({},fields,{id,ts:Math.max(Date.now(),old.ts+1)}));if(!e)return null;
+  _ptState.entries=_ptState.entries.filter(x=>x.id!==id).concat([e]).sort(_ptCmp);
+  return e;
+}
+function _ptDeleteEntry(id){
+  const old=_ptFind(id);if(!old)return null;
+  const ts=Math.max(Date.now(),old.ts+1);
+  _ptState.entries=_ptState.entries.filter(x=>x.id!==id);
+  _ptState.tombstones=_ptState.tombstones.filter(t=>t.id!==id).concat([{id,ts}]);
+  return old;
+}
+/** Undo a delete: the entry comes back with a ts newer than its tombstone so it also beats the tombstone on other devices. */
+function _ptRestoreEntry(old){
+  const t=_ptTomb(old.id),ts=Math.max(Date.now(),old.ts+1,t?t.ts+1:0);
+  _ptState.tombstones=_ptState.tombstones.filter(x=>x.id!==old.id);
+  const e=Object.assign({},old,{ts});
+  _ptState.entries=_ptState.entries.filter(x=>x.id!==old.id).concat([e]).sort(_ptCmp);
+  return e;
+}
+function _ptDeleteAll(){
+  const gone=_ptState.entries.slice(),now=Date.now(),m=new Map(_ptState.tombstones.map(t=>[t.id,t]));
+  gone.forEach(e=>{m.set(e.id,{id:e.id,ts:Math.max(now,e.ts+1)});});
+  _ptState.tombstones=Array.from(m.values());_ptState.entries=[];
+  return gone;
+}
+function _ptBackupObj(){
+  return{app:'clairvoyance-profit',version:1,exported:new Date().toISOString(),rev:_ptState.rev,entries:_ptState.entries,tombstones:_ptState.tombstones,books:_ptState.books};
+}
+/** Merge a backup object (or a bare array of entries) into the ledger. Returns {read, added, updated, skipped}. */
+function _ptImportObj(obj){
+  const ents=Array.isArray(obj)?obj:(obj&&Array.isArray(obj.entries)?obj.entries:null);
+  if(!ents)return null;
+  const clean=[];let skipped=0;
+  ents.forEach(e=>{const c=_ptClean(e);if(c)clean.push(c);else skipped++;});
+  const before=new Map(_ptState.entries.map(e=>[e.id,e]));
+  const m=_ptMerge(_ptState,{entries:clean,tombstones:(!Array.isArray(obj)&&Array.isArray(obj.tombstones))?obj.tombstones:[]});
+  let added=0,updated=0;
+  m.entries.forEach(e=>{const o=before.get(e.id);if(!o)added++;else if(JSON.stringify(o)!==JSON.stringify(e))updated++;});
+  _ptState.entries=m.entries;_ptState.tombstones=m.tombstones;
+  if(!Array.isArray(obj)&&Array.isArray(obj.books))obj.books.forEach(b=>{if(typeof b==='string'&&b.trim()&&_ptState.books.indexOf(b.trim().slice(0,24))<0)_ptState.books.push(b.trim().slice(0,24));});
+  return{read:ents.length,added,updated,skipped};
+}
+
+// ── optional cross-device sync through the scheduler Worker ─────────────────────────────────────────────────────────────────────────
+let _ptSy={state:'local',t:0,msg:''};            // local | busy | ok | err
+let _ptSyncing=false,_ptSyncT=0;
+function _ptWorkerUrl(){try{return new URL(_TRIGGER_URL).origin+'/profit';}catch(e){return'';}}
+function _ptKey(){let k=null;try{k=localStorage.getItem('cv_trigger_key');}catch(e){}return k&&k.trim()?k.trim():null;}
+function _ptQueueSync(){
+  clearTimeout(_ptSyncT);
+  if(!_ptKey())return;                                                    // no key configured -> nothing ever leaves the browser
+  _ptSyncT=setTimeout(()=>{_ptSync(false);},1500);
+}
+async function _ptSync(manual){
+  if(_ptSyncing)return;
+  let key=_ptKey(),fresh=false;
+  if(!key){
+    if(!manual)return;
+    key=prompt('Owner trigger key (the same key the LOCK NOW / SETTLE NOW buttons use; kept on this device):');
+    if(!key||!key.trim())return;key=key.trim();fresh=true;
+  }
+  const url=_ptWorkerUrl();if(!url)return;
+  _ptSyncing=true;_ptSy={state:'busy',t:_ptSy.t,msg:'Syncing…'};_ptSyncBar();
+  const H=(extra)=>Object.assign({'x-owner-key':key},extra||{});
+  const bad=(r)=>r.status===401?'Wrong owner key — tap SYNC NOW to enter it again.':r.status===503?'Sync is not set up on the Worker yet (see scheduler/wrangler.toml).':'Worker answered HTTP '+r.status+'.';
+  try{
+    let r=await fetch(url,{headers:H(),cache:'no-store'});
+    if(!r.ok){if(r.status===401){try{localStorage.removeItem('cv_trigger_key');}catch(e){}}throw new Error(bad(r));}
+    let remote=await r.json(),merged=_ptMerge(_ptState,remote),rev=Math.max(0,Math.floor(remote.rev)||0),pushed=false;
+    for(let attempt=0;attempt<2;attempt++){
+      if(_ptSame(merged,remote))break;                                    // the Worker already holds exactly this
+      const pr=await fetch(url,{method:'PUT',headers:H({'content-type':'application/json'}),body:JSON.stringify({entries:merged.entries,tombstones:merged.tombstones,baseRev:rev})});
+      if(pr.status===409){                                                 // someone else wrote first: take the stored blob, merge, retry once
+        let cur=null;try{cur=await pr.json();}catch(e){}
+        if(!cur||!Array.isArray(cur.entries)){const gr=await fetch(url,{headers:H(),cache:'no-store'});if(!gr.ok)throw new Error(bad(gr));cur=await gr.json();}
+        remote=cur;merged=_ptMerge(merged,remote);rev=Math.max(0,Math.floor(remote.rev)||0);
+        if(attempt===1)throw new Error('The ledger changed on another device while syncing — tap SYNC NOW again.');
+        continue;
+      }
+      if(!pr.ok){if(pr.status===401){try{localStorage.removeItem('cv_trigger_key');}catch(e){}}throw new Error(bad(pr));}
+      const stored=await pr.json();
+      merged=_ptMerge(merged,stored);rev=Math.max(0,Math.floor(stored.rev)||0);pushed=true;break;
+    }
+    const changed=!_ptSame(merged,_ptState);
+    _ptState.entries=merged.entries;_ptState.tombstones=merged.tombstones;_ptState.rev=rev;
+    _ptSave();
+    if(fresh){try{localStorage.setItem('cv_trigger_key',key);}catch(e){}}
+    _ptSy={state:'ok',t:Date.now(),msg:pushed?'Synced — this device and the Worker now hold the same ledger.':'Synced — nothing new to upload.'};
+    _ptSyncing=false;
+    if(changed)_ptRefreshAll();else _ptSyncBar();
+    if(manual)_ptToast('SYNCED'+(changed?' — ledger updated from the other device':''),{col:'#00e644'});
+  }catch(e){
+    _ptSyncing=false;
+    _ptSy={state:'err',t:_ptSy.t,msg:(e&&e.name==='TypeError')?'Could not reach the Worker — check the connection.':String(e&&e.message||e)};
+    _ptSyncBar();
+    if(manual)_ptToast(_ptSy.msg,{col:'#ff2090'});
+  }
+}
+
+// ═══ UI ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+const _ptU={
+  sub:'dash',view:'week',rng:{week:'26W',month:'12M'},book:'ALL',
+  hide:{},dd:false,cf:true,roiOv:false,brk:'stack',roiMode:'bankroll',tot:true,
+  pin:null,dayPin:null,calM:null,cur:{},
+  f:{type:'PROFIT_LOSS',book:'DraftKings',date:'',amount:'',stake:'',note:'',sign:1},
+  ef:null,editId:null,newBook:false,hl:null,hlT:0,
+  lf:{book:'ALL',type:'ALL'},lim:60,confirmAll:false,anim:true
+};
+let _ptReg={},_ptRaf=0,_ptLastMove=null,_ptHot=null,_ptModelCache=null,_ptToastT=0,_ptResizeT=0,_ptBound=false;
+const _PT_HINTS={
+  DEPOSIT:'Money you put into the book. Counts toward your bankroll ROI.',
+  WITHDRAWAL:'Money you took out of the book.',
+  PROFIT_LOSS:'Net result for the bet or period: WIN adds, LOSS subtracts. Add the STAKE (amount risked) to see your yield.',
+  BALANCE:'Snapshot of what the book shows right now. The app adds an automatic ± adjustment P/L so the computed balance matches it.'
+};
+function _ptReduced(){try{return window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}}
+function _ptChip(act,v,label,on,col,extra){return`<button type="button" class="pt-chip" data-ptact="${act}" data-v="${_ptEsc(v)}" aria-pressed="${on?'true':'false'}"${col?` style="--pt-c:${col}"`:''}${extra||''}><span>${label}</span></button>`;}
+function _ptBtn(act,v,label,cls,extra){return`<button type="button" class="pt-b ${cls||''}" data-ptact="${act}"${v==null?'':` data-v="${_ptEsc(v)}"`}${extra||''}><span>${label}</span></button>`;}
+function _ptIsVisible(){const p=document.getElementById('sp-profit');return!!(p&&p.classList.contains('act'));}
+
+// ── tooltip (ONE fixed element shared by every chart) ──
+function _ptTipEl(){let t=document.getElementById('pt-tip');if(!t){t=document.createElement('div');t.id='pt-tip';t.className='pt-tip';t.setAttribute('role','status');document.body.appendChild(t);}return t;}
+function _ptTipShow(html,x,y,pad){
+  const t=_ptTipEl();pad=pad==null?14:pad;t.innerHTML=html;t.style.display='block';
+  const w=t.offsetWidth,h=t.offsetHeight;
+  let L=x-w/2,T=y-h-pad;if(T<6)T=y+pad+10;
+  L=Math.max(6,Math.min(L,window.innerWidth-w-6));T=Math.max(6,Math.min(T,window.innerHeight-h-6));
+  t.style.left=L+'px';t.style.top=T+'px';
+}
+function _ptTipHide(){const t=document.getElementById('pt-tip');if(t&&t.style.display!=='none')t.style.display='none';}
+function _ptTipRows(title,rows,accent){
+  return`<div class="pt-tt" style="color:${accent||'var(--nc)'}">${title}</div>`+rows.map(r=>`<div class="pt-tr"><span>${r[0]}</span><b${r[2]?` style="color:${r[2]}"`:''}>${r[1]}</b></div>`).join('');
+}
+// ── toast with optional UNDO (the app's own #toast ignores pointer events, so it cannot hold a button) ──
+function _ptToast(msg,o){
+  o=o||{};let t=document.getElementById('pt-toast');
+  if(!t){t=document.createElement('div');t.id='pt-toast';t.className='pt-toast';t.setAttribute('role','status');document.body.appendChild(t);}
+  t.style.borderColor=o.col||'#f000ff';t.style.color=o.col||'#f000ff';
+  t.innerHTML=`<span class="pt-toast-t">${_ptEsc(msg)}</span>`+(o.undo?`<button type="button" class="pt-b pt-undo" id="pt-undo"><span>UNDO</span></button>`:'');
+  t.classList.add('show');
+  const u=document.getElementById('pt-undo');
+  if(u)u.onclick=()=>{try{o.undo();}finally{t.classList.remove('show');clearTimeout(_ptToastT);}};
+  clearTimeout(_ptToastT);_ptToastT=setTimeout(()=>t.classList.remove('show'),o.undo?7000:3200);
+}
+
+// ── model for the current filters (computed once per render) ──
+function _ptModel(){
+  const today=_ptToday(),effAll=_ptEff(_ptState.entries),view=_ptU.view;
+  const rows=_ptU.book==='ALL'?effAll:effAll.filter(r=>r.book===_ptU.book);
+  const tot=_ptTotals(rows);
+  const bW=_ptBounds(effAll,'week',today),bM=_ptBounds(effAll,'month',today),bV=view==='month'?bM:bW;
+  const wk=bW?_ptPeriods(rows,'week',bW.from,bW.to):[],mo=bM?_ptPeriods(rows,'month',bM.from,bM.to):[];
+  const full=view==='month'?mo:wk,P=_ptSlice(full,_ptU.rng[view]);
+  const books=_ptU.book==='ALL'?_ptBookList():[_ptU.book];
+  const per={};
+  books.forEach(b=>{per[b]=_ptSlice(bV?_ptPeriods(effAll.filter(r=>r.book===b),view,bV.from,bV.to):[],_ptU.rng[view]);});
+  const bals=_ptBalances(effAll);
+  const wkStart=_ptWeekStart(today),moStart=today.slice(0,7)+'-01';
+  return{today,effAll,rows,tot,wk,mo,full,P,books,per,bals,view,
+    wtd:_ptSumRange(rows,wkStart,today),mtd:_ptSumRange(rows,moStart,today),wkStart,moStart,
+    sw:_ptStats(wk),sm:_ptStats(mo),dd:_ptMaxDD(full),daily:_ptDaily(rows),hasStake:tot.staked>0,empty:!_ptState.entries.length};
+}
+
+// ── render entry points ──
+function renderProfit(){
+  _ptLoad();_ptBind();
+  if(!_ptU.f.date)_ptU.f.date=_ptToday();
+  if(_ptU.sub==='dash'){_ptRenderAdd();_ptRenderDash();}else _ptRenderEntries();
+  _ptSyncBar();
+  if(!renderProfit._once){renderProfit._once=1;if(_ptKey())_ptSync(false);}
+}
+window.renderProfit=renderProfit;
+function _ptSubTo(s){_ptU.sub=s;_ptU.anim=true;}
+function _ptRefreshAll(){
+  if(!_ptIsVisible())return;
+  if(_ptU.sub==='dash'){_ptRenderAddRecent();_ptRenderDash();}else _ptRenderEntries();
+  _ptSyncBar();
+}
+function _ptRenderDash(){
+  const m=_ptModelCache=_ptModel();
+  const k=document.getElementById('pt-kpi'),v=document.getElementById('pt-view'),c=document.getElementById('pt-charts');
+  if(k)k.innerHTML=_ptKpiHTML(m);
+  if(v)v.innerHTML=_ptViewHTML(m);
+  if(c)_ptRenderCharts(m);
+}
+
+// ── SYNC bar (status chip + SYNC NOW) ──
+function _ptSyncBar(){
+  const s=_ptSy;let label,cls;
+  if(s.state==='busy'){label='SYNCING…';cls='busy';}
+  else if(s.state==='ok'){label='SYNCED '+new Date(s.t).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});cls='ok';}
+  else if(s.state==='err'){label='SYNC ERROR · TAP TO RETRY';cls='err';}
+  else{label='LOCAL ONLY';cls='local';}
+  const warn=(_ptMem||_ptSaveErr)?`<div class="pt-warn" role="alert">BROWSER STORAGE IS BLOCKED — entries live only until you close this tab. Use BACKUP (ENTRIES tab) to keep them.</div>`:'';
+  const tip=s.msg||(cls==='local'?'Entries are stored in this browser only. SYNC NOW links this device to your other devices through the Worker.':'');
+  const h=`<div class="pt-sync"><button type="button" class="pt-stat ${cls}" data-ptact="syncchip" title="${_ptEsc(tip)}"><span>${label}</span></button>${_ptBtn('syncnow',null,'SYNC NOW','pt-b-sm',s.state==='busy'?' disabled':'')}</div>${warn}`;
+  document.querySelectorAll('.pt-syncbar').forEach(el=>{if(el.innerHTML!==h)el.innerHTML=h;});
+}
+
+// ═══ QUICK ADD / EDIT FORM ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+function _ptFormHTML(ns,f){
+  const books=_ptBookList(),isNew=ns==='q';
+  const bchips=books.map(b=>_ptChip('fbook',b,_ptEsc(b),f.book===b,_ptBookCol(b),` data-ns="${ns}"`)).join('')
+    +(isNew?`<button type="button" class="pt-chip pt-chip-add" data-ptact="newbook" aria-expanded="${_ptU.newBook?'true':'false'}"><span>+ BOOK</span></button>`:'');
+  const tchips=_PT_TYPES.map(t=>_ptChip('ftype',t,_PT_TLBL[t],f.type===t,_PT_TCOL[t],` data-ns="${ns}"`)).join('');
+  return`<div class="pt-form" data-ns="${ns}">
+  <div class="pt-fr"><span class="pt-l">TYPE</span><div class="pt-chips" role="group" aria-label="Entry type">${tchips}</div></div>
+  <div class="pt-fr"><span class="pt-l">BOOK</span><div class="pt-chips" role="group" aria-label="Sportsbook">${bchips}</div></div>
+  ${isNew?`<div class="pt-fr pt-nb" ${_ptU.newBook?'':'hidden'}><span class="pt-l">NEW BOOK</span><input class="pt-in" id="pt-nb-name" maxlength="24" placeholder="e.g. Fanatics" autocomplete="off" aria-label="New book name">${_ptBtn('addbook',null,'ADD BOOK','pt-b-sm')}</div>`:''}
+  <div class="pt-fg">
+    <label class="pt-fld"><span class="pt-l">DATE</span><input class="pt-in" type="date" id="pt-${ns}-date" value="${_ptEsc(f.date)}" max="${_ptAddDays(_ptToday(),1)}" data-f="date"></label>
+    <label class="pt-fld"><span class="pt-l" data-lbl="amount">AMOUNT ($)</span><input class="pt-in" id="pt-${ns}-amount" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${_ptEsc(f.amount)}" data-f="amount"></label>
+    <div class="pt-fld" data-for="PROFIT_LOSS"><span class="pt-l">RESULT</span><div class="pt-chips pt-chips-tight" role="group" aria-label="Win or loss">${_ptChip('fsign','1','WIN +',f.sign>=0,'#00e644',` data-ns="${ns}"`)}${_ptChip('fsign','-1','LOSS '+_PT_MINUS,f.sign<0,'#ff2090',` data-ns="${ns}"`)}</div></div>
+    <label class="pt-fld" data-for="PROFIT_LOSS"><span class="pt-l">STAKE (OPTIONAL)</span><input class="pt-in" id="pt-${ns}-stake" inputmode="decimal" autocomplete="off" placeholder="amount risked" value="${_ptEsc(f.stake)}" data-f="stake"></label>
+    <label class="pt-fld pt-fld-note"><span class="pt-l">NOTE (OPTIONAL)</span><input class="pt-in" id="pt-${ns}-note" maxlength="200" autocomplete="off" placeholder="slip, promo, bonus…" value="${_ptEsc(f.note)}" data-f="note"></label>
+  </div>
+  <div class="pt-hint" data-hint></div>
+  <div class="pt-err" data-err role="alert" aria-live="polite"></div>
+  <div class="pt-fa">${isNew?_ptBtn('add',null,'ADD ENTRY','pt-b-main','id="pt-add-btn"')+_ptBtn('repeat',null,'↻ REPEAT LAST','pt-b-sec','id="pt-repeat-btn"'):_ptBtn('esave',null,'SAVE','pt-b-main')+_ptBtn('ecancel',null,'CANCEL','pt-b-sec')}</div>
+</div>`;
+}
+/** Chips / visible fields / labels follow the selected type (no re-render, so typed text and focus survive). */
+function _ptFormSync(ns){
+  const root=document.querySelector('.pt-form[data-ns="'+ns+'"]');if(!root)return;
+  const f=ns==='q'?_ptU.f:_ptU.ef;if(!f)return;
+  root.querySelectorAll('[data-ptact="ftype"]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===f.type?'true':'false'));
+  root.querySelectorAll('[data-ptact="fbook"]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===f.book?'true':'false'));
+  root.querySelectorAll('[data-ptact="fsign"]').forEach(b=>b.setAttribute('aria-pressed',(+b.dataset.v===(f.sign<0?-1:1))?'true':'false'));
+  root.querySelectorAll('[data-for]').forEach(el=>{el.hidden=el.dataset.for!==f.type;});
+  const lbl=root.querySelector('[data-lbl="amount"]');
+  if(lbl)lbl.textContent=f.type==='BALANCE'?'BALANCE NOW ($)':f.type==='PROFIT_LOSS'?'NET RESULT ($)':'AMOUNT ($)';
+  const h=root.querySelector('[data-hint]');if(h)h.textContent=_PT_HINTS[f.type]||'';
+  const dh=root.querySelector('#pt-'+ns+'-date');
+  const t=_ptToday(),old=f.date&&f.date!==t;
+  root.querySelectorAll('.pt-notoday').forEach(x=>x.remove());
+  if(dh&&old){const b=document.createElement('button');b.type='button';b.className='pt-b pt-b-sm pt-notoday';b.dataset.ptact='today';b.dataset.ns=ns;b.innerHTML='<span>BACK TO TODAY</span>';dh.closest('label').appendChild(b);}
+}
+function _ptReadForm(ns){
+  const f=ns==='q'?_ptU.f:_ptU.ef;if(!f)return null;
+  ['date','amount','stake','note'].forEach(k=>{const el=document.getElementById('pt-'+ns+'-'+k);if(el)f[k]=el.value;});
+  return f;
+}
+function _ptShowErr(ns,errs,msg){
+  const root=document.querySelector('.pt-form[data-ns="'+ns+'"]');if(!root)return;
+  root.querySelectorAll('[data-f]').forEach(el=>el.setAttribute('aria-invalid',errs&&errs[el.dataset.f]?'true':'false'));
+  const e=root.querySelector('[data-err]');
+  if(e)e.textContent=msg||(errs?Object.keys(errs).map(k=>errs[k]).join(' · '):'');
+  if(errs){const first=Object.keys(errs)[0],el=root.querySelector('[data-f="'+first+'"]');if(el&&first!=='type'&&first!=='book')el.focus();}
+}
+function _ptRenderAdd(){
+  const el=document.getElementById('pt-add-body');if(!el)return;
+  _ptU.f.book=_ptBookList().indexOf(_ptU.f.book)>=0?_ptU.f.book:_PT_BOOKS[0];
+  el.innerHTML=_ptFormHTML('q',_ptU.f);
+  _ptFormSync('q');_ptRenderAddRecent();
+}
+function _ptRenderAddRecent(){
+  const el=document.getElementById('pt-recent');if(!el)return;
+  const last=_ptState.entries.slice().sort((a,b)=>b.ts-a.ts).slice(0,window.innerWidth<=480?3:5),adj=_ptAdjMap(_ptState.entries);
+  el.innerHTML=last.length?`<div class="pt-l pt-mt">LAST ${last.length} ENTRIES <span class="pt-dim">· newest first</span></div><div class="pt-list">${last.map(e=>_ptRowHTML(e,adj,{})).join('')}</div>`:'';
+}
+function _ptSubmit(ns){
+  const f=_ptReadForm(ns);if(!f)return;
+  const res=_ptValidate(f,_ptToday());
+  if(!res.ok){_ptShowErr(ns,res.errors);return;}
+  _ptShowErr(ns,null,'');
+  if(ns==='q'){
+    const e=_ptAddEntry(res.entry);if(!e){_ptShowErr(ns,null,'Could not add that entry');return;}
+    _ptSave();_ptU.hl=e.id;clearTimeout(_ptU.hlT);_ptU.hlT=setTimeout(()=>{_ptU.hl=null;document.querySelectorAll('.pt-hl').forEach(x=>x.classList.remove('pt-hl'));},3200);
+    _ptU.f.amount='';_ptU.f.stake='';_ptU.f.note='';
+    ['amount','stake','note'].forEach(k=>{const el=document.getElementById('pt-q-'+k);if(el)el.value='';});
+    _ptToast('ADDED '+_PT_TLBL[e.type]+' '+(e.type==='PROFIT_LOSS'?_ptSigned(e.amount):_ptMoney(e.amount))+' · '+e.book.toUpperCase(),{col:'#00e644'});
+    _ptRefreshAll();_ptQueueSync();
+    const am=document.getElementById('pt-q-amount');if(am&&!(window.matchMedia&&matchMedia('(pointer:coarse)').matches))am.focus({preventScroll:true});
+  }else{
+    const e=_ptReplaceEntry(_ptU.editId,res.entry);
+    if(!e){_ptShowErr(ns,null,'That entry no longer exists');return;}
+    _ptSave();_ptU.hl=e.id;clearTimeout(_ptU.hlT);_ptU.hlT=setTimeout(()=>{_ptU.hl=null;document.querySelectorAll('.pt-hl').forEach(x=>x.classList.remove('pt-hl'));},3200);
+    _ptU.editId=null;_ptU.ef=null;
+    _ptToast('ENTRY UPDATED',{col:'#00f0ff'});
+    _ptRefreshAll();_ptQueueSync();
+  }
+}
+function _ptRepeatLast(){
+  const last=_ptState.entries.slice().sort((a,b)=>b.ts-a.ts)[0];
+  if(!last){_ptToast('NOTHING TO REPEAT YET',{col:'#ffdd00'});return;}
+  _ptU.f={type:last.type,book:last.book,date:_ptToday(),amount:String(Math.abs(last.amount)),stake:last.stake?String(last.stake):'',note:last.note||'',sign:last.amount<0?-1:1};
+  _ptRenderAdd();
+  const am=document.getElementById('pt-q-amount');if(am){am.focus({preventScroll:true});am.select();}
+  _ptToast('LAST ENTRY COPIED — CHECK THE AMOUNT AND PRESS ADD',{col:'#00f0ff'});
+}
+function _ptAddBook(){
+  const el=document.getElementById('pt-nb-name');if(!el)return;
+  const name=el.value.replace(/\s+/g,' ').trim().slice(0,24);
+  if(!name){_ptShowErr('q',{book:'Type a book name'});el.focus();return;}
+  if(!/^[\w &.'\-]+$/.test(name)){_ptShowErr('q',{book:'Use letters, numbers, spaces, & . - only'});return;}
+  const ex=_ptBookList().find(b=>b.toLowerCase()===name.toLowerCase());
+  const use=ex||name;
+  if(!ex){_ptState.books.push(name);_ptSave();}
+  _ptReadForm('q');_ptU.f.book=use;_ptU.newBook=false;
+  _ptRenderAdd();_ptRenderDash();
+  _ptToast(ex?'BOOK ALREADY EXISTS — SELECTED':'BOOK ADDED: '+name.toUpperCase(),{col:'#00f0ff'});
+}
+/** entryId -> adjustment P/L the app derived from that BALANCE snapshot */
+function _ptAdjMap(entries){const m={};_ptEff(entries).forEach(r=>{if(r.kind==='adj')m[r.id]=r.pl;});return m;}
+function _ptRowHTML(e,adj,o){
+  o=o||{};
+  const amt=e.type==='PROFIT_LOSS'?_ptSigned(e.amount):_ptMoney(e.amount);
+  const col=e.type==='PROFIT_LOSS'?_ptCol(e.amount):e.type==='DEPOSIT'?'#00f0ff':e.type==='WITHDRAWAL'?'#ff7700':'#f000ff';
+  const extra=[];
+  if(e.type==='BALANCE'&&adj&&adj[e.id]!=null)extra.push(`AUTO ADJUSTMENT <b style="color:${_ptCol(adj[e.id])}">${_ptSigned(adj[e.id])}</b> counted as P/L`);
+  if(e.stake>0)extra.push('staked '+_ptMoney(e.stake)+' · yield <b style="color:'+_ptCol(e.amount)+'">'+_ptPctS(e.amount/e.stake)+'</b>');
+  if(e.note)extra.push(_ptEsc(e.note));
+  const dow=_PT_DOW[_ptDow(e.date)];
+  return`<div class="pt-r${_ptU.hl===e.id?' pt-hl':''}" data-id="${_ptEsc(e.id)}">
+    <span class="pt-rd">${_ptMD(e.date)}<small>${dow}</small></span>
+    <span class="pt-rt" style="--pt-c:${_PT_TCOL[e.type]}"><span>${_PT_TLBL[e.type]}</span></span>
+    <span class="pt-rb"><i style="background:${_ptBookCol(e.book)}"></i>${_ptEsc(e.book)}</span>
+    <span class="pt-ra" style="color:${col}">${amt}</span>
+    ${o.actions?`<span class="pt-rx">${_ptBtn('edit',e.id,'EDIT','pt-b-sm')}${_ptBtn('del',e.id,'DELETE','pt-b-sm pt-b-del')}</span>`:''}
+    ${extra.length?`<span class="pt-rn">${extra.join(' · ')}</span>`:''}
+  </div>`;
+}
+
+// ═══ KPI TILES + VIEW CONTROLS ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+function _ptTile(k,v,s,col,cls){return`<div class="pt-tile ${cls||''}"><div class="pt-k">${k}</div><div class="pt-v"${col?` style="color:${col}"`:''}>${v}</div><div class="pt-s">${s||'&nbsp;'}</div></div>`;}
+function _ptKpiHTML(m){
+  if(m.empty){
+    return`<div class="pt-card pt-emptyc"><div class="pt-empt">NO ENTRIES YET</div><div class="pt-note">Add your first deposit above — then log each week's profit or loss. Nothing is stored anywhere except this browser (and your own Worker if you turn on sync).</div>${_ptBtn('focusadd',null,'ADD YOUR FIRST DEPOSIT','pt-b-main')}</div>`;
+  }
+  const t=m.tot,st=m.view==='month'?m.sm:m.sw,u=m.view==='month'?'MONTH':'WEEK';
+  const bookRows=(()=>{
+    const bs=_ptBookList().filter(b=>m.bals[b]!=null),mx=Math.max(1,...bs.map(b=>Math.abs(m.bals[b])));
+    const tot=bs.reduce((s,b)=>s+m.bals[b],0);
+    return bs.map(b=>`<div class="pt-bk${_ptU.book!=='ALL'&&_ptU.book!==b?' pt-dimr':''}"><i style="background:${_ptBookCol(b)}"></i><span class="pt-bkn">${_ptEsc(b)}</span><span class="pt-bkb"><u style="width:${(Math.abs(m.bals[b])/mx*100).toFixed(1)}%;background:${m.bals[b]<0?_PT_DN:_ptBookCol(b)}"></u></span><span class="pt-bkv">${_ptMoney(m.bals[b])}</span></div>`).join('')
+      +(bs.length>1?`<div class="pt-bk pt-bkt"><span class="pt-bkn">ALL BOOKS</span><span class="pt-bkv">${_ptMoney(tot)}</span></div>`:'');
+  })();
+  const wkS=m.sw,moS=m.sm;
+  const bw=wkS.best,ww=wkS.worst,bm=moS.best,wm=moS.worst;
+  const pstat=(p)=>p?`${_ptSigned(p.profit)}`:'—';
+  const plab=(p,v)=>p?_ptLabel(p.key,v):'no results yet';
+  return`<div class="pt-tiles">
+    ${_ptTile('NET PROFIT',_ptSigned(t.profit),t.nPL+' P/L entr'+(t.nPL===1?'y':'ies')+(m.tot.n!==t.nPL?' + adj.':''),_ptCol(t.profit),'pt-t-big')}
+    ${_ptTile('ROI (BANKROLL)',_ptPctS(t.roi),'profit ÷ deposited',_ptCol(t.roi||0))}
+    ${_ptTile('YIELD',m.hasStake?_ptPctS(t.yld):'—',m.hasStake?'profit ÷ '+_ptMoney(t.staked)+' staked':'add STAKE to P/L entries',m.hasStake?_ptCol(t.yld||0):'var(--t3)')}
+    ${_ptTile('DEPOSITED',_ptMoney(t.deposits),'total money in','#00f0ff')}
+    ${_ptTile('WITHDRAWN',_ptMoney(t.withdrawals),'total money out','#ff7700')}
+    ${_ptTile('WEEK-TO-DATE',_ptSigned(m.wtd),'since Mon '+_ptMD(m.wkStart),_ptCol(m.wtd))}
+    ${_ptTile('MONTH-TO-DATE',_ptSigned(m.mtd),_PT_MONL[+m.today.slice(5,7)-1].slice(0,3)+' 1 – today',_ptCol(m.mtd))}
+    <div class="pt-tile pt-t-bal"><div class="pt-k">CURRENT BALANCE</div><div class="pt-v" style="color:#00f0ff">${_ptMoney(t.balance)}</div><div class="pt-s">${_ptU.book==='ALL'?'deposits − withdrawals + P/L':_ptEsc(_ptU.book)}</div><div class="pt-bks">${bookRows}</div></div>
+  </div>
+  <div class="pt-tiles pt-tiles2">
+    ${_ptTile('BEST WEEK',pstat(bw),plab(bw,'week'),bw?_ptCol(bw.profit):'var(--t3)')}
+    ${_ptTile('WORST WEEK',pstat(ww),plab(ww,'week'),ww?_ptCol(ww.profit):'var(--t3)')}
+    ${_ptTile('BEST MONTH',pstat(bm),plab(bm,'month'),bm?_ptCol(bm.profit):'var(--t3)')}
+    ${_ptTile('WORST MONTH',pstat(wm),plab(wm,'month'),wm?_ptCol(wm.profit):'var(--t3)')}
+    ${_ptTile('WINNING WEEKS',wkS.winPct==null?'—':_ptPct(wkS.winPct,0),wkS.nActive?wkS.wins+' of '+wkS.nActive:'no weeks yet','var(--t)')}
+    ${_ptTile('WINNING MONTHS',moS.winPct==null?'—':_ptPct(moS.winPct,0),moS.nActive?moS.wins+' of '+moS.nActive:'no months yet','var(--t)')}
+    ${_ptTile('GREEN STREAK',wkS.streak+'W · '+moS.streak+'M','longest run of winning weeks · months',wkS.streak||moS.streak?_PT_UP:'var(--t3)')}
+    ${_ptTile('MAX DRAWDOWN',_ptSigned(m.dd),'peak-to-trough (cumulative profit)',m.dd<0?_PT_DN:'var(--t3)')}
+  </div>`;
+}
+function _ptViewHTML(m){
+  const v=m.view,rngs=v==='month'?['6M','12M','ALL']:['8W','26W','ALL'];
+  const books=_ptBookList();
+  return`<div class="pt-card pt-ctl">
+    <div class="pt-fr"><span class="pt-l">VIEW</span><div class="pt-seg" role="group" aria-label="Period">${_ptChip('view','week','WEEKLY',v==='week','#00f0ff')}${_ptChip('view','month','MONTHLY',v==='month','#00f0ff')}</div></div>
+    <div class="pt-fr"><span class="pt-l">BOOK</span><div class="pt-chips" role="group" aria-label="Filter by book">${_ptChip('bookf','ALL','ALL',_ptU.book==='ALL','#00f0ff')}${books.map(b=>_ptChip('bookf',b,_ptEsc(b),_ptU.book===b,_ptBookCol(b))).join('')}</div></div>
+    <div class="pt-fr"><span class="pt-l">RANGE</span><div class="pt-chips" role="group" aria-label="Range">${rngs.map(r=>_ptChip('rng',r,r,_ptU.rng[v]===r,'#bbff00')).join('')}</div>
+      <span class="pt-dim pt-rngn">${m.P.length} ${v==='month'?'MONTH':'WEEK'}${m.P.length===1?'':'S'}${v==='week'?' · WEEKS START MONDAY (MT)':''}</span></div>
+  </div>`;
+}
+
+// ═══ CHARTS (hand-rolled SVG at 1 user unit = 1 px; one shared tooltip; geometry kept in _ptReg for the delegated listeners) ═════════════════
+function _ptChartW(){const el=document.getElementById('pt-charts');const w=el?el.clientWidth-26:0;return w>230?Math.min(1400,Math.round(w)):640;}
+function _ptFrame(W,H,n,yt,rightPad){
+  const m={l:W<500?44:54,r:rightPad||(W<500?10:14),t:12,b:26};
+  const pw=W-m.l-m.r,ph=H-m.t-m.b,band=pw/Math.max(1,n),span=(yt.hi-yt.lo)||1;
+  return{W,H,n,m,pw,ph,band,lo:yt.lo,hi:yt.hi,y:v=>m.t+ph*(1-(v-yt.lo)/span),x:i=>m.l+(i+.5)*band,idx:px=>Math.max(0,Math.min(n-1,Math.floor((px-m.l)/band)))};
+}
+function _ptGridSVG(F,yt,fmt,keys,view,right){
+  let s='';
+  yt.ticks.forEach(t=>{
+    const yy=F.y(t),z=Math.abs(t)<1e-9;
+    s+=`<line class="${z?'pt-zero':'pt-gl'}" x1="${F.m.l}" x2="${F.W-F.m.r}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}"/><text class="pt-ax" x="${F.m.l-6}" y="${(yy+4).toFixed(1)}" text-anchor="end">${fmt(t)}</text>`;
+    if(right)s+=`<text class="pt-ax pt-ax2" x="${F.W-F.m.r+6}" y="${(yy+4).toFixed(1)}" text-anchor="start">${right(t)}</text>`;
+  });
+  const maxL=Math.max(2,Math.floor(F.pw/(view==='month'?46:54))),stepL=Math.max(1,Math.ceil(F.n/maxL));
+  for(let i=F.n-1;i>=0;i-=stepL){                                     // from the newest period backwards, so the latest label is always shown
+    const k=keys[i];
+    s+=`<text class="pt-ax" x="${F.x(i).toFixed(1)}" y="${F.H-8}" text-anchor="middle">${_ptEsc(_ptLabel(k,view))}</text>`;
+  }
+  return s;
+}
+function _ptCurG(F,nd){
+  let d='';for(let j=0;j<nd;j++)d+='<circle class="pt-curd" r="4.5" display="none"/>';
+  return`<g class="pt-cur" style="display:none" pointer-events="none"><rect class="pt-curb" y="${F.m.t}" height="${F.ph}"/><line class="pt-curl" y1="${F.m.t}" y2="${F.m.t+F.ph}"/>${d}</g><rect class="pt-pinband" y="${F.m.t}" height="${F.ph}" display="none" pointer-events="none"/>`;
+}
+function _ptSvg(F,inner){return`<svg class="pt-svg" width="${F.W}" height="${F.H}" viewBox="0 0 ${F.W} ${F.H}" aria-hidden="true" focusable="false">${inner}</svg>`;}
+function _ptChartBox(id,aria,F,inner){return`<div class="pt-chart" data-ptid="${id}" tabindex="0" role="group" aria-roledescription="interactive chart" aria-label="${_ptEsc(aria)}">${_ptSvg(F,inner)}</div>`;}
+function _ptCard(id,title,sub,tools,body,cls){
+  return`<section class="pt-card pt-cc ${cls||''}" id="pt-c-${id}" aria-label="${_ptEsc(title)}"><div class="pt-ch"><div><div class="pt-ct">${title}</div><div class="pt-cs">${sub||''}</div></div><div class="pt-chips pt-tools">${tools||''}</div></div>${body}<div class="pt-drill" id="pt-drill-${id}"></div></section>`;
+}
+function _ptEmptyBody(msg,btn){return`<div class="pt-empt2">${msg}${btn?'<div>'+btn+'</div>':''}</div>`;}
+function _ptRegister(id,o){_ptReg[id]=o;}
+
+function _ptRenderCharts(m){
+  const el=document.getElementById('pt-charts');if(!el)return;
+  _ptReg={};_ptHot=null;_ptTipHide();
+  if(m.empty){el.innerHTML='';return;}
+  const W=_ptChartW(),H=W<500?210:250;
+  el.classList.toggle('pt-anim',!!_ptU.anim&&!_ptReduced());
+  _ptU.anim=false;
+  if(_ptU.pin&&!m.P.some(p=>p.key===_ptU.pin.key))_ptU.pin=null;
+  el.innerHTML=[_ptChartA(m,W,H),_ptChartB(m,W,H),_ptChartC(m,W,H),_ptChartD(m,W,H),_ptChartE(m,W,H),_ptHeatCard(m,W)].join('');
+  _ptApplyPin();
+}
+function _ptNoPL(m){return!m.P.some(p=>p.active)&&!m.P.some(p=>p.cumProfit!==0);}
+function _ptPeriodWord(v){return v==='month'?'MONTH':'WEEK';}
+function _ptPLEmpty(){return _ptEmptyBody('No profit or loss logged in this range yet.<br>Add a P/L entry (or a BALANCE snapshot) to see this chart.',_ptBtn('focusadd',null,'ADD AN ENTRY','pt-b-sec'));}
+
+// ── (a) cumulative profit line + deposit/withdrawal markers + drawdown shading ──
+function _ptChartA(m,W,H){
+  const id='a',v=m.view,P=m.P,n=P.length;
+  const tools=_ptChip('tgl','cf','DEPOSITS ▲ WITHDRAWALS ▼',_ptU.cf,'#ffdd00')+_ptChip('tgl','dd','DRAWDOWN',_ptU.dd,'#ff2090');
+  const sub=`NET P/L TO DATE AT THE END OF EACH ${_ptPeriodWord(v)}${m.dd<0?' · MAX DRAWDOWN <b style="color:'+_PT_DN+'">'+_ptSigned(m.dd)+'</b>':''}`;
+  if(_ptNoPL(m))return _ptCard(id,'CUMULATIVE PROFIT',sub,'',_ptPLEmpty());
+  const lo=Math.min(0,...P.map(p=>p.cumProfit)),hi=Math.max(0,...P.map(p=>_ptU.dd?p.peak:p.cumProfit));
+  const yt=_ptNice(lo,hi,4),F=_ptFrame(W,H,n,yt),keys=P.map(p=>p.key);
+  const pts=P.map((p,i)=>[F.x(i),F.y(p.cumProfit)]);
+  const zf=Math.max(0,Math.min(1,(F.y(0)-F.m.t)/F.ph)).toFixed(4);
+  let s=`<defs><linearGradient id="pt-ga" gradientUnits="userSpaceOnUse" x1="0" y1="${F.m.t}" x2="0" y2="${F.m.t+F.ph}"><stop offset="0" stop-color="${_PT_UP}"/><stop offset="${zf}" stop-color="${_PT_UP}"/><stop offset="${zf}" stop-color="${_PT_DN}"/><stop offset="1" stop-color="${_PT_DN}"/></linearGradient></defs>`;
+  s+=_ptGridSVG(F,yt,_ptCompact,keys,v);
+  const z0=F.y(0).toFixed(1);
+  if(n>1){
+    const line='M'+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' L');
+    s+=`<path class="pt-area pt-fade" d="${line} L${pts[n-1][0].toFixed(1)},${z0} L${pts[0][0].toFixed(1)},${z0} Z" fill="url(#pt-ga)"/>`;
+    if(_ptU.dd){
+      const up=P.map((p,i)=>F.x(i).toFixed(1)+','+F.y(p.peak).toFixed(1)).join(' L'),dn=P.map((p,i)=>F.x(n-1-i).toFixed(1)+','+F.y(P[n-1-i].cumProfit).toFixed(1)).join(' L');
+      s+=`<path class="pt-ddarea" d="M${up} L${dn} Z"/><path class="pt-ddpeak" d="M${P.map((p,i)=>F.x(i).toFixed(1)+','+F.y(p.peak).toFixed(1)).join(' L')}"/>`;
+    }
+    s+=`<path class="pt-line" pathLength="1" d="${line}" stroke="url(#pt-ga)"/>`;
+  }
+  if(n<=45)pts.forEach((p,i)=>{s+=`<circle class="pt-dot pt-fade" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${n<=16?3.2:2.2}" fill="${_ptCol(P[i].cumProfit)==='var(--t2)'?'#c8d8f0':_ptCol(P[i].cumProfit)}"/>`;});
+  const last=pts[n-1];s+=`<circle class="pt-end" cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="5.5" stroke="${_ptCol(P[n-1].cumProfit)==='var(--t2)'?'#c8d8f0':_ptCol(P[n-1].cumProfit)}"/>`;
+  if(_ptU.cf)P.forEach((p,i)=>{
+    const x=F.x(i),yb=F.m.t+F.ph-9;
+    if(p.dep>0)s+=`<path class="pt-mk pt-mk-d" d="M${x.toFixed(1)},${yb-5} L${(x+5).toFixed(1)},${yb+4} L${(x-5).toFixed(1)},${yb+4} Z"/>`;
+    if(p.wd>0)s+=`<path class="pt-mk pt-mk-w" d="M${x.toFixed(1)},${yb-(p.dep>0?13:0)+5} L${(x+5).toFixed(1)},${yb-(p.dep>0?13:0)-4} L${(x-5).toFixed(1)},${yb-(p.dep>0?13:0)-4} Z"/>`;
+  });
+  s+=_ptCurG(F,1);
+  _ptRegister(id,{F,keys,view:v,nd:1,
+    dots:i=>[{y:F.y(P[i].cumProfit),c:_ptCol(P[i].cumProfit)==='var(--t2)'?'#c8d8f0':_ptCol(P[i].cumProfit)}],
+    tip:i=>{const p=P[i];return _ptTipRows(_ptLabelLong(p.key,v),[['CUM. PROFIT',_ptSigned(p.cumProfit),_ptCol(p.cumProfit)],['THIS '+_ptPeriodWord(v),_ptSigned(p.profit),_ptCol(p.profit)]]
+      .concat(p.dep>0?[['DEPOSITED','+'+_ptMoney(p.dep),'#00f0ff']]:[]).concat(p.wd>0?[['WITHDRAWN',_PT_MINUS+_ptMoney(p.wd),'#ff7700']]:[])
+      .concat([['BALANCE',_ptMoney(p.bal)]]).concat(p.dd<0?[['DRAWDOWN',_ptSigned(p.dd),_PT_DN]]:[]).concat([['ENTRIES',String(p.n)]]),_ptCol(p.cumProfit));}});
+  return _ptCard(id,'CUMULATIVE PROFIT',sub,tools,_ptChartBox(id,'Cumulative profit by '+(v==='month'?'month':'week')+'. Arrow keys move along the periods, Enter pins one.',F,s));
+}
+
+// ── (b) profit per period (diverging bars) + optional ROI% overlay ──
+function _ptBarsSVG(F,vals,cols,delay){
+  let s='';const z=F.y(0),bw=Math.max(2,Math.min(46,F.band*.64));
+  vals.forEach((v,i)=>{
+    const x=F.x(i)-bw/2;
+    if(v==null||v===0){s+=`<rect class="pt-nil" x="${(F.x(i)-2).toFixed(1)}" y="${(z-1).toFixed(1)}" width="4" height="2"/>`;return;}
+    const y1=F.y(Math.max(v,0)),y2=F.y(Math.min(v,0)),h=Math.max(1.5,y2-y1);
+    s+=`<rect class="pt-bar" x="${x.toFixed(1)}" y="${y1.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${cols(v)}" style="transform-origin:0 ${z.toFixed(1)}px;--d:${Math.min(600,i*14)}ms"/>`;
+  });
+  return s;
+}
+function _ptSecK(yt,vals){
+  const pos=vals.filter(v=>v!=null&&v>0),neg=vals.filter(v=>v!=null&&v<0).map(v=>-v);
+  let k=Math.max(yt.hi>0&&pos.length?Math.max(...pos)/yt.hi:0,yt.lo<0&&neg.length?Math.max(...neg)/(-yt.lo):0);
+  if(!(k>0))k=1e-3;
+  const mag=Math.pow(10,Math.floor(Math.log10(k))),f=k/mag;
+  return(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*mag;
+}
+function _ptChartB(m,W,H){
+  const id='b',v=m.view,P=m.P,n=P.length;
+  const tools=_ptChip('tgl','roiOv','ROI % OVERLAY',_ptU.roiOv,'#00f0ff');
+  const sub=`NET P/L OF EACH ${_ptPeriodWord(v)} · CLICK OR TAP A BAR FOR THAT ${_ptPeriodWord(v)}'S ENTRIES`;
+  if(_ptNoPL(m))return _ptCard(id,'PROFIT PER '+_ptPeriodWord(v),sub,'',_ptPLEmpty());
+  const vals=P.map(p=>p.profit),yt=_ptNice(Math.min(0,...vals),Math.max(0,...vals),4);
+  const rois=P.map(p=>p.roi);
+  const ov=_ptU.roiOv&&rois.some(r=>r!=null);
+  const k=ov?_ptSecK(yt,rois):1,F=_ptFrame(W,H,n,yt,ov?(W<500?40:50):0),keys=P.map(p=>p.key);
+  const kd=k*100;                                                     // right-axis value of a primary tick t is t*k (a ratio) -> percent
+  let s=_ptGridSVG(F,yt,_ptCompact,keys,v,ov?(t=>(t*kd).toFixed(Math.abs(yt.step*kd)<1?1:0)+'%'):null);
+  s+=_ptBarsSVG(F,vals,x=>x>0?_PT_UP:_PT_DN);
+  if(ov){
+    let d='',pen=false;rois.forEach((r,i)=>{if(r==null){pen=false;return;}d+=(pen?' L':' M')+F.x(i).toFixed(1)+','+F.y(r/k).toFixed(1);pen=true;});
+    s+=`<path class="pt-roiline" d="${d.trim()}"/>`;
+    rois.forEach((r,i)=>{if(r!=null&&n<=45)s+=`<circle class="pt-roidot" cx="${F.x(i).toFixed(1)}" cy="${F.y(r/k).toFixed(1)}" r="2.6"/>`;});
+  }
+  s+=_ptCurG(F,ov?1:0);
+  _ptRegister(id,{F,keys,view:v,nd:ov?1:0,
+    dots:i=>ov&&rois[i]!=null?[{y:F.y(rois[i]/k),c:'#00f0ff'}]:[],
+    tip:i=>{const p=P[i];return _ptTipRows(_ptLabelLong(p.key,v),[['PROFIT',_ptSigned(p.profit),_ptCol(p.profit)],['ROI (BANKROLL)',_ptPctS(p.roi),_ptCol(p.roi||0)]]
+      .concat(p.staked>0?[['STAKED',_ptMoney(p.staked)],['YIELD',_ptPctS(p.yld),_ptCol(p.yld||0)]]:[]).concat(p.dep>0?[['DEPOSITED','+'+_ptMoney(p.dep),'#00f0ff']]:[]).concat(p.wd>0?[['WITHDRAWN',_PT_MINUS+_ptMoney(p.wd),'#ff7700']]:[])
+      .concat([['ENTRIES',String(p.n)]]),_ptCol(p.profit));}});
+  return _ptCard(id,'PROFIT PER '+_ptPeriodWord(v),sub,tools,_ptChartBox(id,'Profit per '+(v==='month'?'month':'week')+'. Arrow keys move along the periods, Enter pins one.',F,s));
+}
+
+// ── (c) ROI per period: bars + cumulative line; BANKROLL ROI or YIELD ──
+function _ptChartC(m,W,H){
+  const id='c',v=m.view,P=m.P,n=P.length,yl=_ptU.roiMode==='yield'&&m.hasStake;
+  const tools=_ptChip('roimode','bankroll','BANKROLL ROI',!yl,'#00f0ff')+_ptChip('roimode','yield','YIELD (STAKES)',yl,'#bbff00',m.hasStake?'':' disabled title="Add a STAKE to P/L entries to unlock yield"');
+  const sub=yl?`PROFIT ÷ AMOUNT STAKED, PER ${_ptPeriodWord(v)} (BARS) AND TO DATE (LINE)`:`PERIOD PROFIT ÷ TOTAL DEPOSITED SO FAR (BARS) · CUMULATIVE ROI (LINE)`;
+  if(_ptNoPL(m))return _ptCard(id,(yl?'YIELD':'ROI')+' PER '+_ptPeriodWord(v),sub,tools,_ptPLEmpty());
+  const per=P.map(p=>yl?p.yld:p.roi),cum=P.map(p=>yl?p.cumYld:p.cumRoi);
+  const all=per.concat(cum).filter(x=>x!=null).map(x=>x*100);
+  if(!all.length)return _ptCard(id,(yl?'YIELD':'ROI')+' PER '+_ptPeriodWord(v),sub,tools,_ptEmptyBody(yl?'No stakes logged in this range.':'ROI needs a deposit first — add one so profit has a base to divide by.',_ptBtn('focusadd',null,'ADD A DEPOSIT','pt-b-sec')));
+  const yt=_ptNice(Math.min(0,...all),Math.max(0,...all),4),F=_ptFrame(W,H,n,yt),keys=P.map(p=>p.key);
+  const pf=t=>t.toFixed(Math.abs(yt.step)<1?1:0)+'%';
+  let s=_ptGridSVG(F,yt,pf,keys,v);
+  s+=_ptBarsSVG(F,per.map(x=>x==null?null:x*100),x=>x>0?_PT_UP:_PT_DN);
+  let d='',pen=false;cum.forEach((r,i)=>{if(r==null){pen=false;return;}d+=(pen?' L':' M')+F.x(i).toFixed(1)+','+F.y(r*100).toFixed(1);pen=true;});
+  s+=`<path class="pt-roiline pt-line2" d="${d.trim()}"/>`;
+  cum.forEach((r,i)=>{if(r!=null&&n<=45)s+=`<circle class="pt-roidot" cx="${F.x(i).toFixed(1)}" cy="${F.y(r*100).toFixed(1)}" r="2.6"/>`;});
+  s+=_ptCurG(F,1);
+  _ptRegister(id,{F,keys,view:v,nd:1,
+    dots:i=>cum[i]!=null?[{y:F.y(cum[i]*100),c:'#00f0ff'}]:[],
+    tip:i=>{const p=P[i];return _ptTipRows(_ptLabelLong(p.key,v),[[yl?'YIELD':'ROI',_ptPctS(per[i]),_ptCol(per[i]||0)],['TO DATE',_ptPctS(cum[i]),_ptCol(cum[i]||0)],['PROFIT',_ptSigned(p.profit),_ptCol(p.profit)],
+      yl?['STAKED',_ptMoney(p.staked)]:['DEPOSITED TO DATE',_ptMoney(p.cumDep),'#00f0ff']],_ptCol(per[i]||0));}});
+  return _ptCard(id,(yl?'YIELD':'ROI')+' PER '+_ptPeriodWord(v),sub,tools,_ptChartBox(id,(yl?'Yield':'ROI')+' per '+(v==='month'?'month':'week')+'. Arrow keys move along the periods, Enter pins one.',F,s));
+}
+
+// ── (d) per-book breakdown (stacked or grouped), (e) balance over time per book; legend chips hide / show books ──
+function _ptLegend(m){
+  return m.books.map(b=>`<button type="button" class="pt-chip pt-leg" data-ptact="hidebook" data-v="${_ptEsc(b)}" aria-pressed="${_ptU.hide[b]?'false':'true'}" style="--pt-c:${_ptBookCol(b)}"><i style="background:${_ptBookCol(b)}"></i><span>${_ptEsc(b)}</span></button>`).join('');
+}
+function _ptChartD(m,W,H){
+  const id='d',v=m.view,n=m.P.length,bs=m.books.filter(b=>!_ptU.hide[b]),stk=_ptU.brk==='stack';
+  const tools=_ptChip('brk','stack','STACKED',stk,'#00f0ff')+_ptChip('brk','group','GROUPED',!stk,'#00f0ff');
+  const sub=`EACH BOOK'S P/L PER ${_ptPeriodWord(v)} · TAP A BOOK BELOW TO HIDE OR SHOW IT`;
+  const leg=`<div class="pt-chips pt-legend" role="group" aria-label="Show or hide books">${_ptLegend(m)}</div>`;
+  if(_ptNoPL(m))return _ptCard(id,'PROFIT BY BOOK',sub,tools,_ptPLEmpty());
+  if(!bs.length)return _ptCard(id,'PROFIT BY BOOK',sub,tools,leg+_ptEmptyBody('All books are hidden — tap one above.'));
+  const val=(b,i)=>(m.per[b]&&m.per[b][i])?m.per[b][i].profit:0;
+  let lo=0,hi=0;
+  for(let i=0;i<n;i++){
+    if(stk){let ps=0,ns=0;bs.forEach(b=>{const x=val(b,i);if(x>0)ps+=x;else ns+=x;});hi=Math.max(hi,ps);lo=Math.min(lo,ns);}
+    else bs.forEach(b=>{const x=val(b,i);hi=Math.max(hi,x);lo=Math.min(lo,x);});
+  }
+  const yt=_ptNice(lo,hi,4),F=_ptFrame(W,H,n,yt),keys=m.P.map(p=>p.key),z=F.y(0);
+  let s=_ptGridSVG(F,yt,_ptCompact,keys,v);
+  const bw=Math.max(2,Math.min(46,F.band*.7));
+  for(let i=0;i<n;i++){
+    if(stk){
+      let up=0,dn=0;
+      bs.forEach(b=>{
+        const x=val(b,i);if(!x)return;
+        const a=x>0?up:dn,c=a+x;if(x>0)up=c;else dn=c;
+        const y1=F.y(Math.max(a,c)),y2=F.y(Math.min(a,c));
+        s+=`<rect class="pt-bar" x="${(F.x(i)-bw/2).toFixed(1)}" y="${y1.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1.2,y2-y1).toFixed(1)}" fill="${_ptBookCol(b)}" style="transform-origin:0 ${z.toFixed(1)}px;--d:${Math.min(600,i*14)}ms"/>`;
+      });
+    }else{
+      const gw=Math.max(1.5,bw/bs.length);
+      bs.forEach((b,j)=>{
+        const x=val(b,i);if(!x)return;
+        const y1=F.y(Math.max(x,0)),y2=F.y(Math.min(x,0));
+        s+=`<rect class="pt-bar" x="${(F.x(i)-bw/2+j*gw).toFixed(1)}" y="${y1.toFixed(1)}" width="${Math.max(1.2,gw-.8).toFixed(1)}" height="${Math.max(1.2,y2-y1).toFixed(1)}" fill="${_ptBookCol(b)}" style="transform-origin:0 ${z.toFixed(1)}px;--d:${Math.min(600,i*14)}ms"/>`;
+      });
+    }
+  }
+  s+=_ptCurG(F,0);
+  _ptRegister(id,{F,keys,view:v,nd:0,
+    tip:i=>{const p=m.P[i];let tot=0;const rows=bs.map(b=>{const x=val(b,i);tot+=x;return['<i class="pt-sw" style="background:'+_ptBookCol(b)+'"></i>'+_ptEsc(b),_ptSigned(x),_ptCol(x)];});
+      return _ptTipRows(_ptLabelLong(p.key,v),rows.concat(bs.length>1?[['TOTAL',_ptSigned(tot),_ptCol(tot)]]:[]),_ptCol(tot));}});
+  return _ptCard(id,'PROFIT BY BOOK',sub,tools,leg+_ptChartBox(id,'Profit by book per '+(v==='month'?'month':'week')+'. Arrow keys move along the periods, Enter pins one.',F,s));
+}
+function _ptChartE(m,W,H){
+  const id='e',v=m.view,n=m.P.length,bs=m.books.filter(b=>!_ptU.hide[b]);
+  const showTot=_ptU.tot&&bs.length>1;
+  const tools=bs.length>1?_ptChip('tgl','tot','TOTAL LINE',_ptU.tot,'#ffffff'):'';
+  const sub=`EACH BOOK'S BALANCE AT THE END OF EVERY ${_ptPeriodWord(v)} (DEPOSITS − WITHDRAWALS + P/L)`;
+  const leg=`<div class="pt-chips pt-legend" role="group" aria-label="Show or hide books">${_ptLegend(m)}</div>`;
+  if(m.tot.n===0||!n)return _ptCard(id,'BALANCE BY BOOK',sub,tools,_ptEmptyBody('No money events in this range yet.',_ptBtn('focusadd',null,'ADD YOUR FIRST DEPOSIT','pt-b-sec')));
+  if(!bs.length)return _ptCard(id,'BALANCE BY BOOK',sub,tools,leg+_ptEmptyBody('All books are hidden — tap one above.'));
+  const bal=(b,i)=>(m.per[b]&&m.per[b][i])?m.per[b][i].bal:0;
+  const tot=i=>bs.reduce((s,b)=>s+bal(b,i),0);
+  let lo=0,hi=0;for(let i=0;i<n;i++){bs.forEach(b=>{const x=bal(b,i);hi=Math.max(hi,x);lo=Math.min(lo,x);});if(showTot){const t=tot(i);hi=Math.max(hi,t);lo=Math.min(lo,t);}}
+  const yt=_ptNice(lo,hi,4),F=_ptFrame(W,H,n,yt),keys=m.P.map(p=>p.key);
+  let s=_ptGridSVG(F,yt,_ptCompact,keys,v);
+  const line=(f,col,cls)=>{const d='M'+Array.from({length:n},(_,i)=>F.x(i).toFixed(1)+','+F.y(f(i)).toFixed(1)).join(' L');return`<path class="pt-line ${cls||''}" pathLength="1" d="${d}" stroke="${col}"/>`;};
+  bs.forEach(b=>{
+    if(n>1)s+=line(i=>bal(b,i),_ptBookCol(b));
+    if(n<=45)for(let i=0;i<n;i++)s+=`<circle class="pt-dot pt-fade" cx="${F.x(i).toFixed(1)}" cy="${F.y(bal(b,i)).toFixed(1)}" r="${n<=16?2.8:2}" fill="${_ptBookCol(b)}"/>`;
+  });
+  if(showTot&&n>1)s+=line(tot,'#ffffff','pt-line-tot');
+  s+=_ptCurG(F,bs.length+(showTot?1:0));
+  _ptRegister(id,{F,keys,view:v,nd:bs.length+(showTot?1:0),
+    dots:i=>bs.map(b=>({y:F.y(bal(b,i)),c:_ptBookCol(b)})).concat(showTot?[{y:F.y(tot(i)),c:'#ffffff'}]:[]),
+    tip:i=>{const p=m.P[i];const rows=bs.map(b=>['<i class="pt-sw" style="background:'+_ptBookCol(b)+'"></i>'+_ptEsc(b),_ptMoney(bal(b,i))]);
+      return _ptTipRows(_ptLabelLong(p.key,v),rows.concat(bs.length>1?[['TOTAL',_ptMoney(tot(i)),'#00f0ff']]:[]),'var(--nc)');}});
+  return _ptCard(id,'BALANCE BY BOOK',sub,tools,leg+_ptChartBox(id,'Balance by book. Arrow keys move along the periods, Enter pins one.',F,s));
+}
+
+// ── (f) calendar heatmap of daily P/L: last 12 weeks (weekly view) / a month grid (monthly view) ──
+function _ptHeatColor(pl,mx){
+  if(!pl)return'rgba(255,255,255,.05)';
+  const a=(.22+.68*Math.min(1,Math.abs(pl)/(mx||1))).toFixed(2);
+  return pl>0?`rgba(0,230,68,${a})`:`rgba(255,32,144,${a})`;
+}
+function _ptHeatCard(m,W){
+  const v=m.view,today=m.today,daily=m.daily;
+  const cell=(d,sz,showAmt,dayNum,mx)=>{
+    const o=daily[d],pl=o?o.pl:0,has=!!o,pin=_ptU.dayPin===d;
+    const lab=`${d} ${has?_ptSigned(pl)+', '+o.n+' entr'+(o.n===1?'y':'ies'):'no entries'}`;
+    return`<button type="button" class="pt-hc${pin?' pin':''}${d===today?' today':''}${has?'':' none'}" data-ptact="day" data-v="${d}" data-ptd="${d}" aria-label="${_ptEsc(lab)}" aria-pressed="${pin?'true':'false'}" style="background:${has&&(pl||o.n)?_ptHeatColor(pl,mx):'rgba(255,255,255,.04)'}"><span class="pt-hcs">${dayNum?'<b>'+(+d.slice(8))+'</b>':''}${showAmt&&has&&pl?'<em>'+_ptCompact(pl).replace('$','')+'</em>':''}</span></button>`;
+  };
+  let body='',tools='',sub='';
+  if(v==='week'){
+    const ws=_ptWeekStart(today),start=_ptAddDays(ws,-77),avail=W-30,sz=Math.max(17,Math.min(60,Math.floor((avail-11*3-20)/12)));
+    let mx=0;for(let i=0;i<84;i++){const o=daily[_ptAddDays(start,i)];if(o&&Math.abs(o.pl)>mx)mx=Math.abs(o.pl);}
+    let cells='',labs='';
+    for(let c=0;c<12;c++){
+      const cs=_ptAddDays(start,c*7);
+      labs+=`<span class="pt-hml" style="width:${sz}px">${(c===0||+cs.slice(8)<=7)?_PT_MON[+cs.slice(5,7)-1]:''}</span>`;
+      for(let r=0;r<7;r++){const d=_ptAddDays(cs,r);cells+=d>today?`<span class="pt-hc pt-hf" aria-hidden="true"></span>`:cell(d,sz,sz>=34,false,mx);}
+    }
+    const rl=_PT_DOW.map(x=>`<span class="pt-hrl">${x[0]}</span>`).join('');
+    body=`<div class="pt-heat" style="--c:${sz}px"><div class="pt-heatin"><div class="pt-hrow"><span class="pt-hrl0"></span><div class="pt-hmon">${labs}</div></div><div class="pt-hrow"><div class="pt-hrls">${rl}</div><div class="pt-hgrid" role="group" aria-label="Daily profit and loss, last 12 weeks">${cells}</div></div></div></div>`;
+    sub='DAILY NET P/L · LAST 12 WEEKS (MON–SUN) · TAP A DAY FOR ITS ENTRIES';
+  }else{
+    const cm=_ptU.calM||today.slice(0,7),first=cm+'-01',off=_ptDow(first),nd=_ptDayNum(_ptNextKey(cm,'month')+'-01')-_ptDayNum(first);
+    const sz=Math.max(34,Math.min(70,Math.floor((W-30-6*4)/7)));
+    let mx=0,tot=0;for(let i=0;i<nd;i++){const o=daily[_ptAddDays(first,i)];if(o){tot+=o.pl;if(Math.abs(o.pl)>mx)mx=Math.abs(o.pl);}}
+    let cells='';
+    for(let i=0;i<off;i++)cells+='<span class="pt-hc pt-hf" aria-hidden="true"></span>';
+    for(let i=0;i<nd;i++){const d=_ptAddDays(first,i);cells+=d>today?`<span class="pt-hc pt-hf pt-hfd" aria-hidden="true"><span class="pt-hcs"><b>${i+1}</b></span></span>`:cell(d,sz,true,true,mx);}
+    const hd=_PT_DOW.map(x=>`<span class="pt-hrl pt-hrlm">${x}</span>`).join('');
+    tools=`${_ptBtn('calprev',null,'◀','pt-b-sm','aria-label="Previous month"')}<span class="pt-calt">${_PT_MONL[+cm.slice(5,7)-1]} ${cm.slice(0,4)}</span>${_ptBtn('calnext',null,'▶','pt-b-sm','aria-label="Next month"'+(cm>=today.slice(0,7)?' disabled':''))}`;
+    body=`<div class="pt-cal" style="--c:${sz}px"><div class="pt-calh">${hd}</div><div class="pt-calg" role="group" aria-label="Daily profit and loss, ${_PT_MONL[+cm.slice(5,7)-1]} ${cm.slice(0,4)}">${cells}</div></div>`;
+    sub=`MONTH GRID · NET P/L ${_ptSigned(_ptRound(tot))} · CLICK A BAR ABOVE TO JUMP TO ITS MONTH`;
+  }
+  const dp=_ptU.dayPin?_ptDayDrill(m,_ptU.dayPin):'';
+  const legend=`<div class="pt-heatleg"><span>LOSS</span><i style="background:rgba(255,32,144,.9)"></i><i style="background:rgba(255,32,144,.45)"></i><i style="background:rgba(255,255,255,.08)"></i><i style="background:rgba(0,230,68,.45)"></i><i style="background:rgba(0,230,68,.9)"></i><span>PROFIT</span></div>`;
+  return`<section class="pt-card pt-cc" id="pt-c-f" aria-label="Daily profit and loss calendar"><div class="pt-ch"><div><div class="pt-ct">${v==='week'?'DAILY P/L HEATMAP':'MONTH CALENDAR'}</div><div class="pt-cs">${sub}</div></div><div class="pt-chips pt-tools pt-calnav">${tools}</div></div>${body}${legend}<div class="pt-drill" id="pt-drill-f">${dp}</div></section>`;
+}
+function _ptDayDrill(m,d){
+  const es=_ptState.entries.filter(e=>e.date===d&&(_ptU.book==='ALL'||e.book===_ptU.book)).sort(_ptCmp),adj=_ptAdjMap(_ptState.entries);
+  const o=m.daily[d];
+  return`<div class="pt-dh"><b>${_PT_DOW[_ptDow(d)]} ${_ptMDY(d).toUpperCase()}</b><span style="color:${_ptCol(o?o.pl:0)}">${o?_ptSigned(o.pl):'$0.00'}</span>${_ptBtn('dayx',null,'✕ CLOSE','pt-b-sm')}</div>${es.length?'<div class="pt-list">'+es.map(e=>_ptRowHTML(e,adj,{})).join('')+'</div>':'<div class="pt-dim">No entries on this day.</div>'}`;
+}
+/** Detail panel for a pinned period: its entries (respecting the book filter) and totals. */
+function _ptDrillHTML(key){
+  const m=_ptModelCache;if(!m)return'';
+  const v=m.view,p=m.full.find(x=>x.key===key);if(!p)return'';
+  const es=_ptState.entries.filter(e=>e.date>=p.start&&e.date<=p.end&&(_ptU.book==='ALL'||e.book===_ptU.book)).sort(_ptCmp),adj=_ptAdjMap(_ptState.entries);
+  const show=es.slice(0,40);
+  return`<div class="pt-dh"><b>${_ptLabelLong(key,v)}</b><span style="color:${_ptCol(p.profit)}">${_ptSigned(p.profit)}</span><span class="pt-dim">ROI ${_ptPctS(p.roi)}${p.staked>0?' · YIELD '+_ptPctS(p.yld):''} · ${es.length} ENTR${es.length===1?'Y':'IES'}</span>${_ptBtn('pinx',null,'✕ CLOSE','pt-b-sm')}</div>${show.length?'<div class="pt-list">'+show.map(e=>_ptRowHTML(e,adj,{})).join('')+'</div>':'<div class="pt-dim">No entries in this period.</div>'}${es.length>show.length?`<div class="pt-dim pt-mt">+ ${es.length-show.length} more — see the ENTRIES tab</div>`:''}`;
+}
+function _ptApplyPin(){
+  Object.keys(_ptReg).forEach(id=>{
+    const r=_ptReg[id],host=document.querySelector('.pt-chart[data-ptid="'+id+'"]');if(!host)return;
+    const pb=host.querySelector('.pt-pinband'),i=_ptU.pin?r.keys.indexOf(_ptU.pin.key):-1;
+    if(pb){if(i>=0){pb.setAttribute('x',(r.F.m.l+i*r.F.band).toFixed(1));pb.setAttribute('width',r.F.band.toFixed(1));pb.removeAttribute('display');}else pb.setAttribute('display','none');}
+    const dr=document.getElementById('pt-drill-'+id);
+    if(dr)dr.innerHTML=(_ptU.pin&&_ptU.pin.chart===id&&i>=0)?_ptDrillHTML(_ptU.pin.key):'';
+  });
+}
+
+// ═══ ENTRIES TAB: list / filter / edit / delete (undo) / CSV / backup / restore / delete all ══════════════════════════════════════════════
+function _ptRenderEntries(){
+  const el=document.getElementById('pt-ent');if(!el)return;
+  const books=_ptBookList(),lf=_ptU.lf,all=_ptState.entries;
+  const list=all.filter(e=>(lf.book==='ALL'||e.book===lf.book)&&(lf.type==='ALL'||e.type===lf.type)).sort((a,b)=>_ptCmp(b,a));
+  const adj=_ptAdjMap(all),shown=list.slice(0,_ptU.lim);
+  const rows=shown.map(e=>_ptU.editId===e.id&&_ptU.ef?`<div class="pt-r pt-edit" data-id="${_ptEsc(e.id)}">${_ptFormHTML('e',_ptU.ef)}</div>`:_ptRowHTML(e,adj,{actions:true})).join('');
+  const del=_ptU.confirmAll
+    ?`<div class="pt-confirm" role="alertdialog" aria-label="Confirm delete all"><span class="pt-confirm-t">DELETE ALL ${all.length} ENTRIES? This clears the ledger on this device (and on your other devices the next time they sync). You get an UNDO.</span>${_ptBtn('delallyes',null,'YES, DELETE ALL','pt-b-sm pt-b-del')}${_ptBtn('delallno',null,'CANCEL','pt-b-sm')}</div>`
+    :_ptBtn('delall',null,'DELETE ALL','pt-b-sm pt-b-del',all.length?'':' disabled');
+  el.innerHTML=`<div class="pt-card pt-ctl">
+    <div class="pt-ch"><div><div class="pt-ct">ENTRIES</div><div class="pt-cs">${list.length===all.length?all.length+' TOTAL':list.length+' OF '+all.length+' SHOWN'} · NEWEST FIRST · BALANCE SNAPSHOTS ARE APPLIED END OF DAY</div></div></div>
+    <div class="pt-fr"><span class="pt-l">BOOK</span><div class="pt-chips" role="group" aria-label="Filter entries by book">${_ptChip('lbook','ALL','ALL',lf.book==='ALL','#00f0ff')}${books.map(b=>_ptChip('lbook',b,_ptEsc(b),lf.book===b,_ptBookCol(b))).join('')}</div></div>
+    <div class="pt-fr"><span class="pt-l">TYPE</span><div class="pt-chips" role="group" aria-label="Filter entries by type">${_ptChip('ltype','ALL','ALL',lf.type==='ALL','#00f0ff')}${_PT_TYPES.map(t=>_ptChip('ltype',t,_PT_TLBL[t],lf.type===t,_PT_TCOL[t])).join('')}</div></div>
+  </div>
+  <div class="pt-card">
+    ${all.length?`<div class="pt-list">${rows||'<div class="pt-dim">No entries match these filters.</div>'}</div>`:_ptEmptyBody('No entries yet.',_ptBtn('focusadd',null,'ADD YOUR FIRST DEPOSIT','pt-b-main'))}
+    ${list.length>shown.length?`<div class="pt-more">${_ptBtn('more',null,'SHOW 60 MORE ('+(list.length-shown.length)+' LEFT)','pt-b-sec')}</div>`:''}
+  </div>
+  <div class="pt-card pt-data">
+    <div class="pt-ct">DATA</div><div class="pt-cs">EXPORT, BACK UP OR RESTORE YOUR LEDGER · NOTHING HERE IS SENT ANYWHERE UNLESS YOU TURN ON SYNC</div>
+    <div class="pt-chips pt-datab">${_ptBtn('csv',null,'EXPORT CSV','pt-b-sec')}${_ptBtn('backup',null,'BACKUP (JSON)','pt-b-sec')}${_ptBtn('restore',null,'RESTORE (MERGE JSON)','pt-b-sec')}<input type="file" id="pt-file" accept=".json,application/json" hidden aria-label="Choose a backup file to restore">${del}</div>
+    <div class="pt-note">RESTORE merges a backup into what you already have (newest edit wins, deletions in the backup are honoured). It never wipes your current entries.</div>
+  </div>`;
+}
+function _ptStartEdit(id){
+  const e=_ptFind(id);if(!e)return;
+  _ptU.editId=id;_ptU.ef={type:e.type,book:e.book,date:e.date,amount:String(Math.abs(e.amount)),stake:e.stake?String(e.stake):'',note:e.note||'',sign:e.amount<0?-1:1};
+  _ptRenderEntries();_ptFormSync('e');
+  const a=document.getElementById('pt-e-amount');if(a)a.focus({preventScroll:false});
+}
+function _ptDownload(name,text,mime){
+  try{
+    const b=new Blob([text],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');
+    a.href=u;a.download=name;a.style.display='none';document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},1500);
+    return true;
+  }catch(e){return false;}
+}
+function _ptStamp(){return _ptToday().replace(/-/g,'');}
+function _ptDoImport(file){
+  if(!file)return;
+  const fr=new FileReader();
+  fr.onerror=()=>_ptToast('COULD NOT READ THAT FILE',{col:'#ff2090'});
+  fr.onload=()=>{
+    let obj;try{obj=JSON.parse(fr.result);}catch(e){_ptToast('NOT A VALID JSON BACKUP',{col:'#ff2090'});return;}
+    const r=_ptImportObj(obj);
+    if(!r){_ptToast('THAT FILE HAS NO ENTRIES LIST',{col:'#ff2090'});return;}
+    _ptSave();_ptRefreshAll();_ptQueueSync();
+    _ptToast('RESTORED — '+r.added+' NEW, '+r.updated+' UPDATED'+(r.skipped?', '+r.skipped+' SKIPPED':''),{col:'#00e644'});
+  };
+  fr.readAsText(file);
+}
+
+// ═══ DELEGATED EVENTS (bound ONCE on #sp-profit; innerHTML swaps never lose them) ═══════════════════════════════════════════════════════
+function _ptChartOf(el){return el&&el.closest?el.closest('.pt-chart'):null;}
+function _ptIdxAt(host,clientX){
+  const r=_ptReg[host.dataset.ptid];if(!r)return-1;
+  const b=host.querySelector('svg').getBoundingClientRect();
+  return r.F.idx((clientX-b.left)*r.F.W/b.width);
+}
+function _ptCursor(host,i){
+  const r=_ptReg[host.dataset.ptid],g=host.querySelector('.pt-cur');if(!r||!g)return;
+  if(i==null||i<0){g.style.display='none';return;}
+  const F=r.F;g.style.display='';
+  const b=g.querySelector('.pt-curb');b.setAttribute('x',(F.m.l+i*F.band).toFixed(1));b.setAttribute('width',F.band.toFixed(1));
+  const l=g.querySelector('.pt-curl');l.setAttribute('x1',F.x(i).toFixed(1));l.setAttribute('x2',F.x(i).toFixed(1));
+  const pts=r.dots?r.dots(i):[];
+  g.querySelectorAll('.pt-curd').forEach((d,j)=>{const p=pts[j];if(p&&p.y!=null){d.removeAttribute('display');d.setAttribute('cx',F.x(i).toFixed(1));d.setAttribute('cy',p.y.toFixed(1));d.setAttribute('stroke',p.c);}else d.setAttribute('display','none');});
+}
+function _ptShowAt(host,i,cx,cy,focus){
+  const r=_ptReg[host.dataset.ptid];if(!r||i<0||i>=r.keys.length)return;
+  _ptU.cur[host.dataset.ptid]=i;_ptCursor(host,i);
+  if(focus){const b=host.querySelector('svg').getBoundingClientRect();cx=b.left+r.F.x(i)*b.width/r.F.W;cy=b.top+r.F.m.t*b.height/r.F.H+14;}
+  _ptTipShow(r.tip(i),cx,cy,focus?4:14);
+}
+function _ptLeave(){
+  if(_ptHot){if(_ptHot.classList&&_ptHot.classList.contains('pt-chart'))_ptCursor(_ptHot,null);}
+  _ptHot=null;_ptTipHide();
+}
+function _ptHeatTip(d){
+  const m=_ptModelCache;if(!m)return'';
+  const rs=m.rows.filter(r=>r.date===d),pl=rs.reduce((s,r)=>s+r.pl,0),dep=rs.reduce((s,r)=>s+r.dep,0),wd=rs.reduce((s,r)=>s+r.wd,0);
+  const rows=[['P/L',_ptSigned(_ptRound(pl)),_ptCol(pl)]];
+  if(dep>0)rows.push(['DEPOSITED','+'+_ptMoney(dep),'#00f0ff']);
+  if(wd>0)rows.push(['WITHDRAWN',_PT_MINUS+_ptMoney(wd),'#ff7700']);
+  rows.push(['ENTRIES',String(rs.length)]);
+  return _ptTipRows(_PT_DOW[_ptDow(d)]+' · '+_ptMDY(d).toUpperCase(),rows,_ptCol(pl));
+}
+function _ptMoveNow(){
+  _ptRaf=0;const mv=_ptLastMove;if(!mv)return;
+  if(mv.t!==_ptHot){if(_ptHot&&_ptHot.classList.contains('pt-chart'))_ptCursor(_ptHot,null);_ptHot=mv.t;if(!mv.t)_ptTipHide();}
+  if(!mv.t)return;
+  if(mv.t.classList.contains('pt-chart')){const i=_ptIdxAt(mv.t,mv.x);_ptShowAt(mv.t,i,mv.x,mv.y,false);}
+  else if(mv.t.dataset.ptd)_ptTipShow(_ptHeatTip(mv.t.dataset.ptd),mv.x,mv.y,14);
+}
+function _ptTargetOf(el){return el&&el.closest?(el.closest('.pt-chart')||el.closest('[data-ptd]')):null;}
+function _ptOnMove(e){
+  if(e.pointerType==='touch'&&!_ptChartOf(e.target))return;
+  _ptLastMove={t:_ptTargetOf(e.target),x:e.clientX,y:e.clientY};
+  if(!_ptRaf)_ptRaf=requestAnimationFrame(_ptMoveNow);
+}
+function _ptOnDown(e){
+  const t=_ptTargetOf(e.target);
+  if(!t){_ptLeave();return;}
+  _ptHot=t;
+  if(t.classList.contains('pt-chart'))_ptShowAt(t,_ptIdxAt(t,e.clientX),e.clientX,e.clientY,false);
+  else _ptTipShow(_ptHeatTip(t.dataset.ptd),e.clientX,e.clientY,14);
+}
+function _ptPinAt(host,i){
+  const r=_ptReg[host.dataset.ptid];if(!r||i<0||i>=r.keys.length)return;
+  const key=r.keys[i],id=host.dataset.ptid;
+  if(_ptU.pin&&_ptU.pin.key===key&&_ptU.pin.chart===id)_ptU.pin=null;else _ptU.pin={chart:id,key};
+  if(_ptU.view==='month'&&_ptU.pin){_ptU.calM=key;_ptRerenderHeat();}
+  _ptApplyPin();
+}
+function _ptRerenderHeat(){
+  const m=_ptModelCache,old=document.getElementById('pt-c-f');if(!m||!old)return;
+  const f=document.activeElement&&document.activeElement.dataset&&document.activeElement.dataset.ptd;
+  old.outerHTML=_ptHeatCard(m,_ptChartW());
+  if(f){const n=document.querySelector('.pt-hc[data-ptd="'+f+'"]');if(n)n.focus({preventScroll:true});}
+}
+function _ptRefocus(sel){if(sel){const n=document.querySelector(sel);if(n)n.focus({preventScroll:true});}}
+function _ptAct(a,e){
+  const act=a.dataset.ptact,v=a.dataset.v,ns=a.dataset.ns;
+  const sel='[data-ptact="'+act+'"]'+(v!=null?'[data-v="'+String(v).replace(/"/g,'\\"')+'"]':'');
+  _ptTipHide();
+  switch(act){
+    case'ftype':{const f=_ptReadForm(ns);if(f){f.type=v;_ptFormSync(ns);}break;}
+    case'fbook':{const f=_ptReadForm(ns);if(f){f.book=v;_ptFormSync(ns);}break;}
+    case'fsign':{const f=_ptReadForm(ns);if(f){f.sign=+v<0?-1:1;_ptFormSync(ns);}break;}
+    case'today':{const f=_ptReadForm(ns);if(f){f.date=_ptToday();const el=document.getElementById('pt-'+ns+'-date');if(el)el.value=f.date;_ptFormSync(ns);}break;}
+    case'newbook':{_ptReadForm('q');_ptU.newBook=!_ptU.newBook;_ptRenderAdd();if(_ptU.newBook){const n=document.getElementById('pt-nb-name');if(n)n.focus();}break;}
+    case'addbook':_ptAddBook();break;
+    case'add':_ptSubmit('q');break;
+    case'repeat':_ptRepeatLast();break;
+    case'esave':_ptSubmit('e');break;
+    case'ecancel':_ptU.editId=null;_ptU.ef=null;_ptRenderEntries();break;
+    case'view':_ptU.view=v;_ptU.pin=null;_ptU.anim=true;_ptRenderDash();_ptRefocus(sel);break;
+    case'bookf':_ptU.book=v;_ptU.pin=null;_ptRenderDash();_ptRefocus(sel);break;
+    case'rng':_ptU.rng[_ptU.view]=v;_ptU.pin=null;_ptU.anim=true;_ptRenderDash();_ptRefocus(sel);break;
+    case'tgl':_ptU[v]=!_ptU[v];_ptRenderCharts(_ptModelCache||_ptModel());_ptRefocus(sel);break;
+    case'roimode':if(a.disabled)break;_ptU.roiMode=v;_ptRenderCharts(_ptModelCache);_ptRefocus(sel);break;
+    case'brk':_ptU.brk=v;_ptU.anim=true;_ptRenderCharts(_ptModelCache);_ptRefocus(sel);break;
+    case'hidebook':{const vis=_ptModelCache.books.filter(b=>!_ptU.hide[b]);if(!_ptU.hide[v]&&vis.length<=1){_ptToast('KEEP AT LEAST ONE BOOK VISIBLE',{col:'#ffdd00'});break;}_ptU.hide[v]=!_ptU.hide[v];_ptRenderCharts(_ptModelCache);_ptRefocus(sel);break;}
+    case'pinx':_ptU.pin=null;_ptApplyPin();break;
+    case'day':_ptU.dayPin=_ptU.dayPin===v?null:v;_ptRerenderHeat();break;
+    case'dayx':_ptU.dayPin=null;_ptRerenderHeat();break;
+    case'calprev':_ptU.calM=_ptPrevKey(_ptU.calM||_ptToday().slice(0,7),'month');_ptU.dayPin=null;_ptRerenderHeat();break;
+    case'calnext':{const c=_ptNextKey(_ptU.calM||_ptToday().slice(0,7),'month');if(c<=_ptToday().slice(0,7)){_ptU.calM=c;_ptU.dayPin=null;_ptRerenderHeat();}break;}
+    case'focusadd':{
+      if(_ptU.sub!=='dash'){setSub('profit','dash');_ptU.sub='dash';renderProfit();}
+      const el=document.getElementById('pt-add');if(el)el.scrollIntoView({behavior:_ptReduced()?'auto':'smooth',block:'start'});
+      const n=document.getElementById('pt-q-amount');if(n)setTimeout(()=>n.focus({preventScroll:true}),250);break;}
+    case'syncnow':_ptSync(true);break;
+    case'syncchip':
+      if(_ptSy.state==='err'||_ptKey())_ptSync(true);
+      else _ptToast('LOCAL ONLY — tap SYNC NOW and enter your owner key to link your devices',{col:'#00f0ff'});
+      break;
+    case'lbook':_ptU.lf.book=v;_ptU.lim=60;_ptRenderEntries();_ptRefocus(sel);break;
+    case'ltype':_ptU.lf.type=v;_ptU.lim=60;_ptRenderEntries();_ptRefocus(sel);break;
+    case'more':_ptU.lim+=60;_ptRenderEntries();break;
+    case'edit':_ptStartEdit(v);break;
+    case'del':{
+      const old=_ptDeleteEntry(v);if(!old)break;
+      _ptSave();_ptRefreshAll();_ptQueueSync();
+      _ptToast('DELETED '+_PT_TLBL[old.type]+' '+(old.type==='PROFIT_LOSS'?_ptSigned(old.amount):_ptMoney(old.amount))+' · '+old.book.toUpperCase(),{col:'#ff2090',undo:()=>{_ptRestoreEntry(old);_ptSave();_ptU.hl=old.id;_ptRefreshAll();_ptQueueSync();}});
+      break;}
+    case'csv':{
+      if(!_ptState.entries.length){_ptToast('NOTHING TO EXPORT YET',{col:'#ffdd00'});break;}
+      _ptDownload('clairvoyance-profit-'+_ptStamp()+'.csv',_ptCsv(_ptState.entries),'text/csv;charset=utf-8');_ptToast('CSV EXPORTED — '+_ptState.entries.length+' ENTRIES',{col:'#00f0ff'});break;}
+    case'backup':
+      _ptDownload('clairvoyance-profit-backup-'+_ptStamp()+'.json',JSON.stringify(_ptBackupObj(),null,1),'application/json');_ptToast('BACKUP SAVED — KEEP THE FILE SOMEWHERE SAFE',{col:'#00f0ff'});break;
+    case'restore':{const f=document.getElementById('pt-file');if(f){f.value='';f.click();}break;}
+    case'delall':_ptU.confirmAll=true;_ptRenderEntries();_ptRefocus('[data-ptact="delallno"]');break;
+    case'delallno':_ptU.confirmAll=false;_ptRenderEntries();break;
+    case'delallyes':{
+      const gone=_ptDeleteAll();_ptU.confirmAll=false;_ptSave();_ptRefreshAll();_ptQueueSync();
+      _ptToast('DELETED ALL '+gone.length+' ENTRIES',{col:'#ff2090',undo:()=>{gone.forEach(g=>_ptRestoreEntry(g));_ptSave();_ptRefreshAll();_ptQueueSync();}});
+      break;}
+  }
+}
+function _ptOnClick(e){
+  const a=e.target.closest&&e.target.closest('[data-ptact]');
+  if(a){if(a.disabled)return;_ptAct(a,e);return;}
+  const ch=_ptChartOf(e.target);
+  if(ch&&ch.dataset.ptid){_ptPinAt(ch,_ptIdxAt(ch,e.clientX));}
+}
+function _ptOnInput(e){
+  const el=e.target,ns=el.closest&&el.closest('.pt-form')?el.closest('.pt-form').dataset.ns:null;
+  if(!ns||!el.dataset.f)return;
+  const f=ns==='q'?_ptU.f:_ptU.ef;if(!f)return;
+  f[el.dataset.f]=el.value;
+  if(el.dataset.f==='amount'&&/^\s*[-−]/.test(el.value)&&f.type==='PROFIT_LOSS'&&f.sign>=0){f.sign=-1;_ptFormSync(ns);}   // typing a minus sign flips WIN to LOSS
+  if(el.dataset.f==='date'){_ptFormSync(ns);}
+  if(el.getAttribute('aria-invalid')==='true')el.setAttribute('aria-invalid','false');
+}
+function _ptOnChange(e){
+  if(e.target&&e.target.id==='pt-file'){_ptDoImport(e.target.files&&e.target.files[0]);return;}
+  if(e.target&&e.target.dataset&&e.target.dataset.f==='date'){_ptOnInput(e);}
+}
+function _ptHeatNav(el,key){
+  const d=el.dataset.ptd,mo=_ptU.view==='month';
+  const step=(mo?{ArrowLeft:-1,ArrowRight:1,ArrowUp:-7,ArrowDown:7}:{ArrowLeft:-7,ArrowRight:7,ArrowUp:-1,ArrowDown:1})[key];
+  const n=document.querySelector('.pt-hc[data-ptd="'+_ptAddDays(d,step)+'"]');
+  if(n){n.focus();return true;}
+  return false;
+}
+function _ptOnKey(e){
+  const t=e.target;
+  if(e.key==='Escape'){
+    _ptLeave();
+    if(t.closest&&t.closest('.pt-edit')){_ptU.editId=null;_ptU.ef=null;_ptRenderEntries();return;}
+    if(_ptU.pin){_ptU.pin=null;_ptApplyPin();}
+    return;
+  }
+  const hc=t.closest&&t.closest('.pt-hc[data-ptd]');
+  if(hc&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].indexOf(e.key)>=0){if(_ptHeatNav(hc,e.key))e.preventDefault();return;}
+  const ch=t.classList&&t.classList.contains('pt-chart')?t:null;
+  if(ch){
+    const r=_ptReg[ch.dataset.ptid];if(!r)return;
+    let i=_ptU.cur[ch.dataset.ptid];if(i==null||i>=r.keys.length)i=r.keys.length-1;
+    if(e.key==='ArrowLeft')i=Math.max(0,i-1);else if(e.key==='ArrowRight')i=Math.min(r.keys.length-1,i+1);
+    else if(e.key==='Home')i=0;else if(e.key==='End')i=r.keys.length-1;
+    else if(e.key==='Enter'||e.key===' '){_ptPinAt(ch,i);e.preventDefault();return;}
+    else return;
+    _ptHot=ch;_ptShowAt(ch,i,0,0,true);e.preventDefault();return;
+  }
+  if(e.key==='Enter'&&t.tagName==='INPUT'&&t.closest&&t.closest('.pt-form')){
+    e.preventDefault();
+    if(t.id==='pt-nb-name'){_ptAddBook();return;}
+    _ptSubmit(t.closest('.pt-form').dataset.ns);
+  }
+}
+function _ptOnFocus(e){
+  const el=e.target;
+  if(el.classList&&el.classList.contains('pt-chart')&&el.matches(':focus-visible')){
+    const r=_ptReg[el.dataset.ptid];if(!r)return;
+    let i=_ptU.cur[el.dataset.ptid];if(i==null||i>=r.keys.length)i=r.keys.length-1;
+    _ptHot=el;_ptShowAt(el,i,0,0,true);
+  }else if(el.dataset&&el.dataset.ptd&&el.matches(':focus-visible')){
+    const b=el.getBoundingClientRect();_ptHot=el;_ptTipShow(_ptHeatTip(el.dataset.ptd),b.left+b.width/2,b.top,4);
+  }
+}
+function _ptBind(){
+  if(_ptBound)return;
+  const root=document.getElementById('sp-profit');if(!root)return;
+  _ptBound=true;
+  root.addEventListener('click',_ptOnClick);
+  root.addEventListener('input',_ptOnInput);
+  root.addEventListener('change',_ptOnChange);
+  root.addEventListener('keydown',_ptOnKey);
+  root.addEventListener('pointermove',_ptOnMove);
+  root.addEventListener('pointerdown',_ptOnDown);
+  root.addEventListener('pointerleave',e=>{if(e.pointerType==='touch')return;_ptLastMove=null;_ptLeave();});
+  root.addEventListener('focusin',_ptOnFocus);
+  root.addEventListener('focusout',e=>{if(e.target.classList&&(e.target.classList.contains('pt-chart')||e.target.dataset.ptd)){_ptLeave();}});
+  document.addEventListener('pointerdown',e=>{if(!(e.target.closest&&e.target.closest('#sp-profit')))_ptTipHide();});
+  document.addEventListener('scroll',_ptTipHide,true);
+  window.addEventListener('resize',()=>{
+    clearTimeout(_ptResizeT);
+    _ptResizeT=setTimeout(()=>{
+      const el=document.getElementById('pt-charts');
+      if(!_ptIsVisible()||_ptU.sub!=='dash'||!el||!el.offsetParent||!_ptModelCache)return;
+      const w=_ptChartW();if(_ptReg.a&&Math.abs(w-_ptReg.a.F.W)<16&&Math.abs(w-(_ptReg.b?_ptReg.b.F.W:w))<16)return;
+      _ptU.anim=false;_ptRenderDash();
+    },200);
+  });
+  window.addEventListener('storage',e=>{                              // another tab of this browser changed the ledger
+    if(e.key!==_PT_KEY)return;
+    _ptLoaded=false;_ptLoad();if(_ptIsVisible())_ptRefreshAll();
+  });
+}
+
+</script>
+<!-- PT-CODE:END -->
+
 </div><!-- /app -->
 
 <!-- Fixed-position nav dropdowns — at body level, outside #app flex column -->
@@ -32455,6 +33928,13 @@ window._clvScanAllSports=_clvScanAllSports;
   <button onclick="SS('analytics');setSub('analytics','visuals');renderAnalyticsVisuals();hideAllND()">Visuals</button>
   <button onclick="SS('analytics');setSub('analytics','adjlines');renderAnalyticsAdjLines();hideAllND()">Adj. Lines</button>
 </div>
+
+<!-- PT-NAVD:BEGIN -->
+<div id="navd-profit" class="nav-drop-fixed" onmouseenter="cancelHideND()" onmouseleave="startHideND()">
+  <button onclick="_ptSubTo('dash');SS('profit');setSub('profit','dash');renderProfit();hideAllND()">Tracker</button>
+  <button onclick="_ptSubTo('entries');SS('profit');setSub('profit','entries');renderProfit();hideAllND()">Entries</button>
+</div>
+<!-- PT-NAVD:END -->
 
 </body>
 

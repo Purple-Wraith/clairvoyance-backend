@@ -1,6 +1,6 @@
 // node scheduler/test_scheduler.mjs -- offline: slot matching, weekday filters, dedupe, dispatch, failure reporting (GitHub API faked)
 import assert from "node:assert/strict";
-import { dueWorkflows, dueEntries, runTick, SCHEDULE, TICK_MIN, handleTrigger, safeEqual, TRIGGERS, ALLOWED_ORIGINS, sweepsDue, KICKOFFS_URL, SWEEP_LEAD_MIN } from "./worker.js";
+import worker, { dueWorkflows, dueEntries, runTick, SCHEDULE, TICK_MIN, handleTrigger, handleProfit, safeEqual, TRIGGERS, ALLOWED_ORIGINS, sweepsDue, KICKOFFS_URL, SWEEP_LEAD_MIN } from "./worker.js";
 import { readFileSync, readdirSync } from "node:fs";
 
 const at = (iso) => Date.parse(iso);
@@ -156,4 +156,90 @@ assert.deepEqual(await runTick({ GH_TOKEN: "t" }, at("2026-10-10T10:50:30Z"), kg
 kg = kickoffGitHub(starts);
 await runTick({}, at("2026-10-10T10:50:30Z"), kg.fetchImpl);
 assert.equal(kg.calls.length, 0);
+// ── owner profit-tracker sync (GET / PUT /profit, KV binding PROFIT) ──
+const fakeKV = () => { const m = new Map(); return { m, get: async (k, t) => (m.has(k) ? (t === "json" ? JSON.parse(m.get(k)) : m.get(k)) : null), put: async (k, v) => { m.set(k, v); } }; };
+const preq = (method, { key, body, origin = "https://clairvoyanceengine.info", raw } = {}) =>
+  new Request("https://w.example/profit", { method, headers: { origin, ...(key ? { "x-owner-key": key } : {}), ...(body || raw ? { "content-type": "application/json" } : {}) }, body: raw ?? (body ? JSON.stringify(body) : undefined) });
+const penv = () => ({ TRIGGER_KEY: env.TRIGGER_KEY, PROFIT: fakeKV() });
+const E1 = { id: "a1", ts: 1000, date: "2026-10-05", type: "DEPOSIT", book: "DraftKings", amount: 100 };
+const E2 = { id: "a2", ts: 2000, date: "2026-10-06", type: "PROFIT_LOSS", book: "Hard Rock", amount: -12.5, stake: 25 };
+let pe = penv();
+r = await handleProfit(preq("GET", { key: "wrong" }), pe, nosleep);
+assert.equal(r.status, 401);                                                                          // wrong key
+r = await handleProfit(preq("GET"), pe, nosleep);
+assert.equal(r.status, 401);                                                                          // no key at all
+r = await handleProfit(preq("GET", { key: env.TRIGGER_KEY }), { TRIGGER_KEY: env.TRIGGER_KEY }, nosleep);
+assert.equal(r.status, 503);
+assert.deepEqual(await r.json(), { error: "sync not configured" });                                    // KV namespace not bound yet
+r = await handleProfit(preq("PUT", { key: env.TRIGGER_KEY, body: { entries: [], tombstones: [], baseRev: 0 } }), { TRIGGER_KEY: env.TRIGGER_KEY }, nosleep);
+assert.equal(r.status, 503);
+r = await handleProfit(preq("GET", { key: env.TRIGGER_KEY }), { PROFIT: fakeKV() }, nosleep);
+assert.equal(r.status, 503);                                                                          // TRIGGER_KEY secret missing -> never "open"
+r = await handleProfit(preq("GET", { key: env.TRIGGER_KEY }), pe, nosleep);
+assert.equal(r.status, 200);
+assert.deepEqual(await r.json(), { entries: [], tombstones: [], rev: 0 });                            // empty store
+// round trip
+r = await handleProfit(preq("PUT", { key: env.TRIGGER_KEY, body: { entries: [E1, E2], tombstones: [{ id: "gone", ts: 5 }], baseRev: 0 } }), pe, nosleep);
+assert.equal(r.status, 200);
+let stored = await r.json();
+assert.equal(stored.rev, 1);
+assert.deepEqual(stored.entries, [E1, E2]);
+assert.deepEqual(stored.tombstones, [{ id: "gone", ts: 5 }]);
+r = await handleProfit(preq("GET", { key: env.TRIGGER_KEY }), pe, nosleep);
+const got = await r.json();
+assert.deepEqual([got.rev, got.entries, got.tombstones], [1, [E1, E2], [{ id: "gone", ts: 5 }]]);
+assert.equal(r.headers.get("cache-control"), "no-store");
+assert.equal(pe.PROFIT.m.size, 1, "exactly ONE blob in KV");
+// stale baseRev -> 409 carrying the stored blob, nothing overwritten; the right baseRev bumps the rev again
+r = await handleProfit(preq("PUT", { key: env.TRIGGER_KEY, body: { entries: [E1], tombstones: [], baseRev: 0 } }), pe, nosleep);
+assert.equal(r.status, 409);
+const conflict = await r.json();
+assert.equal(conflict.rev, 1);
+assert.deepEqual(conflict.entries, [E1, E2]);
+assert.equal(JSON.parse(pe.PROFIT.m.get("ledger")).entries.length, 2);
+r = await handleProfit(preq("PUT", { key: env.TRIGGER_KEY, body: { entries: [E1], tombstones: [], baseRev: 1 } }), pe, nosleep);
+assert.equal(r.status, 200);
+assert.equal((await r.json()).rev, 2);
+// wrong key on PUT never writes; junk bodies are 400/413
+const before = pe.PROFIT.m.get("ledger");
+r = await handleProfit(preq("PUT", { key: "nope", body: { entries: [E2], tombstones: [], baseRev: 2 } }), pe, nosleep);
+assert.equal(r.status, 401);
+assert.equal(pe.PROFIT.m.get("ledger"), before);
+for (const bad of [{ entries: "x", tombstones: [], baseRev: 2 }, { entries: [{ ts: 1 }], tombstones: [], baseRev: 2 }, { entries: [], tombstones: [], baseRev: "2" }, { entries: [], tombstones: [], baseRev: -1 }, null]) {
+  r = await handleProfit(preq("PUT", { key: env.TRIGGER_KEY, body: bad, raw: bad === null ? "not json" : undefined }), pe, nosleep);
+  assert.equal(r.status, 400, JSON.stringify(bad));
+}
+r = await handleProfit(preq("PUT", { key: env.TRIGGER_KEY, raw: JSON.stringify({ entries: [{ id: "x", ts: 1, note: "y".repeat(2_100_000) }], tombstones: [], baseRev: 2 }) }), pe, nosleep);
+assert.equal(r.status, 413);
+assert.equal(pe.PROFIT.m.get("ledger"), before);
+r = await handleProfit(preq("POST", { key: env.TRIGGER_KEY, body: {} }), pe, nosleep);
+assert.equal(r.status, 405);
+r = await handleProfit(preq("DELETE", { key: env.TRIGGER_KEY }), pe, nosleep);
+assert.equal(r.status, 405);
+// CORS: the browser preflight for GET/PUT with the x-owner-key header is answered for every allowed origin, and ONLY for them
+for (const o of ALLOWED_ORIGINS) {
+  r = await handleProfit(preq("OPTIONS", { origin: o }), pe, nosleep);
+  assert.equal(r.status, 204);
+  assert.equal(r.headers.get("access-control-allow-origin"), o);
+  assert.match(r.headers.get("access-control-allow-headers"), /x-owner-key/i);
+  assert.match(r.headers.get("access-control-allow-headers"), /content-type/i);
+  assert.match(r.headers.get("access-control-allow-methods"), /\bGET\b/);
+  assert.match(r.headers.get("access-control-allow-methods"), /\bPUT\b/);
+}
+for (const o of ["https://evil.example", "https://clairvoyanceengine.info.evil.example", "null", ""]) {
+  for (const m of ["OPTIONS", "GET", "PUT"]) {
+    r = await handleProfit(preq(m, { origin: o, key: m === "OPTIONS" ? undefined : env.TRIGGER_KEY, body: m === "PUT" ? { entries: [], tombstones: [], baseRev: 2 } : undefined }), pe, nosleep);
+    assert.equal(r.headers.get("access-control-allow-origin"), null, `${m} from ${o} must not be reflected`);
+    assert.equal(r.headers.get("access-control-allow-headers"), null);
+  }
+}
+// the old /trigger preflight still works (same corsFor, now also advertising the new header + methods)
+r = await handleTrigger(req({}, { method: "OPTIONS" }), env, ghFake().fetchImpl, nosleep);
+assert.equal(r.status, 204);
+assert.match(r.headers.get("access-control-allow-methods"), /POST/);
+// routing through the Worker's own fetch(): /profit reaches the handler, and an unbound deploy answers 503 instead of crashing
+r = await worker.fetch(new Request("https://w.example/profit", { headers: { origin: "https://clairvoyanceengine.info", "x-owner-key": env.TRIGGER_KEY } }), { TRIGGER_KEY: env.TRIGGER_KEY });
+assert.equal(r.status, 503);
+r = await worker.fetch(new Request("https://w.example/profit", { headers: { "x-owner-key": "bad" } }), { TRIGGER_KEY: env.TRIGGER_KEY, PROFIT: fakeKV() });
+assert.equal(r.status, 401);
 console.log("scheduler OK:", SCHEDULE.length, "workflows + owner trigger");

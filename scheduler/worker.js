@@ -125,7 +125,7 @@ export const TRIGGERS = {
   settle: { wf: "auto-lock-settle.yml", inputs: { mode: "settle", live: "true" }, label: "SETTLE" },
 };
 export const ALLOWED_ORIGINS = ["https://clairvoyanceengine.info", "https://www.clairvoyanceengine.info", "https://purple-wraith.github.io", "http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:8765", "http://127.0.0.1:8765"];
-const corsFor = (origin) => (ALLOWED_ORIGINS.includes(origin) ? { "access-control-allow-origin": origin, "vary": "origin", "access-control-allow-methods": "POST, OPTIONS", "access-control-allow-headers": "content-type" } : { "vary": "origin" });
+const corsFor = (origin) => (ALLOWED_ORIGINS.includes(origin) ? { "access-control-allow-origin": origin, "vary": "origin", "access-control-allow-methods": "GET, PUT, POST, OPTIONS", "access-control-allow-headers": "content-type, x-owner-key" } : { "vary": "origin" });
 const json = (obj, status, extra = {}) => new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json", ...extra } });
 
 /** Constant-time string comparison (equal length or not, the loop runs over the longer one). */
@@ -165,6 +165,38 @@ export async function handleTrigger(request, env, fetchImpl = fetch, sleep = (ms
   }
 }
 
+// ── Owner profit-tracker sync (GET /profit, PUT /profit) ─────────────────────────────────────────────────────────────────────────────
+// The app's PROFIT tab keeps the owner's private bankroll ledger in the browser; this optional route lets phone + desktop share it. ONE JSON blob lives in the Workers KV namespace bound as PROFIT
+// (`npx wrangler kv namespace create PROFIT`, see wrangler.toml). Auth = the same TRIGGER_KEY the header LOCK/SETTLE buttons use, sent as the `x-owner-key` header and compared in constant time.
+// The Worker does NOT merge: the client sends {entries, tombstones, baseRev}; the Worker stores them as rev+1 only when baseRev is the stored rev, otherwise it answers 409 with the stored blob so
+// the client can re-pull, merge (union by id, newest ts wins, tombstones beat older entries) and retry. Nothing here ever touches Supabase or any public file.
+export const PROFIT_KEY = "ledger";
+export const PROFIT_MAX_BYTES = 2_000_000;       // a blob this size is ~10k entries; far beyond real use, small enough to reject junk
+const profitEmpty = () => ({ entries: [], tombstones: [], rev: 0 });
+const profitOk = (a, max) => Array.isArray(a) && a.length <= max && a.every((x) => x && typeof x === "object" && !Array.isArray(x) && typeof x.id === "string" && x.id.length > 0 && x.id.length <= 80 && Number.isFinite(x.ts));
+
+export async function handleProfit(request, env, sleep = (ms) => new Promise((r) => setTimeout(r, ms))) {
+  const cors = { ...corsFor(request.headers.get("origin") || ""), "cache-control": "no-store" };
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+  if (request.method !== "GET" && request.method !== "PUT") return json({ error: "GET or PUT only" }, 405, cors);
+  if (!env.PROFIT || typeof env.PROFIT.get !== "function") return json({ error: "sync not configured" }, 503, cors);
+  if (!env.TRIGGER_KEY) return json({ error: "trigger key not configured on the Worker (wrangler secret put TRIGGER_KEY)" }, 503, cors);
+  if (!safeEqual(request.headers.get("x-owner-key"), env.TRIGGER_KEY)) { await sleep(500); return json({ error: "wrong key" }, 401, cors); }   // the pause slows key guessing
+  let cur;
+  try { cur = (await env.PROFIT.get(PROFIT_KEY, "json")) || profitEmpty(); } catch (e) { return json({ error: "storage read failed" }, 502, cors); }
+  if (request.method === "GET") return json(cur, 200, cors);
+  let text;
+  try { text = await request.text(); } catch { return json({ error: "bad request" }, 400, cors); }
+  if (text.length > PROFIT_MAX_BYTES) return json({ error: "too large" }, 413, cors);
+  let body;
+  try { body = JSON.parse(text); } catch { return json({ error: "bad request" }, 400, cors); }
+  if (!body || !profitOk(body.entries, 20000) || !profitOk(body.tombstones, 40000) || !Number.isInteger(body.baseRev) || body.baseRev < 0) return json({ error: "bad request" }, 400, cors);
+  if (body.baseRev !== (cur.rev || 0)) return json({ ...cur, error: "rev mismatch" }, 409, cors);   // the caller re-pulls (this body IS the stored blob), merges, retries once
+  const next = { entries: body.entries, tombstones: body.tombstones, rev: (cur.rev || 0) + 1, updated: Date.now() };
+  try { await env.PROFIT.put(PROFIT_KEY, JSON.stringify(next)); } catch (e) { return json({ error: "storage write failed" }, 502, cors); }
+  return json(next, 200, cors);
+}
+
 export default {
   async scheduled(event, env, ctx) {
     const results = await runTick(env, event.scheduledTime);
@@ -174,7 +206,9 @@ export default {
   },
   // GET / -> what the next ticks would start (no secrets, no side effects); handy for checking the table.
   async fetch(request, env) {
-    if (new URL(request.url).pathname === "/trigger") return handleTrigger(request, env || {});
+    const path = new URL(request.url).pathname;
+    if (path === "/trigger") return handleTrigger(request, env || {});
+    if (path === "/profit") return handleProfit(request, env || {});
     const now = Date.now();
     const starts = await loadStarts(fetch);
     const kickoffSweeps = [];

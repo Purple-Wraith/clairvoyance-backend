@@ -8,3 +8,12 @@ crons = ["*/10 * * * *"]
 
 # Secret (set once, never committed):  cd scheduler && npx wrangler secret put GH_TOKEN
 #   -> a fine-grained GitHub token for Purple-Wraith/clairvoyance-backend with "Actions: Read and write" and nothing else.
+
+# OPTIONAL cross-device sync for the app's PROFIT tab (GET/PUT /profit, protected by the same TRIGGER_KEY as the header LOCK/SETTLE buttons). The tab works fully offline without it.
+# One-time setup, from this folder:
+#   1) npx wrangler kv namespace create PROFIT        -> prints an id
+#   2) paste that id below and un-comment the block
+#   3) npx wrangler deploy
+# [[kv_namespaces]]
+# binding = "PROFIT"
+# id = "<paste the id printed by step 1>"
