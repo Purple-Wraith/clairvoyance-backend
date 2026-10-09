@@ -266,6 +266,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   html #hdr-automation-status,html #hdr-automation-status-left{font-size:7px!important;gap:2px!important;letter-spacing:0!important}
   html #hdr-automation-status div,html #hdr-automation-status-left div{white-space:nowrap}
   html .hdr-trig{font-size:7px!important;padding:1px 4px!important;letter-spacing:.3px!important}html .hdr-trig-x{display:none}
+  html #live-dot{margin-left:0!important}html .hdr-l{gap:3px!important}   /* the live-game dot (shown while games are in progress) used to push the right-hand chip + SETTLE button 4px off a 390px screen */
   /* Adaptive tab's "Performance Snapshot" row (renderAdaptiveLearning) --
      4 cards each with a 27px hero number, fine at desktop widths but on
      a ~375px phone each card's actual width (~85px in a straight 4-up
@@ -577,7 +578,56 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .hhb{position:absolute;top:3px;right:3px;z-index:2;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.3px;line-height:1;padding:2px 4px;border-radius:2px;background:rgba(255,221,0,.15);border:1px solid var(--gc);color:var(--gc);white-space:nowrap}.brow:has(.hhb)>.chip{padding-top:calc(var(--cpy) + 14px)!important}
 .cgrade{margin:6px calc(-1*var(--cpx)) calc(-1*var(--cpy));margin-top:auto}.cgrade .pill{display:block;width:100%;text-align:center;border-radius:0;padding:5px 4px}
 .hdr-trig{font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:2px 7px;background:rgba(240,0,255,.08);border:1px solid rgba(240,0,255,.5);color:var(--pc);border-radius:2px;cursor:pointer;white-space:nowrap;line-height:1.2}.hdr-trig:hover{background:rgba(240,0,255,.2)}.hdr-trig:disabled{opacity:.5;cursor:wait}
-.cgrade2{display:flex;flex-direction:column;gap:1px}.cgrade .pill.pbx{font-size:12px;letter-spacing:.3px;padding:3px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cgrade2{display:flex;flex-direction:column;gap:1px}
+/* HOME > MOMENTUM widget (interactive) */
+.mom2{padding:10px 12px;margin-top:8px;position:relative;overflow:hidden}.mom-accent{position:absolute;left:0;right:0;top:0;height:2px}
+.mom-top{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.mom-title{font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc)}
+.mom-badge{font-family:var(--orb);font-size:15px;font-weight:900}
+.mom-chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:6px}
+.mom-l{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;color:var(--t3);margin:0 2px 0 6px}.mom-l:first-child{margin-left:0}
+.mom-chip{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);color:var(--t2);border-radius:2px;padding:3px 8px;min-height:26px;cursor:pointer}
+.mom-chip span{font-family:var(--mono);font-size:12px;letter-spacing:1px}
+.mom-chip.on{border-color:var(--nc);color:var(--nc);background:rgba(0,240,255,.1)}
+.mom-chip:focus-visible,.mom-x:focus-visible{outline:1px solid var(--nc)}
+.mom-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}
+@media(max-width:640px){.mom-tiles{grid-template-columns:repeat(2,1fr)}}
+.mom-tile{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.07);border-radius:3px;padding:6px 8px;min-width:0}
+.mom-k{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;color:var(--t3)}
+.mom-v{font-family:var(--orb);font-size:19px;font-weight:700;margin:2px 0}
+.mom-s{font-family:var(--mono);font-size:11px;color:var(--t3);min-height:13px}
+.mom-gauge{display:block;position:relative;height:6px;border-radius:3px;background:linear-gradient(90deg,rgba(255,32,144,.55),rgba(255,255,255,.12) 50%,rgba(0,230,68,.55));margin-top:6px}
+.mom-gauge i{position:absolute;top:-3px;width:3px;height:12px;border-radius:2px;transform:translateX(-50%)}
+.mom-chartwrap{position:relative;min-height:158px}
+.mom-svg{display:block;max-width:100%;touch-action:pan-y;-webkit-tap-highlight-color:transparent}
+.mom-svg:focus-visible{outline:1px solid var(--nc)}
+.mom-gl{stroke:rgba(255,255,255,.07);stroke-width:1}
+.mom-ax{font-family:var(--mono);font-size:10px;fill:#8d97a8}
+.mom-empty{fill:rgba(255,255,255,.12)}
+.mom-bar2{animation:momgrow .5s ease both;animation-delay:var(--d,0ms);transform-box:fill-box;transform-origin:bottom}
+@keyframes momgrow{from{transform:scaleY(0);opacity:0}to{transform:scaleY(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.mom-bar2{animation:none}}
+.mom-base{stroke:var(--gc);stroke-width:1.2;stroke-dasharray:5 4}
+.mom-basel{font-family:var(--mono);font-size:10px;fill:var(--gc)}
+.mom-band{fill:rgba(255,221,0,.07)}
+.mom-zero{stroke:rgba(255,255,255,.25);stroke-width:1}
+.mom-line{stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+.mom-area{opacity:.13}
+.mom-pt{opacity:.9}
+.mom-end{fill:rgba(0,0,0,.6);stroke-width:2}
+.mom-cur{stroke:rgba(0,240,255,.7);stroke-width:1}
+.mom-pin{stroke:var(--gc);stroke-width:1.5}
+.mom-hit{cursor:pointer}
+.mom-tip{display:none;position:absolute;z-index:5;pointer-events:none;background:rgba(4,0,12,.96);border:1px solid var(--pc);border-radius:3px;padding:6px 9px;font-family:var(--mono);font-size:12px;line-height:1.45;color:var(--t);white-space:nowrap}
+.mom-hint{font-family:var(--mono);font-size:10px;color:var(--t3);margin-top:4px;letter-spacing:.4px}
+.mom-panel{margin-top:8px;border:1px solid rgba(255,221,0,.35);border-radius:3px;padding:7px 9px;background:rgba(255,221,0,.04)}
+.mom-pinh{display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;letter-spacing:.8px;color:var(--gc);margin-bottom:5px}
+.mom-x{background:none;border:1px solid rgba(255,255,255,.2);color:var(--t2);border-radius:2px;min-width:26px;min-height:24px;cursor:pointer}.mom-x span{font-size:12px}
+.mom-pr{display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05);font-family:var(--mono);font-size:12px}
+.mom-tag{color:var(--nc);min-width:48px}.mom-pb{flex:1;color:var(--t2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mom-po.w{color:#00e644}.mom-po.l{color:#ff2090}
+.mom-more{font-family:var(--mono);font-size:11px;color:var(--t3);padding-top:4px}
+.cgrade .pill.pbx{font-size:12px;letter-spacing:.3px;padding:3px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cht{font-size:17px;letter-spacing:.5px;font-family:var(--mono);text-transform:uppercase;margin-bottom:2px}.cho{font-family:var(--mono);font-size:25px;font-weight:700}.chp{font-size:18px;margin-top:2px;font-family:var(--mono)}
 .pill{display:inline-block;font-size:16px;font-weight:700;letter-spacing:1px;padding:2px 6px;border-radius:1px;text-transform:uppercase;font-family:var(--mono)}
 .pn{background:var(--nc);color:#0b0612}.pv{background:var(--vc);color:#000}.ph{background:var(--hc);color:#0b0612}.pg{background:linear-gradient(90deg,var(--gc),var(--g2));color:#0b0612}.pi{background:var(--ic);color:#000}.pp{background:var(--pc);color:#0b0612}.pq{background:#39ff14;color:#0b0612}
@@ -19875,6 +19925,211 @@ async function renderTopPicksToday(force,dateStr){
   }
 }
 window.renderTopPicksToday=renderTopPicksToday;
+// ══ HOME > MOMENTUM (interactive, 2026-10-09 owner request) ═══════════════════════════════════════════════════════════════════════════════════════
+// "// MOMENTUM — LAST 7D VS ALL-TIME": is the recent window running hot or cold against the all-time baseline.  The headline numbers keep the ORIGINAL rules so the widget can never disagree with the
+// cards beside it: the window stats use lockedAt >= now - N days (7D = exactly the ROLLING 7D card), the baseline is the all-time win% of the same in-scope picks (_cvScoped), hot/cold = +/-5 points
+// with at least 5 settled bets.  New: window chips (7D / 14D / 30D), metric (WIN % / UNITS), view (DAILY bars / TREND line), sport filter, hover/tap/keyboard tooltips, a baseline line + hot/cold band,
+// and click-to-pin a day to see the picks behind it.  State lives in window._momS (survives the 60 s home re-render); data in window._momData (built by _momBuild from the home page's kept bets).
+window._momS=window._momS||{win:7,metric:'pct',view:'bars',sport:'ALL',pin:null,cur:null};
+const _MOM_SPORTS=['ALL','FOOTBALL','BASKETBALL','HOCKEY','SOCCER'];
+const _MOM_KEEP_DAYS=64;       // enough history for a 30-day rolling window ending 30 days ago
+function _momBuild(kept,nowMs){
+  const cut=nowMs-_MOM_KEEP_DAYS*86400000;
+  const sport=p=>{try{return window._broadSportOf(p._spUC||window._normSport(p))||'OTHER';}catch(e){return'OTHER';}};
+  const allTime={ALL:{w:0,l:0,u:0}};_MOM_SPORTS.forEach(s=>{allTime[s]=allTime[s]||{w:0,l:0,u:0};});
+  const picks=[];
+  kept.forEach(p=>{
+    if(p.outcome!=='win'&&p.outcome!=='loss')return;
+    const dec=parseFloat(p.decOdds)||2,sp=sport(p),u=p.outcome==='win'?dec-1:-1;
+    [allTime.ALL,allTime[sp]].forEach(a=>{if(!a)return;if(p.outcome==='win')a.w++;else a.l++;a.u+=u;});
+    if((p.lockedAt||0)>=cut||(p.date&&Date.parse(p.date+'T12:00:00')>=cut))picks.push({d:p.date||'',lk:p.lockedAt||0,o:p.outcome==='win'?1:0,u,dec,sp,lg:p._spUC||'',bet:p.betOn||'',gm:(p.awA&&p.hA&&p.awA!==p.hA)?p.awA+' @ '+p.hA:(p.hA||'')});
+  });
+  return{now:nowMs,allTime,picks};
+}
+function _momAgg(list){const w=list.reduce((a,p)=>a+p.o,0),n=list.length,l=n-w,u=list.reduce((a,p)=>a+p.u,0);return{w,l,n,pct:n?w/n:null,u};}
+function _momDays(){
+  const D=window._momData,S=window._momS;if(!D)return null;
+  const N=Math.max(14,S.win),pool=S.sport==='ALL'?D.picks:D.picks.filter(p=>p.sp===S.sport);
+  const days=[];
+  for(let i=N-1;i>=0;i--){
+    const ds=new Date(D.now-i*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+    const day=pool.filter(p=>p.d===ds),a=_momAgg(day);
+    days.push({ds,day,n:a.n,w:a.w,l:a.l,pct:a.pct,u:a.u});
+  }
+  // trend view: win% / cumulative units over the trailing S.win game dates ending on each day
+  let cum=0;
+  days.forEach((d,i)=>{
+    cum+=d.u;d.cum=cum;
+    const from=new Date(D.now-(N-1-i)*86400000-(S.win-1)*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+    const win=pool.filter(p=>p.d>=from&&p.d<=d.ds),a=_momAgg(win);d.roll=a;
+  });
+  return{days,pool};
+}
+function _momStatus(win,base){
+  const MIN_N=5,THRESH=0.05;
+  const delta=(win.pct!=null&&base!=null)?win.pct-base:null;
+  if(win.n>=MIN_N&&delta!=null){
+    if(delta>=THRESH)return{arrow:'▲',col:'#00e644',lbl:'RUNNING HOT',delta};
+    if(delta<=-THRESH)return{arrow:'▼',col:'#ff2090',lbl:'RUNNING COLD',delta};
+    return{arrow:'▬',col:'var(--t3)',lbl:'HOLDING STEADY',delta};
+  }
+  return{arrow:'▬',col:'var(--t3)',lbl:win.n>0?`LOW SAMPLE (${win.n} BET${win.n===1?'':'S'})`:'NOT ENOUGH DATA',delta};
+}
+function _momDateLbl(ds){return new Date(ds+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function _momU(u){return(u>=0?'+':'')+u.toFixed(1)+'u';}
+function _momChip(grp,val,label,on){return`<button type="button" class="mom-chip${on?' on':''}" data-mom="${grp}:${val}" aria-pressed="${on?'true':'false'}"><span>${label}</span></button>`;}
+function _momChartSVG(days,base,W,S,col){
+  const H=158,ml=34,mr=8,mt=10,mb=22,iw=Math.max(60,W-ml-mr),ih=H-mt-mb,N=days.length,cw=iw/N;
+  const pct=S.metric==='pct';
+  const X=i=>ml+cw*i+cw/2;
+  let y0,yMin,yMax,ticks;
+  if(pct&&S.view==='line'){   // trend: zoom the y-axis around the baseline so small drifts are visible
+    const vs=days.map(d=>d.roll.n>=3?d.roll.pct:null).filter(v=>v!=null).concat(base!=null?[base-.06,base+.06]:[.45,.75]);
+    yMin=Math.max(0,Math.floor((Math.min(...vs)-.03)*20)/20);yMax=Math.min(1,Math.ceil((Math.max(...vs)+.03)*20)/20);
+    if(yMax-yMin<.2){const c=(yMax+yMin)/2;yMin=Math.max(0,c-.1);yMax=Math.min(1,c+.1);}
+    const stp=Math.max(.05,Math.ceil((yMax-yMin)/4*20)/20);ticks=[];for(let t=yMin;t<=yMax+1e-9;t+=stp)ticks.push(+t.toFixed(4));
+  }else if(pct){yMin=0;yMax=1;ticks=[0,.25,.5,.75,1];}
+  else{
+    const vals=S.view==='line'?days.map(d=>d.cum):days.map(d=>d.u);
+    let lo=Math.min(0,...vals),hi=Math.max(0,...vals);if(hi-lo<2){hi+=1;lo-=1;}
+    const step=[1,2,5,10,20,50].find(s=>(hi-lo)/s<=5)||50;lo=Math.floor(lo/step)*step;hi=Math.ceil(hi/step)*step;yMin=lo;yMax=hi;
+    ticks=[];for(let t=lo;t<=hi+1e-9;t+=step)ticks.push(t);
+  }
+  const Y=v=>mt+ih-(v-yMin)/((yMax-yMin)||1)*ih;
+  let g='';
+  ticks.forEach(t=>{g+=`<line class="mom-gl" x1="${ml}" x2="${W-mr}" y1="${Y(t).toFixed(1)}" y2="${Y(t).toFixed(1)}"/><text class="mom-ax" x="${ml-5}" y="${(Y(t)+3).toFixed(1)}" text-anchor="end">${pct?Math.round(t*100)+'%':(t>0?'+':'')+t+'u'}</text>`;});
+  const every=Math.ceil(N/7);
+  days.forEach((d,i)=>{if(i%every===0||i===N-1)g+=`<text class="mom-ax" x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="middle">${_momDateLbl(d.ds).replace(' ',' ')}</text>`;});
+  let body='';
+  if(S.view==='bars'){
+    const bw=Math.max(3,cw*0.64);
+    days.forEach((d,i)=>{
+      if(pct){
+        if(d.pct==null){body+=`<rect class="mom-empty" x="${(X(i)-bw/2).toFixed(1)}" y="${(Y(0)-2).toFixed(1)}" width="${bw.toFixed(1)}" height="2"/>`;return;}
+        const top=Y(d.pct),c=d.pct>=(base||0)?'#00e644':'#ff2090';
+        body+=`<rect class="mom-bar2" style="--d:${i*18}ms" x="${(X(i)-bw/2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(2,Y(0)-top).toFixed(1)}" rx="1.5" fill="${c}"/>`;
+      }else{
+        if(!d.n){body+=`<rect class="mom-empty" x="${(X(i)-bw/2).toFixed(1)}" y="${(Y(0)-1).toFixed(1)}" width="${bw.toFixed(1)}" height="2"/>`;return;}
+        const y=Y(d.u),z=Y(0),top=Math.min(y,z),h=Math.max(2,Math.abs(y-z)),c=d.u>=0?'#00e644':'#ff2090';
+        body+=`<rect class="mom-bar2" style="--d:${i*18}ms" x="${(X(i)-bw/2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${c}"/>`;
+      }
+    });
+  }else{
+    const pts=days.map((d,i)=>pct?(d.roll.n>=3?{x:X(i),y:Y(d.roll.pct),v:d.roll.pct}:null):{x:X(i),y:Y(d.cum),v:d.cum});
+    if(pct){   // hot/cold band around the baseline
+      body+=`<rect class="mom-band" x="${ml}" y="${Y(Math.min(1,(base||0)+.05)).toFixed(1)}" width="${iw}" height="${Math.max(1,Y(Math.max(0,(base||0)-.05))-Y(Math.min(1,(base||0)+.05))).toFixed(1)}"/>`;
+    }else body+=`<line class="mom-zero" x1="${ml}" x2="${W-mr}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}"/>`;
+    let path='',run=[];const segs=[];
+    pts.forEach(p=>{if(p)run.push(p);else{if(run.length)segs.push(run);run=[];}});if(run.length)segs.push(run);
+    segs.forEach(sg=>{
+      path=sg.map((p,k)=>(k?'L':'M')+p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ');
+      if(sg.length>1)body+=`<path class="mom-area" d="${path} L${sg[sg.length-1].x.toFixed(1)},${Y(pct?yMin:Math.max(yMin,Math.min(0,yMax))).toFixed(1)} L${sg[0].x.toFixed(1)},${Y(pct?yMin:Math.max(yMin,Math.min(0,yMax))).toFixed(1)} Z" fill="${col}"/>`;
+      body+=`<path class="mom-line" d="${path}" stroke="${col}" fill="none"/>`;
+    });
+    pts.forEach(p=>{if(p)body+=`<circle class="mom-pt" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.6" fill="${col}"/>`;});
+    const last=[...pts].reverse().find(Boolean);if(last)body+=`<circle class="mom-end" cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="4.5" stroke="${col}"/>`;
+  }
+  if(pct&&base!=null)body+=`<line class="mom-base" x1="${ml}" x2="${W-mr}" y1="${Y(base).toFixed(1)}" y2="${Y(base).toFixed(1)}"/><text class="mom-basel" x="${W-mr-2}" y="${(Y(base)-4).toFixed(1)}" text-anchor="end">ALL-TIME ${(base*100).toFixed(1)}%</text>`;
+  // selection cursor + hit columns
+  const cur=S.cur!=null?S.cur:(S.pin!=null?S.pin:null);
+  let hit='';
+  days.forEach((d,i)=>{hit+=`<rect class="mom-hit" data-i="${i}" x="${(ml+cw*i).toFixed(1)}" y="${mt}" width="${cw.toFixed(1)}" height="${ih}" fill="transparent"/>`;});
+  const sel=[];if(S.pin!=null)sel.push(S.pin);if(cur!=null&&cur!==S.pin)sel.push(cur);
+  const cursor=sel.map((i,k)=>`<line class="${i===S.pin?'mom-pin':'mom-cur'}" x1="${X(i).toFixed(1)}" x2="${X(i).toFixed(1)}" y1="${mt}" y2="${mt+ih}"/>`).join('');
+  return`<svg class="mom-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="slider" tabindex="0" aria-label="Daily momentum chart. Use left and right arrow keys to move between days, Enter to pin a day" aria-valuemin="0" aria-valuemax="${N-1}" aria-valuenow="${cur!=null?cur:N-1}">${g}${body}${cursor}${hit}</svg>`;
+}
+function _momPinHTML(days){
+  const S=window._momS;if(S.pin==null||!days[S.pin])return'';
+  const d=days[S.pin];
+  const rows=d.day.length?d.day.slice().sort((a,b)=>a.lk-b.lk).slice(0,14).map(p=>`<div class="mom-pr"><span class="mom-tag">${(p.lg||p.sp).replace(/</g,'&lt;')}</span><span class="mom-pb">${(p.bet||p.gm).replace(/</g,'&lt;')}</span><span class="mom-po ${p.o?'w':'l'}">${p.o?'WIN':'LOSS'}</span></div>`).join('')+(d.day.length>14?`<div class="mom-more">+${d.day.length-14} more</div>`:''):'<div class="mom-more">No settled bets on this day.</div>';
+  return`<div class="mom-panel"><div class="mom-pinh"><span>${_momDateLbl(d.ds).toUpperCase()} · ${d.n} BET${d.n===1?'':'S'}${d.n?` · ${d.w}W-${d.l}L · ${(d.pct*100).toFixed(0)}% · ${_momU(d.u)}`:''}</span><button type="button" class="mom-x" data-mom="pin:none" aria-label="Close"><span>✕</span></button></div>${rows}</div>`;
+}
+function _momHTML(){
+  const D=window._momData,S=window._momS;
+  if(!D)return'';
+  const days=_momDays(),pool=days.pool,list=days.days;
+  const base0=D.allTime[S.sport]||D.allTime.ALL,baseN=base0.w+base0.l,base=baseN?base0.w/baseN:null;
+  const winPicks=pool.filter(p=>p.lk>=D.now-S.win*86400000),win=_momAgg(winPicks);
+  const st=_momStatus(win,base);
+  const streak=(()=>{const s=pool.filter(p=>p.lk).sort((a,b)=>a.lk-b.lk);let n=0,t=null;for(let i=s.length-1;i>=0;i--){if(t===null){t=s[i].o;n=1;}else if(s[i].o===t)n++;else break;}return n?{n,t}:null;})();
+  const gaugePos=st.delta==null?50:Math.max(2,Math.min(98,50+st.delta*100*(50/15)));
+  const col=st.col==='var(--t3)'?'#9aabb8':st.col;
+  const chips=`<div class="mom-chips"><span class="mom-l">WINDOW</span>${[7,14,30].map(n=>_momChip('win',n,n+'D',S.win===n)).join('')}<span class="mom-l">METRIC</span>${_momChip('metric','pct','WIN %',S.metric==='pct')}${_momChip('metric','u','UNITS',S.metric==='u')}<span class="mom-l">VIEW</span>${_momChip('view','bars','DAILY',S.view==='bars')}${_momChip('view','line','TREND',S.view==='line')}</div>
+    <div class="mom-chips"><span class="mom-l">SPORT</span>${_MOM_SPORTS.map(s=>_momChip('sport',s,s,S.sport===s)).join('')}</div>`;
+  const tile=(k,v,sub,c)=>`<div class="mom-tile"><div class="mom-k">${k}</div><div class="mom-v" style="color:${c||'var(--t)'}">${v}</div><div class="mom-s">${sub||'&nbsp;'}</div></div>`;
+  const tiles=`<div class="mom-tiles">${tile(S.win+'D WIN %',win.pct!=null?(win.pct*100).toFixed(1)+'%':'--',`${win.w}W-${win.l}L · n${win.n}`,col)}${tile('ALL-TIME',base!=null?(base*100).toFixed(1)+'%':'--',`${base0.w}W-${base0.l}L`)}${tile('VS BASELINE',st.delta!=null?(st.delta>=0?'+':'')+(st.delta*100).toFixed(1)+'pp':'--',`<span class="mom-gauge"><i style="left:${gaugePos}%;background:${col}"></i></span>`,col)}${tile(S.win+'D UNITS',_momU(win.u),streak?`STREAK ${streak.n}${streak.t?'W':'L'}`:'',win.u>=0?'#00e644':'#ff2090')}</div>`;
+  const _el=document.getElementById('mom-widget'),W=Math.max(280,Math.round(_el&&_el.clientWidth?_el.clientWidth-24:Math.min(1100,document.documentElement.clientWidth-64)));window._momW=W;setTimeout(_momFit,0);
+  const svg=_momChartSVG(list,base,W,S,col);
+  const hint=S.view==='bars'?'DAILY '+(S.metric==='pct'?'WIN %':'UNITS')+' BY GAME DATE · GREEN = AT/ABOVE ALL-TIME':'TRAILING '+S.win+'-DAY '+(S.metric==='pct'?'WIN % (3+ BETS) · SHADED BAND = ±5pp OF ALL-TIME':'CUMULATIVE UNITS');
+  return`<div class="mom-accent" style="background:${col}"></div>
+    <div class="mom-top"><span class="mom-title">// MOMENTUM — LAST ${S.win}D VS ALL-TIME</span><span class="mom-badge" style="color:${col}">${st.arrow} ${st.lbl}</span></div>
+    ${chips}${tiles}
+    <div class="mom-chartwrap" id="mom-chart">${svg}<div class="mom-tip" id="mom-tip" role="status" aria-live="polite"></div></div>
+    <div class="mom-hint">${hint} · HOVER, TAP OR USE ← → · CLICK A DAY FOR ITS PICKS</div>
+    ${_momPinHTML(list)}`;
+}
+function _momFit(){const el=document.getElementById('mom-widget');if(!el||!el.clientWidth)return;const want=Math.max(280,Math.round(el.clientWidth-24));if(Math.abs(want-(window._momW||0))>10)_momRender();}
+function _momRender(){const el=document.getElementById('mom-widget');if(el)el.innerHTML=_momHTML();}
+function _momTipFor(i){
+  const days=_momDays();if(!days||!days.list&&!days.days)return'';
+  const d=days.days[i];if(!d)return'';
+  const D=window._momData,S=window._momS,b0=D.allTime[S.sport]||D.allTime.ALL,baseN=b0.w+b0.l,base=baseN?b0.w/baseN:null;
+  const head=`<b>${_momDateLbl(d.ds).toUpperCase()}</b>`;
+  if(S.view==='line'){
+    const r=d.roll;
+    return S.metric==='pct'?`${head}<br>${S.win}D ENDING HERE: ${r.n?`${r.w}W-${r.l}L · ${(r.pct*100).toFixed(0)}%`:'no bets'}${r.n>=3&&base!=null?`<br>${(r.pct-base>=0?'+':'')+((r.pct-base)*100).toFixed(1)}pp vs all-time`:''}`:`${head}<br>CUMULATIVE ${_momU(d.cum)}<br>DAY ${_momU(d.u)} · ${d.n} bet${d.n===1?'':'s'}`;
+  }
+  if(!d.n)return`${head}<br>no settled bets`;
+  return`${head}<br>${d.w}W-${d.l}L · ${(d.pct*100).toFixed(0)}%${base!=null?` (${(d.pct-base>=0?'+':'')+((d.pct-base)*100).toFixed(0)}pp)`:''}<br>${_momU(d.u)} · ${d.n} bet${d.n===1?'':'s'}`;
+}
+function _momShowTip(i,evt){
+  const tip=document.getElementById('mom-tip'),wrap=document.getElementById('mom-chart');if(!tip||!wrap)return;
+  const svg=wrap.querySelector('svg'),hit=svg&&svg.querySelector(`.mom-hit[data-i="${i}"]`);if(!hit)return;
+  tip.innerHTML=_momTipFor(i);tip.style.display='block';
+  const wr=wrap.getBoundingClientRect(),hr=hit.getBoundingClientRect();
+  let x=hr.left-wr.left+hr.width/2-tip.offsetWidth/2;x=Math.max(0,Math.min(wr.width-tip.offsetWidth,x));
+  tip.style.left=x+'px';tip.style.top='-6px';tip.style.transform='translateY(-100%)';
+}
+function _momHideTip(){const t=document.getElementById('mom-tip');if(t)t.style.display='none';}
+function _momCursor(i){
+  window._momS.cur=i;const svg=document.querySelector('#mom-chart svg');if(!svg)return;
+  svg.querySelectorAll('.mom-cur').forEach(e=>e.remove());
+  const hit=svg.querySelector(`.mom-hit[data-i="${i}"]`);if(!hit||(window._momS.pin===i))return;
+  const x=(+hit.getAttribute('x'))+(+hit.getAttribute('width'))/2,y1=+hit.getAttribute('y'),h=+hit.getAttribute('height');
+  const ln=document.createElementNS('http://www.w3.org/2000/svg','line');ln.setAttribute('class','mom-cur');ln.setAttribute('x1',x);ln.setAttribute('x2',x);ln.setAttribute('y1',y1);ln.setAttribute('y2',y1+h);
+  svg.insertBefore(ln,svg.querySelector('.mom-hit'));
+  svg.setAttribute('aria-valuenow',i);
+}
+(function _momBind(){
+  if(window._momBound)return;window._momBound=true;
+  document.addEventListener('click',e=>{
+    const chip=e.target.closest&&e.target.closest('[data-mom]');
+    if(chip){
+      const [g,v]=chip.dataset.mom.split(':'),S=window._momS;
+      if(g==='win')S.win=+v;else if(g==='metric')S.metric=v;else if(g==='view')S.view=v;else if(g==='sport')S.sport=v;else if(g==='pin'){S.pin=null;}
+      if(g!=='pin')S.pin=null;S.cur=null;_momRender();return;
+    }
+    const hit=e.target.closest&&e.target.closest('.mom-hit');
+    if(hit){const i=+hit.dataset.i,S=window._momS;S.pin=S.pin===i?null:i;S.cur=i;_momRender();_momShowTip(i);}
+  });
+  document.addEventListener('mousemove',e=>{
+    const hit=e.target.closest&&e.target.closest('.mom-hit');
+    if(hit){const i=+hit.dataset.i;_momCursor(i);_momShowTip(i);}
+  });
+  document.addEventListener('mouseout',e=>{if(e.target.closest&&e.target.closest('.mom-hit')&&!(e.relatedTarget&&e.relatedTarget.closest&&e.relatedTarget.closest('.mom-hit'))){_momHideTip();document.querySelectorAll('#mom-chart .mom-cur').forEach(x=>x.remove());window._momS.cur=null;}});
+  document.addEventListener('keydown',e=>{
+    const svg=e.target.closest&&e.target.closest('.mom-svg');if(!svg)return;
+    const days=_momDays();if(!days)return;const N=days.days.length,S=window._momS;
+    let i=S.cur!=null?S.cur:N-1;
+    if(e.key==='ArrowLeft')i=Math.max(0,i-1);else if(e.key==='ArrowRight')i=Math.min(N-1,i+1);else if(e.key==='Home')i=0;else if(e.key==='End')i=N-1;
+    else if(e.key==='Enter'||e.key===' '){e.preventDefault();S.pin=S.pin===i?null:i;S.cur=i;_momRender();const s2=document.querySelector('#mom-chart svg');if(s2)s2.focus();_momShowTip(i);return;}
+    else if(e.key==='Escape'){S.pin=null;_momRender();return;}
+    else return;
+    e.preventDefault();_momCursor(i);_momShowTip(i);
+  });
+  let rt=null;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(document.getElementById('mom-widget'))_momRender();},150);});
+})();
+
 function renderHomePage(){
   const allBets=getP();
   // Same fix as renderOverall() (2026-09-02 desktop-lag audit): this
@@ -19962,66 +20217,9 @@ function renderHomePage(){
     const rLMo = hCalc(keptBets.filter(p=>p.lockedAt&&p.lockedAt>=firstOfLastMonth.getTime()&&p.lockedAt<firstOfMonth.getTime()));
     const rAll = hCalc(keptBets);
 
-    // ── MOMENTUM WIDGET (added 2026-10-02, explicit request: "one
-    // glanceable trend arrow/sparkline showing whether the last 7-30 days
-    // are running hot or cold vs the all-time baseline") ───────────────
-    // Deliberately reuses r7 (ROLLING 7D) and rAll (ALL TIME), both
-    // already computed above for the existing stat cards, as the hot/cold
-    // comparison -- rather than a third, separately-scoped window -- so
-    // this widget can never silently disagree with the ROLLING 7D / ALL
-    // TIME cards sitting right next to it. 7-day (not 30) to match
-    // ROLLING 7D's own window exactly, and because this ledger locks picks
-    // daily -- a 30-day blend would dilute "is THIS WEEK hot" into "is
-    // roughly the last month," a slower, less glanceable signal than
-    // what's asked for. Win% (not units) to match ROLLING 7D/ALL TIME's
-    // own displayed metric, and so the comparison isn't skewed by a
-    // single big-odds outlier bet's unit swing.
-    const momDeltaPct=(r7.pct!=null&&rAll.pct!=null)?r7.pct-rAll.pct:null;
-    const MOM_HOT_THRESH=0.05; // 5 percentage points -- big enough that normal week-to-week noise doesn't flip the arrow, small enough to catch a real swing
-    const MOM_MIN_N=5; // below this, a week's win% is too noisy to call "hot" or "cold" with a straight face
-    let momArrow='▬',momColor='var(--t3)',momLbl='NOT ENOUGH DATA';
-    if(r7.n>=MOM_MIN_N&&momDeltaPct!=null){
-      if(momDeltaPct>=MOM_HOT_THRESH){momArrow='▲';momColor='#00e644';momLbl='RUNNING HOT';}
-      else if(momDeltaPct<=-MOM_HOT_THRESH){momArrow='▼';momColor='#ff2090';momLbl='RUNNING COLD';}
-      else{momArrow='▬';momColor='var(--t3)';momLbl='HOLDING STEADY';}
-    }else if(r7.n>0){
-      momLbl=`LOW SAMPLE (${r7.n} BET${r7.n===1?'':'S'})`;
-    }
-    // 14-day daily win% strip, oldest→newest left to right -- same
-    // dot-strip visual language as formDots/the per-league trend dots
-    // elsewhere on this page (small blocks, glow-free flat color, hover/
-    // tap tooltip via showDotTip), just bar HEIGHT encoding each day's win%
-    // instead of a single win/loss dot -- the ask specifically wants a
-    // win-rate TREND here, distinct from the binary win/loss dot strips
-    // already shown in PERIOD PERFORMANCE — LEAGUE just below.
-    const momDays=[];
-    for(let i=13;i>=0;i--){
-      const ds=new Date(now-i*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
-      const db=keptBets.filter(p=>p.date===ds&&p.outcome!=='pending');
-      const w=db.filter(p=>p.outcome==='win').length;
-      momDays.push({ds,n:db.length,pct:db.length?w/db.length:null});
-    }
-    const momBarH=30;
-    const momBars=momDays.map(d=>{
-      const has=d.pct!=null;
-      const h=has?Math.max(3,Math.round(d.pct*momBarH)):2;
-      const bc=!has?'rgba(255,255,255,.1)':(d.pct>=(rAll.pct||0)?'#00e644':'#ff2090');
-      const dLbl=new Date(d.ds+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      const tip=has?`${dLbl} | ${d.n} bet${d.n===1?'':'s'} | ${(d.pct*100).toFixed(0)}% win`:`${dLbl} | no bets`;
-      return`<span class="mom-bar" data-tip="${tip.replace(/"/g,"'")}" style="display:inline-block;flex:1;height:${h}px;align-self:flex-end;background:${bc};border-radius:1px;cursor:pointer" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2000)"></span>`;
-    }).join('');
-    const momentumHtml=`<div class="card" style="padding:10px 12px;margin-top:8px;border-top:2px solid ${momColor}">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-        <span style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc)">// MOMENTUM — LAST 7D VS ALL-TIME</span>
-        <span style="font-family:var(--orb);font-size:15px;font-weight:900;color:${momColor}">${momArrow} ${momLbl}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:6px">
-        <span style="font-family:var(--mono);font-size:13px;color:var(--t2)">7D ${r7.pct!=null?(r7.pct*100).toFixed(1)+'%':'--'} (n${r7.n}) vs ALL-TIME ${rAll.pct!=null?(rAll.pct*100).toFixed(1)+'%':'--'}</span>
-        <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${momColor}">${momDeltaPct!=null?(momDeltaPct>=0?'+':'')+(momDeltaPct*100).toFixed(1)+'pp':'--'}</span>
-      </div>
-      <div style="display:flex;align-items:flex-end;gap:2px;height:${momBarH}px">${momBars}</div>
-      <div style="font-family:var(--mono);font-size:10px;color:var(--t3);margin-top:4px">LAST 14 DAYS, DAILY WIN% · HOVER/TAP A BAR</div>
-    </div>`;
+    // ── MOMENTUM WIDGET: interactive since 2026-10-09 (see _momBuild/_momHTML above renderHomePage; same hot/cold rules as the original 2026-10-02 widget).
+    try{window._momData=_momBuild(keptBets,now);}catch(e){window._momData=null;}
+    const momentumHtml=`<div id="mom-widget" class="card mom2">${_momHTML()}</div>`;
 
     // League performance — mirrors the Overall tab's BY LEAGUE grouping,
     // toggleable between the current month (time-relevant default) and
