@@ -106,6 +106,24 @@ class Trigger(unittest.TestCase):
         self.assertLessEqual(r["sw"], r["vw"] + 1, r)                     # no horizontal page scroll
         pg.close()
 
+    def test_header_fits_every_phone_width_with_a_long_date_and_a_live_game(self):
+        """owner report 2026-10-10: the header was 418px wide (91 + 220 + 101 + padding), wider than every phone, so the page drifted sideways"""
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        fresh = {k: {"tsUTC": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "tsMT": "2026-10-08 07:48 PM MT", "ok": True, "detail": "x"} for k in ("lastLock", "lastSettle")}
+        for w in (320, 360, 375, 390, 414):
+            pg = self.b.new_page(viewport={"width": w, "height": 800}, has_touch=True, is_mobile=True)
+            pg.route("**/automation_status.json*", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(fresh)))
+            pg.goto(f"http://127.0.0.1:{self.srv.server_address[1]}/app.html?nosb=1"); pg.wait_for_timeout(2500)
+            pg.evaluate("()=>{const d=document.getElementById('live-dot');if(d)d.style.display='inline-block';document.getElementById('hdr-status-bar').textContent='WED, SEPTEMBER 30, 2026'}")
+            pg.wait_for_timeout(200)
+            r = pg.evaluate("""()=>{const h=document.getElementById('hdr'),a=document.getElementById('hdr-trig-lock').getBoundingClientRect(),b=document.getElementById('hdr-trig-settle').getBoundingClientRect(),lg=document.querySelector('#hdr .logo').getBoundingClientRect();
+              return {vw:innerWidth,doc:document.documentElement.scrollWidth,app:document.getElementById('app').scrollWidth,hdr:h.scrollWidth,hdrc:h.clientWidth,aL:a.left,aR:a.right,bL:b.left,bR:b.right,lgL:lg.left,lgR:lg.right}}""")
+            self.assertLessEqual(r["doc"], w + 1, (w, r)); self.assertLessEqual(r["app"], w + 1, (w, r)); self.assertLessEqual(r["hdr"], r["hdrc"] + 1, (w, r))
+            self.assertGreaterEqual(r["aL"], -0.5, (w, r)); self.assertLessEqual(r["bR"], w + 0.5, (w, r))
+            self.assertLessEqual(r["aR"], r["lgL"] + 1, (w, r)); self.assertLessEqual(r["lgR"], r["bL"] + 1, (w, r))      # chips never overlap the title
+            pg.close()
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

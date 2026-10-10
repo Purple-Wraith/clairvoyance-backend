@@ -97,6 +97,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .bf{height:100%;background:linear-gradient(90deg,var(--pc),var(--ic),var(--nc));border-radius:1px;width:0%;transition:width .1s linear}
 .sk{font-family:var(--mono);font-size:17px;color:var(--nc);letter-spacing:2px;cursor:pointer;margin-top:4px;opacity:1;border:1px solid rgba(0,240,255,.3);padding:8px 20px;border-radius:2px;}
 .sk.v{opacity:1}.sk:hover{color:var(--t2)}
+@media(max-width:350px){#hdr-automation-status,#hdr-automation-status-left{display:none!important}}
 /* HEADER */
 #hdr{flex:0 0 calc(90px + env(safe-area-inset-top,0px));background:linear-gradient(180deg,rgba(10,0,24,1) 0%,rgba(20,0,46,.95) 100%);
   border-bottom:1px solid rgba(240,0,255,.3);
@@ -332,6 +333,15 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   html .logo{gap:1px!important}
   #hdr-clock-mt,#hdr-status-bar{font-size:10px!important;letter-spacing:.3px!important}
   #hdr-dot-1{font-size:17px!important;padding:0 6px!important}
+  /* Header overflow on phones (owner report 2026-10-10): the three header columns (LOCK chip | title + clock row | SETTLE chip) are sized by their content -- 91 + 220 + 101px + padding = 418px -- so the
+     header was wider than EVERY phone (390 / 375 / 360) and the page could drift sideways. The columns may now shrink (the centre takes whatever the two chips leave), the date under the title is
+     smaller and truncates with an ellipsis instead of pushing the header out, and on very narrow screens (<=350px) the two "LOCK/SETTLE: time" status lines hide so the chips + title still fit. */
+  html #hdr{grid-template-columns:minmax(0,auto) minmax(0,1fr) minmax(0,auto)!important}
+  html #hdr .logo{min-width:0;max-width:100%}
+  html .hdr-clockrow{min-width:0;max-width:100%;overflow:hidden}
+  html #hdr-clock-mt{font-size:9px!important}
+  html #hdr-status-bar{font-size:8px!important;letter-spacing:0!important;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  html #hdr-dot-1{padding:0 4px!important}
   /* ── Home "engine performance" stat cards: label row was clipped
      (white-space:nowrap + card's overflow:hidden ate "THIS MONTH JUL
      2026" down to "JUL 202"), and the record/bets row had no wrap
@@ -1140,7 +1150,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
     </div>
   </div>
   <div class="logo" style="display:flex;flex-direction:column;align-items:center;gap:3px">CLAIRVOYANCE
-    <div style="display:flex;align-items:center;gap:0;justify-content:center">
+    <div class="hdr-clockrow" style="display:flex;align-items:center;gap:0;justify-content:center">
       <div id="hdr-clock-mt" style="font-family:var(--mono);font-size:18px;color:rgba(240,0,255,.65);letter-spacing:.5px;white-space:nowrap"></div>
       <span id="hdr-dot-1" style="font-size:37px;color:var(--pc);text-shadow:0 0 12px rgba(240,0,255,.9),0 0 24px rgba(240,0,255,.4);padding:0 14px;line-height:1">·</span>
       <div id="hdr-status-bar" style="font-family:var(--mono);font-size:18px;color:var(--pc);text-shadow:0 0 8px rgba(240,0,255,.5);letter-spacing:2px;text-align:center;font-weight:600;display:none"></div>
