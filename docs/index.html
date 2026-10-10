@@ -20167,7 +20167,14 @@ function renderHomePage(){
       // numbers beside it. vertical-align:middle centers each dot against
       // the line the way the row's own align-items:center already centers
       // its flex children.
-      const dots=d.last10.map(p=>{const c=p.outcome==='win'?'#00e644':'#ff2090';return`<span title="${(p.date||'').replace(/"/g,"'")}" class="lg-dot" style="background:${c};color:${c}"></span>`;}).join('');
+      // Hover / tap / keyboard focus on a bubble shows the event and the result (owner request 2026-10-10) through the same tooltip the Overall tab's form dots use (showDotTip: data-tip lines split on '|').
+      const dots=d.last10.map(p=>{
+        const c=p.outcome==='win'?'#00e644':'#ff2090',cl=t=>String(t==null?'':t).replace(/[|"<>]/g,' ').replace(/\s+/g,' ').trim();
+        let mu='',bet='';try{mu=_gameTitle(p.hA,p.awA,p.sport)||'';}catch(e){}try{bet=_expandBetOn(p.betOn||'',p.sport)||'';}catch(e){bet=p.betOn||'';}
+        const sc=(p.hScore!=null&&p.aScore!=null)?`${cl(p.awA)} ${p.aScore} – ${p.hScore} ${cl(p.hA)}`:'';
+        const tip=[cl(d.lbl)+' · '+cl(p.date||''),cl(mu),cl(bet),sc,p.outcome==='win'?'✓ WIN':'✗ LOSS'].filter(Boolean).join('|');
+        return`<span class="lg-dot" tabindex="0" role="img" aria-label="${tip.replace(/\|/g,', ')}" data-tip="${tip}" style="background:${c};color:${c};cursor:pointer" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" onfocus="showDotTip(this)" onblur="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2500)"></span>`;
+      }).join('');
       return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-family:var(--mono);font-size:14px;color:var(--t)">${d.lbl}</span><div style="display:flex;gap:8px;align-items:center"><span style="white-space:nowrap">${dots}</span><span style="font-family:var(--mono);font-size:14px"><span style="color:#00e644">${d.w}W</span>-<span style="color:var(--hc)">${d.l}L</span></span><span style="font-family:var(--mono);font-size:14px;font-weight:700;color:${pCol(d.acc)}">${d.acc!==null?(d.acc*100).toFixed(0)+'%':'--'}</span><span style="font-family:var(--mono);font-size:14px;color:${uCol(d.units)}">${d.units>=0?'+':''}${d.units.toFixed(1)}u</span></div></div>`;
     };
     const lgPerfToggle=`<div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
