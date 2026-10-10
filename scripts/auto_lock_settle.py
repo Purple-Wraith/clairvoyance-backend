@@ -83,6 +83,7 @@ import _subscribers  # noqa: E402
 # why this replaced a second, fully independent browser+Supabase pull.
 from generate_social_cards import write_landing_json as _write_landing_json  # noqa: E402
 import lock_timing  # noqa: E402  -- shared known-late classifier (public figures + digests are pre-start locks only)
+import lineups  # noqa: E402  -- confirmed lineups (NHL goalies, NBA/NFL Out lists) at the lock pass; fail-open, see scripts/lineups.py
 
 # _LOCKS_EMAIL_CLOSE (the disclaimer-bearing close, defined in
 # _gmail_email.py so _subscribers.py's receipt email can share the exact
@@ -374,6 +375,85 @@ def guard_note() -> str:
     callers: ok depends only on locked-vs-verified counts) or be read as a failed lock by verify_lock_workflows.py."""
     n = START_GUARD_TOTALS["skipped"]
     return f"; {n} leg(s) skipped: game already started" if n else ""
+
+
+# ── CONFIRMED-LINEUP GATE (2026-10-10) ────────────────────────────────────────────────────────────────────────────────────
+# build_qualifying() asks scripts/lineups.py about every qualifying NHL / NBA / NFL game leg whose game starts within lineups.LINEUP_WINDOW_MIN:
+# a confirmed worse lineup than the model assumed either reprices the leg (it still qualifies) or HOLDS it (it no longer does; not locked this pass),
+# and every checked leg carries an additive `lineup` object onto the pick. Unknown / failed lookups change nothing. Switches: lineups.LINEUP_GATE_ENABLED
+# (master), LINEUP_NHL_ENABLED / LINEUP_NBA_ENABLED / LINEUP_NFL_ENABLED, or the environment variable LINEUP_GATE=off.
+# LINEUP_CTX stays None (feature inert) until main() activates it, so tests and the pick-of-day generator never touch the network.
+LINEUP_CTX = None
+LINEUP_HOLDS: list[dict] = []      # every leg held this process (for the watchdog / logs)
+
+
+def lineup_requalify(q: dict, p: float, ev) -> tuple[bool, int, bool]:
+    """Would this leg still be locked at probability `p` / EV `ev`?  -> (qualifies, tierN, lane_only).  Mirrors docs/app.html: hockey = HOCKEY_TIER_* on the
+    real price plus the high-probability lane; every other sport = tier()'s app-wide .55/.62/.67 + .01/.03/.05 floors, plus the ML >= 75% rule.
+    (The app's own _calAdjProbByType re-pricing of legs that are not market-anchored is not reproduced: lineups._settle treats a leg whose original
+    qualification cannot be reproduced here as 'margin unknown'.)"""
+    sport, side = q.get("sport"), q.get("side")
+    e = -1.0 if ev is None else ev
+    if sport in HOCKEY_SPORTS:
+        tier_n = 3 if (p >= HOCKEY_TIER_PROB["PREMIUM"] and e >= HOCKEY_TIER_EV["PREMIUM"]) else \
+            2 if (p >= HOCKEY_TIER_PROB["OPTIMAL"] and e >= HOCKEY_TIER_EV["OPTIMAL"]) else \
+            1 if (p >= HOCKEY_TIER_PROB["LEAN"] and e >= HOCKEY_TIER_EV["LEAN"]) else 0
+        lane = False
+        if e >= HOCKEY_LANE_EV_MIN:
+            if side in ("mlFav", "mlDog"):
+                lane = p >= HOCKEY_LANE_ML_P
+            elif side in ("plDog", "sprdDog"):
+                lane = p >= HOCKEY_LANE_PLDOG_P
+            elif side in ("over", "under"):
+                lane = p >= HOCKEY_LANE_OU_P
+        return (tier_n in QUALIFYING_TIERS or lane), tier_n, (lane and tier_n not in QUALIFYING_TIERS)
+    tier_n = 3 if (p >= .67 and e >= .05) else 2 if (p >= .62 and e >= .03) else 1 if (p >= .55 and e >= .01) else 0
+    high_hit = _market_type(side) == "ML" and p >= _HIGH_HIT_P
+    return (tier_n in QUALIFYING_TIERS or high_hit), tier_n, False
+
+
+def activate_lineup_gate(ctx=None) -> bool:
+    """Turns the gate on for this process (main() calls it for lock and watchdog runs). Returns whether it is active. Never raises."""
+    global LINEUP_CTX
+    if not lineups.gate_enabled():
+        LINEUP_CTX = None
+        log("LINEUP: gate switched off (lineups.LINEUP_GATE_ENABLED / LINEUP_GATE env) -- lock passes behave as before")
+        return False
+    try:
+        LINEUP_CTX = ctx or lineups.default_context(lineup_requalify, ROOT / "docs")
+    except Exception as exc:
+        LINEUP_CTX = None
+        log(f"LINEUP: could not start ({exc}) -- lock passes behave as before")
+        return False
+    log(f"LINEUP: gate active (window {lineups.LINEUP_WINDOW_MIN} min; NHL={lineups.gate_enabled('NHL')} NBA={lineups.gate_enabled('NBA')} NFL={lineups.gate_enabled('NFL')})")
+    return True
+
+
+def lineup_review(q: dict, now=None, ctx=None) -> tuple[dict, dict | None]:
+    """Runs one qualifying GAME leg through the lineup gate. -> (leg to use, decision). decision is None when the leg is out of scope or the gate is off;
+    decision['action'] == 'hold' means the caller must not lock it. Logs one 'LINEUP:' line per checked leg. Never raises."""
+    ctx = ctx if ctx is not None else LINEUP_CTX
+    if ctx is None or not lineups.gate_enabled(q.get("sport")):
+        return q, None
+    try:
+        d = lineups.assess_leg(q, ctx, _now_ms(now))
+    except Exception as exc:
+        log(f"  LINEUP: {q.get('sport')} {q.get('awA')} @ {q.get('hA')} {q.get('label')} -- check failed ({type(exc).__name__}), unchanged")
+        return q, None
+    if d is None:
+        return q, None
+    game = f"{q.get('sport')} {q.get('awA')} @ {q.get('hA')}"
+    notes = "; ".join(d["lineup"].get("notes") or [])
+    if d["action"] == "hold":
+        log(f"  LINEUP: skipped {q.get('label')} ({game}, {q.get('prob', 0) * 100:.1f}%) because {d.get('reason')} [{notes}]")
+        hold = {"sport": q.get("sport"), "game": f"{q.get('awA')} @ {q.get('hA')}", "leg": q.get("label"), "startMs": parse_start_ms(q.get("startMs")),
+                "why": d.get("reason"), "prob": q.get("prob"), "tier": TIER_LABEL.get(q.get("tierN"), "?") if q.get("tierN") is not None else "?"}
+        LINEUP_HOLDS.append(hold)
+        return q, d
+    new_q = lineups.apply_decision(q, d)
+    verb = "repriced" if d["action"] == "reprice" else f"checked ({d['lineup']['status']})"
+    log(f"  LINEUP: {verb} {q.get('label')} ({game}) -> {new_q.get('prob', 0) * 100:.1f}% [{notes}]")
+    return new_q, d
 
 
 def _now_ms(now=None) -> float:
@@ -2551,7 +2631,7 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
             if qualifies and guard_reason.startswith("no start time"):
                 unguarded_legs += 1
             if qualifies:
-                game_qualifying.append({
+                _leg = ({
                     "kind": "GAME", "sport": sport, "hA": gl.get("hA"), "awA": gl.get("awA"),
                     "side": m.get("side"), "label": m.get("label"), "prob": m.get("prob"),
                     "ml": m.get("ml"), "dec": m.get("dec"), "tierN": tier_n, "evVal": m.get("evVal"),
@@ -2607,6 +2687,14 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                     # more than one date; None when the start is unknown (callers then fall back to their own date).
                     "lockDate": mt_date_of_ms(gl.get("startMs")),
                 })
+                # Confirmed-lineup gate (see LINEUP_CTX): now=0 is the watchdog's observe-only call (it must SEE every qualifying leg), never gated here.
+                if LINEUP_CTX is not None and not (now is not None and not isinstance(now, datetime) and float(now) == 0):
+                    _leg, _lu = lineup_review(_leg, now)
+                    if _lu is not None and _lu["action"] == "hold":
+                        if guard_stats is not None:
+                            guard_stats.setdefault("lineupHolds", []).append(LINEUP_HOLDS[-1])
+                        continue
+                game_qualifying.append(_leg)
         if game_skipped:
             skipped_legs += game_skipped
             skipped_games.append(f"{sport} {gl.get('awA')} @ {gl.get('hA')}")
@@ -2742,9 +2830,11 @@ def lock_game_leg(page, q: dict, date_override: str | None = None, now=None) -> 
     blend_alpha = q.get("blendAlpha")
     start_ms = parse_start_ms(q.get("startMs"))
     alt_line = q.get("altLine")
+    # Confirmed-lineup record (scripts/lineups.py): additive, lands on the pick as `lineup`. None for every leg the gate did not look at.
+    lineup = q.get("lineup")
     return page.evaluate(
         """
-        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors, reasoning, priceSource, modelProb, marketProb, blendAlpha, startMs, altLine }) => {
+        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors, reasoning, priceSource, modelProb, marketProb, blendAlpha, startMs, altLine, lineup }) => {
           // Real gap, found auditing the locks-email "X of Y legs actually
           // locked" line: this used to return a single 'dup-or-failed' for
           // BOTH "this exact leg was already locked by an earlier pass
@@ -2788,14 +2878,14 @@ def lock_game_leg(page, q: dict, date_override: str | None = None, now=None) -> 
           if (dup) return 'already-locked';
           const before = getP().length;
           const hasBlend = (modelProb != null && marketProb != null);
-          const extraMeta = { lockOrigin: 'auto', ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}), ...(altLine ? { altLine } : {}), ...(hasBlend ? { modelProb, marketProb, ...(blendAlpha != null ? { blendAlpha } : {}) } : {}), ...(startMs != null ? { startMs } : {}) };
+          const extraMeta = { lockOrigin: 'auto', ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}), ...(altLine ? { altLine } : {}), ...(lineup ? { lineup } : {}), ...(hasBlend ? { modelProb, marketProb, ...(blendAlpha != null ? { blendAlpha } : {}) } : {}), ...(startMs != null ? { startMs } : {}) };
           await lockPick(hA, awA, type, betOn, prob, ml != null ? ml : '-110', dec || 1.91, dateKey, 'manual', betTypeOverride, extraMeta);
           const after = getP().length;
           return after > before ? 'locked' : 'failed';
         }
         """,
         {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "prob": q["prob"], "ml": ml, "dec": dec, "dateOverride": date_override, "betTypeOverride": bet_type_override, "socFactors": sock_factors, "reasoning": reasoning_text, "priceSource": price_source,
-         "modelProb": model_prob, "marketProb": market_prob, "blendAlpha": blend_alpha, "startMs": start_ms, "altLine": alt_line},
+         "modelProb": model_prob, "marketProb": market_prob, "blendAlpha": blend_alpha, "startMs": start_ms, "altLine": alt_line, "lineup": lineup},
     )
 
 
@@ -3472,6 +3562,8 @@ def _zero_pick_decision(qualifying: list[dict], guard: dict, complete: bool) -> 
     guard skipped nothing; the owner is told about the other cases via the pre-kickoff alert instead (see owner_alert_for)."""
     if guard.get("skipped"):
         return False, f"{guard['skipped']} qualifying leg(s) skipped because their game had already started -- a late pass, not 'no picks'"
+    if guard.get("lineupHolds"):
+        return False, f"{len(guard['lineupHolds'])} qualifying leg(s) held back by the confirmed-lineup gate (see the LINEUP: log lines) -- not 'no picks'"
     if not complete:
         return False, "pass incomplete (upcoming games still have no real price, or a lock failed) -- a later pass may find picks"
     return True, "complete pass, nothing qualified"
@@ -3777,6 +3869,8 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
             # because their games had already started -- a late pass, not "no picks". The owner is told via the pre-kickoff alert.
             log(f"Locks email ({label}) suppressed (zero-pick): its qualifying legs were skipped because the games had "
                 f"already started (a late pass, not 'no picks')")
+        elif send_email and not email_qualifying and any(h.get("sport") in sports for h in seg_guard.get("lineupHolds", [])):
+            log(f"Locks email ({label}) suppressed (zero-pick): its qualifying legs were held by the confirmed-lineup gate (not 'no picks')")
         elif send_email:
             # Real bug, found via audit: this used to pass `locked` (this
             # pass's NEW count only) -- see LockResult's own docstring
@@ -3914,12 +4008,18 @@ def run_watchdog(page, live: bool, now=None, auto_lock: bool = False) -> list[di
                                          f"kicks off in {mins:.0f} min" if mins > 0 else f"started {-mins:.0f} min ago"),
                                  "prob": q.get("prob"), "tier": TIER_LABEL.get(q.get("tierN"), "?")})
                 unlocked_q.append(q)
+                if LINEUP_CTX is not None:
+                    # Confirmed-lineup hold: the lock pass would refuse this leg now, so do not start a pass for it and tell the owner why it is still open.
+                    _q2, _d = lineup_review(q, now)
+                    if _d is not None and _d["action"] == "hold":
+                        unlocked[-1]["why"] += f"; LINEUP HOLD: {_d.get('reason')}"
+                        unlocked[-1]["lineupHold"] = True
     log(f"Watchdog: {total} qualifying game leg(s) across the slate, {len(unlocked)} NOT locked and within the watch window")
     for u in unlocked:
         log(f"  UNLOCKED [{u['sport']}] {u['game']} -- {u['leg']} ({u['why']})")
     if unlocked and auto_lock:
         cand = [u for u, _q in zip(unlocked, unlocked_q)
-                if u["startMs"] and LOCK_START_MARGIN_MIN < (u["startMs"] - now_ms) / 60000.0 <= AUTO_LOCK_WINDOW_MIN]
+                if u["startMs"] and LOCK_START_MARGIN_MIN < (u["startMs"] - now_ms) / 60000.0 <= AUTO_LOCK_WINDOW_MIN and not u.get("lineupHold")]
         if cand and not live:
             log(f"[DRY RUN] Would auto-lock {len(cand)} leg(s): " + "; ".join(f"[{c['sport']}] {c['game']} {c['leg']}" for c in cand))
         elif cand:
@@ -4114,6 +4214,9 @@ def main() -> None:
     # specifically -- soccer's product is now just the 4 European leagues,
     # covered by the early pass alone.)
     early_to = recipients_for("soccer") if args.only_soccer else recipients_for("cfb") if args.only_cfb else None
+
+    if do_lock or args.watchdog:
+        activate_lineup_gate()        # fail-open: any problem leaves the gate off and the passes exactly as before
 
     from playwright.sync_api import sync_playwright
 
