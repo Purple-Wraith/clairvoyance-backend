@@ -33517,7 +33517,7 @@ function _ptRenderAdd(){
 function _ptRenderAddRecent(){
   const el=document.getElementById('pt-recent');if(!el)return;
   const last=_ptState.entries.filter(e=>!_ptHid(e.book)).sort((a,b)=>b.ts-a.ts).slice(0,window.innerWidth<=480?3:5),adj=_ptAdjMap(_ptState.entries);
-  el.innerHTML=last.length?`<div class="pt-l pt-mt">LAST ${last.length} ENTRIES <span class="pt-dim">· newest first</span></div><div class="pt-list">${last.map(e=>_ptRowHTML(e,adj,{})).join('')}</div>`:'';
+  el.innerHTML=last.length?`<div class="pt-l pt-mt">LAST ${last.length} ENTRIES <span class="pt-dim">· newest first</span></div><div class="pt-list">${last.map(e=>_ptRowHTML(e,adj,{del:true})).join('')}</div>`:'';
 }
 
 // ── PERIOD CHECK-IN form: pick book + week/month + which one, STARTING and ENDING amount ──
@@ -33655,7 +33655,7 @@ function _ptRowHTML(e,adj,o){
     <span class="pt-rt" style="--pt-c:${_PT_TCOL[isCk?'CHECKIN':e.type]}"><span>${isCk?'CHECK-IN':_PT_TLBL[e.type]}</span></span>
     <span class="pt-rb"><i style="background:${_ptBookCol(e.book)}"></i>${_ptEsc(e.book)}</span>
     <span class="pt-ra" style="color:${col}">${amt}</span>
-    ${o.actions?`<span class="pt-rx">${_ptBtn('edit',e.id,'EDIT','pt-b-sm')}${_ptBtn('del',e.id,'DELETE','pt-b-sm pt-b-del')}</span>`:''}
+    ${o.actions?`<span class="pt-rx">${_ptBtn('edit',e.id,'EDIT','pt-b-sm')}${_ptBtn('del',e.id,'DELETE','pt-b-sm pt-b-del')}</span>`:(o.del?`<span class="pt-rx">${_ptBtn('del',e.id,'DELETE','pt-b-sm pt-b-del',' aria-label="Delete this entry"')}</span>`:'')}
     ${extra.length?`<span class="pt-rn">${extra.join(' · ')}</span>`:''}
   </div>`;
 }
@@ -34052,7 +34052,7 @@ function _ptDrillPeriod(scope,key){
   const tS=scope==='ALL'?null:_ptCkTag('S',v,key);
   const es=_ptState.entries.filter(e=>!_ptHid(e.book)&&(scope==='ALL'||e.book===scope)&&((e.date>=p.start&&e.date<=p.end)||(tS&&e.ck===tS))).sort(_ptCmp),adj=_ptAdjMap(_ptState.entries);
   const show=es.slice(0,40);
-  return`<div class="pt-dh"><b>${(scope==='ALL'?'':_ptEsc(scope.toUpperCase())+' · ')+_ptLabelLong(key,v)}</b><span style="color:${_ptCol(p.profit)}">${_ptSigned(p.profit)}</span><span class="pt-dim">ROI ${_ptPctS(p.roi)} · ${es.length} ENTR${es.length===1?'Y':'IES'}${p.open?' · OPEN':p.running?' · LIVE':''}</span>${scope==='ALL'?'':_ptBtn('ckfor',scope+'|'+v+'|'+key,'CHECK IN THIS '+_ptWord(v),'pt-b-sm pt-b-sec')}${_ptBtn('pinx',null,'✕ CLOSE','pt-b-sm')}</div>${_ptSummaryHTML(p)}${show.length?'<div class="pt-list">'+show.map(e=>_ptRowHTML(e,adj,{})).join('')+'</div>':'<div class="pt-dim">No entries in this period.</div>'}${es.length>show.length?`<div class="pt-dim pt-mt">+ ${es.length-show.length} more — see the ENTRIES tab</div>`:''}`;
+  return`<div class="pt-dh"><b>${(scope==='ALL'?'':_ptEsc(scope.toUpperCase())+' · ')+_ptLabelLong(key,v)}</b><span style="color:${_ptCol(p.profit)}">${_ptSigned(p.profit)}</span><span class="pt-dim">ROI ${_ptPctS(p.roi)} · ${es.length} ENTR${es.length===1?'Y':'IES'}${p.open?' · OPEN':p.running?' · LIVE':''}</span>${scope==='ALL'?'':_ptBtn('ckfor',scope+'|'+v+'|'+key,'CHECK IN THIS '+_ptWord(v),'pt-b-sm pt-b-sec')}${_ptBtn('pinx',null,'✕ CLOSE','pt-b-sm')}</div>${_ptSummaryHTML(p)}${show.length?'<div class="pt-list">'+show.map(e=>_ptRowHTML(e,adj,{del:true})).join('')+'</div>':'<div class="pt-dim">No entries in this period.</div>'}${es.length>show.length?`<div class="pt-dim pt-mt">+ ${es.length-show.length} more — see the ENTRIES tab</div>`:''}`;
 }
 function _ptDrillBook(name){
   const m=_ptModelCache;if(!m)return'';
@@ -34060,7 +34060,7 @@ function _ptDrillBook(name){
   const all=name==='COMBINED',from=P[0].start,to=P[P.length-1].end,fk=P[0].key;
   const R=_ptRangeSum(_ptWindow(all?m.P:(m.per[name]||[]),fk));if(!R)return'';
   const es=_ptState.entries.filter(e=>!_ptHid(e.book)&&(all||e.book===name)&&e.date>=from&&e.date<=to).sort(_ptCmp),adj=_ptAdjMap(_ptState.entries),show=es.slice(0,40);
-  return`<div class="pt-dh"><b>${_ptEsc(name.toUpperCase())} · ${_ptMD(from)} – ${_ptMD(to)}</b><span style="color:${_ptCol(R.profit)}">${_ptSigned(R.profit)}</span><span class="pt-dim">ROI ${_ptPctS(R.roi)} · ${es.length} ENTR${es.length===1?'Y':'IES'}</span>${_ptBtn('pinx',null,'✕ CLOSE','pt-b-sm')}</div>${_ptSummaryHTML(R)}${show.length?'<div class="pt-list">'+show.map(e=>_ptRowHTML(e,adj,{})).join('')+'</div>':'<div class="pt-dim">No entries in this range.</div>'}${es.length>show.length?`<div class="pt-dim pt-mt">+ ${es.length-show.length} more — see the ENTRIES tab</div>`:''}`;
+  return`<div class="pt-dh"><b>${_ptEsc(name.toUpperCase())} · ${_ptMD(from)} – ${_ptMD(to)}</b><span style="color:${_ptCol(R.profit)}">${_ptSigned(R.profit)}</span><span class="pt-dim">ROI ${_ptPctS(R.roi)} · ${es.length} ENTR${es.length===1?'Y':'IES'}</span>${_ptBtn('pinx',null,'✕ CLOSE','pt-b-sm')}</div>${_ptSummaryHTML(R)}${show.length?'<div class="pt-list">'+show.map(e=>_ptRowHTML(e,adj,{del:true})).join('')+'</div>':'<div class="pt-dim">No entries in this range.</div>'}${es.length>show.length?`<div class="pt-dim pt-mt">+ ${es.length-show.length} more — see the ENTRIES tab</div>`:''}`;
 }
 function _ptDrillHTML(dc,key){
   if(dc==='d'&&_ptU.dmode==='range')return _ptDrillBook(key);

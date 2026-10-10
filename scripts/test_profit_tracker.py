@@ -874,7 +874,7 @@ class Profit(unittest.TestCase):
         pg.click("[data-ptact=ftype][data-v=CHECKIN]"); pg.fill("#pt-ck-end", "600"); pg.click("#pt-ck-btn")
         pg.click("[data-ptact=view][data-v=month]"); pg.click("[data-ptact=view][data-v=week]")
         self.open_entries(pg)
-        pg.locator("[data-ptact=del]").first.click(); pg.click("#pt-undo")
+        pg.locator("#pt-ent [data-ptact=del]").first.click(); pg.click("#pt-undo")
         self.open_dash(pg)
         pg.wait_for_timeout(2500)
         self.assertEqual(pg.evaluate("localStorage.getItem('cv_trigger_key')"), None)
@@ -1361,6 +1361,29 @@ class Profit(unittest.TestCase):
         self.assertIn("DraftKings", pg.evaluate("_ptBookList()"))
         pg.click("[data-ptact=newbook]"); pg.fill("#pt-nb-name", "hard rock"); pg.click("[data-ptact=addbook]")   # typing a removed name's twin restores it
         self.assertIn("Hard Rock", pg.evaluate("_ptBookList()"))
+        self.assertEqual(self.errors, [])
+        self.done(pg)
+
+    def test_deposits_can_be_deleted_from_the_dashboard_lists_with_undo(self):
+        """owner request 2026-10-10: DELETE on the deposit rows right where they are shown (LAST ENTRIES under quick add and the period drill-downs), not only on the ENTRIES tab"""
+        pg = self.open()
+        n = len(self.entries(pg))
+        self.assertGreater(pg.locator("#pt-recent .pt-r [data-ptact=del]").count(), 0)
+        row = pg.locator("#pt-recent .pt-r").first
+        rid = row.get_attribute("data-id")
+        row.locator("[data-ptact=del]").click()
+        self.assertEqual(len(self.entries(pg)), n - 1)
+        self.assertNotIn(rid, [e["id"] for e in self.entries(pg)])
+        self.assertIn(rid, [t["id"] for t in pg.evaluate("_ptState.tombstones")])
+        self.assertIn("DELETED", pg.inner_text("#pt-toast"))
+        pg.click("#pt-undo")
+        self.assertEqual(len(self.entries(pg)), n)
+        self.assertIn(rid, [e["id"] for e in self.entries(pg)])
+        # a deposit deleted from a period drill-down disappears from the totals too
+        dep = [e for e in self.entries(pg) if e["type"] == "DEPOSIT"][0]
+        before = pg.evaluate("_ptModel().tot.deposits")
+        pg.evaluate("(id)=>{_ptDeleteEntry(id);_ptSave();_ptRefreshAll();}", dep["id"])
+        self.assertAlmostEqual(pg.evaluate("_ptModel().tot.deposits"), before - dep["amount"], places=2)
         self.assertEqual(self.errors, [])
         self.done(pg)
 
