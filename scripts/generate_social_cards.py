@@ -1013,14 +1013,20 @@ def build_grading_caption() -> dict[str, str]:
 
 
 def build_subscription_caption() -> dict[str, str]:
+    # Copy is data-driven from ad_coverage.py (pinned to the real pricing/leagues by scripts/test_ad_coverage.py).
+    # The old Base/Plus/Insider/Day-Pass/Weekend-Pass tiers were retired 2026-09-09: pricing is now 1-5 sport
+    # products, $20-$75 per 30 days.
+    import ad_coverage as ac
     ig = (
         "Full access. No guesswork.\n\nThis is Clairvoyance.\n\n"
-        "Every tier gets real graded picks, real game lines, and Discord access — the only difference is how much of the model you want.\n\n"
+        f"Pick any combination of sports -- NFL, CFB, NBA, soccer, hockey -- and get {ac.CORE_COPY}. "
+        f"${ac.PRICE_FROM} to ${ac.PRICE_ALL} for {ac.ACCESS_DAYS} days. The more sports you add, the less you pay per sport.\n\n"
         "clairvoyanceengine.info\nIG @clairvoyanceengine\nX @clairvoyanceeng\n\n"
         "#foryou #sportsbetting #bettingtips #bettingpicks"
     )
     x = (
-        "Full access. No guesswork.\n\nBase, Plus, Insider — or a Day/Weekend Pass if you just want in for a slate.\n\n"
+        "Full access. No guesswork.\n\n"
+        f"1-5 sports, ${ac.PRICE_FROM} to ${ac.PRICE_ALL} per {ac.ACCESS_DAYS} days. Pick any combination.\n\n"
         "clairvoyanceengine.info\n\n#sportsbetting #bettingpicks"
     )
     return {"instagram": ig, "x": x}
@@ -1039,44 +1045,22 @@ def build_educational_caption(topic: dict) -> dict[str, str]:
 
 
 def build_covers_caption() -> dict[str, str]:
-    # League/sport count updated 2026-09-03 to match the current pinned
-    # card + landing page Coverage section exactly (11 subscriber-facing
-    # leagues across 5 sports: NFL/CFB/NBA/NHL/MLB + 6 soccer leagues) --
-    # was stale at "20 leagues across 6 sports" from before WNBA/tennis/
-    # CBB/College Hockey/SHL/LIIGA/KHL were split out as personal-use-only
-    # (see project_subscriber_vs_personal_leagues memory). Updated again
-    # 2026-09-08: MLB retired from the engine entirely, dropping the
-    # count to 10 leagues across 5 sports (still 5 -- NFL/CFB/NBA/NHL/
-    # soccer -- MLB's departure just means one fewer of the 5 has its own
-    # dedicated league; soccer's bundle absorbed the difference in the
-    # league count, not the sport count). Updated again 2026-09-23: NLA
-    # and Extraliga joined SHL/Liiga in PRODUCT_SPORTS["hockey"] (explicit
-    # request -- "integrate nla and extra liga into the paid subscriber
-    # section for hockey"), taking the hockey product from NHL+Liiga+SHL
-    # (3 leagues) to NHL+Liiga+SHL+NLA+Extraliga (5 leagues) -- 14 leagues
-    # total. Updated again same day: Bundesliga retired (real settled-bet
-    # audit found it the only negative-ROI soccer league, worsening not
-    # stabilizing -- see EURO_SOCCER_SPORTS' own comment in
-    # auto_lock_settle.py), dropping soccer's active bundle from 6 leagues
-    # to 5 -- real total was 13 leagues across the same 5 sports.
-    # Real bug, found auditing this file 2026-10-02: MLS retired
-    # 2026-09-27 (4 days after the above update), dropping soccer's
-    # active bundle from 5 leagues to 4 (CL/PL/La Liga/Serie A only --
-    # see PRODUCT_SPORTS' own comment in auto_lock_settle.py), but this
-    # caption was never updated to match -- it kept advertising MLS (a
-    # retired league with no new picks ever locking) as part of the
-    # count. Real total is NFL(1)+CFB(1)+NBA(1)+hockey(NHL/Liiga/SHL/
-    # NLA/Extraliga=5)+soccer(CL/PL/La Liga/Serie A=4) = 12 leagues
-    # across the same 5 sports/products.
+    # League list / counts come from ad_coverage.py (pinned to auto_lock_settle.PRODUCT_SPORTS by
+    # scripts/test_ad_coverage.py) so this caption can't keep advertising a retired league again --
+    # it kept saying MLS after MLS retired (found 2026-10-02) and "5 sports" when the landing page
+    # says 4.  History: MLB/WNBA/tennis/CBB/World Cup retired 2026-09-08, Bundesliga 2026-09-23,
+    # MLS 2026-09-27; Liiga/SHL/NLA/Extraliga joined the sold Hockey product 2026-09-23/29.
+    import ad_coverage as ac
+    blurb = ac.coverage_blurb()
     ig = (
         "One engine. Every sport that matters.\n\nThis is Clairvoyance.\n\n"
-        "12 leagues across 5 sports, picks graded and results tracked publicly — model outputs, not gut feelings.\n\n"
+        f"{blurb}, picks graded and results tracked publicly -- model outputs, not gut feelings.\n\n"
         "Follow for daily signals, subscribe for exclusive graded picks, and intelligence briefs.\n\n"
         "clairvoyanceengine.info\nIG @clairvoyanceengine\nX @clairvoyanceeng\n\n"
         "#foryou #sportsbetting #bettingtips #bettingpicks"
     )
     x = (
-        "One engine. Every sport that matters.\n\n12 leagues, 5 sports, every pick graded.\n\n"
+        f"One engine. Every sport that matters.\n\n{ac.LEAGUE_COUNT} leagues, every pick graded.\n\n"
         "clairvoyanceengine.info\n\n#sportsbetting #bettingpicks"
     )
     return {"instagram": ig, "x": x}

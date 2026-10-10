@@ -47,10 +47,15 @@ FOOTER BAR  (all cards)
   Social handles centered with neon-dot separators (orb 13px)
   Disclaimer centered below: mono 13px, DIM color
 
-CARD SCRIPTS (Tron Disc /Volumes/Tron Disc/Clairvoyance/Python Scripts/, NOT Desktop)
-  gen_pinned_card_v2.py       → ~/Desktop/CorrectPinnedCard2.0.png (void bg) + CorrectPinnedCard6.0.png (covers bg)
+CARD SCRIPTS -- repo-tracked (scripts/), all copy (leagues / pricing / props wording) from ad_coverage.py, which
+scripts/test_ad_coverage.py pins to the real engine.  The older Tron-Disc-only gen_*_v2.py copies are SUPERSEDED
+(they still listed Bundesliga/MLS) -- use these:
+  gen_pinned_card.py          → scripts/assets/covers_card.png (the 5-day "What We Cover" rotation card, void bg)
+                                 + --out-dir: CorrectPinnedCard2.0.png (void bg) + CorrectPinnedCard6.0.png (covers bg)
   gen_reddit_ad_v1.py         → ~/Desktop/ClairvoyanceRedditAd.png (covers bg) + Tron Disc Advertising/ClairvoyanceRedditAd.png (void bg)
-  gen_subscription_card_v2.py → ~/Desktop/Clairvoyance_Subscription_Card_Black.png (void bg) + _Grey.png (covers bg)
+  gen_subscription_card.py    → --out-dir: Clairvoyance_Subscription_Card_Black.png (void bg) + _Grey.png (covers bg)
+  refresh_pinned_card_images.py → repaints the coverage block of docs/pinned_card_{carbon,purplecarbon,whitecarbon,plaid}.png
+Tron Disc (/Volumes/Tron Disc/Clairvoyance/Python Scripts/) still holds:
   gen_grading_card.py         → ~/Desktop/Clairvoyance-Grading-Card.png
   (gen_launch_card_v2.py retired 2026-09-09 -- pre-launch teaser card, obsolete once the
    product was actually live; do not resurrect without explicit request)

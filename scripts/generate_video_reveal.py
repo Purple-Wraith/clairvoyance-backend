@@ -245,7 +245,7 @@ record_and_convert = record_stats_reveal
 
 def record_breakdown_reveal(headline: str, rows: list[dict], out_path: Path,
                              duration_s: float | None = None, date_range: str | None = None) -> Path:
-    """rows: [{"label": "BASEBALL", "record": "18W-4L", "pct": "81.8%", "isTotal": False}, ...]
+    """rows: [{"label": "FOOTBALL", "record": "18W-4L", "pct": "81.8%", "isTotal": False}, ...]
     last row should typically have isTotal=True. Duration auto-scales with
     row count if not given (each row adds ~0.28s to the reveal). date_range
     is an optional sub-line under the headline (e.g. "JULY 13 – 19, 2026"
@@ -420,8 +420,10 @@ def record_grading_tiers_reveal(out_path: Path, duration_s: float = 10.0) -> Pat
 
 
 def record_subscription_tiers_reveal(out_path: Path, duration_s: float = 10.0) -> Path:
-    """Dedicated 'Choose Your Tier' subscription video - static content,
-    real public pricing (not methodology, so no vagueness needed here)."""
+    """Dedicated 'Choose Your Access' subscription video - static content,
+    real public pricing (1-5 sports, $20-$75 per 30 days) and the current
+    league list. The template's copy is pinned to scripts/ad_coverage.py by
+    scripts/test_ad_coverage.py, so it cannot silently drift."""
     return _record_template("subscription_tiers_reveal.html", "() => {}", out_path, duration_s)
 
 
@@ -473,7 +475,7 @@ def main() -> None:
         out = record_big_recap_reveal("WEEKLY RECAP", "JULY 12 – 18, 2026", "50W-13L", "79.4%", "+31.4u", "7 DAYS", "TRACKED", Path(args.out))
     elif args.kind == "breakdown":
         demo_rows = [
-            {"label": "BASEBALL", "record": "18W-4L", "pct": "81.8%", "isTotal": False},
+            {"label": "FOOTBALL", "record": "18W-4L", "pct": "81.8%", "isTotal": False},
             {"label": "BASKETBALL", "record": "12W-3L", "pct": "80.0%", "isTotal": False},
             {"label": "HOCKEY", "record": "9W-2L", "pct": "81.8%", "isTotal": False},
             {"label": "TOTAL", "record": "39W-9L", "pct": "81.3%", "isTotal": True},

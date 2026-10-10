@@ -21,44 +21,41 @@
     color:#00f0ff; text-shadow:0 0 10px #00f0ff; margin-top:10px;
     opacity:0; animation: reveal .6s ease-out .25s forwards;
   }
-  .tiers { width:900px; margin-top:36px; display:flex; flex-direction:column; gap:14px; }
+  .tiers { width:900px; margin-top:44px; display:flex; flex-direction:column; gap:18px; }
   .tier {
-    border-radius:8px; padding:18px 26px; opacity:0; transform:translateX(-30px);
+    border-radius:8px; padding:20px 26px; opacity:0; transform:translateX(-30px);
     background:rgba(20,10,40,.55); display:flex; justify-content:space-between; align-items:center;
   }
-  .tier-name { font-family:'Orbitron',sans-serif; font-weight:900; font-size:28px; }
+  .tier-name { font-family:'Orbitron',sans-serif; font-weight:900; font-size:26px; }
   .tier-desc { font-family:'Share Tech Mono',monospace; font-size:15px; color:rgba(230,225,255,.75); margin-top:4px; }
-  .tier-price { font-family:'Orbitron',sans-serif; font-weight:900; font-size:26px; white-space:nowrap; }
-  .t1 { border:2px solid #f000ff; animation: rowIn .55s ease-out .9s forwards; }
-  .t1 .tier-name, .t1 .tier-price { color:#f000ff; text-shadow:0 0 9px rgba(240,0,255,.5); }
-  .t2 { border:2px solid #00f0ff; animation: rowIn .55s ease-out 1.2s forwards; }
+  .tier-price { font-family:'Orbitron',sans-serif; font-weight:900; font-size:30px; white-space:nowrap; }
+  .tier-price small { font-family:'Share Tech Mono',monospace; font-weight:400; font-size:15px; color:rgba(230,225,255,.75); margin-left:8px; letter-spacing:0; }
+  .t1 { border:2px solid #00f0ff; animation: rowIn .55s ease-out .9s forwards; }
+  .t1 .tier-name, .t1 .tier-price { color:#00f0ff; text-shadow:0 0 12px rgba(0,240,255,.6); }
+  .t2 { border:2px solid #00f0ff; animation: rowIn .55s ease-out 1.15s forwards; }
   .t2 .tier-name, .t2 .tier-price { color:#00f0ff; text-shadow:0 0 12px rgba(0,240,255,.6); }
-  .t3 { border:2px solid #ffcc00; animation: rowIn .55s ease-out 1.5s forwards; }
-  .t3 .tier-name, .t3 .tier-price { color:#ffcc00; text-shadow:0 0 12px rgba(255,204,0,.6); }
-  .passes { width:900px; margin-top:14px; display:flex; gap:14px; }
-  .pass {
-    flex:1; border-radius:8px; padding:16px 20px; opacity:0; transform:translateY(20px);
-    background:rgba(20,10,40,.55);
-  }
-  .p1 { border:2px solid #f000ff; animation: colIn .55s ease-out 1.85s forwards; }
-  .p1 .tier-name, .p1 .tier-price { color:#f000ff; }
-  .p2 { border:2px solid #00f0ff; animation: colIn .55s ease-out 2.05s forwards; }
-  .p2 .tier-name, .p2 .tier-price { color:#00f0ff; }
-  .pass .tier-name { font-size:22px; }
-  .pass .tier-price { font-size:22px; }
+  .t3 { border:2px solid #f000ff; animation: rowIn .55s ease-out 1.4s forwards; }
+  .t3 .tier-name, .t3 .tier-price { color:#f000ff; text-shadow:0 0 9px rgba(240,0,255,.5); }
+  .t4 { border:2px solid #f000ff; animation: rowIn .55s ease-out 1.65s forwards; }
+  .t4 .tier-name, .t4 .tier-price { color:#f000ff; text-shadow:0 0 9px rgba(240,0,255,.5); }
+  .t5 { border:2px solid #ffcc00; animation: rowIn .55s ease-out 1.9s forwards; }
+  .t5 .tier-name, .t5 .tier-price { color:#ffcc00; text-shadow:0 0 12px rgba(255,204,0,.6); }
+  .covers { width:900px; margin-top:46px; text-align:center; opacity:0; animation: reveal .7s ease-out 2.25s forwards; }
+  .covers-h { font-family:'Orbitron',sans-serif; font-weight:700; font-size:20px; letter-spacing:3px; color:#f000ff; text-shadow:0 0 10px rgba(240,0,255,.5); }
+  .covers-row { font-family:'Share Tech Mono',monospace; font-size:19px; color:#e6eaff; margin-top:8px; letter-spacing:.5px; }
+  .covers-note { font-family:'Share Tech Mono',monospace; font-size:15px; color:rgba(230,225,255,.7); margin-top:14px; }
   .cta {
-    margin-top:36px; font-family:'Orbitron',sans-serif; font-weight:700; font-size:22px; letter-spacing:2px;
-    color:#e6eaff; opacity:0; animation: reveal .7s ease-out 2.4s forwards;
+    margin-top:44px; font-family:'Orbitron',sans-serif; font-weight:700; font-size:22px; letter-spacing:2px;
+    color:#e6eaff; opacity:0; animation: reveal .7s ease-out 2.6s forwards;
   }
   .footer {
     position:absolute; bottom:60px; left:0; right:0; text-align:center;
     font-family:'Share Tech Mono',monospace; font-size:19px; letter-spacing:0.5px; color:#f000ff; text-shadow:0 0 8px rgba(240,0,255,.5); white-space:nowrap;
-    opacity:0; animation: reveal .7s ease-out 2.75s forwards;
+    opacity:0; animation: reveal .7s ease-out 2.9s forwards;
   }
   @keyframes reveal { to { opacity:1; } }
   @keyframes rowIn { to { opacity:1; transform:translateX(0); } }
-  @keyframes colIn { to { opacity:1; transform:translateY(0); } }
-</style>
+  </style>
 </head>
 <body>
   <canvas id="bgCanvas" width="1080" height="1350" style="position:absolute;top:0;left:0;z-index:-1"></canvas>
@@ -85,24 +82,35 @@
   </script>
   <div class="stage">
     <div class="logo">CLAIRVOYANCE</div>
-    <div class="sub">CHOOSE YOUR TIER</div>
+    <div class="sub">CHOOSE YOUR ACCESS</div>
     <div class="tiers">
       <div class="tier t1">
-        <div><div class="tier-name">BASE</div><div class="tier-desc">One top pick per sport · Game lines · Base Discord</div></div>
-        <div class="tier-price">$25/MO</div>
+        <div><div class="tier-name">1 SPORT</div><div class="tier-desc">NFL &middot; CFB &middot; NBA &middot; Soccer &middot; Hockey &mdash; pick any one</div></div>
+        <div class="tier-price">$20<small>/ 30 days</small></div>
       </div>
       <div class="tier t2">
-        <div><div class="tier-name">PLUS</div><div class="tier-desc">All picks, every sport · Game lines · Plus Discord</div></div>
-        <div class="tier-price">$50/MO</div>
+        <div><div class="tier-name">2 SPORTS</div><div class="tier-desc">Mix any two products</div></div>
+        <div class="tier-price">$30<small>/ 30 days</small></div>
       </div>
       <div class="tier t3">
-        <div><div class="tier-name">INSIDER</div><div class="tier-desc">All picks + player props · Insider Discord</div></div>
-        <div class="tier-price">$80/MO</div>
+        <div><div class="tier-name">3 SPORTS</div><div class="tier-desc">Mix any three products</div></div>
+        <div class="tier-price">$45<small>/ 30 days</small></div>
+      </div>
+      <div class="tier t4">
+        <div><div class="tier-name">4 SPORTS</div><div class="tier-desc">Mix any four products</div></div>
+        <div class="tier-price">$60<small>/ 30 days</small></div>
+      </div>
+      <div class="tier t5">
+        <div><div class="tier-name">5 SPORTS &mdash; ALL ACCESS</div><div class="tier-desc">Every product, every league</div></div>
+        <div class="tier-price">$75<small>/ 30 days</small></div>
       </div>
     </div>
-    <div class="passes">
-      <div class="pass p1"><div class="tier-name">DAY PASS</div><div class="tier-price">$10</div></div>
-      <div class="pass p2"><div class="tier-name">WEEKEND PASS</div><div class="tier-price">$25</div></div>
+    <div class="covers">
+      <div class="covers-h">LEAGUES COVERED</div>
+      <div class="covers-row">NFL &middot; CFB &middot; NBA &middot; NHL</div>
+      <div class="covers-row">Liiga &middot; SHL &middot; NLA &middot; Extraliga</div>
+      <div class="covers-row">Premier League &middot; La Liga &middot; Serie A &middot; Champions League</div>
+      <div class="covers-note">Graded picks + game lines on every league &middot; NBA player props with NBA</div>
     </div>
     <div class="cta">Full access. No guesswork.</div>
     <div class="footer">clairvoyanceengine.info &nbsp;·&nbsp; X @clairvoyanceeng &nbsp;·&nbsp; IG @clairvoyanceengine</div>

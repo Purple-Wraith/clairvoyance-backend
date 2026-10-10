@@ -21,12 +21,29 @@ Output:
   ~/Desktop/ClairvoyanceRedditAd.png                                (covers_card bg)
   /Volumes/Tron Disc/Clairvoyance/Advertising/ClairvoyanceRedditAd.png (void bg)
 """
+import argparse
+import json
+from pathlib import Path
+
+import ad_coverage as ac
 from design_system import (
     W, H, CX, BG, CARD, MAG, CYN, GOLD, RED, WHT, DIM, T2, T3,
     orb, mono, glow, make_background, make_background_covers, draw_footer, hline,
     TITLE_GLOW, SUB_GLOW, HDR_GLOW, SOCIAL_GLOW,
 )
 from PIL import Image, ImageDraw, ImageFilter
+
+
+ROOT = Path(__file__).resolve().parent.parent
+PERF_JSON = ROOT / 'docs' / 'engine_performance_subscriber.json'
+
+
+def hero_win_rate_pct(path: Path = PERF_JSON) -> str:
+    """All-time win rate for the hero stat, read from the same subscriber-scope file the landing page's
+    Live Track Record uses -- it used to be a hard-coded '71.7%' (n=733) that drifted as the ledger grew."""
+    d = json.loads(Path(path).read_text())
+    allt = next(p for p in d['periods'] if p['key'] == 'ALL_TIME')
+    return f"{allt['pct'] * 100:.1f}%"
 
 
 def cx_text(draw, text, font):
@@ -78,7 +95,7 @@ def build_card(background_fn):
     # ── Hero stat (the actual hook) ──────────────────────────────
     # Win rate only, per explicit request (record/units/all-time label
     # dropped from this card).
-    base = glow(base, '71.7% WIN RATE', (CX, 300), orb(74), MAG, TITLE_GLOW)
+    base = glow(base, f'{hero_win_rate_pct()} WIN RATE', (CX, 300), orb(74), MAG, TITLE_GLOW)
 
     draw = ImageDraw.Draw(base)
     base = hline(base, 360, color=MAG, alpha=90)
@@ -103,12 +120,11 @@ def build_card(background_fn):
     vy += 46
     draw = ImageDraw.Draw(base)
     cf = mono(19)
-    dotted_row(draw, ['NFL', 'CFB', 'NBA', 'NHL'], vy + 8, cf, dot_w=30)
-    vy += 28
-    dotted_row(draw, ['Serie A', 'La Liga'], vy + 8, cf, dot_w=30)
-    vy += 28
-    dotted_row(draw, ['Premier League', 'Champions League'], vy + 8, cf, dot_w=30)
-    vy += 56
+    # League rows come from ad_coverage.LEAGUE_ROWS (the single source of truth, pinned to the real
+    # engine by scripts/test_ad_coverage.py) -- never hard-code a league list here.
+    for i, row in enumerate(ac.LEAGUE_ROWS):
+        dotted_row(draw, list(row), vy + 8, cf, dot_w=30)
+        vy += 28 if i < len(ac.LEAGUE_ROWS) - 1 else 56
 
     # ── CTA box ─────────────────────────────────────────────────────
     box_w, box_h = 700, 118
@@ -133,13 +149,23 @@ def build_card(background_fn):
     return base
 
 
+TRON_ADS = Path('/Volumes/Tron Disc/Clairvoyance/Advertising')
 CARDS = [
-    (make_background_covers, '/Users/reeseoliver/Desktop/ClairvoyanceRedditAd.png'),
-    (make_background, '/Volumes/Tron Disc/Clairvoyance/Advertising/ClairvoyanceRedditAd.png'),
+    (make_background_covers, Path.home() / 'Desktop' / 'ClairvoyanceRedditAd.png'),
+    (make_background, TRON_ADS / 'ClairvoyanceRedditAd.png'),
 ]
 
 if __name__ == '__main__':
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--out-dir', help='write ClairvoyanceRedditAd.png (covers bg) + ClairvoyanceRedditAd_void.png (void bg) here instead of the defaults')
+    args = ap.parse_args()
     for background_fn, out in CARDS:
+        if args.out_dir:
+            name = 'ClairvoyanceRedditAd.png' if background_fn is make_background_covers else 'ClairvoyanceRedditAd_void.png'
+            out = Path(args.out_dir).expanduser() / name
+        elif not out.parent.exists():
+            print(f'SKIP {out} (folder not available -- Tron Disc not mounted?)')
+            continue
         card = build_card(background_fn)
         card.convert('RGB').save(out, quality=97)
-        print(f'Saved → {out}')
+        print(f'Saved -> {out}')
