@@ -160,6 +160,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .nb{font-family:var(--mono);font-size:17px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);padding:7px 11px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s}
 .nb:active{background:rgba(77,121,255,.06)}.nb.act{color:var(--nc);border-bottom-color:var(--nc)}.nb.ai{color:var(--ic);border-bottom-color:var(--ic)}.nb.ap{color:var(--pc);border-bottom-color:var(--pc)}
 /* SCROLL + TABS */
+/* PERIOD PERFORMANCE — LEAGUE recent-form bubbles (owner request 2026-10-10: bigger). 6px -> 13px on desktop, 10px on phones so ten of them still fit beside the label and the W-L numbers. */
+.lg-dot{display:inline-block;vertical-align:middle;width:13px;height:13px;border-radius:50%;margin-left:3px;box-shadow:0 0 5px currentColor}
 .sa{flex:1 1 0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;overflow-anchor:none}
 .tab{display:none;padding:12px 12px 82px}.tab.act{display:block}
 /* MOB NAV */
@@ -193,6 +195,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   html .inav{display:flex!important;font-size:10px!important}
   html .nb{font-size:10px!important;padding:5px 8px!important}
   body{font-size:10px!important}
+  html .lg-dot{width:10px!important;height:10px!important;margin-left:2px!important}
   /* Shrink header to hug its content (title+time row is ~34px tall) —
      shifts everything up and puts the glow line (bottom:0 of #hdr)
      right under the time row instead of leaving a visible gap. */
@@ -20164,7 +20167,7 @@ function renderHomePage(){
       // numbers beside it. vertical-align:middle centers each dot against
       // the line the way the row's own align-items:center already centers
       // its flex children.
-      const dots=d.last10.map(p=>{const c=p.outcome==='win'?'#00e644':'#ff2090';return`<span title="${(p.date||'').replace(/"/g,"'")}" style="display:inline-block;vertical-align:middle;width:6px;height:6px;border-radius:50%;background:${c};margin-left:2px"></span>`;}).join('');
+      const dots=d.last10.map(p=>{const c=p.outcome==='win'?'#00e644':'#ff2090';return`<span title="${(p.date||'').replace(/"/g,"'")}" class="lg-dot" style="background:${c};color:${c}"></span>`;}).join('');
       return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-family:var(--mono);font-size:14px;color:var(--t)">${d.lbl}</span><div style="display:flex;gap:8px;align-items:center"><span style="white-space:nowrap">${dots}</span><span style="font-family:var(--mono);font-size:14px"><span style="color:#00e644">${d.w}W</span>-<span style="color:var(--hc)">${d.l}L</span></span><span style="font-family:var(--mono);font-size:14px;font-weight:700;color:${pCol(d.acc)}">${d.acc!==null?(d.acc*100).toFixed(0)+'%':'--'}</span><span style="font-family:var(--mono);font-size:14px;color:${uCol(d.units)}">${d.units>=0?'+':''}${d.units.toFixed(1)}u</span></div></div>`;
     };
     const lgPerfToggle=`<div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
