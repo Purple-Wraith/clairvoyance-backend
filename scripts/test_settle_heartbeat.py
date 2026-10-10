@@ -43,8 +43,14 @@ class Workflow(unittest.TestCase):
         self.assertIn("steps.flags.outputs.live_flag == '--live'", step)
         self.assertIn("steps.flags.outputs.should_run == '0' || steps.presettle.outputs.run_heavy == 'skip'", step)
         self.assertIn("python3 scripts/settle_heartbeat.py", step)
-        self.assertIn("git add docs/automation_status.json", step)
         self.assertIn("continue-on-error: true", step)
+        # 2026-10-10: the commit/push moved into the shared publish step, gated by the very same condition, which also dispatches the Pages deploy
+        j = WF.index("name: Publish settle heartbeat")
+        pub = WF[j:j + 1200]
+        self.assertIn("steps.flags.outputs.gated == '1' && steps.flags.outputs.live_flag == '--live' && (steps.flags.outputs.should_run == '0' || steps.presettle.outputs.run_heavy == 'skip')", pub)
+        self.assertIn("uses: ./.github/actions/publish", pub)
+        self.assertIn("paths: docs/automation_status.json", pub)
+        self.assertGreater(j, i)
 
 
 if __name__ == "__main__":

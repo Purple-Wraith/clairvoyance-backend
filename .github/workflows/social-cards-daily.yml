@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: write
+  actions: write      # the publish step dispatches pages-deploy.yml
 
 jobs:
   generate-and-email:
@@ -57,25 +58,11 @@ jobs:
       # state change" every single day for over a month. (Milestone
       # emails also retired earlier -- data/social_milestones.json is no
       # longer written.)
-      - name: Commit pick-of-day state
-        run: |
-          git config user.name  "Clairvoyance Bot"
-          git config user.email "bot@clairvoyance"
-          git add docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
-          if git diff --cached --quiet; then
-            echo "No state change"
-          else
-            git commit -m "social-cards: pick-of-day state update"
-            if ! git push; then
-              git fetch origin main
-              if git rebase origin/main; then
-                git push || echo "::warning::social-cards: push still failed after rebase, will retry next run"
-              else
-                git rebase --abort
-                echo "::warning::social-cards: rebase conflict, skipped this state write, will retry next run"
-              fi
-            fi
-          fi
+      - name: Publish pick-of-day state
+        uses: ./.github/actions/publish
+        with:
+          paths: docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
+          message: 'social-cards: pick-of-day state update'
 
       # GitHub's scheduled-workflow queue routinely delays this run by
       # 30-90+ minutes past the nominal 9:30 MT cron time (observed

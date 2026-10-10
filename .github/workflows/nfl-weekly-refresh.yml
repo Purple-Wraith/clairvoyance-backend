@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: write
+  actions: write      # the publish step dispatches pages-deploy.yml
 
 concurrency:
   group: nfl-weekly-refresh
@@ -79,6 +80,11 @@ jobs:
         if: ${{ steps.plan.outputs.roster == '1' }}
         continue-on-error: true
         run: python3 scripts/fetch_nfl.py --mode roster --push
+
+      # fetch_nfl.py --push commits + pushes each file itself; this shared step then dispatches pages-deploy.yml if docs/ changed (and pushes anything a script could not).
+      - name: Publish (deploy Pages)
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/publish
 
       - name: Fail the run if any step failed
         if: ${{ always() }}

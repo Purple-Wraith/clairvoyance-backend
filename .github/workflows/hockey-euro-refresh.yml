@@ -25,6 +25,7 @@ on:
 
 permissions:
   contents: write
+  actions: write      # the publish step dispatches pages-deploy.yml
 
 concurrency:
   group: hockey-euro-refresh
@@ -76,6 +77,11 @@ jobs:
         id: extraliga
         continue-on-error: true
         run: python3 scripts/fetch_extraliga.py --push
+
+      # The fetch_*.py scripts --push themselves; this shared step then dispatches pages-deploy.yml if docs/ changed (and pushes anything a script could not).
+      - name: Publish (deploy Pages)
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/publish
 
       - name: Fail the run if any league failed
         if: ${{ always() }}

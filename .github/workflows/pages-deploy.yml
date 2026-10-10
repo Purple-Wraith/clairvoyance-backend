@@ -20,73 +20,21 @@ name: Deploy Pages
 # actually serving Pages.
 
 on:
+  # A human / PAT push to docs/** (a bot push with the default GITHUB_TOKEN never fires this -- GitHub's anti-recursion rule).
   push:
     branches: [main]
     paths:
       - 'docs/**'
+  # EVERY bot-driven deploy comes through here.  2026-10-10: the old `workflow_run` allowlist (18 workflow NAMES that had to be kept in sync by hand -- and silently drifted:
+  # 11 docs-writing workflows were missing on 2026-08-30, 4 stale names on 2026-10-05) is gone.  Instead every workflow that writes to the repo ends with ONE shared step,
+  # `uses: ./.github/actions/publish`, which commits + pushes (fetch/rebase retry) and then runs `gh workflow run pages-deploy.yml` when docs/ changed.  workflow_dispatch IS allowed with
+  # GITHUB_TOKEN (unlike push), it needs only `actions: write` in the calling workflow, and scripts/test_workflow_refs.py fails the build if a new workflow pushes without that step.
   workflow_dispatch: {}
-  # Every data-refresh workflow below checks out+pushes with the default
-  # GITHUB_TOKEN. GitHub does not let GITHUB_TOKEN-authored pushes trigger
-  # other `push`-based workflows (anti-recursion rule) -- so none of these
-  # ever fired the `push` trigger above, and Pages silently never picked up
-  # their commits until some unrelated human/PAT-authored push happened to
-  # land on main. `workflow_run` is exempt from that restriction, so this
-  # fires a redeploy explicitly once each one finishes.
-  #
-  # Real, confirmed incident (2026-08-30): this list is an explicit
-  # allowlist by name, and it had silently drifted out of date -- 11 real
-  # docs/-writing workflows were missing (found via a full audit: every
-  # workflow's own `git add`/python `--push` target, cross-referenced
-  # against this list), several built or touched the same day this was
-  # caught. The practical effect: docs/engine_performance.json,
-  # docs/sport_performance.json, docs/live_data.json,
-  # docs/automation_status.json (the LAST LOCK/LAST SETTLE header
-  # indicator), docs/player_stats.json, and all 3 soccer schedule/
-  # standings snapshots were being committed correctly but never actually
-  # reaching the live site -- confirmed live: engine_performance.json's
-  # generated_at sat 12+ hours stale despite 3 real successful refreshes
-  # in that window. This allowlist approach is fragile by construction --
-  # every NEW docs/-writing workflow has to remember to add itself here,
-  # and evidently that's been missed repeatedly. The scheduled fallback
-  # below exists specifically so a future miss degrades to "up to 2 hours
-  # late" instead of "silently never," without needing anyone to catch it.
-  workflow_run:
-    workflows:
-      - "CFB Roster Refresh"
-      - "CFB Stats + Rankings Refresh"
-      - "NFL Weekly Refresh (stats, standings, player stats; roster every 2 weeks)"
-      - "Soccer Refresh (Tomorrow Schedule + Opta Stats)"
-      - "European Hockey Schedule + Standings Refresh"
-      - "Manual Data Sync"
-      - "Scheduled Data Refresh"
-      - "Daily Social Cards Email"
-      - "Auto Lock + Settle"
-      - "CFB Auto Lock (Early)"
-      - "CFB Auto Lock (Evening — Tomorrow's Slate)"
-      - "European Lock (Early)"
-      - "Soccer Auto Lock (Evening — Tomorrow's Slate)"
-      - "SHL/Liiga Auto Lock (Evening — Tomorrow's Slate)"
-      - "Landing Page Performance Refresh (manual)"
-      - "Live Score Tracker"
-      # 2026-09-01 workflow consolidation: replaced CFB Schedule + Lines
-      # Refresh, NFL Schedule + Lines Refresh, Daily Soccer Schedule
-      # Refresh, and Daily Soccer Standings Refresh (below), and replaced
-      # Daily NBA/NFL/NHL/WNBA Player Props Refresh + Daily Player Stats
-      # Refresh (further below) -- see daily-schedules-refresh.yml and
-      # daily-player-stats-refresh.yml's own docstrings for why.
-      - "Daily Schedules + Standings Refresh"
-      - "Daily Player & Prop Stats Refresh"
-    types: [completed]
   schedule:
-    # Fallback safety net, not the primary path -- unconditionally
-    # redeploys every 2 hours regardless of whether workflow_run actually
-    # fired for whatever changed docs/ most recently. A deploy of
-    # unchanged content is a harmless no-op (~20s, confirmed from real
-    # run durations), so this costs nothing on a normal day and only
-    # matters on the day something's missing from the list above again.
-    # 2026-10-03 cleanup: every 2 h -> every 4 h. ~90% of runs on this workflow were no-op "docs/ unchanged" skips (24 real deploys vs 400 skips in a week); the
-    # workflow_run list above already covers every docs-writing workflow, so this is only the net for a future miss, and 4 h is still a bounded worst case.
-    # Also dropped "Pre-Kickoff Lock Watchdog" from the list: it never writes docs/, so every run it triggered was a skip.
+    # Fallback safety net, not the primary path -- redeploys every 4 hours regardless of whether a dispatch happened for whatever changed docs/ most recently (a dispatch can fail:
+    # permissions, API outage). A deploy of unchanged content is a harmless no-op (the skip check below), so this costs nothing on a normal day and only matters the day a
+    # publish step is missing or its dispatch failed: the worst case is "up to 4 hours late" instead of "silently never".
+    # 2026-10-03 cleanup: every 2 h -> every 4 h (~90% of runs were no-op "docs/ unchanged" skips).
     - cron: '23 */4 * * *'
 
 permissions:
@@ -101,7 +49,6 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
@@ -119,8 +66,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # "Live Score Tracker" alone dispatches this workflow up to ~72
-          # times/day (every 15min, 12hr-5am MT) via the workflow_run
-          # trigger below -- necessary because live scores genuinely need
+          # times/day (every 15min, 12hr-5am MT) via the former workflow_run
+          # trigger -- necessary because live scores genuinely need
           # fast redeploys, but most of those 72 completions don't actually
           # touch docs/ (no live games, or no score change that tick). Found
           # via the 2026-09-01 delay audit: this workflow alone accounted
@@ -134,6 +81,8 @@ jobs:
           # since the last successful deploy -- preserves same-run
           # freshness the moment something real happens, while making every
           # no-op tick cheap instead of a full checkout+build+deploy.
+          # (2026-10-10: the publish action now only dispatches when docs/ changed, so most of those
+          # no-op runs no longer start at all; this check stays as the guard for the 4-hourly fallback and for double dispatches.)
           LAST_SHA=$(gh run list --workflow=pages-deploy.yml --status=success --limit=1 --json headSha --jq '.[0].headSha // empty' 2>/dev/null || echo "")
           if [ -z "$LAST_SHA" ]; then
             echo "No prior successful deploy found -- proceeding."

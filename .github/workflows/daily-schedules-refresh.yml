@@ -42,6 +42,7 @@ on:
 
 permissions:
   contents: write
+  actions: write      # the publish step dispatches pages-deploy.yml
 
 jobs:
   refresh-schedules:
@@ -122,3 +123,8 @@ jobs:
           TZ: America/Denver
           NHL_GOALIES_MONEYPUCK: ${{ vars.NHL_GOALIES_MONEYPUCK }}
         run: python3 scripts/fetch_nhl.py --flashscore-odds --push
+
+      # Every script above --pushes itself; this shared step then dispatches pages-deploy.yml if docs/ changed (and pushes anything a script could not).
+      - name: Publish (deploy Pages)
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/publish

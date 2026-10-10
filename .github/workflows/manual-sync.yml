@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  actions: write      # the publish step dispatches pages-deploy.yml
 
 jobs:
   sync:
@@ -41,10 +42,13 @@ jobs:
           python scripts/clairvoyance_update.py --no-linemate --verbose
         timeout-minutes: 15
 
-      - name: Commit and push data
-        run: |
-          git config user.name  "Clairvoyance Bot"
-          git config user.email "bot@clairvoyance"
-          git add docs/data.json docs/live_data.json docs/social_copy.json data/ || true
-          git diff --cached --quiet || git commit -m "sync: on-demand refresh $(date -u '+%Y-%m-%d %H:%M UTC')"
-          git push || echo "Nothing to push"
+      - name: Publish data
+        uses: ./.github/actions/publish
+        with:
+          paths: docs/data.json docs/live_data.json docs/social_copy.json data/
+          message: 'sync: on-demand refresh {UTC_STAMP}'
+          r2-files: docs/live_data.json
+          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-bucket: ${{ secrets.R2_BUCKET }}

@@ -148,6 +148,7 @@ on:
 
 permissions:
   contents: write
+  actions: write      # the publish step dispatches pages-deploy.yml
 
 # Lock-capable slots (05:27Z, 09:07Z, 13:07Z and manual dispatch) run one at a time so two of them landing together (GitHub delays
 # cluster) cannot both lock + email; the digest and settle slots share a second group so they are never cancelled in favour of a lock.
@@ -376,23 +377,15 @@ jobs:
         continue-on-error: true
         env:
           TZ: America/Denver
-        run: |
-          python3 scripts/settle_heartbeat.py
-          git add docs/automation_status.json
-          if git diff --cached --quiet; then
-            echo "No change"
-          else
-            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: lastSettle heartbeat (nothing pending)"
-            if ! git push origin main; then
-              git fetch origin main
-              if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase --autostash origin/main; then
-                git push origin main || echo "::warning::settle heartbeat: push failed after rebase, next slot will retry"
-              else
-                git rebase --abort
-                echo "::warning::settle heartbeat: rebase conflict, skipped"
-              fi
-            fi
-          fi
+        run: python3 scripts/settle_heartbeat.py
+
+      - name: Publish settle heartbeat
+        # 2026-10-10: the shared publish step commits docs/automation_status.json (fetch+rebase retry; a conflict is skipped, the next slot retries) and dispatches pages-deploy.yml.
+        if: ${{ steps.flags.outputs.gated == '1' && steps.flags.outputs.live_flag == '--live' && (steps.flags.outputs.should_run == '0' || steps.presettle.outputs.run_heavy == 'skip') }}
+        uses: ./.github/actions/publish
+        with:
+          paths: docs/automation_status.json
+          message: 'chore: lastSettle heartbeat (nothing pending)'
 
       # NOTE (2026-10-02 fix): the gate output is the sentinel 'skip', NOT '0'. GitHub expressions coerce mismatched types to numbers,
       # and an UNSET output (null) coerces to 0, so `run_heavy != '0'` was FALSE whenever the presettle step did not write it -- every
@@ -450,22 +443,17 @@ jobs:
         # failure -- decoupled from that step's reliability, not
         # inheriting it.
         if: ${{ !cancelled() && steps.flags.outputs.should_run != '0' && steps.presettle.outputs.run_heavy != 'skip' }}
-        run: |
-          git add docs/picks_backup.json docs/picks_backup_meta.json docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
-          if git diff --cached --quiet; then
-            echo "No change"
-          else
-            git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" commit -m "chore: refresh ledger backup + landing perf $(TZ=America/Denver date +%H:%M) MT"
-            if ! git push origin main; then
-              git fetch origin main
-              if git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" rebase --autostash origin/main; then
-                git push origin main || echo "::warning::ledger backup/landing-perf: push still failed after rebase, will retry next run"
-              else
-                git rebase --abort
-                echo "::warning::ledger backup/landing-perf: rebase conflict, skipped this refresh, will retry next run"
-              fi
-            fi
-          fi
+        # 2026-10-10: the inline commit/push/rebase block is now the shared publish step (commit -> fetch+rebase --autostash retry -> push -> dispatch pages-deploy.yml when docs/
+        # changed). It ALSO mirrors the two ledger-backup files to Cloudflare R2 (phase 1 of the move off the repo: dual-write; a logged no-op until the R2 secrets are set).
+        uses: ./.github/actions/publish
+        with:
+          paths: docs/picks_backup.json docs/picks_backup_meta.json docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
+          message: 'chore: refresh ledger backup + landing perf {MT_HHMM} MT'
+          r2-files: docs/picks_backup.json docs/picks_backup_meta.json
+          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-bucket: ${{ secrets.R2_BUCKET }}
 
       - name: Record successful lock date
         # Only after a run that actually included a LIVE lock pass (the
@@ -540,3 +528,16 @@ jobs:
             git -c user.name="clairvoyance-bot" -c user.email="bot@clairvoyance.local" pull --rebase origin main
             git push origin main
           fi
+
+      - name: Publish (catch-all, deploy Pages for anything the scripts pushed)
+        # auto_lock_settle.py pushes docs/automation_status.json (LAST LOCK / LAST SETTLE), docs/adaptive_weights.json and (lock-only passes) the ledger backup itself, and lock_prep.py pushes
+        # refreshed schedule JSON. This last step dispatches pages-deploy.yml if any of that left docs/ different from the commit this run started on (once per distinct docs/ state:
+        # the ledger step above may already have done it) and mirrors the ledger backup to R2 (lock-only passes commit it themselves).
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/publish
+        with:
+          r2-files: docs/picks_backup.json docs/picks_backup_meta.json
+          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-bucket: ${{ secrets.R2_BUCKET }}

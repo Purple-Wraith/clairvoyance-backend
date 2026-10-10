@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  actions: write      # the publish step dispatches pages-deploy.yml
 
 jobs:
   refresh-cfb-roster:
@@ -38,3 +39,6 @@ jobs:
           git config user.name  "Clairvoyance Bot"
           git config user.email "bot@clairvoyance"
           python3 scripts/fetch_cfb.py --mode roster --push
+      - name: Publish (deploy Pages)
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/publish

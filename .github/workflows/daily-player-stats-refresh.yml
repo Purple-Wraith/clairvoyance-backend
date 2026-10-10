@@ -39,6 +39,7 @@ on:
 
 permissions:
   contents: write
+  actions: write      # the publish step dispatches pages-deploy.yml
 
 jobs:
   refresh-player-stats:
@@ -108,6 +109,11 @@ jobs:
         run: |
           python3 scripts/fetch_nfl.py --mode injuries --push
           python3 scripts/fetch_nfl.py --mode transactions --push
+
+      # Every script above --pushes itself; this shared step then dispatches pages-deploy.yml if docs/ changed (and pushes anything a script could not).
+      - name: Publish (deploy Pages)
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/publish
 
       # 2026-10-03: every step above is continue-on-error so one failing scraper cannot stop the ones after it -- but that also made the
       # RUN always green, so a scraper that had been failing for days was invisible (daily_health_check.py only sees run conclusions).

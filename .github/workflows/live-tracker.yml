@@ -222,35 +222,15 @@ jobs:
           TZ: America/Denver
         run: python3 scripts/live_tracker.py
 
-      - name: Commit and push live data
-        run: |
-          git config user.name  "Clairvoyance Bot"
-          git config user.email "bot@clairvoyance"
-          git add docs/live_data.json
-          if git diff --cached --quiet; then
-            echo "Nothing changed."
-          else
-            git commit -m "live: $(TZ=America/Denver date +%H:%M) MT scores"
-            if ! git push origin main; then
-              # Same fetch+rebase+retry pattern already proven elsewhere
-              # in this repo (see run_live_window's own comment on the
-              # real 41-unpushed-commits incident this exact failure mode
-              # caused when it silently had no retry logic at all).
-              # Real failure, found via audit: a rebase conflict here had
-              # no abort fallback, so it hard-failed the whole step under
-              # bash -e instead of just skipping this one live-score
-              # update (harmless -- the next run 30-60s later refreshes
-              # the same data anyway). Same fix already applied to every
-              # other marker/state-commit step in this repo that had the
-              # identical gap (see auto-lock-settle.yml's "Record
-              # successful lock date" step for the real incident that
-              # caught this pattern).
-              git fetch origin main
-              if git rebase origin/main; then
-                git push origin main || echo "::warning::live-tracker: push still failed after rebase, will retry next run"
-              else
-                git rebase --abort
-                echo "::warning::live-tracker: rebase conflict, skipped this update, will retry next run"
-              fi
-            fi
-          fi
+      # 2026-10-10: the inline commit/push/rebase block is now the shared publish step (commit -> fetch+rebase retry -> push -> R2 mirror -> dispatch pages-deploy.yml when docs/ changed).
+      # A conflict is skipped, not fatal: the next tick (30 min) refreshes the same data anyway.
+      - name: Publish live data
+        uses: ./.github/actions/publish
+        with:
+          paths: docs/live_data.json
+          message: 'live: {MT_HHMM} MT scores'
+          r2-files: docs/live_data.json
+          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-bucket: ${{ secrets.R2_BUCKET }}

@@ -48,6 +48,7 @@ on:
 
 permissions:
   contents: write
+  actions: write      # the publish step dispatches pages-deploy.yml
 
 jobs:
   refresh-landing-performance:
@@ -72,22 +73,8 @@ jobs:
       - name: Refresh performance JSON snapshots
         run: python3 scripts/generate_social_cards.py --json-only
 
-      - name: Commit and push
-        run: |
-          git config user.name  "Clairvoyance Bot"
-          git config user.email "bot@clairvoyance"
-          git add docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
-          if git diff --cached --quiet; then
-            echo "No change"
-          else
-            git commit -m "landing-perf: refresh $(TZ=America/Denver date +%H:%M) MT"
-            if ! git push origin main; then
-              git fetch origin main
-              if git rebase origin/main; then
-                git push origin main || echo "::warning::landing-perf: push still failed after rebase, will retry next run"
-              else
-                git rebase --abort
-                echo "::warning::landing-perf: rebase conflict, skipped this update, will retry next run"
-              fi
-            fi
-          fi
+      - name: Publish
+        uses: ./.github/actions/publish
+        with:
+          paths: docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
+          message: 'landing-perf: refresh {MT_HHMM} MT'
