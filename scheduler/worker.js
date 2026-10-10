@@ -159,14 +159,22 @@ async function alreadyRunning(env, wf, fetchImpl) {
   return false;
 }
 
-/** True when ANY auto-lock-settle run (cron, manual or ours) is queued / in progress. One cheap call. FAIL-OPEN: any API or network problem answers false -- a missed settle is worse than a duplicate one. */
-async function settleRunActive(env, fetchImpl) {
+export const SETTLE_MIN_SPACING_MIN = 25;                      // never start a settle within this many minutes of the previous auto-lock-settle run (any trigger): a Saturday CFB slate has many game clusters and
+                                                                // every settle is one full-ledger Supabase pull -- the +20/+45 follow-ups still fit (owner/egress guard, 2026-10-10)
+
+/** Why a settle must NOT be dispatched right now: "already queued or running" (ANY auto-lock-settle run -- cron, manual or ours -- is queued / in progress), "recent settle run" (the newest one started less than
+ *  SETTLE_MIN_SPACING_MIN ago), or null. One cheap call. FAIL-OPEN: any API or network problem answers null -- a missed settle is worse than a duplicate one. */
+async function settleSkipReason(env, fetchImpl) {
   try {
     const r = await gh(env, `/actions/workflows/${SETTLE_ENTRY.wf}/runs?per_page=10`, {}, fetchImpl);
-    if (!r.ok) return false;
-    return ((await r.json()).workflow_runs || []).some((x) => x && x.status && x.status !== "completed");
+    if (!r.ok) return null;
+    const runs = (await r.json()).workflow_runs || [];
+    if (runs.some((x) => x && x.status && x.status !== "completed")) return "already queued or running";
+    const newest = runs.map((x) => Date.parse((x && x.created_at) || "")).filter(Number.isFinite).sort((a, b) => b - a)[0];
+    if (newest != null && Date.now() - newest < SETTLE_MIN_SPACING_MIN * 60000) return "recent settle run";
+    return null;
   } catch (e) {
-    return false;
+    return null;
   }
 }
 
@@ -176,7 +184,8 @@ async function runSettleSweep(env, when, games, fetchImpl) {
   if (!due.length) return null;
   const row = { wf: SETTLE_ENTRY.wf, games: due.length, sports: [...new Set(due.map((d) => d.sport))].sort(), offsets: [...new Set(due.map((d) => d.offsetMin))].sort((a, b) => a - b) };
   try {
-    if (await settleRunActive(env, fetchImpl)) return { ...row, result: "skipped: already queued or running" };
+    const skip = await settleSkipReason(env, fetchImpl);
+    if (skip) return { ...row, result: `skipped: ${skip}` };
     const r = await gh(env, `/actions/workflows/${SETTLE_ENTRY.wf}/dispatches`, { method: "POST", body: JSON.stringify({ ref: "main", inputs: SETTLE_ENTRY.inputs }) }, fetchImpl);
     return { ...row, result: r.status === 204 ? "dispatched" : `error: HTTP ${r.status}` };
   } catch (e) {

@@ -1,6 +1,6 @@
 // node scheduler/test_scheduler.mjs -- offline: slot matching, weekday filters, dedupe, dispatch, failure reporting (GitHub API faked)
 import assert from "node:assert/strict";
-import worker, { dueWorkflows, dueEntries, runTick, SCHEDULE, TICK_MIN, handleTrigger, handleProfit, safeEqual, TRIGGERS, ALLOWED_ORIGINS, sweepsDue, KICKOFFS_URL, SWEEP_LEAD_MIN, GAME_MINUTES, DEFAULT_GAME_MIN, SETTLE_OFFSETS_MIN, SETTLE_ENTRY, expectedEndMs, settleSweepsDue, upcomingSettleSweeps, mountain } from "./worker.js";
+import worker, { dueWorkflows, dueEntries, runTick, SCHEDULE, TICK_MIN, handleTrigger, handleProfit, safeEqual, TRIGGERS, ALLOWED_ORIGINS, sweepsDue, KICKOFFS_URL, SWEEP_LEAD_MIN, GAME_MINUTES, SETTLE_MIN_SPACING_MIN, DEFAULT_GAME_MIN, SETTLE_OFFSETS_MIN, SETTLE_ENTRY, expectedEndMs, settleSweepsDue, upcomingSettleSweeps, mountain } from "./worker.js";
 import { readFileSync, readdirSync } from "node:fs";
 
 const at = (iso) => Date.parse(iso);
@@ -277,6 +277,18 @@ sg = settleGitHub(nhl, { runs: [{ status: "completed" }, { status: "completed" }
 assert.equal((await runS(TOK, at("2026-10-11T01:50:00Z"), sg.fetchImpl))[0].result, "dispatched");
 sg = settleGitHub(nhl, { runs: [] });
 assert.equal((await runS(TOK, at("2026-10-11T01:50:00Z"), sg.fetchImpl))[0].result, "dispatched");
+// spacing guard (egress): a settle run that STARTED less than SETTLE_MIN_SPACING_MIN ago blocks the dispatch; an older one does not
+{
+  const ago = (min) => new Date(Date.now() - min * 60000).toISOString();
+  sg = settleGitHub(nhl, { runs: [{ status: "completed", created_at: ago(10) }, { status: "completed", created_at: ago(300) }] });
+  res = await runS(TOK, at("2026-10-11T01:50:00Z"), sg.fetchImpl);
+  assert.deepEqual([res[0].wf, res[0].result], ["auto-lock-settle.yml", "skipped: recent settle run"]);
+  assert.equal(sg.posts().length, 0, "a settle that started 10 min ago -> no second pull");
+  sg = settleGitHub(nhl, { runs: [{ status: "completed", created_at: ago(SETTLE_MIN_SPACING_MIN + 5) }] });
+  assert.equal((await runS(TOK, at("2026-10-11T01:50:00Z"), sg.fetchImpl))[0].result, "dispatched", "older than the spacing window -> go");
+  assert.equal(SETTLE_MIN_SPACING_MIN, 25);
+  assert.ok(SETTLE_MIN_SPACING_MIN < SETTLE_OFFSETS_MIN[1] + 10, "the +20 follow-up must still be able to run");
+}
 // FAIL-OPEN: the runs lookup failing (HTTP error or network) still dispatches
 for (const opt of [{ runsStatus: 500 }, { runsStatus: 403 }, { runsThrows: true }]) {
   sg = settleGitHub(nhl, opt);
