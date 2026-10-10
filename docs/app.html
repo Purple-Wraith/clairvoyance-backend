@@ -6632,27 +6632,8 @@ async function _relayPush(){
     }
   }catch(e){console.warn('[CV] manual-lock relay:',e.message);}
 }
-// ── Optional Cloudflare R2 mirror of the two high-churn files (docs/R2_SETUP.md) ──────────────────────────────────────────────────────────────────────
-// window.CV_R2_BASE (set in docs/config.js; EMPTY = off, the default) is the public base URL of the R2 bucket that mirrors picks_backup.json and live_data.json. When set, those two files are
-// read from R2 first and fall back to the same-origin copy on ANY failure (network, CORS, non-2xx, or a body that is not the JSON we expect). When empty this is exactly `fetch(name+qs,opts)`.
-function _cvR2Base(){
-  try{
-    const b=String(window.CV_R2_BASE||'').trim().replace(/\/+$/,'');
-    return(/^https:\/\/[^\s]+$/.test(b)||/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/\S*)?$/.test(b))?b:'';
-  }catch(e){return '';}
-}
-async function _cvHotFetch(name,qs,opts,valid){
-  const base=_cvR2Base();
-  if(base){
-    try{
-      const r=await fetch(base+'/'+name+qs,opts);
-      if(r.ok){const j=await r.clone().json();if(!valid||valid(j))return r;}
-    }catch(e){/* fall through to the same-origin copy */}
-  }
-  return fetch(name+qs,opts);
-}
 async function loadPicksFromBackupJSON(){
-  const r=await _cvHotFetch('picks_backup.json','?t='+Date.now(),undefined,j=>Array.isArray(j)&&j.length>0);
+  const r=await fetch('picks_backup.json?t='+Date.now());
   if(!r.ok)throw new Error('backup fetch HTTP '+r.status);
   const content=await r.json();
   if(!Array.isArray(content)||!content.length)return;
@@ -22990,7 +22971,7 @@ let _liveInterval=null;
 
 async function loadLiveData(){
   try{
-    const r=await _cvHotFetch('live_data.json',`?${Date.now()}`,{cache:'no-cache'},j=>!!j&&typeof j==='object'&&!!j.ts);
+    const r=await fetch(`live_data.json?${Date.now()}`,{cache:'no-cache'});
     if(!r.ok)return;
     const d=await r.json();
     window.__CV_FILE_LIVE_TS=d.ts;

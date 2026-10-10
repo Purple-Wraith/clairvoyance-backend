@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""The shared publish step (.github/actions/publish/publish.sh): commit -> fetch+rebase push loop -> optional R2 mirror -> dispatch pages-deploy.yml when docs/ changed.
+"""The shared publish step (.github/actions/publish/publish.sh): commit -> fetch+rebase push loop -> dispatch pages-deploy.yml when docs/ changed.
 
-Runs the real script against real temporary git repos (a bare "remote" + two clones, so push races and rebase conflicts are genuine) with a fake `gh` that records its arguments and a fake
-R2 uploader.  No network, no secrets.
+Runs the real script against real temporary git repos (a bare "remote" + two clones, so push races and rebase conflicts are genuine) with a fake `gh` that records its arguments.  No network, no secrets.
 
     python3 scripts/test_publish_action.py
 """
@@ -41,11 +40,6 @@ class Publish(unittest.TestCase):
         self.gh = t / "fake-gh"
         self.gh.write_text(f'#!/bin/bash\necho "$@" >> "{self.gh_log}"\n[ -n "${{FAKE_GH_FAIL:-}}" ] && exit 1\nexit 0\n')
         self.gh.chmod(self.gh.stat().st_mode | stat.S_IEXEC)
-        self.r2_log = t / "r2.log"
-        self.r2 = t / "fake_r2.py"
-        self.r2.write_text("import sys, pathlib\nargs = sys.argv[1:]\nroot = pathlib.Path(args[args.index('--root') + 1])\n"
-                           "files = [a for a in args[args.index('--root') + 2:]]\n"
-                           f"open({str(self.r2_log)!r}, 'a').write('|'.join(f + '=' + (root / f).read_text() for f in files) + '\\n')\n")
         self.runner_temp = t / "rt"
         self.runner_temp.mkdir()
 
@@ -56,9 +50,7 @@ class Publish(unittest.TestCase):
         out = self.t / "gh_output"
         out.write_text("")
         e = {**os.environ, "GITHUB_OUTPUT": str(out), "RUNNER_TEMP": str(self.runner_temp), "PUB_SLEEP_BASE": "0", "PUB_GH": str(self.gh),
-             "PUB_START_SHA": self.start, "PUB_R2_SCRIPT": str(self.r2)}
-        for k in ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"):
-            e.pop(k, None)
+             "PUB_START_SHA": self.start}
         e.update({k: v for k, v in env.items() if v is not None})
         r = subprocess.run(["bash", str(SCRIPT)], cwd=cwd or self.a, env=e, capture_output=True, text=True, timeout=60)
         outputs = dict(l.split("=", 1) for l in out.read_text().splitlines() if "=" in l)
@@ -206,35 +198,6 @@ class Publish(unittest.TestCase):
         r, o = self.run_publish()
         self.assertEqual((o["pushed"], o["dispatched"]), ("1", "1"))
         self.assertEqual(self.remote_file("docs/liiga_schedule.json"), "{}")
-
-    # ── R2 mirror ───────────────────────────────────────────────────────────────────────────────────────────────────
-    def test_r2_mirrors_the_origin_copy_not_a_stale_working_tree(self):
-        """Phase 1: R2 must equal what is on origin/main.  A runner whose checkout is hours old must not overwrite newer data."""
-        (self.b / "docs/picks_backup.json").write_text("[1, 2, 3]")             # newer ledger on origin
-        git(self.b, "add", "-A"); git(self.b, "commit", "-m", "newer ledger"); git(self.b, "push", "origin", "main")
-        r, o = self.run_publish(PUB_R2_FILES="docs/picks_backup.json")           # this runner still has "[1]" in its working tree
-        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.r2_log.read_text().strip(), "docs/picks_backup.json=[1, 2, 3]")
-
-    def test_r2_workdir_source_uploads_this_runners_file(self):
-        (self.a / "docs/picks_backup.json").write_text("[9]")
-        self.run_publish(PUB_R2_FILES="docs/picks_backup.json", PUB_R2_SOURCE="workdir")
-        self.assertEqual(self.r2_log.read_text().strip(), "docs/picks_backup.json=[9]")
-
-    def test_a_failing_r2_upload_never_fails_the_job(self):
-        self.r2.write_text("import sys\nsys.exit(1)\n")
-        (self.a / "docs/live_data.json").write_text('{"ts": "7"}')
-        r, o = self.run_publish(PUB_PATHS="docs/live_data.json", PUB_R2_FILES="docs/live_data.json")
-        self.assertEqual(r.returncode, 0)
-        self.assertEqual((o["pushed"], o["dispatched"]), ("1", "1"))              # the deploy still happens
-        self.assertIn("R2 mirror failed", r.stdout)
-
-    def test_real_r2_script_without_credentials_is_a_logged_noop(self):
-        (self.a / "docs/live_data.json").write_text('{"ts": "8"}')
-        r, o = self.run_publish(PUB_PATHS="docs/live_data.json", PUB_R2_FILES="docs/live_data.json", PUB_R2_SCRIPT=str(ROOT / "scripts" / "r2_publish.py"))
-        self.assertEqual(r.returncode, 0)
-        self.assertIn("R2 not configured", r.stdout)
-        self.assertEqual(o["dispatched"], "1")
 
 
 if __name__ == "__main__":

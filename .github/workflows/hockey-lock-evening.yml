@@ -185,8 +185,3 @@ jobs:
         if: ${{ !cancelled() && steps.flags.outputs.should_run == '1' }}
         uses: ./.github/actions/publish
         with:
-          r2-files: docs/picks_backup.json docs/picks_backup_meta.json
-          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          r2-bucket: ${{ secrets.R2_BUCKET }}

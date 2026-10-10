@@ -1,7 +1,7 @@
 name: Publish
 description: >
   The ONE publish step for every workflow that writes to the repo. (1) Commits `paths` if any changed, (2) pushes with a fetch + rebase retry loop (it also pushes commits an earlier
-  step or a Python helper made locally but could not push), (3) optionally mirrors files to Cloudflare R2 (a no-op until the R2 secrets exist), and (4) when the push left docs/ different
+  step or a Python helper made locally but could not push), and (3) when the push left docs/ different
   from the commit this run started on, dispatches pages-deploy.yml explicitly (`gh workflow run`). GITHUB_TOKEN pushes never fire `push`-triggered workflows, but workflow_dispatch IS
   allowed with GITHUB_TOKEN -- which is why this replaces the old workflow_run allowlist in pages-deploy.yml. The calling job needs `contents: write` and `actions: write`. Never fails the
   job: a deploy that was not dispatched is still picked up by pages-deploy.yml's 4-hourly fallback. Logic lives in publish.sh (tested by scripts/test_publish_action.py).
@@ -28,32 +28,6 @@ inputs:
     description: "'auto' (dispatch pages-deploy.yml only if docs/ differs from the commit this run started on), 'always', or 'never'"
     required: false
     default: auto
-  r2-files:
-    description: >
-      Space-separated repo paths (e.g. "docs/picks_backup.json docs/live_data.json") to mirror to Cloudflare R2 via scripts/r2_publish.py. Empty = no R2 step. With no R2 credentials the
-      upload is a logged no-op.
-    required: false
-    default: ''
-  r2-source:
-    description: "'origin' (default; phase 1: upload the copy on origin/<branch> so R2 always equals the repo and a stale runner can never overwrite newer data) or 'workdir' (phase 2: upload the file as it is on this runner)"
-    required: false
-    default: origin
-  r2-account-id:
-    description: R2_ACCOUNT_ID secret
-    required: false
-    default: ''
-  r2-access-key-id:
-    description: R2_ACCESS_KEY_ID secret
-    required: false
-    default: ''
-  r2-secret-access-key:
-    description: R2_SECRET_ACCESS_KEY secret
-    required: false
-    default: ''
-  r2-bucket:
-    description: R2_BUCKET secret
-    required: false
-    default: ''
   token:
     description: "Token used for `gh workflow run` (needs the actions: write permission)"
     required: false
@@ -74,7 +48,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Commit, push, mirror to R2, dispatch deploy
+    - name: Commit, push, dispatch deploy
       id: publish
       shell: bash
       env:
@@ -83,14 +57,8 @@ runs:
         PUB_BRANCH: ${{ inputs.branch }}
         PUB_ON_CONFLICT: ${{ inputs.on-conflict }}
         PUB_DISPATCH: ${{ inputs.dispatch }}
-        PUB_R2_FILES: ${{ inputs.r2-files }}
-        PUB_R2_SOURCE: ${{ inputs.r2-source }}
         PUB_START_SHA: ${{ github.sha }}
         PUB_WORKFLOW: pages-deploy.yml
-        R2_ACCOUNT_ID: ${{ inputs.r2-account-id }}
-        R2_ACCESS_KEY_ID: ${{ inputs.r2-access-key-id }}
-        R2_SECRET_ACCESS_KEY: ${{ inputs.r2-secret-access-key }}
-        R2_BUCKET: ${{ inputs.r2-bucket }}
         GH_TOKEN: ${{ inputs.token }}
         GH_REPO: ${{ github.repository }}
       run: bash "${{ github.action_path }}/publish.sh"

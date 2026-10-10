@@ -449,11 +449,6 @@ jobs:
         with:
           paths: docs/picks_backup.json docs/picks_backup_meta.json docs/engine_performance.json docs/engine_performance_subscriber.json docs/sport_performance.json
           message: 'chore: refresh ledger backup + landing perf {MT_HHMM} MT'
-          r2-files: docs/picks_backup.json docs/picks_backup_meta.json
-          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          r2-bucket: ${{ secrets.R2_BUCKET }}
 
       - name: Record successful lock date
         # Only after a run that actually included a LIVE lock pass (the
@@ -536,8 +531,3 @@ jobs:
         if: ${{ !cancelled() }}
         uses: ./.github/actions/publish
         with:
-          r2-files: docs/picks_backup.json docs/picks_backup_meta.json
-          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          r2-bucket: ${{ secrets.R2_BUCKET }}

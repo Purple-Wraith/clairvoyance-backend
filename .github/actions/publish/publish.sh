@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# The publish step (see action.yml). Commit -> push (fetch+rebase retry) -> optional R2 mirror -> dispatch pages-deploy.yml.
+# The publish step (see action.yml). Commit -> push (fetch+rebase retry) -> dispatch pages-deploy.yml.
 # Never exits non-zero for an operational problem (a missed publish self-heals on the next run / the 4-hourly Pages fallback); a real problem is a ::warning::.
-# Env (all optional): PUB_PATHS PUB_MESSAGE PUB_BRANCH PUB_ON_CONFLICT PUB_DISPATCH PUB_R2_FILES PUB_R2_SOURCE PUB_START_SHA PUB_WORKFLOW
-#                     PUB_ATTEMPTS PUB_SLEEP_BASE PUB_GH (the gh command, for tests) PUB_R2_SCRIPT, R2_* (see scripts/r2_publish.py), GITHUB_OUTPUT.
+# Env (all optional): PUB_PATHS PUB_MESSAGE PUB_BRANCH PUB_ON_CONFLICT PUB_DISPATCH PUB_START_SHA PUB_WORKFLOW
+#                     PUB_ATTEMPTS PUB_SLEEP_BASE PUB_GH (the gh command, for tests) GITHUB_OUTPUT.
 set -u
 
 BRANCH="${PUB_BRANCH:-main}"
@@ -103,27 +103,7 @@ if [ "${ahead:-0}" -gt 0 ]; then
   [ "$pushed" = "1" ] || echo "::warning::publish: could not push to $BRANCH -- the change stays local and the next run will retry"
 fi
 
-# ── 3. R2 mirror (optional, never fatal) ─────────────────────────────────────────────────────────────────────────
-if [ -n "${PUB_R2_FILES:-}" ]; then
-  R2_SCRIPT="${PUB_R2_SCRIPT:-$TOP/scripts/r2_publish.py}"
-  root="$TOP"
-  if [ "${PUB_R2_SOURCE:-origin}" = "origin" ]; then
-    # Phase 1: R2 mirrors exactly what is on origin/<branch>, so it can never get ahead of / behind the repo copy, and a runner that checked out
-    # hours ago (queued behind other runs) cannot overwrite newer data with its stale working-tree file.
-    root="$(mktemp -d)"
-    for f in $PUB_R2_FILES; do
-      mkdir -p "$root/$(dirname "$f")"
-      if ! git show "origin/$BRANCH:$f" > "$root/$f" 2>/dev/null; then
-        echo "::warning::publish: $f is not on origin/$BRANCH -- not mirrored to R2"
-        rm -f "$root/$f"
-      fi
-    done
-  fi
-  # shellcheck disable=SC2086
-  python3 "$R2_SCRIPT" --root "$root" $PUB_R2_FILES || echo "::warning::publish: R2 mirror failed (non-fatal)"
-fi
-
-# ── 4. dispatch the deploy ────────────────────────────────────────────────────────────────────────────────────────
+# ── 3. dispatch the deploy ────────────────────────────────────────────────────────────────────────────────────────
 if [ "$pushed" = "1" ]; then
   if [ -z "$START" ] || ! git diff --quiet "$START" HEAD -- docs/ 2>/dev/null; then
     docs_changed=1                                 # also when START is unknown/unreadable: deploying once too often is harmless, missing one is not

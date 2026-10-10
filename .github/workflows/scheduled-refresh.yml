@@ -122,11 +122,6 @@ jobs:
         if: steps.push.outputs.changed == 'true'
         uses: ./.github/actions/publish
         with:
-          r2-files: docs/live_data.json
-          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          r2-bucket: ${{ secrets.R2_BUCKET }}
 
       # Post-deploy verification: same safety net as the local git_push() path
       # (verify_deployment() in clairvoyance_update.py) — GitHub Pages needs a
