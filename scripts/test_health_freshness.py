@@ -312,6 +312,7 @@ class MainPolicy(unittest.TestCase):
         out = io.StringIO()
         with mock.patch.object(H, "GITHUB_TOKEN", token), mock.patch.object(H, "ALERT_TO", "owner@example.com"), \
                 mock.patch.object(H, "check_lock_markers", return_value=[]), \
+                mock.patch.object(H, "check_pending_emails", return_value=[]), \
                 mock.patch.object(H, "check_workflow", return_value=None), \
                 mock.patch.object(H, "check_refresh_health", return_value=wf_findings), \
                 mock.patch.object(H, "check_data_freshness", return_value=data_findings), \
@@ -349,6 +350,8 @@ class MainPolicy(unittest.TestCase):
     def test_crashing_freshness_check_is_fail_open(self):
         out = io.StringIO()
         with mock.patch.object(H, "GITHUB_TOKEN", ""), mock.patch.object(H, "check_lock_markers", return_value=[]), \
+                mock.patch.object(H, "check_pending_emails", return_value=[]), \
+                mock.patch("calibration_watch.update_watch", return_value=({"watch": []}, [], [], [])), \
                 mock.patch.object(H, "check_data_freshness", side_effect=RuntimeError("boom")), contextlib.redirect_stdout(out):
             H.main()                                    # must not raise
         self.assertIn("crashed", out.getvalue())

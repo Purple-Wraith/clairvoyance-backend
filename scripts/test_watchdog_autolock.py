@@ -28,7 +28,7 @@ class Harness:
         a.leg_locked_in_ledger = lambda page, leg, d: leg["label"] in self.locked
         for name in ("run_cfb_evening_lock", "run_soccer_evening_lock", "run_hockey_evening_lock"):
             setattr(a, name, self._runner(name))
-        a.run_lock_segmented = lambda page, live, send_email=True: self._runner("run_lock_segmented")(page, live)
+        a.run_lock_segmented = lambda page, live, send_email=True, only_new=False: self._runner("run_lock_segmented")(page, live)
         a.send_owner_alert = lambda subject, html: (self.owner.append(subject) or True)
         a.write_automation_status = lambda *x, **k: self.status.append(x)
         a.recipients_for = lambda product: [f"{product}@x.com"]

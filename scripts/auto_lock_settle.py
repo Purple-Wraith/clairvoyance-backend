@@ -1475,6 +1475,12 @@ def _settle_result_html(b: dict) -> str:
             f'{_esc(b.get("betOn"))} <span style="color:#bbb">({result})</span>{date_label}</div>')
 
 
+def settle_section_name(tag: str) -> str:
+    """Header for a settled-bet group. norm_sport_for_email() returns the LEDGER's league codes (PL / LIGA / SERIEA / CL), which SPORT_DISPLAY_NAME (keyed by the
+    lock pass's SOC_* tags) does not know -- so real settlement emails headed their groups 'PL', 'LIGA', 'SERIEA', 'CL'. Try both tables, then the raw code."""
+    return SPORT_DISPLAY_NAME.get(tag) or LEDGER_LEAGUE_DISPLAY_NAME.get(tag) or tag
+
+
 def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | None = None, late_excluded: int = 0) -> str:
     by_sport: dict[str, list[dict]] = {}
     for b in settled:
@@ -1498,7 +1504,7 @@ def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | No
                       f'border-radius:6px;color:#ff9090;font-size:13px">'
                       f'⚠ {len(unresolved)} pick(s) from this date could not be confirmed settled yet -- '
                       f'real score/result not found. Will keep retrying automatically.<ul style="margin:6px 0 0;padding-left:18px">'
-                      + "".join(f'<li>{_esc(SPORT_DISPLAY_NAME.get(norm_sport_for_email(b.get("sport"), b.get("league")), norm_sport_for_email(b.get("sport"), b.get("league"))))}: {_esc(b.get("betOn"))}</li>' for b in unresolved)
+                      + "".join(f'<li>{_esc(settle_section_name(norm_sport_for_email(b.get("sport"), b.get("league"))))}: {_esc(b.get("betOn"))}</li>' for b in unresolved)
                       + '</ul></div>')
     # Pre-start-locks-only basis (2026-10-02): picks KNOWN to have been locked after their game started (manual late locks) are
     # not predictions and were never sent to subscribers pre-game -- they are left out of the lists and the totals above, and
@@ -1511,13 +1517,13 @@ def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | No
         parts.append(_EMAIL_WRAP_CLOSE)
         return "".join(parts)
 
-    for sport in sorted(by_sport, key=lambda s: SPORT_DISPLAY_NAME.get(s, s)):
+    for sport in sorted(by_sport, key=settle_section_name):
         bets = by_sport[sport]
         sw = sum(1 for b in bets if b.get("outcome") == "win")
         sl = sum(1 for b in bets if b.get("outcome") == "loss")
         parts.append(f'<div style="font-size:13px;letter-spacing:2px;color:#0090a8;text-transform:uppercase;'
                       f'margin:22px 0 10px;border-bottom:1px solid rgba(0,144,168,.3);padding-bottom:4px">'
-                      f'{_esc(SPORT_DISPLAY_NAME.get(sport, sport))} ({sw}W-{sl}L)</div>')
+                      f'{_esc(settle_section_name(sport))} ({sw}W-{sl}L)</div>')
         parts.append('<div style="background:#14001f;border-radius:6px;padding:10px 14px">')
         parts.append("".join(_settle_result_html(b) for b in bets))
         parts.append('</div>')
@@ -3040,6 +3046,17 @@ def _prop_matchup_key(leg: dict) -> str:
     return f"{team} vs {opp}" if opp else team
 
 
+def _ceiling_note_html(qualifying: list[dict]) -> str:
+    """Legend line for the non-moneyline confidence ceiling (docs/app.html MARKET_P_CEILING, scripts/market_ceiling.py): CFB / NFL spread and over/under
+    probabilities are capped at 62%, so those picks show a stated 62% at most and can be OPTIMAL but never PREMIUM (PREMIUM needs 67%). Shown only in
+    an email that actually carries a CFB / NFL pick, so no other product's email is padded with it."""
+    if not any(q.get("kind") == "GAME" and q.get("sport") in ("CFB", "NFL") for q in qualifying):
+        return ""
+    return ('<div style="font-size:13px;color:#eee;line-height:1.6;margin-top:10px">'
+            '<strong style="color:#fff">62% cap</strong> CFB and NFL spread and over/under picks at the posted line: the stated probability is capped at 62%, because higher numbers have not held up '
+            'in the settled results. Those picks can therefore be graded OPTIMAL but never PREMIUM. Moneylines and ADJUSTED LINE picks are not capped.</div>')
+
+
 def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int | None = None) -> str:
     """Groups qualifying legs by sport/league, then by matchup within each
     sport: the matchup, every qualifying pick for it (grade, probability,
@@ -3146,6 +3163,7 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
         '<span style="background:#ffe600;color:#000;font-weight:700;font-size:11px;padding:1px 7px;border-radius:3px">ADJUSTED LINE</span> '
         'the engine moved this spread or total to a safer line than the one posted, to raise the chance it hits (the original posted line is shown in the pick). '
         'The price at the new line is an ESTIMATE, not a bookmaker quote, so no EV is shown, and your book may not offer that exact line -- check before you bet.</div>'
+        + _ceiling_note_html(qualifying) +
         '</div>'
     )
 
@@ -3188,9 +3206,73 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
 
 EMAIL_FAILURES: list[str] = []
 
+# ── PENDING (failed) SUBSCRIBER EMAILS ──────────────────────────────────────────────────────────────────────────────────────────
+# Every lock pass emails a product's subscribers only when it locked something NEW (re-runs and redundant slots find everything already locked and
+# stay quiet -- that is the duplicate guard). Before 2026-10-10 that guard also made a FAILED send permanent: the picks were already locked, so
+# the next pass saw "nothing new", skipped the email, and the subscribers never heard about them (the run just went red). A live send that
+# reached NOBODY now records the label in data/email_pending.json (committed, so it survives across runs/workflows); the next pass for that
+# label that has picks to report sends the email even though nothing is new, and clears the record once it goes out. A send that reached some
+# recipients (a refused address) is not retried -- re-sending would double-deliver to everyone who did get it; the run still ends red.
+EMAIL_PENDING_REL = "data/email_pending.json"
+EMAIL_PENDING_MAX_AGE_DAYS = 1          # a record older than yesterday (MT) is stale: that slate is over
+_PENDING_SEEN: set[str] = set()         # labels found pending this process -> cleared again once a send for them succeeds
+LIVE_SEND_ATTEMPTS = 0                  # live subscriber-email sends attempted by this process (main() uses it to know the day's email was really tried)
+# The pending record lives in the repo (fetch + commit + push), so it is OFF unless main() turns it on for a real --live run. Anything else that imports this module
+# (the unit tests above all) never touches the repo through these helpers.
+PENDING_PERSIST = False
+
+
+def _pending_load() -> dict:
+    """data/email_pending.json as of origin/main ({label: {"date": "YYYY-MM-DD", ...}}); {} when absent/unreadable (fail-open: no record = no forced retry)."""
+    if not PENDING_PERSIST:
+        return {}
+    try:
+        d = json.loads(read_marker_from_origin(EMAIL_PENDING_REL) or "{}")
+    except Exception:
+        return {}
+    return d if isinstance(d, dict) else {}
+
+
+def pending_labels(now=None) -> set[str]:
+    """Labels whose last live email failed completely and is still within EMAIL_PENDING_MAX_AGE_DAYS (Mountain dates). Marks them as 'seen' so a later successful send clears them."""
+    today = (now or datetime.now(MT)).astimezone(MT).date()
+    cutoff = (today - timedelta(days=EMAIL_PENDING_MAX_AGE_DAYS)).isoformat()
+    out = {lbl for lbl, rec in _pending_load().items() if isinstance(rec, dict) and str(rec.get("date") or "") >= cutoff}
+    _PENDING_SEEN.update(out)
+    return out
+
+
+def _pending_write(mutate, message: str) -> None:
+    """Read origin's record, apply `mutate(dict)`, write data/email_pending.json and commit it right away (the shared _commit_and_push: add + commit + push
+    with one rebase retry), so no run leaves the tracked file dirty. Never raises -- a bookkeeping failure must not turn a send result into a crash."""
+    if not PENDING_PERSIST:
+        return
+    try:
+        d = _pending_load()
+        mutate(d)
+        path = ROOT / EMAIL_PENDING_REL
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(d, indent=2, sort_keys=True) + "\n")
+        _commit_and_push([EMAIL_PENDING_REL], message)
+    except Exception as exc:
+        log(f"could not update {EMAIL_PENDING_REL}: {exc}")
+
+
+def mark_email_pending(label: str) -> None:
+    today = datetime.now(MT).strftime("%Y-%m-%d")
+    _PENDING_SEEN.add(label)
+    _pending_write(lambda d: d.__setitem__(label, {"date": today, "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}),
+                   f"chore: subscriber email pending ({label})")
+
+
+def clear_email_pending(label: str) -> None:
+    _PENDING_SEEN.discard(label)
+    _pending_write(lambda d: d.pop(label, None), f"chore: subscriber email sent ({label})")
+
 
 def send_locks_email(qualifying: list[dict], live: bool, locked_count: int | None = None,
-                      label: str = "", to: list[str] | None = None, date_str: str | None = None) -> bool:
+                      label: str = "", to: list[str] | None = None, date_str: str | None = None, key: str | None = None) -> bool:
+    # `key` names this email in the pending-retry record (EMAIL_PENDING_REL); it defaults to the label.
     # Real bug, found via audit 2026-09-24: every call site across every
     # lock function (run_lock, run_euro_early_lock, run_soccer_evening_
     # lock, run_cfb_evening_lock, run_hockey_evening_lock, run_lock_
@@ -3219,12 +3301,22 @@ def send_locks_email(qualifying: list[dict], live: bool, locked_count: int | Non
     subject = f"Clairvoyance — {'Locked' if live else '[DRY RUN] Would lock'} {tag}picks for {date_str} ({len(qualifying)})"
     body_html = build_locks_email_html(qualifying, live, locked_count)
     ok, msg = _send_gmail(subject, recipients, body_html)
+    shown = label or "ALL"
+    key = key or shown
+    global LIVE_SEND_ATTEMPTS
+    if live:
+        LIVE_SEND_ATTEMPTS += 1
     if ok:
-        log(f"Locks email ({label or 'ALL'}) sent to {len(recipients)} recipient(s)")
+        log(f"Locks email ({shown}) sent to {len(recipients)} recipient(s)")
+        if live and key in _PENDING_SEEN:
+            clear_email_pending(key)          # a retry of an earlier failed send has now gone out
     else:
         # A dropped send used to be only a log line: the run stayed green and the picks never reached anyone. Recorded now; main() ends the run RED so the health check / Actions tab show it.
-        log(f"ERROR: Locks email ({label or 'ALL'}) send failed: {msg}")
-        EMAIL_FAILURES.append(f"{label or 'ALL'} locks email: {msg}")
+        log(f"ERROR: Locks email ({shown}) send failed: {msg}")
+        EMAIL_FAILURES.append(f"{shown} locks email: {msg}")
+        # Reached nobody -> remember it, so the next pass for this label re-sends even though the picks are already locked (see EMAIL_PENDING_REL). A partial send is not retried.
+        if live and not str(msg).startswith("partial send"):
+            mark_email_pending(key)
     return bool(ok)
 
 
@@ -3454,7 +3546,7 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
     # (result.new==0) AND something qualified (qualifying non-empty) --
     # genuinely new locks and the "nothing qualified today" case
     # (handled above) still email as before.
-    if send_email and result.new == 0 and qualifying:
+    if send_email and result.new == 0 and qualifying and (label or "ALL") not in pending_labels():
         log(f"Locks email ({label or 'ALL'}) skipped -- all {len(qualifying)} qualifying leg(s) "
             f"were already locked by an earlier pass today, nothing new to report")
     elif send_email:
@@ -3551,7 +3643,7 @@ def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
         rep["complete"] = result_lock.failed == 0 and not analysis["noPrice"]
         log(f"[{label}] {result_lock.new} new, {result_lock.already_locked} already locked, "
             f"{result_lock.failed} failed -- {result_lock.confirmed}/{len(qualifying)} confirmed locked")
-        if send_email and result_lock.new == 0 and qualifying:
+        if send_email and result_lock.new == 0 and qualifying and label not in pending_labels():
             log(f"Locks email ({label}) skipped -- all {len(qualifying)} qualifying leg(s) "
                 f"were already locked by an earlier pass today, nothing new to report")
         elif send_email:
@@ -3641,7 +3733,7 @@ def _run_rolling_pass(page, live: bool, send_email: bool, to: list[str] | None, 
         log("Flushed locks to Supabase")
     # Subscriber email only when this pass locked something NEW: an extra pass that finds nothing new never re-emails (the
     # pass-level dedupe the redundant slots rely on).
-    if send_email and lock_result.new == 0:
+    if send_email and lock_result.new == 0 and email_label not in pending_labels():
         log(f"Locks email ({label}) skipped -- all {len(qualifying)} qualifying leg(s) were already locked by an earlier "
             f"pass, nothing new to report")
     elif send_email:
@@ -3738,7 +3830,7 @@ def run_hockey_evening_lock(page, live: bool, send_email: bool = True, to: list[
                              gather=gather_hockey_legs_for_dates, only_sports=EARLY_HOCKEY_SPORTS, dry_label="SHL/Liiga/NLA/Extraliga evening-prior only", now=now)
 
 
-def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
+def run_lock_segmented(page, live: bool, send_email: bool = True, only_new: bool = False) -> None:
     """Main (unscoped) lock run -- ONE gather_legs() call (the expensive
     part: real browser + live data warmups), then split into a separate
     qualifying-legs list + a separately-addressed email for each of the 5
@@ -3765,7 +3857,12 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
     email from run_euro_early_lock instead. This run still locks them as
     a safety net (same convention soccer/CFB's own early passes already
     use), it just never re-emails them; the hockey email here covers NHL
-    only."""
+    only.
+
+    only_new (the pre-kickoff watchdog's auto-lock): a product is emailed ONLY when this pass locked something NEW for it -- exactly what the
+    rolling CFB / soccer / European-hockey runners the watchdog also uses do (see _auto_lock). Without it every watchdog auto-lock re-sent
+    the full NFL/NHL/... emails to every subscriber (real 2026-10-08 20:50Z, 22:22Z and 10-10 20:42Z runs: a Saturday "no picks" NFL email and a
+    second copy of the day's NHL picks), because this function otherwise emails every product on every call that has send_email=True."""
     log("=== AUTO-LOCK (PREMIUM/OPTIMAL) — ALL PRODUCTS ===")
     result = gather_legs(page)
     log(f"Gathered {len(result.get('gameLegs') or [])} games' worth of markets, "
@@ -3791,10 +3888,13 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
         log(f"[excluded] {len(excluded)} qualifying leg(s) outside auto-lock scope, dropped "
             f"(not locked, not emailed): {excluded_sports}")
     total_locked = 0
+    # Products whose last LIVE main email reached nobody (see EMAIL_PENDING_REL): re-sent by whichever main pass runs next. Loaded once per call.
+    pend = pending_labels() if live else set()
 
     for product, sports in PRODUCT_SPORTS.items():
         qualifying = [q for q in all_qualifying if q["sport"] in sports]
         label = PRODUCT_LABEL[product]
+        main_key = f"MAIN {label}"            # distinct from the early-pass 'HOCKEY' / 'SOCCER' labels: those are different emails
         recipients = recipients_for(product)
         # Hockey-only, 2026-09-17: SHL/Liiga now get their own dedicated
         # early pass (run_euro_early_lock, merged into the soccer early-
@@ -3871,7 +3971,15 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
         # CFB subscriber gets that day. Still locks as a safety net
         # either way (matches soccer/CFB's own early-pass precedent of
         # continuing to lock without emailing).
-        if send_email and product in ("soccer", "cfb"):
+        if only_new:
+            # Watchdog auto-lock: tell a product's subscribers only about a pass that locked something NEW for them (same rule as the rolling runners).
+            if product in ("soccer", "cfb"):
+                log(f"Locks email ({label}) skipped -- {product} has its own dedicated early/evening pass; this run locked {result.new} as a safety net")
+            elif send_email and email_qualifying and (result.new > 0 or main_key in pend):
+                send_locks_email(email_qualifying, live=True, locked_count=result.confirmed, label=label, to=recipients, key=main_key)
+            elif send_email:
+                log(f"Locks email ({label}) skipped -- nothing new locked for {product} in this pass (watchdog auto-lock emails new locks only)")
+        elif send_email and product in ("soccer", "cfb"):
             log(f"Locks email ({label}) skipped -- {product} has its own dedicated early/evening "
                 f"pass with a better-timed email; this run still locked as a safety net ({result.new} new)")
         elif send_email and season_inactive:
@@ -3893,7 +4001,11 @@ def run_lock_segmented(page, live: bool, send_email: bool = True) -> None:
             # (this one, the one that actually emails) reporting almost
             # nothing NEW even though the day's picks were all really
             # there. result.confirmed answers the real question.
-            send_locks_email(email_qualifying, live=True, locked_count=result.confirmed, label=label, to=recipients)
+            send_locks_email(email_qualifying, live=True, locked_count=result.confirmed, label=label, to=recipients, key=main_key)
+        elif email_qualifying and main_key in pend and product not in ("soccer", "cfb"):
+            # Today's email already went out once but reached nobody (a failed send, recorded as pending): this later pass retries it.
+            log(f"Retrying the {label} locks email -- an earlier send reached nobody")
+            send_locks_email(email_qualifying, live=True, locked_count=result.confirmed, label=label, to=recipients, key=main_key)
         else:
             log(f"Locks email ({label}) skipped -- already sent today ({result.new} locked this pass)")
 
@@ -3947,7 +4059,9 @@ def leg_locked_in_ledger(page, q: dict, date_key: str | None) -> bool:
     ))
 
 
-AUTO_LOCK_WINDOW_MIN = 150   # the watchdog only locks a leg itself when its game starts within this many minutes (the regular passes had every earlier chance)
+# The sports the MAIN lock pass (run_lock_segmented) is the authority for: every product sport that the rolling CFB / soccer / European-hockey runners do not own.
+MAIN_PASS_SPORTS = frozenset(set().union(*PRODUCT_SPORTS.values()) - {"CFB"} - set(EURO_SOCCER_SPORTS) - set(EARLY_HOCKEY_SPORTS))
+AUTO_LOCK_WINDOW_MIN = 150  # the watchdog only locks a leg itself when its game starts within this many minutes (the regular passes had every earlier chance)
 
 
 def _auto_lock_group(sport: str) -> str:
@@ -3976,7 +4090,7 @@ def _auto_lock(page, candidates: list[dict]) -> list[str]:
             elif g == "hockey":
                 run_hockey_evening_lock(page, True, send_email=True, to=recipients_for("hockey"))
             else:
-                run_lock_segmented(page, True, send_email=True)
+                run_lock_segmented(page, True, send_email=True, only_new=True)
         except Exception as exc:
             log(f"  auto-lock {g} pass FAILED: {exc}")
             errors.append(f"{g}: {exc}")
@@ -3992,7 +4106,11 @@ def run_watchdog(page, live: bool, now=None, auto_lock: bool = False) -> list[di
     log(f"=== PRE-KICKOFF WATCHDOG ({'auto-lock ON' if auto_lock and live else 'read-only'}, owner-only alerts) ===")
     now_ms = _now_ms(now)
     dates = horizon_dates(now)
-    gathered = [("main-today", gather_legs(page), None)]
+    # The today-gather (gather_legs) is the authority only for the sports the main pass owns. CFB, European soccer and European hockey are locked (and
+    # emailed) by the rolling-horizon runners, which grade them from their OWN gather; the same game graded by the two gathers differs by Monte-Carlo noise,
+    # so a leg right on a selection threshold qualified in one draw (e.g. "MIZ ML" at 70%) and never in the runner's -- the watchdog then alerted the owner
+    # about a pick no lock pass would ever make, and started the runner for nothing, on every slot (real 2026-10-10 12:35Z / 14:26Z alerts).
+    gathered = [("main-today", gather_legs(page), MAIN_PASS_SPORTS)]
     gathered.append(("hockey", gather_hockey_legs_for_dates(page, dates), EARLY_HOCKEY_SPORTS))
     gathered.append(("cfb", gather_cfb_legs_for_dates(page, dates), frozenset({"CFB"})))
     gathered.append(("soccer", gather_soccer_legs_for_dates(page, dates), EURO_SOCCER_SPORTS))
@@ -4187,6 +4305,8 @@ def main() -> None:
                           "is also given; the only thing it writes on its own (with --live) is the owner-alert dedupe hash in "
                           "docs/automation_status.json.")
     args = ap.parse_args()
+    global PENDING_PERSIST
+    PENDING_PERSIST = bool(args.live)          # failed-email bookkeeping (data/email_pending.json) is a real-run feature only
 
     if args.alert_lock_missed:
         to = OWNER_EMAIL or LOCKS_EMAIL_TO
@@ -4396,8 +4516,22 @@ def main() -> None:
                 if args.live:
                     already_emailed_today = read_marker_from_origin("data/last_lock_email_date.txt") == today_mt
                 want_email = args.final_lock_check and not already_emailed_today
+                sends_before = LIVE_SEND_ATTEMPTS
                 try:
-                    run_lock_segmented(page, args.live, send_email=want_email)
+                    try:
+                        run_lock_segmented(page, args.live, send_email=want_email)
+                    finally:
+                        # Recorded as soon as the emails have been ATTEMPTED (not after the verification below): a crash in the verify step used to leave
+                        # no marker, so the next final-check slot re-sent every product's email. Only when at least one live send was really attempted: a run
+                        # that died before emailing anything must leave the day's email still due. A product whose send reached nobody is not lost: it is
+                        # in data/email_pending.json and the next main pass retries it (see EMAIL_PENDING_REL).
+                        if args.live and want_email and LIVE_SEND_ATTEMPTS > sends_before:
+                            try:
+                                email_marker_path.write_text(today_mt)
+                                _commit_and_push(["data/last_lock_email_date.txt"],
+                                                  f"chore: record lock email sent for {today_mt}")
+                            except Exception as exc:
+                                log(f"failed to record lock-email marker: {exc}")
                     # The actual verification test: a fresh, independent
                     # Supabase re-pull confirming today's picks are really
                     # persisted, not just that lockPick() didn't throw.
@@ -4405,13 +4539,6 @@ def main() -> None:
                     if args.live:
                         detail = f"lock pass completed, {verified_count} pick(s) verified for {today_mt}{guard_note()}"
                         finish_live_pass("lastLock", True, detail, PASS_REPORTS[n_reports_before:], args.result_file)
-                        if want_email:
-                            try:
-                                email_marker_path.write_text(today_mt)
-                                _commit_and_push(["data/last_lock_email_date.txt"],
-                                                  f"chore: record lock email sent for {today_mt}")
-                            except Exception as exc:
-                                log(f"failed to record lock-email marker: {exc}")
                 except Exception as exc:
                     log(f"lock step failed: {exc}")
                     if args.live:

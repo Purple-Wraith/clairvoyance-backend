@@ -6,7 +6,7 @@
 // (workflow_dispatch). The workflows' own `schedule:` entries stay in place as a fallback, so nothing is lost if this Worker is ever off.
 //
 // Deliberately NOT here as fixed-time slots: the lock / settle / email workflows. Their scheduled runs choose behaviour from `github.event.schedule`, and a dispatched run
-// does not carry it; they are left on GitHub's cron plus the watchdog. The ONE exception is the kickoff-driven END-OF-GAME SETTLE sweep below, which dispatches
+// does not carry it; they are left on GitHub's cron plus the watchdog. (The daily health check and the expiry reminders are listed below: neither reads it.) The ONE exception is the kickoff-driven END-OF-GAME SETTLE sweep below, which dispatches
 // auto-lock-settle.yml with explicit inputs (mode=settle, live=true -- what the header's SETTLE NOW button sends), so it needs no `github.event.schedule`. The WATCHDOG itself is here (evening slots only): it does not read `github.event.schedule`,
 // and `gated=true` gives a dispatched run the scheduled behaviour.
 //
@@ -25,6 +25,12 @@ export const SCHEDULE = [
   { wf: "cfb-refresh.yml", at: ["14:33"] },
   { wf: "cfb-refresh.yml", at: ["02:17"], dow: [1] },
   { wf: "nfl-weekly-refresh.yml", at: ["13:53"], dow: [2] },
+  // Owner/subscriber housekeeping that does not read `github.event.schedule` (2026-10-10 email audit: GitHub's crons landed these 3-5 h late). The health check names its pass through an input
+  // (a scheduled run derives it from the cron string); both are safe to run twice (alert dedupe by problem per MT day; reminder_sent is committed after each send).
+  { wf: "daily-health-check.yml", at: ["17:15"], inputs: { pass: "early" } },
+  { wf: "daily-health-check.yml", at: ["20:33"], inputs: { pass: "full" } },
+  { wf: "daily-health-check.yml", at: ["23:15"], inputs: { pass: "late" } },
+  { wf: "send-expiry-reminders.yml", at: ["14:45"] },
   // Evening lock coverage (2026-10-07): the pre-kickoff watchdog auto-locks any qualifying leg 10-150 min before kickoff. gated=true makes the dispatched run behave exactly
   // like a scheduled slot (LIVE_MODE variable + kickoff gate); without it a dispatch is the manual dry-run path. 15:30 / 17:30 / 19:30 MT.
   { wf: "lock-watchdog.yml", at: ["21:30", "23:30", "01:30"], inputs: { gated: "true" } },

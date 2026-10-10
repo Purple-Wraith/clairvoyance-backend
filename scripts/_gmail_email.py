@@ -64,8 +64,11 @@ GMAIL_USER = "clairvoyanceengine@gmail.com"
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 
 MAX_RECIPIENTS_PER_SEND = 450
-MAX_SEND_ATTEMPTS = 3
-RETRY_BACKOFF_SECONDS = (2, 6)
+MAX_SEND_ATTEMPTS = 4
+RETRY_BACKOFF_SECONDS = (2, 8, 30)
+# Errors a retry can never fix: the sending quota is spent for the day, or the app password / account is rejected. Retrying only burns
+# minutes (and, for the quota, makes Gmail's own throttle worse), so the send stops at once and says exactly why.
+PERMANENT_ERROR_MARKERS = ("5.4.5", "daily user sending", "sending limit", "quota", "username and password not accepted")
 
 # Shared chrome every email renders inside -- plain white body, no
 # header art. Kept as OPEN/CLOSE (not a single wrap-everything helper)
@@ -151,6 +154,9 @@ def _send_batch_with_retry(batch: list[str], msg: MIMEMultipart) -> tuple[bool, 
             return True, "sent", sorted(refused or {})
         except Exception as exc:
             last_err = str(exc)
+            low = last_err.lower()
+            if any(m in low for m in PERMANENT_ERROR_MARKERS):
+                return False, f"{last_err} (not retried: quota / login errors do not clear on their own)", []
     return False, last_err, []
 
 
@@ -169,7 +175,17 @@ def send_email(subject: str, to: str | list[str], html_body: str, attachments: l
     attempt, same behavior as before batching existed."""
     if not GMAIL_APP_PASSWORD:
         return False, "GMAIL_APP_PASSWORD not set"
-    recipients = [to] if isinstance(to, str) else list(dict.fromkeys(r for r in to if r))
+    recipients: list[str] = []
+    if isinstance(to, str):
+        recipients = [to.strip()] if to.strip() else []
+    else:
+        # de-duplicated case-insensitively (an owner address typed with capitals must not get a second copy of its own subscriber email); first spelling wins
+        seen: set[str] = set()
+        for r in to or []:
+            r = (r or "").strip()
+            if r and r.lower() not in seen:
+                seen.add(r.lower())
+                recipients.append(r)
     if not recipients:
         return False, "no recipient"
 

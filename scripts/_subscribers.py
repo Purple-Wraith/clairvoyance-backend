@@ -223,6 +223,28 @@ def _is_active(entry: dict, now: datetime) -> bool:
     return added is not None and now - added < timedelta(days=EXPIRY_DAYS)
 
 
+def _entry_email(product: str, entry) -> str | None:
+    """The usable address of one subscriber-list row, or None. A malformed row (not an object, no email, no '@') must never crash the loader --
+    that would stop EVERY subscriber of the product from being emailed because of one bad line -- so it is skipped and reported loudly (a
+    DATA_ERRORS entry, which ends the run red) instead. Reported once per row per process."""
+    email = entry.get("email") if isinstance(entry, dict) else None
+    if isinstance(email, str) and "@" in email and " " not in email.strip():
+        return email.strip()
+    key = f"{product}:{entry!r}"[:160]
+    if key not in _BAD_ROWS_SEEN:
+        _BAD_ROWS_SEEN.add(key)
+        msg = f"malformed subscriber row skipped on {product!r}: {str(entry)[:80]} -- fix it in the private subscribers.json (everyone else is still emailed)"
+        if os.environ.get("GITHUB_ACTIONS"):
+            DATA_ERRORS.append(msg)
+            print(f"::error::{msg}")
+        else:
+            print(f"WARNING: {msg}", file=sys.stderr)
+    return None
+
+
+_BAD_ROWS_SEEN: set[str] = set()
+
+
 def active_subscribers(product: str) -> list[dict]:
     """Non-expired entries for this product, each with a computed
     days_left so callers (the CLI, mainly) don't have to redo the date
@@ -230,12 +252,15 @@ def active_subscribers(product: str) -> list[dict]:
     now = _now()
     out = []
     for entry in load_subscribers().get(product, []):
+        email = _entry_email(product, entry)
+        if email is None:
+            continue
         added = _parse(entry.get("added", ""))
         if added is None or now - added >= timedelta(days=EXPIRY_DAYS):
             continue
         days_left = EXPIRY_DAYS - (now - added).days
         out.append({
-            "email": entry["email"], "added": entry["added"], "days_left": days_left,
+            "email": email, "added": entry["added"], "days_left": days_left,
             "reminder_sent": bool(entry.get("reminder_sent")),
         })
     return out
@@ -243,13 +268,16 @@ def active_subscribers(product: str) -> list[dict]:
 
 def recipients_for(product: str) -> list[str]:
     """Owner + every subscriber whose 30-day window hasn't expired,
-    deduped, order preserved (owner first)."""
+    deduped (case-insensitively: the owner's own address may be typed with
+    capitals), order preserved (owner first)."""
     subs = [e["email"] for e in active_subscribers(product)]
-    seen: list[str] = []
+    seen: set[str] = set()
+    out: list[str] = []
     for email in [OWNER_EMAIL, *subs]:
-        if email and email not in seen:
-            seen.append(email)
-    return seen
+        if email and email.strip().lower() not in seen:
+            seen.add(email.strip().lower())
+            out.append(email.strip())
+    return out
 
 
 def add_subscriber(product: str, email: str) -> str:

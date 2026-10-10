@@ -96,6 +96,12 @@ MONITORED = [
     # EARLY_HOCKEY_SPORTS_PERSONAL in auto_lock_settle.py) alongside the
     # original paid SHL/Liiga product.
     ("hockey-lock-evening.yml", "Hockey Evening Lock — SHL/Liiga/NLA/Extraliga (Tomorrow's Slate)", 26),
+    # Added 2026-10-10 (email audit): these three send owner emails and had no watcher of their own, so a dead watchdog (the only thing that says "a pick is
+    # about to start unlocked") or a skipped weekly digest / lock-workflow verification went unnoticed. The watchdog fires every ~2h (plus Worker sweeps), so
+    # 8h; the weekly digest is Mondays only (7 days + the observed 7h GitHub delay).
+    ("lock-watchdog.yml", "Pre-kickoff watchdog", 8),
+    ("verify-lock-workflows.yml", "Lock-workflow verification", 26),
+    ("weekly-health-digest.yml", "Weekly health digest", 7 * 24 + 12),
 ]
 
 # (marker file, human label, cutoff hour in MT past which today's date
@@ -187,6 +193,31 @@ def check_lock_markers(which: str = "full", now_mt: datetime | None = None) -> l
                 f"watchdog may all have missed today"
             )
     return problems
+
+
+PENDING_PATH = ROOT / "data" / "email_pending.json"
+
+
+def check_pending_emails(path: Path | None = None, now_mt: datetime | None = None) -> list[str]:
+    """data/email_pending.json (written by scripts/auto_lock_settle.py when a LIVE subscriber email reached nobody): every record still on file means the
+    retry on the next lock pass has not got through either. One alert-level line per record (today or yesterday, Mountain date); older records are
+    stale slates and ignored. The run that sent the failed email also ends red, but a later green run used to hide it; this keeps it visible."""
+    path = path or PENDING_PATH
+    now_mt = now_mt or datetime.now(ZoneInfo("America/Denver"))
+    try:
+        data = json.loads(path.read_text())
+    except Exception:
+        return []
+    if not isinstance(data, dict):
+        return []
+    cutoff = (now_mt - timedelta(days=1)).strftime("%Y-%m-%d")
+    out = []
+    for label, rec in sorted(data.items()):
+        date = str((rec or {}).get("date") or "") if isinstance(rec, dict) else ""
+        if date and date >= cutoff:
+            out.append(f"Subscriber email still undelivered: {label} (first failed {date}) -- the picks are locked but the email has not reached subscribers; "
+                       f"the next lock pass retries it, check GMAIL_APP_PASSWORD / the Gmail daily limit if this persists")
+    return out
 
 
 def _api_get(path: str) -> dict:
@@ -565,6 +596,7 @@ def main() -> int:
     if "--pass" in sys.argv:
         which = sys.argv[sys.argv.index("--pass") + 1]
     problems = check_lock_markers(which)
+    problems += check_pending_emails()
     notes: list[str] = []
     if which != "full":
         return _report(problems, notes)      # early / late passes only look at the lock markers
