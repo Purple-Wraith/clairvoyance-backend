@@ -13496,8 +13496,12 @@ async function renderShlMatches(){
 
 
 // ── Form dot tooltip ──
-let _dotTipEl=null;
+let _dotTipEl=null,_dotTipFor=null,_dotTipGuard=0,_dotLastTouch=0;
 function showDotTip(el){
+  // A tap fires touchstart and then an emulated mouseenter ~immediately; the second one used to re-open the tip with no mouseleave to ever close it.
+  const ty=(window.event&&window.event.type)||'';
+  if(ty==='touchstart')_dotLastTouch=Date.now();
+  else if(ty==='mouseenter'&&Date.now()-_dotLastTouch<900)return;
   hideDotTip();
   const tip=el.dataset.tip||'';
   if(!tip)return;
@@ -13515,14 +13519,24 @@ function showDotTip(el){
   left=Math.max(8,Math.min(left,window.innerWidth-d.offsetWidth-8));
   d.style.top=top+'px';d.style.left=left+'px';
   el.style.transform='scale(1.5)';
+  // Safety net (owner report 2026-10-10: a bubble stayed enlarged / its tip stayed up after the pointer left): if the dot is gone (the home page re-renders every 60 s), no longer hovered or focused,
+  // and no recent touch is keeping it open, close the tip.
+  _dotTipFor=el;clearInterval(_dotTipGuard);
+  _dotTipGuard=setInterval(()=>{
+    const f=_dotTipFor;
+    if(!f||!f.isConnected){hideDotTip();return;}
+    let hov=false;try{hov=f.matches(':hover');}catch(e){}
+    if(!hov&&document.activeElement!==f&&Date.now()-_dotLastTouch>2600)hideDotTip();
+  },350);
 }
 function hideDotTip(){
+  clearInterval(_dotTipGuard);_dotTipGuard=0;_dotTipFor=null;
   if(_dotTipEl){_dotTipEl.remove();_dotTipEl=null;}
   // .mom-bar (Home momentum sparkline) / .tp-heat-cell (Top Picks calendar
   // heatmap) added 2026-10-02 -- both reuse showDotTip's own hover-scale
   // effect via the same onmouseenter wiring, so both need resetting here
   // too, same as .form-dot.
-  document.querySelectorAll('.form-dot,.mom-bar,.tp-heat-cell').forEach(d=>d.style.transform='');
+  document.querySelectorAll('.form-dot,.mom-bar,.tp-heat-cell,.lg-dot').forEach(d=>d.style.transform='');
 }
 
 // ── Mobile ↔ Desktop sync via clipboard export/import ──

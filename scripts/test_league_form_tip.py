@@ -65,6 +65,38 @@ class LeagueFormTip(unittest.TestCase):
         self.assertEqual(self.errors, [])
         pg.close()
 
+    def test_bubble_goes_back_to_normal_size_and_the_tip_closes_when_the_pointer_leaves(self):
+        """owner report 2026-10-10: the hover scale-up was only reset for other dot types, so league bubbles stayed enlarged"""
+        pg = self.page()
+        dot = pg.locator(".lg-dot").nth(3)
+        dot.hover()
+        self.assertEqual(pg.evaluate("document.querySelectorAll('.lg-dot')[3].style.transform"), "scale(1.5)")
+        pg.mouse.move(5, 5)
+        pg.wait_for_timeout(150)
+        self.assertEqual(pg.evaluate("[...document.querySelectorAll('.lg-dot')].filter(d=>d.style.transform).length"), 0)
+        self.assertEqual(pg.locator("#dot-tip").count(), 0)
+        pg.close()
+
+    def test_tip_is_cleaned_up_when_the_home_page_rerenders_under_the_pointer(self):
+        """the home page re-renders every 60 s; the hovered bubble is replaced and no mouseleave ever fires"""
+        pg = self.page()
+        pg.locator(".lg-dot").nth(2).hover()
+        self.assertEqual(pg.locator("#dot-tip").count(), 1)
+        pg.evaluate("renderHomePage()")
+        pg.mouse.move(5, 5)
+        pg.wait_for_function("document.querySelectorAll('#dot-tip').length===0", timeout=4000)
+        self.assertEqual(pg.evaluate("[...document.querySelectorAll('.lg-dot')].filter(d=>d.style.transform).length"), 0)
+        pg.close()
+
+    def test_a_tap_opens_the_tip_and_it_closes_by_itself(self):
+        pg = self.page()
+        pg.evaluate("document.querySelectorAll('.lg-dot')[1].dispatchEvent(new Event('touchstart',{bubbles:true}))")
+        pg.evaluate("document.querySelectorAll('.lg-dot')[1].dispatchEvent(new Event('mouseenter'))")          # the emulated mouse event after a tap must not re-open / pin it
+        pg.wait_for_function("document.querySelectorAll('#dot-tip').length===1", timeout=3000)
+        pg.evaluate("document.querySelectorAll('.lg-dot')[1].dispatchEvent(new Event('touchend',{bubbles:true}))")
+        pg.wait_for_function("document.querySelectorAll('#dot-tip').length===0", timeout=9000)
+        pg.close()
+
     def test_keyboard_focus_shows_the_same_tip_and_bubbles_are_big(self):
         pg = self.page()
         pg.locator(".lg-dot").first.focus()
