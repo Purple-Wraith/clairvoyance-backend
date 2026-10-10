@@ -171,5 +171,86 @@ class Momentum(unittest.TestCase):
         pg.close()
 
 
+    # ── visual refresh 2026-10-10: gauge, last-10 strip, sport breakdown chips, sparklines, no NaN, no overflow ─────────────────────────────
+    def test_gauge_matches_status_and_headline_delta(self):
+        pg = self.page()
+        cold = [dict(r, outcome="loss") if r["lockedAt"] >= self.now - 7 * 86400000 else r for r in self.rows]
+        hot = [dict(r, outcome="win") if r["lockedAt"] >= self.now - 7 * 86400000 else r for r in self.rows]
+        for rows, zone, sign in ((hot, "h", 1), (cold, "c", -1), ([], None, 0)):
+            pg.evaluate("(r)=>{saveP(r);renderHomePage()}", rows)
+            pg.wait_for_timeout(500)
+            on = pg.evaluate("[...document.querySelectorAll('#mom-widget .mom-zn.on')].map(e=>e.classList[1])")
+            self.assertEqual(on, [zone] if zone else [])
+            a = float(pg.evaluate("parseFloat(document.querySelector('#mom-widget .mom-needle').style.getPropertyValue('--a'))"))
+            self.assertTrue(a > 0 if sign > 0 else a < 0 if sign < 0 else a == 0, a)
+            if zone:
+                gd = pg.evaluate("document.querySelector('#mom-widget .mom-gd').textContent")
+                tile = pg.evaluate("document.querySelectorAll('#mom-widget .mom-v')[2].textContent")
+                self.assertEqual(gd, tile)                                    # the meter's big number is the VS BASELINE tile's number
+        self.assertEqual(self.errors, [])
+        pg.close()
+
+    def test_last_ten_strip_and_streak(self):
+        pg = self.page()
+        done = sorted([r for r in self.rows], key=lambda r: r["lockedAt"])[-10:]
+        want = "".join("W" if r["outcome"] == "win" else "L" for r in done)
+        got = pg.evaluate("[...document.querySelectorAll('#mom-widget .mom-pip:not(.nw)')].map(e=>e.textContent).join('')")
+        self.assertEqual(got, want)
+        n = 0
+        for c in reversed(want):
+            if c == want[-1]: n += 1
+            else: break
+        self.assertEqual(pg.locator("#mom-widget .mom-pip.st").count(), n)
+        self.assertIn(f"STREAK {n}{want[-1]}", pg.inner_text("#mom-widget .mom-l10s"))
+        pg.close()
+
+    def test_sport_chips_show_each_sports_window_win_pct(self):
+        pg = self.page()
+        nhl = [r for r in self.rows if r["sport"] == "NHL" and r["lockedAt"] >= self.now - 7 * 86400000]
+        w, l, _ = self.agg(nhl)
+        txt = pg.inner_text(".mom-chip:has-text('HOCKEY')")
+        self.assertIn(f"{round(w / (w + l) * 100)}%", txt)
+        self.assertEqual(pg.locator(".mom-chip.mom-sc").count(), 5)
+        pg.locator(".mom-chip:has-text('BASKETBALL')").click()
+        self.assertEqual(pg.get_attribute(".mom-chip:has-text('BASKETBALL')", "aria-pressed"), "true")
+        pg.close()
+
+    def test_no_nan_undefined_in_any_window_metric_view_sport(self):
+        pg = self.page()
+        for win in ("7D", "14D", "THIS MONTH", "LAST MONTH"):
+            pg.locator(f".mom-chip:has-text('{win}')").first.click()
+            for sport in ("ALL", "HOCKEY", "SOCCER"):
+                pg.locator(f".mom-chip[data-mom='sport:{sport}']").click()
+                for metric in ("WIN %", "UNITS"):
+                    pg.locator(f".mom-chip:has-text('{metric}')").first.click()
+                    for view in ("TREND", "DAILY"):
+                        pg.locator(f".mom-chip:has-text('{view}')").first.click()
+                        bad = pg.evaluate("(()=>{const t=document.getElementById('mom-widget').innerHTML;return /NaN|undefined|Infinity/.test(t)})()")
+                        self.assertFalse(bad, (win, sport, metric, view))
+        self.assertEqual(self.errors, [])
+        pg.close()
+
+    def test_phone_layout_no_overflow_and_readable_text(self):
+        pg = self.page(390)
+        for win in ("7D", "THIS MONTH"):
+            pg.locator(f".mom-chip:has-text('{win}')").first.click()
+            for view in ("TREND", "DAILY"):
+                pg.locator(f".mom-chip:has-text('{view}')").first.click()
+                self.assertLessEqual(pg.evaluate("document.documentElement.scrollWidth"), 391)
+                self.assertLessEqual(pg.evaluate("(()=>{const w=document.getElementById('mom-widget').getBoundingClientRect();return Math.max(0,...[...document.querySelectorAll('#mom-widget .mom-chip,#mom-widget .mom-tile,#mom-widget .mom-meter,#mom-widget .mom-l10,#mom-widget .mom-svg')].map(e=>e.getBoundingClientRect().right-w.right))})()"), 1)
+        small = pg.evaluate("[...document.querySelectorAll('#mom-widget .mom-chip span,#mom-widget .mom-k,#mom-widget .mom-s,#mom-widget .mom-pip')].map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(v=>v<11).length")
+        self.assertEqual(small, 0)
+        pg.close()
+
+    def test_entrance_animation_is_one_shot(self):
+        pg = self.page()
+        pg.wait_for_timeout(1800)
+        pg.evaluate("renderHomePage()")                                  # the 60 s re-render with unchanged figures must not replay the sweep
+        self.assertEqual(pg.locator("#mom-widget .mom-anim").count(), 0)
+        pg.locator(".mom-chip:has-text('14D')").click()                  # changed figures do animate
+        self.assertEqual(pg.locator("#mom-widget .mom-anim").count(), 1)
+        pg.close()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
