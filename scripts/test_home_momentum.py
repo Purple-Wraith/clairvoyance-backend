@@ -159,6 +159,27 @@ class Momentum(unittest.TestCase):
         self.assertEqual(self.errors, [])
         pg.close()
 
+    def test_today_window_counts_todays_settled_bets_by_game_date(self):
+        """owner request 2026-10-10: a TODAY chip next to 7D / 14D / THIS MONTH / LAST MONTH"""
+        pg = self.page()
+        today = dt.datetime.fromtimestamp(self.now / 1000, MT).strftime("%Y-%m-%d")
+        want = [r for r in self.rows if r["date"] == today]
+        w, l, u = self.agg(want)
+        pg.locator(".mom-chip:has-text('TODAY')").first.click()
+        self.assertIn("TODAY VS ALL-TIME", pg.inner_text("#mom-widget .mom-title"))
+        self.assertIn(f"{w}W-{l}L", pg.inner_text("#mom-widget .mom-tile"))
+        self.assertEqual(pg.get_attribute(".mom-chip:has-text('TODAY')", "aria-pressed"), "true")
+        self.assertEqual(pg.locator("#mom-widget .mom-bar2, #mom-widget .mom-empty").count(), 14)          # still the 14-day chart, with today bracketed
+        txt = pg.inner_text("#mom-widget")
+        for bad in ("NaN", "undefined", "Infinity"):
+            self.assertNotIn(bad, txt)
+        pg.locator(".mom-chip:has-text('TREND')").click()
+        self.assertGreater(pg.locator("#mom-widget path.mom-line").count(), 0)
+        pg.locator(".mom-chip:has-text('7D')").first.click()                                                # and back to a rolling window
+        self.assertIn("LAST 7D VS ALL-TIME", pg.inner_text("#mom-widget .mom-title"))
+        self.assertEqual(self.errors, [])
+        pg.close()
+
     def test_hot_cold_badge_follows_the_five_point_rule(self):
         pg = self.page()
         # all-time baseline ~75%: make the last 7 days all losses (cold) and then all wins (hot)

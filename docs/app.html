@@ -19920,6 +19920,8 @@ function _momSpan(){
     const lo=isTM?(D.moFrom||Date.parse(tmFrom+'T00:00:00')):(D.lmFrom||Date.parse(from+'T00:00:00')),hi=isTM?Infinity:(D.moFrom||Date.parse(tmFrom+'T00:00:00'));
     return{month:true,from,to,lo,hi,title:isTM?'THIS MONTH':'LAST MONTH',tile:isTM?'THIS MO':'LAST MO',n:Math.round((Date.parse(to+'T12:00:00Z')-Date.parse(from+'T12:00:00Z'))/864e5)+1};
   }
+  if(S.win==='td')   // TODAY (owner request 2026-10-10): today's settled bets by game date -- the same rule as the home page's TODAY cards -- shown inside the usual 14-day chart
+    return{month:false,today:true,n:14,win:1,to:today,from:_momAdd(today,-13),lo:-Infinity,hi:Infinity,title:'TODAY',tile:'TODAY'};
   const n=+S.win||7;
   return{month:false,n:Math.max(14,n),win:n,to:today,from:_momAdd(today,-(Math.max(14,n)-1)),lo:D.now-n*864e5,hi:Infinity,title:'LAST '+n+'D',tile:n+'D'};
 }
@@ -20020,7 +20022,7 @@ function _momChartSVG(days,base,W,S,col,sp){
   // rolling windows: the chart shows 14 days, the window itself is the last `win` of them
   const w0=(!sp.month&&sp.win<N)?N-sp.win:0;
   let bg='';
-  if(w0>0){bg+=`<rect class="mom-winbg" x="${f(ml+cw*w0)}" y="${mt}" width="${f(iw-cw*w0)}" height="${ih}"/><line class="mom-win0" x1="${f(ml+cw*w0)}" x2="${f(ml+cw*w0)}" y1="${mt}" y2="${mt+ih}"/><text class="mom-winl" x="${f(ml+cw*w0+5)}" y="${mt+10}">${sp.win}D WINDOW ▸</text>`;}
+  if(w0>0){bg+=`<rect class="mom-winbg" x="${f(ml+cw*w0)}" y="${mt}" width="${f(iw-cw*w0)}" height="${ih}"/><line class="mom-win0" x1="${f(ml+cw*w0)}" x2="${f(ml+cw*w0)}" y1="${mt}" y2="${mt+ih}"/>${sp.today?'':`<text class="mom-winl" x="${f(ml+cw*w0+5)}" y="${mt+10}">${sp.win}D WINDOW ▸</text>`}`;}
   let body='';
   if(pct&&base!=null){   // hot/cold band (+/-5 points of the all-time baseline) in both views
     const yh=Y(Math.min(yMax,base+.05)),yc=Y(Math.max(yMin,base-.05));
@@ -20100,7 +20102,7 @@ function _momHTML(){
   if(!D)return'';
   const days=_momDays(),pool=days.pool,list=days.days,sp=days.span;
   const base0=D.allTime[S.sport]||D.allTime.ALL,baseN=base0.w+base0.l,base=baseN?base0.w/baseN:null;
-  const inWin=ps=>ps.filter(p=>p.lk>=sp.lo&&p.lk<sp.hi);
+  const inWin=ps=>sp.today?ps.filter(p=>p.d===sp.to):ps.filter(p=>p.lk>=sp.lo&&p.lk<sp.hi);
   const winPicks=inWin(pool),win=_momAgg(winPicks);
   const st=_momStatus(win,base);
   const sorted=pool.filter(p=>p.lk).sort((a,b)=>a.lk-b.lk);
@@ -20111,7 +20113,7 @@ function _momHTML(){
   const key=[S.win,S.metric,S.view,S.sport,win.n,win.w,list.length].join('|'),nowT=Date.now();
   let anim;if(window._momKey!==key){window._momKey=key;window._momAnimAt=nowT;anim=true;}else anim=(nowT-(window._momAnimAt||0))<1500;
   const seg=(lbl,body)=>`<div class="mom-grp"><span class="mom-l">${lbl}</span><div class="mom-seg" role="group" aria-label="${lbl.toLowerCase()}">${body}</div></div>`;
-  const ctl=`<div class="mom-ctl">${seg('WINDOW',[[7,'7D'],[14,'14D'],['tm','THIS MONTH'],['lm','LAST MONTH']].map(([v,l])=>_momChip('win',v,l,String(S.win)===String(v))).join(''))}${seg('METRIC',_momChip('metric','pct','WIN %',S.metric==='pct')+_momChip('metric','u','UNITS',S.metric==='u'))}${seg('VIEW',_momChip('view','bars','DAILY',S.view==='bars')+_momChip('view','line','TREND',S.view==='line'))}</div>`;
+  const ctl=`<div class="mom-ctl">${seg('WINDOW',[['td','TODAY'],[7,'7D'],[14,'14D'],['tm','THIS MONTH'],['lm','LAST MONTH']].map(([v,l])=>_momChip('win',v,l,String(S.win)===String(v))).join(''))}${seg('METRIC',_momChip('metric','pct','WIN %',S.metric==='pct')+_momChip('metric','u','UNITS',S.metric==='u'))}${seg('VIEW',_momChip('view','bars','DAILY',S.view==='bars')+_momChip('view','line','TREND',S.view==='line'))}</div>`;
   // sport breakdown = the sport filter: each chip shows that sport's window win% against its own all-time tick
   const sportChip=s=>{
     const ps=inWin(s==='ALL'?D.picks:D.picks.filter(p=>p.sp===s)),a=_momAgg(ps),b0=D.allTime[s]||{w:0,l:0},bn=b0.w+b0.l,b=bn?b0.w/bn:null;
@@ -20121,7 +20123,7 @@ function _momHTML(){
   };
   const sports=`<div class="mom-grp" style="margin-bottom:10px"><span class="mom-l" style="margin-bottom:3px">SPORT FILTER · WINDOW WIN % <span style="color:var(--gc)">(| = ALL-TIME)</span></span><div class="mom-sports" style="margin-bottom:0">${_MOM_SPORTS.map(sportChip).join('')}</div></div>`;
   // KPI tiles (order is part of the contract: win %, all-time, vs baseline, units)
-  const wd=list.slice(sp.month?0:-sp.win);
+  const wd=list.slice(sp.month?0:-(sp.today?7:sp.win));      // TODAY: the tile sparklines show the last 7 days for context
   let cu=0;const cumv=wd.map(d=>cu+=d.u),pctv=wd.map(d=>d.roll.n>=2?d.roll.pct:null),dltv=wd.map(d=>(d.roll.n>=3&&base!=null)?(d.roll.pct-base)*100:null);
   const rise=i=>`style="--d:${i*70}ms"`;
   const tile=(i,k,v,sub,c,tail)=>`<div class="mom-tile mom-rise" style="--d:${i*70}ms;--tc:${c||'rgba(255,255,255,.18)'}"><div class="mom-k">${k}</div><div class="mom-v" style="color:${c||'var(--t)'}">${v}</div><div class="mom-s">${sub||'&nbsp;'}</div>${tail||''}</div>`;
@@ -20138,9 +20140,9 @@ function _momHTML(){
   const meter=`<div class="mom-meter mom-rise" style="--d:0ms">${_momGaugeSVG(st,col)}<div class="mom-badge">${st.arrow} ${st.lbl}</div><div class="mom-mcap">${sp.tile} <b>${win.pct!=null?(win.pct*100).toFixed(1)+'%':'--'}</b> vs ALL-TIME <em>${base!=null?(base*100).toFixed(1)+'%':'--'}</em></div></div>`;
   const W=_momWidth();window._momW=W;setTimeout(_momFit,0);
   const svg=_momChartSVG(list,base,W,S,col,sp);
-  const hint=S.view==='bars'?'DAILY '+(S.metric==='pct'?'WIN %':'UNITS')+' BY GAME DATE':(sp.month?'MONTH-TO-DATE ':'TRAILING '+sp.win+'-DAY ')+(S.metric==='pct'?'WIN % (3+ BETS)':'CUMULATIVE UNITS');
+  const hint=S.view==='bars'?'DAILY '+(S.metric==='pct'?'WIN %':'UNITS')+' BY GAME DATE':(sp.month?'MONTH-TO-DATE ':sp.today?'DAY-BY-DAY ':'TRAILING '+sp.win+'-DAY ')+(S.metric==='pct'?'WIN % (3+ BETS)':'CUMULATIVE UNITS');
   const lg=(c,t)=>`<span><i class="${c}"></i>${t}</span>`;
-  const legend=`<div class="mom-legend" aria-hidden="true">${S.view==='bars'?(S.metric==='pct'?lg('gw','AT/ABOVE ALL-TIME')+lg('gl','BELOW'):lg('gw','PROFIT DAY')+lg('gl','LOSS DAY')):lg('gt',S.metric==='pct'?'ROLLING WIN %':'CUMULATIVE UNITS')}${S.metric==='pct'?lg('gb','ALL-TIME')+lg('gz','±5pp HOT/COLD BAND'):''}${lg('gd','1 DOT = 1 BET (W/L)')}${(!sp.month&&sp.win<list.length)?lg('gz',sp.win+'D WINDOW (BRIGHT)'):''}</div>`;
+  const legend=`<div class="mom-legend" aria-hidden="true">${S.view==='bars'?(S.metric==='pct'?lg('gw','AT/ABOVE ALL-TIME')+lg('gl','BELOW'):lg('gw','PROFIT DAY')+lg('gl','LOSS DAY')):lg('gt',S.metric==='pct'?'ROLLING WIN %':'CUMULATIVE UNITS')}${S.metric==='pct'?lg('gb','ALL-TIME')+lg('gz','±5pp HOT/COLD BAND'):''}${lg('gd','1 DOT = 1 BET (W/L)')}${(!sp.month&&sp.win<list.length)?lg('gz',(sp.today?'TODAY':sp.win+'D WINDOW')+' (BRIGHT)'):''}</div>`;
   return`<div class="mom-in${anim?' mom-anim':''}" style="--sc:${col};--scr:${scr}"><div class="mom-accent"></div>
     <div class="mom-top"><span class="mom-title">// MOMENTUM — ${sp.title} VS ALL-TIME</span><span class="mom-range">${_momDateLbl(sp.month?sp.from:_momAdd(sp.to,-(sp.win-1))).toUpperCase()} – ${_momDateLbl(sp.to).toUpperCase()} · <b>${win.n} SETTLED BET${win.n===1?'':'S'}</b></span></div>
     ${ctl}
@@ -20190,7 +20192,7 @@ function _momCursor(i){
     const chip=e.target.closest&&e.target.closest('[data-mom]');
     if(chip){
       const [g,v]=chip.dataset.mom.split(':'),S=window._momS;
-      if(g==='win')S.win=(v==='tm'||v==='lm')?v:+v;else if(g==='metric')S.metric=v;else if(g==='view')S.view=v;else if(g==='sport')S.sport=v;else if(g==='pin'){S.pin=null;}
+      if(g==='win')S.win=(v==='tm'||v==='lm'||v==='td')?v:+v;else if(g==='metric')S.metric=v;else if(g==='view')S.view=v;else if(g==='sport')S.sport=v;else if(g==='pin'){S.pin=null;}
       if(g!=='pin')S.pin=null;S.cur=null;_momRender();return;
     }
     const hit=e.target.closest&&e.target.closest('.mom-hit');
