@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-10-10T00:38:38.867Z",
+ "updated_at": "2026-10-10T09:52:58.788Z",
  "picks": [
   {
    "id": "2026-10-03_Hameenlinna_Karpat_LIIGA_Karpat-1.5",
@@ -625,14 +625,14 @@
    "betOn": "PIT +1.5",
    "sport": "NHL",
    "wager": 0,
-   "aScore": null,
-   "hScore": null,
+   "aScore": 2,
+   "hScore": 3,
    "league": "NHL",
    "source": "manual",
    "betType": "SPREAD",
    "decOdds": 1.395,
    "leadMin": 780,
-   "outcome": "pending",
+   "outcome": "win",
    "startMs": 1791586800000,
    "winProb": 0.677,
    "lockedAt": 1791539986270,
@@ -642,7 +642,8 @@
    "lockOrigin": "manual",
    "lockTiming": "pre",
    "marketProb": 0.6826,
-   "priceSource": "market"
+   "priceSource": "market",
+   "settledAt": 1791597311708
   },
   {
    "hA": "Davos",
@@ -708,14 +709,14 @@
    "betOn": "UNDER 6.5",
    "sport": "NHL",
    "wager": 0,
-   "aScore": null,
-   "hScore": null,
+   "aScore": 6,
+   "hScore": 3,
    "league": "NHL",
    "source": "manual",
    "betType": "OU",
    "decOdds": 1.75,
    "leadMin": 779,
-   "outcome": "pending",
+   "outcome": "loss",
    "startMs": 1791586800000,
    "winProb": 0.579,
    "lockedAt": 1791540054280,
@@ -725,7 +726,8 @@
    "lockOrigin": "manual",
    "lockTiming": "pre",
    "marketProb": 0.5455,
-   "priceSource": "market"
+   "priceSource": "market",
+   "settledAt": 1791597311707
   },
   {
    "hA": "Langnau Tigers",
@@ -907,8 +909,8 @@
    "betOn": "UNDER 46.5",
    "sport": "CFB",
    "wager": 0,
-   "aScore": null,
-   "hScore": null,
+   "aScore": 41,
+   "hScore": 24,
    "league": "CFB",
    "source": "manual",
    "altLine": {
@@ -922,14 +924,15 @@
    "betType": "OU",
    "decOdds": 1.378,
    "leadMin": 902,
-   "outcome": "pending",
+   "outcome": "loss",
    "startMs": 1791594000000,
    "winProb": 0.6806,
    "lockedAt": 1791539875278,
    "reasoning": "PICK: UNDER 46.5 — ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 41.5 to UNDER 46.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 75.8%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin -5.4 (WASH), total 32.4, from a 25k-sim Monte Carlo.",
    "lockOrigin": "manual",
    "lockTiming": "pre",
-   "priceSource": "estimated"
+   "priceSource": "estimated",
+   "settledAt": 1791611289949
   },
   {
    "hA": "WPG",
@@ -947,7 +950,7 @@
    "betType": "SPREAD",
    "decOdds": 1.395,
    "leadMin": 840,
-   "outcome": "pending",
+   "outcome": "win",
    "startMs": 1791590400000,
    "winProb": 0.683,
    "lockedAt": 1791540007974,
@@ -957,7 +960,8 @@
    "lockOrigin": "manual",
    "lockTiming": "pre",
    "marketProb": 0.6844,
-   "priceSource": "market"
+   "priceSource": "market",
+   "settledAt": 1791609307582
   },
   {
    "id": "2026-10-09_WSH_NYR_NHL_OVER5.5",
@@ -972,10 +976,10 @@
    "ml": "-124",
    "decOdds": 1.805,
    "wager": 0,
-   "outcome": "pending",
+   "outcome": "loss",
    "lockedAt": 1791548415112,
-   "hScore": null,
-   "aScore": null,
+   "hScore": 3,
+   "aScore": 1,
    "source": "manual",
    "lockOrigin": "manual",
    "priceSource": "market",
@@ -985,7 +989,8 @@
    "startMs": 1791586800000,
    "leadMin": 640,
    "lockTiming": "pre",
-   "reasoning": "PICK: OVER 5.5 — SKIP (49.3% win prob, EV -11.0% · MARKET PRICE -124 (EV at market -11.0%) · MARKET-BLENDED: model 28.0% · no-vig market 53.1% → 49.3% (alpha 0.86))\nMODEL: Projected 1.6–1.8 (total 3.4) (OT/SO in 22% of outcomes) — OVER hits 28.0% of outcomes vs the 5.5 line, from a 25k-sim Monte Carlo."
+   "reasoning": "PICK: OVER 5.5 — SKIP (49.3% win prob, EV -11.0% · MARKET PRICE -124 (EV at market -11.0%) · MARKET-BLENDED: model 28.0% · no-vig market 53.1% → 49.3% (alpha 0.86))\nMODEL: Projected 1.6–1.8 (total 3.4) (OT/SO in 22% of outcomes) — OVER hits 28.0% of outcomes vs the 5.5 line, from a 25k-sim Monte Carlo.",
+   "settledAt": 1791597311708
   },
   {
    "id": "2026-10-09_CBJ_PIT_NHL_OVER5.5",
@@ -1000,17 +1005,18 @@
    "ml": "-167",
    "decOdds": 1.6,
    "wager": 0,
-   "outcome": "pending",
+   "outcome": "loss",
    "lockedAt": 1791548429474,
-   "hScore": null,
-   "aScore": null,
+   "hScore": 3,
+   "aScore": 2,
    "source": "manual",
    "lockOrigin": "manual",
    "priceSource": "market",
    "reasoning": "PICK: OVER 5.5 — MANUAL LINE (54.0% estimated win prob at this line)\nLINE EDITED: the line was changed by hand from OVER 6.5 to OVER 5.5. The win probability is the card's 47.0% for OVER 6.5, adjusted 7.0 points of probability per point of line for this O/U -- a simple estimate, not a re-run of the engine's model.\nPRICE: a standard assumed price, not a market quote.\nMODEL: Projected 1.8–1.6 (total 3.4) (OT/SO in 23% of outcomes), from a 25k-sim Monte Carlo.",
    "startMs": 1791586800000,
    "leadMin": 640,
-   "lockTiming": "pre"
+   "lockTiming": "pre",
+   "settledAt": 1791597311708
   },
   {
    "id": "2026-10-09_WPG_ANA_NHL_OVER5.5",
