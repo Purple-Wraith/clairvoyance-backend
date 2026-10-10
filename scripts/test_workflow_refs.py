@@ -18,7 +18,6 @@ PUSH_WITHOUT_DEPLOY = {
     "pages-deploy.yml": "is the deploy",
     "mobile-sync.yml": "pushes to the separate mobile repo, not this one",
     "tests.yml": "read-only",
-    "daily-health-check.yml": "writes only data/health_alert_state.json",
     "pick-of-day-social-daily.yml": "writes only data/ markers",
     "send-expiry-reminders.yml": "writes the private subscriber repo",
     "lock-watchdog.yml": "owner decision 2026-10-03: no deploy per watchdog slot (its --auto-lock pass hands over to the normal lock workflows)",
@@ -146,7 +145,7 @@ class WorkflowRefs(unittest.TestCase):
     def test_exempt_workflows_are_real_and_still_need_their_exemption(self):
         for name in PUSH_WITHOUT_DEPLOY:
             self.assertTrue((WF / name).exists(), f"{name} is exempt but no longer exists -- drop it from PUSH_WITHOUT_DEPLOY")
-        for name in ("pick-of-day-social-daily.yml", "daily-health-check.yml"):
+        for name in ("pick-of-day-social-daily.yml",):             # daily-health-check.yml now writes docs/calibration_watch.json and uses the publish step instead
             body = strip_comments((WF / name).read_text())
             self.assertNotIn("docs/", re.sub(r"https?://\S+", "", body.replace("docs/app.html", "")), f"{name} now touches docs/ -- it needs the publish step instead of an exemption")
 

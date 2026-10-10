@@ -2226,7 +2226,10 @@ CFB_NONML_BAND = (0.60, 0.75)
 def _cfb_select(legs: list[dict]) -> list[dict]:
     """Per-game CFB selection (rules B/A above) over the legs that already qualified for this game."""
     def p(leg):
-        return leg.get("prob") or 0
+        # The BAND below judges the model's own number: since 2026-10-10 a spread / O-U leg's stated `prob` is clamped to MARKET_P_CEILING (CFB: .62), which would drop every
+        # leg the band used to exclude (>= .75) into it. rawProb is the pre-clamp probability (None when nothing was clamped, and always for moneylines).
+        raw = leg.get("rawProb")
+        return raw if raw is not None else (leg.get("prob") or 0)
     ml = [l for l in legs if _market_type(l.get("side")) == "ML" and p(l) >= CFB_ML_MIN_P]
     non = [l for l in legs if _market_type(l.get("side")) != "ML" and CFB_NONML_BAND[0] <= p(l) < CFB_NONML_BAND[1]]
     best_ml = max(ml, key=p) if ml else None
@@ -2365,10 +2368,12 @@ def _alt_finish(leg: dict, new_label: str, p_alt: float, posted: float, new_line
     # The posted-line reasoning (tier, EV, "covers the 11.5-pt line in 63.5%") does not describe the shifted pick: replace it, keeping only the model's projection facts.
     old_r = str(leg.get("reasoning") or "")
     model_line = next((re.sub(r" — .*?(?=, from )", "", ln) for ln in old_r.split("\n") if ln.startswith("MODEL: ")), None)
-    out["reasoning"] = _alt_reasoning(new_label, p_alt, label, leg.get("prob"), k, "goal" if leg.get("sport") in HOCKEY_SPORTS else "pt", model_line)
+    # The model's own number at the posted line is the pre-clamp one (rawProb, see MARKET_P_CEILING) when the stated probability was clamped.
+    posted_model_p = leg.get("rawProb") if leg.get("rawProb") is not None else leg.get("prob")
+    out["reasoning"] = _alt_reasoning(new_label, p_alt, label, posted_model_p, k, "goal" if leg.get("sport") in HOCKEY_SPORTS else "pt", model_line)
     out.update({"label": new_label, "prob": round(p_alt, 4), "dec": round(dec, 3), "ml": _ml_from_dec(dec),
                 "evVal": round(p_alt * dec - 1, 4), "priceSource": "estimated",
-                "altLine": {"posted": posted, "line": new_line, "shift": k, "postedLabel": label, "postedProb": leg.get("prob"),
+                "altLine": {"posted": posted, "line": new_line, "shift": k, "postedLabel": label, "postedProb": posted_model_p,
                             "postedDec": leg.get("dec"), "postedMl": leg.get("ml")}})   # original price kept with the pick
     return out
 
@@ -2655,6 +2660,11 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                     "modelProb": m.get("modelProb"),
                     "marketProb": m.get("marketProb"),
                     "blendAlpha": m.get("blendAlpha"),
+                    # Non-moneyline confidence ceiling (docs/app.html MARKET_P_CEILING, scripts/market_ceiling.py): `prob` above is already the CLAMPED
+                    # stated probability; rawProb is the model number before the clamp (None when nothing was clamped) and capCeil the ceiling applied.
+                    # Kept so the CFB selection band below keeps judging the model's own number, and persisted on the pick as pCap for audit.
+                    "rawProb": m.get("rawProb"),
+                    "capCeil": m.get("capCeil"),
                     # "Why this pick" persistence, added 2026-10-02: the
                     # plain-text reasoning string app.html's _attachReasoning
                     # already computed for THIS specific market (not the
@@ -2830,11 +2840,13 @@ def lock_game_leg(page, q: dict, date_override: str | None = None, now=None) -> 
     blend_alpha = q.get("blendAlpha")
     start_ms = parse_start_ms(q.get("startMs"))
     alt_line = q.get("altLine")
+    # Non-moneyline confidence ceiling audit trail (see build_qualifying): {raw, ceiling} when the stated probability was clamped, else None (nothing is stored).
+    p_cap = {"raw": q.get("rawProb"), "ceiling": q.get("capCeil")} if (q.get("rawProb") is not None and q.get("capCeil") is not None and not alt_line) else None
     # Confirmed-lineup record (scripts/lineups.py): additive, lands on the pick as `lineup`. None for every leg the gate did not look at.
     lineup = q.get("lineup")
     return page.evaluate(
         """
-        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors, reasoning, priceSource, modelProb, marketProb, blendAlpha, startMs, altLine, lineup }) => {
+        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors, reasoning, priceSource, modelProb, marketProb, blendAlpha, startMs, altLine, lineup, pCap }) => {
           // Real gap, found auditing the locks-email "X of Y legs actually
           // locked" line: this used to return a single 'dup-or-failed' for
           // BOTH "this exact leg was already locked by an earlier pass
@@ -2878,14 +2890,14 @@ def lock_game_leg(page, q: dict, date_override: str | None = None, now=None) -> 
           if (dup) return 'already-locked';
           const before = getP().length;
           const hasBlend = (modelProb != null && marketProb != null);
-          const extraMeta = { lockOrigin: 'auto', ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}), ...(altLine ? { altLine } : {}), ...(lineup ? { lineup } : {}), ...(hasBlend ? { modelProb, marketProb, ...(blendAlpha != null ? { blendAlpha } : {}) } : {}), ...(startMs != null ? { startMs } : {}) };
+          const extraMeta = { lockOrigin: 'auto', ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}), ...(altLine ? { altLine } : {}), ...(pCap ? { pCap } : {}), ...(lineup ? { lineup } : {}), ...(hasBlend ? { modelProb, marketProb, ...(blendAlpha != null ? { blendAlpha } : {}) } : {}), ...(startMs != null ? { startMs } : {}) };
           await lockPick(hA, awA, type, betOn, prob, ml != null ? ml : '-110', dec || 1.91, dateKey, 'manual', betTypeOverride, extraMeta);
           const after = getP().length;
           return after > before ? 'locked' : 'failed';
         }
         """,
         {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "prob": q["prob"], "ml": ml, "dec": dec, "dateOverride": date_override, "betTypeOverride": bet_type_override, "socFactors": sock_factors, "reasoning": reasoning_text, "priceSource": price_source,
-         "modelProb": model_prob, "marketProb": market_prob, "blendAlpha": blend_alpha, "startMs": start_ms, "altLine": alt_line, "lineup": lineup},
+         "modelProb": model_prob, "marketProb": market_prob, "blendAlpha": blend_alpha, "startMs": start_ms, "altLine": alt_line, "lineup": lineup, "pCap": p_cap},
     )
 
 

@@ -607,7 +607,27 @@ def main() -> int:
     except Exception as exc:  # fail-open
         notes.append(f"ledger archive check crashed ({exc})")
 
-    return _report(problems, notes)
+    # Calibration WATCH (alert-only, never blocks a lock -- see scripts/calibration_watch.py): recompute docs/calibration_watch.json, email the owner ONLY about keys that are NEW in WATCH
+    # (through the same once-per-day deduped _report below), list the already-known ones as notes. The workflow's publish step commits the JSON.
+    watch_new: list[str] = []
+    try:
+        import calibration_watch
+        _doc, w_problems, w_notes, watch_new = calibration_watch.update_watch(ROOT)
+        problems += w_problems
+        notes += w_notes
+        print(f"calibration watch: {len(_doc['watch'])} key(s) in WATCH ({len(watch_new)} new, {len(_doc['watch']) - len(watch_new)} already known)")
+    except Exception as exc:  # fail-open: a broken watch must never hide or delay the real health alerts
+        notes.append(f"calibration watch crashed ({exc})")
+        watch_new = []
+
+    rc = _report(problems, notes)
+    if watch_new and rc == 0:
+        # the alert went out (or was already emailed today): stamp the keys so tomorrow's pass does not repeat them. A failed send (rc != 0) leaves them un-notified -> retried.
+        try:
+            calibration_watch.mark_notified(watch_new, datetime.now(ZoneInfo("America/Denver")).strftime("%Y-%m-%d"), ROOT / "docs" / "calibration_watch.json")
+        except Exception as exc:
+            print(f"::warning::could not stamp calibration-watch keys as notified ({exc}) -- tomorrow's pass may repeat them")
+    return rc
 
 
 ALERT_STATE_PATH = ROOT / "data" / "health_alert_state.json"

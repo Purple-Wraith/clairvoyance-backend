@@ -315,6 +315,7 @@ class MainPolicy(unittest.TestCase):
                 mock.patch.object(H, "check_workflow", return_value=None), \
                 mock.patch.object(H, "check_refresh_health", return_value=wf_findings), \
                 mock.patch.object(H, "check_data_freshness", return_value=data_findings), \
+                mock.patch("calibration_watch.update_watch", return_value=({"watch": []}, [], [], [])), \
                 mock.patch.object(H, "send_email", side_effect=lambda s, to, body: (sent.append((s, to, body)) or (True, "ok"))), \
                 contextlib.redirect_stdout(out):
             H.main()

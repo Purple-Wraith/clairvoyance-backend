@@ -3654,9 +3654,9 @@ function _hkMkt(label,prob,side,assumedDec,leg,bl){
 }
 // Hockey qualification verdicts for one _evalMkts row (rows built by _hkMkt carry hk:true). See HOCKEY QUALIFICATION CUTOFFS.
 // -> tier 0..3 graded on the row's tier-input price (the REAL price once HOCKEY_MKT_PRICE_TIERING), 0 when no real price.
-function _hkTierRow(m,mktT){
+function _hkTierRow(m,mktT,capC){
   if(HOCKEY_REQUIRE_REAL_PRICE&&!m.priceReal)return 0;
-  return tier(m.prob,m.evVal,mktT,m.marketProb!=null,{p:HOCKEY_TIER_PROB,e:HOCKEY_TIER_EV});
+  return tier(m.prob,m.evVal,mktT,m.marketProb!=null,{p:HOCKEY_TIER_PROB,e:HOCKEY_TIER_EV},capC);
 }
 // -> true when the row qualifies through the HIGH-PROBABILITY lane: ML, the +1.5 puck-line dog, or a total (over/under); real price required.
 function _hkLaneRow(m){
@@ -4123,8 +4123,46 @@ async function renderGenericWeek(containerId,espnPath,sportTag){
   el.innerHTML=html;
 }
 
+// ═══ NON-MONEYLINE CONFIDENCE CEILING -- ONE PLACE (2026-10-10, owner decisions: fix CFB O/U + a generic ceiling for spread / O-U / prop) ═══
+// A stated win probability for a SPREAD, O/U or PROP leg is clamped to [1-c, c] (symmetric, so the two sides of one market still sum to 1).
+// Moneyline is NEVER touched. The clamp runs AFTER every existing correction (sportCalibrate, the per-sport adaptive bands, the hockey market blend), at the
+// probability's source where a card has one (CFB/NFL cards, soccer O/U + goal spread, NBA props), in _evalMkts for every card, and as a last-resort net in lockPick.
+// A pick's stored winProb, EV, grade/tier, "why this pick" text and email all read the clamped number, so they cannot disagree. The raw number is kept on the
+// leg (rawProb) and on the pick (pCap {raw, ceiling}) for audit.
+//   Python mirror: scripts/market_ceiling.py (scripts/test_market_ceiling.py fails if the two tables or functions ever differ).
+//   Fit/evidence tool: python3 scripts/market_ceiling.py --evidence (re-derives the table below from docs/picks_backup.json).
+// EVIDENCE (docs/picks_backup.json + data/purged NFL props, settled win/loss, known-late locks excluded, alt-line picks excluded, active leagues; stated p -> realised win rate; 2026-10-10;
+// re-derive with `python3 scripts/market_ceiling.py --evidence`):
+//   ALL non-moneyline, n=863 (stated .703, won .622):  .55-.62 -> .62 (n=151) | .62-.67 -> .73 (176) | .67-.75 -> .60 (225) | .75-.80 -> .60 (95) | .80-.85 -> .45 (56) | >=.85 -> .53 (108)
+//   CFB O/U n=184 (stated .786, won .576): below .67 -> .68 (n=40) | .67-.75 -> .59 (41) | .75-.85 -> .50 (38) | >=.85 -> .55 (65).  Platt slope -0.17, 95% CI [-0.5, +0.2]: the stated p carried no information.
+//   CFB spread n=123 (.681 -> .561) | NFL spread + O/U n=45 (.759 -> .467) | NFL props n=75 (.752 -> .573; no longer generated)
+//   everything else (hockey, soccer, NBA props) n=436 (.659 -> .683, fine on average) but stated >= .70 -> .60 (n=126) and >= .75 -> .58 (n=67)
+// RULE (not a curve fit): the ceiling is the largest c at which the one-sided 95% Wilson upper bound of the realised win rate of the picks stated at >= c still reaches c.
+//   football (CFB + NFL, spread + O/U): the rule gives CFB O/U .62, CFB spread .61, NFL .56, pooled .59 -> c = .62. It is NOT set lower because tier() needs p >= .62 for OPTIMAL: a lower
+//     ceiling would stop EVERY CFB/NFL spread / O/U from qualifying (and kill the alt-line locks). That is the owner's call, not this table's.
+//   everything else: the rule gives .68 (euro hockey alone .65, soccer alone .71 -- too few picks to carve out) -> c = .68, still above PREMIUM's .67 floor.
+// Out of sample (leave-one-date-out, Brier before -> after the clamp; n picks): CFB O/U .312 -> .247 (184; 95% CI of the gain [-.102, -.034]), CFB spread .275 -> .252 (123), the rest .234 -> .225 (436).
+// NOT clamped: market-anchored rows (probability already logit-blended with the real market price: marketProb != null -- the euro-hockey/NHL rows) and alt-line picks (their probability is the
+// empirical margin-curve estimate from ALT_LINE_CFG, not a model number). Historical picks keep the probability they were locked with.
+const MARKET_P_CEILING={
+  default:{SPREAD:.68,OU:.68,PROP:.68},
+  byLeague:{CFB:{SPREAD:.62,OU:.62},NFL:{SPREAD:.62,OU:.62,PROP:.62}}
+};
+function _mktCeiling(league,mktT){
+  const L=String(league||'').toUpperCase().replace(/^SOC_/,'');
+  const k=(mktT==='PL'||mktT==='RL')?'SPREAD':mktT;
+  const o=MARKET_P_CEILING.byLeague[L];
+  if(o&&o[k]!=null)return o[k];
+  const d=MARKET_P_CEILING.default[k];
+  return d!=null?d:null;     // ML (and anything unknown) has no ceiling
+}
+function _capMktP(p,mktT,league){
+  const c=_mktCeiling(league,mktT);
+  if(c==null||!(p>0&&p<1))return p;
+  return Math.max(1-c,Math.min(c,p));
+}
 function ev(p,d){return+(p*d-1).toFixed(4)}
-function tier(p,e,mktType,marketAnchored,floors){
+function tier(p,e,mktType,marketAnchored,floors,capC){
   // Apply calibration adjustment if available (computed by renderOverall or loaded from localStorage)
   // marketAnchored (2026-10-03): the probability was already pulled toward the no-vig market by the hockey market blend
   // (HOCKEY_MKT_BLEND_ALPHA). These bands correct the MODEL's historical bias (they were learned on model-only pick
@@ -4141,6 +4179,9 @@ function tier(p,e,mktType,marketAnchored,floors){
       p=adjP;
     }
   }
+  // capC (non-moneyline confidence ceiling, MARKET_P_CEILING): the band re-pricing above is learned mostly from moneylines and pushes mid-band spread / O-U probabilities UP by 4-7 points,
+  // so it must not carry a leg back over its ceiling -- clamp AFTER it (same odds: e' = p'(e+1)/p - 1). Passed only by _evalMkts, only for non-ML, non-market-anchored rows.
+  if(capC!=null&&p>capC&&p>0){e=+(capC*(e+1)/p-1).toFixed(4);p=capC;}
   if(floors)return(p>=floors.p.PREMIUM&&e>=floors.e.PREMIUM)?3:(p>=floors.p.OPTIMAL&&e>=floors.e.OPTIMAL)?2:(p>=floors.p.LEAN&&e>=floors.e.LEAN)?1:0; // hockey rows pass HOCKEY_TIER_*
   if(p>=.67&&e>=.05)return 3;if(p>=.62&&e>=.03)return 2;if(p>=.55&&e>=.01)return 1;return 0;
 }
@@ -4961,7 +5002,7 @@ function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors,startRaw){
       // European hockey cards only) so the pipeline's lockPick call stores it; evVal/tierN stay the
       // tier inputs (see HOCKEY_MKT_PRICE_TIERING) so qualification is unaffected. priceSource
       // ('market'|'assumed'|null) is threaded through build_qualifying/lock_game_leg onto the pick.
-      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:(m.mktDec!=null?m.mktDec:m.dec),ml:(m.mktMl!=null?m.mktMl:m.ml),priceSource:m.priceSource||null,modelProb:m.modelProb!=null?m.modelProb:null,marketProb:m.marketProb!=null?m.marketProb:null,blendAlpha:m.blendAlpha!=null?m.blendAlpha:null,hkLane:!!m.hkLane,tierN:m.tierN,mfScore:m.mfScore,reasoning:m.reasoning||null})),
+      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:(m.mktDec!=null?m.mktDec:m.dec),ml:(m.mktMl!=null?m.mktMl:m.ml),priceSource:m.priceSource||null,modelProb:m.modelProb!=null?m.modelProb:null,marketProb:m.marketProb!=null?m.marketProb:null,blendAlpha:m.blendAlpha!=null?m.blendAlpha:null,rawProb:m.rawProb!=null?m.rawProb:null,capCeil:m.capCeil!=null?m.capCeil:null,hkLane:!!m.hkLane,tierN:m.tierN,mfScore:m.mfScore,reasoning:m.reasoning||null})),
       // Optional -- only soccer's capture call currently passes this (see
       // _renderSocMatchCard). Threaded through build_qualifying/
       // lock_game_leg into lockPick's extraMeta so it lands on the
@@ -5010,13 +5051,24 @@ function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors,startRaw){
 // ── Universal best-market evaluator — used by all sport reasoning blocks ──────
 // A lane-only leg (tier < 2 but qualifies through the high-probability lane) ranks between LEAN and OPTIMAL.
 function _effTier(m){return(m.hkLane&&m.tierN<2)?1.5:m.tierN;}
-function _evalMkts(mkts){
+function _evalMkts(mkts,league){
   mkts=mkts.map(m=>{
     const mktT=m.side==='over'||m.side==='under'||m.side==='setsOver'||m.side==='setsUnder'?'OU':
                m.side==='rlFav'||m.side==='rlDog'||m.side==='plFav'||m.side==='plDog'||m.side==='sprdFav'||m.side==='sprdDog'||m.side==='ahFav'||m.side==='ahDog'?'SPREAD':'ML';
+    // Non-moneyline confidence ceiling (MARKET_P_CEILING): clamp the stated probability BEFORE tier / lane / EV / mfScore see it, and re-price the EV at the SAME odds
+    // (e' = p'*(e+1)/p - 1, the identity tier() uses). Market-anchored rows (probability already blended with the real price) are left alone.
+    if(mktT!=='ML'&&m.marketProb==null&&!m.altLine){
+      const _pc=_capMktP(m.prob,mktT,league);
+      if(_pc!==m.prob&&m.prob>0){
+        const _k=_pc/m.prob;
+        m={...m,rawProb:m.prob,capCeil:_mktCeiling(league,mktT),prob:+_pc.toFixed(4),evVal:+(_k*(m.evVal+1)-1).toFixed(4),...(m.mktEv!=null?{mktEv:+(_k*(m.mktEv+1)-1).toFixed(4)}:{})};
+      }
+    }
     // hockey rows (hk:true) are graded on the real price with HOCKEY_TIER_* and may qualify through the high-probability lane;
     // everything else keeps tier()'s app-wide floors. Market-blended legs skip tier()'s model-bias re-pricing (see tier()).
-    const tN=m.hk?_hkTierRow(m,mktT):tier(m.prob,m.evVal,mktT,m.marketProb!=null);
+    // capC: the non-moneyline ceiling for this row (null for ML, market-anchored rows and alt-line rows): tier() clamps AFTER its own band re-pricing, see tier().
+    const capC=(mktT!=='ML'&&m.marketProb==null&&!m.altLine)?_mktCeiling(league,mktT):null;
+    const tN=m.hk?_hkTierRow(m,mktT,capC):tier(m.prob,m.evVal,mktT,m.marketProb!=null,undefined,capC);
     const lane=m.hk?_hkLaneRow(m):false;
     const edg=m.dec?_edge(m.prob,m.dec):_edge(m.prob,1.91);
     const kF=m.dec?_kelly(m.prob,m.dec):0;
@@ -5140,7 +5192,9 @@ function _attachReasoning(nm,mcLineFn,richBySide){
       // European hockey cards only (priceSource is set nowhere else): say which price this is.
       const pxNote=m.priceSource==='market'&&m.mktEv!=null?` · MARKET PRICE ${_mlFmt(m.mktMl)} (EV at market ${m.mktEv>=0?'+':''}${(m.mktEv*100).toFixed(1)}%)`:m.priceSource==='assumed'?' · price model-assumed (no market quote)':(!m.priceSource&&/^(sprd|pl|rl|ah|over|under)/.test(m.side||''))?' · EV assumes a standard -110 price, not a market quote':'';
       const blNote=m.marketProb!=null&&m.modelProb!=null?` · MARKET-BLENDED: model ${(m.modelProb*100).toFixed(1)}% · no-vig market ${(m.marketProb*100).toFixed(1)}% → ${(m.prob*100).toFixed(1)}%${m.blendAlpha!=null?' (alpha '+m.blendAlpha.toFixed(2)+')':''}`:'';
-      const head=`PICK: ${m.label} — ${tierLbl} (${(m.prob*100).toFixed(1)}% win prob, EV ${m.evVal>=0?'+':''}${(m.evVal*100).toFixed(1)}%${pxNote}${blNote})`;
+      // Non-moneyline ceiling (MARKET_P_CEILING): say so when the stated number was clamped, with the raw model figure, so the text never claims more than the grade/EV beside it.
+      const capNote=m.rawProb!=null&&m.rawProb>m.prob&&m.capCeil!=null?` · CAPPED at ${(m.capCeil*100).toFixed(0)}% (raw model ${(m.rawProb*100).toFixed(1)}%): spread / over-under / prop probabilities above that level have not been borne out in settled picks`:'';
+      const head=`PICK: ${m.label} — ${tierLbl} (${(m.prob*100).toFixed(1)}% win prob, EV ${m.evVal>=0?'+':''}${(m.evVal*100).toFixed(1)}%${pxNote}${blNote}${capNote})`;
       const mcLine=mcLineFn?mcLineFn(m.side):null;
       const rich=(richBySide&&richBySide[m.side])?_stripHTML(richBySide[m.side]):null;
       m.reasoning=[head,mcLine?('MODEL: '+mcLine):null,rich?('WHY: '+rich):null].filter(Boolean).join('\n');
@@ -5257,7 +5311,7 @@ function _altRowFor(sport,home,away,dateRaw,nm,off){
     const d=new Date(dateRaw);const dateKey=isNaN(d)?String(dateRaw||'').slice(0,10):d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
     const chips=[['OU',best('over','under')],['SPREAD',best('sprdFav','sprdDog')]].map(([mkt,m])=>{
       if(!m)return'';const alt=_altShift(sport,mkt,m.label,m.prob);if(!alt)return'';
-      alt.postedDec=m.dec!=null?m.dec:null;alt.postedMl=m.ml!=null?String(m.ml):null;alt.postedProb=m.prob!=null?m.prob:null;   // the ORIGINAL posted price, kept with the pick
+      alt.postedDec=m.dec!=null?m.dec:null;alt.postedMl=m.ml!=null?String(m.ml):null;alt.postedProb=m.rawProb!=null?m.rawProb:(m.prob!=null?m.prob:null);   // the ORIGINAL posted price, kept with the pick (postedProb = the model's own number, pre-ceiling -- see MARKET_P_CEILING)
       const key=sport+'|'+dateKey+'|'+home+'|'+away+'|'+mkt;
       window._altReg[key]={sport,hA:home,awA:away,date:dateKey,alt};
       const cls=m.tierN===3?'pg':m.tierN===2?'pp':m.tierN===1?'pn':'';
@@ -6854,6 +6908,13 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
     KHL:'KHL',SHL:'SHL',LIIGA:'LIIGA',NLA:'NLA',EXTRALIGA:'EXTRALIGA',NCAAH:'NCAAH',CL:'CL',PL:'PL',LIGA:'LIGA',BUND:'BUND',MLS:'MLS',SERIEA:'SERIEA'};
   const leagueTag=_leagueMap[sportTag]||sportTag;
   const _betTypeNorm=betTypeOverride||(type==='PL'?'PL':type==='RL'?'RL':type==='OU'?'OU':type==='PROP'?'PROP':type==='SPREAD'?'SPREAD':'ML');
+  // Non-moneyline confidence ceiling -- last-resort net (see MARKET_P_CEILING): a SPREAD / O-U / PROP lock never stores a probability above its ceiling, whichever path called us
+  // (card chips that already pass a clamped number are untouched). Alt-line picks (their probability is the empirical margin-curve estimate) and market-anchored legs are exempt. pCap keeps the raw figure.
+  let _pCapMeta=null;
+  if(!(extraMeta&&(extraMeta.altLine||extraMeta.marketProb!=null))&&_betTypeNorm!=='ML'){
+    const _pcL=_capMktP(+p,_betTypeNorm,leagueTag);
+    if(_pcL<+p){_pCapMeta={pCap:{raw:+(+p).toFixed(4),ceiling:_mktCeiling(leagueTag,_betTypeNorm)}};p=+_pcL.toFixed(4);}
+  }
   // ── "Why this pick" reasoning — persistence (Part 1, added 2026-10-02) ──
   // `reasoning`: a plain-text snapshot of the real model reasoning behind
   // whichever market this call is locking, captured at lock time so it
@@ -6903,7 +6964,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
       const preds=getP();const localId=`api_${res.id}`;
       if(!preds.find(x=>x.id===localId)){
         _removeWipedIds([localId]); // see _removeWipedIds' own comment
-        preds.push({id:localId,_backendId:res.id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:100,outcome:'pending',lockedAt:Date.now(),source:_lockSource,lockOrigin:'manual',...(extraMeta||{}),..._timingMeta,reasoning});
+        preds.push({id:localId,_backendId:res.id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:100,outcome:'pending',lockedAt:Date.now(),source:_lockSource,lockOrigin:'manual',...(extraMeta||{}),..._timingMeta,...(_pCapMeta||{}),reasoning});
       }
       saveP(preds);
       const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
@@ -6931,7 +6992,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   // with an explicit "already locked" toast instead.
   if(_dup){toast(`// ALREADY LOCKED: ${_dup.betOn} ${_dup.ml} (${_dup.outcome==='pending'?'still pending':_dup.outcome.toUpperCase()})`);return;}
   _removeWipedIds([id]); // see _removeWipedIds' own comment -- a deliberate new lock must never be silently swallowed by an old wipe of this same id
-  preds.push({id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:0,outcome:'pending',lockedAt:Date.now(),hScore:null,aScore:null,source:_lockSource,lockOrigin:'manual',...(extraMeta||{}),..._timingMeta,reasoning});saveP(preds);
+  preds.push({id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:0,outcome:'pending',lockedAt:Date.now(),hScore:null,aScore:null,source:_lockSource,lockOrigin:'manual',...(extraMeta||{}),..._timingMeta,...(_pCapMeta||{}),reasoning});saveP(preds);
   const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
   if(!log[dateKey].locked.includes(betOn))log[dateKey].locked.push(betOn);
   const rec=log[dateKey].recs.find(r=>r.ha===hA&&r.awa===awA&&r.lb===betOn);if(rec)rec.locked=true;
@@ -9412,10 +9473,14 @@ function _cfbGameCard(g){
     const adj=window._calAdjProbByType(p,mktType,'CFB');
     return(adj>0&&adj<1)?Math.min(.95,Math.max(.05,adj)):p;
   };
-  const favCoverP=_cfbCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(favMarginMean,_CFB_SIGMA_MARGIN,baseSpread))),'SPREAD');
+  // favCoverU/overU = the calibrated model probability (what the MC line and the MC bar describe); favCoverP/overP = the STATED probability, clamped by the
+  // non-moneyline confidence ceiling (MARKET_P_CEILING) -- every chip, grade, EV, lock and reasoning head below reads the stated one.
+  const favCoverU=_cfbCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(favMarginMean,_CFB_SIGMA_MARGIN,baseSpread))),'SPREAD');
+  const favCoverP=_capMktP(favCoverU,'SPREAD','CFB');
   const dogCoverP=1-favCoverP;
   const ouL=mc.ouLine;
-  const overP=_cfbCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(mc.avgTotal,_CFB_SIGMA_TOTAL,ouL))),'OU');
+  const overU=_cfbCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(mc.avgTotal,_CFB_SIGMA_TOTAL,ouL))),'OU');
+  const overP=_capMktP(overU,'OU','CFB');
   const underP=1-overP;
   const facts=_cfbAnalysisFacts(g,mc,ens);
   // Evaluate all 6 markets through the same shared multi-factor scorer
@@ -9426,12 +9491,12 @@ function _cfbGameCard(g){
   const rawMkts=[
     {label:`${g.home} ML`,prob:hP,dec:hD,ml:hML,side:'mlFav'},
     {label:`${g.away} ML`,prob:aP,dec:aD,ml:aML,side:'mlDog'},
-    {label:`${spreadFav} -${baseSpread.toFixed(1)}`,prob:favCoverP,dec:1.909,ml:'-110',side:'sprdFav'},
-    {label:`${spreadDog} +${baseSpread.toFixed(1)}`,prob:dogCoverP,dec:1.909,ml:'-110',side:'sprdDog'},
-    {label:`OVER ${ouL.toFixed(1)}`,prob:overP,dec:1.909,ml:'-110',side:'over'},
-    {label:`UNDER ${ouL.toFixed(1)}`,prob:underP,dec:1.909,ml:'-110',side:'under'},
+    {label:`${spreadFav} -${baseSpread.toFixed(1)}`,prob:favCoverU,dec:1.909,ml:'-110',side:'sprdFav'},
+    {label:`${spreadDog} +${baseSpread.toFixed(1)}`,prob:1-favCoverU,dec:1.909,ml:'-110',side:'sprdDog'},
+    {label:`OVER ${ouL.toFixed(1)}`,prob:overU,dec:1.909,ml:'-110',side:'over'},
+    {label:`UNDER ${ouL.toFixed(1)}`,prob:1-overU,dec:1.909,ml:'-110',side:'under'},
   ].map(m=>({...m,evVal:ev(m.prob,m.dec)}));
-  const nm=_evalMkts(rawMkts);
+  const nm=_evalMkts(rawMkts,"CFB");
   const _mktGrade=side=>{const m=nm.mkts.find(x=>x.side===side);const lbl=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN];const col=_gradeColVar(lbl);return{m,lbl,col};};
   const mlGrade=hP>=aP?_mktGrade('mlFav'):_mktGrade('mlDog');
   const sprdGrade=favCoverP>=dogCoverP?_mktGrade('sprdFav'):_mktGrade('sprdDog');
@@ -9460,7 +9525,7 @@ function _cfbGameCard(g){
   // _attachReasoning can use CFB's own already-written per-market
   // paragraphs as the rich WHY text instead of a generic fallback. No
   // behavior change to the guard itself (_cfbBothMajorConf), just later.
-  _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverP,overP,ouL,favMarginMean),
+  _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverU,overU,ouL,favMarginMean),
     {mlFav:mlReasoning,mlDog:mlReasoning,sprdFav:sprdReasoning,sprdDog:sprdReasoning,over:ouReasoning,under:ouReasoning});
   if(_cfbBothMajorConf(D,g.home,g.away))_autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`,undefined,g.date);
   const gidSafe=(g.home+'_'+g.away).replace(/[^A-Za-z0-9_]/g,'');
@@ -9499,7 +9564,7 @@ function _cfbGameCard(g){
       <div class="gbox gbox2" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_cfb_${gidSafe}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${ouL.toFixed(1)}" id="ouinp_cfb_${gidSafe}" style="width:48px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_cfb_${gidSafe}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_cfbOuLockDir('${g.home}','${g.away}',${overP.toFixed(3)},'${ouL.toFixed(1)}','ouinp_cfb_${gidSafe}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_cfbOuLockDir('${g.home}','${g.away}',${overP.toFixed(3)},'${ouL.toFixed(1)}','ouinp_cfb_${gidSafe}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▼ UNDER</button></div>${typeof nm!=='undefined'?_boxGradeHTML(nm,['over'],['under']):''}</div>
     </div>
     <div style="padding:8px 10px;background:rgba(255,110,20,.04);border-top:1px solid rgba(255,110,20,.1)">
-      ${_mcProjBarHTML({avgH:mc.avgH,avgA:mc.avgA,avgT:mc.avgTotal,overP:overP},ouL.toFixed(1),g.home,g.away,{n:mc.n,dec:1})}
+      ${_mcProjBarHTML({avgH:mc.avgH,avgA:mc.avgA,avgT:mc.avgTotal,overP:overU},ouL.toFixed(1),g.home,g.away,{n:mc.n,dec:1})}
       ${(()=>{
         // Model's own recommended lines, independent of whatever the
         // sportsbook posted — some books shade their spread/O-U off the
@@ -10381,21 +10446,25 @@ function _nflGameCard2(g){
     const adj=window._calAdjProbByType(p,mktType,'NFL');
     return(adj>0&&adj<1)?Math.min(.95,Math.max(.05,adj)):p;
   };
-  const favCoverP=_nflCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(favMarginMean,_NFL_SIGMA_MARGIN,baseSpread))),'SPREAD');
+  // favCoverU/overU = the calibrated model probability (what the MC line and the MC bar describe); favCoverP/overP = the STATED probability, clamped by the
+  // non-moneyline confidence ceiling (MARKET_P_CEILING) -- every chip, grade, EV, lock and reasoning head below reads the stated one.
+  const favCoverU=_nflCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(favMarginMean,_NFL_SIGMA_MARGIN,baseSpread))),'SPREAD');
+  const favCoverP=_capMktP(favCoverU,'SPREAD','NFL');
   const dogCoverP=1-favCoverP;
   const ouL=mc.ouLine;
-  const overP=_nflCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(mc.avgTotal,_NFL_SIGMA_TOTAL,ouL))),'OU');
+  const overU=_nflCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(mc.avgTotal,_NFL_SIGMA_TOTAL,ouL))),'OU');
+  const overP=_capMktP(overU,'OU','NFL');
   const underP=1-overP;
   const gidSafe=(g.home+'_'+g.away).replace(/[^A-Za-z0-9_]/g,'');
   const rawMkts=[
     {label:`${g.home} ML`,prob:hP,dec:hD,ml:hML,side:'mlFav'},
     {label:`${g.away} ML`,prob:aP,dec:aD,ml:aML,side:'mlDog'},
-    {label:`${spreadFav} -${baseSpread.toFixed(1)}`,prob:favCoverP,dec:1.909,ml:'-110',side:'sprdFav'},
-    {label:`${spreadDog} +${baseSpread.toFixed(1)}`,prob:dogCoverP,dec:1.909,ml:'-110',side:'sprdDog'},
-    {label:`OVER ${ouL.toFixed(1)}`,prob:overP,dec:1.909,ml:'-110',side:'over'},
-    {label:`UNDER ${ouL.toFixed(1)}`,prob:underP,dec:1.909,ml:'-110',side:'under'},
+    {label:`${spreadFav} -${baseSpread.toFixed(1)}`,prob:favCoverU,dec:1.909,ml:'-110',side:'sprdFav'},
+    {label:`${spreadDog} +${baseSpread.toFixed(1)}`,prob:1-favCoverU,dec:1.909,ml:'-110',side:'sprdDog'},
+    {label:`OVER ${ouL.toFixed(1)}`,prob:overU,dec:1.909,ml:'-110',side:'over'},
+    {label:`UNDER ${ouL.toFixed(1)}`,prob:1-overU,dec:1.909,ml:'-110',side:'under'},
   ].map(m=>({...m,evVal:ev(m.prob,m.dec)}));
-  const nm=_evalMkts(rawMkts);
+  const nm=_evalMkts(rawMkts,"NFL");
   const hS=D.standings[g.home]||{},aS=D.standings[g.away]||{};
   const injH=(D.injuriesByTeam[g.home]||[]).filter(i=>i.status&&i.status.toLowerCase()!=='active');
   const injA=(D.injuriesByTeam[g.away]||[]).filter(i=>i.status&&i.status.toLowerCase()!=='active');
@@ -10424,7 +10493,7 @@ function _nflGameCard2(g){
   // _attachReasoning runs after mlReasoning/sprdReasoning/ouReasoning exist
   // so it can use NFL's own real per-market paragraphs as the rich WHY
   // text, then _autoLockCapture reads nm.mkts' new .reasoning field.
-  _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverP,overP,ouL,favMarginMean),
+  _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverU,overU,ouL,favMarginMean),
     {mlFav:mlReasoning,mlDog:mlReasoning,sprdFav:sprdReasoning,sprdDog:sprdReasoning,over:ouReasoning,under:ouReasoning});
   _autoLockCapture('NFL',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`,undefined,g.date);
   return`<div class="gc" style="border-left:2px solid rgba(0,120,255,.4)">
@@ -10464,7 +10533,7 @@ function _nflGameCard2(g){
       <div class="gbox gbox2" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nfl2_${gidSafe}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${ouL.toFixed(1)}" id="ouinp_nfl2_${gidSafe}" style="width:48px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nfl2_${gidSafe}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_nflOuLockDir('${g.home}','${g.away}',${overP.toFixed(3)},'${ouL.toFixed(1)}','ouinp_nfl2_${gidSafe}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_nflOuLockDir('${g.home}','${g.away}',${overP.toFixed(3)},'${ouL.toFixed(1)}','ouinp_nfl2_${gidSafe}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▼ UNDER</button></div>${typeof nm!=='undefined'?_boxGradeHTML(nm,['over'],['under']):''}</div>
     </div>
     <div style="padding:8px 10px;background:rgba(0,120,255,.04);border-top:1px solid rgba(0,120,255,.1)">
-      ${_mcProjBarHTML({avgH:mc.avgH,avgA:mc.avgA,avgT:mc.avgTotal,overP:overP},ouL.toFixed(1),g.home,g.away,{n:mc.n,dec:1})}
+      ${_mcProjBarHTML({avgH:mc.avgH,avgA:mc.avgA,avgT:mc.avgTotal,overP:overU},ouL.toFixed(1),g.home,g.away,{n:mc.n,dec:1})}
       ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}${_altLineRowHTML('NFL',g,nm,!!(liveStatus&&!liveStatus.isLive))}
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+_gradeName(m)).join(' · ')}</div>
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -15256,8 +15325,9 @@ function _generateNBAProps(games,statsData){
         var mc=propMC(adjMu,sigma,line,5000);
         var pick=adjMu>=line?'OVER':'UNDER';
         var conf=pick==='OVER'?mc.overP*100:(1-mc.overP)*100;
+        var _pc0=conf/100,_pc1=_capMktP(_pc0,'PROP','NBA');if(_pc1!==_pc0)conf=_pc1*100;   // non-moneyline confidence ceiling (MARKET_P_CEILING): the stated hit probability, its grade, its price and the lock all read the clamped number
         var grade=(Math.abs(factor)<0.01&&Math.abs(conf-50)<4)?'SKIP':_propGradeByConf(conf);
-        var ml=p2ml(pick==='OVER'?mc.overP:1-mc.overP);
+        var ml=p2ml(_pc1!==_pc0?_pc1:(pick==='OVER'?mc.overP:1-mc.overP));
         // statAbbr is the real ESPN boxscore column abbreviation (PTS/REB/AST)
         // for this prop -- distinct from statKey ('ppg'/'rpg'/'apg', this
         // engine's own internal per-game-average field name). Real bug, found
@@ -27882,7 +27952,8 @@ function _renderSocMatchCardRaw(g,leagueKey){
   // relative to an arbitrary constant every match was being measured against.
   var ouL=g.ou||_ouDefaultLine(mc.avgT,2.5);
   var ouId='ouinp_lg_'+leagueKey+'_'+(g.hAbbr||g.home)+'_'+(g.aAbbr||g.away);
-  var ouP=_poissonOverProb(hxg+axg,parseFloat(ouL));
+  // ouP / ahFavP are clamped by the non-moneyline confidence ceiling (MARKET_P_CEILING, league tag SOC_<KEY>): every chip, tier and the lock all read the stated number.
+  var ouP=_capMktP(_poissonOverProb(hxg+axg,parseFloat(ouL)),'OU','SOC_'+leagueKey);
   var unP=1-ouP;
   var ouTier=tier(ouP,ev(ouP,1.909)),unTier=tier(unP,ev(unP,1.909));
   var gCol=function(t){return t===3?'var(--gc)':t===2?'var(--nc)':t===1?'var(--ic)':'var(--t3)';};
@@ -27922,7 +27993,7 @@ function _renderSocMatchCardRaw(g,leagueKey){
   var ahHomeCoverP=_socSpreadProb(hxg,axg,ahHomeLine);
   var ahHomeIsFav=ahHomeLine<0;
   var ahFavName=ahHomeIsFav?g.home:g.away,ahDogName=ahHomeIsFav?g.away:g.home;
-  var ahFavP=ahHomeIsFav?ahHomeCoverP:(1-ahHomeCoverP);
+  var ahFavP=_capMktP(ahHomeIsFav?ahHomeCoverP:(1-ahHomeCoverP),'SPREAD','SOC_'+leagueKey);
   var ahDogP=1-ahFavP;
   var ahId='ahinp_lg_'+leagueKey+'_'+(g.hAbbr||g.home)+'_'+(g.aAbbr||g.away);
   var ahFavTier=tier(ahFavP,ev(ahFavP,1.909)),ahDogTier=tier(ahDogP,ev(ahDogP,1.909));

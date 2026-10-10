@@ -227,7 +227,7 @@ def stuck_pending(all_bets: list[dict], max_age_days: int = 3) -> list[dict]:
     return sorted(stuck, key=lambda p: -p["_ageDays"])
 
 
-def build_email_html(supabase_problem, wf_rates, cal_rows, stuck, late_excluded: int = 0) -> str:
+def build_email_html(supabase_problem, wf_rates, cal_rows, stuck, late_excluded: int = 0, watch_lines=None) -> str:
     parts = ['<div style="font-family:monospace;font-size:14px;color:#1a1a2e;line-height:1.6">']
     parts.append("<h2>Clairvoyance — Weekly Health Digest</h2>")
 
@@ -267,6 +267,10 @@ def build_email_html(supabase_problem, wf_rates, cal_rows, stuck, late_excluded:
                 f"<td align=center style='color:{color}'>{r['actual']*100:.1f}%</td></tr>"
             )
         parts.append("</table>")
+
+    if watch_lines:
+        parts.append(f"<p><strong>Calibration WATCH (alert only, nothing is blocked) -- still watching {len(watch_lines)}:</strong></p><ul>"
+                     + "".join(f"<li>{_html.escape(l)}</li>" for l in watch_lines) + "</ul>")
 
     parts.append("<h3>4. Stuck pending (>3 days old)</h3>")
     if supabase_problem:
@@ -327,7 +331,12 @@ def main() -> int:
         print("::error::No recipient configured (SOCIAL_CARD_EMAIL_TO/LOCKS_EMAIL_TO unset) -- can't email this.")
         return 1
 
-    body = build_email_html(supabase_problem, wf_rates, cal_rows, stuck, late_excluded)
+    try:
+        import calibration_watch
+        watch_lines = calibration_watch.weekly_lines(calibration_watch.load_document())
+    except Exception:
+        watch_lines = []
+    body = build_email_html(supabase_problem, wf_rates, cal_rows, stuck, late_excluded, watch_lines)
     subject = "Clairvoyance — Weekly Health Digest" + (" — SUPABASE ISSUE" if supabase_problem else "")
     ok, msg = send_email(subject, ALERT_TO, body)
     print(f"Digest email sent to {ALERT_TO}" if ok else f"::error::Digest email FAILED: {msg}")
