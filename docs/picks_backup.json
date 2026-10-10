@@ -70723,10 +70723,10 @@
     "winProb": 0.679,
     "lockedAt": 1791446543113,
     "reasoning": "PICK: IOWA +9.5 \u2014 ADJUSTED LINE (67.9% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted IOWA +3.0 to IOWA +9.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 69.3%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin -5.3 (WASH), total 32.3, from a 25k-sim Monte Carlo.",
+    "settledAt": 1791609307457,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1791609307457
+    "priceSource": "estimated"
   },
   {
     "hA": "WASH",
@@ -70783,12 +70783,12 @@
     "lockedAt": 1791540007974,
     "modelProb": 0.6748,
     "reasoning": "PICK: ANA +1.5 \u2014 HIGH PROB (68.3% win prob, EV -4.7% \u00b7 MARKET PRICE -253 (EV at market -4.7%) \u00b7 MARKET-BLENDED: model 67.5% \u00b7 no-vig market 68.4% \u2192 68.3% (alpha 0.88))\nMODEL: Projected 1.7\u20131.6 (total 3.4) (OT/SO in 23% of outcomes) \u2014 underdog covers +1.5 in 67.5% of outcomes (incl. late-game empty-net margin calibration), from a 25k-sim Monte Carlo.\nWHY: Best market: ANA +1.5 graded HIGH PROB (68.3%, EV -4.7%). Dog covers +1.5 in 68.3% of sims (proj 1.6\u20131.7). GSAx: +2.8 vs -0.9 (injury adj: WPG: Josh Morrissey D DAY-TO-DAY -> scoring -1.1% | ANA: Drew Helleson D OUT, Troy Terry RW OUT -> scoring -4.7%) keeps this within a goal. MC 49% / xGF 50% / hv -6.9pp / ST +2.4pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.89): model 56.3% \u00b7 no-vig market 52.2% \u2192 52.7%; Puck line market blend (alpha 0.88): model 32.5% \u00b7 no-vig market 31.6% \u2192 31.7%; O/U market blend (alpha 0.86): model 23.4% \u00b7 no-vig market 48.0% \u2192 44.1%. Half-unit play \u00b7 Also: UNDER 6.5 (LEAN).",
+    "settledAt": 1791609307582,
     "blendAlpha": 0.875,
     "lockOrigin": "manual",
     "lockTiming": "pre",
     "marketProb": 0.6844,
-    "priceSource": "market",
-    "settledAt": 1791609307582
+    "priceSource": "market"
   },
   {
     "hA": "WPG",
@@ -71594,6 +71594,60 @@
     }
   },
   {
+    "id": "2026-10-10_Chelsea_AFC Bournemouth_PL_SOC_OVER2.5",
+    "date": "2026-10-10",
+    "hA": "Chelsea",
+    "awA": "AFC Bournemouth",
+    "sport": "PL",
+    "league": "PL",
+    "betType": "OU",
+    "betOn": "OVER 2.5",
+    "winProb": 0.7025046297147651,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618187050,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "form": {
+        "home": 0.98325,
+        "away": 0.98425
+      },
+      "standings": {
+        "home": 1.0447761194029848,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: OVER 2.5 \u2014 PREMIUM (70.3% win prob, EV +34.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.59\u20132.04 goals (xG 1.59/2.04), BTTS 69% \u2014 OVER 2.5 hits 70.2% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Chelsea 2.04 xG/G vs AFC Bournemouth 1.59 xG/G. 3-way: Home 64% / Draw 29% / Away 37%. MC proj: 2.04 \u2013 1.59 (3.62 total vs 2.5 line, BTTS 69%). Goal spread: Chelsea -0.5 covers 48%, AFC Bournemouth +0.5 covers 52% (proj margin +0.45). Combined xG 3.62 supports goals above the line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Chelsea Win (PREMIUM), AFC Bournemouth +0.5 (LEAN). Factors moving this pick: Fbref (H) +6%, Standings (H) +4%, Fbref (A) +6%, Standings (A) -6%.",
+    "startMs": 1791640800000,
+    "leadMin": 377,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Djurgarden",
     "id": "2026-10-10_Djurgarden_Linkoping_SHL_Linkoping+1.5",
     "ml": "-263",
@@ -72174,6 +72228,60 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "priceSource": "estimated"
+  },
+  {
+    "id": "2026-10-10_Manchester United_Tottenham Hotspur_PL_SOC_ManchesterUnitedWin",
+    "date": "2026-10-10",
+    "hA": "Manchester United",
+    "awA": "Tottenham Hotspur",
+    "sport": "PL",
+    "league": "PL",
+    "betType": "ML",
+    "betOn": "Manchester United Win",
+    "winProb": 0.7415280259407931,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618187468,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 1.06,
+        "away": 0.94
+      },
+      "form": {
+        "home": 0.9813333333333334,
+        "away": 0.9743333333333333
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 1.04,
+        "away": 0.96
+      }
+    },
+    "reasoning": "PICK: Manchester United Win \u2014 PREMIUM (74.2% win prob, EV +29.1%)\nMODEL: Projected 0.97\u20131.81 goals (xG 0.97/1.81), BTTS 52%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Manchester United 1.81 xG/G vs Tottenham Hotspur 0.97 xG/G. 3-way: Home 74% / Draw 30% / Away 27%. MC proj: 1.81 \u2013 0.97 (2.78 total vs 3.5 line, BTTS 52%). Goal spread: Manchester United -1.5 covers 33%, Tottenham Hotspur +1.5 covers 67% (proj margin +0.84). Manchester United xG edge unpriced by market. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: UNDER 3.5 (PREMIUM), Tottenham Hotspur +1.5 (PREMIUM). Factors moving this pick: Fbref +6%, Standings -6%, H2H +4%.",
+    "startMs": 1791649800000,
+    "leadMin": 527,
+    "lockTiming": "pre"
   },
   {
     "hA": "Manchester United",
@@ -73426,32 +73534,32 @@
     "priceSource": "estimated"
   },
   {
-    "id": "2026-10-10_Zurich_Fribourg_NLA_UNDER6.5",
-    "date": "2026-10-10",
     "hA": "Zurich",
-    "awA": "Fribourg",
-    "sport": "NLA",
-    "league": "NLA",
-    "betType": "OU",
-    "betOn": "UNDER 6.5",
-    "winProb": 0.5618480506489378,
+    "id": "2026-10-10_Zurich_Fribourg_NLA_UNDER6.5",
     "ml": "-137",
-    "decOdds": 1.73,
+    "awA": "Fribourg",
+    "date": "2026-10-10",
+    "betOn": "UNDER 6.5",
+    "sport": "NLA",
     "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1791617683434,
-    "hScore": null,
     "aScore": null,
+    "hScore": null,
+    "league": "NLA",
     "source": "manual",
-    "lockOrigin": "auto",
-    "reasoning": "PICK: UNDER 6.5 \u2014 HIGH PROB (56.2% win prob, EV -2.8% \u00b7 MARKET PRICE -137 (EV at market -2.8%) \u00b7 MARKET-BLENDED: model 61.8% \u00b7 no-vig market 53.5% \u2192 56.2% (alpha 0.68))\nMODEL: Projected 2.8\u20133.1 (total 5.9) (OT/SO in 17% of outcomes) \u2014 UNDER hits 61.8% of outcomes vs the 6.5 line, from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Zurich 3.40/2.22 (9GP this season, 52GP prior) vs Fribourg 3.35/2.41 (10GP, 52GP prior). Market line: 6.5 (Zurich 5.38, Fribourg 5.45). Record: Zurich 7-0-2OTW vs Fribourg 4-3-2OTW-1OTL. Exact-Poisson proj: Fribourg 2.8 \u2013 Zurich 3.1 (5.9 total vs 6.5 line). Combined scoring rate supports a tighter finish under the 6.5 line. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.77): model 72.1% \u00b7 no-vig market 62.5% \u2192 64.9%; Puck line market blend (alpha 0.72): model 37.5% \u00b7 no-vig market 41.1% \u2192 40.1%; O/U market blend (alpha 0.68): model 38.2% \u00b7 no-vig market 46.5% \u2192 43.8%. Half-unit play.",
-    "priceSource": "market",
-    "modelProb": 0.6176,
-    "marketProb": 0.5349,
-    "blendAlpha": 0.68,
-    "startMs": 1791654300000,
+    "betType": "OU",
+    "decOdds": 1.73,
     "leadMin": 610,
-    "lockTiming": "pre"
+    "outcome": "pending",
+    "startMs": 1791654300000,
+    "winProb": 0.5618480506489378,
+    "lockedAt": 1791617683434,
+    "modelProb": 0.6176,
+    "reasoning": "PICK: UNDER 6.5 \u2014 HIGH PROB (56.2% win prob, EV -2.8% \u00b7 MARKET PRICE -137 (EV at market -2.8%) \u00b7 MARKET-BLENDED: model 61.8% \u00b7 no-vig market 53.5% \u2192 56.2% (alpha 0.68))\nMODEL: Projected 2.8\u20133.1 (total 5.9) (OT/SO in 17% of outcomes) \u2014 UNDER hits 61.8% of outcomes vs the 6.5 line, from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Zurich 3.40/2.22 (9GP this season, 52GP prior) vs Fribourg 3.35/2.41 (10GP, 52GP prior). Market line: 6.5 (Zurich 5.38, Fribourg 5.45). Record: Zurich 7-0-2OTW vs Fribourg 4-3-2OTW-1OTL. Exact-Poisson proj: Fribourg 2.8 \u2013 Zurich 3.1 (5.9 total vs 6.5 line). Combined scoring rate supports a tighter finish under the 6.5 line. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.77): model 72.1% \u00b7 no-vig market 62.5% \u2192 64.9%; Puck line market blend (alpha 0.72): model 37.5% \u00b7 no-vig market 41.1% \u2192 40.1%; O/U market blend (alpha 0.68): model 38.2% \u00b7 no-vig market 46.5% \u2192 43.8%. Half-unit play.",
+    "blendAlpha": 0.68,
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "marketProb": 0.5349,
+    "priceSource": "market"
   },
   {
     "hA": "Zurich",
@@ -73482,171 +73590,1089 @@
     "priceSource": "market"
   },
   {
-    "id": "2026-10-11_Karlovy Vary_Kladno_EXTRALIGA_KarlovyVaryML",
+    "id": "2026-10-11_Cagliari_Juventus_SERIEA_UNDER2.5",
     "date": "2026-10-11",
+    "hA": "Cagliari",
+    "awA": "Juventus",
+    "sport": "SERIEA",
+    "league": "SERIEA",
+    "betType": "OU",
+    "betOn": "UNDER 2.5",
+    "winProb": 0.5870690534332225,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618186650,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 1.06
+      },
+      "form": {
+        "home": 1.0271,
+        "away": 0.9995
+      },
+      "standings": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: UNDER 2.5 \u2014 OPTIMAL (58.7% win prob, EV +12.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.29\u20131.03 goals (xG 1.30/1.03), BTTS 46% \u2014 OVER 2.5 hits 40.9% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Cagliari 1.03 xG/G vs Juventus 1.30 xG/G. 3-way: Home 36% / Draw 35% / Away 60%. MC proj: 1.03 \u2013 1.29 (2.33 total vs 2.5 line, BTTS 46%). Goal spread: Juventus -0.5 covers 43%, Cagliari +0.5 covers 57% (proj margin -0.26). Combined xG 2.33 supports a tighter, lower-scoring line. Kelly 13.3%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: Cagliari +0.5 (LEAN), Juventus Win (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) +6%, Fbref (A) +6%, Standings (A) +6%.",
+    "startMs": 1791744300000,
+    "leadMin": 2102,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-11_Como_AS Roma_SERIEA_ASRomaWin",
+    "date": "2026-10-11",
+    "hA": "Como",
+    "awA": "AS Roma",
+    "sport": "SERIEA",
+    "league": "SERIEA",
+    "betType": "ML",
+    "betOn": "AS Roma Win",
+    "winProb": 0.5589718533471627,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618184733,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "form": {
+        "home": 0.9858750000000001,
+        "away": 1.038875
+      },
+      "standings": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: AS Roma Win \u2014 OPTIMAL (55.9% win prob, EV +45.3%)\nMODEL: Projected 1.63\u20131.45 goals (xG 1.62/1.45), BTTS 61%, from a 25k-sim Monte Carlo.",
+    "startMs": 1791714600000,
+    "leadMin": 1607,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-11_Como_AS Roma_SERIEA_OVER2.5",
+    "date": "2026-10-11",
+    "hA": "Como",
+    "awA": "AS Roma",
+    "sport": "SERIEA",
+    "league": "SERIEA",
+    "betType": "OU",
+    "betOn": "OVER 2.5",
+    "winProb": 0.5942193419791557,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618185081,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "form": {
+        "home": 0.9858750000000001,
+        "away": 1.038875
+      },
+      "standings": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: OVER 2.5 \u2014 OPTIMAL (59.4% win prob, EV +13.4% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.63\u20131.45 goals (xG 1.62/1.45), BTTS 61% \u2014 OVER 2.5 hits 59.4% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Como 1.45 xG/G vs AS Roma 1.62 xG/G. 3-way: Home 44% / Draw 31% / Away 56%. MC proj: 1.45 \u2013 1.63 (3.08 total vs 2.5 line, BTTS 61%). Goal spread: AS Roma -0.5 covers 42%, Como +0.5 covers 58% (proj margin -0.19). Combined xG 3.08 supports goals above the line. Kelly 14.8%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: Como +0.5 (OPTIMAL), AS Roma Win (OPTIMAL). Factors moving this pick: Fbref (H) +6%, Standings (H) +6%, Fbref (A) +6%, Standings (A) +6%, Form (A) +4%.",
+    "startMs": 1791714600000,
+    "leadMin": 1607,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-11_Crystal Palace_Nottingham Forest_PL_SOC_NottinghamForestWin",
+    "date": "2026-10-11",
+    "hA": "Crystal Palace",
+    "awA": "Nottingham Forest",
+    "sport": "PL",
+    "league": "PL",
+    "betType": "ML",
+    "betOn": "Nottingham Forest Win",
+    "winProb": 0.618519009892304,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618181712,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "form": {
+        "home": 0.979875,
+        "away": 0.9971666666666666
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: Nottingham Forest Win \u2014 PREMIUM (61.9% win prob, EV +60.8%)\nMODEL: Projected 1.60\u20131.14 goals (xG 1.58/1.15), BTTS 54%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Crystal Palace 1.15 xG/G vs Nottingham Forest 1.58 xG/G. 3-way: Home 36% / Draw 33% / Away 62%. MC proj: 1.14 \u2013 1.60 (2.74 total vs 2.5 line, BTTS 54%). Goal spread: Nottingham Forest -0.5 covers 47%, Crystal Palace +0.5 covers 53% (proj margin -0.46). Nottingham Forest road xG edge underpriced. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Crystal Palace +0.5 (LEAN). Factors moving this pick: Fbref -6%, Standings -6%.",
+    "startMs": 1791723600000,
+    "leadMin": 1757,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-11_Elche_Celta Vigo_LIGA_CeltaVigoWin",
+    "date": "2026-10-11",
+    "hA": "Elche",
+    "awA": "Celta Vigo",
+    "sport": "LIGA",
+    "league": "LIGA",
+    "betType": "ML",
+    "betOn": "Celta Vigo Win",
+    "winProb": 0.599991187577807,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618183392,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 1.0281992870804915,
+        "away": 1.0081618195243545
+      },
+      "form": {
+        "home": 1.0216,
+        "away": 1.0165
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 0.98,
+        "away": 1.02
+      }
+    },
+    "reasoning": "PICK: Celta Vigo Win \u2014 OPTIMAL (60.0% win prob, EV +56.0%)\nMODEL: Projected 1.55\u20131.13 goals (xG 1.55/1.13), BTTS 53%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Elche 1.13 xG/G vs Celta Vigo 1.55 xG/G. 3-way: Home 37% / Draw 34% / Away 60%. MC proj: 1.13 \u2013 1.55 (2.68 total vs 2.5 line, BTTS 53%). Goal spread: Celta Vigo -0.5 covers 47%, Elche +0.5 covers 53% (proj margin -0.42). Celta Vigo road xG edge underpriced. Kelly 30.0%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: Elche +0.5 (LEAN). Factors moving this pick: Standings -6%.",
+    "startMs": 1791720000000,
+    "leadMin": 1697,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-11_Hull City_Everton_PL_SOC_HullCityWin",
+    "date": "2026-10-11",
+    "hA": "Hull City",
+    "awA": "Everton",
+    "sport": "PL",
+    "league": "PL",
+    "betType": "ML",
+    "betOn": "Hull City Win",
+    "winProb": 0.6378290123402337,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618181921,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 1.06,
+        "away": 0.9891982203547798
+      },
+      "form": {
+        "home": 0.9866666666666667,
+        "away": 1.0205
+      },
+      "standings": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: Hull City Win \u2014 PREMIUM (63.8% win prob, EV +129.6%)\nMODEL: Projected 1.19\u20131.82 goals (xG 1.18/1.82), BTTS 58%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Hull City 1.82 xG/G vs Everton 1.18 xG/G. 3-way: Home 64% / Draw 31% / Away 36%. MC proj: 1.82 \u2013 1.19 (3.01 total vs 2.5 line, BTTS 58%). Goal spread: Hull City -0.5 covers 52%, Everton +0.5 covers 48% (proj margin +0.63). Hull City xG edge unpriced by market. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: OVER 2.5 (LEAN), Hull City -0.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
+    "startMs": 1791723600000,
+    "leadMin": 1757,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Karlovy Vary",
-    "awA": "Kladno",
-    "sport": "EXTRALIGA",
-    "league": "EXTRALIGA",
-    "betType": "ML",
-    "betOn": "Karlovy Vary ML",
-    "winProb": 0.652727457234494,
+    "id": "2026-10-11_Karlovy Vary_Kladno_EXTRALIGA_KarlovyVaryML",
     "ml": "-213",
-    "decOdds": 1.47,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1791617683694,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "reasoning": "PICK: Karlovy Vary ML \u2014 HIGH PROB (65.3% win prob, EV -4.0% \u00b7 MARKET PRICE -213 (EV at market -4.0%) \u00b7 MARKET-BLENDED: model 73.0% \u00b7 no-vig market 63.1% \u2192 65.3% (alpha 0.79))\nMODEL: Projected 2.4\u20132.9 (total 5.3) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Karlovy Vary 2.54/2.25 (8GP this season, 52GP prior) vs Kladno 2.76/2.90 (9GP, 52GP prior). Market line: 5.5 (Karlovy Vary 4.66, Kladno 5.35). Record: Karlovy Vary 5-3 vs Kladno 3-2-2OTW-2OTL. Exact-Poisson proj: Kladno 2.4 \u2013 Karlovy Vary 2.9 (5.3 total vs 5.5 line). Karlovy Vary's scoring edge versus the moneyline price. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.79): model 73.0% \u00b7 no-vig market 63.1% \u2192 65.3%; Puck line market blend (alpha 0.75): model 41.7% \u00b7 no-vig market 39.5% \u2192 40.1%; O/U market blend (alpha 0.71): model 44.1% \u00b7 no-vig market 39.4% \u2192 40.8%. Half-unit play.",
-    "priceSource": "market",
-    "modelProb": 0.7295,
-    "marketProb": 0.6307,
-    "blendAlpha": 0.79,
-    "startMs": 1791730800000,
-    "leadMin": 1885,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-11_Kometa Brno_Plzen_EXTRALIGA_OVER4.5",
+    "awA": "Kladno",
     "date": "2026-10-11",
-    "hA": "Kometa Brno",
-    "awA": "Plzen",
+    "betOn": "Karlovy Vary ML",
     "sport": "EXTRALIGA",
-    "league": "EXTRALIGA",
-    "betType": "OU",
-    "betOn": "OVER 4.5",
-    "winProb": 0.6132070790345693,
-    "ml": "-192",
-    "decOdds": 1.52,
     "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1791617684008,
-    "hScore": null,
     "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "reasoning": "PICK: OVER 4.5 \u2014 HIGH PROB (61.3% win prob, EV -6.8% \u00b7 MARKET PRICE -192 (EV at market -6.8%) \u00b7 MARKET-BLENDED: model 62.0% \u00b7 no-vig market 61.0% \u2192 61.3% (alpha 0.71))\nMODEL: Projected 2.8\u20132.6 (total 5.4) (OT/SO in 18% of outcomes) \u2014 OVER hits 62.0% of outcomes vs the 4.5 line, from an exact Poisson distribution (not a simulation).",
-    "priceSource": "market",
-    "modelProb": 0.6204,
-    "marketProb": 0.6103,
-    "blendAlpha": 0.71,
-    "startMs": 1791730800000,
-    "leadMin": 1885,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-11_Kometa Brno_Plzen_EXTRALIGA_Plzen+1.5",
-    "date": "2026-10-11",
-    "hA": "Kometa Brno",
-    "awA": "Plzen",
-    "sport": "EXTRALIGA",
-    "league": "EXTRALIGA",
-    "betType": "SPREAD",
-    "betOn": "Plzen +1.5",
-    "winProb": 0.6956585391319737,
-    "ml": "-294",
-    "decOdds": 1.34,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1791617683838,
     "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "reasoning": "PICK: Plzen +1.5 \u2014 HIGH PROB (69.6% win prob, EV -6.8% \u00b7 MARKET PRICE -294 (EV at market -6.8%) \u00b7 MARKET-BLENDED: model 70.7% \u00b7 no-vig market 69.2% \u2192 69.6% (alpha 0.75))\nMODEL: Projected 2.8\u20132.6 (total 5.4) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Kometa Brno 2.83/3.02 (8GP this season, 52GP prior) vs Plzen 2.65/2.15 (9GP, 52GP prior). Market line: 4.5 (Kometa Brno 5.64, Plzen 4.54). Record: Kometa Brno 2-4-2OTW vs Plzen 3-3-2OTW-1OTL. Exact-Poisson proj: Plzen 2.8 \u2013 Kometa Brno 2.6 (5.4 total vs 4.5 line). Plzen +1.5 covers in 69.6% of the model's blended scoring+margin projection (fav covers 30.4%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.79): model 46.2% \u00b7 no-vig market 53.9% \u2192 52.3%; Puck line market blend (alpha 0.75): model 29.3% \u00b7 no-vig market 30.8% \u2192 30.4%; O/U market blend (alpha 0.71): model 62.0% \u00b7 no-vig market 61.0% \u2192 61.3%. Half-unit play \u00b7 Also: OVER 4.5 (HIGH PROB).",
-    "priceSource": "market",
-    "modelProb": 0.7066,
-    "marketProb": 0.692,
-    "blendAlpha": 0.75,
-    "startMs": 1791730800000,
-    "leadMin": 1885,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-11_Mlada Boleslav_Litvinov_EXTRALIGA_Litvinov+1.5",
-    "date": "2026-10-11",
-    "hA": "Mlada Boleslav",
-    "awA": "Litvinov",
-    "sport": "EXTRALIGA",
     "league": "EXTRALIGA",
-    "betType": "SPREAD",
-    "betOn": "Litvinov +1.5",
-    "winProb": 0.6801931301386641,
-    "ml": "-270",
-    "decOdds": 1.37,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1791617683530,
-    "hScore": null,
-    "aScore": null,
     "source": "manual",
-    "lockOrigin": "auto",
-    "reasoning": "PICK: Litvinov +1.5 \u2014 HIGH PROB (68.0% win prob, EV -6.8% \u00b7 MARKET PRICE -270 (EV at market -6.8%) \u00b7 MARKET-BLENDED: model 69.1% \u00b7 no-vig market 67.6% \u2192 68.0% (alpha 0.72))\nMODEL: Projected 2.7\u20132.7 (total 5.4) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Mlada Boleslav 2.13/3.23 (9GP this season, 52GP prior) vs Litvinov 2.28/3.14 (9GP, 52GP prior). Market line: 5.5 (Mlada Boleslav 5.12, Litvinov 5.26). Record: Mlada Boleslav 1-6-1OTW-1OTL vs Litvinov 3-4-1OTW-1OTL. Exact-Poisson proj: Litvinov 2.7 \u2013 Mlada Boleslav 2.7 (5.4 total vs 5.5 line). Litvinov +1.5 covers in 68.0% of the model's blended scoring+margin projection (fav covers 32.0%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.77): model 43.3% \u00b7 no-vig market 55.9% \u2192 53.0%; Puck line market blend (alpha 0.72): model 30.9% \u00b7 no-vig market 32.4% \u2192 32.0%; O/U market blend (alpha 0.68): model 46.2% \u00b7 no-vig market 38.7% \u2192 41.1%. Half-unit play.",
-    "priceSource": "market",
-    "modelProb": 0.6908,
-    "marketProb": 0.6761,
-    "blendAlpha": 0.725,
-    "startMs": 1791727200000,
-    "leadMin": 1825,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-11_Mountfield HK_Olomouc_EXTRALIGA_MountfieldHKML",
-    "date": "2026-10-11",
-    "hA": "Mountfield HK",
-    "awA": "Olomouc",
-    "sport": "EXTRALIGA",
-    "league": "EXTRALIGA",
     "betType": "ML",
-    "betOn": "Mountfield HK ML",
-    "winProb": 0.7058592008158272,
-    "ml": "-286",
-    "decOdds": 1.35,
+    "decOdds": 1.47,
+    "leadMin": 1885,
+    "outcome": "pending",
+    "startMs": 1791730800000,
+    "winProb": 0.652727457234494,
+    "lockedAt": 1791617683694,
+    "modelProb": 0.7295,
+    "reasoning": "PICK: Karlovy Vary ML \u2014 HIGH PROB (65.3% win prob, EV -4.0% \u00b7 MARKET PRICE -213 (EV at market -4.0%) \u00b7 MARKET-BLENDED: model 73.0% \u00b7 no-vig market 63.1% \u2192 65.3% (alpha 0.79))\nMODEL: Projected 2.4\u20132.9 (total 5.3) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Karlovy Vary 2.54/2.25 (8GP this season, 52GP prior) vs Kladno 2.76/2.90 (9GP, 52GP prior). Market line: 5.5 (Karlovy Vary 4.66, Kladno 5.35). Record: Karlovy Vary 5-3 vs Kladno 3-2-2OTW-2OTL. Exact-Poisson proj: Kladno 2.4 \u2013 Karlovy Vary 2.9 (5.3 total vs 5.5 line). Karlovy Vary's scoring edge versus the moneyline price. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.79): model 73.0% \u00b7 no-vig market 63.1% \u2192 65.3%; Puck line market blend (alpha 0.75): model 41.7% \u00b7 no-vig market 39.5% \u2192 40.1%; O/U market blend (alpha 0.71): model 44.1% \u00b7 no-vig market 39.4% \u2192 40.8%. Half-unit play.",
+    "blendAlpha": 0.79,
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "marketProb": 0.6307,
+    "priceSource": "market"
+  },
+  {
+    "hA": "Kometa Brno",
+    "id": "2026-10-11_Kometa Brno_Plzen_EXTRALIGA_OVER4.5",
+    "ml": "-192",
+    "awA": "Plzen",
+    "date": "2026-10-11",
+    "betOn": "OVER 4.5",
+    "sport": "EXTRALIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "EXTRALIGA",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.52,
+    "leadMin": 1885,
+    "outcome": "pending",
+    "startMs": 1791730800000,
+    "winProb": 0.6132070790345693,
+    "lockedAt": 1791617684008,
+    "modelProb": 0.6204,
+    "reasoning": "PICK: OVER 4.5 \u2014 HIGH PROB (61.3% win prob, EV -6.8% \u00b7 MARKET PRICE -192 (EV at market -6.8%) \u00b7 MARKET-BLENDED: model 62.0% \u00b7 no-vig market 61.0% \u2192 61.3% (alpha 0.71))\nMODEL: Projected 2.8\u20132.6 (total 5.4) (OT/SO in 18% of outcomes) \u2014 OVER hits 62.0% of outcomes vs the 4.5 line, from an exact Poisson distribution (not a simulation).",
+    "blendAlpha": 0.71,
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "marketProb": 0.6103,
+    "priceSource": "market"
+  },
+  {
+    "hA": "Kometa Brno",
+    "id": "2026-10-11_Kometa Brno_Plzen_EXTRALIGA_Plzen+1.5",
+    "ml": "-294",
+    "awA": "Plzen",
+    "date": "2026-10-11",
+    "betOn": "Plzen +1.5",
+    "sport": "EXTRALIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "EXTRALIGA",
+    "source": "manual",
+    "betType": "SPREAD",
+    "decOdds": 1.34,
+    "leadMin": 1885,
+    "outcome": "pending",
+    "startMs": 1791730800000,
+    "winProb": 0.6956585391319737,
+    "lockedAt": 1791617683838,
+    "modelProb": 0.7066,
+    "reasoning": "PICK: Plzen +1.5 \u2014 HIGH PROB (69.6% win prob, EV -6.8% \u00b7 MARKET PRICE -294 (EV at market -6.8%) \u00b7 MARKET-BLENDED: model 70.7% \u00b7 no-vig market 69.2% \u2192 69.6% (alpha 0.75))\nMODEL: Projected 2.8\u20132.6 (total 5.4) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Kometa Brno 2.83/3.02 (8GP this season, 52GP prior) vs Plzen 2.65/2.15 (9GP, 52GP prior). Market line: 4.5 (Kometa Brno 5.64, Plzen 4.54). Record: Kometa Brno 2-4-2OTW vs Plzen 3-3-2OTW-1OTL. Exact-Poisson proj: Plzen 2.8 \u2013 Kometa Brno 2.6 (5.4 total vs 4.5 line). Plzen +1.5 covers in 69.6% of the model's blended scoring+margin projection (fav covers 30.4%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.79): model 46.2% \u00b7 no-vig market 53.9% \u2192 52.3%; Puck line market blend (alpha 0.75): model 29.3% \u00b7 no-vig market 30.8% \u2192 30.4%; O/U market blend (alpha 0.71): model 62.0% \u00b7 no-vig market 61.0% \u2192 61.3%. Half-unit play \u00b7 Also: OVER 4.5 (HIGH PROB).",
+    "blendAlpha": 0.75,
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "marketProb": 0.692,
+    "priceSource": "market"
+  },
+  {
+    "id": "2026-10-11_Lazio_Monza_SERIEA_Monza+1.5",
+    "date": "2026-10-11",
+    "hA": "Lazio",
+    "awA": "Monza",
+    "sport": "SERIEA",
+    "league": "SERIEA",
+    "betType": "SPREAD",
+    "betOn": "Monza +1.5",
+    "winProb": 0.6281223478897289,
+    "ml": "-110",
+    "decOdds": 1.91,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1791617684142,
+    "lockedAt": 1791618185571,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
-    "reasoning": "PICK: Mountfield HK ML \u2014 HIGH PROB (70.6% win prob, EV -4.7% \u00b7 MARKET PRICE -286 (EV at market -4.7%) \u00b7 MARKET-BLENDED: model 76.3% \u00b7 no-vig market 68.8% \u2192 70.6% (alpha 0.77))\nMODEL: Projected 2.2\u20133.2 (total 5.4) (OT/SO in 16% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Mountfield HK 2.74/2.52 (9GP this season, 52GP prior) vs Olomouc 2.16/3.32 (9GP, 52GP prior). Market line: 5.5 (Mountfield HK 5.03, Olomouc 5.35). Record: Mountfield HK 3-4-2OTW vs Olomouc 1-7-1OTW. Exact-Poisson proj: Olomouc 2.2 \u2013 Mountfield HK 3.2 (5.4 total vs 5.5 line). Mountfield HK's scoring edge versus the moneyline price. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.77): model 76.2% \u00b7 no-vig market 68.8% \u2192 70.6%; Puck line market blend (alpha 0.72): model 46.0% \u00b7 no-vig market 46.9% \u2192 46.7%; O/U market blend (alpha 0.68): model 45.2% \u00b7 no-vig market 45.6% \u2192 45.5%. Half-unit play.",
-    "priceSource": "market",
-    "modelProb": 0.7625,
-    "marketProb": 0.6875,
-    "blendAlpha": 0.77,
-    "startMs": 1791730800000,
-    "leadMin": 1885,
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 1.06
+      },
+      "form": {
+        "home": 1.027875,
+        "away": 1.01
+      },
+      "standings": {
+        "home": 1.06,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: Monza +1.5 \u2014 PREMIUM (62.8% win prob, EV +19.9% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.53\u20132.42 goals (xG 1.51/2.43), BTTS 72%, from a 25k-sim Monte Carlo.",
+    "startMs": 1791723600000,
+    "leadMin": 1757,
     "lockTiming": "pre"
   },
   {
-    "id": "2026-10-11_Pardubice_Trinec_EXTRALIGA_OVER5.5",
+    "id": "2026-10-11_Lazio_Monza_SERIEA_OVER2.5",
     "date": "2026-10-11",
-    "hA": "Pardubice",
-    "awA": "Trinec",
-    "sport": "EXTRALIGA",
-    "league": "EXTRALIGA",
+    "hA": "Lazio",
+    "awA": "Monza",
+    "sport": "SERIEA",
+    "league": "SERIEA",
     "betType": "OU",
-    "betOn": "OVER 5.5",
-    "winProb": 0.5701065556339394,
-    "ml": "-145",
-    "decOdds": 1.69,
+    "betOn": "OVER 2.5",
+    "winProb": 0.7537965541660814,
+    "ml": "-110",
+    "decOdds": 1.91,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1791617684307,
+    "lockedAt": 1791618185206,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
-    "reasoning": "PICK: OVER 5.5 \u2014 HIGH PROB (57.0% win prob, EV -3.6% \u00b7 MARKET PRICE -145 (EV at market -3.6%) \u00b7 MARKET-BLENDED: model 61.6% \u00b7 no-vig market 54.8% \u2192 57.0% (alpha 0.68))\nMODEL: Projected 3.2\u20133.2 (total 6.4) (OT/SO in 16% of outcomes) \u2014 OVER hits 61.6% of outcomes vs the 5.5 line, from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Pardubice 3.69/2.48 (10GP this season, 52GP prior) vs Trinec 3.82/2.29 (9GP, 52GP prior). Market line: 5.5 (Pardubice 6.05, Trinec 6.01). Record: Pardubice 8-2 vs Trinec 9-0. Exact-Poisson proj: Trinec 3.2 \u2013 Pardubice 3.2 (6.4 total vs 5.5 line). Combined scoring rate supports goals above the 5.5 line. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.77): model 42.5% \u00b7 no-vig market 60.9% \u2192 56.8%; Puck line market blend (alpha 0.72): model 33.8% \u00b7 no-vig market 39.2% \u2192 37.7%; O/U market blend (alpha 0.68): model 61.6% \u00b7 no-vig market 54.8% \u2192 57.0%. Half-unit play.",
-    "priceSource": "market",
-    "modelProb": 0.6158,
-    "marketProb": 0.5481,
-    "blendAlpha": 0.68,
-    "startMs": 1791736200000,
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 1.06
+      },
+      "form": {
+        "home": 1.027875,
+        "away": 1.01
+      },
+      "standings": {
+        "home": 1.06,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: OVER 2.5 \u2014 PREMIUM (75.4% win prob, EV +43.9% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.53\u20132.42 goals (xG 1.51/2.43), BTTS 72% \u2014 OVER 2.5 hits 75.4% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Lazio 2.43 xG/G vs Monza 1.51 xG/G. 3-way: Home 75% / Draw 26% / Away 30%. MC proj: 2.42 \u2013 1.53 (3.95 total vs 2.5 line, BTTS 72%). Goal spread: Lazio -1.5 covers 37%, Monza +1.5 covers 63% (proj margin +0.89). Combined xG 3.95 supports goals above the line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Lazio Win (PREMIUM), Monza +1.5 (PREMIUM). Factors moving this pick: Fbref (H) -6%, Standings (H) +6%, Fbref (A) +6%, Standings (A) -6%.",
+    "startMs": 1791723600000,
+    "leadMin": 1757,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-11_Lecce_Bologna_SERIEA_BolognaWin",
+    "date": "2026-10-11",
+    "hA": "Lecce",
+    "awA": "Bologna",
+    "sport": "SERIEA",
+    "league": "SERIEA",
+    "betType": "ML",
+    "betOn": "Bologna Win",
+    "winProb": 0.6445202991372201,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618185810,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "form": {
+        "home": 0.9879,
+        "away": 0.9798333333333333
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 0.96,
+        "away": 1.04
+      }
+    },
+    "reasoning": "PICK: Bologna Win \u2014 PREMIUM (64.5% win prob, EV +23.0%)\nMODEL: Projected 1.44\u20130.91 goals (xG 1.43/0.92), BTTS 46%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Lecce 0.92 xG/G vs Bologna 1.43 xG/G. 3-way: Home 31% / Draw 35% / Away 64%. MC proj: 0.91 \u2013 1.44 (2.35 total vs 2.5 line, BTTS 46%). Goal spread: Bologna -0.5 covers 49%, Lecce +0.5 covers 51% (proj margin -0.52). Bologna road xG edge underpriced. Kelly 25.3%. PREMIUM \u00b7 Full-unit play \u00b7 Also: UNDER 2.5 (OPTIMAL), Lecce +0.5 (LEAN). Factors moving this pick: Fbref -6%, Standings -6%, H2H +4%.",
+    "startMs": 1791723600000,
+    "leadMin": 1757,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-11_Lecce_Bologna_SERIEA_UNDER2.5",
+    "date": "2026-10-11",
+    "hA": "Lecce",
+    "awA": "Bologna",
+    "sport": "SERIEA",
+    "league": "SERIEA",
+    "betType": "OU",
+    "betOn": "UNDER 2.5",
+    "winProb": 0.5835971306139393,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618186143,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "form": {
+        "home": 0.9879,
+        "away": 0.9798333333333333
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 0.96,
+        "away": 1.04
+      }
+    },
+    "reasoning": "PICK: UNDER 2.5 \u2014 OPTIMAL (58.4% win prob, EV +11.4% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.44\u20130.91 goals (xG 1.43/0.92), BTTS 46% \u2014 OVER 2.5 hits 41.8% of outcomes, from a 25k-sim Monte Carlo.",
+    "startMs": 1791723600000,
+    "leadMin": 1757,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-11_Liverpool_Manchester City_PL_SOC_ManchesterCityWin",
+    "date": "2026-10-11",
+    "hA": "Liverpool",
+    "awA": "Manchester City",
+    "sport": "PL",
+    "league": "PL",
+    "betType": "ML",
+    "betOn": "Manchester City Win",
+    "winProb": 0.6424142088797938,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618182871,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "form": {
+        "home": 1.0065,
+        "away": 1.0142
+      },
+      "standings": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "h2h": {
+        "home": 0.94,
+        "away": 1.06
+      }
+    },
+    "reasoning": "PICK: Manchester City Win \u2014 PREMIUM (64.2% win prob, EV +47.8%)\nMODEL: Projected 1.86\u20131.33 goals (xG 1.86/1.33), BTTS 62%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Liverpool 1.33 xG/G vs Manchester City 1.86 xG/G. 3-way: Home 36% / Draw 30% / Away 64%. MC proj: 1.33 \u2013 1.86 (3.19 total vs 2.5 line, BTTS 62%). Goal spread: Manchester City -0.5 covers 50%, Liverpool +0.5 covers 50% (proj margin -0.53). Manchester City road xG edge underpriced. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: OVER 2.5 (PREMIUM). Factors moving this pick: Fbref +6%, Standings +6%, H2H +6%.",
+    "startMs": 1791732600000,
+    "leadMin": 1907,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-11_Liverpool_Manchester City_PL_SOC_OVER2.5",
+    "date": "2026-10-11",
+    "hA": "Liverpool",
+    "awA": "Manchester City",
+    "sport": "PL",
+    "league": "PL",
+    "betType": "OU",
+    "betOn": "OVER 2.5",
+    "winProb": 0.6175015015909755,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618183020,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "form": {
+        "home": 1.0065,
+        "away": 1.0142
+      },
+      "standings": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "h2h": {
+        "home": 0.94,
+        "away": 1.06
+      }
+    },
+    "reasoning": "PICK: OVER 2.5 \u2014 PREMIUM (61.8% win prob, EV +17.9% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.86\u20131.33 goals (xG 1.86/1.33), BTTS 62% \u2014 OVER 2.5 hits 62.0% of outcomes, from a 25k-sim Monte Carlo.",
+    "startMs": 1791732600000,
+    "leadMin": 1907,
+    "lockTiming": "pre"
+  },
+  {
+    "hA": "Mlada Boleslav",
+    "id": "2026-10-11_Mlada Boleslav_Litvinov_EXTRALIGA_Litvinov+1.5",
+    "ml": "-270",
+    "awA": "Litvinov",
+    "date": "2026-10-11",
+    "betOn": "Litvinov +1.5",
+    "sport": "EXTRALIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "EXTRALIGA",
+    "source": "manual",
+    "betType": "SPREAD",
+    "decOdds": 1.37,
+    "leadMin": 1825,
+    "outcome": "pending",
+    "startMs": 1791727200000,
+    "winProb": 0.6801931301386641,
+    "lockedAt": 1791617683530,
+    "modelProb": 0.6908,
+    "reasoning": "PICK: Litvinov +1.5 \u2014 HIGH PROB (68.0% win prob, EV -6.8% \u00b7 MARKET PRICE -270 (EV at market -6.8%) \u00b7 MARKET-BLENDED: model 69.1% \u00b7 no-vig market 67.6% \u2192 68.0% (alpha 0.72))\nMODEL: Projected 2.7\u20132.7 (total 5.4) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Mlada Boleslav 2.13/3.23 (9GP this season, 52GP prior) vs Litvinov 2.28/3.14 (9GP, 52GP prior). Market line: 5.5 (Mlada Boleslav 5.12, Litvinov 5.26). Record: Mlada Boleslav 1-6-1OTW-1OTL vs Litvinov 3-4-1OTW-1OTL. Exact-Poisson proj: Litvinov 2.7 \u2013 Mlada Boleslav 2.7 (5.4 total vs 5.5 line). Litvinov +1.5 covers in 68.0% of the model's blended scoring+margin projection (fav covers 32.0%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.77): model 43.3% \u00b7 no-vig market 55.9% \u2192 53.0%; Puck line market blend (alpha 0.72): model 30.9% \u00b7 no-vig market 32.4% \u2192 32.0%; O/U market blend (alpha 0.68): model 46.2% \u00b7 no-vig market 38.7% \u2192 41.1%. Half-unit play.",
+    "blendAlpha": 0.725,
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "marketProb": 0.6761,
+    "priceSource": "market"
+  },
+  {
+    "hA": "Mountfield HK",
+    "id": "2026-10-11_Mountfield HK_Olomouc_EXTRALIGA_MountfieldHKML",
+    "ml": "-286",
+    "awA": "Olomouc",
+    "date": "2026-10-11",
+    "betOn": "Mountfield HK ML",
+    "sport": "EXTRALIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "EXTRALIGA",
+    "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.35,
+    "leadMin": 1885,
+    "outcome": "pending",
+    "startMs": 1791730800000,
+    "winProb": 0.7058592008158272,
+    "lockedAt": 1791617684142,
+    "modelProb": 0.7625,
+    "reasoning": "PICK: Mountfield HK ML \u2014 HIGH PROB (70.6% win prob, EV -4.7% \u00b7 MARKET PRICE -286 (EV at market -4.7%) \u00b7 MARKET-BLENDED: model 76.3% \u00b7 no-vig market 68.8% \u2192 70.6% (alpha 0.77))\nMODEL: Projected 2.2\u20133.2 (total 5.4) (OT/SO in 16% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Mountfield HK 2.74/2.52 (9GP this season, 52GP prior) vs Olomouc 2.16/3.32 (9GP, 52GP prior). Market line: 5.5 (Mountfield HK 5.03, Olomouc 5.35). Record: Mountfield HK 3-4-2OTW vs Olomouc 1-7-1OTW. Exact-Poisson proj: Olomouc 2.2 \u2013 Mountfield HK 3.2 (5.4 total vs 5.5 line). Mountfield HK's scoring edge versus the moneyline price. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.77): model 76.2% \u00b7 no-vig market 68.8% \u2192 70.6%; Puck line market blend (alpha 0.72): model 46.0% \u00b7 no-vig market 46.9% \u2192 46.7%; O/U market blend (alpha 0.68): model 45.2% \u00b7 no-vig market 45.6% \u2192 45.5%. Half-unit play.",
+    "blendAlpha": 0.77,
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "marketProb": 0.6875,
+    "priceSource": "market"
+  },
+  {
+    "hA": "Pardubice",
+    "id": "2026-10-11_Pardubice_Trinec_EXTRALIGA_OVER5.5",
+    "ml": "-145",
+    "awA": "Trinec",
+    "date": "2026-10-11",
+    "betOn": "OVER 5.5",
+    "sport": "EXTRALIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "EXTRALIGA",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.69,
     "leadMin": 1975,
+    "outcome": "pending",
+    "startMs": 1791736200000,
+    "winProb": 0.5701065556339394,
+    "lockedAt": 1791617684307,
+    "modelProb": 0.6158,
+    "reasoning": "PICK: OVER 5.5 \u2014 HIGH PROB (57.0% win prob, EV -3.6% \u00b7 MARKET PRICE -145 (EV at market -3.6%) \u00b7 MARKET-BLENDED: model 61.6% \u00b7 no-vig market 54.8% \u2192 57.0% (alpha 0.68))\nMODEL: Projected 3.2\u20133.2 (total 6.4) (OT/SO in 16% of outcomes) \u2014 OVER hits 61.6% of outcomes vs the 5.5 line, from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Pardubice 3.69/2.48 (10GP this season, 52GP prior) vs Trinec 3.82/2.29 (9GP, 52GP prior). Market line: 5.5 (Pardubice 6.05, Trinec 6.01). Record: Pardubice 8-2 vs Trinec 9-0. Exact-Poisson proj: Trinec 3.2 \u2013 Pardubice 3.2 (6.4 total vs 5.5 line). Combined scoring rate supports goals above the 5.5 line. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.77): model 42.5% \u00b7 no-vig market 60.9% \u2192 56.8%; Puck line market blend (alpha 0.72): model 33.8% \u00b7 no-vig market 39.2% \u2192 37.7%; O/U market blend (alpha 0.68): model 61.6% \u00b7 no-vig market 54.8% \u2192 57.0%. Half-unit play.",
+    "blendAlpha": 0.68,
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "marketProb": 0.5481,
+    "priceSource": "market"
+  },
+  {
+    "id": "2026-10-11_Racing Santander_Valencia_LIGA_RacingSantanderWin",
+    "date": "2026-10-11",
+    "hA": "Racing Santander",
+    "awA": "Valencia",
+    "sport": "LIGA",
+    "league": "LIGA",
+    "betType": "ML",
+    "betOn": "Racing Santander Win",
+    "winProb": 0.6537991861312213,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618184404,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "form": {
+        "home": 0.9933333333333333,
+        "away": 0.9640833333333334
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: Racing Santander Win \u2014 PREMIUM (65.4% win prob, EV +50.4%)\nMODEL: Projected 1.07\u20131.69 goals (xG 1.06/1.68), BTTS 53%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Racing Santander 1.68 xG/G vs Valencia 1.06 xG/G. 3-way: Home 65% / Draw 32% / Away 33%. MC proj: 1.69 \u2013 1.07 (2.75 total vs 2.5 line, BTTS 53%). Goal spread: Racing Santander -0.5 covers 52%, Valencia +0.5 covers 48% (proj margin +0.62). Racing Santander xG edge unpriced by market. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Racing Santander -0.5 (LEAN), OVER 2.5 (LEAN). Factors moving this pick: Fbref -6%, Standings -6%.",
+    "startMs": 1791745200000,
+    "leadMin": 2117,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-11_Real Betis_Osasuna_LIGA_RealBetisWin",
+    "date": "2026-10-11",
+    "hA": "Real Betis",
+    "awA": "Osasuna",
+    "sport": "LIGA",
+    "league": "LIGA",
+    "betType": "ML",
+    "betOn": "Real Betis Win",
+    "winProb": 0.7927281511904227,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618184246,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 1.0088137025035289,
+        "away": 0.94
+      },
+      "form": {
+        "home": 0.9844166666666667,
+        "away": 0.9543
+      },
+      "standings": {
+        "home": 1.06,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 1.04,
+        "away": 0.96
+      }
+    },
+    "reasoning": "PICK: Real Betis Win \u2014 PREMIUM (79.3% win prob, EV +19.9%)\nMODEL: Projected 0.58\u20131.97 goals (xG 0.59/1.97), BTTS 38%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Real Betis 1.97 xG/G vs Osasuna 0.59 xG/G. 3-way: Home 79% / Draw 26% / Away 15%. MC proj: 1.97 \u2013 0.58 (2.54 total vs 2.5 line, BTTS 38%). Goal spread: Real Betis -1.5 covers 44%, Osasuna +1.5 covers 56% (proj margin +1.39). Real Betis xG edge unpriced by market. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Osasuna +1.5 (LEAN), UNDER 2.5 (LEAN). Factors moving this pick: Standings +6%, H2H +4%.",
+    "startMs": 1791736200000,
+    "leadMin": 1967,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-11_Real Sociedad_Deportivo_LIGA_DeportivoWin",
+    "date": "2026-10-11",
+    "hA": "Real Sociedad",
+    "awA": "Deportivo",
+    "sport": "LIGA",
+    "league": "LIGA",
+    "betType": "ML",
+    "betOn": "Deportivo Win",
+    "winProb": 0.5648102725499847,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618183720,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.9652970667609231,
+        "away": 1.06
+      },
+      "form": {
+        "home": 1.0183333333333333,
+        "away": 0.9866666666666667
+      },
+      "standings": {
+        "home": 1.0407632263660018,
+        "away": 1.0407632263660018
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: Deportivo Win \u2014 OPTIMAL (56.5% win prob, EV +210.7%)\nMODEL: Projected 1.71\u20131.35 goals (xG 1.71/1.34), BTTS 61%, from a 25k-sim Monte Carlo.",
+    "startMs": 1791728100000,
+    "leadMin": 1832,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-11_Real Sociedad_Deportivo_LIGA_OVER2.5",
+    "date": "2026-10-11",
+    "hA": "Real Sociedad",
+    "awA": "Deportivo",
+    "sport": "LIGA",
+    "league": "LIGA",
+    "betType": "OU",
+    "betOn": "OVER 2.5",
+    "winProb": 0.5893591088614083,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618183906,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.9652970667609231,
+        "away": 1.06
+      },
+      "form": {
+        "home": 1.0183333333333333,
+        "away": 0.9866666666666667
+      },
+      "standings": {
+        "home": 1.0407632263660018,
+        "away": 1.0407632263660018
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: OVER 2.5 \u2014 OPTIMAL (58.9% win prob, EV +12.5% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.71\u20131.35 goals (xG 1.71/1.34), BTTS 61% \u2014 OVER 2.5 hits 59.1% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Real Sociedad 1.34 xG/G vs Deportivo 1.71 xG/G. 3-way: Home 44% / Draw 30% / Away 56%. MC proj: 1.35 \u2013 1.71 (3.06 total vs 2.5 line, BTTS 61%). Goal spread: Deportivo -0.5 covers 46%, Real Sociedad +0.5 covers 54% (proj margin -0.37). Combined xG 3.06 supports goals above the line. Kelly 13.8%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: Deportivo Win (OPTIMAL), Real Sociedad +0.5 (LEAN). Factors moving this pick: Standings (H) +4%, Fbref (H) -3%, Fbref (A) +6%, Standings (A) +4%.",
+    "startMs": 1791728100000,
+    "leadMin": 1832,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-11_Sassuolo_AC Milan_SERIEA_ACMilanWin",
+    "date": "2026-10-11",
+    "hA": "Sassuolo",
+    "awA": "AC Milan",
+    "sport": "SERIEA",
+    "league": "SERIEA",
+    "betType": "ML",
+    "betOn": "AC Milan Win",
+    "winProb": 0.5973928190027179,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791618186327,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.9877188898360065,
+        "away": 1.06
+      },
+      "form": {
+        "home": 1.003375,
+        "away": 1.0168333333333333
+      },
+      "standings": {
+        "home": 0.9929078014184397,
+        "away": 1.06
+      },
+      "h2h": {
+        "home": 1.04,
+        "away": 0.96
+      }
+    },
+    "reasoning": "PICK: AC Milan Win \u2014 OPTIMAL (59.7% win prob, EV +7.5%)\nMODEL: Projected 1.60\u20131.33 goals (xG 1.61/1.33), BTTS 59%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Sassuolo 1.33 xG/G vs AC Milan 1.61 xG/G. 3-way: Home 39% / Draw 32% / Away 60%. MC proj: 1.33 \u2013 1.60 (2.93 total vs 2.5 line, BTTS 59%). Goal spread: AC Milan -0.5 covers 44%, Sassuolo +0.5 covers 56% (proj margin -0.27). AC Milan road xG edge underpriced. Kelly 9.4%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: OVER 2.5 (LEAN), Sassuolo +0.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%, H2H -4%.",
+    "startMs": 1791734400000,
+    "leadMin": 1937,
     "lockTiming": "pre"
   },
   {
