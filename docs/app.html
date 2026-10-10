@@ -32432,6 +32432,9 @@ window._clvScanAllSports=_clvScanAllSports;
 .pt-chip[aria-pressed=true]{color:var(--pt-c,var(--nc));border-color:var(--pt-c,var(--nc));background:rgba(255,255,255,.07);box-shadow:0 0 10px -2px var(--pt-c,var(--nc))}
 .pt-chip:disabled{opacity:.35;cursor:not-allowed}
 .pt-chip-add{border-style:dashed}
+.pt-mg{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px dashed var(--pt-line,rgba(220,190,255,.25));border-radius:3px;margin:8px 0}
+.pt-mgr{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:36px}
+.pt-rmstrip{display:flex;flex-direction:column;gap:8px}
 .pt-leg>i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-left:10px;flex-shrink:0}
 .pt-leg>span{padding-left:7px}
 .pt-leg[aria-pressed=false]{opacity:.45;text-decoration:line-through;box-shadow:none}
@@ -32982,7 +32985,7 @@ function _ptCsv(entries){
 }
 
 // ── state + storage (localStorage, every access wrapped: private mode / blocked storage must never crash the page) ────────────────────
-let _ptState={entries:[],tombstones:[],rev:0,books:[]};
+let _ptState={entries:[],tombstones:[],rev:0,books:[],hidden:[]};   // hidden = books the owner removed from the tab on THIS device (their entries stay in storage; RESTORE brings them back)
 let _ptLoaded=false,_ptMem=false,_ptUid=0,_ptSaveErr=false;
 function _ptLoad(){
   if(_ptLoaded)return;_ptLoaded=true;
@@ -32990,23 +32993,47 @@ function _ptLoad(){
     const raw=localStorage.getItem(_PT_KEY);
     if(raw){
       const j=JSON.parse(raw),m=_ptMerge({entries:j.entries||[],tombstones:[]},{tombstones:j.tombstones||[]});
-      _ptState={entries:m.entries,tombstones:m.tombstones,rev:j.rev>0?Math.floor(j.rev):0,books:Array.isArray(j.books)?j.books.filter(b=>typeof b==='string').map(b=>b.trim().slice(0,24)).filter(Boolean):[]};
+      _ptState={entries:m.entries,tombstones:m.tombstones,rev:j.rev>0?Math.floor(j.rev):0,books:Array.isArray(j.books)?j.books.filter(b=>typeof b==='string').map(b=>b.trim().slice(0,24)).filter(Boolean):[],hidden:Array.isArray(j.hidden)?j.hidden.filter(b=>typeof b==='string').map(b=>b.trim().slice(0,24)).filter(Boolean):[]};
     }
   }catch(e){_ptMem=true;}
 }
 function _ptSave(){
-  try{localStorage.setItem(_PT_KEY,JSON.stringify({entries:_ptState.entries,tombstones:_ptState.tombstones,rev:_ptState.rev,books:_ptState.books}));_ptSaveErr=false;return true;}
+  try{localStorage.setItem(_PT_KEY,JSON.stringify({entries:_ptState.entries,tombstones:_ptState.tombstones,rev:_ptState.rev,books:_ptState.books,hidden:_ptState.hidden}));_ptSaveErr=false;return true;}
   catch(e){_ptSaveErr=true;return false;}
 }
-function _ptBookList(){
+function _ptBookListAll(){
   const out=_PT_BOOKS.slice();
   (_ptState.books||[]).forEach(b=>{if(out.indexOf(b)<0)out.push(b);});
   _ptState.entries.forEach(e=>{if(out.indexOf(e.book)<0)out.push(e.book);});
   return out;
 }
+function _ptHid(b){return(_ptState.hidden||[]).indexOf(b)>=0;}
+/** the books shown on the tab (removed ones are left out everywhere: cards, charts, totals, forms, the entries list) */
+function _ptBookList(){return _ptBookListAll().filter(b=>!_ptHid(b));}
+function _ptHideBook(b){
+  if(!b||_ptHid(b))return;
+  if(typeof window.confirm==='function'&&!confirm('Remove '+b+' from the Profit tab?\n\nIts entries are kept and it drops out of every total and chart. You can bring it back from BOOKS ▸ RESTORE.'))return;
+  _ptState.hidden=(_ptState.hidden||[]).concat([b]);_ptSave();
+  _ptReadForm('q');if(_ptU.f.book===b)_ptU.f.book='';
+  delete _ptU.hide[b];_ptU.pin=null;
+  _ptRenderAdd();_ptRenderDash();
+  _ptToast('BOOK REMOVED: '+b.toUpperCase()+' · RESTORE IT FROM BOOKS',{col:'#ffdd00'});
+}
+function _ptShowBook(b){
+  if(!_ptHid(b))return;
+  _ptState.hidden=(_ptState.hidden||[]).filter(x=>x!==b);_ptSave();
+  _ptReadForm('q');_ptRenderAdd();_ptRenderDash();
+  _ptToast('BOOK RESTORED: '+b.toUpperCase(),{col:'#00f0ff'});
+}
+/** BOOKS panel under the quick-add chips: every book with REMOVE / RESTORE */
+function _ptManageHTML(){
+  const all=_ptBookListAll();
+  const rows=all.map(b=>{const h=_ptHid(b);return`<div class="pt-mgr"><span class="pt-rb"><i style="background:${_ptBookCol(b)}"></i>${_ptEsc(b)}${h?' <span class="pt-dim">· removed</span>':''}</span>${h?_ptBtn('rsbook',b,'RESTORE','pt-b-sm pt-b-sec',' aria-label="Restore '+_ptEsc(b)+'"'):_ptBtn('rmbook',b,'REMOVE','pt-b-sm',' aria-label="Remove '+_ptEsc(b)+' from the tab"')}</div>`;}).join('');
+  return`<div class="pt-mg" id="pt-mg"><div class="pt-l">BOOKS ON THIS TAB</div>${rows}<div class="pt-note">Removing a book hides it on this device only. Its entries stay saved and you can restore it any time.</div></div>`;
+}
 function _ptBookCol(b){
   if(_PT_BCOL[b])return _PT_BCOL[b];
-  const i=_ptBookList().indexOf(b)-_PT_BOOKS.length;return _PT_XCOL[((i%_PT_XCOL.length)+_PT_XCOL.length)%_PT_XCOL.length];
+  const i=_ptBookListAll().indexOf(b)-_PT_BOOKS.length;return _PT_XCOL[((i%_PT_XCOL.length)+_PT_XCOL.length)%_PT_XCOL.length];
 }
 function _ptNewId(){return'e'+Date.now().toString(36)+(++_ptUid).toString(36)+Math.random().toString(36).slice(2,6);}
 function _ptFind(id){return _ptState.entries.find(e=>e.id===id)||null;}
@@ -33134,7 +33161,7 @@ function _ptCkUndo(tx){
 }
 
 function _ptBackupObj(){
-  return{app:'clairvoyance-profit',version:1,exported:new Date().toISOString(),rev:_ptState.rev,entries:_ptState.entries,tombstones:_ptState.tombstones,books:_ptState.books};
+  return{app:'clairvoyance-profit',version:1,exported:new Date().toISOString(),rev:_ptState.rev,entries:_ptState.entries,tombstones:_ptState.tombstones,books:_ptState.books,hidden:_ptState.hidden||[]};
 }
 /** Merge a backup object (or a bare array of entries) into the ledger. Returns {read, added, updated, skipped}. */
 function _ptImportObj(obj){
@@ -33214,7 +33241,7 @@ const _ptU={
   pin:null,cur:{},fold:{},tlim:{},
   f:{type:'CHECKIN',book:'DraftKings',date:'',amount:'',stake:'',note:'',sign:1},
   ck:{view:'week',key:'',start:'',end:''},adv:false,
-  ef:null,editId:null,newBook:false,hl:null,hlT:0,
+  ef:null,editId:null,newBook:false,mgBooks:false,hl:null,hlT:0,
   lf:{book:'ALL',type:'ALL'},lim:60,confirmAll:false,anim:true
 };
 let _ptReg={},_ptRaf=0,_ptLastMove=null,_ptHot=null,_ptModelCache=null,_ptToastT=0,_ptResizeT=0,_ptBound=false,_ptTScope={};
@@ -33259,7 +33286,7 @@ function _ptToast(msg,o){
 
 // ── model for the current view / range (computed once per render) ──
 function _ptModel(){
-  const today=_ptToday(),effAll=_ptEff(_ptState.entries),view=_ptU.view,allBooks=_ptBookList();
+  const today=_ptToday(),effAll=_ptEff(_ptState.entries.filter(e=>!_ptHid(e.book))),view=_ptU.view,allBooks=_ptBookList();
   const books=allBooks.filter(b=>effAll.some(r=>r.book===b));
   const bW=_ptBounds(effAll,'week',today),bM=_ptBounds(effAll,'month',today);
   const mk=(v,b)=>b?_ptSeries(effAll,allBooks,v,b.from,b.to):{per:{},all:[]};
@@ -33298,7 +33325,7 @@ function _ptRenderDash(){
   }
   put('pt-empty','');
   put('pt-view',_ptViewHTML(m));
-  put('pt-books',m.allBooks.map((b,i)=>_ptBookCard(m,b,i)).join(''));
+  put('pt-books',m.allBooks.map((b,i)=>_ptBookCard(m,b,i)).join('')+_ptRemovedStrip());
   put('pt-comb',_ptCombCard(m));
   put('pt-tot',_ptTotCard(m));
   _ptRenderCharts(m);
@@ -33322,7 +33349,7 @@ function _ptFormHTML(ns,f){
   const books=_ptBookList(),isNew=ns==='q',adv=_ptU.adv||_PT_ADV.indexOf(f.type)>=0;
   const types=isNew?(adv?_PT_MAINT.concat(_PT_ADV):_PT_MAINT):_PT_TYPES;
   const bchips=books.map(b=>_ptChip('fbook',b,_ptEsc(b),f.book===b,_ptBookCol(b),` data-ns="${ns}"`)).join('')
-    +(isNew?`<button type="button" class="pt-chip pt-chip-add" data-ptact="newbook" aria-expanded="${_ptU.newBook?'true':'false'}"><span>+ BOOK</span></button>`:'');
+    +(isNew?`<button type="button" class="pt-chip pt-chip-add" data-ptact="newbook" aria-expanded="${_ptU.newBook?'true':'false'}"><span>+ BOOK</span></button><button type="button" class="pt-chip pt-chip-add" data-ptact="mgbooks" aria-expanded="${_ptU.mgBooks?'true':'false'}"><span>BOOKS ✎</span></button>`:'');
   const tchips=types.map(t=>_ptChip('ftype',t,_PT_CLBL[t],f.type===t,_PT_TCOL[t],` data-ns="${ns}"`)).join('')
     +(isNew?`<button type="button" class="pt-chip pt-chip-add" data-ptact="adv" aria-expanded="${adv?'true':'false'}"><span>${adv?'FEWER ▴':'ADVANCED ▾'}</span></button>`:'');
   const ck=isNew?`<div class="pt-ckb" data-for="CHECKIN">
@@ -33339,6 +33366,7 @@ function _ptFormHTML(ns,f){
   <div class="pt-fr"><span class="pt-l">TYPE</span><div class="pt-chips" role="group" aria-label="Entry type">${tchips}</div></div>
   <div class="pt-fr"><span class="pt-l">BOOK</span><div class="pt-chips" role="group" aria-label="Sportsbook">${bchips}</div></div>
   ${isNew?`<div class="pt-fr pt-nb" ${_ptU.newBook?'':'hidden'}><span class="pt-l">NEW BOOK</span><input class="pt-in" id="pt-nb-name" maxlength="24" placeholder="e.g. Fanatics" autocomplete="off" aria-label="New book name">${_ptBtn('addbook',null,'ADD BOOK','pt-b-sm')}</div>`:''}
+  ${isNew&&_ptU.mgBooks?_ptManageHTML():''}
   ${ck}
   <div class="pt-fg" data-for="${_PT_ENT}">
     <label class="pt-fld"><span class="pt-l">DATE</span><input class="pt-in" type="date" id="pt-${ns}-date" value="${_ptEsc(f.date)}" max="${_ptAddDays(_ptToday(),1)}" data-f="date"></label>
@@ -33384,7 +33412,7 @@ function _ptShowErr(ns,errs,msg){
 }
 function _ptRenderAdd(){
   const el=document.getElementById('pt-add-body');if(!el)return;
-  _ptU.f.book=_ptBookList().indexOf(_ptU.f.book)>=0?_ptU.f.book:_PT_BOOKS[0];
+  _ptU.f.book=_ptBookList().indexOf(_ptU.f.book)>=0?_ptU.f.book:(_ptBookList()[0]||'');
   if(!_ptCkKeyOk(_ptU.ck.view,_ptU.ck.key))_ptU.ck.key=_ptPeriodKey(_ptToday(),_ptU.ck.view);
   el.innerHTML=_ptFormHTML('q',_ptU.f);
   _ptFormSync('q');
@@ -33393,7 +33421,7 @@ function _ptRenderAdd(){
 }
 function _ptRenderAddRecent(){
   const el=document.getElementById('pt-recent');if(!el)return;
-  const last=_ptState.entries.slice().sort((a,b)=>b.ts-a.ts).slice(0,window.innerWidth<=480?3:5),adj=_ptAdjMap(_ptState.entries);
+  const last=_ptState.entries.filter(e=>!_ptHid(e.book)).sort((a,b)=>b.ts-a.ts).slice(0,window.innerWidth<=480?3:5),adj=_ptAdjMap(_ptState.entries);
   el.innerHTML=last.length?`<div class="pt-l pt-mt">LAST ${last.length} ENTRIES <span class="pt-dim">· newest first</span></div><div class="pt-list">${last.map(e=>_ptRowHTML(e,adj,{})).join('')}</div>`:'';
 }
 
@@ -33487,7 +33515,7 @@ function _ptSubmit(ns){
   }
 }
 function _ptRepeatLast(){
-  const last=_ptState.entries.filter(e=>!e.ck).sort((a,b)=>b.ts-a.ts)[0];
+  const last=_ptState.entries.filter(e=>!e.ck&&!_ptHid(e.book)).sort((a,b)=>b.ts-a.ts)[0];
   if(!last){_ptToast('NOTHING TO REPEAT YET',{col:'#ffdd00'});return;}
   if(_PT_ADV.indexOf(last.type)>=0)_ptU.adv=true;
   _ptU.f={type:last.type,book:last.book,date:_ptToday(),amount:String(Math.abs(last.amount)),stake:last.stake?String(last.stake):'',note:last.note||'',sign:last.amount<0?-1:1};
@@ -33500,6 +33528,8 @@ function _ptAddBook(){
   const name=el.value.replace(/\s+/g,' ').trim().slice(0,24);
   if(!name){_ptShowErr('q',{book:'Type a book name'});el.focus();return;}
   if(!/^[\w &.'\-]+$/.test(name)){_ptShowErr('q',{book:'Use letters, numbers, spaces, & . - only'});return;}
+  const hid=(_ptState.hidden||[]).find(b=>b.toLowerCase()===name.toLowerCase());
+  if(hid){_ptState.hidden=_ptState.hidden.filter(b=>b!==hid);_ptSave();}
   const ex=_ptBookList().find(b=>b.toLowerCase()===name.toLowerCase());
   const use=ex||name;
   if(!ex){_ptState.books.push(name);_ptSave();}
@@ -33576,13 +33606,17 @@ function _ptTableHTML(dc,list,view){
   return`<div class="pt-drill" id="pt-drill-${dc}" data-dc="${dc}"></div><div class="pt-tbl" role="group" aria-label="${unit==='month'?'Monthly':'Weekly'} results">${_PT_HEAD7}${shown.map(p=>_ptRow7(dc,p,view)).join('')}${more}${tot}</div>${hint}
     <div class="pt-note pt-formula">PROFIT = END ${_PT_MINUS} START ${_PT_MINUS} DEPOSITS + WITHDRAWALS · ROI = PROFIT ÷ (START + DEPOSITS)</div>`;
 }
+function _ptRemovedStrip(){
+  const h=(_ptState.hidden||[]).filter(b=>_ptBookListAll().indexOf(b)>=0);if(!h.length)return'';
+  return`<div class="pt-card pt-rmstrip"><span class="pt-l">REMOVED BOOKS</span><div class="pt-chips">${h.map(b=>_ptBtn('rsbook',b,'RESTORE '+_ptEsc(b.toUpperCase()),'pt-b-sm pt-b-sec')).join('')}</div></div>`;
+}
 function _ptBookCard(m,b,i){
   const dc='t'+i,col=_ptBookCol(b),fid='bk:'+b,folded=_ptFolded(fid);_ptTScope[dc]=b;
   const P=_ptTrim(m.per[b]||[]),R=_ptRangeSum(P),has=m.bt[b].n>0,bal=m.bals[b]||0,cur=_ptPeriodKey(m.today,m.view);
   const stats=has&&R?_ptMs('BALANCE',_ptMoney(bal),'#00f0ff')+_ptMs('RANGE PROFIT',_ptSigned(R.profit),_ptCol(R.profit))+_ptMs('RANGE ROI',_ptPctS(R.roi),_ptCol(R.roi||0)):`<span class="pt-dim">No money events for ${_ptEsc(b)} yet.</span>`;
   const body=folded?'':(has?_ptTableHTML(dc,P,m.view):_ptEmptyBody('Add a deposit or a PERIOD CHECK-IN for '+_ptEsc(b)+' above.',_ptBtn('ckfor',b+'|'+m.view+'|'+cur,'CHECK IN '+_ptEsc(b.toUpperCase()),'pt-b-sec')));
   return`<section class="pt-card pt-bc" id="pt-bk-${i}" aria-label="${_ptEsc(b)}" style="border-color:${col}55"><div class="pt-ch"><div><div class="pt-ct"><i class="pt-dot2" style="background:${col}"></i>${_ptEsc(b.toUpperCase())}</div><div class="pt-cs">${_ptWord(m.view)}LY RESULTS · START → END · PROFIT · ROI</div></div>
-    <div class="pt-chips pt-tools">${has?_ptBtn('ckfor',b+'|'+m.view+'|'+cur,'CHECK IN','pt-b-sm pt-b-sec'):''}${_ptBtn('fold',fid,folded?'SHOW ▾':'HIDE ▴','pt-b-sm',` aria-expanded="${folded?'false':'true'}" aria-label="${folded?'Show':'Hide'} ${_ptEsc(b)} results"`)}</div></div>
+    <div class="pt-chips pt-tools">${has?_ptBtn('ckfor',b+'|'+m.view+'|'+cur,'CHECK IN','pt-b-sm pt-b-sec'):''}${_ptBtn('rmbook',b,'REMOVE','pt-b-sm pt-b-sec',` aria-label="Remove ${_ptEsc(b)} from the tab"`)}${_ptBtn('fold',fid,folded?'SHOW ▾':'HIDE ▴','pt-b-sm',` aria-expanded="${folded?'false':'true'}" aria-label="${folded?'Show':'Hide'} ${_ptEsc(b)} results"`)}</div></div>
     <div class="pt-mss">${stats}</div>${body}</section>`;
 }
 function _ptCombCard(m){
@@ -33921,7 +33955,7 @@ function _ptDrillPeriod(scope,key){
   const m=_ptModelCache;if(!m)return'';
   const v=m.view,list=scope==='ALL'?m.S.all:(m.S.per[scope]||[]),p=list.find(x=>x.key===key);if(!p)return'';
   const tS=scope==='ALL'?null:_ptCkTag('S',v,key);
-  const es=_ptState.entries.filter(e=>(scope==='ALL'||e.book===scope)&&((e.date>=p.start&&e.date<=p.end)||(tS&&e.ck===tS))).sort(_ptCmp),adj=_ptAdjMap(_ptState.entries);
+  const es=_ptState.entries.filter(e=>!_ptHid(e.book)&&(scope==='ALL'||e.book===scope)&&((e.date>=p.start&&e.date<=p.end)||(tS&&e.ck===tS))).sort(_ptCmp),adj=_ptAdjMap(_ptState.entries);
   const show=es.slice(0,40);
   return`<div class="pt-dh"><b>${(scope==='ALL'?'':_ptEsc(scope.toUpperCase())+' · ')+_ptLabelLong(key,v)}</b><span style="color:${_ptCol(p.profit)}">${_ptSigned(p.profit)}</span><span class="pt-dim">ROI ${_ptPctS(p.roi)} · ${es.length} ENTR${es.length===1?'Y':'IES'}${p.open?' · OPEN':p.running?' · LIVE':''}</span>${scope==='ALL'?'':_ptBtn('ckfor',scope+'|'+v+'|'+key,'CHECK IN THIS '+_ptWord(v),'pt-b-sm pt-b-sec')}${_ptBtn('pinx',null,'✕ CLOSE','pt-b-sm')}</div>${_ptSummaryHTML(p)}${show.length?'<div class="pt-list">'+show.map(e=>_ptRowHTML(e,adj,{})).join('')+'</div>':'<div class="pt-dim">No entries in this period.</div>'}${es.length>show.length?`<div class="pt-dim pt-mt">+ ${es.length-show.length} more — see the ENTRIES tab</div>`:''}`;
 }
@@ -33930,7 +33964,7 @@ function _ptDrillBook(name){
   const P=_ptTrim(m.P);if(!P.length)return'';
   const all=name==='COMBINED',from=P[0].start,to=P[P.length-1].end,fk=P[0].key;
   const R=_ptRangeSum(_ptWindow(all?m.P:(m.per[name]||[]),fk));if(!R)return'';
-  const es=_ptState.entries.filter(e=>(all||e.book===name)&&e.date>=from&&e.date<=to).sort(_ptCmp),adj=_ptAdjMap(_ptState.entries),show=es.slice(0,40);
+  const es=_ptState.entries.filter(e=>!_ptHid(e.book)&&(all||e.book===name)&&e.date>=from&&e.date<=to).sort(_ptCmp),adj=_ptAdjMap(_ptState.entries),show=es.slice(0,40);
   return`<div class="pt-dh"><b>${_ptEsc(name.toUpperCase())} · ${_ptMD(from)} – ${_ptMD(to)}</b><span style="color:${_ptCol(R.profit)}">${_ptSigned(R.profit)}</span><span class="pt-dim">ROI ${_ptPctS(R.roi)} · ${es.length} ENTR${es.length===1?'Y':'IES'}</span>${_ptBtn('pinx',null,'✕ CLOSE','pt-b-sm')}</div>${_ptSummaryHTML(R)}${show.length?'<div class="pt-list">'+show.map(e=>_ptRowHTML(e,adj,{})).join('')+'</div>':'<div class="pt-dim">No entries in this range.</div>'}${es.length>show.length?`<div class="pt-dim pt-mt">+ ${es.length-show.length} more — see the ENTRIES tab</div>`:''}`;
 }
 function _ptDrillHTML(dc,key){
@@ -33953,7 +33987,7 @@ function _ptApplyPin(){
 // ═══ ENTRIES TAB: list / filter / edit / delete (undo) / CSV / backup / restore / delete all ══════════════════════════════════════════════
 function _ptRenderEntries(){
   const el=document.getElementById('pt-ent');if(!el)return;
-  const books=_ptBookList(),lf=_ptU.lf,all=_ptState.entries;
+  const books=_ptBookList(),lf=_ptU.lf,all=_ptState.entries.filter(e=>!_ptHid(e.book));
   const types=_PT_TYPES.filter(t=>t!=='PROFIT_LOSS'||all.some(e=>e.type==='PROFIT_LOSS')||lf.type==='PROFIT_LOSS');
   const list=all.filter(e=>(lf.book==='ALL'||e.book===lf.book)&&(lf.type==='ALL'||e.type===lf.type)).sort((a,b)=>_ptCmp(b,a));
   const adj=_ptAdjMap(all),shown=list.slice(0,_ptU.lim);
@@ -34096,6 +34130,9 @@ function _ptAct(a,e){
     case'cksave':_ptCkSubmit();break;
     case'newbook':{_ptReadForm('q');_ptU.newBook=!_ptU.newBook;_ptRenderAdd();if(_ptU.newBook){const n=document.getElementById('pt-nb-name');if(n)n.focus();}break;}
     case'addbook':_ptAddBook();break;
+    case'mgbooks':{_ptReadForm('q');_ptU.mgBooks=!_ptU.mgBooks;_ptRenderAdd();break;}
+    case'rmbook':_ptHideBook(v);break;
+    case'rsbook':_ptShowBook(v);break;
     case'add':_ptSubmit('q');break;
     case'repeat':_ptRepeatLast();break;
     case'esave':_ptSubmit('e');break;

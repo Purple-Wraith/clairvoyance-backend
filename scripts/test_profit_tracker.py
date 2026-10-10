@@ -1315,6 +1315,63 @@ class Profit(unittest.TestCase):
         self.assertEqual(self.errors, [])
         self.done(pg)
 
+    # ───────────────────────────── removing / restoring books (owner request 2026-10-10) ─────────────────────────────
+    def test_books_can_be_removed_and_restored(self):
+        pg = self.open()
+        pg.on("dialog", lambda d: d.accept())
+        before = pg.evaluate("_ptModel().tot.balance")
+        dk = pg.evaluate("_ptModel().bt['DraftKings'].n")
+        self.assertGreater(dk, 0)
+        self.assertEqual(pg.locator("#pt-books .pt-bc").count(), 3)
+        pg.click("#pt-bk-0 [data-ptact=rmbook]")                                                 # card REMOVE (DraftKings is the first card)
+        self.assertEqual(pg.locator("#pt-books .pt-bc").count(), 2)
+        self.assertNotIn("DraftKings", pg.inner_text("#pt-books"))
+        self.assertNotIn("DraftKings", pg.inner_text("#pt-add-body .pt-chips[aria-label]") if pg.locator("#pt-add-body .pt-chips[aria-label]").count() else "")
+        self.assertIn("RESTORE DRAFTKINGS", pg.inner_text("#pt-books").upper())
+        after = pg.evaluate("_ptModel().tot.balance")
+        self.assertNotEqual(before, after)                                                        # its money drops out of the combined totals
+        self.assertEqual(pg.evaluate("_ptModel().books.indexOf('DraftKings')"), -1)
+        self.assertEqual(pg.evaluate("_ptState.entries.filter(e=>e.book==='DraftKings').length") > 0, True)   # entries are kept
+        pg.reload(); pg.wait_for_function("typeof renderProfit==='function'", timeout=90000); pg.wait_for_timeout(500)
+        pg.evaluate("(t)=>{_ptTodayOv=t}", TODAY)
+        pg.evaluate("()=>{navTap(document.querySelector('#sbar [onclick*=\"profit\"]'),'profit')}"); pg.wait_for_selector("#pt-books .pt-bc", timeout=30000)
+        self.assertEqual(pg.locator("#pt-books .pt-bc").count(), 2)                                         # still removed after a reload
+        pg.click("#pt-books [data-ptact=rsbook]")
+        self.assertEqual(pg.locator("#pt-books .pt-bc").count(), 3)
+        self.assertAlmostEqual(pg.evaluate("_ptModel().tot.balance"), before, places=2)
+        self.assertEqual(self.errors, [])
+        self.done(pg)
+
+    def test_remove_every_book_from_the_form_panel_and_add_your_own(self):
+        pg = self.open(data=[])
+        pg.on("dialog", lambda d: d.accept())
+        pg.click("[data-ptact=mgbooks]")
+        for b in ("DraftKings", "PrizePicks", "Hard Rock"):
+            pg.click("#pt-mg [data-ptact=rmbook][data-v='%s']" % b)
+            pg.click("[data-ptact=mgbooks]") if not pg.locator("#pt-mg").count() else None
+        self.assertEqual(pg.evaluate("_ptBookList()"), [])
+        pg.click("[data-ptact=newbook]"); pg.fill("#pt-nb-name", "Fanatics"); pg.click("[data-ptact=addbook]")
+        self.assertEqual(pg.evaluate("_ptBookList()"), ["Fanatics"])
+        self.assertEqual(pg.evaluate("_ptU.f.book"), "Fanatics")
+        pg.click("[data-ptact=ftype][data-v=DEPOSIT]"); pg.fill("#pt-q-amount", "50")
+        pg.click("#pt-add-btn")
+        self.assertEqual(pg.evaluate("_ptState.entries.length"), 1)
+        pg.click("[data-ptact=mgbooks]") if not pg.locator("#pt-mg").count() else None
+        pg.click("#pt-mg [data-ptact=rsbook][data-v='DraftKings']")                                # restored
+        self.assertIn("DraftKings", pg.evaluate("_ptBookList()"))
+        pg.click("[data-ptact=newbook]"); pg.fill("#pt-nb-name", "hard rock"); pg.click("[data-ptact=addbook]")   # typing a removed name's twin restores it
+        self.assertIn("Hard Rock", pg.evaluate("_ptBookList()"))
+        self.assertEqual(self.errors, [])
+        self.done(pg)
+
+    def test_declining_the_confirmation_keeps_the_book(self):
+        pg = self.open()
+        pg.on("dialog", lambda d: d.dismiss())
+        pg.click("#pt-bk-1 [data-ptact=rmbook]")
+        self.assertEqual(pg.locator("#pt-books .pt-bc").count(), 3)
+        self.assertEqual(pg.evaluate("_ptState.hidden.length"), 0)
+        self.done(pg)
+
     def test_empty_and_partial_states(self):
         pg = self.open(data=[])
         self.assertEqual(pg.locator("#pt-charts .pt-card").count(), 0)
