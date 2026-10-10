@@ -158,6 +158,19 @@ class WorkflowRefs(unittest.TestCase):
                 self.assertNotIn("continue-on-error", head, f.name)
 
     # ── the rest ────────────────────────────────────────────────────────────────────────────────────────────────────
+    def test_no_step_has_an_empty_with_or_env_block(self):
+        """GitHub rejects a workflow whose step has `with:` / `env:` with nothing under it ("workflow file issue": the run fails on every push and scheduled runs never start).
+        PyYAML happily parses it as null, so check for it explicitly -- this is exactly what an R2-removal edit left behind on 2026-10-10 in 7 workflows."""
+        import yaml
+        for f in sorted((ROOT / ".github" / "workflows").glob("*.yml")) + [ROOT / ".github" / "actions" / "publish" / "action.yml"]:
+            d = yaml.safe_load(f.read_text())
+            jobs = (d.get("jobs") or {}) if isinstance(d, dict) else {}
+            steps = [st for j in jobs.values() for st in (j.get("steps") or [])] + (((d.get("runs") or {}).get("steps") or []) if isinstance(d, dict) else [])
+            for st in steps:
+                for key in ("with", "env"):
+                    if key in st:
+                        self.assertTrue(st[key], f"{f.name}: step {st.get('name') or st.get('uses')!r} has an empty `{key}:`")
+
     def test_nfl_roster_runs_every_other_week_only(self):
         text = (WF / "nfl-weekly-refresh.yml").read_text()
         self.assertIn("WEEK % 2", text)

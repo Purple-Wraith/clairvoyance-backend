@@ -118,10 +118,9 @@ jobs:
       # 2026-10-10: the commit/push above keeps its own stash + `rebase -X theirs` recovery (it regenerates data.json in full). The shared publish step then only has to
       # dispatch pages-deploy.yml (nothing left to commit) and mirror live_data.json to R2 (a no-op until the R2 secrets exist). It runs BEFORE the verification below so that
       # the deploy is already on its way while the verification polls.
-      - name: Publish (deploy Pages + R2 mirror)
+      - name: Publish (deploy Pages)
         if: steps.push.outputs.changed == 'true'
         uses: ./.github/actions/publish
-        with:
 
       # Post-deploy verification: same safety net as the local git_push() path
       # (verify_deployment() in clairvoyance_update.py) — GitHub Pages needs a

@@ -167,7 +167,6 @@ jobs:
 
       - name: Publish (deploy Pages for anything the lock pass pushed)
         # lock_prep.py / auto_lock_settle.py push docs/ files themselves (refreshed schedule JSON, automation_status.json, the ledger backup); this shared step dispatches pages-deploy.yml
-        # if that left docs/ different from the commit this run started on, and mirrors the ledger backup to R2 (a logged no-op until the R2 secrets exist).
+        # if that left docs/ different from the commit this run started on,.
         if: ${{ !cancelled() && steps.flags.outputs.should_run == '1' }}
         uses: ./.github/actions/publish
-        with:

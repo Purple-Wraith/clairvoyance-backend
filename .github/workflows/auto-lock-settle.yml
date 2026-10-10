@@ -530,4 +530,3 @@ jobs:
         # the ledger step above may already have done it) and mirrors the ledger backup to R2 (lock-only passes commit it themselves).
         if: ${{ !cancelled() }}
         uses: ./.github/actions/publish
-        with:
