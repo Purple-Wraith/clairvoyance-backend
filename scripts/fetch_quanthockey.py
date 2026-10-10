@@ -136,6 +136,11 @@ def fetch_league(page, league: str) -> dict:
             teamHref: r.querySelector('a[href*="teams/"]')?.getAttribute('href') || null,
         }))""",
     )
+    return parse_rows(rows, league, url)
+
+
+def parse_rows(rows: list, league: str, url: str) -> dict:
+    """Pure parsing of the #statistics rows ({cls, cells, teamHref}); also used by --from-rows when the headless scrape is blocked (the page loads fine in a normal browser)."""
     # Data rows are every <tr> after the two header rows (group header +
     # column-abbreviation header) -- confirmed live: exactly len(teams)
     # rows follow, classed alternately odd/even/even_lr, never green/orange
@@ -181,14 +186,17 @@ def fetch_league(page, league: str) -> dict:
     }
 
 
-def run(league: str) -> dict:
+def run(league: str, from_rows: str | None = None) -> dict:
     out_path = ROOT / "docs" / f"{league}_quanthockey.json"
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        context = browser.new_context(timezone_id="UTC")
-        page = context.new_page()
-        data = fetch_league(page, league)
-        browser.close()
+    if from_rows:
+        data = parse_rows(json.loads(Path(from_rows).read_text()), league, LEAGUE_URLS[league])
+    else:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            context = browser.new_context(timezone_id="UTC")
+            page = context.new_page()
+            data = fetch_league(page, league)
+            browser.close()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
     log(f"wrote {out_path} -- {len(data['teams'])} teams")
@@ -216,9 +224,10 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--league", choices=sorted(LEAGUE_URLS.keys()), required=True)
     ap.add_argument("--push", action="store_true")
+    ap.add_argument("--from-rows", help="JSON file of rows copied out of a normal browser (same shape the scraper reads); skips the headless scrape")
     args = ap.parse_args()
 
-    result = run(args.league)
+    result = run(args.league, args.from_rows)
 
     if args.push:
         git_push([f"docs/{args.league}_quanthockey.json"],
