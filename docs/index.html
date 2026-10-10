@@ -159,7 +159,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .nb{font-family:var(--mono);font-size:17px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);padding:7px 11px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s}
 .nb:active{background:rgba(77,121,255,.06)}.nb.act{color:var(--nc);border-bottom-color:var(--nc)}.nb.ai{color:var(--ic);border-bottom-color:var(--ic)}.nb.ap{color:var(--pc);border-bottom-color:var(--pc)}
 /* SCROLL + TABS */
-.sa{flex:1 1 0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
+.sa{flex:1 1 0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;overflow-anchor:none}
 .tab{display:none;padding:12px 12px 82px}.tab.act{display:block}
 /* MOB NAV */
 /* Bottom tab nav removed across the whole engine, every screen size —
@@ -4432,7 +4432,7 @@ function _pickRowHTML(p,o){
   const act=settled
     ?`<div class="prow2-act two"><span class="prow2-st" style="color:${oc};border-color:${oc}">${st}</span>${o.removeHtml||''}</div>`
     :`<div class="prow2-act">${o.actions||''}</div>`;
-  return`<div class="prow2 ${o.wrapClass||''}" style="border-left-color:${oc}">
+  return`<div class="prow2 ${o.wrapClass||''}" data-pid="${String(p.id||'').replace(/[^\w.:-]/g,'')}" style="border-left-color:${oc}">
     <div class="prow2-main">
       <div class="prow2-top">${(()=>{const d=_leagueDisplayLabel(window._normSport(p));return(d.sub?`<span class="ptag ptag-sub">${d.sub}</span>`:'')+`<span class="ptag ptag-lg">${d.label}</span>`;})()}${_gradeChipHtml(p)}${o.dateLbl?`<span class="ptag ptag-date">${o.dateLbl}</span>`:''}</div>
       <div class="prow2-match">${match}</div>
@@ -6984,7 +6984,45 @@ function skipPick(hA,awA,lb,p){
   const rec=log[d].recs.find(r=>r.ha===hA&&r.awa===awA&&r.lb===lb);if(rec)rec.skipped=true;
   saveDailyLog(log);toast(`⊘ SKIPPED: ${hA} ${awA} ${lb}`);
 }
+// Scroll hold (owner report 2026-10-10: in All Bets, marking a bet WIN/LOSS or removing it made the screen jump). Every render*() after a bet change rebuilds its list from scratch (some also
+// add/remove the PENDING section above it, and a few fire 120-300 ms later), so one scrollTop restore right after the click is not enough. This snapshots every scroller that is scrolled
+// (window, each .sa pane, and any scrolled ancestor of the clicked control) and re-applies it immediately, next frame and at 60/160/320/640/1000 ms; the moment the user scrolls on their own
+// (wheel / touch-drag / keys) the holds are dropped so it never fights them.
+function _cvHoldScroll(){
+  try{
+    const els=new Set([...document.querySelectorAll('.sa')]);
+    let n=(window.event&&window.event.target)||document.activeElement;
+    const clicked=n&&n.closest?n.closest('.prow2'):null;
+    while(n&&n.nodeType===1){els.add(n);n=n.parentElement;}
+    // anchor = the first pick row that is on screen in each scrolled pane (not the one being clicked): after the re-render the same row is put back at the same height, so a row that disappears above it
+    // (a pending bet that moved down into its date folder) does not drag the whole view up either.
+    const snap=[...els].map(el=>[el,el.scrollTop]).filter(([,t])=>t>0).map(([el,t])=>{
+      let anchor=null;
+      try{const r0=el.getBoundingClientRect();for(const row of el.querySelectorAll('.prow2[data-pid]')){if(row===clicked)continue;const r=row.getBoundingClientRect();if(r.bottom>r0.top+4&&r.top<r0.bottom){anchor={pid:row.getAttribute('data-pid'),off:r.top-r0.top};break;}}}catch(e){}
+      return[el,t,anchor];
+    });
+    const y=window.scrollY;
+    if(!snap.length&&!y)return;
+    let live=true;const timers=[];
+    const stop=()=>{live=false;timers.forEach(clearTimeout);['wheel','touchmove','keydown'].forEach(t=>window.removeEventListener(t,stop,true));};
+    const restore=()=>{
+      if(!live)return;
+      if(y&&Math.abs(window.scrollY-y)>1)window.scrollTo(0,y);
+      snap.forEach(([el,t,an])=>{
+        let want=t;
+        if(an){const row=el.querySelector('.prow2[data-pid="'+an.pid+'"]');if(row){const d=row.getBoundingClientRect().top-el.getBoundingClientRect().top-an.off;want=el.scrollTop+d;}}
+        if(Math.abs(el.scrollTop-want)>1)el.scrollTop=want;
+      });
+    };
+    ['wheel','touchmove','keydown'].forEach(t=>window.addEventListener(t,stop,{capture:true,passive:true}));
+    restore();requestAnimationFrame(restore);
+    [60,160,320,640,1000].forEach(ms=>timers.push(setTimeout(restore,ms)));
+    timers.push(setTimeout(stop,1100));
+  }catch(e){}
+}
+window._cvHoldScroll=_cvHoldScroll;
 function recR(id,outcome,hScore,aScore){
+  _cvHoldScroll();
   const preds=getP();let i=preds.findIndex(p=>p.id===id);
   if(i<0){
     // Fallback: bet might be in LOCKED_PROPS (prop tracker) but not preds — migrate it
@@ -11555,6 +11593,7 @@ function igWP(hs,as,inn,top,prior){const outs=(inn-1)*3+(top?0:1.5);const done=M
 function removePick(id){
   const preds=getP();const i=preds.findIndex(p=>p.id===id);if(i<0)return;
   if(typeof window.confirm==='function'&&!confirm('Remove this bet?'))return;
+  _cvHoldScroll();
   // Real UX bug, found 2026-09-16: every render*() call below rebuilds its
   // container's innerHTML from scratch, and at least one (renderOverallHistory,
   // the All Bets list) re-inserts/removes a whole "PENDING BETS" section
@@ -15310,7 +15349,7 @@ function renderHistoryForSport(sport,summId,listId){
           <div style="text-align:right"><div style="font-family:var(--mono);font-size:27px;font-weight:700;color:${accColor}">${dayAcc!==null?`${(dayAcc*100).toFixed(0)}%`:'--'}</div><div style="font-family:var(--mono);font-size:17px;color:var(--t2)">${dayWins}W/${settled.length-dayWins}L</div></div>
         </div>
         <div class="hist-body">
-          ${dayPreds.map(p=>{
+          ${dayPreds.slice().sort((a,b)=>((a.outcome==='pending')-(b.outcome==='pending'))||((b.lockedAt||0)-(a.lockedAt||0))).map(p=>{
             const oColor=p.outcome==='win'?'var(--nc)':p.outcome==='loss'?'var(--hc)':p.outcome==='push'?'var(--gc)':'var(--t3)';
             const oLabel=p.outcome==='pending'?'PENDING':p.outcome.toUpperCase();
             return`<div class="ar">
@@ -16816,6 +16855,19 @@ function _ovrFill(c){
   try{const f=window._ovrLazy&&window._ovrLazy[c.id];if(f){c.innerHTML=f();delete window._ovrLazy[c.id];}}catch(e){console.warn('[CV] folder build failed',e);}
   c.removeAttribute('data-lazy');
 }
+// Folder open/closed state for the All Bets list (owner report 2026-10-10: the screen jumped after marking/removing a bet). Every re-render rebuilt the date / month / year folders from scratch, so any folder
+// the user had opened by hand (everything except today + yesterday) snapped shut and the page collapsed under them. The state is now remembered per folder id and put back on every render.
+window._ovrFold=window._ovrFold||{};
+function _ovrFoldMark(fid,open){window._ovrFold[fid]=!!open;}
+function _ovrReopen(){
+  try{['yfold_','mfold_'].forEach(pre=>{Object.keys(window._ovrFold).forEach(fid=>{
+    if(fid.indexOf(pre)!==0||!window._ovrFold[fid])return;
+    const c=document.getElementById(fid);if(!c)return;
+    if(c.hasAttribute('data-lazy'))_ovrFill(c);
+    c.style.display='block';
+    const a=c.previousElementSibling&&c.previousElementSibling.querySelector('.yfa,.mfa');if(a)a.textContent='▼';
+  });});}catch(e){}
+}
 function renderOverallHistory(sportFilter,dateFrom,dateTo){
   const el=document.getElementById('ovr-history-list');if(!el)return;
   window._ovrLazy={};
@@ -16998,11 +17050,11 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
     const pending=bets.filter(p=>p.outcome==='pending').length;
     // Auto-open today and yesterday so freshly settled bets are immediately visible
     const _yest=(()=>{try{const d=new Date(_todayStr+'T12:00:00');d.setDate(d.getDate()-1);return d.toLocaleDateString('sv-SE');}catch(e){return'';}})();
-    const startOpen=(date===_todayStr||date===_yest);
+    const startOpen=(fid in window._ovrFold)?window._ovrFold[fid]:(date===_todayStr||date===_yest);
     let dateLabel=date;
     try{const d=new Date(date+'T12:00:00');dateLabel=d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}).toUpperCase();}catch(e){}
     return`<div style="margin-bottom:5px">
-      <div onclick="const c=document.getElementById('${fid}');const open=c.style.display!=='none';c.style.display=open?'none':'block';this.querySelector('.dfa').textContent=open?'▶':'▼'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:7px 11px;background:rgba(240,0,255,.06);border:1px solid rgba(240,0,255,.18);border-radius:3px;gap:8px">
+      <div onclick="const c=document.getElementById('${fid}');const open=c.style.display!=='none';c.style.display=open?'none':'block';_ovrFoldMark('${fid}',!open);this.querySelector('.dfa').textContent=open?'▶':'▼'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:7px 11px;background:rgba(240,0,255,.06);border:1px solid rgba(240,0,255,.18);border-radius:3px;gap:8px">
         <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0">
           <span class="dfa" style="font-family:var(--mono);font-size:14px;color:rgba(220,190,255,.45)">${startOpen?'▼':'▶'}</span>
           <span style="font-family:var(--mono);font-size:16px;color:var(--t);font-weight:700">${dateLabel}</span>
@@ -17016,7 +17068,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
         </div>
       </div>
       <div id="${fid}" style="display:${startOpen?'block':'none'};padding:7px 4px 2px;border:1px solid rgba(240,0,255,.1);border-top:none;border-radius:0 0 3px 3px;background:rgba(4,0,12,.45)">
-        ${bets.slice().sort((a,b)=>(_pickTs(b)-_pickTs(a))).map(betCard).join('')}
+        ${bets.slice().sort((a,b)=>((a.outcome==='pending')-(b.outcome==='pending'))||(_pickTs(b)-_pickTs(a))).map(betCard).join('')}
       </div>
     </div>`;
   };
@@ -17030,7 +17082,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
     // PERF 2026-10-03: a collapsed archive month is not built until it is first opened (the whole ~3,900-pick history used to be rendered into hidden DOM: ~2s + ~15k nodes on desktop)
     window._ovrLazy[fid]=()=>Object.entries(days).sort((a,b)=>b[0].localeCompare(a[0])).map(([d,db])=>dayFolder(d,db,mk)).join('');
     return`<div style="margin-bottom:8px">
-      <div onclick="const c=document.getElementById('${fid}');const open=c.style.display!=='none';if(!open)_ovrFill(c);c.style.display=open?'none':'block';this.querySelector('.mfa').textContent=open?'▶':'▼'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;gap:8px">
+      <div onclick="const c=document.getElementById('${fid}');const open=c.style.display!=='none';if(!open)_ovrFill(c);c.style.display=open?'none':'block';_ovrFoldMark('${fid}',!open);this.querySelector('.mfa').textContent=open?'▶':'▼'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);border-radius:3px;gap:8px">
         <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
           <span class="mfa" style="font-family:var(--mono);font-size:15px;color:rgba(0,240,255,.5)">▶</span>
           <span style="font-family:var(--orb);font-size:17px;font-weight:700;color:var(--nc)">${monthLabel}</span>
@@ -17053,7 +17105,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
     const fid='yfold_'+yk;
     window._ovrLazy[fid]=()=>Object.entries(months).sort((a,b)=>b[0].localeCompare(a[0])).map(([mk,{bets:mb,days}])=>monthFolder(mk,mb,days)).join('');
     return`<div style="margin-bottom:10px">
-      <div onclick="const c=document.getElementById('${fid}');const open=c.style.display!=='none';if(!open)_ovrFill(c);c.style.display=open?'none':'block';this.querySelector('.yfa').textContent=open?'▶':'▼'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 13px;background:rgba(187,255,0,.04);border:1px solid rgba(187,255,0,.25);border-radius:3px;gap:8px">
+      <div onclick="const c=document.getElementById('${fid}');const open=c.style.display!=='none';if(!open)_ovrFill(c);c.style.display=open?'none':'block';_ovrFoldMark('${fid}',!open);this.querySelector('.yfa').textContent=open?'▶':'▼'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 13px;background:rgba(187,255,0,.04);border:1px solid rgba(187,255,0,.25);border-radius:3px;gap:8px">
         <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
           <span class="yfa" style="font-family:var(--mono);font-size:16px;color:rgba(187,255,0,.5)">▶</span>
           <span style="font-family:var(--orb);font-size:19px;font-weight:700;color:var(--vc)">${yk}</span>
@@ -17122,6 +17174,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
     +(_allYears.length?`<div style="font-family:var(--mono);font-size:14px;color:var(--nc);letter-spacing:2px;margin:10px 0 6px">// HISTORY ARCHIVE — ${archivedBets.length} BETS</div>`+yearFilterHtml+archHtml:'')
     +(!all.length?'<div class="empty">NO BETS FOR SELECTED FILTERS</div>':'')
     +_ovrArchiveHtml();
+  _ovrReopen();
 }
 // ── Retired-league archive (docs/ledger_archive.json), loaded only when this folder is opened ─────────────────────────────
 window._ovrArch=window._ovrArch||{open:false,data:null,loading:false,fail:false,sport:null,shown:0};
