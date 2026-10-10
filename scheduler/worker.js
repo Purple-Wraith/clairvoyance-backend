@@ -5,8 +5,9 @@
 // minute: this Worker wakes every TICK_MIN minutes, works out which refresh workflows are due in that slot, and starts them through the GitHub API
 // (workflow_dispatch). The workflows' own `schedule:` entries stay in place as a fallback, so nothing is lost if this Worker is ever off.
 //
-// Deliberately NOT here: the lock / settle / email workflows. Their scheduled runs choose behaviour from `github.event.schedule`, and a dispatched run
-// does not carry it; they are left on GitHub's cron plus the watchdog. The WATCHDOG itself is here (evening slots only): it does not read `github.event.schedule`,
+// Deliberately NOT here as fixed-time slots: the lock / settle / email workflows. Their scheduled runs choose behaviour from `github.event.schedule`, and a dispatched run
+// does not carry it; they are left on GitHub's cron plus the watchdog. The ONE exception is the kickoff-driven END-OF-GAME SETTLE sweep below, which dispatches
+// auto-lock-settle.yml with explicit inputs (mode=settle, live=true -- what the header's SETTLE NOW button sends), so it needs no `github.event.schedule`. The WATCHDOG itself is here (evening slots only): it does not read `github.event.schedule`,
 // and `gated=true` gives a dispatched run the scheduled behaviour.
 //
 // Needs one secret: GH_TOKEN, a fine-grained token limited to this repo with "Actions: Read and write". Without it the Worker only logs.
@@ -64,15 +65,72 @@ export function sweepsDue(when, starts, leadMin = SWEEP_LEAD_MIN) {
   return (starts || []).filter((x) => { const t = Date.parse(x && (x.t || x)); return Number.isFinite(t) && Math.floor((t - leadMin * 60000) / tickMs) === slot; });
 }
 
-async function loadStarts(fetchImpl) {
+/** kickoffs.json -> {starts, games}. `starts` feeds the pre-kickoff lock sweeps, `games` ([{t, sport}], any state, last 8 h + next 72 h) the end-of-game settle sweeps. An older file without `games` just has none. */
+async function loadKickoffs(fetchImpl) {
   try {
     const r = await fetchImpl(KICKOFFS_URL, { cf: { cacheTtl: 240 } });
-    if (!r.ok) return [];
+    if (!r.ok) return { starts: [], games: [] };
     const j = await r.json();
-    return Array.isArray(j && j.starts) ? j.starts : [];
+    return { starts: Array.isArray(j && j.starts) ? j.starts : [], games: Array.isArray(j && j.games) ? j.games : [] };
   } catch (e) {
-    return [];
+    return { starts: [], games: [] };
   }
+}
+async function loadStarts(fetchImpl) { return (await loadKickoffs(fetchImpl)).starts; }
+
+// ── End-of-game settle sweeps ────────────────────────────────────────────────────────────────────────────────────────────────────────
+// GitHub's own settle crons land hours late, so a result can sit unsettled for most of a day. kickoffs.json (`games`) lists each game's start and sport; this adds a per-sport typical game length to get
+// an EXPECTED END and dispatches auto-lock-settle.yml (mode=settle, live=true -- the same fixed inputs as the header's SETTLE NOW button) in the first tick at/after that moment, then again ~20 and ~45 minutes later
+// for overtime / shootouts / delays. Stateless: everything is derived from `now` against kickoff + duration + offset, exactly like sweepsDue. The workflow's own settle crons stay as the fallback.
+//
+// Minutes from start to the final whistle. Deliberately CONSERVATIVE typical lengths (a normal game is a little shorter, so the first check usually finds the game just over; a long one is caught by the
+// follow-ups). Keyed by the sport tags build_kickoffs.py writes. Unknown tag -> DEFAULT_GAME_MIN.
+export const GAME_MINUTES = {
+  NHL: 165,                                                   // 2h45
+  NBA: 150,                                                   // 2h30
+  NFL: 200,                                                   // 3h20
+  CFB: 225,                                                   // 3h45
+  PL: 115, LIGA: 115, SERIEA: 115, CL: 115,                   // soccer ~1h55 (90 + stoppage + half-time); Champions League extra time is what the follow-ups are for
+  SHL: 155, LIIGA: 155, NLA: 155, EXTRALIGA: 155,             // European hockey ~2h35 (three periods + intermissions)
+};
+export const DEFAULT_GAME_MIN = 180;
+export const SETTLE_OFFSETS_MIN = [0, 20, 45];                // minutes after the expected end: first check, then two follow-ups
+export const SETTLE_ENTRY = { wf: "auto-lock-settle.yml", inputs: { mode: "settle", live: "true" } };   // identical to TRIGGERS.settle (declared below) -- a test pins that
+
+/** Epoch ms of a game's expected end (kickoff + the sport's typical length), or NaN when the start is unreadable. */
+export function expectedEndMs(game) {
+  const t = Date.parse(game && game.t);
+  return t + (GAME_MINUTES[String(game && game.sport).toUpperCase()] ?? DEFAULT_GAME_MIN) * 60000;
+}
+
+/**
+ * Settle checks due in the tick that contains `when`: [{t, sport, endsAt, offsetMin}], one row per (game, offset). A check at expected-end + offset X runs in the first tick whose start is at or after X, so it lands
+ * 0-10 minutes AFTER that moment, never before it. Many rows in one tick still mean ONE dispatch (the caller collapses them).
+ */
+export function settleSweepsDue(when, games, offsets = SETTLE_OFFSETS_MIN) {
+  const tickMs = TICK_MIN * 60000, slot = Math.floor(new Date(when).getTime() / tickMs), out = [];
+  for (const g of games || []) {
+    const end = expectedEndMs(g);
+    if (!Number.isFinite(end)) continue;
+    for (const off of offsets) if (Math.ceil((end + off * 60000) / tickMs) === slot) out.push({ t: g.t, sport: g.sport, endsAt: new Date(end).toISOString(), offsetMin: off });
+  }
+  return out;
+}
+
+/** The next settle sweeps after `now`, tick by tick (status page + tests): [{at, forGames:[{t, sport, endsAt, offsetMin}], sports}]. */
+export function upcomingSettleSweeps(now, games, { max = 10, horizonHours = 48 } = {}) {
+  const tickMs = TICK_MIN * 60000, out = [];
+  for (let slot = Math.ceil(now / tickMs); slot * tickMs <= now + horizonHours * 3600000 && out.length < max; slot++) {
+    const due = settleSweepsDue(slot * tickMs, games);
+    if (due.length) out.push({ at: new Date(slot * tickMs).toISOString(), forGames: due, sports: [...new Set(due.map((d) => d.sport))].sort() });
+  }
+  return out;
+}
+
+/** "2026-10-10 05:21 AM MT" for an epoch ms / ISO string (the owner reads Mountain time; the Worker answers in UTC AND this). */
+export function mountain(when) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true }).formatToParts(new Date(when)).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute} ${String(p.dayPeriod).toUpperCase()} MT`;
 }
 
 async function gh(env, path, init = {}, fetchImpl = fetch) {
@@ -95,12 +153,40 @@ async function alreadyRunning(env, wf, fetchImpl) {
   return false;
 }
 
-/** Starts every workflow due at `when`. Returns [{wf, result}] where result is "dispatched" | "skipped: ..." | "error: ...". */
+/** True when ANY auto-lock-settle run (cron, manual or ours) is queued / in progress. One cheap call. FAIL-OPEN: any API or network problem answers false -- a missed settle is worse than a duplicate one. */
+async function settleRunActive(env, fetchImpl) {
+  try {
+    const r = await gh(env, `/actions/workflows/${SETTLE_ENTRY.wf}/runs?per_page=10`, {}, fetchImpl);
+    if (!r.ok) return false;
+    return ((await r.json()).workflow_runs || []).some((x) => x && x.status && x.status !== "completed");
+  } catch (e) {
+    return false;
+  }
+}
+
+/** The end-of-game settle sweep for the tick containing `when`: at most ONE dispatch however many games ended. Returns a result row, or null when nothing is due. */
+async function runSettleSweep(env, when, games, fetchImpl) {
+  const due = settleSweepsDue(when, games);
+  if (!due.length) return null;
+  const row = { wf: SETTLE_ENTRY.wf, games: due.length, sports: [...new Set(due.map((d) => d.sport))].sort(), offsets: [...new Set(due.map((d) => d.offsetMin))].sort((a, b) => a - b) };
+  try {
+    if (await settleRunActive(env, fetchImpl)) return { ...row, result: "skipped: already queued or running" };
+    const r = await gh(env, `/actions/workflows/${SETTLE_ENTRY.wf}/dispatches`, { method: "POST", body: JSON.stringify({ ref: "main", inputs: SETTLE_ENTRY.inputs }) }, fetchImpl);
+    return { ...row, result: r.status === 204 ? "dispatched" : `error: HTTP ${r.status}` };
+  } catch (e) {
+    return { ...row, result: `error: ${e.message}` };
+  }
+}
+
+/** Starts every workflow due at `when` (plus the end-of-game settle sweep). Returns [{wf, result}] where result is "dispatched" | "skipped: ..." | "error: ...". */
 export async function runTick(env, when, fetchImpl = fetch) {
   const out = [];
   const entries = dueEntries(when).slice();
+  let games = [];
   if (env.GH_TOKEN) {
-    const due = sweepsDue(when, await loadStarts(fetchImpl));
+    const kick = await loadKickoffs(fetchImpl);
+    games = kick.games;
+    const due = sweepsDue(when, kick.starts);
     const have = entries.some((e) => e.wf === SWEEP_ENTRY.wf && JSON.stringify(e.inputs || {}) === JSON.stringify(SWEEP_ENTRY.inputs));
     if (due.length && !have) entries.push({ ...SWEEP_ENTRY, kickoff: due.map((x) => x.t).join(",") });
   }
@@ -114,6 +200,8 @@ export async function runTick(env, when, fetchImpl = fetch) {
       out.push({ wf, result: `error: ${e.message}` });
     }
   }
+  const settle = env.GH_TOKEN ? await runSettleSweep(env, when, games, fetchImpl) : null;     // no token -> no network at all
+  if (settle) out.push(settle);
   return out;
 }
 
@@ -210,12 +298,13 @@ export default {
     if (path === "/trigger") return handleTrigger(request, env || {});
     if (path === "/profit") return handleProfit(request, env || {});
     const now = Date.now();
-    const starts = await loadStarts(fetch);
+    const { starts, games } = await loadKickoffs(fetch);
     const kickoffSweeps = [];
     for (let i = 0; i < 6 * 24 * 2 && kickoffSweeps.length < 10; i++) {          // next 48 h of kickoff-aware sweeps
       const t = now + i * TICK_MIN * 60000, due = sweepsDue(t, starts);
-      if (due.length) kickoffSweeps.push({ at: new Date(t).toISOString(), forStarts: due.map((x) => x.t), sports: [...new Set(due.flatMap((x) => x.sports || []))] });
+      if (due.length) kickoffSweeps.push({ at: new Date(t).toISOString(), atMT: mountain(t), forStarts: due.map((x) => x.t), sports: [...new Set(due.flatMap((x) => x.sports || []))] });
     }
+    const settleSweeps = upcomingSettleSweeps(now, games).map((x) => ({ ...x, atMT: mountain(x.at), forGames: x.forGames.map((g) => ({ ...g, endsAtMT: mountain(g.endsAt) })) }));
     const next = [];
     for (let i = 0; i < 6 * 24 * 2; i++) {            // next 48 h, tick by tick
       const t = now + i * TICK_MIN * 60000;
@@ -223,6 +312,6 @@ export default {
       if (due.length) next.push({ at: new Date(t).toISOString(), due });
       if (next.length >= 10) break;
     }
-    return new Response(JSON.stringify({ tickMinutes: TICK_MIN, next, kickoffStarts: starts.length, kickoffSweeps }, null, 2), { headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify({ tickMinutes: TICK_MIN, next, kickoffStarts: starts.length, kickoffSweeps, settleSweeps, settleGames: games.length, settleRule: { gameMinutes: GAME_MINUTES, defaultMinutes: DEFAULT_GAME_MIN, checksAtMinutesAfterExpectedEnd: SETTLE_OFFSETS_MIN, dispatch: SETTLE_ENTRY.inputs } }, null, 2), { headers: { "content-type": "application/json" } });
   },
 };

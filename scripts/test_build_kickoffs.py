@@ -61,6 +61,42 @@ class Collect(unittest.TestCase):
         self.assertEqual(p["generated_at"], "2026-10-10T10:00Z")
         self.assertEqual(p["lookahead_h"], 72)
         self.assertTrue(p["starts"] and all(set(x) == {"t", "sports"} for x in p["starts"]))
+        self.assertTrue(p["games"] and all(set(x) == {"t", "sport"} for x in p["games"]))      # additive: `starts` keeps its shape for an older Worker
+
+    def test_games_list_for_end_of_game_settle_sweeps(self):
+        d = self.docs()
+        g = lambda t, state, **kw: {"id": t, "date": t, "state": state, **kw}  # noqa: E731
+        put(d, "nhl_schedule.json", {"games": [g("2026-10-10T23:00Z", "pre"), g("2026-10-10T23:00Z", "pre"), g("2026-10-10T09:00Z", "post"), g("2026-10-10T05:00Z", "post"),
+                                               g("2026-10-10T01:00Z", "post"), g("2026-10-14T23:00Z", "pre")]})
+        out = K.collect_games(d, NOW)                                            # NOW = 10:00Z
+        pairs = [(x["t"], x["sport"]) for x in out]
+        self.assertEqual(pairs, sorted(pairs))                                   # sorted
+        self.assertEqual(len(pairs), len(set(pairs)))                            # one entry per (start minute, sport)
+        self.assertIn(("2026-10-10T23:00Z", "NHL"), pairs)
+        self.assertIn(("2026-10-10T09:00Z", "NHL"), pairs)                       # finished games stay: the end sweep still has to grade them
+        self.assertIn(("2026-10-10T05:00Z", "NHL"), pairs)   # 5 h back is inside the 8 h reach-back
+        self.assertNotIn(("2026-10-10T01:00Z", "NHL"), pairs)                    # 9 h back: past the reach-back
+        self.assertNotIn(("2026-10-14T23:00Z", "NHL"), pairs)                    # beyond 72 h
+        self.assertIn(("2026-10-10T16:00Z", "CFB"), pairs)
+        self.assertIn(("2026-10-10T16:00Z", "SERIEA"), pairs)                    # same minute, two sports -> two entries
+        self.assertIn(("2026-10-10T11:30Z", "PL"), pairs)
+        self.assertIn(("2026-10-10T14:00Z", "PL"), pairs)                        # soccer already in play is kept here (unlike `starts`)
+        for sport in {s for _t, s in pairs}:
+            self.assertIn(sport, {"NHL", "SHL", "LIIGA", "NLA", "EXTRALIGA", "NBA", "NFL", "CFB", "PL", "LIGA", "SERIEA", "CL"})
+        self.assertNotIn(("2026-10-10T13:30Z", "BL"), pairs)                     # retired leagues / out-of-scope stay out
+        self.assertFalse([t for t, s in pairs if s == "NBA" and t in ("2026-10-10T23:00Z", "2026-10-11T00:30Z")])   # NBA preseason / postponed
+        self.assertFalse([t for t, s in pairs if s == "NFL" and t == "2026-10-10T18:00Z"])                          # NFL preseason
+        # `starts` is untouched by the new list
+        self.assertEqual({x["t"] for x in K.collect(d, NOW)} & {"2026-10-10T09:00Z", "2026-10-10T05:00Z"}, set())
+
+    def test_worker_duration_table_covers_every_sport_tag(self):
+        import re
+        w = (HERE.parent / "scheduler" / "worker.js").read_text()
+        tbl = w[w.index("export const GAME_MINUTES"):w.index("export const DEFAULT_GAME_MIN")]
+        have = set(re.findall(r"\b([A-Z]{2,9}):\s*\d+", tbl))
+        want = {"NHL", "NBA", "NFL", "CFB", "PL", "LIGA", "SERIEA", "CL", "SHL", "LIIGA", "NLA", "EXTRALIGA"}
+        self.assertEqual(have, want)
+        self.assertEqual(set(K.SOCCER_LEAGUES.values()) | {"NHL", "SHL", "LIIGA", "NLA", "EXTRALIGA", "NBA", "NFL", "CFB"}, want)   # every tag build_kickoffs can emit has a duration
 
     def test_real_repo_files_build(self):
         p = K.build(HERE.parent / "docs", NOW)                                   # smoke: today's real schedule files parse
