@@ -629,9 +629,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .mom-badge{font-family:var(--orb);font-size:15px;font-weight:900;letter-spacing:1px;color:var(--sc);text-shadow:0 0 14px rgba(var(--scr),.8);text-align:center;margin-top:2px;line-height:1.25}
 .mom-mcap{font-family:var(--mono);font-size:11px;letter-spacing:1px;color:var(--t3);margin-top:4px;text-align:center}.mom-mcap b{color:var(--t);font-weight:400}.mom-mcap em{font-style:normal;color:var(--gc)}
 .mom-right{display:flex;flex-direction:column;gap:8px;min-width:0}
-.mom-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;flex:1}
-@media(max-width:1000px) and (min-width:861px){.mom-tiles{grid-template-columns:repeat(2,1fr)}.mom-tiles .mom-tile:last-child{grid-column:1/-1}}
-@media(max-width:640px){.mom-tiles{grid-template-columns:repeat(2,1fr);gap:6px}.mom-tiles .mom-tile:last-child{grid-column:1/-1}}
+.mom-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;flex:1}
+
+@media(max-width:640px){.mom-tiles{gap:6px}}
 .mom-tile{position:relative;display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(0,0,0,.34));border:1px solid rgba(255,255,255,.08);border-top:2px solid var(--tc,rgba(255,255,255,.18));border-radius:3px;padding:7px 9px 6px;min-width:0}
 .mom-k{font-family:var(--mono);font-size:11px;letter-spacing:1.6px;color:var(--t3)}
 .mom-v{font-family:var(--orb);font-size:21px;font-weight:700;margin:3px 0 1px;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -20155,8 +20155,7 @@ function _momHTML(){
   const tile=(i,k,v,sub,c,tail)=>`<div class="mom-tile mom-rise" style="--d:${i*70}ms;--tc:${c||'rgba(255,255,255,.18)'}"><div class="mom-k">${k}</div><div class="mom-v" style="color:${c||'var(--t)'}">${v}</div><div class="mom-s">${sub||'&nbsp;'}</div>${tail||''}</div>`;
   const tiles=`<div class="mom-tiles">${
     tile(0,sp.tile+' WIN %',win.pct!=null?(win.pct*100).toFixed(1)+'%':'--',`${win.w}W-${win.l}L · n${win.n}`,col,_momSpark(pctv,col,false))}${
-    tile(1,'ALL-TIME',base!=null?(base*100).toFixed(1)+'%':'--',`${base0.w}W-${base0.l}L`,null)}${
-    tile(2,sp.tile+' UNITS',_momU(win.u),streak?`<span class="mom-streak" style="color:${streak.t?_MOM_G:_MOM_P}">STREAK ${streak.n}${streak.t?'W':'L'}</span>`:'',win.n?(win.u>=0?_MOM_G:_MOM_P):_MOM_N,_momSpark(cumv,win.n?(win.u>=0?_MOM_G:_MOM_P):_MOM_N,true))}</div>`;
+    tile(1,sp.tile+' UNITS',_momU(win.u),streak?`<span class="mom-streak" style="color:${streak.t?_MOM_G:_MOM_P}">STREAK ${streak.n}${streak.t?'W':'L'}</span>`:'',win.n?(win.u>=0?_MOM_G:_MOM_P):_MOM_N,_momSpark(cumv,win.n?(win.u>=0?_MOM_G:_MOM_P):_MOM_N,true))}</div>`;
   // last 10 settled results, current streak highlighted
   const l10=sorted.slice(-10),sn=streak?Math.min(streak.n,l10.length):0;
   const pips=l10.map((p,i)=>{
