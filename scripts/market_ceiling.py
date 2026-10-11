@@ -31,7 +31,7 @@ import lock_timing as lt  # noqa: E402
 MARKET_P_CEILING = {
     "default": {"SPREAD": 0.68, "OU": 0.68, "PROP": 0.68},
     "byLeague": {
-        "CFB": {"SPREAD": 0.62, "OU": 0.62},
+        "CFB": {"SPREAD": 0.72, "OU": 0.62},        # owner 2026-10-11: CFB spread .72 (the evidence-supported figure drifted from .64 to .82 as picks settled; .72 splits the difference). CFB O/U stays .62.
         "NFL": {"SPREAD": 0.62, "OU": 0.62, "PROP": 0.62},
     },
 }

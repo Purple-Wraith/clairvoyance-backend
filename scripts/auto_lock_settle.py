@@ -3008,6 +3008,20 @@ def _prob_txt(prob: float, known: bool = True) -> str:
     return f"{prob*100:.0f}% win prob" if known and prob else "win prob n/a"
 
 
+def _skip_note_html(tier_lbl: str, prob: float, known: bool, ev_val=None) -> str:
+    """A SKIP-graded pick that still goes out (owner 2026-10-10: manual / in-app locks are emailed whatever their grade) says what SKIP means and states the win probability, flagging a high one:
+    SKIP is the VALUE grade (no price edge at the posted line); it is not a statement that the pick is unlikely to win."""
+    if tier_lbl != "SKIP":
+        return ""
+    ev = f" (EV {ev_val*100:+.1f}%)" if ev_val is not None else ""
+    if known and prob:
+        hi = " \u2014 a HIGH win probability" if prob >= 0.65 else ""
+        txt = f"Graded SKIP on value{ev}: no price edge at this line. The model\u2019s win probability is {prob*100:.0f}%{hi}."
+    else:
+        txt = f"Graded SKIP on value{ev}: no price edge at this line. Win probability not recorded for this pick."
+    return f'<div style="font-size:12px;color:#bbb;margin-top:2px">{txt}</div>'
+
+
 def _leg_html(q: dict) -> str:
     """One block per qualifying leg: the tier/grade badge on its own line
     ABOVE the pick (not inline before it) -- applies identically to every
@@ -3051,6 +3065,7 @@ def _leg_html(q: dict) -> str:
         if q.get("badge"):
             tier_lbl, color = q["badge"]       # catch-up legs built from a ledger pick with no value grade on record (see email_tracking.pick_to_leg)
         note = (f'<div style="font-size:12px;color:#bbb;margin-top:2px">{_esc(q["note"])}</div>' if q.get("note") else '')
+        note += _skip_note_html(tier_lbl, prob, q.get("probKnown", True), ev_val)
         return (f'<div style="padding:5px 0">'
                 f'<span style="background:{color};color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
                 f'border-radius:3px;display:inline-block;margin-bottom:3px">{_esc(tier_lbl)}</span>'
@@ -3067,7 +3082,8 @@ def _leg_html(q: dict) -> str:
             f'<span style="background:{color};color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
             f'border-radius:3px;display:inline-block;margin-bottom:3px">{_esc(grade)}</span>'
             f'<div style="font-size:14px;color:#eee">{_esc(leg.get("player"))} {direction} {_esc(leg.get("line"))} {_esc(leg.get("stat"))} — {_prob_txt(prob, True)}</div>'
-            f'</div>')
+            + _skip_note_html(grade, prob, True)
+            + '</div>')
 
 
 def _prop_matchup_key(leg: dict) -> str:

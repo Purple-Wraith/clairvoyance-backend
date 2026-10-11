@@ -869,6 +869,25 @@ class WinProbInEmails(unittest.TestCase):
         self.assertIn("SKIP", h)
         self.assertNotIn("0% win prob", h.replace("53% win prob", ""))
 
+    def test_skip_picks_explain_skip_and_flag_a_high_win_probability(self):
+        """owner 2026-10-11: SKIP / LEAN manual picks stay in the emails; a SKIP also says what SKIP means and notes the (high) win probability"""
+        hi = self.html_for(pick("skiphi", reasoning="PICK: TOR ML — SKIP (78.0% win prob, EV -3.0%)", winProb=0.78))
+        self.assertIn("Graded SKIP on value", hi)
+        self.assertIn("78% win prob", hi)
+        self.assertIn("HIGH win probability", hi)
+        self.assertIn("no price edge", hi)
+        lo = self.html_for(pick("skiplo", reasoning="PICK: TOR ML — SKIP (54.0% win prob, EV -6.0%)", winProb=0.54))
+        self.assertIn("Graded SKIP on value", lo)
+        self.assertIn("54%", lo)
+        self.assertNotIn("HIGH win probability", lo)
+        self.assertIn("Win probability not recorded", a._skip_note_html("SKIP", 0.0, False))        # a SKIP with truly no stored probability says so (never a made-up 0%)
+        self.assertEqual(a._skip_note_html("LEAN", 0.7, True), "")                                   # only SKIP gets the explanation
+        lean = self.html_for(pick("lean1", reasoning="PICK: TOR ML — LEAN (58.0% win prob, EV +1.0%)", winProb=0.58))
+        self.assertIn("LEAN", lean)
+        self.assertNotIn("Graded SKIP", lean)                                       # only SKIP gets the explanation; LEAN stays in the email as before
+        prop = {"kind": "PROP", "leg": {"player": "A. Davis", "line": 24.5, "stat": "PTS", "over": True, "prob": 0.52, "grade": "SKIP"}, "sport": "NBA"}
+        self.assertIn("Graded SKIP on value", a._leg_html(prop))
+
     def test_every_pick_line_in_the_standard_template_says_win_prob(self):
         h = self.html_for(pick("p1", winProb=0.7))
         self.assertIn("70% win prob", h)

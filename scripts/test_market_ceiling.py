@@ -33,7 +33,7 @@ class Math(unittest.TestCase):
 
     def test_table_values_and_the_optimal_floor_rule(self):
         self.assertEqual(M.ceiling_for("CFB", "OU"), .62)
-        self.assertEqual(M.ceiling_for("CFB", "SPREAD"), .62)
+        self.assertEqual(M.ceiling_for("CFB", "SPREAD"), .72)             # owner 2026-10-11: CFB spread .72 (O/U and NFL stay .62)
         self.assertEqual(M.ceiling_for("NFL", "PROP"), .62)
         self.assertEqual(M.ceiling_for("NHL", "OU"), .68)
         self.assertEqual(M.ceiling_for("SOC_PL", "SPREAD"), .68)
@@ -141,11 +141,12 @@ class Browser(unittest.TestCase):
         r = self.rows("CFB", [("over", .91, 1.909, None), ("under", .09, 1.909, None), ("sprdFav", .85, 1.909, None), ("sprdDog", .15, 1.909, None)])
         self.assertEqual((r["over"]["p"], r["over"]["raw"], r["over"]["c"]), (.62, .91, .62))
         self.assertEqual(r["under"]["p"], .38)                                        # the other side is the complement
-        self.assertEqual(r["sprdFav"]["p"], .62)
-        for s in ("over", "sprdFav"):
-            self.assertEqual(r[s]["t"], 2, s)                                          # OPTIMAL at most
-            self.assertEqual(r[s]["grade"], "OPTIMAL")
-            self.assertAlmostEqual(r[s]["ev"], .62 * 1.909 - 1, places=3)             # EV re-priced at the SAME odds
+        self.assertEqual(r["sprdFav"]["p"], .72)                                      # CFB spread ceiling .72 (owner 2026-10-11)
+        self.assertEqual(r["over"]["t"], 2)                                            # CFB O/U: OPTIMAL at most
+        self.assertEqual(r["over"]["grade"], "OPTIMAL")
+        self.assertAlmostEqual(r["over"]["ev"], .62 * 1.909 - 1, places=3)            # EV re-priced at the SAME odds
+        self.assertEqual(r["sprdFav"]["t"], 3)                                         # a spread at .72 clears PREMIUM's .67 floor
+        self.assertAlmostEqual(r["sprdFav"]["ev"], .72 * 1.909 - 1, places=3)
         self.assertEqual(r["under"]["t"], 0)
 
     def test_the_tier_is_monotone_in_the_raw_probability_and_the_clamp_cannot_be_walked_around(self):
@@ -153,7 +154,7 @@ class Browser(unittest.TestCase):
         ps = [i / 100 for i in range(50, 100)]
         cfb = [self.rows("CFB", [("over", p, 1.909, None)])["over"] for p in ps]
         gen = [self.rows(None, [("over", p, 1.909, None)])["over"] for p in ps]
-        for rows, cap in ((cfb, .62), (gen, .68)):
+        for rows, cap in ((cfb, .62), (gen, .68)):                                     # (O/U legs: the CFB spread ceiling is .72, covered above)
             self.assertTrue(all(a["p"] <= cap + 1e-9 for a in rows))
             self.assertTrue(all(b["t"] >= a["t"] for a, b in zip(rows, rows[1:])), [x["t"] for x in rows])
         self.assertLessEqual(max(x["t"] for x in cfb), 2)
@@ -247,16 +248,18 @@ class Browser(unittest.TestCase):
         for mk in r["legs"]:
             for m in mk:
                 if m["s"] in ("over", "under", "sprdFav", "sprdDog"):
-                    self.assertLessEqual(m["p"], .62 + 1e-9, m)
-                    self.assertGreaterEqual(m["p"], .38 - 1e-9, m)
-                    self.assertLessEqual(m["t"], 2, m)
+                    cap = .72 if m["s"] in ("sprdFav", "sprdDog") else .62                # owner 2026-10-11: CFB spread ceiling .72, O/U .62
+                    self.assertLessEqual(m["p"], cap + 1e-9, m)
+                    self.assertGreaterEqual(m["p"], 1 - cap - 1e-9, m)
+                    if cap == .62:
+                        self.assertLessEqual(m["t"], 2, m)
                     if m["raw"] is not None:
                         seen_capped += 1
                         self.assertNotEqual(m["raw"], m["p"])
-                        self.assertEqual(m["c"], .62)
-                        if m["p"] >= .62:
+                        self.assertEqual(m["c"], cap)
+                        if m["p"] >= cap:
                             self.assertGreater(m["raw"], m["p"])
-                            self.assertIn("CAPPED at 62%", m["r"])
+                            self.assertIn("CAPPED at %d%%" % round(cap * 100), m["r"])
                 else:
                     seen_ml += 1
                     self.assertIsNone(m["raw"], m)

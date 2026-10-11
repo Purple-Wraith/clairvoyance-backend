@@ -4219,9 +4219,10 @@ async function renderGenericWeek(containerId,espnPath,sportTag){
 // Out of sample (leave-one-date-out, Brier before -> after the clamp; n picks): CFB O/U .312 -> .247 (184; 95% CI of the gain [-.102, -.034]), CFB spread .275 -> .252 (123), the rest .234 -> .225 (436).
 // NOT clamped: market-anchored rows (probability already logit-blended with the real market price: marketProb != null -- the euro-hockey/NHL rows) and alt-line picks (their probability is the
 // empirical margin-curve estimate from ALT_LINE_CFG, not a model number). Historical picks keep the probability they were locked with.
+// OWNER OVERRIDE 2026-10-11: CFB SPREAD is .72 (not .62): the evidence-supported figure had drifted from .64 to .82 as more picks settled, so the owner split the difference. CFB O/U and NFL stay .62.
 const MARKET_P_CEILING={
   default:{SPREAD:.68,OU:.68,PROP:.68},
-  byLeague:{CFB:{SPREAD:.62,OU:.62},NFL:{SPREAD:.62,OU:.62,PROP:.62}}
+  byLeague:{CFB:{SPREAD:.72,OU:.62},NFL:{SPREAD:.62,OU:.62,PROP:.62}}
 };
 function _mktCeiling(league,mktT){
   const L=String(league||'').toUpperCase().replace(/^SOC_/,'');
