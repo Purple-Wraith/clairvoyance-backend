@@ -642,9 +642,10 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 /* last-10 strip */
 .mom-l10{display:flex;align-items:center;flex-wrap:wrap;gap:6px 5px;padding:6px 9px;border:1px solid rgba(255,255,255,.08);border-radius:3px;background:rgba(0,0,0,.28)}
 .mom-l10t{font-family:var(--mono);font-size:11px;letter-spacing:1.6px;color:var(--t3);margin-right:4px}
-.mom-pip{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:4px;font-family:var(--mono);font-size:12px;font-weight:700;color:#05030a;opacity:.5}
-.mom-pip.w{background:linear-gradient(180deg,#5dff85,#00b836)}.mom-pip.l{background:linear-gradient(180deg,#ff63b3,#c4105f)}
-.mom-pip.st{opacity:1;box-shadow:0 0 0 1px #05030a,0 0 0 2px var(--rg),0 0 10px var(--rg)}.mom-pip.w.st{--rg:#00e644}.mom-pip.l.st{--rg:#ff2090}
+.mom-pip{display:inline-block;width:22px;height:22px;border-radius:50%;font-size:12px;cursor:pointer;opacity:.55;box-shadow:0 0 6px rgba(0,0,0,.4);transition:transform .12s}   /* bubbles (owner 2026-10-10), same look as the league recent-form bubbles; hover/tap shows the event + result */
+.mom-pip:focus-visible{outline:2px solid var(--pc);outline-offset:2px}
+.mom-pip.w{background:radial-gradient(circle at 35% 30%,#8dffaa,#00b836 70%);color:#00e644}.mom-pip.l{background:radial-gradient(circle at 35% 30%,#ff8fc9,#c4105f 70%);color:#ff2090}
+.mom-pip.w,.mom-pip.l{box-shadow:0 0 7px currentColor}.mom-pip.st{opacity:1;box-shadow:0 0 0 1px #05030a,0 0 0 2px var(--rg),0 0 10px var(--rg)}.mom-pip.w.st{--rg:#00e644}.mom-pip.l.st{--rg:#ff2090}
 .mom-pip.nw{background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.18);opacity:1}
 .mom-l10s{margin-left:auto;display:inline-flex;align-items:center;gap:6px}
 /* sport breakdown that doubles as the sport filter */
@@ -13603,7 +13604,7 @@ function hideDotTip(){
   // heatmap) added 2026-10-02 -- both reuse showDotTip's own hover-scale
   // effect via the same onmouseenter wiring, so both need resetting here
   // too, same as .form-dot.
-  document.querySelectorAll('.form-dot,.mom-bar,.tp-heat-cell,.lg-dot').forEach(d=>d.style.transform='');
+  document.querySelectorAll('.form-dot,.mom-bar,.tp-heat-cell,.lg-dot,.mom-pip').forEach(d=>d.style.transform='');
 }
 
 // ── Mobile ↔ Desktop sync via clipboard export/import ──
@@ -20138,7 +20139,12 @@ function _momHTML(){
     tile(3,sp.tile+' UNITS',_momU(win.u),streak?`<span class="mom-streak" style="color:${streak.t?_MOM_G:_MOM_P}">STREAK ${streak.n}${streak.t?'W':'L'}</span>`:'',win.n?(win.u>=0?_MOM_G:_MOM_P):_MOM_N,_momSpark(cumv,win.n?(win.u>=0?_MOM_G:_MOM_P):_MOM_N,true))}</div>`;
   // last 10 settled results, current streak highlighted
   const l10=sorted.slice(-10),sn=streak?Math.min(streak.n,l10.length):0;
-  const pips=l10.map((p,i)=>{const inS=i>=l10.length-sn,lb=`${p.o?'WIN':'LOSS'}: ${(p.bet||p.gm||p.lg||'').replace(/[<>"&]/g,'')}`;return`<span class="mom-pip ${p.o?'w':'l'}${inS?' st':''}" role="listitem" title="${lb}" aria-label="${lb}">${p.o?'W':'L'}</span>`;}).join('')+Array.from({length:Math.max(0,10-l10.length)},()=>'<span class="mom-pip nw" aria-hidden="true"></span>').join('');
+  const pips=l10.map((p,i)=>{
+    const inS=i>=l10.length-sn,cl=t=>String(t==null?'':t).replace(/[|"<>&]/g,' ').replace(/\s+/g,' ').trim();
+    const lb=`${p.o?'WIN':'LOSS'}: ${cl(p.bet||p.gm||p.lg||'')}`;
+    const tip=[cl(p.lg||p.sp)+' · '+cl(p.d),cl(p.gm),cl(p.bet),p.o?'✓ WIN':'✗ LOSS'].filter(Boolean).join('|');
+    return`<span class="mom-pip ${p.o?'w':'l'}${inS?' st':''}" role="listitem" tabindex="0" title="${lb}" aria-label="${lb}" data-tip="${tip}" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" onfocus="showDotTip(this)" onblur="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2500)"></span>`;
+  }).join('')+Array.from({length:Math.max(0,10-l10.length)},()=>'<span class="mom-pip nw" aria-hidden="true"></span>').join('');
   const strip=`<div class="mom-l10 mom-rise" style="--d:300ms"><span class="mom-l10t">LAST 10</span><span style="display:contents" role="list" aria-label="Last 10 settled results, oldest first">${pips}</span><span class="mom-l10s">${streak?`<span class="mom-streak" style="color:${streak.t?_MOM_G:_MOM_P}">CURRENT STREAK ${streak.n}${streak.t?'W':'L'}</span>`:'<span class="mom-streak">NO RESULTS YET</span>'}</span></div>`;
   const meter=`<div class="mom-meter mom-rise" style="--d:0ms">${_momGaugeSVG(st,col)}<div class="mom-badge">${st.arrow} ${st.lbl}</div><div class="mom-mcap">${sp.tile} <b>${win.pct!=null?(win.pct*100).toFixed(1)+'%':'--'}</b> vs ALL-TIME <em>${base!=null?(base*100).toFixed(1)+'%':'--'}</em></div></div>`;
   const W=_momWidth();window._momW=W;setTimeout(_momFit,0);

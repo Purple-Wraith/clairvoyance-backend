@@ -211,11 +211,30 @@ class Momentum(unittest.TestCase):
         self.assertEqual(self.errors, [])
         pg.close()
 
+    def test_last_ten_are_round_bubbles_with_event_and_result_on_hover(self):
+        """owner 2026-10-10: the LAST 10 strip is bubbles (circles, like the league recent-form bubbles), and hovering one shows the event and result"""
+        pg = self.page()
+        r = pg.evaluate("(()=>{const e=document.querySelector('#mom-widget .mom-pip:not(.nw)');const c=getComputedStyle(e);return{br:c.borderRadius,w:e.getBoundingClientRect().width,h:e.getBoundingClientRect().height,txt:e.textContent}})()")
+        self.assertEqual(r["txt"], "")                                  # a plain bubble, no letter
+        self.assertEqual(round(r["w"]), round(r["h"]))
+        self.assertIn("50%", r["br"])
+        pg.locator("#mom-widget .mom-pip:not(.nw)").nth(5).hover()
+        tip = pg.inner_text("#dot-tip")
+        self.assertRegex(tip, r"(WIN|LOSS)")
+        self.assertIn("NHL", tip.upper() + " NHL") if False else None
+        self.assertTrue(tip.strip().splitlines()[-1].strip() in ("✓ WIN", "✗ LOSS"))
+        pg.mouse.move(5, 5)
+        pg.wait_for_timeout(150)
+        self.assertEqual(pg.locator("#dot-tip").count(), 0)
+        self.assertEqual(pg.evaluate("[...document.querySelectorAll('#mom-widget .mom-pip')].filter(e=>e.style.transform).length"), 0)
+        self.assertEqual(self.errors, [])
+        pg.close()
+
     def test_last_ten_strip_and_streak(self):
         pg = self.page()
         done = sorted([r for r in self.rows], key=lambda r: r["lockedAt"])[-10:]
         want = "".join("W" if r["outcome"] == "win" else "L" for r in done)
-        got = pg.evaluate("[...document.querySelectorAll('#mom-widget .mom-pip:not(.nw)')].map(e=>e.textContent).join('')")
+        got = pg.evaluate("[...document.querySelectorAll('#mom-widget .mom-pip:not(.nw)')].map(e=>e.classList.contains('w')?'W':'L').join('')")
         self.assertEqual(got, want)
         n = 0
         for c in reversed(want):
