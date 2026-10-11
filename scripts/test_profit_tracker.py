@@ -12,6 +12,7 @@ wider than 390px, readable text on a phone, reduced motion, and that NOTHING lea
 
     python3 scripts/test_profit_tracker.py
 """
+import time
 import csv, datetime as dt, functools, http.server, io, json, random, re, threading, unittest
 from decimal import Decimal as D, ROUND_HALF_UP
 from pathlib import Path
@@ -376,6 +377,15 @@ class Profit(unittest.TestCase):
     def tip(self, pg):
         t = pg.locator("#pt-tip")
         return t.inner_text() if t.is_visible() else ""
+
+    def tip_wait(self, pg, ms=3000):
+        """the tooltip appears on the next animation frame after a key press / hover; on a loaded CI runner a snapshot taken right away saw it empty (flaked on GitHub 2026-10-11)"""
+        end = time.time() + ms / 1000.0
+        while True:
+            t = self.tip(pg)
+            if t or time.time() > end:
+                return t
+            pg.wait_for_timeout(60)
 
     def chart_pt(self, pg, cid, i):
         """client coordinates of period / category i inside chart cid"""
@@ -1243,7 +1253,7 @@ class Profit(unittest.TestCase):
             pg.keyboard.press("End"); pg.keyboard.press("Enter"); self.assertEqual(pg.evaluate("_ptU.pin.chart"), cid); self.assertGreater(pg.locator("#pt-drill-%s .pt-r" % cid).count(), 0)
             pg.keyboard.press("Escape"); self.assertEqual(pg.evaluate("_ptU.pin"), None)
         # range-mode keyboard: books, not weeks
-        pg.click("[data-ptact=dmode][data-v=range]"); pg.focus(".pt-chart[data-ptid=d]"); pg.keyboard.press("End"); self.assertIn("COMBINED", self.tip(pg))
+        pg.click("[data-ptact=dmode][data-v=range]"); pg.focus(".pt-chart[data-ptid=d]"); pg.keyboard.press("End"); self.assertIn("COMBINED", self.tip_wait(pg))
         pg.keyboard.press("Enter"); self.assertEqual(pg.evaluate("_ptU.pin"), {"chart": "d", "key": "COMBINED"})
         # monthly drill uses calendar-month boundaries
         pg.click("[data-ptact=view][data-v=month]")
@@ -1253,7 +1263,7 @@ class Profit(unittest.TestCase):
         self.assertEqual(pg.locator("#pt-drill-b .pt-r").count(), min(len(want), 40))
         self.assertIn("SEPTEMBER 2026", pg.inner_text("#pt-drill-b"))
         pm = py_series(E, "month"); x, y = self.chart_pt(pg, "a", k); pg.mouse.move(x, y); pg.wait_for_timeout(150)
-        self.assertIn(signed(pm["all"][k]["cumProfit"]), self.tip(pg)); self.assertIn("SEPTEMBER 2026", self.tip(pg))
+        self.assertIn(signed(pm["all"][k]["cumProfit"]), self.tip_wait(pg)); self.assertIn("SEPTEMBER 2026", self.tip_wait(pg))
         self.assertEqual(self.errors, [])
         self.done(pg)
 
@@ -1314,10 +1324,10 @@ class Profit(unittest.TestCase):
         # scope: one book's cells; tooltip names the book
         pg.click("[data-ptact=heatbook][data-v=DraftKings]")
         self.assertEqual(pg.evaluate("_ptU.pin"), None)
-        pg.locator(".pt-hc[data-ptd='2026-09-21']").hover(); pg.wait_for_timeout(150); self.assertIn("DraftKings", self.tip(pg))
+        pg.locator(".pt-hc[data-ptd='2026-09-21']").hover(); pg.wait_for_timeout(150); self.assertIn("DraftKings", self.tip_wait(pg))
         # keyboard between cells (DOM order = a month group at a time), Enter pins
         pg.focus(".pt-hc[data-ptd='2026-09-21']"); pg.keyboard.press("ArrowRight")
-        self.assertEqual(pg.evaluate("document.activeElement.dataset.ptd"), "2026-09-28"); self.assertIn("WEEK OF SEP 28", self.tip(pg))
+        self.assertEqual(pg.evaluate("document.activeElement.dataset.ptd"), "2026-09-28"); self.assertIn("WEEK OF SEP 28", self.tip_wait(pg))
         pg.keyboard.press("ArrowLeft"); self.assertEqual(pg.evaluate("document.activeElement.dataset.ptd"), "2026-09-21")
         pg.keyboard.press("Enter"); self.assertEqual(pg.evaluate("_ptU.pin"), {"chart": "e", "key": "2026-09-21"})
         pg.keyboard.press("Escape"); self.assertEqual(pg.evaluate("_ptU.pin"), None)
@@ -1546,7 +1556,7 @@ class Profit(unittest.TestCase):
         self.assertLessEqual(w[0], w[1])
         x, y = self.chart_pt(pg, "b", 5)
         pg.touchscreen.tap(x, y); pg.wait_for_timeout(200)
-        self.assertIn("WEEK OF", self.tip(pg))
+        self.assertIn("WEEK OF", self.tip_wait(pg))
         self.assertEqual(pg.evaluate("_ptU.pin.chart"), "b")
         self.assertGreater(pg.locator("#pt-drill-b .pt-r").count(), 0)
         pg.touchscreen.tap(x, y); self.assertEqual(pg.evaluate("_ptU.pin"), None)
