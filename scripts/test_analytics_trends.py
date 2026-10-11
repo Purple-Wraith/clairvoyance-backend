@@ -163,7 +163,7 @@ class Trends(unittest.TestCase):
         ctx = self.b.new_context(viewport={"width": width, "height": height}, has_touch=touch)
         pg = ctx.new_page()
         self.block_fonts(pg)
-        pg.set_default_timeout(25000)      # CI runners are slow when several pushes land together (an 8 s default flaked there)
+        pg.set_default_timeout(90000)      # CI runners are slow when several pushes land together (8 s then 25 s defaults both flaked there)
         self.errors = []
         pg.on("pageerror", lambda e: self.errors.append(str(e)))
         pg.goto("http://127.0.0.1:%d/app.html?nosb=1" % self.srv.server_address[1], wait_until="domcontentloaded", timeout=60000)
