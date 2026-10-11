@@ -52,7 +52,13 @@ class SegmentedOnlyNew(unittest.TestCase):
     """Real 2026-10-08 20:50Z / 22:22Z and 10-10 20:42Z watchdog runs called run_lock_segmented(send_email=True), which emailed every product on every call: a second
     full copy of the day's NHL picks and (on a Saturday) an NFL 'no picks' email.  only_new=True mirrors the rolling runners: email a product only when it locked something new."""
 
-    def run_seg(self, legs, new_by_product, only_new, send_email=True, pending=()):
+    def setUp(self):
+        a.reset_email_tracking()
+
+    def tearDown(self):
+        a.reset_email_tracking()
+
+    def run_seg(self, legs, new_by_product, only_new, send_email=True, pending=(), games=()):
         sent = []
         calls = {"n": 0}
 
@@ -61,14 +67,14 @@ class SegmentedOnlyNew(unittest.TestCase):
             new = sum(v for p, v in new_by_product.items() if a.PRODUCT_SPORTS[p] & sports)
             return a.LockResult(new, len(qualifying) - min(new, len(qualifying)), 0)
 
-        with Patch((a, "gather_legs", lambda page: {"gameLegs": [], "propLegs": []}),
+        with Patch((a, "gather_legs", lambda page: {"gameLegs": list(games), "propLegs": []}),
                    (a, "build_qualifying", lambda result, **k: list(legs)),
                    (a, "analyze_games", lambda result, only=None, now=None: {"games": 3, "started": 0, "upcoming": 3, "nextStartMs": None, "noPrice": []}),
                    (a, "recipients_for", lambda product: [f"{product}@x.com"]),
                    (a, "_lock_qualifying_legs", lock),
                    (a, "flush_to_supabase", lambda page: None),
                    (a, "pending_labels", lambda now=None: set(pending)),
-                   (a, "send_locks_email", lambda qualifying, live, locked_count=None, label="", to=None, date_str=None, key=None: sent.append((label, key, len(qualifying))) or True),
+                   (a, "send_locks_email", lambda qualifying, live, locked_count=None, label="", to=None, date_str=None, key=None, product=None, zero=None: sent.append((label, key, len(qualifying))) or True),
                    (a, "PASS_REPORTS", [])):
             a.run_lock_segmented(None, True, send_email=send_email, only_new=only_new)
         return sent
@@ -88,10 +94,14 @@ class SegmentedOnlyNew(unittest.TestCase):
     def test_normal_final_pass_is_unchanged(self):
         sent = self.run_seg([leg("NHL", "TOR ML")], {}, only_new=False)
         labels = [s[0] for s in sent]
-        self.assertIn("NFL", labels)                                           # the once-daily email still goes to NFL even with nothing qualifying (owner-visible behaviour kept)
+        self.assertNotIn("NFL", labels)                                        # 2026-10-10 zero-pick rule: no NFL games on the slate -> no "no picks" email (was: sent every day)
         self.assertIn("HOCKEY", labels)
         self.assertNotIn("SOCCER", labels)                                      # soccer / CFB keep their own dedicated passes
         self.assertNotIn("CFB", labels)
+        a.reset_email_tracking()
+        nfl_game = {"sport": "NFL", "hA": "KC", "awA": "BUF", "startMs": 4_000_000_000_000, "markets": []}   # a real slate, far in the future so it is 'upcoming'
+        sent = self.run_seg([leg("NHL", "TOR ML")], {}, only_new=False, games=[nfl_game])
+        self.assertIn("NFL", [s[0] for s in sent])                             # games on the slate + nothing qualified -> the engine looked and found nothing: one email
 
     def test_a_pending_failed_main_email_is_retried_by_a_later_non_final_pass(self):
         sent = self.run_seg([leg("NHL", "TOR ML")], {}, only_new=False, send_email=False, pending={"MAIN HOCKEY"})
@@ -189,7 +199,7 @@ class PendingRetry(unittest.TestCase):
                        (a, "_lock_qualifying_legs", lambda page, q, **k: a.LockResult(0, 1, 0)),
                        (a, "flush_to_supabase", lambda page: None),
                        (a, "pending_labels", lambda now=None: set(pending)),
-                       (a, "send_locks_email", lambda qualifying, live, locked_count=None, label="", to=None, date_str=None, key=None: sent.append(label) or True),
+                       (a, "send_locks_email", lambda qualifying, live, locked_count=None, label="", to=None, date_str=None, key=None, product=None, zero=None: sent.append(label) or True),
                        (a, "PASS_REPORTS", [])):
                 a._run_rolling_pass(None, True, True, ["a@x.com"], kind="cfb-evening", label="CFB — UPCOMING SLATE", title="CFB", gather=lambda page, d: res,
                                     only_sports=frozenset({"CFB"}), dry_label="cfb")

@@ -83,6 +83,7 @@ import _subscribers  # noqa: E402
 # why this replaced a second, fully independent browser+Supabase pull.
 from generate_social_cards import write_landing_json as _write_landing_json  # noqa: E402
 import lock_timing  # noqa: E402  -- shared known-late classifier (public figures + digests are pre-start locks only)
+import email_tracking as et  # noqa: E402  -- per-pick 'emailed' state + catch-up rules (pure logic; this file owns every file / repo / mail side effect)
 import lineups  # noqa: E402  -- confirmed lineups (NHL goalies, NBA/NFL Out lists) at the lock pass; fail-open, see scripts/lineups.py
 
 # _LOCKS_EMAIL_CLOSE (the disclaimer-bearing close, defined in
@@ -3019,13 +3020,18 @@ def _leg_html(q: dict) -> str:
                     f'<div style="font-size:14px;color:#eee">{_esc(q["label"])} — {prob*100:.0f}%</div>'
                     f'<div style="font-size:12px;color:#bbb;margin-top:2px">{moved_txt} '
                     f'The price at this line is an estimate, not a bookmaker quote — your book may not offer it, so check before you bet.</div>'
-                    f'</div>')
+                    + (f'<div style="font-size:12px;color:#bbb;margin-top:2px">{_esc(q["note"])}</div>' if q.get("note") else '')
+                    + '</div>')
         if q.get("lane"):
             tier_lbl, color = HOCKEY_LANE_LABEL, _LANE_COLOR
+        if q.get("badge"):
+            tier_lbl, color = q["badge"]       # catch-up legs built from a ledger pick with no value grade on record (see email_tracking.pick_to_leg)
+        note = (f'<div style="font-size:12px;color:#bbb;margin-top:2px">{_esc(q["note"])}</div>' if q.get("note") else '')
         return (f'<div style="padding:5px 0">'
                 f'<span style="background:{color};color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
-                f'border-radius:3px;display:inline-block;margin-bottom:3px">{tier_lbl}</span>'
+                f'border-radius:3px;display:inline-block;margin-bottom:3px">{_esc(tier_lbl)}</span>'
                 f'<div style="font-size:14px;color:#eee">{_esc(q["label"])} — {prob*100:.0f}%{ev_str}{hh}</div>'
+                f'{note}'
                 f'</div>')
     leg = q["leg"]
     direction = "UNDER" if leg.get("over") is False else "OVER"
@@ -3057,7 +3063,28 @@ def _ceiling_note_html(qualifying: list[dict]) -> str:
             'in the settled results. Those picks can therefore be graded OPTIMAL but never PREMIUM. Moneylines and ADJUSTED LINE picks are not capped.</div>')
 
 
-def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int | None = None) -> str:
+def slate_phrase(dates, now=None) -> str:
+    """'today (Sat Oct 11)', 'tomorrow (Sun Oct 12)', 'today (Sat Oct 11) and tomorrow (Sun Oct 12)', or 'this slate' when no dates are known."""
+    ds = sorted({d for d in (dates or []) if d})
+    if not ds:
+        return "this slate"
+    ref = now or datetime.now(MT)
+    ref = ref.astimezone(MT) if isinstance(ref, datetime) else datetime.fromtimestamp(float(ref) / 1000.0, MT)
+    today = ref.date()
+    out = []
+    for d in ds:
+        try:
+            dt = datetime.strptime(d, "%Y-%m-%d").date()
+        except ValueError:
+            out.append(d)
+            continue
+        delta = (dt - today).days
+        word = "today" if delta == 0 else "tomorrow" if delta == 1 else "yesterday" if delta == -1 else dt.strftime("%A")
+        out.append(f"{word} ({dt.strftime('%a %b')} {dt.day})")
+    return " and ".join(out)
+
+
+def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int | None = None, zero: dict | None = None) -> str:
     """Groups qualifying legs by sport/league, then by matchup within each
     sport: the matchup, every qualifying pick for it (grade, probability,
     EV, odds), and the real MC/model reasoning behind it (not necessarily
@@ -3168,7 +3195,10 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
     )
 
     if not qualifying:
-        parts.append('<div style="padding:20px 0;color:#555;font-size:14px">No picks cleared the bar today.</div>')
+        # Wording is about the SLATE the pass evaluated (a rolling pass covers today AND tomorrow): never a bare "today".
+        scope = (zero or {}).get("scope")
+        parts.append(f'<div style="padding:20px 0;color:#555;font-size:14px">No {_esc(scope) + " " if scope else ""}picks cleared the bar for '
+                     f'{_esc(slate_phrase((zero or {}).get("dates")))}. The engine reviewed the slate and nothing met the standard.</div>')
         parts.append(_LOCKS_EMAIL_CLOSE)
         return "".join(parts)
 
@@ -3270,8 +3300,255 @@ def clear_email_pending(label: str) -> None:
     _pending_write(lambda d: d.pop(label, None), f"chore: subscriber email sent ({label})")
 
 
+# ── PER-PICK "EMAILED" TRACKING + ZERO-PICK RULE (2026-10-10 follow-up audit; rules + file format: scripts/email_tracking.py) ────────────
+# Owner decision 2026-10-10: EVERY pick locked by ANY path (the main run, the rolling CFB / soccer / European-hockey passes and their safety-net locks in the main
+# run, the watchdog's auto-locks, the owner's LOCK NOW / manual dispatches, in-app manual locks) must reach the subscribers of its product(s) -- once. Before this,
+# a pass emailed only when IT locked something new, so a pick locked by a pass that does not email (the main run's CFB / soccer / Euro-hockey safety-net locks, the
+# 13:07Z slot, a manual run) or by hand in the app was never emailed unless a later dedicated pass happened to find something new. data/emailed_picks.jsonl now records
+# which ledger pick ids went out in a subscriber email (written by send_locks_email, only after the send reached recipients); every live process ends with a
+# CATCH-UP (run_email_catchup) that emails whatever is locked, not yet emailed and still timely, ONE email per product, to that product's subscribers only.
+EMAILED_PERSIST = False                 # like PENDING_PERSIST: the state lives in the repo, so it is ON only for a real --live run (main() calls init_email_tracking)
+_EMAILED: dict = et.empty_state()       # in-memory copy of data/emailed_picks.jsonl (refreshed from origin right before decisions that depend on it)
+_EMAILED_READY = False                  # True once the state was read (live runs); False = the old "email when this pass locked something new" rules apply
+_FAILED_SEND_PRODUCTS: set[str] = set()  # products whose send reached nobody in this process: the catch-up does not hammer them again (the next pass retries)
+
+# ZERO-PICK EMAILS: ONE rule for every product and every lock path (see zero_pick_gate). 'games' (default): a product's subscribers get ONE "no picks" email for a slate
+# only when that product HAS games on the slate (upcoming, not preseason) and nothing qualified; off-days / preseason / offseason send nothing; never a zero-pick email
+# for a slate that already had a picks email or a zero-pick email. 'always': send whenever a complete pass found nothing (the pre-2026-10-10 behaviour of NFL / CFB / soccer,
+# still deduplicated). 'never': never send one.
+ZERO_PICK_EMAIL_MODE = "games"          # 'games' | 'always' | 'never'
+
+
+def reset_email_tracking() -> None:
+    global _EMAILED, _EMAILED_READY
+    _EMAILED = et.empty_state()
+    _EMAILED_READY = False
+    _FAILED_SEND_PRODUCTS.clear()
+
+
+def _emailed_fetch() -> tuple[str | None, str]:
+    """data/emailed_picks.jsonl as of origin/main -> (text, 'ok' | 'absent' | 'error'). 'absent' = origin has no such file yet (first run); 'error' = it could not be read
+    (fetch failed and no local copy exists). Replaced by tests: nothing in a test ever touches the repo."""
+    try:
+        fetched = subprocess.run(["git", "-C", str(ROOT), "fetch", "--quiet", "--depth=1", "origin", "main"], capture_output=True, timeout=60).returncode == 0
+        shown = subprocess.run(["git", "-C", str(ROOT), "show", f"origin/main:{et.STATE_REL}"], capture_output=True, text=True, timeout=30)
+        if fetched and shown.returncode == 0:
+            return shown.stdout, "ok"
+        if fetched:
+            return None, "absent"
+    except Exception:
+        pass
+    try:
+        local = ROOT / et.STATE_REL
+        if local.exists():
+            return local.read_text(), "ok"
+    except Exception:
+        pass
+    return None, "error"
+
+
+def _emailed_append(records: list[dict], message: str) -> None:
+    """Append `records` (one JSON line each) to data/emailed_picks.jsonl and commit + push right away (shared _commit_and_push: one fetch+rebase retry), so no run leaves the
+    tracked file dirty. The file is append-only and `merge=union` in .gitattributes: a concurrent append by another workflow merges instead of conflicting."""
+    path = ROOT / et.STATE_REL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    existing = path.read_text() if path.exists() else ""
+    if existing and not existing.endswith("\n"):
+        existing += "\n"
+    path.write_text(existing + et.render(records))
+    _commit_and_push([et.STATE_REL], message)
+
+
+def _emailed_compact(state: dict, message: str) -> None:
+    """Rewrite the file without expired records (rare: only when it has grown past et.COMPACT_AT_LINES)."""
+    (ROOT / et.STATE_REL).write_text(et.compact_text(state, _now_ms()))
+    _commit_and_push([et.STATE_REL], message)
+
+
+def init_email_tracking(live: bool, now=None) -> bool:
+    """Called once by main() (before any pass). Live: read the state from origin; on the very first run after the deploy there is no cutoff yet, so record cutoffMs = now
+    -- every pick locked before this moment counts as already handled (see email_tracking's SEED note). Returns True when tracking is on for this process."""
+    global EMAILED_PERSIST, _EMAILED, _EMAILED_READY
+    reset_email_tracking()
+    EMAILED_PERSIST = bool(live)
+    if not live:
+        return False
+    text, status = _emailed_fetch()
+    if status == "error":
+        log(f"WARNING: could not read {et.STATE_REL} -- per-pick email tracking is OFF for this run (passes use the old 'email when this pass locked something new' rule; no catch-up)")
+        return False
+    st = et.parse_lines(text, _now_ms(now))
+    if st["cutoffMs"] is None:
+        now_ms = _now_ms(now)
+        st["cutoffMs"], st["cutoffIso"] = int(now_ms), et.iso_of_ms(now_ms)
+        log(f"per-pick email tracking: first run -- cutoff recorded at {st['cutoffIso']}; picks locked before it count as already emailed")
+        try:
+            _emailed_append([{"k": "cutoff", "ms": st["cutoffMs"], "iso": st["cutoffIso"]}], f"chore: start per-pick subscriber email tracking (cutoff {st['cutoffIso']})")
+        except Exception as exc:
+            log(f"could not record the tracking cutoff in {et.STATE_REL}: {exc}")
+    elif text and text.count("\n") > et.COMPACT_AT_LINES:
+        try:
+            _emailed_compact(st, "chore: compact subscriber email tracking file")
+        except Exception as exc:
+            log(f"could not compact {et.STATE_REL}: {exc}")
+    _EMAILED = st
+    _EMAILED_READY = True
+    return True
+
+
+def emailed_state() -> dict:
+    return _EMAILED
+
+
+def emailed_refresh() -> None:
+    """Merge whatever another workflow has recorded on origin since this process read the state (a narrow race window remains: see the report)."""
+    global _EMAILED
+    if not (EMAILED_PERSIST and _EMAILED_READY):
+        return
+    text, status = _emailed_fetch()
+    if status == "ok":
+        _EMAILED = et.merge(_EMAILED, et.parse_lines(text, _now_ms()))
+
+
+def _emailed_update(mutate, message: str) -> None:
+    """Apply `mutate(state)` to the in-memory state (always) and, for a live run with tracking on, append exactly the new records to the file + commit. Never raises."""
+    try:
+        if EMAILED_PERSIST and _EMAILED_READY:
+            emailed_refresh()
+        snap = et.snapshot(_EMAILED)
+        mutate(_EMAILED)
+        if EMAILED_PERSIST and _EMAILED_READY:
+            recs = et.records_since(snap, _EMAILED)
+            if recs:
+                _emailed_append(recs, message)
+    except Exception as exc:
+        log(f"could not update {et.STATE_REL}: {exc}")
+
+
+def _record_send(product: str, via: str, qualifying: list[dict], zero: dict | None) -> None:
+    """A subscriber email just reached recipients: remember its picks (or, for a 'no picks' email, the slate dates) so nothing is sent twice."""
+    ids = [q["pickId"] for q in qualifying if q.get("pickId")]
+    dates = {q["pickId"]: (q.get("pickDate") or q.get("lockDate")) for q in qualifying if q.get("pickId")}
+    zero_dates = list((zero or {}).get("dates") or []) if not qualifying else []
+    if not ids and not zero_dates:
+        return
+
+    def mut(st: dict) -> None:
+        now_ms = _now_ms()
+        et.mark_emailed(st, ids, product, via, now_ms, dates)
+        if zero_dates:
+            et.mark_zero(st, product, zero_dates, via, now_ms)
+    _emailed_update(mut, f"chore: subscriber email recorded ({via})")
+
+
+def find_leg_pick(page, q: dict, date_key: str | None) -> dict | None:
+    """The ledger row a qualifying leg is (now) locked as -> {id, date, lockedAt} or None. Read-only twin of lock_game_leg's dedupe (same three matches), so 'locked' and
+    'already-locked' legs resolve to the same pick id the catch-up sees. Props: the deterministic prop id's inputs (date + player + direction + line)."""
+    if q.get("kind") == "PROP":
+        leg = q["leg"]
+        return page.evaluate(
+            """
+            ({ player, over, line }) => {
+              const k = today();
+              const p = getP().find(x => x.betType === 'PROP' && x.date === k && x.player === player && !!x.over === !!over && String(x.line) === String(line) && x.outcome !== '_removed');
+              return p ? { id: p.id, date: p.date, lockedAt: p.lockedAt } : null;
+            }
+            """,
+            {"player": leg.get("player"), "over": leg.get("over") is not False, "line": leg.get("line")})
+    lock_type = SPORT_TO_LOCKPICK_TYPE.get(q["sport"])
+    if not lock_type:
+        return None
+    return page.evaluate(
+        """
+        ({ hA, awA, type, betOn, dateKey, betTypeOverride }) => {
+          const key = dateKey || today();
+          const id = `${key}_${hA}_${awA}_${type}_${betOn.replace(/\\s/g,'')}`;
+          const preds = getP();
+          const marketDup = (typeof _findSameMarketLock === 'function') ? _findSameMarketLock(preds, key, hA, awA, betTypeOverride) : null;
+          const p = preds.find(x => x.id === id) || preds.find(x => x.date === key && x.hA === hA && x.awA === awA && x.betOn === betOn) || marketDup;
+          return p ? { id: p.id, date: p.date, lockedAt: p.lockedAt } : null;
+        }
+        """,
+        {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "dateKey": date_key,
+         "betTypeOverride": _market_type(q.get("side"))})
+
+
+def _pick_email_due(qualifying: list[dict], key: str, pend: set[str], legacy_due: bool) -> tuple[bool, str]:
+    """Should this pass email its product's subscribers about `qualifying` (non-empty)? With tracking on and every leg resolved to a ledger pick: yes exactly when some pick is
+    still owed (not recorded as emailed, locked after the cutoff) -- whichever pass locked it, and however many were locked just now. A failed-send record that the catch-up
+    already satisfied is cleared. Without tracking (dry run, state unreadable, an unresolved leg) the caller's old rule `legacy_due` decides."""
+    if _EMAILED_READY and qualifying and all(q.get("pickId") for q in qualifying):
+        emailed_refresh()
+        owed = [q for q in qualifying if et.needs_email(_EMAILED, q.get("pickId"), q.get("pickLockedAt"))]
+        if owed:
+            return True, f"{len(owed)} of {len(qualifying)} pick(s) not yet emailed to subscribers"
+        if key in pend:
+            clear_email_pending(key)
+        return False, "every qualifying pick was already emailed (or locked before tracking began)"
+    return legacy_due, "no per-pick tracking for this pass: old rule (email when something new locked or a send is pending)"
+
+
+def slate_game_dates(result: dict, only_sports, fallback_date: str, now=None) -> list[str]:
+    """MT dates of the games on the slate a pass evaluated that have NOT started yet (an unknown start counts), for the sports in scope. NBA preseason games never count (owner
+    decision: nothing is done for the preseason). One entry per game; the zero-pick rule needs them to know whether the product HAS a slate."""
+    now_ms = _now_ms(now)
+    pre = _nba_preseason_pairs() if (only_sports is None or "NBA" in only_sports) else set()
+    out: list[str] = []
+    for g in (result or {}).get("gameLegs") or []:
+        sport = g.get("sport")
+        if only_sports is not None and sport not in only_sports:
+            continue
+        if sport == "NBA" and frozenset({g.get("hA"), g.get("awA")}) in pre:
+            continue
+        st = parse_start_ms(g.get("startMs"))
+        if st is not None and st <= now_ms:
+            continue
+        out.append(mt_date_of_ms(st) if st is not None else fallback_date)
+    return out
+
+
+def ledger_locked_dates(page, product: str, dates: list[str]) -> set[str]:
+    """Dates (of `dates`) on which the in-page ledger already holds a locked pick of this product that is not a known-late lock (the in-memory ledger: no extra pull).
+    Fail-open to the empty set."""
+    if page is None or not dates:
+        return set()
+    try:
+        picks = page.evaluate("(ds) => getP().filter(p => p && ds.includes(p.date) && p.outcome !== '_removed')", list(dates)) or []
+    except Exception:
+        return set()
+    idx = lock_timing.load_index(ROOT)
+    return {p.get("date") for p in picks if et.product_of_pick(p) == product and not lock_timing.is_known_late(p, idx)}
+
+
+def zero_pick_gate(product: str, *, qualifying: list[dict], guard: dict, complete: bool, game_dates: list[str], eval_dates: list[str],
+                   page=None) -> tuple[bool, str, list[str]]:
+    """THE zero-pick rule, used by every product on every lock path (main run, early passes, rolling evening passes) -> (send, reason, slate dates to name in the email).
+
+    ZERO_PICK_EMAIL_MODE 'never' -> no. Otherwise the pass must be one that can honestly say "the engine looked and found nothing" (_zero_pick_decision: complete, nothing
+    skipped for a started game, nothing held by the lineup gate). Mode 'games' then also needs the product to HAVE games on the slate (game_dates: upcoming, non-preseason),
+    so off-days, preseason and offseason send nothing. Finally at most ONE zero-pick email per product per slate date, and none for a date that already had a PICKS email
+    (state) or already holds a locked pick of that product in the ledger -- the 2026-10-10 audit saw soccer send "No picks" 9 h after a picks email."""
+    mode = ZERO_PICK_EMAIL_MODE if ZERO_PICK_EMAIL_MODE in ("games", "always", "never") else "games"     # a typo in the constant must not turn into 'always'
+    if mode == "never":
+        return False, "ZERO_PICK_EMAIL_MODE is 'never'", []
+    ok, why = _zero_pick_decision(qualifying, guard, complete)
+    if not ok:
+        return False, why, []
+    slate = sorted({d for d in game_dates if d})
+    if mode == "games" and not slate:
+        return False, "no upcoming games on the slate for this product (off-day / preseason / offseason): no zero-pick email", []
+    dates = slate or sorted({d for d in eval_dates if d})
+    covered = et.emailed_pick_dates(_EMAILED, product) | et.zero_dates_sent(_EMAILED, product) | ledger_locked_dates(page, product, dates)
+    left = [d for d in dates if d not in covered]
+    if not left:
+        return False, f"slate {dates} already covered (a picks email or a 'no picks' email went out for it, or the ledger holds a locked pick): no zero-pick email", []
+    return True, f"complete pass, games on {left}, nothing qualified", left
+
+
 def send_locks_email(qualifying: list[dict], live: bool, locked_count: int | None = None,
-                      label: str = "", to: list[str] | None = None, date_str: str | None = None, key: str | None = None) -> bool:
+                      label: str = "", to: list[str] | None = None, date_str: str | None = None, key: str | None = None,
+                      product: str | None = None, zero: dict | None = None) -> bool:
+    # `product` + `zero` feed the per-pick tracking (_record_send): the paid product whose subscribers this email goes to, and for a 'no picks' email {"dates": [...], "scope": "NHL"}.
     # `key` names this email in the pending-retry record (EMAIL_PENDING_REL); it defaults to the label.
     # Real bug, found via audit 2026-09-24: every call site across every
     # lock function (run_lock, run_euro_early_lock, run_soccer_evening_
@@ -3299,13 +3576,21 @@ def send_locks_email(qualifying: list[dict], live: bool, locked_count: int | Non
     date_str = date_str or datetime.now(ZoneInfo("America/Denver")).strftime("%Y-%m-%d")   # Mountain date (was UTC: an evening run showed tomorrow's date)
     tag = f"{label} " if label else ""
     subject = f"Clairvoyance — {'Locked' if live else '[DRY RUN] Would lock'} {tag}picks for {date_str} ({len(qualifying)})"
-    body_html = build_locks_email_html(qualifying, live, locked_count)
+    if live and not qualifying:
+        z = zero or {}
+        subject = f"Clairvoyance — No {z['scope'] + ' ' if z.get('scope') else ''}picks cleared the bar for {slate_phrase(z.get('dates'))}"
+    body_html = build_locks_email_html(qualifying, live, locked_count, zero)
     ok, msg = _send_gmail(subject, recipients, body_html)
     shown = label or "ALL"
     key = key or shown
     global LIVE_SEND_ATTEMPTS
     if live:
         LIVE_SEND_ATTEMPTS += 1
+    reached = bool(ok) or str(msg).startswith("partial send")        # a partial send reached some recipients: a re-send would double-deliver to them, so it counts as sent
+    if live and product and reached:
+        _record_send(product, key, qualifying, zero)
+    if live and product and not reached:
+        _FAILED_SEND_PRODUCTS.add(product)
     if ok:
         log(f"Locks email ({shown}) sent to {len(recipients)} recipient(s)")
         if live and key in _PENDING_SEEN:
@@ -3379,6 +3664,15 @@ def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | Non
             leg_date = (q.get("lockDate") or date_override) if per_leg_dates else date_override
             outcome = lock_game_leg(page, q, leg_date) if q["kind"] == "GAME" else lock_prop_leg(page, q["sport"], q["leg"])
             label = q.get('label') or q.get('leg', {}).get('player')
+            if outcome in ("locked", "already-locked") and _EMAILED_READY:
+                # Per-pick email tracking: remember which ledger row this leg is, so the email that lists it can record it (send_locks_email -> _record_send)
+                # and the catch-up never sends it twice. Never fatal: an unresolved leg only makes the pass fall back to the old "email when new" rule.
+                try:
+                    row = find_leg_pick(page, q, leg_date)
+                    if row and row.get("id"):
+                        q["pickId"], q["pickDate"], q["pickLockedAt"] = row["id"], row.get("date"), row.get("lockedAt")
+                except Exception as exc:
+                    log(f"  (could not resolve the ledger id of {label}: {exc})")
             if outcome == "locked":
                 new += 1
             elif outcome == "already-locked":
@@ -3505,6 +3799,7 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
             log(f"  [{q['sport']} PROP] {leg.get('player')} {direction} {leg.get('line')} "
                 f"{leg.get('stat')} ({leg.get('grade')})")
 
+    product = _product_for_sports(only_sports)
     if not live:
         log(f"[DRY RUN] Would lock {len(qualifying)} legs above (pass --live to write)")
         if send_email:
@@ -3515,9 +3810,11 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
         # "complete" gates the workflow marker: nothing MORE can be locked. A leg skipped because its game started is final
         # (nothing later can lock it), so skips do not make a pass incomplete; only upcoming games with no real price do.
         rep["complete"] = not analysis["noPrice"]
-        ok_email, why = _zero_pick_decision(qualifying, guard, rep["complete"])
+        ok_email, why, zdates = zero_pick_gate(product, qualifying=qualifying, guard=guard, complete=rep["complete"],
+                                               game_dates=slate_game_dates(result, only_sports, rep["dates"][0]), eval_dates=rep["dates"], page=page)
         if send_email and ok_email:
-            send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to)
+            send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to, product=product,
+                             zero={"dates": zdates, "scope": _scope_label(only_sports)})
         elif send_email:
             log(f"Locks email ({label or 'ALL'}) suppressed (zero-pick): {why}")
         else:
@@ -3546,8 +3843,12 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
     # (result.new==0) AND something qualified (qualifying non-empty) --
     # genuinely new locks and the "nothing qualified today" case
     # (handled above) still email as before.
-    if send_email and result.new == 0 and qualifying and (label or "ALL") not in pending_labels():
-        log(f"Locks email ({label or 'ALL'}) skipped -- all {len(qualifying)} qualifying leg(s) "
+    key = label or "ALL"
+    pend = pending_labels() if send_email else set()
+    due, why_due = _pick_email_due(qualifying, key, pend, result.new > 0 or key in pend) if send_email else (False, "")
+    if send_email and not due:
+        log(f"Locks email ({label or 'ALL'}) skipped -- {why_due}" if _EMAILED_READY else
+            f"Locks email ({label or 'ALL'}) skipped -- all {len(qualifying)} qualifying leg(s) "
             f"were already locked by an earlier pass today, nothing new to report")
     elif send_email:
         # Real bug, found via audit: this used to pass `locked` (this
@@ -3560,7 +3861,7 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
         # not. result.confirmed (new + already_locked) is the real
         # answer to "of today's qualifying legs, how many are actually
         # locked right now."
-        send_locks_email(qualifying, live=True, locked_count=result.confirmed, label=label, to=to)
+        send_locks_email(qualifying, live=True, locked_count=result.confirmed, label=label, to=to, product=product)
     else:
         log(f"Locks email ({label or 'ALL'}) skipped -- already sent today")
     return result.new
@@ -3629,9 +3930,11 @@ def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
             # "complete" gates the workflow marker: nothing MORE can be locked. A leg skipped because its game started is final
             # (nothing later can lock it), so skips do not make a pass incomplete; only upcoming games with no real price do.
             rep["complete"] = not analysis["noPrice"]
-            ok_email, why = _zero_pick_decision(qualifying, guard, rep["complete"])
+            ok_email, why, zdates = zero_pick_gate(product, qualifying=qualifying, guard=guard, complete=rep["complete"],
+                                                   game_dates=slate_game_dates(result, only_sports, rep["dates"][0]), eval_dates=rep["dates"], page=page)
             if send_email and ok_email:
-                send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to)
+                send_locks_email(qualifying, live=True, locked_count=0, label=label, to=to, product=product,
+                                 zero={"dates": zdates, "scope": _scope_label(only_sports)})
             elif send_email:
                 log(f"Locks email ({label}) suppressed (zero-pick): {why}")
             continue
@@ -3643,11 +3946,14 @@ def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
         rep["complete"] = result_lock.failed == 0 and not analysis["noPrice"]
         log(f"[{label}] {result_lock.new} new, {result_lock.already_locked} already locked, "
             f"{result_lock.failed} failed -- {result_lock.confirmed}/{len(qualifying)} confirmed locked")
-        if send_email and result_lock.new == 0 and qualifying and label not in pending_labels():
-            log(f"Locks email ({label}) skipped -- all {len(qualifying)} qualifying leg(s) "
+        pend = pending_labels() if send_email else set()
+        due, why_due = _pick_email_due(qualifying, label, pend, result_lock.new > 0 or label in pend) if send_email else (False, "")
+        if send_email and not due:
+            log(f"Locks email ({label}) skipped -- {why_due}" if _EMAILED_READY else
+                f"Locks email ({label}) skipped -- all {len(qualifying)} qualifying leg(s) "
                 f"were already locked by an earlier pass today, nothing new to report")
         elif send_email:
-            send_locks_email(qualifying, live=True, locked_count=result_lock.confirmed, label=label, to=to)
+            send_locks_email(qualifying, live=True, locked_count=result_lock.confirmed, label=label, to=to, product=product)
         else:
             log(f"Locks email ({label}) skipped -- already sent today")
 
@@ -3673,6 +3979,21 @@ def _zero_pick_decision(qualifying: list[dict], guard: dict, complete: bool) -> 
     return True, "complete pass, nothing qualified"
 
 
+def _product_for_sports(only_sports) -> str:
+    """The paid product a scoped pass belongs to (a subset of PRODUCT_SPORTS[product]: EARLY_HOCKEY_SPORTS -> 'hockey', {'CFB'} -> 'cfb', ...); 'all' for an unscoped pass."""
+    if only_sports:
+        for prod, sp in PRODUCT_SPORTS.items():
+            if frozenset(only_sports) <= sp:
+                return prod
+    return "all"
+
+
+def _scope_label(only_sports) -> str:
+    """League names a 'no picks' email is about ('NHL', 'Liiga / NLA / SHL / Extraliga'...): the hockey product has two emails (NHL via the main run, the
+    European leagues via their own passes), so a zero-pick email must say which leagues it covers."""
+    return " / ".join(sorted(SPORT_DISPLAY_NAME.get(s, s) for s in only_sports)) if only_sports else ""
+
+
 def _dates_label(qualifying: list[dict], fallback: str) -> str:
     ds = sorted({q.get("lockDate") for q in qualifying if q.get("lockDate")})
     return " & ".join(ds) if ds else fallback
@@ -3686,6 +4007,7 @@ def _run_rolling_pass(page, live: bool, send_email: bool, to: list[str] | None, 
     skipped/failed legs, next kickoff) for the result file, the Engine Health status and the owner's pre-kickoff alert.
     Returns the number of NEW locks."""
     dates = horizon_dates(now)
+    product = _product_for_sports(only_sports)
     log(f"=== AUTO-LOCK (PREMIUM/OPTIMAL) — {title}, ROLLING HORIZON {' + '.join(dates)} ===")
     result = gather(page, dates)
     guard: dict = {}
@@ -3715,9 +4037,11 @@ def _run_rolling_pass(page, live: bool, send_email: bool, to: list[str] | None, 
         # "complete" gates the workflow marker: nothing MORE can be locked. A leg skipped because its game started is final
         # (nothing later can lock it), so skips do not make a pass incomplete; only upcoming games with no real price do.
         rep["complete"] = not analysis["noPrice"]
-        ok_email, why = _zero_pick_decision(qualifying, guard, rep["complete"])
+        ok_email, why, zdates = zero_pick_gate(product, qualifying=qualifying, guard=guard, complete=rep["complete"],
+                                               game_dates=slate_game_dates(result, only_sports, dates[0], now), eval_dates=dates, page=page)
         if send_email and ok_email:
-            send_locks_email(qualifying, live=True, locked_count=0, label=email_label, to=to, date_str=dates[-1])
+            send_locks_email(qualifying, live=True, locked_count=0, label=email_label, to=to, date_str=dates[-1], product=product,
+                             zero={"dates": zdates, "scope": _scope_label(only_sports)})
         else:
             log(f"Locks email ({label}) suppressed (zero-pick): {why}" if send_email else f"Locks email ({label}) skipped -- already sent")
         return 0
@@ -3731,13 +4055,17 @@ def _run_rolling_pass(page, live: bool, send_email: bool, to: list[str] | None, 
     if lock_result.new > 0:
         flush_to_supabase(page)
         log("Flushed locks to Supabase")
-    # Subscriber email only when this pass locked something NEW: an extra pass that finds nothing new never re-emails (the
-    # pass-level dedupe the redundant slots rely on).
-    if send_email and lock_result.new == 0 and email_label not in pending_labels():
-        log(f"Locks email ({label}) skipped -- all {len(qualifying)} qualifying leg(s) were already locked by an earlier "
+    # Subscriber email only when some pick is still owed to the subscribers (per-pick tracking: not recorded as emailed -- whichever pass locked it,
+    # including the main run's safety-net locks); without tracking, only when this pass locked something NEW. An extra pass that finds nothing owed
+    # never re-emails (the pass-level dedupe the redundant slots rely on).
+    pend = pending_labels() if send_email else set()
+    due, why_due = _pick_email_due(qualifying, email_label, pend, lock_result.new > 0 or email_label in pend) if send_email else (False, "")
+    if send_email and not due:
+        log(f"Locks email ({label}) skipped -- {why_due}" if _EMAILED_READY else
+            f"Locks email ({label}) skipped -- all {len(qualifying)} qualifying leg(s) were already locked by an earlier "
             f"pass, nothing new to report")
     elif send_email:
-        send_locks_email(qualifying, live=True, locked_count=lock_result.confirmed, label=email_label, to=to, date_str=date_str)
+        send_locks_email(qualifying, live=True, locked_count=lock_result.confirmed, label=email_label, to=to, date_str=date_str, product=product)
     else:
         log(f"Locks email ({label}) skipped -- already sent")
     return lock_result.new
@@ -3865,6 +4193,7 @@ def run_lock_segmented(page, live: bool, send_email: bool = True, only_new: bool
     second copy of the day's NHL picks), because this function otherwise emails every product on every call that has send_email=True."""
     log("=== AUTO-LOCK (PREMIUM/OPTIMAL) — ALL PRODUCTS ===")
     result = gather_legs(page)
+    gathered = result            # `result` is reused below for each product's LockResult; the zero-pick rule needs the gathered slate
     log(f"Gathered {len(result.get('gameLegs') or [])} games' worth of markets, "
         f"{len(result.get('propLegs') or [])} prop legs total")
     prop_diag = result.get("propDiag") or {}
@@ -3971,43 +4300,49 @@ def run_lock_segmented(page, live: bool, send_email: bool = True, only_new: bool
         # CFB subscriber gets that day. Still locks as a safety net
         # either way (matches soccer/CFB's own early-pass precedent of
         # continuing to lock without emailing).
-        if only_new:
-            # Watchdog auto-lock: tell a product's subscribers only about a pass that locked something NEW for them (same rule as the rolling runners).
-            if product in ("soccer", "cfb"):
-                log(f"Locks email ({label}) skipped -- {product} has its own dedicated early/evening pass; this run locked {result.new} as a safety net")
-            elif send_email and email_qualifying and (result.new > 0 or main_key in pend):
-                send_locks_email(email_qualifying, live=True, locked_count=result.confirmed, label=label, to=recipients, key=main_key)
-            elif send_email:
-                log(f"Locks email ({label}) skipped -- nothing new locked for {product} in this pass (watchdog auto-lock emails new locks only)")
-        elif send_email and product in ("soccer", "cfb"):
-            log(f"Locks email ({label}) skipped -- {product} has its own dedicated early/evening "
-                f"pass with a better-timed email; this run still locked as a safety net ({result.new} new)")
-        elif send_email and season_inactive:
-            log(f"Locks email ({label}) skipped -- season inactive, nothing qualifying yet")
-        elif send_email and not email_qualifying and any(d.get("sport") in sports for d in seg_guard.get("detail", [])):
-            # Zero-pick email suppression (2026-10-02): this product HAD qualifying legs, but the pre-start guard dropped them
-            # because their games had already started -- a late pass, not "no picks". The owner is told via the pre-kickoff alert.
-            log(f"Locks email ({label}) suppressed (zero-pick): its qualifying legs were skipped because the games had "
-                f"already started (a late pass, not 'no picks')")
-        elif send_email and not email_qualifying and any(h.get("sport") in sports for h in seg_guard.get("lineupHolds", [])):
-            log(f"Locks email ({label}) suppressed (zero-pick): its qualifying legs were held by the confirmed-lineup gate (not 'no picks')")
+        #
+        # 2026-10-10 follow-up (owner: NO MISSING PICK EMAILS): the picks this run locks for soccer / CFB (and the European hockey safety-net locks) are no longer
+        # silent when the dedicated pass later finds nothing new -- every live process ends with run_email_catchup(), which emails whatever is locked and not yet
+        # emailed (tracked per pick in data/emailed_picks.jsonl), one email per product. Zero-pick emails follow ONE rule for every product (zero_pick_gate).
+        if product in ("soccer", "cfb"):
+            log(f"Locks email ({label}) skipped -- {product} has its own dedicated early/evening pass with a better-timed email; this run locked {result.new} as a safety net "
+                f"(any pick still owed to subscribers is emailed by the catch-up at the end of this run)")
+        elif email_qualifying:
+            # `send_email` is the main run's once-a-day final slot; a non-final slot (and the watchdog, only_new) emails the whole slate only to retry a failed send or,
+            # watchdog, when it locked something new. Anything else locked outside the final email reaches subscribers through the catch-up.
+            if send_email or main_key in pend:
+                legacy = ((result.new > 0 or main_key in pend) if only_new else True) if send_email else True
+                due, why_due = _pick_email_due(email_qualifying, main_key, pend, legacy)
+            else:
+                due, why_due = False, "not the final slot: nothing is emailed here (the catch-up at the end of this run emails any pick locked and not yet emailed)"
+            if due:
+                if not send_email:
+                    log(f"Retrying the {label} locks email -- an earlier send reached nobody")
+                # Real bug, found via audit: this used to pass `locked` (this pass's NEW count only) -- see LockResult's own docstring for the real "1 of 15" case this
+                # caused: the day's checks landing compressed together in real time (a GitHub Actions scheduling delay) left the one that actually emails reporting almost
+                # nothing NEW even though the day's picks were all really there. result.confirmed answers the real question.
+                send_locks_email(email_qualifying, live=True, locked_count=result.confirmed, label=label, to=recipients, key=main_key, product=product)
+            else:
+                log(f"Locks email ({label}) skipped -- {why_due} ({result.new} locked this pass)")
+        elif send_email and not only_new:
+            # ZERO-PICK email: one rule for every product (zero_pick_gate): only when this product HAS upcoming games on today's slate and nothing qualified, at most
+            # one per product per date, never after a picks email for the same date. Hockey's main email covers the NHL only (the European leagues have their own passes).
+            scope = frozenset(s for s in sports if s not in EARLY_HOCKEY_SPORTS) if product == "hockey" else frozenset(sports)
+            today_mt = datetime.now(MT).strftime("%Y-%m-%d")
+            pguard = {"skipped": sum(1 for d in seg_guard.get("detail", []) if d.get("sport") in scope),
+                      "lineupHolds": [h for h in seg_guard.get("lineupHolds", []) if h.get("sport") in scope]}
+            pcomplete = not any(str(n).split(" ")[0] in scope for n in seg_analysis.get("noPrice", []))
+            ok_z, why_z, zdates = zero_pick_gate(product, qualifying=email_qualifying, guard=pguard, complete=pcomplete,
+                                                 game_dates=slate_game_dates(gathered, scope, today_mt), eval_dates=[today_mt], page=page)
+            if ok_z:
+                send_locks_email([], live=True, locked_count=0, label=label, to=recipients, key=main_key, product=product,
+                                 zero={"dates": zdates, "scope": _scope_label(scope)})
+            else:
+                log(f"Locks email ({label}) suppressed (zero-pick): {why_z}")
         elif send_email:
-            # Real bug, found via audit: this used to pass `locked` (this
-            # pass's NEW count only) -- see LockResult's own docstring
-            # for the real "1 of 15" case this caused, confirmed live:
-            # the 3 dedicated morning checks landing compressed together
-            # in real time (a GitHub Actions scheduling delay) meant the
-            # first two locked nearly everything, leaving the THIRD
-            # (this one, the one that actually emails) reporting almost
-            # nothing NEW even though the day's picks were all really
-            # there. result.confirmed answers the real question.
-            send_locks_email(email_qualifying, live=True, locked_count=result.confirmed, label=label, to=recipients, key=main_key)
-        elif email_qualifying and main_key in pend and product not in ("soccer", "cfb"):
-            # Today's email already went out once but reached nobody (a failed send, recorded as pending): this later pass retries it.
-            log(f"Retrying the {label} locks email -- an earlier send reached nobody")
-            send_locks_email(email_qualifying, live=True, locked_count=result.confirmed, label=label, to=recipients, key=main_key)
+            log(f"Locks email ({label}) skipped -- nothing qualifying and this is a watchdog auto-lock pass (it never sends a zero-pick email)")
         else:
-            log(f"Locks email ({label}) skipped -- already sent today ({result.new} locked this pass)")
+            log(f"Locks email ({label}) skipped -- not the final slot ({result.new} locked this pass)")
 
     # Explicit request, 2026-09-03: stop emailing the OTHER (owner-only)
     # digest entirely -- it's been empty every single real run back when
@@ -4032,6 +4367,64 @@ def run_lock_segmented(page, live: bool, send_email: bool = True, only_new: bool
     if total_locked > 0:
         flush_to_supabase(page)
         log(f"Flushed {total_locked} total locks to Supabase")
+
+
+# ── EMAIL CATCH-UP (every live process ends with this) ──────────────────────────────────────────────────────────────────────
+def run_email_catchup(page, live: bool, now=None) -> int:
+    """Emails the subscribers of each product about every ledger pick that is locked, NOT yet emailed, and still timely -- whichever path locked it (in-app manual lock, the
+    owner's LOCK NOW / manual dispatch, a late slot, the main run's safety-net locks for CFB / soccer / European hockey, the watchdog...). Rules: scripts/email_tracking.py
+    (catchup_candidates). One email per product per pass, standard picks template, sent to recipients_for(product) only (owner included, as for every lock email); the ids are
+    recorded by send_locks_email only after the send reached recipients. Reuses the ledger this process already loaded (one in-memory getP() filter): zero extra Supabase reads.
+    Returns the number of emails sent. A dry run sends nothing (the tracking cutoff only exists for live runs)."""
+    if not live:
+        log("email catch-up: dry run -- not evaluated")
+        return 0
+    if not et.CATCHUP_ENABLED:
+        log("email catch-up: disabled (email_tracking.CATCHUP_ENABLED is False)")
+        return 0
+    if not _EMAILED_READY:
+        log("email catch-up: per-pick tracking is off for this run (state unreadable) -- skipped; the next pass retries")
+        return 0
+    now_ms = _now_ms(now)
+    emailed_refresh()
+    st = emailed_state()
+    dates = sorted(et.window_dates(now_ms))
+    picks = page.evaluate(
+        "(a) => getP().filter(p => p && p.id && p.outcome === 'pending' && a.dates.includes(p.date) && (p.lockedAt || 0) >= a.cutoff)",
+        {"dates": dates, "cutoff": st.get("cutoffMs") or 0}) or []
+    idx = lock_timing.load_index(ROOT)
+    eligible, skipped = et.catchup_candidates(picks, st, now_ms, idx)
+    pre = _nba_preseason_pairs() if any(et.product_of_pick(p) == "nba" for _prod, p in eligible) else set()
+    if pre:     # owner decision: nothing is done for the NBA preseason -- an in-app lock on a preseason game is never sold to subscribers either
+        skipped += [(p, "NBA preseason game: never emailed") for prod, p in eligible if prod == "nba" and frozenset({p.get("hA"), p.get("awA")}) in pre]
+        eligible = [(prod, p) for prod, p in eligible if not (prod == "nba" and frozenset({p.get("hA"), p.get("awA")}) in pre)]
+    for p, why in skipped:
+        log(f"  email catch-up: NOT emailing [{p.get('league') or p.get('sport')}] {p.get('betOn')} ({p.get('awA')} @ {p.get('hA')}): {why}")
+    groups = et.group_by_product(eligible)
+    if not groups:
+        log(f"email catch-up: nothing owed ({len(picks)} pending pick(s) locked since tracking began, all emailed, excluded or out of window)")
+        return 0
+    pending_labels()          # marks failed-send records as 'seen' so a successful catch-up send clears them
+    sent = 0
+    for product in sorted(groups):
+        group = groups[product]
+        label = PRODUCT_LABEL[product]
+        if product in _FAILED_SEND_PRODUCTS:
+            log(f"email catch-up ({label}): {len(group)} pick(s) owed, but a send for this product already failed in this run -- the next pass retries")
+            continue
+        if len(group) > et.CATCHUP_MAX_PICKS_PER_PRODUCT:
+            msg = (f"email catch-up ({label}): {len(group)} picks owed in one pass (> {et.CATCHUP_MAX_PICKS_PER_PRODUCT}) -- refusing to send; check "
+                   f"{et.STATE_REL} (cutoff) before this goes out")
+            log(f"ERROR: {msg}")
+            EMAIL_FAILURES.append(msg)
+            continue
+        legs = [et.pick_to_leg(p, now_ms, idx) for p in group]
+        log(f"email catch-up ({label}): emailing {len(legs)} owed pick(s): " + "; ".join(f"{l['awA']} @ {l['hA']} {l['label']}" for l in legs))
+        date_str = " & ".join(sorted({str(p.get("date")) for p in group}))
+        if send_locks_email(legs, live=True, locked_count=len(legs), label=label, to=recipients_for(product), date_str=date_str,
+                            key=f"CATCHUP {label}", product=product):
+            sent += 1
+    return sent
 
 
 # ── PRE-KICKOFF WATCHDOG (owner only) ──────────────────────────────────────────────────────────────────────────────────────
@@ -4349,6 +4742,8 @@ def main() -> None:
 
     if do_lock or args.watchdog:
         activate_lineup_gate()        # fail-open: any problem leaves the gate off and the passes exactly as before
+    # Per-pick subscriber-email tracking (data/emailed_picks.jsonl): live runs only; the first live run after the deploy records the cutoff (see email_tracking.py).
+    init_email_tracking(bool(args.live))
 
     from playwright.sync_api import sync_playwright
 
@@ -4584,6 +4979,15 @@ def main() -> None:
             except Exception as exc:
                 log(f"adaptive recalibration failed: {exc}")
                 raise
+
+        # NO MISSING PICK EMAILS (owner decision 2026-10-10): after everything this process did (settle first, so a game that is already final is never emailed; then the
+        # lock passes, which record the picks THEIR emails listed), email whatever is still locked but not emailed -- in-app manual locks, the main run's safety-net locks
+        # for CFB / soccer / European hockey, a manual dispatch, a late slot. Same in-memory ledger: no extra Supabase read. A failure here ends the run red, never silent.
+        try:
+            run_email_catchup(page, bool(args.live))
+        except Exception as exc:
+            log(f"email catch-up failed: {exc}")
+            EMAIL_FAILURES.append(f"email catch-up failed: {exc}")
 
         # The backup/landing JSON above were written BEFORE this run settled/locked anything, so a settle or lock that changed the
         # ledger left picks_backup.json (and the public Live Track Record JSON) one full pass behind -- and the cheap settle gate
