@@ -5077,7 +5077,7 @@ function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors,startRaw){
       // European hockey cards only) so the pipeline's lockPick call stores it; evVal/tierN stay the
       // tier inputs (see HOCKEY_MKT_PRICE_TIERING) so qualification is unaffected. priceSource
       // ('market'|'assumed'|null) is threaded through build_qualifying/lock_game_leg onto the pick.
-      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:(m.mktDec!=null?m.mktDec:m.dec),ml:(m.mktMl!=null?m.mktMl:m.ml),priceSource:m.priceSource||null,modelProb:m.modelProb!=null?m.modelProb:null,marketProb:m.marketProb!=null?m.marketProb:null,blendAlpha:m.blendAlpha!=null?m.blendAlpha:null,rawProb:m.rawProb!=null?m.rawProb:null,capCeil:m.capCeil!=null?m.capCeil:null,hkLane:!!m.hkLane,tierN:m.tierN,mfScore:m.mfScore,reasoning:m.reasoning||null})),
+      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:(m.mktDec!=null?m.mktDec:m.dec),ml:(m.mktMl!=null?m.mktMl:m.ml),priceSource:m.priceSource||null,modelProb:m.modelProb!=null?m.modelProb:null,marketProb:m.marketProb!=null?m.marketProb:null,blendAlpha:m.blendAlpha!=null?m.blendAlpha:null,rawProb:m.rawProb!=null?m.rawProb:null,capCeil:m.capCeil!=null?m.capCeil:null,hkLane:!!m.hkLane,tierN:m.tierN,legacyTierN:m.legacyTierN!=null?m.legacyTierN:null,mfScore:m.mfScore,reasoning:m.reasoning||null})),
       // Optional -- only soccer's capture call currently passes this (see
       // _renderSocMatchCard). Threaded through build_qualifying/
       // lock_game_leg into lockPick's extraMeta so it lands on the
@@ -10185,7 +10185,33 @@ const _NFL_LG_TOTAL=44; // ~real modern NFL combined-score average, fallback onl
 const _NFL_HFA_DEFAULT=1.8; // typical NFL home-field edge in points -- smaller than CFB's, well-established in betting-market research
 window.NFL_HFA_PTS=window.NFL_HFA_PTS??(typeof S!=='undefined'?S.g('nfl_hfa'):null)??_NFL_HFA_DEFAULT;
 function _nflHFA(){return window.NFL_HFA_PTS;}
-const _NFL_SIGMA_MARGIN=13.5,_NFL_SIGMA_TOTAL=10.0; // NFL's real game-to-game variance -- tighter than CFB's (fewer, more evenly-matched teams)
+// NFL's real game-to-game variance around the posted line -- tighter than CFB's (fewer, more evenly-matched teams).
+// _NFL_SIGMA_TOTAL was 10.0 until 2026-10-11 (NFL ENGINE AUDIT, scripts/backtest_nfl_engine.py): the 65 completed 2026 games with their pre-kickoff lines show the final total missing the
+// posted O/U by an sd of 13.6 points (bootstrap 95% CI 10.7-16.3; margin vs the spread: sd 12.3). 10.0 sat at the very bottom of that interval and disagreed with ALT_LINE_CFG's own NFL
+// O/U sigma (13.0, scripts/auto_lock_settle.py), so every O/U probability the card printed was too confident. 13.0 = that same empirical figure. Margin sigma 13.5 is inside its interval: unchanged.
+const _NFL_SIGMA_MARGIN=13.5,_NFL_SIGMA_TOTAL=13.0;
+// ── NFL MARKET ANCHOR (2026-10-11, NFL ENGINE AUDIT; Python mirror + backtest: scripts/nfl_engine.py, scripts/backtest_nfl_engine.py, parity: scripts/test_nfl_engine_anchor.py) ──────────────
+// The model margin is each team's season point differential per game (raw, no shrinkage) + HFA + capped yardage/turnover/injury terms; the model total is the mean of the two teams' average game totals.
+// Against the 49 completed games that had a rating (weeks 2-5, as-of point differentials, closing spread/total from the committed schedule snapshots):
+//   * the model's margin disagreed with the posted spread by sd 15.6 pts (week 2: 22.8, week 4: 7.9) and its error vs the final margin was sd 20.7 against the market's 11.9;
+//   * regression of (final margin - spread) on (model margin - spread): slope -0.10, bootstrap 95% CI [-0.31, +0.11] -- the disagreement carries no usable information beyond the line;
+//   * the model's side covered 22/46 = 47.8% (Wilson 34-62%); its OVER/UNDER lean hit 17/49 = 34.7% (23-49%), i.e. no skill and probably negative on totals (early-season totals regress hard);
+//   * log-loss of the cover probability (a coin flip is 0.693): line-only (slope 0) 0.693, slope 0.1 -> 0.708, slope 0.3 -> 0.765; the OLD raw model 1.050 (spread) / 1.023 (total, sigma 10); the anchored model 0.696 / 0.695.
+// So a SPREAD / O-U probability built from the raw model margin is mostly noise, and the stated 85-93% cover numbers (before the 62% ceiling clamped them) were not information. Only the share of the
+// model's disagreement that the data can support is kept: weight w(n) = max * n / (n + half) on (model - line), n = games played by the LESSER team (the NHL prior-fade idea, in margin space).
+//   margin: max .30, half 8  -> w = .03 (1 game) .08 (3) .10 (4) .15 (8) .20 (16): the upper end of the CI above for the weeks the data cover, growing as the ratings mature
+//   total : max .10, half 8  -> w = .01 (1) .03 (3) .03 (4) .05 (8) .07 (16): the totals regression slope was -0.41 +/- 0.20, there is no evidence to give the model more than a token voice
+// The MONEYLINE is deliberately NOT anchored (raw margin0 -> hwP exactly as before): it is 14-3 and the owner's call. Only the spread / O-U means (avgMargin, avgTotal, the projected score, overP) are anchored.
+// Rows built from the anchored numbers carry modelProb (the old raw model cover probability), marketProb .5 (a posted line at -110/-110 is a 50/50 market) and blendAlpha (1 - w), the same audit trail the
+// hockey market blend writes, and are exempt from the learned band re-pricing / ceiling (they are already honest; re-applying corrections learned on the old overconfident numbers would double-correct).
+// Set NFL_MKT_ANCHOR.on=false to restore the previous behaviour exactly (raw margin/total, the NFL calibration + 62% ceiling path).
+const NFL_MKT_ANCHOR={on:true,margin:{max:.30,half:8},total:{max:.10,half:8}};
+function _nflAnchorW(kind,nGames){
+  if(!NFL_MKT_ANCHOR.on)return 1;
+  const c=NFL_MKT_ANCHOR[kind];if(!c)return 1;
+  const n=Math.max(0,+nGames||0);
+  return c.max*n/(n+c.half);
+}
 window.NFL_ENS=window.NFL_ENS||(typeof S!=='undefined'?S.g('nfl_ens'):null)||{mc:.75,bay:.25};
 // NFL margin driver: each team's own point-differential-per-game (a real,
 // honest power-rating proxy -- not FPI, but not a guess either), plus
@@ -10312,13 +10338,22 @@ function nflMC(hA,awA,n,ouLine,g){
   const wxImpact=wx?cfbWeatherImpact(wx):{totalAdj:0,label:''};
   baseTotal=Math.max(20,baseTotal+wxImpact.totalAdj);
   const finalOU=ouLine!=null?parseFloat(ouLine):parseFloat(_forceHalfLine(baseTotal));
+  // Market anchor (NFL_MKT_ANCHOR above): shrink the model's disagreement with the posted spread / total by the games-played weight. Anchoring needs a posted line to anchor TO;
+  // without one the raw model value stands (the card then has no market to grade against anyway). hwP (the moneyline) keeps the RAW margin0.
+  const nMinG=Math.min(hGames,aGames);
+  const wM=_nflAnchorW('margin',nMinG),wT=_nflAnchorW('total',nMinG);
+  const anchoredM=NFL_MKT_ANCHOR.on&&marketMargin!=null,anchoredT=NFL_MKT_ANCHOR.on&&ouLine!=null;
+  const marginA=anchoredM?marketMargin+wM*(margin0-marketMargin):margin0;
+  const totalA=anchoredT?finalOU+wT*(baseTotal-finalOU):baseTotal;
   n=n||15000;
   let hw=0,ov=0,marginSum=0,totalSum=0,hScoreSum=0,aScoreSum=0;
   for(let i=0;i<n;i++){
-    const simMargin=margin0+_boxMullerZ()*_NFL_SIGMA_MARGIN;
-    const simTotal=Math.max(20,baseTotal+_boxMullerZ()*_NFL_SIGMA_TOTAL);
+    const zM=_boxMullerZ(),zT=_boxMullerZ();
+    const simMarginRaw=margin0+zM*_NFL_SIGMA_MARGIN;           // moneyline: unanchored, as before
+    const simMargin=marginA+zM*_NFL_SIGMA_MARGIN;              // spread / projection: anchored
+    const simTotal=Math.max(20,totalA+zT*_NFL_SIGMA_TOTAL);
     marginSum+=simMargin;totalSum+=simTotal;
-    if(simMargin>0)hw++;
+    if(simMarginRaw>0)hw++;
     if(simTotal>finalOU)ov++;
     // Same real bug as cfbMC (fixed together): floor each SIM's own
     // implied per-team score at 0 before summing -- a team can't score
@@ -10341,6 +10376,8 @@ function nflMC(hA,awA,n,ouLine,g){
     // simulation off the exact same baseline this game-level sim uses,
     // without duplicating margin0/baseTotal's own derivation logic.
     margin0:+margin0.toFixed(2),baseTotal:+baseTotal.toFixed(2),
+    // Market anchor record (see NFL_MKT_ANCHOR): the anchored means the spread / O-U / projection use, the weights on the model, and whether each leg had a line to anchor to.
+    anchor:{marginA:+marginA.toFixed(2),totalA:+totalA.toFixed(2),wM:+wM.toFixed(4),wT:+wT.toFixed(4),nMin:nMinG,margin:anchoredM,total:anchoredT},
     inj:{h:injH,a:injA,margin:injMargin,total:injTotal,marginApplied:hasDiff},
   };
 }
@@ -10460,6 +10497,9 @@ function _nflPopulateWeekFilter(){
   const upcoming=weeks.find(w=>(D.weeks[w]||[]).some(g=>g.state!=='post'));
   if(upcoming)sel.value=upcoming;
 }
+// The old (pre-anchor) NFL cover probabilities, kept ONLY to compute legacyTierN above.
+function _favRawLegacy(favMargin,baseSpread){return Math.min(.95,Math.max(.05,_cfbCoverProb(favMargin,_NFL_SIGMA_MARGIN,baseSpread)));}
+function _ovRawLegacy(total,ouL){return Math.min(.95,Math.max(.05,_cfbCoverProb(total,_NFL_SIGMA_TOTAL,ouL)));}
 function _nflGameCard2(g){
   const D=_NFL_DATA;
   const ens=nflEns(g.home,g.away,g.overUnder,g);
@@ -10504,23 +10544,46 @@ function _nflGameCard2(g){
   };
   // favCoverU/overU = the calibrated model probability (what the MC line and the MC bar describe); favCoverP/overP = the STATED probability, clamped by the
   // non-moneyline confidence ceiling (MARKET_P_CEILING) -- every chip, grade, EV, lock and reasoning head below reads the stated one.
-  const favCoverU=_nflCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(favMarginMean,_NFL_SIGMA_MARGIN,baseSpread))),'SPREAD');
-  const favCoverP=_capMktP(favCoverU,'SPREAD','NFL');
-  const dogCoverP=1-favCoverP;
+  // MARKET ANCHOR (NFL_MKT_ANCHOR, 2026-10-11): when the card has a posted spread / total, the cover probability comes from the ANCHORED mean (mc.avgMargin / mc.avgTotal are already anchored), is NOT put through
+  // the learned NFL calibration or the 62% ceiling (both were fitted to the old raw-model numbers; the anchored probability is already honest), and the row carries modelProb (the old raw-model cover
+  // probability), marketProb .5 and blendAlpha (1 - w) so the lock keeps the audit trail. With no posted line, or NFL_MKT_ANCHOR.on=false, the previous path runs unchanged.
+  const _anchS=!!(mc.anchor&&mc.anchor.margin&&g.spread!=null),_anchT=!!(mc.anchor&&mc.anchor.total&&g.overUnder!=null);
   const ouL=mc.ouLine;
-  const overU=_nflCalMkt(Math.min(.95,Math.max(.05,_cfbCoverProb(mc.avgTotal,_NFL_SIGMA_TOTAL,ouL))),'OU');
-  const overP=_capMktP(overU,'OU','NFL');
+  const favRawMargin=favIsHome?mc.margin0:-mc.margin0;
+  const favCoverModel=Math.min(.95,Math.max(.05,_cfbCoverProb(favRawMargin,_NFL_SIGMA_MARGIN,baseSpread)));   // the old raw-model cover probability (audit trail only when anchored)
+  const overModel=Math.min(.95,Math.max(.05,_cfbCoverProb(mc.baseTotal,_NFL_SIGMA_TOTAL,ouL)));
+  const _favRaw=Math.min(.95,Math.max(.05,_cfbCoverProb(favMarginMean,_NFL_SIGMA_MARGIN,baseSpread)));
+  const _ovRaw=Math.min(.95,Math.max(.05,_cfbCoverProb(mc.avgTotal,_NFL_SIGMA_TOTAL,ouL)));
+  const favCoverU=_anchS?_favRaw:_nflCalMkt(_favRaw,'SPREAD');
+  const favCoverP=_anchS?favCoverU:_capMktP(favCoverU,'SPREAD','NFL');
+  const dogCoverP=1-favCoverP;
+  const overU=_anchT?_ovRaw:_nflCalMkt(_ovRaw,'OU');
+  const overP=_anchT?overU:_capMktP(overU,'OU','NFL');
   const underP=1-overP;
+  const _aS=_anchS?{marketProb:.5,blendAlpha:+(1-mc.anchor.wM).toFixed(3)}:null,_aT=_anchT?{marketProb:.5,blendAlpha:+(1-mc.anchor.wT).toFixed(3)}:null;
   const gidSafe=(g.home+'_'+g.away).replace(/[^A-Za-z0-9_]/g,'');
   const rawMkts=[
     {label:`${g.home} ML`,prob:hP,dec:hD,ml:hML,side:'mlFav'},
     {label:`${g.away} ML`,prob:aP,dec:aD,ml:aML,side:'mlDog'},
-    {label:`${spreadFav} -${baseSpread.toFixed(1)}`,prob:favCoverU,dec:1.909,ml:'-110',side:'sprdFav'},
-    {label:`${spreadDog} +${baseSpread.toFixed(1)}`,prob:1-favCoverU,dec:1.909,ml:'-110',side:'sprdDog'},
-    {label:`OVER ${ouL.toFixed(1)}`,prob:overU,dec:1.909,ml:'-110',side:'over'},
-    {label:`UNDER ${ouL.toFixed(1)}`,prob:1-overU,dec:1.909,ml:'-110',side:'under'},
+    {label:`${spreadFav} -${baseSpread.toFixed(1)}`,prob:favCoverU,dec:1.909,ml:'-110',side:'sprdFav',...(_aS?{..._aS,modelProb:+favCoverModel.toFixed(4)}:{})},
+    {label:`${spreadDog} +${baseSpread.toFixed(1)}`,prob:1-favCoverU,dec:1.909,ml:'-110',side:'sprdDog',...(_aS?{..._aS,modelProb:+(1-favCoverModel).toFixed(4)}:{})},
+    {label:`OVER ${ouL.toFixed(1)}`,prob:overU,dec:1.909,ml:'-110',side:'over',...(_aT?{..._aT,modelProb:+overModel.toFixed(4)}:{})},
+    {label:`UNDER ${ouL.toFixed(1)}`,prob:1-overU,dec:1.909,ml:'-110',side:'under',...(_aT?{..._aT,modelProb:+(1-overModel).toFixed(4)}:{})},
   ].map(m=>({...m,evVal:ev(m.prob,m.dec)}));
+  // legacyTierN (anchored cards only): the grade the same four spread / O-U rows would have had on the OLD raw-model path (raw cover probability -> learned NFL calibration -> 62% ceiling -> tier()). It is NOT used for any
+  // displayed grade; it is the SELECTOR for the lock pipeline's NFL alt-line lane (scripts/nfl_engine.py: a leg the old funnel graded OPTIMAL+ is still sent to its alternate line, so the set of games the pipeline
+  // looks at, and the moneyline legs it chooses between, do not change). Honest probabilities replace the old ones; the selection rule is left as it was until there is evidence for a better one.
+  const _legacyTier={};
+  if(_anchS||_anchT){
+    const lf=_nflCalMkt(_favRawLegacy(favRawMargin,baseSpread),'SPREAD'),lo=_nflCalMkt(_ovRawLegacy(mc.baseTotal,ouL),'OU');
+    const lrows=[
+      {label:'F',prob:lf,dec:1.909,ml:'-110',side:'sprdFav'},{label:'D',prob:1-lf,dec:1.909,ml:'-110',side:'sprdDog'},
+      {label:'O',prob:lo,dec:1.909,ml:'-110',side:'over'},{label:'U',prob:1-lo,dec:1.909,ml:'-110',side:'under'},
+    ].map(m=>({...m,evVal:ev(m.prob,m.dec)}));
+    try{_evalMkts(lrows,"NFL").mkts.forEach(m=>{_legacyTier[m.side]=m.tierN;});}catch(e){}
+  }
   const nm=_evalMkts(rawMkts,"NFL");
+  nm.mkts.forEach(m=>{if(_legacyTier[m.side]!=null&&(m.marketProb!=null))m.legacyTierN=_legacyTier[m.side];});
   const hS=D.standings[g.home]||{},aS=D.standings[g.away]||{};
   const injH=(D.injuriesByTeam[g.home]||[]).filter(i=>i.status&&i.status.toLowerCase()!=='active');
   const injA=(D.injuriesByTeam[g.away]||[]).filter(i=>i.status&&i.status.toLowerCase()!=='active');
@@ -10540,11 +10603,13 @@ function _nflGameCard2(g){
   const diffTxt=`Point differential: ${g.home} ${hS.differential!=null?(hS.differential>=0?'+':'')+hS.differential:'—'} (${hS.wins??'—'}-${hS.losses??'—'}), ${g.away} ${aS.differential!=null?(aS.differential>=0?'+':'')+aS.differential:'—'} (${aS.wins??'—'}-${aS.losses??'—'}). `
     +(g.neutralSite?`Neutral site — no home-field adjustment applied. `:`${g.home} is home, getting the model's ${_nflHFA()}-point default home-field edge. `)
     +(mc.hasDiff?'':'One team has no standings-based differential yet, so this projection falls back to the market spread instead. ');
+  const anchTxtS=_anchS?`Market-anchored: the raw model margin was ${favRawMargin>=0?'+':''}${favRawMargin.toFixed(1)} for ${spreadFav} vs the ${baseSpread.toFixed(1)}-pt line, but on ${mc.anchor.nMin} game(s) played by the lesser team only ${(mc.anchor.wM*100).toFixed(0)}% of that disagreement is kept: early-season team ratings have not beaten the posted line. `:'';
+  const anchTxtT=_anchT?`Market-anchored: the raw model total was ${mc.baseTotal.toFixed(1)} vs the ${ouL.toFixed(1)} line, but only ${(mc.anchor.wT*100).toFixed(0)}% of that disagreement is kept: the model's total has not beaten the posted total. `:'';
   const mlReasoning=`<span style="color:${mlGrade.col}">${mlGrade.m.label} · ${mlGrade.lbl} · ${(mlGrade.m.prob*100).toFixed(1)}% · EV ${mlGrade.m.evVal>=0?'+':''}${(mlGrade.m.evVal*100).toFixed(1)}%</span><br>${diffTxt}${injTxt}`;
-  const sprdReasoning=`<span style="color:${sprdGrade.col}">${sprdGrade.m.label} · ${sprdGrade.lbl} · ${(sprdGrade.m.prob*100).toFixed(1)}% · EV ${sprdGrade.m.evVal>=0?'+':''}${(sprdGrade.m.evVal*100).toFixed(1)}%</span><br>MC-projected margin ${(spreadFav===g.home?mc.avgH-mc.avgA:mc.avgA-mc.avgH)>=0?'+':''}${(spreadFav===g.home?mc.avgH-mc.avgA:mc.avgA-mc.avgH).toFixed(1)} for ${spreadFav} vs the ${baseSpread.toFixed(1)}-pt line. ${diffTxt}${injTxt}`;
+  const sprdReasoning=`<span style="color:${sprdGrade.col}">${sprdGrade.m.label} · ${sprdGrade.lbl} · ${(sprdGrade.m.prob*100).toFixed(1)}% · EV ${sprdGrade.m.evVal>=0?'+':''}${(sprdGrade.m.evVal*100).toFixed(1)}%</span><br>${anchTxtS}MC-projected margin ${(spreadFav===g.home?mc.avgH-mc.avgA:mc.avgA-mc.avgH)>=0?'+':''}${(spreadFav===g.home?mc.avgH-mc.avgA:mc.avgA-mc.avgH).toFixed(1)} for ${spreadFav} vs the ${baseSpread.toFixed(1)}-pt line. ${diffTxt}${injTxt}`;
   const ouReasoning=`<span style="color:${ouGrade.col}">${ouGrade.m.label} · ${ouGrade.lbl} · ${(ouGrade.m.prob*100).toFixed(1)}% · EV ${ouGrade.m.evVal>=0?'+':''}${(ouGrade.m.evVal*100).toFixed(1)}%</span><br>`
     +(mc.wx?`Real forecast at ${g.venue||g.city||'the venue'}: ${mc.wx.temp}°F, ${mc.wx.wind}mph wind${mc.wx.snow>0?`, ${mc.wx.snow}"/hr snow`:''} — folded into the total as a ${mc.wxImpact.totalAdj>=0?'+':''}${mc.wxImpact.totalAdj}-pt adjustment. `:g.indoor?`${g.venue||'This venue'} is indoors — no weather factor applies. `:'No forecast loaded yet for this venue (too far out, or location unresolved) — total is weather-neutral for now. ')
-    +`MC sim (${mc.n.toLocaleString()} runs): proj ${g.away} ${mc.avgA} – ${g.home} ${mc.avgH} (${mc.avgTotal} total) vs the ${ouL.toFixed(1)} line.`;
+    +anchTxtT+`MC sim (${mc.n.toLocaleString()} runs): proj ${g.away} ${mc.avgA} – ${g.home} ${mc.avgH} (${mc.avgTotal} total) vs the ${ouL.toFixed(1)} line.`;
   // "Why this pick" capture -- same pattern as CFB's own card just above:
   // _attachReasoning runs after mlReasoning/sprdReasoning/ouReasoning exist
   // so it can use NFL's own real per-market paragraphs as the rich WHY

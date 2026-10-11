@@ -85,6 +85,7 @@ from generate_social_cards import write_landing_json as _write_landing_json  # n
 import lock_timing  # noqa: E402  -- shared known-late classifier (public figures + digests are pre-start locks only)
 import email_tracking as et  # noqa: E402  -- per-pick 'emailed' state + catch-up rules (pure logic; this file owns every file / repo / mail side effect)
 import lineups  # noqa: E402  -- confirmed lineups (NHL goalies, NBA/NFL Out lists) at the lock pass; fail-open, see scripts/lineups.py
+import nfl_engine  # noqa: E402  -- NFL market anchor mirror + the alt-line lane constants (2026-10-11 NFL engine audit)
 
 # _LOCKS_EMAIL_CLOSE (the disclaimer-bearing close, defined in
 # _gmail_email.py so _subscribers.py's receipt email can share the exact
@@ -2634,6 +2635,14 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                 qualifies = tier_n in QUALIFYING_TIERS or bool(m.get("hkLane"))
             else:
                 qualifies = tier_n in QUALIFYING_TIERS or is_high_hit
+            # NFL alt-line LANE (2026-10-11, scripts/nfl_engine.py): the NFL spread / O-U probability is now anchored to the posted line, so it almost never reaches OPTIMAL on its own
+            # (the model's disagreement with the line carried no information: 47.8% of 46 sides covered, slope -0.10). What survives is the alternate-line cushion, whichever side is taken,
+            # so a spread / O-U leg the OLD raw-model funnel graded OPTIMAL+ (card field legacyTierN -- the selector is deliberately unchanged) qualifies ONLY to be moved to its alternate line
+            # (dropped below if no alternate line can be priced).
+            nfl_lane_leg = False
+            if not is_hockey and sport == "NFL" and not qualifies:
+                nfl_lane_leg = nfl_engine.lane_qualifies(sport, _market_type(m.get("side")), m.get("legacyTierN"))
+                qualifies = nfl_lane_leg
             if qualifies and not guard_ok:
                 game_skipped += 1
                 skipped_detail.append({"sport": sport, "game": f"{gl.get('awA')} @ {gl.get('hA')}", "leg": m.get("label"),
@@ -2646,9 +2655,15 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                 _leg = ({
                     "kind": "GAME", "sport": sport, "hA": gl.get("hA"), "awA": gl.get("awA"),
                     "side": m.get("side"), "label": m.get("label"), "prob": m.get("prob"),
-                    "ml": m.get("ml"), "dec": m.get("dec"), "tierN": tier_n, "evVal": m.get("evVal"),
+                    "ml": m.get("ml"), "dec": m.get("dec"),
+                    # An NFL lane leg is logged / alerted as OPTIMAL (the grade the old funnel gave it and the lane treats it as); its honest card grade is LEAN / SKIP. Nothing graded reads this for NFL lane legs
+                    # except logs, the pre-start alert and the ordering key above (which ignores it for lane legs).
+                    "tierN": nfl_engine.NFL_LANE_MIN_LEGACY_TIER if nfl_lane_leg else tier_n, "evVal": m.get("evVal"),
                     # True when a hockey leg qualifies ONLY through the high-probability lane (tier below OPTIMAL).
                     "lane": lane_leg,
+                    # True when an NFL spread / O-U leg qualifies only through the alt-line lane above (never locked at the posted line).
+                    "nflLane": nfl_lane_leg,
+                    "legacyTierN": m.get("legacyTierN"),
                     # "market" | "assumed" | None: set only by the 4 European
                     # hockey cards (SHL/LIIGA/NLA/EXTRALIGA, 2026-10-02) --
                     # whether m["ml"]/m["dec"] above is a REAL bookmaker price
@@ -2743,7 +2758,9 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
         # most one leg per market type/family -- this only trims ACROSS
         # types (e.g. ML vs SPREAD), never within one.
         if len(game_qualifying) > 1:
-            game_qualifying.sort(key=lambda q: (q["tierN"] or 0, q.get("evVal") or 0), reverse=True)
+            # NFL lane legs rank exactly where a clamped tier-2 spread / O-U ranked before the anchor (tier 2 with the highest EV): above a tier-2 moneyline, below a tier-3 one -- the moneyline
+            # selection is deliberately unchanged by the NFL audit.
+            game_qualifying.sort(key=lambda q: (2, 1.0) if q.get("nflLane") else (q["tierN"] or 0, q.get("evVal") or 0), reverse=True)
             best = game_qualifying[0]
             best_type = _market_type(best["side"])
             picked = [best]
@@ -2759,7 +2776,8 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                 if new is not old:
                     log(f"  alt line: [{sport}] {gl.get('awA')} @ {gl.get('hA')} {old['label']} ({(old.get('prob') or 0)*100:.0f}%) -> "
                         f"{new['label']} ({new['prob']*100:.0f}%, est. {new['ml']})")
-            game_qualifying = shifted
+            # An NFL lane leg exists only as an alternate-line pick: when no alternate line could be priced it is dropped, never locked at the posted line.
+            game_qualifying = [q for q in shifted if not (q.get("nflLane") and not q.get("altLine"))]
         qualifying.extend(game_qualifying)
     # Props only exist for NBA/NHL now -- NFL player props removed from
     # generation entirely 2026-09-23 (see gather_legs()'s own comment),
