@@ -86,8 +86,13 @@ class AltTracker(unittest.TestCase):
         home = pg.evaluate("(document.getElementById('home-adj-tracker')||{}).innerText||''")
         for needle in ("ADJUSTED LINES", "ADJUSTED", "LOCKED ADJ. LINE", "SAME PICKS AT POSTED", "SAVED BY SHIFT", "POSTED", "LOCKED", "NFL", "CFB", "NHL"):
             self.assertIn(needle, home)
+        self.assertNotIn("LATEST ADJUSTED PICKS", home)                         # owner 2026-10-10: no latest-picks list on the home tracker ...
+        self.assertEqual(pg.evaluate("document.querySelectorAll('#home-adj-tracker .prow2').length"), 0)
+        self.assertIn("IN ANALYTICS", home)                                      # ... just the link to the full list in Analytics
         pg.evaluate("renderOverall()")
-        self.assertIn("ADJUSTED LINES", pg.evaluate("(document.getElementById('ovr-adj-tracker')||{}).innerText||''"))
+        ovr = pg.evaluate("(document.getElementById('ovr-adj-tracker')||{}).innerText||''")
+        self.assertIn("ADJUSTED LINES", ovr)
+        self.assertIn("LATEST ADJUSTED PICKS", ovr)                              # the Overall tab keeps its list
         pg.evaluate("setSub('analytics','adjlines')"); pg.wait_for_timeout(400)
         full = pg.evaluate("document.getElementById('adjlines-body').innerText")
         self.assertIn("EVERY ADJUSTED PICK", full); self.assertIn("NOT SHIFTED BY THE ENGINE YET", full)

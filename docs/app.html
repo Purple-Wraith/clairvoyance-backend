@@ -4500,7 +4500,7 @@ function _altListHTML(rows,limit){
   return{html,more:list.length-shown.length};
 }
 function _altTrackerHTML(mode,opts){
-  opts=opts||{};const full=mode==='full';
+  opts=opts||{};const full=mode==='full',noList=mode==='home';   // 'home' = the compact tracker WITHOUT the 'latest adjusted picks' list (owner 2026-10-10); the Overall tab keeps 'compact'
   const per=window._altPeriod||'all';
   let picks=(opts.picks||getP()).filter(p=>_altOf(p)&&p.outcome!=='_removed');
   picks=_altPeriodPicks(picks,per);
@@ -4530,13 +4530,13 @@ function _altTrackerHTML(mode,opts){
     return`<div style="display:flex;gap:4px;flex-wrap:wrap;margin:10px 0 0"><button class="btn btn-o btn-sm${sportFilter?'':' act'}" onclick="_altSetSport('')" style="font-size:12px!important;padding:2px 8px!important">ALL LEAGUES</button>${lgs.map(l=>`<button class="btn btn-o btn-sm${sportFilter===l?' act':''}" onclick="_altSetSport('${l.replace(/'/g,"\\'")}')" style="font-size:12px!important;padding:2px 8px!important">${_escHtml(l)}</button>`).join('')}</div>`;})():'';
   return`<div class="adjt" style="padding:12px;background:rgba(10,0,24,.55);border:1px solid rgba(255,230,0,.25);border-radius:4px">${head}${sub}
     <div style="display:flex;gap:8px;flex-wrap:wrap">${tiles}</div>${filt}${_altTableHTML(rows,full)}
-    <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--t3);margin:12px 0 6px">${full?'EVERY ADJUSTED PICK':'LATEST ADJUSTED PICKS'}</div>${lst.html}
-    ${lst.more>0?(full?`<div onclick="_altMore()" style="cursor:pointer;text-align:center;padding:8px;font-family:var(--mono);font-size:14px;color:var(--nc)">SHOW 40 MORE (${lst.more} LEFT)</div>`:`<div onclick="setSub('analytics','adjlines');SS('analytics');renderAnalyticsAdjLines()" style="cursor:pointer;text-align:right;font-family:var(--mono);font-size:13px;color:var(--nc)">ALL ${rows.length} IN ANALYTICS → ADJ. LINES</div>`):''}</div>`;
+    ${noList?'':`<div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--t3);margin:12px 0 6px">${full?'EVERY ADJUSTED PICK':'LATEST ADJUSTED PICKS'}</div>${lst.html}`}
+    ${noList?`<div onclick="setSub('analytics','adjlines');SS('analytics');renderAnalyticsAdjLines()" style="cursor:pointer;text-align:right;margin-top:10px;font-family:var(--mono);font-size:13px;color:var(--nc)">ALL ${rows.length} IN ANALYTICS → ADJ. LINES</div>`:lst.more>0?(full?`<div onclick="_altMore()" style="cursor:pointer;text-align:center;padding:8px;font-family:var(--mono);font-size:14px;color:var(--nc)">SHOW 40 MORE (${lst.more} LEFT)</div>`:`<div onclick="setSub('analytics','adjlines');SS('analytics');renderAnalyticsAdjLines()" style="cursor:pointer;text-align:right;font-family:var(--mono);font-size:13px;color:var(--nc)">ALL ${rows.length} IN ANALYTICS → ADJ. LINES</div>`):''}</div>`;
 }
 function renderAltTracker(id,mode,opts){const el=document.getElementById(id);if(!el)return;el.dataset.altMode=mode;el.innerHTML=_altTrackerHTML(mode,opts);}
 function renderAnalyticsAdjLines(){renderAltTracker('adjlines-body','full',{picks:(typeof _aP==='function'?_aP():getP())});}
 function _altRerenderAll(){
-  try{renderAltTracker('home-adj-tracker','compact');}catch(e){}
+  try{renderAltTracker('home-adj-tracker','home');}catch(e){}
   try{if(document.getElementById('ovr-adj-tracker'))renderAltTracker('ovr-adj-tracker','compact');}catch(e){}
   try{if(document.getElementById('adjlines-body'))renderAnalyticsAdjLines();}catch(e){}
 }
@@ -20553,7 +20553,7 @@ function renderHomePage(){
     window._supabasePullTimer=setInterval(_syncOnForeground,3*60*60*1000);
     document.addEventListener('visibilitychange',_syncOnForeground);
   }
-  try{renderAltTracker('home-adj-tracker','compact');}catch(e){}
+  try{renderAltTracker('home-adj-tracker','home');}catch(e){}
 }
 
 // ── Header dual-timezone clock ────────────────────────────────────────────────
