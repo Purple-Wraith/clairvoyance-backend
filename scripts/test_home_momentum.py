@@ -216,7 +216,7 @@ class Momentum(unittest.TestCase):
         pg.close()
 
     def test_last_ten_are_round_bubbles_with_event_and_result_on_hover(self):
-        """owner 2026-10-10: the LAST 10 strip is bubbles (circles, like the league recent-form bubbles), and hovering one shows the event and result"""
+        """owner 2026-10-10: the LAST strip is bubbles (circles, like the league recent-form bubbles), and hovering one shows the event and result"""
         pg = self.page()
         r = pg.evaluate("(()=>{const e=document.querySelector('#mom-widget .mom-pip:not(.nw)');const c=getComputedStyle(e);return{br:c.borderRadius,w:e.getBoundingClientRect().width,h:e.getBoundingClientRect().height,txt:e.textContent}})()")
         self.assertEqual(r["txt"], "")                                  # a plain bubble, no letter
@@ -234,18 +234,27 @@ class Momentum(unittest.TestCase):
         self.assertEqual(self.errors, [])
         pg.close()
 
-    def test_last_ten_strip_and_streak(self):
+    def test_last_25_strip_and_streak(self):
+        """owner 2026-10-10: the LAST strip shows 25 results (was 10); the ringed bubbles are the current streak (capped at what is shown)"""
         pg = self.page()
-        done = sorted([r for r in self.rows], key=lambda r: r["lockedAt"])[-10:]
-        want = "".join("W" if r["outcome"] == "win" else "L" for r in done)
+        ordered = sorted([r for r in self.rows], key=lambda r: r["lockedAt"])
+        want = "".join("W" if r["outcome"] == "win" else "L" for r in ordered[-25:])
+        allr = "".join("W" if r["outcome"] == "win" else "L" for r in ordered)
         got = pg.evaluate("[...document.querySelectorAll('#mom-widget .mom-pip:not(.nw)')].map(e=>e.classList.contains('w')?'W':'L').join('')")
         self.assertEqual(got, want)
+        self.assertEqual(len(got), 25)
+        self.assertIn("LAST 25", pg.inner_text("#mom-widget .mom-l10t"))
         n = 0
-        for c in reversed(want):
-            if c == want[-1]: n += 1
+        for c in reversed(allr):
+            if c == allr[-1]: n += 1
             else: break
-        self.assertEqual(pg.locator("#mom-widget .mom-pip.st").count(), n)
-        self.assertIn(f"STREAK {n}{want[-1]}", pg.inner_text("#mom-widget .mom-l10s"))
+        self.assertEqual(pg.locator("#mom-widget .mom-pip.st").count(), min(n, 25))
+        self.assertIn(f"STREAK {n}{allr[-1]}", pg.inner_text("#mom-widget .mom-l10s"))
+        self.assertLessEqual(pg.evaluate("document.documentElement.scrollWidth"), 1300)
+        pg.close()
+        pg = self.page(390)                                                                    # 25 bubbles wrap on a phone without overflowing
+        self.assertLessEqual(pg.evaluate("document.documentElement.scrollWidth"), 391)
+        self.assertEqual(pg.locator("#mom-widget .mom-pip:not(.nw)").count(), 25)
         pg.close()
 
     def test_sport_chips_show_each_sports_window_win_pct(self):
