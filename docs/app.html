@@ -21101,9 +21101,18 @@ function cvGuard(){
 setInterval(()=>{try{cvGuard();}catch(e){}},10000);
 
 // ═══ SPLASH ═══════════════════════════════════════════════════
-let splashDone=false;
-function endSplash(){
-  if(splashDone)return;splashDone=true;
+let splashDone=false,_splashT0=0,_splashEndT=0;
+// MINIMUM splash time (owner 2026-10-10: on mobile the splash vanished before CLAIRVOYANCE finished typing): the end-of-init endSplash() call (and the global JS-error handler) used to dismiss it the moment the
+// app had loaded, however early that was. The wordmark finishes typing at ~3.0 s, the subtitle follows and the bar fills after that, so a normal (non-forced) dismissal now waits until SPLASH_MIN_MS since startSplash.
+// A tap on the splash (forced) still skips it; automated browsers (navigator.webdriver: tests, the lock pipeline's headless gather) skip the wait so they are not slowed; the 8 s / 10 s failsafes are later than the minimum.
+const SPLASH_MIN_MS=4500;
+function endSplash(forced){
+  if(splashDone)return;
+  if(forced!==true&&_splashT0&&!navigator.webdriver){
+    const left=SPLASH_MIN_MS-(Date.now()-_splashT0);
+    if(left>0){clearTimeout(_splashEndT);_splashEndT=setTimeout(endSplash,left+20);return;}
+  }
+  splashDone=true;
   const sp=document.getElementById('splash');
   const app=document.getElementById('app');
   if(sp){
@@ -21116,8 +21125,9 @@ function endSplash(){
   try{SS('home');}catch(e){}
 }
 function startSplash(){
+  _splashT0=Date.now();
   const sp=document.getElementById('splash');
-  if(sp)sp.addEventListener('click',endSplash);
+  if(sp)sp.addEventListener('click',()=>endSplash(true));
   // Compressed ~6s lead-in, roughly 75% neon-magenta / 25% neon-cyan screen
   // time (grid+ring+wordmark+bar are magenta-led; the scan-sweep + subtitle
   // are the cyan beats). All stages are JS-driven opacity/transform on
