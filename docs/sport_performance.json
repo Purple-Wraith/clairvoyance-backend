@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-10-11 11:03 MT",
+  "generated_at": "2026-10-11 11:32 MT",
   "basis": "all locks (including picks locked after the game started)",
   "basis_note": "Figures count every settled pick in scope, including picks locked after the game had started. basis_detail shows how many of those there are.",
   "classifier": "scripts/lock_timing.py",
   "basis_detail": {
-    "settled_pre_start": 1096,
+    "settled_pre_start": 1102,
     "settled_locked_after_start_included": 173,
     "settled_unknown_timing_included": 279,
     "unknown_timing_by_league": {
@@ -19,6 +19,22 @@
     "label": "TODAY",
     "leagues": [
       {
+        "lbl": "Premier League",
+        "w": 2,
+        "l": 4,
+        "n": 6,
+        "pct": 0.3333333333333333,
+        "units": -2.1799999999999997
+      },
+      {
+        "lbl": "EXTRALIGA",
+        "w": 3,
+        "l": 2,
+        "n": 5,
+        "pct": 0.6,
+        "units": -0.8199999999999998
+      },
+      {
         "lbl": "Serie A",
         "w": 3,
         "l": 2,
@@ -27,28 +43,12 @@
         "units": 0.7299999999999995
       },
       {
-        "lbl": "Premier League",
-        "w": 0,
-        "l": 4,
-        "n": 4,
-        "pct": 0,
-        "units": -4
-      },
-      {
         "lbl": "La Liga",
         "w": 2,
         "l": 0,
         "n": 2,
         "pct": 1,
         "units": 1.819
-      },
-      {
-        "lbl": "EXTRALIGA",
-        "w": 1,
-        "l": 0,
-        "n": 1,
-        "pct": 1,
-        "units": 0.3700000000000001
       }
     ],
     "excluded_late": 0
@@ -183,6 +183,14 @@
         "units": 3.5585417030949467
       },
       {
+        "lbl": "EXTRALIGA",
+        "w": 20,
+        "l": 11,
+        "n": 31,
+        "pct": 0.6451612903225806,
+        "units": 0.22051442257627785
+      },
+      {
         "lbl": "SHL",
         "w": 18,
         "l": 10,
@@ -199,20 +207,12 @@
         "units": 1.6925673328642419
       },
       {
-        "lbl": "EXTRALIGA",
-        "w": 18,
-        "l": 9,
-        "n": 27,
-        "pct": 0.6666666666666666,
-        "units": 1.410514422576278
-      },
-      {
         "lbl": "Premier League",
-        "w": 7,
+        "w": 9,
         "l": 4,
-        "n": 11,
-        "pct": 0.6363636363636364,
-        "units": 2.37
+        "n": 13,
+        "pct": 0.6923076923076923,
+        "units": 4.19
       },
       {
         "lbl": "La Liga",
@@ -278,19 +278,19 @@
       },
       {
         "lbl": "EXTRALIGA",
-        "w": 9,
-        "l": 3,
-        "n": 12,
-        "pct": 0.75,
-        "units": 1.85
+        "w": 11,
+        "l": 5,
+        "n": 16,
+        "pct": 0.6875,
+        "units": 0.6600000000000004
       },
       {
         "lbl": "Premier League",
-        "w": 7,
+        "w": 9,
         "l": 4,
-        "n": 11,
-        "pct": 0.6363636363636364,
-        "units": 2.37
+        "n": 13,
+        "pct": 0.6923076923076923,
+        "units": 4.19
       },
       {
         "lbl": "La Liga",
@@ -372,11 +372,11 @@
       },
       {
         "lbl": "Premier League",
-        "w": 50,
+        "w": 52,
         "l": 25,
-        "n": 75,
-        "pct": 0.6666666666666666,
-        "units": 19.454000000000004
+        "n": 77,
+        "pct": 0.6753246753246753,
+        "units": 21.274000000000004
       },
       {
         "lbl": "Serie A",
@@ -404,11 +404,11 @@
       },
       {
         "lbl": "EXTRALIGA",
-        "w": 36,
-        "l": 14,
-        "n": 50,
-        "pct": 0.72,
-        "units": 12.411514422576285
+        "w": 38,
+        "l": 16,
+        "n": 54,
+        "pct": 0.7037037037037037,
+        "units": 11.221514422576284
       },
       {
         "lbl": "Champions League",
@@ -1245,11 +1245,6 @@
         0.445
       ],
       [
-        1791009585542,
-        0,
-        -1
-      ],
-      [
         1791273441559,
         1,
         0.34
@@ -1532,6 +1527,26 @@
         1791617683530,
         1,
         0.37
+      ],
+      [
+        1791617683694,
+        1,
+        0.47
+      ],
+      [
+        1791617683838,
+        1,
+        0.34
+      ],
+      [
+        1791617684008,
+        0,
+        -1
+      ],
+      [
+        1791723268765,
+        0,
+        -1
       ]
     ],
     "NLA": [
@@ -1728,6 +1743,16 @@
         1791618181921,
         0,
         -1
+      ],
+      [
+        1791618182871,
+        1,
+        0.91
+      ],
+      [
+        1791618183020,
+        1,
+        0.91
       ],
       [
         1791618187050,
