@@ -201,10 +201,14 @@ class BrowserChecks(unittest.TestCase):
     def _assert_noop(self, page, label):
         self.assertTrue(page.evaluate("_tlOff()"), label)
         self.assertEqual(page.evaluate("_teamLogoHTML('nhl','BOS','h',44,{url:'https://a.espncdn.com/i/teamlogos/nhl/500/bos.png'})"), "")
+        counts = {}
         for sport in ("liiga", "nhl", "cfb"):
             self.render(page, sport)
-            self.assertGreater(self.cards(page), 0, f"{label}/{sport}: no real cards rendered, test would be vacuous")
+            counts[sport] = self.cards(page)
+            if counts[sport] == 0:
+                continue                                    # a league with no games in the live schedule files today (e.g. Liiga on a quiet day) has nothing to check; the others still do
             self.assertEqual(page.evaluate("document.querySelectorAll('.tlg, .gc img').length"), 0, f"{label}/{sport}: logo markup/img present")
+        self.assertGreater(sum(counts.values()), 0, f"{label}: no real cards rendered in any league, test would be vacuous ({counts})")
         self.assertEqual(page.logo_requests, [], f"{label}: logo/team_logos.json requests made: {page.logo_requests[:5]}")
 
     def test_webdriver_context_renders_no_logos_and_requests_nothing(self):
