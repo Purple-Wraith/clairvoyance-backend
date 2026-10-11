@@ -159,19 +159,20 @@ async function alreadyRunning(env, wf, fetchImpl) {
   return false;
 }
 
+export const SETTLE_CFB_SPACING_MIN = 30;                      // owner 2026-10-10: while only college-football games are due, settle at most every 30 minutes (a Saturday slate otherwise checks every ~10)
 export const SETTLE_MIN_SPACING_MIN = 25;                      // never start a settle within this many minutes of the previous auto-lock-settle run (any trigger): a Saturday CFB slate has many game clusters and
                                                                 // every settle is one full-ledger Supabase pull -- the +20/+45 follow-ups still fit (owner/egress guard, 2026-10-10)
 
 /** Why a settle must NOT be dispatched right now: "already queued or running" (ANY auto-lock-settle run -- cron, manual or ours -- is queued / in progress), "recent settle run" (the newest one started less than
  *  SETTLE_MIN_SPACING_MIN ago), or null. One cheap call. FAIL-OPEN: any API or network problem answers null -- a missed settle is worse than a duplicate one. */
-async function settleSkipReason(env, fetchImpl) {
+async function settleSkipReason(env, fetchImpl, spacingMin = SETTLE_MIN_SPACING_MIN) {
   try {
     const r = await gh(env, `/actions/workflows/${SETTLE_ENTRY.wf}/runs?per_page=10`, {}, fetchImpl);
     if (!r.ok) return null;
     const runs = (await r.json()).workflow_runs || [];
     if (runs.some((x) => x && x.status && x.status !== "completed")) return "already queued or running";
     const newest = runs.map((x) => Date.parse((x && x.created_at) || "")).filter(Number.isFinite).sort((a, b) => b - a)[0];
-    if (newest != null && Date.now() - newest < SETTLE_MIN_SPACING_MIN * 60000) return "recent settle run";
+    if (newest != null && Date.now() - newest < spacingMin * 60000) return "recent settle run";
     return null;
   } catch (e) {
     return null;
@@ -184,7 +185,8 @@ async function runSettleSweep(env, when, games, fetchImpl) {
   if (!due.length) return null;
   const row = { wf: SETTLE_ENTRY.wf, games: due.length, sports: [...new Set(due.map((d) => d.sport))].sort(), offsets: [...new Set(due.map((d) => d.offsetMin))].sort((a, b) => a - b) };
   try {
-    const skip = await settleSkipReason(env, fetchImpl);
+    const cfbOnly = row.sports.length > 0 && row.sports.every((x) => x === "CFB");        // only CFB games are due -> the slower 30-minute rhythm; any other sport due keeps 25
+    const skip = await settleSkipReason(env, fetchImpl, cfbOnly ? SETTLE_CFB_SPACING_MIN : SETTLE_MIN_SPACING_MIN);
     if (skip) return { ...row, result: `skipped: ${skip}` };
     const r = await gh(env, `/actions/workflows/${SETTLE_ENTRY.wf}/dispatches`, { method: "POST", body: JSON.stringify({ ref: "main", inputs: SETTLE_ENTRY.inputs }) }, fetchImpl);
     return { ...row, result: r.status === 204 ? "dispatched" : `error: HTTP ${r.status}` };
@@ -327,6 +329,6 @@ export default {
       if (due.length) next.push({ at: new Date(t).toISOString(), due });
       if (next.length >= 10) break;
     }
-    return new Response(JSON.stringify({ tickMinutes: TICK_MIN, next, kickoffStarts: starts.length, kickoffSweeps, settleSweeps, settleGames: games.length, settleRule: { gameMinutes: GAME_MINUTES, defaultMinutes: DEFAULT_GAME_MIN, checksAtMinutesAfterExpectedEnd: SETTLE_OFFSETS_MIN, dispatch: SETTLE_ENTRY.inputs } }, null, 2), { headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify({ tickMinutes: TICK_MIN, next, kickoffStarts: starts.length, kickoffSweeps, settleSweeps, settleGames: games.length, settleRule: { gameMinutes: GAME_MINUTES, defaultMinutes: DEFAULT_GAME_MIN, checksAtMinutesAfterExpectedEnd: SETTLE_OFFSETS_MIN, minSpacingMin: SETTLE_MIN_SPACING_MIN, cfbOnlySpacingMin: SETTLE_CFB_SPACING_MIN, dispatch: SETTLE_ENTRY.inputs } }, null, 2), { headers: { "content-type": "application/json" } });
   },
 };

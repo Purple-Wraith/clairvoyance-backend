@@ -1,6 +1,6 @@
 // node scheduler/test_scheduler.mjs -- offline: slot matching, weekday filters, dedupe, dispatch, failure reporting (GitHub API faked)
 import assert from "node:assert/strict";
-import worker, { dueWorkflows, dueEntries, runTick, SCHEDULE, TICK_MIN, handleTrigger, handleProfit, safeEqual, TRIGGERS, ALLOWED_ORIGINS, sweepsDue, KICKOFFS_URL, SWEEP_LEAD_MIN, GAME_MINUTES, SETTLE_MIN_SPACING_MIN, DEFAULT_GAME_MIN, SETTLE_OFFSETS_MIN, SETTLE_ENTRY, expectedEndMs, settleSweepsDue, upcomingSettleSweeps, mountain } from "./worker.js";
+import worker, { dueWorkflows, dueEntries, runTick, SCHEDULE, TICK_MIN, handleTrigger, handleProfit, safeEqual, TRIGGERS, ALLOWED_ORIGINS, sweepsDue, KICKOFFS_URL, SWEEP_LEAD_MIN, GAME_MINUTES, SETTLE_MIN_SPACING_MIN, SETTLE_CFB_SPACING_MIN, DEFAULT_GAME_MIN, SETTLE_OFFSETS_MIN, SETTLE_ENTRY, expectedEndMs, settleSweepsDue, upcomingSettleSweeps, mountain } from "./worker.js";
 import { readFileSync, readdirSync } from "node:fs";
 
 const at = (iso) => Date.parse(iso);
@@ -287,6 +287,17 @@ assert.equal((await runS(TOK, at("2026-10-11T01:50:00Z"), sg.fetchImpl))[0].resu
   sg = settleGitHub(nhl, { runs: [{ status: "completed", created_at: ago(SETTLE_MIN_SPACING_MIN + 5) }] });
   assert.equal((await runS(TOK, at("2026-10-11T01:50:00Z"), sg.fetchImpl))[0].result, "dispatched", "older than the spacing window -> go");
   assert.equal(SETTLE_MIN_SPACING_MIN, 25);
+  // CFB-only ticks use the 30-minute rhythm: a run that started 27 minutes ago blocks a CFB sweep but not an NHL one
+  const cfbGames = [{ t: "2026-10-11T00:00:00Z", sport: "CFB" }];
+  const nhlGames = [{ t: "2026-10-11T00:00:00Z", sport: "NHL" }];
+  const endTick = (g) => at(new Date(Math.ceil((Date.parse(g[0].t) + GAME_MINUTES[g[0].sport] * 60000) / 600000) * 600000).toISOString());
+  sg = settleGitHub(cfbGames, { runs: [{ status: "completed", created_at: ago(27) }] });
+  assert.equal((await runS(TOK, endTick(cfbGames), sg.fetchImpl))[0].result, "skipped: recent settle run", "CFB-only: 27 min < 30");
+  sg = settleGitHub(nhlGames, { runs: [{ status: "completed", created_at: ago(27) }] });
+  assert.equal((await runS(TOK, endTick(nhlGames), sg.fetchImpl))[0].result, "dispatched", "NHL keeps the 25-minute spacing");
+  sg = settleGitHub(cfbGames, { runs: [{ status: "completed", created_at: ago(31) }] });
+  assert.equal((await runS(TOK, endTick(cfbGames), sg.fetchImpl))[0].result, "dispatched", "CFB-only: 31 min >= 30");
+  assert.equal(SETTLE_CFB_SPACING_MIN, 30);
   assert.ok(SETTLE_MIN_SPACING_MIN < SETTLE_OFFSETS_MIN[1] + 10, "the +20 follow-up must still be able to run");
 }
 // FAIL-OPEN: the runs lookup failing (HTTP error or network) still dispatches
