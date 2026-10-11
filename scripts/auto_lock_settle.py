@@ -2985,6 +2985,11 @@ _GRADE_COLOR = {"PREMIUM": "#ffdd00", "OPTIMAL": "#00e5ff", "LEAN": "#6699ff"}
 _LANE_COLOR = "#ff9f1c"  # hockey HIGH PROB lane badge
 
 
+def _prob_txt(prob: float, known: bool = True) -> str:
+    """'62% win prob' -- every pick line in an email states its win probability (SKIP-graded manual locks included); 'win prob n/a' when the ledger really has none."""
+    return f"{prob*100:.0f}% win prob" if known and prob else "win prob n/a"
+
+
 def _leg_html(q: dict) -> str:
     """One block per qualifying leg: the tier/grade badge on its own line
     ABOVE the pick (not inline before it) -- applies identically to every
@@ -3004,6 +3009,7 @@ def _leg_html(q: dict) -> str:
         ev_val = q.get("evVal")
         ev_str = f' · EV {ev_val*100:+.1f}%' if ev_val is not None else ''
         prob = q.get("prob") or 0
+        ptxt = _prob_txt(prob, q.get("probKnown", True))
         hh = ' <span style="color:#ffdd00">🔥 HIGH HIT %</span>' if (_market_type(q.get("side")) == "ML" and prob >= _HIGH_HIT_P
                                                                      and q.get("sport") not in HOCKEY_SPORTS) else ''
         alt = q.get("altLine")
@@ -3017,7 +3023,7 @@ def _leg_html(q: dict) -> str:
             return (f'<div style="padding:5px 0">'
                     f'<span style="background:#ffe600;color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
                     f'border-radius:3px;display:inline-block;margin-bottom:3px">ADJUSTED LINE</span>'
-                    f'<div style="font-size:14px;color:#eee">{_esc(q["label"])} — {prob*100:.0f}%</div>'
+                    f'<div style="font-size:14px;color:#eee">{_esc(q["label"])} — {ptxt}</div>'
                     f'<div style="font-size:12px;color:#bbb;margin-top:2px">{moved_txt} '
                     f'The price at this line is an estimate, not a bookmaker quote — your book may not offer it, so check before you bet.</div>'
                     + (f'<div style="font-size:12px;color:#bbb;margin-top:2px">{_esc(q["note"])}</div>' if q.get("note") else '')
@@ -3030,7 +3036,7 @@ def _leg_html(q: dict) -> str:
         return (f'<div style="padding:5px 0">'
                 f'<span style="background:{color};color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
                 f'border-radius:3px;display:inline-block;margin-bottom:3px">{_esc(tier_lbl)}</span>'
-                f'<div style="font-size:14px;color:#eee">{_esc(q["label"])} — {prob*100:.0f}%{ev_str}{hh}</div>'
+                f'<div style="font-size:14px;color:#eee">{_esc(q["label"])} — {ptxt}{ev_str}{hh}</div>'
                 f'{note}'
                 f'</div>')
     leg = q["leg"]
@@ -3042,7 +3048,7 @@ def _leg_html(q: dict) -> str:
     return (f'<div style="padding:5px 0">'
             f'<span style="background:{color};color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
             f'border-radius:3px;display:inline-block;margin-bottom:3px">{_esc(grade)}</span>'
-            f'<div style="font-size:14px;color:#eee">{_esc(leg.get("player"))} {direction} {_esc(leg.get("line"))} {_esc(leg.get("stat"))} — {prob*100:.0f}%</div>'
+            f'<div style="font-size:14px;color:#eee">{_esc(leg.get("player"))} {direction} {_esc(leg.get("line"))} {_esc(leg.get("stat"))} — {_prob_txt(prob, True)}</div>'
             f'</div>')
 
 

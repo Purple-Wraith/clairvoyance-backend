@@ -243,6 +243,29 @@ def _num(v):
     return t if t == t else None
 
 
+_WINPROB_TEXT_RE = re.compile(r"(\d{1,3}(?:\.\d+)?)\s*%\s*win\s*prob|win\s*prob\w*\W{0,12}(\d{1,3}(?:\.\d+)?)\s*%", re.I)
+
+
+def win_prob(p: dict) -> float | None:
+    """The pick's win probability as 0-1, from the first field that has one (winProb is what lockPick stores; older / hand-made locks may only carry prob, modelProb, conf or a 'win prob NN%' line in
+    the reasoning). None when nothing says -- the email then prints 'win prob n/a' instead of a made-up 0% (owner 2026-10-10: every pick in an email, SKIP included, shows its win probability)."""
+    for k in ("winProb", "prob", "modelProb"):
+        v = _num(p.get(k))
+        if v is not None and 0 < v <= 1:
+            return v
+        if v is not None and 1 < v <= 100:
+            return v / 100.0
+    c = _num(p.get("conf"))
+    if c is not None and 0 < c <= 100:
+        return c / 100.0
+    m = _WINPROB_TEXT_RE.search(str(p.get("reasoning") or ""))
+    if m:
+        v = float(m.group(1) or m.group(2))
+        if 0 < v <= 100:
+            return v / 100.0
+    return None
+
+
 def pick_to_leg(p: dict, now_ms: float | None = None, idx: dict | None = None) -> dict:
     """A ledger pick as the 'qualifying leg' dict build_locks_email_html / _leg_html render -- the SAME template as the lock emails."""
     code = lock_timing.norm_sport(p)
@@ -262,7 +285,7 @@ def pick_to_leg(p: dict, now_ms: float | None = None, idx: dict | None = None) -
     alt = p.get("altLine") if isinstance(p.get("altLine"), dict) else None
     leg = {
         "kind": "GAME", "sport": TAG_OF_CODE.get(code, code), "hA": p.get("hA"), "awA": p.get("awA"), "side": side, "label": bet_on,
-        "prob": _num(p.get("winProb")) or 0.0, "ml": p.get("ml"), "dec": p.get("decOdds"), "tierN": _TIER_N.get(grade, 0), "evVal": ev,
+        "prob": (win_prob(p) or 0.0), "probKnown": win_prob(p) is not None, "ml": p.get("ml"), "dec": p.get("decOdds"), "tierN": _TIER_N.get(grade, 0), "evVal": ev,
         "lane": grade == "HIGH PROB", "mcSummary": None, "best": None, "altLine": alt, "startMs": p.get("startMs"),
         "lockDate": p.get("date"), "pickId": p.get("id"), "fromLedger": True,
     }
@@ -288,7 +311,7 @@ def _qualifies_as_value(p: dict) -> bool:
     g = stored_grade(p)
     if g in VALUE_GRADES:
         return True
-    return str(p.get("betType") or "").upper() == "ML" and (_num(p.get("winProb")) or 0) >= 0.75
+    return str(p.get("betType") or "").upper() == "ML" and (win_prob(p) or 0) >= 0.75
 
 
 def catchup_candidates(picks, state: dict, now_ms: float, idx: dict | None = None):

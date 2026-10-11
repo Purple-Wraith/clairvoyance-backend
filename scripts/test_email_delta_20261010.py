@@ -854,5 +854,46 @@ class Wiring(unittest.TestCase):
             self.assertNotIn(bad, src)
 
 
+class WinProbInEmails(unittest.TestCase):
+    """owner 2026-10-10: SKIP-graded manual locks may be emailed, but EVERY pick line must state its win probability"""
+
+    def html_for(self, p):
+        leg = et.pick_to_leg(p)
+        self.assertIsNotNone(leg, "pick should convert to an email leg")
+        return a.build_locks_email_html([leg], True)
+
+    def test_a_skip_graded_manual_lock_shows_its_win_probability(self):
+        p = pick("skip1", reasoning="PICK: TOR ML — SKIP (53.0% win prob, EV -4.0%)", winProb=0.53)
+        h = self.html_for(p)
+        self.assertIn("53% win prob", h)
+        self.assertIn("SKIP", h)
+        self.assertNotIn("0% win prob", h.replace("53% win prob", ""))
+
+    def test_every_pick_line_in_the_standard_template_says_win_prob(self):
+        h = self.html_for(pick("p1", winProb=0.7))
+        self.assertIn("70% win prob", h)
+
+    def test_missing_probability_is_never_printed_as_zero(self):
+        p = pick("np1", reasoning="", winProb=None)
+        p.pop("winProb", None)
+        h = self.html_for(p)
+        self.assertIn("win prob n/a", h)
+        self.assertNotIn("— 0%", h)
+
+    def test_probability_falls_back_to_other_fields_and_the_reasoning_text(self):
+        self.assertAlmostEqual(et.win_prob({"prob": 0.61}), 0.61)
+        self.assertAlmostEqual(et.win_prob({"modelProb": 64}), 0.64)
+        self.assertAlmostEqual(et.win_prob({"conf": 58}), 0.58)
+        self.assertAlmostEqual(et.win_prob({"reasoning": "PICK: X — LEAN (57.5% win prob, EV +1%)"}), 0.575)
+        self.assertIsNone(et.win_prob({}))
+        self.assertIsNone(et.win_prob({"winProb": 0}))
+
+    def test_adjusted_line_and_prop_lines_state_it_too(self):
+        leg = et.pick_to_leg(pick("adj1", label="OVER 5.5", bt="OU", altLine={"posted": "6.5", "postedLabel": "OVER 6.5", "flip": False}, winProb=0.66))
+        self.assertIn("66% win prob", a.build_locks_email_html([leg], True))
+        prop = {"kind": "PROP", "leg": {"player": "A. Davis", "line": 24.5, "stat": "PTS", "over": True, "prob": 0.61, "grade": "OPTIMAL"}, "sport": "NBA"}
+        self.assertIn("61% win prob", a._leg_html(prop))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
