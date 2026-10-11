@@ -6119,6 +6119,9 @@ function _gpClone(p){return p&&typeof p==='object'&&!Array.isArray(p)?Object.ass
 // RETAGGED PICKS (owner request 2026-10-09): 15 WNBA player props had been locked with sport 'NBA' and showed up under NBA > Locked (and in NBA figures). They were retagged to WNBA on Supabase
 // (backup in data/purged/wnba_props_retag_20261009.json); a device that still holds the old copies is healed here on load, because those rows are older than a device's pull window.
 const _CV_RETAG_WNBA=new Set(["prop_1781216188993","prop_1781748996653","prop_1781749084001","prop_1781749144521","prop_1781749153231","prop_1781749159750","prop_1782261750976","prop_1782261910581","prop_1782331083030","prop_1782331093098","prop_1782418819954","prop_1782418848915","prop_1782418855037","prop_1782418886547","prop_1782418894502"]);
+// CORRECTED OUTCOMES (owner request 2026-10-11): nfl_2026-09-14_KC_DEN_OU_OVER43.5 was recorded as a win, but OVER 43.5 loses -- the game finished KC 31, DEN 10 (total 41). Corrected on Supabase
+// (original row backed up in data/purged/nfl_kc_den_ou_fix_20261011_before.json); a device that still holds the old copy is healed here on load.
+const _CV_FIX_OUTCOMES={"nfl_2026-09-14_KC_DEN_OU_OVER43.5":"loss"};
 function _getPRaw(){
   const raw=S.g('preds',[])||[];
   const w=_getWipedIds();
@@ -6126,7 +6129,8 @@ function _getPRaw(){
   if(w.size)filtered=filtered.filter(p=>!w.has(p.id));
   let retagged=false;
   filtered.forEach(p=>{if(p&&_CV_RETAG_WNBA.has(p.id)&&(p.sport!=='WNBA'||p.league!=='WNBA')){p.sport='WNBA';p.league='WNBA';retagged=true;}});
-  if(filtered.length<raw.length||retagged)S.s('preds',filtered); // self-heal: remove any re-seeded wiped/junk picks (and apply the WNBA retag)
+  filtered.forEach(p=>{if(p&&_CV_FIX_OUTCOMES[p.id]&&p.outcome!==_CV_FIX_OUTCOMES[p.id]){p.outcome=_CV_FIX_OUTCOMES[p.id];retagged=true;}});
+  if(filtered.length<raw.length||retagged)S.s('preds',filtered); // self-heal: remove any re-seeded wiped/junk picks (and apply the WNBA retag / the corrected outcomes)
   return filtered;
 }
 // One-time cleanup for a real regression: soccer's per-league type tags

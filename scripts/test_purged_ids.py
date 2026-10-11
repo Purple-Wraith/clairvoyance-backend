@@ -88,6 +88,27 @@ class Retagged(Base):
         self.assertEqual(sorted(x["id"] for x in RETAG["rows"]), pg_ids(self))
 
 
+class FixedOutcome(Base):
+    __test__ = True
+    """owner 2026-10-11: nfl_2026-09-14_KC_DEN_OU_OVER43.5 was stored as a win; OVER 43.5 loses (KC 31, DEN 10 = 41). The app heals a device's old local copy on load."""
+    ID = "nfl_2026-09-14_KC_DEN_OU_OVER43.5"
+
+    def test_a_device_holding_the_old_win_is_corrected_to_a_loss(self):
+        pg = self.page()
+        old = {"id": self.ID, "hA": "KC", "awA": "DEN", "sport": "FOOTBALL", "league": "NFL", "betType": "OU", "betOn": "OVER 43.5", "ou": 43.5, "winProb": 0.374, "outcome": "win",
+               "date": "2026-09-14", "lockedAt": 1789430409373, "settledAt": 1789490954280, "decOdds": 1.909}
+        other = dict(old, id="nfl_other_pick", betOn="UNDER 44.5", outcome="win")
+        out = pg.evaluate("([a,b])=>{localStorage.setItem('preds',JSON.stringify([a,b]));getP();return JSON.parse(localStorage.getItem('preds')).map(p=>[p.id,p.outcome])}", [old, other])
+        self.assertEqual(out[0], [self.ID, "loss"])
+        self.assertEqual(out[1], ["nfl_other_pick", "win"])                           # only the listed pick is changed
+        pg.close()
+
+    def test_the_original_row_is_backed_up(self):
+        before = json.loads((ROOT / "data" / "purged" / "nfl_kc_den_ou_fix_20261011_before.json").read_text())
+        self.assertEqual(before[0]["id"], self.ID)
+        self.assertEqual((before[0]["outcome"], before[0]["bet_on"]), ("win", "OVER 43.5"))
+
+
 def pg_ids(case):
     pg = case.page()
     ids = sorted(pg.evaluate("[..._CV_RETAG_WNBA]"))
