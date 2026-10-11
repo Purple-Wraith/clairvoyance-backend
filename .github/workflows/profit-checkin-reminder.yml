@@ -1,0 +1,60 @@
+name: Profit Check-In Reminder
+
+# Owner-only email reminding the owner to do the PROFIT tab check-in at the END (Sunday evening) and START (Monday morning) of every week, Mountain time
+# (scripts/profit_checkin_reminder.py). The Worker (scheduler/worker.js SCHEDULE) dispatches it on time; the cron below is only the fallback when the Worker is down -- GitHub's own crons
+# land hours late, so the script decides from the Mountain-time clock which reminder is due and skips when neither is, and each (week, kind) is sent once.
+
+on:
+  schedule:
+    - cron: '0 1 * * 1'     # Sunday 7 PM MDT / 6 PM MST
+    - cron: '0 14 * * 1'    # Monday 8 AM MDT / 7 AM MST
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: "'auto' (decide from the Mountain-time clock), 'end' or 'start'"
+        required: false
+        type: string
+        default: auto
+      dry_run:
+        description: 'Log what would be sent without sending'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: profit-checkin-reminder
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Send the reminder (owner only)
+        env:
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          LOCKS_EMAIL_TO: ${{ secrets.LOCKS_EMAIL_TO }}
+          SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
+        run: |
+          python3 scripts/profit_checkin_reminder.py --kind "${{ inputs.kind || 'auto' }}" ${{ inputs.dry_run == true && '--dry-run' || '' }}
+
+      - name: Publish the sent-reminder record
+        if: ${{ always() && !inputs.dry_run }}
+        uses: ./.github/actions/publish
+        with:
+          paths: data/profit_checkin_reminders.json
+          message: 'profit check-in reminder: record sent'
+          dispatch: never
