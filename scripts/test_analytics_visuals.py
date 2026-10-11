@@ -80,7 +80,7 @@ class Visuals(unittest.TestCase):
     def open(self, ledger=None, width=1300, height=2600, touch=False):
         ctx = self.b.new_context(viewport={"width": width, "height": height}, has_touch=touch)
         pg = ctx.new_page()
-        pg.set_default_timeout(6000)
+        pg.set_default_timeout(25000)      # CI runners are slow when several pushes land together (a 6 s default flaked there)
         self.errors = []
         pg.on("pageerror", lambda e: self.errors.append(str(e)))
         pg.goto("http://127.0.0.1:%d/app.html?nosb=1" % self.srv.server_address[1])
@@ -470,8 +470,10 @@ class Visuals(unittest.TestCase):
     def test_reduced_motion_disables_animation(self):
         ctx = self.b.new_context(viewport={"width": 1300, "height": 2600}, reduced_motion="reduce")
         pg = ctx.new_page()
+        pg.set_default_timeout(60000)      # slow CI runners: the reduced-motion pages used the 30 s default
         pg.goto("http://127.0.0.1:%d/app.html?nosb=1" % self.srv.server_address[1])
         pg.wait_for_function("typeof saveP==='function'&&typeof navTap==='function'")
+        pg.wait_for_timeout(800)          # let the app's own start-up (ledger load / first render) finish before the ledger is replaced -- seeding during boot raced it and flaked
         pg.evaluate("d=>saveP(d)", LEDGER)
         pg.evaluate("""()=>{navTap(document.querySelector('[onclick*="analytics"]'),'analytics');setSub('analytics','visuals');renderAnalyticsVisuals();try{hideAllND()}catch(e){}}""")
         pg.wait_for_selector("#vz-c-eq .vz-line")

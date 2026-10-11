@@ -19915,8 +19915,11 @@ function _momAdd(ds,k){const d=new Date(ds+'T12:00:00Z');d.setUTCDate(d.getUTCDa
 function _momSpan(){
   const D=window._momData,S=window._momS,today=_momDs(D.now);
   if(S.win==='tm'||S.win==='lm'){
-    const tmFrom=D.moFrom?_momDs(D.moFrom):today.slice(0,8)+'01';
-    const isTM=S.win==='tm',from=isTM?tmFrom:(D.lmFrom?_momDs(D.lmFrom):_momAdd(tmFrom,-1).slice(0,8)+'01'),to=isTM?today:_momAdd(tmFrom,-1);
+    // The chart's days are Mountain-time calendar dates, so the month boundaries are taken from today's MT date string -- NOT from D.moFrom/D.lmFrom (mstFirstOfMonth builds them from the BROWSER's timezone:
+    // for a browser outside Mountain time, e.g. a UTC CI runner or a visitor in another zone, they land on the previous MT day and the month got an extra day). lo/hi below still use them so the
+    // headline numbers keep matching the home page's THIS MONTH / LAST MONTH cards.
+    const tmFrom=today.slice(0,8)+'01';
+    const isTM=S.win==='tm',from=isTM?tmFrom:_momAdd(tmFrom,-1).slice(0,8)+'01',to=isTM?today:_momAdd(tmFrom,-1);
     const lo=isTM?(D.moFrom||Date.parse(tmFrom+'T00:00:00')):(D.lmFrom||Date.parse(from+'T00:00:00')),hi=isTM?Infinity:(D.moFrom||Date.parse(tmFrom+'T00:00:00'));
     return{month:true,from,to,lo,hi,title:isTM?'THIS MONTH':'LAST MONTH',tile:isTM?'THIS MO':'LAST MO',n:Math.round((Date.parse(to+'T12:00:00Z')-Date.parse(from+'T12:00:00Z'))/864e5)+1};
   }
