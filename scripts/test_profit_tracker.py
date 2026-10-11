@@ -1113,7 +1113,8 @@ class Profit(unittest.TestCase):
         E, _ = dataset()
         pg = self.open(data=E)
         self.assertEqual(pg.get_attribute("[data-ptact=view][data-v=week]", "aria-pressed"), "true")
-        self.assertEqual(pg.get_attribute("[data-ptact=rng][data-v=\"26W\"]", "aria-pressed"), "true")
+        self.assertEqual(pg.get_attribute("[data-ptact=rng][data-v=ALL]", "aria-pressed"), "true")
+        self.assertEqual([c.strip() for c in pg.locator("#pt-view [data-ptact=rng]").all_inner_texts()], ["THIS WEEK", "LAST WEEK", "LAST 2 WEEKS", "LAST 3 WEEKS", "LAST 4 WEEKS", "ALL TIME"])
         titles = [t.strip() for t in pg.locator("#pt-books .pt-ct, #pt-comb .pt-ct, #pt-tot-card > .pt-ch .pt-ct").all_inner_texts()]
         self.assertEqual(titles, ["DRAFTKINGS", "PRIZEPICKS", "HARD ROCK", "COMBINED · ALL BOOKS", "RUNNING TOTALS TO DATE"])          # per-book cards, then combined, then running totals
         self.assertEqual(pg.locator("#pt-books .pt-bc").count(), 3)
@@ -1121,12 +1122,24 @@ class Profit(unittest.TestCase):
         self.assertEqual(order, sorted(order))
         # weekly range chips
         self.expand_all(pg)
-        self.assertEqual(len(self.table_rows(pg, "t0")), 8)                                      # Aug 17 .. Oct 5
-        pg.click("[data-ptact=rng][data-v=\"8W\"]"); self.expand_all(pg); self.assertEqual(len(self.table_rows(pg, "t0")), 8)
+        # weekly range chips (owner 2026-10-10): THIS WEEK = the running week, LAST WEEK / LAST n WEEKS = the completed weeks before it (today in the fixture = Fri 2026-10-09, running week = 10-05)
+        want = {"W0": ["2026-10-05"], "W1": ["2026-09-28"], "W2": ["2026-09-28", "2026-09-21"], "W3": ["2026-09-28", "2026-09-21", "2026-09-14"],
+                "W4": ["2026-09-28", "2026-09-21", "2026-09-14", "2026-09-07"]}
+        for k, keys in want.items():
+            pg.click("[data-ptact=rng][data-v=%s]" % k); self.expand_all(pg)
+            self.assertEqual([r["key"] for r in self.table_rows(pg, "tc")], keys, k)                  # the COMBINED table, newest first
+            self.assertEqual(pg.get_attribute("[data-ptact=rng][data-v=%s]" % k, "aria-pressed"), "true")
         pg.click("[data-ptact=rng][data-v=ALL]"); self.expand_all(pg)
+        self.assertGreaterEqual(len(self.table_rows(pg, "tc")), 8)
         pg.click("[data-ptact=view][data-v=month]")
-        self.assertEqual([c.strip() for c in pg.locator("#pt-view [data-ptact=rng]").all_inner_texts()], ["6M", "12M", "ALL"])
+        self.assertEqual([c.strip() for c in pg.locator("#pt-view [data-ptact=rng]").all_inner_texts()], ["THIS MONTH", "LAST MONTH", "LAST 3 MONTHS", "LAST 6 MONTHS", "LAST 12 MONTHS", "ALL TIME"])
         self.expand_all(pg)
+        for k, keys in {"M0": ["2026-10"], "M1": ["2026-09"], "M3": ["2026-09", "2026-08", "2026-07"]}.items():
+            pg.click("[data-ptact=rng][data-v=%s]" % k); self.expand_all(pg)
+            got = [r["key"] for r in self.table_rows(pg, "tc")]
+            self.assertEqual(got, keys[:len(got)], k)                       # newest first; a leading month with no activity is trimmed from the table, never one outside the window
+            self.assertGreaterEqual(len(got), 1 if k != "M3" else 2)
+        pg.click("[data-ptact=rng][data-v=ALL]"); self.expand_all(pg)
         self.assertEqual([r["key"] for r in self.table_rows(pg, "t2")], ["2026-10", "2026-09", "2026-08"])         # Hard Rock monthly, newest first
         self.assertIn("MONTHLY RESULTS", pg.inner_text("#pt-bk-2").upper()); self.assertIn("PERIOD CALENDAR", pg.inner_text("#pt-c-e"))
         # collapse / expand a book (button text >= 11px, a real button with aria-expanded)

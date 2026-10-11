@@ -33209,7 +33209,17 @@ function _ptStats(periods){
   return{nActive:act.length,best,worst,wins,losses,winPct:act.length?wins/act.length:null,avg:act.length?_ptRound(sum/act.length):null,streak:{dir,n}};
 }
 /** Window of the last N periods ending at the final one (ALL = everything). */
-function _ptSlice(periods,rng){const n=rng==='ALL'?0:parseInt(rng,10)||0;return n>0&&periods.length>n?periods.slice(periods.length-n):periods;}
+// RANGE keys (owner 2026-10-10): W0/M0 = THIS week/month (the running period only), W<n>/M<n> = the n most recent COMPLETED weeks/months before the running one (W1 = LAST WEEK, W4 = LAST 4 WEEKS,
+// M1 = LAST MONTH, M3/M6/M12 = LAST 3/6/12 MONTHS), ALL = everything. The old trailing '8W' / '26W' / '6M' / '12M' keys still work (saved state or tests) as 'the last n periods incl. the running one'.
+function _ptSlice(periods,rng){
+  const L=periods.length;
+  if(rng==='ALL')return periods;
+  const m=/^([WM])(\d+)$/.exec(String(rng));
+  if(m){const n=+m[2];return n===0?periods.slice(Math.max(0,L-1)):periods.slice(Math.max(0,L-1-n),Math.max(0,L-1));}
+  const n=parseInt(rng,10)||0;return n>0&&L>n?periods.slice(L-n):periods;
+}
+const _PT_RNG_WEEK=[['W0','THIS WEEK'],['W1','LAST WEEK'],['W2','LAST 2 WEEKS'],['W3','LAST 3 WEEKS'],['W4','LAST 4 WEEKS'],['ALL','ALL TIME']];
+const _PT_RNG_MONTH=[['M0','THIS MONTH'],['M1','LAST MONTH'],['M3','LAST 3 MONTHS'],['M6','LAST 6 MONTHS'],['M12','LAST 12 MONTHS'],['ALL','ALL TIME']];
 function _ptBounds(effAll,view,today){
   if(!effAll.length)return null;
   let first=effAll[0].date,last=effAll[0].date;
@@ -33508,7 +33518,7 @@ async function _ptSync(manual){
 
 // ═══ UI ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 const _ptU={
-  sub:'dash',view:'week',rng:{week:'26W',month:'12M'},
+  sub:'dash',view:'week',rng:{week:'ALL',month:'ALL'},
   hide:{},cf:true,roiLine:true,roiOv:false,bmode:'profit',dmode:'range',hmode:'profit',heatBook:'ALL',
   pin:null,cur:{},fold:{},tlim:{},
   f:{type:'CHECKIN',book:'DraftKings',date:'',amount:'',stake:'',note:'',sign:1},
@@ -33839,10 +33849,10 @@ function _ptRowHTML(e,adj,o){
 
 // ═══ DASHBOARD SECTIONS: controls, per-book cards, COMBINED, RUNNING TOTALS ═══════════════════════════════════════════════════════════
 function _ptViewHTML(m){
-  const v=m.view,rngs=v==='month'?['6M','12M','ALL']:['8W','26W','ALL'];
+  const v=m.view,rngs=v==='month'?_PT_RNG_MONTH:_PT_RNG_WEEK;
   return`<div class="pt-card pt-ctl">
     <div class="pt-fr"><span class="pt-l">VIEW</span><div class="pt-seg" role="group" aria-label="Period">${_ptChip('view','week','WEEKLY',v==='week','#00f0ff')}${_ptChip('view','month','MONTHLY',v==='month','#00f0ff')}</div></div>
-    <div class="pt-fr"><span class="pt-l">RANGE</span><div class="pt-chips" role="group" aria-label="Range">${rngs.map(r=>_ptChip('rng',r,r,_ptU.rng[v]===r,'#bbff00')).join('')}</div>
+    <div class="pt-fr"><span class="pt-l">RANGE</span><div class="pt-chips" role="group" aria-label="Range">${rngs.map(([k,l])=>_ptChip('rng',k,l,_ptU.rng[v]===k,'#bbff00')).join('')}</div>
       <span class="pt-dim pt-rngn">${m.P.length} ${_ptWord(v)}${m.P.length===1?'':'S'}${v==='week'?' · WEEKS START MONDAY (MT)':''}</span></div>
     <div class="pt-fr"><span class="pt-l">JUMP</span><div class="pt-chips" role="group" aria-label="Jump to a section">${_ptChip('jump','pt-books','BOOKS',false,'#f000ff')}${_ptChip('jump','pt-comb','COMBINED',false,'#f000ff')}${_ptChip('jump','pt-tot','RUNNING TOTALS',false,'#f000ff')}${_ptChip('jump','pt-charts','VISUALS',false,'#f000ff')}</div></div>
   </div>`;
