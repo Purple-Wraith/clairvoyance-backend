@@ -74,8 +74,11 @@ class Momentum(unittest.TestCase):
         txt = pg.evaluate("[...document.querySelectorAll('#mom-widget .mom-v')].map(e=>e.textContent)")
         self.assertEqual(txt[0], f"{w / (w + l) * 100:.1f}%")
         self.assertEqual(txt[1], f"{a[0] / (a[0] + a[1]) * 100:.1f}%")
-        self.assertEqual(txt[2], f"{(w / (w + l) - a[0] / (a[0] + a[1])) * 100:+.1f}pp")
-        self.assertEqual(txt[3], f"{u:+.1f}u")
+        self.assertEqual(len(txt), 3)                                                              # win %, all-time, units -- the VS BASELINE tile was removed (owner 2026-10-10)
+        self.assertEqual(txt[2], f"{u:+.1f}u")
+        self.assertNotIn("VS BASELINE", pg.inner_text("#mom-widget"))
+        gd = pg.evaluate("document.querySelector('#mom-widget .mom-gd').textContent")                  # the baseline difference lives in the meter
+        self.assertEqual(gd, f"{(w / (w + l) - a[0] / (a[0] + a[1])) * 100:+.1f}pp")
         self.assertIn("LAST 7D VS ALL-TIME", pg.inner_text("#mom-widget .mom-title"))
         self.assertEqual(self.errors, [])
         pg.close()
@@ -206,8 +209,7 @@ class Momentum(unittest.TestCase):
             self.assertTrue(a > 0 if sign > 0 else a < 0 if sign < 0 else a == 0, a)
             if zone:
                 gd = pg.evaluate("document.querySelector('#mom-widget .mom-gd').textContent")
-                tile = pg.evaluate("document.querySelectorAll('#mom-widget .mom-v')[2].textContent")
-                self.assertEqual(gd, tile)                                    # the meter's big number is the VS BASELINE tile's number
+                self.assertRegex(gd, r"^[+-]\d+\.\dpp$")                         # the meter's big number is the difference vs the all-time baseline
         self.assertEqual(self.errors, [])
         pg.close()
 
