@@ -163,6 +163,9 @@ class PickOfDay(unittest.TestCase):
     def setUp(self):
         import generate_pick_of_day_social as pod
         self.pod = pod
+        self._orig_ko = pod._kickoff_time
+        pod._kickoff_time = lambda *a, **k: None          # fixtures use real team codes: don't let the live schedule (kickoff already passed) drop them
+        self.addCleanup(lambda: setattr(pod, "_kickoff_time", self._orig_ko))
 
     def test_only_premium_optimal_in_scope_sports(self):
         qs = [_game(tier=3), _game(tier=1, label="SF -1.5"), _game(tier=0, label="SF -2.5"), _game(sport="NCAAB", tier=3, label="DUKE -4"), _game(sport="MLS", tier=3, label="X -1")]
