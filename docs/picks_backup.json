@@ -65794,7 +65794,7 @@
   {
     "hA": "Hameenlinna",
     "id": "2026-10-03_Hameenlinna_Karpat_LIIGA_Karpat-1.5",
-    "ml": "-110",
+    "ml": "+225",
     "awA": "Karpat",
     "date": "2026-10-03",
     "betOn": "Karpat -1.5",
@@ -65805,12 +65805,19 @@
     "league": "LIIGA",
     "source": "manual",
     "betType": "SPREAD",
-    "decOdds": 1.87,
+    "decOdds": 3.25,
+    "leadMin": 440,
     "outcome": "loss",
-    "winProb": 0.7261971848406227,
-    "lockedAt": 1790937133606,
-    "reasoning": "PICK: Karpat -1.5 \u2014 PREMIUM (72.6% win prob, EV +35.8%)\nMODEL: Projected 2.8\u20132.7 (total 5.5) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Hameenlinna 2.24/3.07 (8GP this season, 60GP prior) vs Karpat 2.70/2.97 (8GP, 60GP prior). G/M-derived line: 5.5 (Hameenlinna 5.10, Karpat 5.52). Record: Hameenlinna 2-5-1OTW vs Karpat 4-3-1OTL. MC proj: Karpat 2.8 \u2013 Hameenlinna 2.7 (5.5 total vs 5.5 line). Karpat -1.5 covers in 72.6% of the model's blended scoring+margin projection (dog covers 27.4%). Ensemble: MC 70% / Bayesian log5 30%. Full-unit play \u00b7 Also: Karpat ML (OPTIMAL), UNDER 5.5 (LEAN).",
-    "settledAt": 1791054911142
+    "startMs": 1791036000000,
+    "winProb": 0.302,
+    "lockedAt": 1791009585542,
+    "modelProb": 0.3304,
+    "reasoning": "PICK: Karpat -1.5 \u2014 SKIP (30.2% win prob, EV -1.8% \u00b7 MARKET PRICE +225 (EV at market -1.8%) \u00b7 MARKET-BLENDED: model 33.0% \u00b7 no-vig market 29.2% \u2192 30.2% (alpha 0.72))\nMODEL: Projected 2.8\u20132.7 (total 5.5) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).",
+    "settledAt": 1791054911142,
+    "blendAlpha": 0.725,
+    "lockTiming": "pre",
+    "marketProb": 0.2919,
+    "priceSource": "market"
   },
   {
     "hA": "ILL",
@@ -71015,7 +71022,7 @@
     "winProb": 0.6083008236222953,
     "lockedAt": 1791532722973,
     "reasoning": "PICK: Alav\u00e9s +0.5 \u2014 PREMIUM (60.8% win prob, EV +16.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.58\u20131.52 goals (xG 1.57/1.52), BTTS 62%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Alav\u00e9s 1.52 xG/G vs Atl\u00e9tico Madrid 1.57 xG/G. 3-way: Home 43% / Draw 31% / Away 56%. MC proj: 1.52 \u2013 1.58 (3.10 total vs 2.5 line, BTTS 62%). Goal spread: Atl\u00e9tico Madrid -0.5 covers 39%, Alav\u00e9s +0.5 covers 61% (proj margin -0.06). Alav\u00e9s priced to survive within 0.5 even if outscored. Kelly 17.7%. PREMIUM \u00b7 Full-unit play \u00b7 Also: OVER 2.5 (OPTIMAL), Atl\u00e9tico Madrid Win (OPTIMAL). Factors moving this pick: Fbref (H) -6%, Standings (H) +6%, Fbref (A) +6%, Standings (A) +6%.",
-    "settledAt": 1791651280412,
+    "settledAt": 1791648859457,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "socFactors": {
@@ -71070,7 +71077,7 @@
     "winProb": 0.592,
     "lockedAt": 1791633292473,
     "reasoning": null,
-    "settledAt": 1791651280414,
+    "settledAt": 1791648859459,
     "lockOrigin": "manual",
     "lockTiming": "pre"
   },
@@ -71095,7 +71102,7 @@
     "winProb": 0.5969574686536967,
     "lockedAt": 1791532723244,
     "reasoning": "PICK: OVER 2.5 \u2014 OPTIMAL (59.7% win prob, EV +14.0% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.58\u20131.52 goals (xG 1.57/1.52), BTTS 62% \u2014 OVER 2.5 hits 60.0% of outcomes, from a 25k-sim Monte Carlo.",
-    "settledAt": 1791651280413,
+    "settledAt": 1791648859458,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "socFactors": {
@@ -71777,7 +71784,7 @@
     "winProb": 0.6529700542623039,
     "lockedAt": 1791532721463,
     "reasoning": "PICK: Chelsea Win \u2014 PREMIUM (65.3% win prob, EV +8.8%)\nMODEL: Projected 1.59\u20132.06 goals (xG 1.59/2.04), BTTS 69%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Chelsea 2.04 xG/G vs AFC Bournemouth 1.59 xG/G. 3-way: Home 65% / Draw 28% / Away 37%. MC proj: 2.06 \u2013 1.59 (3.65 total vs 3.5 line, BTTS 69%). Goal spread: Chelsea -0.5 covers 48%, AFC Bournemouth +0.5 covers 52% (proj margin +0.46). Chelsea xG edge unpriced by market. Kelly 13.2%. PREMIUM \u00b7 Full-unit play \u00b7 Also: AFC Bournemouth +0.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +4%.",
-    "settledAt": 1791651279159,
+    "settledAt": 1791647718855,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "socFactors": {
@@ -71832,7 +71839,7 @@
     "winProb": 0.7025046297147651,
     "lockedAt": 1791618187050,
     "reasoning": "PICK: OVER 2.5 \u2014 PREMIUM (70.3% win prob, EV +34.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.59\u20132.04 goals (xG 1.59/2.04), BTTS 69% \u2014 OVER 2.5 hits 70.2% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Chelsea 2.04 xG/G vs AFC Bournemouth 1.59 xG/G. 3-way: Home 64% / Draw 29% / Away 37%. MC proj: 2.04 \u2013 1.59 (3.62 total vs 2.5 line, BTTS 69%). Goal spread: Chelsea -0.5 covers 48%, AFC Bournemouth +0.5 covers 52% (proj margin +0.45). Combined xG 3.62 supports goals above the line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Chelsea Win (PREMIUM), AFC Bournemouth +0.5 (LEAN). Factors moving this pick: Fbref (H) +6%, Standings (H) +4%, Fbref (A) +6%, Standings (A) -6%.",
-    "settledAt": 1791651279161,
+    "settledAt": 1791647718856,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "socFactors": {
@@ -72152,7 +72159,7 @@
     "winProb": 0.6247477839688831,
     "lockedAt": 1791532723822,
     "reasoning": "PICK: Genoa +0.5 \u2014 PREMIUM (62.5% win prob, EV +19.3% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.32\u20131.29 goals (xG 1.32/1.29), BTTS 54%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Genoa 1.29 xG/G vs Fiorentina 1.32 xG/G. 3-way: Home 44% / Draw 35% / Away 47%. MC proj: 1.29 \u2013 1.32 (2.62 total vs 2.5 line, BTTS 54%). Goal spread: Fiorentina -0.5 covers 38%, Genoa +0.5 covers 62% (proj margin -0.03). Genoa priced to survive within 0.5 even if outscored. Kelly 21.2%. PREMIUM \u00b7 Full-unit play. Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Form (H) -3%, Fbref (A) -6%, Standings (A) -6%.",
-    "settledAt": 1791651281575,
+    "settledAt": 1791644299609,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "socFactors": {
@@ -73828,7 +73835,7 @@
     "winProb": 0.7244529010958177,
     "lockedAt": 1791532721953,
     "reasoning": "PICK: Brighton & Hove Albion Win \u2014 PREMIUM (72.4% win prob, EV +70.3%)\nMODEL: Projected 1.91\u20131.12 goals (xG 1.92/1.11), BTTS 57%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Sunderland 1.11 xG/G vs Brighton & Hove Albion 1.92 xG/G. 3-way: Home 30% / Draw 30% / Away 72%. MC proj: 1.12 \u2013 1.91 (3.02 total vs 2.5 line, BTTS 57%). Goal spread: Brighton & Hove Albion -1.5 covers 33%, Sunderland +1.5 covers 67% (proj margin -0.79). Brighton & Hove Albion road xG edge underpriced. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Sunderland +1.5 (PREMIUM), OVER 2.5 (OPTIMAL). Factors moving this pick: Fbref +6%, Standings +6%, Form +6%.",
-    "settledAt": 1791651279164,
+    "settledAt": 1791647838953,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "socFactors": {
@@ -77513,6 +77520,7 @@
     "winProb": 0.6968544095820841,
     "lockedAt": 1791791869863,
     "reasoning": "PICK: Lens Win \u2014 PREMIUM (69.7% win prob, EV +74.2%)\nMODEL: Projected 1.31\u20132.89 goals (xG 1.31/2.88), BTTS 69%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Lens 2.88 xG/G vs Sporting CP 1.31 xG/G. 3-way: Home 70% / Draw 23% / Away 24%. MC proj: 2.89 \u2013 1.31 (4.20 total vs 3.5 line, BTTS 69%). Goal spread: Lens -1.5 covers 50%, Sporting CP +1.5 covers 50% (proj margin +1.58). Lens xG edge unpriced by market. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: OVER 3.5 (OPTIMAL), Lens -1.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
+    "settledAt": 1791919085175,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "socFactors": {
@@ -77544,8 +77552,7 @@
         "away": 1.06,
         "home": 1.06
       }
-    },
-    "settledAt": 1791919085175
+    }
   },
   {
     "hA": "Lens",
@@ -77568,6 +77575,7 @@
     "winProb": 0.603666767692669,
     "lockedAt": 1791791869993,
     "reasoning": "PICK: OVER 3.5 \u2014 OPTIMAL (60.4% win prob, EV +15.2% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.31\u20132.89 goals (xG 1.31/2.88), BTTS 69% \u2014 OVER 3.5 hits 60.9% of outcomes, from a 25k-sim Monte Carlo.",
+    "settledAt": 1791919085175,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "socFactors": {
@@ -77599,8 +77607,7 @@
         "away": 1.06,
         "home": 1.06
       }
-    },
-    "settledAt": 1791919085175
+    }
   },
   {
     "hA": "MTL",
@@ -77741,6 +77748,34 @@
     "lockTiming": "pre",
     "marketProb": 0.5455,
     "priceSource": "market"
+  },
+  {
+    "id": "2026-10-13_NYR_TBL_NHL_UNDER6.5",
+    "date": "2026-10-13",
+    "hA": "NYR",
+    "awA": "TBL",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 6.5",
+    "winProb": 0.6456751303220885,
+    "ml": "-137",
+    "decOdds": 1.73,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791921385712,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 6.5 \u2014 OPTIMAL (64.6% win prob, EV +11.7% \u00b7 MARKET PRICE -137 (EV at market +11.7%) \u00b7 MARKET-BLENDED: model 90.1% \u00b7 no-vig market 54.9% \u2192 64.6% (alpha 0.80))\nMODEL: Projected 2.0\u20131.8 (total 3.9) (OT/SO in 21% of outcomes) \u2014 UNDER hits 90.1% of outcomes vs the 6.5 line, from a 25k-sim Monte Carlo.\nWHY: Best market: UNDER 6.5 graded OPTIMAL (64.6%, EV +11.7%). MC projects 3.9 goals vs the 6.5 line (90% under in sims). GSAx: +0.2 vs +4.9 (injury adj: NYR: Igor Shesterkin G OUT -> goalie rating set to league average) points to tighter defense/goaltending. MC 46% / xGF 50% / hv -3.2pp / ST +6.2pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.85): model 57.7% \u00b7 no-vig market 40.7% \u2192 43.2%; Puck line market blend (alpha 0.82): model 28.1% \u00b7 no-vig market 37.7% \u2192 35.9%; O/U market blend (alpha 0.80): model 9.9% \u00b7 no-vig market 45.1% \u2192 35.4%. Standard-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.9008,
+    "marketProb": 0.5495,
+    "blendAlpha": 0.8,
+    "startMs": 1791933300000,
+    "leadMin": 199,
+    "lockTiming": "pre"
   },
   {
     "hA": "OTT",
@@ -77935,6 +77970,31 @@
     "lockTiming": "pre",
     "marketProb": 0.5366,
     "priceSource": "market"
+  },
+  {
+    "hA": "Sabah FK",
+    "id": "2026-10-13_Sabah FK_Slavia Prague_CL_SabahFK+1.5",
+    "ml": "-110",
+    "awA": "Slavia Prague",
+    "date": "2026-10-13",
+    "betOn": "Sabah FK +1.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": 0,
+    "hScore": 2,
+    "league": "CL",
+    "source": "manual",
+    "betType": "SPREAD",
+    "decOdds": 1.909,
+    "leadMin": -186,
+    "outcome": "win",
+    "startMs": 1791909900000,
+    "winProb": 0.6799999999999999,
+    "lockedAt": 1791921076974,
+    "reasoning": "PICK: Sabah FK +1.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.65\u20130.81 goals (xG 1.64/0.81), BTTS 45%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Sabah FK 0.81 xG/G vs Slavia Prague 1.64 xG/G. 3-way: Home 25% / Draw 32% / Away 67%. MC proj: 0.81 \u2013 1.65 (2.46 total vs 2.5 line, BTTS 45%). Goal spread: Slavia Prague -1.5 covers 32%, Sabah FK +1.5 covers 68% (proj margin -0.84). Sabah FK priced to survive within 1.5 even if outscored. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Slavia Prague Win (PREMIUM), UNDER 2.5 (LEAN). Factors moving this pick: Style (H) -15%, Advanced (H) -8%, Fbref (H) -6%, Standings (H) -6%, Power Rank (H) -5%, Fbref (A) -6%, Standings (A) -6%, Power Rank (A) +5%, Form (A) -4%.",
+    "settledAt": 1791921132571,
+    "lockOrigin": "manual",
+    "lockTiming": "late-manual"
   },
   {
     "hA": "Sabah FK",
