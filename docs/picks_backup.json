@@ -76511,8 +76511,8 @@
     "betOn": "UNDER 60.5",
     "sport": "NFL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 37,
+    "hScore": 34,
     "league": "NFL",
     "source": "manual",
     "altLine": {
@@ -76527,7 +76527,7 @@
     "betType": "OU",
     "decOdds": 1.384,
     "leadMin": 651,
-    "outcome": "pending",
+    "outcome": "loss",
     "startMs": 1791850500000,
     "winProb": 0.6778,
     "lockedAt": 1791811423712,
@@ -76537,7 +76537,8 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.5,
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1791895881391
   },
   {
     "hA": "Levante",
@@ -76735,6 +76736,34 @@
     "lockTiming": "pre",
     "marketProb": 0.6643,
     "priceSource": "market"
+  },
+  {
+    "id": "2026-10-13_ANA_CGY_NHL_UNDER6.5",
+    "date": "2026-10-13",
+    "hA": "ANA",
+    "awA": "CGY",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 6.5",
+    "winProb": 0.6676577310526635,
+    "ml": "-126",
+    "decOdds": 1.795,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895892409,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 6.5 \u2014 OPTIMAL (66.8% win prob, EV +19.8% \u00b7 MARKET PRICE -126 (EV at market +19.8%) \u00b7 MARKET-BLENDED: model 95.0% \u00b7 no-vig market 53.4% \u2192 66.8% (alpha 0.80))\nMODEL: Projected 1.2\u20132.1 (total 3.3) (OT/SO in 21% of outcomes) \u2014 UNDER hits 95.0% of outcomes vs the 6.5 line, from a 25k-sim Monte Carlo.\nWHY: Best market: UNDER 6.5 graded OPTIMAL (66.8%, EV +19.8%). MC projects 3.3 goals vs the 6.5 line (95% under in sims). GSAx: +0.4 vs -7.0 (injury adj: ANA: Cutter Gauthier LW DAY-TO-DAY, Ryan Poehling C DAY-TO-DAY, Drew Helleson D OUT, Troy Terry RW OUT -> scoring -6.1% | CGY: Jonathan Huberdeau LW OUT -> scoring -1.4%) points to tighter defense/goaltending. MC 69% / xGF 50% / hv +0.4pp / ST +2.4pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.85): model 64.9% \u00b7 no-vig market 64.6% \u2192 64.6%; Puck line market blend (alpha 0.82): model 39.2% \u00b7 no-vig market 43.0% \u2192 42.3%; O/U market blend (alpha 0.80): model 5.0% \u00b7 no-vig market 46.6% \u2192 33.2%. Standard-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.9501,
+    "marketProb": 0.5338,
+    "blendAlpha": 0.8,
+    "startMs": 1791942300000,
+    "leadMin": 773,
+    "lockTiming": "pre"
   },
   {
     "hA": "Arsenal",
@@ -76953,57 +76982,225 @@
     }
   },
   {
-    "id": "2026-10-13_Atl\u00e9tico Madrid_Manchester United_CL_OVER2.5",
-    "date": "2026-10-13",
     "hA": "Atl\u00e9tico Madrid",
-    "awA": "Manchester United",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
-    "betOn": "OVER 2.5",
-    "winProb": 0.6501759057997754,
+    "id": "2026-10-13_Atl\u00e9tico Madrid_Manchester United_CL_OVER2.5",
     "ml": "-110",
+    "awA": "Manchester United",
+    "date": "2026-10-13",
+    "betOn": "OVER 2.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "betType": "OU",
     "decOdds": 1.91,
+    "leadMin": 636,
+    "outcome": "pending",
+    "startMs": 1791918000000,
+    "winProb": 0.6501759057997754,
+    "lockedAt": 1791879867286,
+    "reasoning": "PICK: OVER 2.5 \u2014 OPTIMAL (65.0% win prob, EV +24.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.28\u20132.06 goals (xG 1.28/2.07), BTTS 63% \u2014 OVER 2.5 hits 64.7% of outcomes, from a 25k-sim Monte Carlo.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 1.0015,
+        "home": 1.011607142857143
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 1.06
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 0.94,
+        "home": 1.06
+      }
+    }
+  },
+  {
+    "id": "2026-10-13_CAR_WSH_NHL_UNDER6.5",
+    "date": "2026-10-13",
+    "hA": "CAR",
+    "awA": "WSH",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 6.5",
+    "winProb": 0.6051173671727137,
+    "ml": "-125",
+    "decOdds": 1.8,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1791879867286,
+    "lockedAt": 1791895890214,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "form": {
-        "home": 1.011607142857143,
-        "away": 1.0015
-      },
-      "standings": {
-        "home": 1.06,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: OVER 2.5 \u2014 OPTIMAL (65.0% win prob, EV +24.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.28\u20132.06 goals (xG 1.28/2.07), BTTS 63% \u2014 OVER 2.5 hits 64.7% of outcomes, from a 25k-sim Monte Carlo.",
-    "startMs": 1791918000000,
-    "leadMin": 636,
+    "reasoning": "PICK: UNDER 6.5 \u2014 HIGH PROB (60.5% win prob, EV +8.9% \u00b7 MARKET PRICE -125 (EV at market +8.9%) \u00b7 MARKET-BLENDED: model 83.4% \u00b7 no-vig market 53.3% \u2192 60.5% (alpha 0.80))\nMODEL: Projected 1.8\u20132.7 (total 4.5) (OT/SO in 18% of outcomes) \u2014 UNDER hits 83.4% of outcomes vs the 6.5 line, from a 25k-sim Monte Carlo.\nWHY: Best market: UNDER 6.5 graded HIGH PROB (60.5%, EV +8.9%). MC projects 4.5 goals vs the 6.5 line (83% under in sims). GSAx: -2.2 vs +3.1 (injury adj: CAR: Jordan Staal C DAY-TO-DAY, Alexander Nikishin D OUT, Seth Jarvis C OUT -> scoring -5.9% | WSH: Pierre-Luc Dubois LW OUT, Rasmus Sandin D OUT -> scoring -4.2%) points to tighter defense/goaltending. MC 67% / xGF 50% / hv +5.5pp / ST +5.2pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.85): model 67.5% \u00b7 no-vig market 58.4% \u2192 59.8%; Puck line market blend (alpha 0.82): model 43.1% \u00b7 no-vig market 37.5% \u2192 38.4%; O/U market blend (alpha 0.80): model 16.6% \u00b7 no-vig market 46.8% \u2192 39.5%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.834,
+    "marketProb": 0.5325,
+    "blendAlpha": 0.8,
+    "startMs": 1791931500000,
+    "leadMin": 593,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_CBJ_FLA_NHL_FLA+1.5",
+    "date": "2026-10-13",
+    "hA": "CBJ",
+    "awA": "FLA",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "FLA +1.5",
+    "winProb": 0.6875735892396617,
+    "ml": "-247",
+    "decOdds": 1.405,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895889829,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: FLA +1.5 \u2014 HIGH PROB (68.8% win prob, EV -3.4% \u00b7 MARKET PRICE -247 (EV at market -3.4%) \u00b7 MARKET-BLENDED: model 72.3% \u00b7 no-vig market 68.1% \u2192 68.8% (alpha 0.85))\nMODEL: Projected 1.3\u20131.4 (total 2.7) (OT/SO in 25% of outcomes) \u2014 underdog covers +1.5 in 72.3% of outcomes (incl. late-game empty-net margin calibration), from a 25k-sim Monte Carlo.\nWHY: Best market: FLA +1.5 graded HIGH PROB (68.8%, EV -3.4%). Dog covers +1.5 in 68.8% of sims (proj 1.4\u20131.3). GSAx: -2.4 vs +2.5 (injury adj: FLA: Brad Marchand LW OUT -> scoring -4.8%) keeps this within a goal. MC 53% / xGF 50% / hv -7.2pp / ST +0.3pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.87): model 58.0% \u00b7 no-vig market 53.2% \u2192 53.9%; Puck line market blend (alpha 0.85): model 27.7% \u00b7 no-vig market 31.9% \u2192 31.2%; O/U market blend (alpha 0.83): model 14.4% \u00b7 no-vig market 54.5% \u2192 46.2%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.7231,
+    "marketProb": 0.681,
+    "blendAlpha": 0.85,
+    "startMs": 1791929700000,
+    "leadMin": 564,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_CHI_PIT_NHL_UNDER6.5",
+    "date": "2026-10-13",
+    "hA": "CHI",
+    "awA": "PIT",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 6.5",
+    "winProb": 0.6380743164792904,
+    "ml": "-116",
+    "decOdds": 1.865,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895891239,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 6.5 \u2014 OPTIMAL (63.8% win prob, EV +19.0% \u00b7 MARKET PRICE -116 (EV at market +19.0%) \u00b7 MARKET-BLENDED: model 91.0% \u00b7 no-vig market 51.1% \u2192 63.8% (alpha 0.77))\nMODEL: Projected 2.5\u20131.3 (total 3.8) (OT/SO in 18% of outcomes) \u2014 UNDER hits 91.0% of outcomes vs the 6.5 line, from a 25k-sim Monte Carlo.\nWHY: Best market: UNDER 6.5 graded OPTIMAL (63.8%, EV +19.0%). MC projects 3.8 goals vs the 6.5 line (91% under in sims). GSAx: +0.4 vs -1.2 (injury adj: CHI: Connor Bedard C OUT, Frank Nazar C OUT -> scoring -4.9% | PIT: Andrei Kuzmenko LW OUT, Justin Brazeau RW OUT -> scoring -2.1%) points to tighter defense/goaltending. MC 26% / xGF 50% / hv +2.1pp / ST -7.7pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.83): model 38.4% \u00b7 no-vig market 43.4% \u2192 42.6%; Puck line market blend (alpha 0.80): model 48.1% \u00b7 no-vig market 35.6% \u2192 38.0%; O/U market blend (alpha 0.77): model 9.0% \u00b7 no-vig market 48.9% \u2192 36.2%. Standard-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.9102,
+    "marketProb": 0.5111,
+    "blendAlpha": 0.77,
+    "startMs": 1791936000000,
+    "leadMin": 668,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_DAL_COL_NHL_DAL+1.5",
+    "date": "2026-10-13",
+    "hA": "DAL",
+    "awA": "COL",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "DAL +1.5",
+    "winProb": 0.6870079994813665,
+    "ml": "-263",
+    "decOdds": 1.38,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895891716,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: DAL +1.5 \u2014 HIGH PROB (68.7% win prob, EV -5.2% \u00b7 MARKET PRICE -263 (EV at market -5.2%) \u00b7 MARKET-BLENDED: model 66.3% \u00b7 no-vig market 69.2% \u2192 68.7% (alpha 0.82))\nMODEL: Projected 2.2\u20131.6 (total 3.8) (OT/SO in 21% of outcomes) \u2014 underdog covers +1.5 in 83.6% of outcomes (incl. late-game empty-net margin calibration), from a 25k-sim Monte Carlo.\nWHY: Best market: DAL +1.5 graded HIGH PROB (68.7%, EV -5.2%). Dog covers +1.5 in 68.7% of sims (proj 1.6\u20132.2). GSAx: -4.1 vs +6.6 (injury adj: DAL: Matt Duchene C OUT -> scoring -3.4%) keeps this within a goal. MC 40% / xGF 50% / hv -3.5pp / ST +0.7pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.85): model 49.7% \u00b7 no-vig market 48.8% \u2192 48.9%; Puck line market blend (alpha 0.82): model 33.7% \u00b7 no-vig market 30.8% \u2192 31.3%; O/U market blend (alpha 0.80): model 18.6% \u00b7 no-vig market 55.4% \u2192 47.0%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.6631,
+    "marketProb": 0.692,
+    "blendAlpha": 0.825,
+    "startMs": 1791937800000,
+    "leadMin": 698,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_DET_NJD_NHL_NJD+1.5",
+    "date": "2026-10-13",
+    "hA": "DET",
+    "awA": "NJD",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "NJD +1.5",
+    "winProb": 0.7172940546898019,
+    "ml": "-282",
+    "decOdds": 1.355,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895889570,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: NJD +1.5 \u2014 HIGH PROB (71.7% win prob, EV -2.8% \u00b7 MARKET PRICE -282 (EV at market -2.8%) \u00b7 MARKET-BLENDED: model 78.1% \u00b7 no-vig market 70.3% \u2192 71.7% (alpha 0.82))\nMODEL: Projected 1.4\u20131.5 (total 3.0) (OT/SO in 24% of outcomes) \u2014 underdog covers +1.5 in 78.1% of outcomes (incl. late-game empty-net margin calibration), from a 25k-sim Monte Carlo.",
+    "priceSource": "market",
+    "modelProb": 0.7806,
+    "marketProb": 0.7025,
+    "blendAlpha": 0.825,
+    "startMs": 1791928800000,
+    "leadMin": 549,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_DET_NJD_NHL_UNDER6.5",
+    "date": "2026-10-13",
+    "hA": "DET",
+    "awA": "NJD",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 6.5",
+    "winProb": 0.7017010263072034,
+    "ml": "-140",
+    "decOdds": 1.715,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895889471,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 6.5 \u2014 PREMIUM (70.2% win prob, EV +20.3% \u00b7 MARKET PRICE -140 (EV at market +20.3%) \u00b7 MARKET-BLENDED: model 96.9% \u00b7 no-vig market 55.3% \u2192 70.2% (alpha 0.80))\nMODEL: Projected 1.4\u20131.5 (total 3.0) (OT/SO in 24% of outcomes) \u2014 UNDER hits 96.9% of outcomes vs the 6.5 line, from a 25k-sim Monte Carlo.\nWHY: Best market: UNDER 6.5 graded PREMIUM (70.2%, EV +20.3%). MC projects 3.0 goals vs the 6.5 line (97% under in sims). GSAx: -2.6 vs +0.4 (injury adj: DET: Simon Edvinsson D OUT -> scoring -1% | NJD: Connor Brown RW OUT -> scoring -1.9%) points to tighter defense/goaltending. MC 52% / xGF 50% / hv -1.4pp / ST -0.2pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.85): model 63.0% \u00b7 no-vig market 50.0% \u2192 52.0%; Puck line market blend (alpha 0.82): model 21.9% \u00b7 no-vig market 29.7% \u2192 28.3%; O/U market blend (alpha 0.80): model 3.1% \u00b7 no-vig market 44.7% \u2192 29.8%. Full-unit play \u00b7 Also: NJD +1.5 (HIGH PROB).",
+    "priceSource": "market",
+    "modelProb": 0.9686,
+    "marketProb": 0.5528,
+    "blendAlpha": 0.8,
+    "startMs": 1791928800000,
+    "leadMin": 549,
     "lockTiming": "pre"
   },
   {
@@ -77223,6 +77420,62 @@
     }
   },
   {
+    "id": "2026-10-13_LAK_EDM_NHL_LAK+1.5",
+    "date": "2026-10-13",
+    "hA": "LAK",
+    "awA": "EDM",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "LAK +1.5",
+    "winProb": 0.6580912931994681,
+    "ml": "-230",
+    "decOdds": 1.435,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895892756,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: LAK +1.5 \u2014 HIGH PROB (65.8% win prob, EV -5.6% \u00b7 MARKET PRICE -230 (EV at market -5.6%) \u00b7 MARKET-BLENDED: model 60.5% \u00b7 no-vig market 66.7% \u2192 65.8% (alpha 0.85))\nMODEL: Projected 2.0\u20131.2 (total 3.1) (OT/SO in 22% of outcomes) \u2014 underdog covers +1.5 in 81.6% of outcomes (incl. late-game empty-net margin calibration), from a 25k-sim Monte Carlo.",
+    "priceSource": "market",
+    "modelProb": 0.6053,
+    "marketProb": 0.6671,
+    "blendAlpha": 0.85,
+    "startMs": 1791945000000,
+    "leadMin": 818,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_LAK_EDM_NHL_UNDER6.5",
+    "date": "2026-10-13",
+    "hA": "LAK",
+    "awA": "EDM",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 6.5",
+    "winProb": 0.6037221853375858,
+    "ml": "-127",
+    "decOdds": 1.79,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895892617,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 6.5 \u2014 HIGH PROB (60.4% win prob, EV +8.1% \u00b7 MARKET PRICE -127 (EV at market +8.1%) \u00b7 MARKET-BLENDED: model 86.7% \u00b7 no-vig market 53.1% \u2192 60.4% (alpha 0.83))\nMODEL: Projected 2.0\u20131.2 (total 3.1) (OT/SO in 22% of outcomes) \u2014 UNDER hits 86.7% of outcomes vs the 6.5 line, from a 25k-sim Monte Carlo.\nWHY: Best market: UNDER 6.5 graded HIGH PROB (60.4%, EV +8.1%). MC projects 3.1 goals vs the 6.5 line (87% under in sims). GSAx: -2.2 vs -3.1 (injury adj: LAK: Mats Zuccarello RW OUT, Kevin Fiala LW OUT -> scoring -6.6% | EDM: Jake Walman D DAY-TO-DAY, Zach Hyman LW DAY-TO-DAY, Ryan Nugent-Hopkins C OUT, Matt Savoie C OUT -> scoring -4.1%) points to tighter defense/goaltending. MC 37% / xGF 50% / hv -10.3pp / ST -4.9pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.87): model 41.6% \u00b7 no-vig market 45.6% \u2192 45.1%; Puck line market blend (alpha 0.85): model 39.5% \u00b7 no-vig market 33.3% \u2192 34.2%; O/U market blend (alpha 0.83): model 13.3% \u00b7 no-vig market 46.9% \u2192 39.6%. Half-unit play \u00b7 Also: LAK +1.5 (HIGH PROB).",
+    "priceSource": "market",
+    "modelProb": 0.8669,
+    "marketProb": 0.5308,
+    "blendAlpha": 0.83,
+    "startMs": 1791945000000,
+    "leadMin": 818,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Lens",
     "id": "2026-10-13_Lens_Sporting CP_CL_LensWin",
     "ml": "-110",
@@ -77331,6 +77584,230 @@
     }
   },
   {
+    "id": "2026-10-13_MTL_BUF_NHL_UNDER6.5",
+    "date": "2026-10-13",
+    "hA": "MTL",
+    "awA": "BUF",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 6.5",
+    "winProb": 0.6238125040625044,
+    "ml": "-116",
+    "decOdds": 1.86,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895889974,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 6.5 \u2014 OPTIMAL (62.4% win prob, EV +16.0% \u00b7 MARKET PRICE -116 (EV at market +16.0%) \u00b7 MARKET-BLENDED: model 91.2% \u00b7 no-vig market 51.2% \u2192 62.4% (alpha 0.80))\nMODEL: Projected 1.7\u20132.0 (total 3.8) (OT/SO in 21% of outcomes) \u2014 UNDER hits 91.2% of outcomes vs the 6.5 line, from a 25k-sim Monte Carlo.\nWHY: Best market: UNDER 6.5 graded OPTIMAL (62.4%, EV +16.0%). MC projects 3.8 goals vs the 6.5 line (91% under in sims). GSAx: -4.0 vs -4.1 (injury adj: MTL: Oliver Kapanen C OUT, Ivan Demidov RW OUT -> scoring -3.8% | BUF: Rasmus Dahlin D OUT, Jason Zucker LW OUT -> scoring -7.7%) points to tighter defense/goaltending. MC 57% / xGF 50% / hv +1.3pp / ST +2.1pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.85): model 73.7% \u00b7 no-vig market 58.4% \u2192 60.9%; Puck line market blend (alpha 0.82): model 29.9% \u00b7 no-vig market 37.5% \u2192 36.1%; O/U market blend (alpha 0.80): model 8.8% \u00b7 no-vig market 48.8% \u2192 37.6%. Standard-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.9121,
+    "marketProb": 0.5118,
+    "blendAlpha": 0.8,
+    "startMs": 1791930600000,
+    "leadMin": 579,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_NSH_VGK_NHL_NSH+1.5",
+    "date": "2026-10-13",
+    "hA": "NSH",
+    "awA": "VGK",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "NSH +1.5",
+    "winProb": 0.6706795362810891,
+    "ml": "-233",
+    "decOdds": 1.43,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895892050,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: NSH +1.5 \u2014 HIGH PROB (67.1% win prob, EV -4.1% \u00b7 MARKET PRICE -233 (EV at market -4.1%) \u00b7 MARKET-BLENDED: model 67.5% \u00b7 no-vig market 67.0% \u2192 67.1% (alpha 0.82))\nMODEL: Projected 2.1\u20131.6 (total 3.7) (OT/SO in 21% of outcomes) \u2014 underdog covers +1.5 in 83.7% of outcomes (incl. late-game empty-net margin calibration), from a 25k-sim Monte Carlo.",
+    "priceSource": "market",
+    "modelProb": 0.6751,
+    "marketProb": 0.6697,
+    "blendAlpha": 0.825,
+    "startMs": 1791938700000,
+    "leadMin": 713,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_NSH_VGK_NHL_UNDER6.5",
+    "date": "2026-10-13",
+    "hA": "NSH",
+    "awA": "VGK",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 6.5",
+    "winProb": 0.6448014892575246,
+    "ml": "-130",
+    "decOdds": 1.77,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895891942,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 6.5 \u2014 OPTIMAL (64.5% win prob, EV +14.1% \u00b7 MARKET PRICE -130 (EV at market +14.1%) \u00b7 MARKET-BLENDED: model 91.6% \u00b7 no-vig market 53.7% \u2192 64.5% (alpha 0.80))\nMODEL: Projected 2.1\u20131.6 (total 3.7) (OT/SO in 21% of outcomes) \u2014 UNDER hits 91.6% of outcomes vs the 6.5 line, from a 25k-sim Monte Carlo.\nWHY: Best market: UNDER 6.5 graded OPTIMAL (64.5%, EV +14.1%). MC projects 3.7 goals vs the 6.5 line (92% under in sims). GSAx: +0.4 vs +2.9 (injury adj: NSH: Mavrik Bourque C DAY-TO-DAY -> scoring -0.3% | VGK: Parker Wotherspoon D OUT -> scoring -0.6%) points to tighter defense/goaltending. MC 40% / xGF 50% / hv +1.9pp / ST +1.7pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.85): model 46.8% \u00b7 no-vig market 46.8% \u2192 46.8%; Puck line market blend (alpha 0.82): model 32.5% \u00b7 no-vig market 33.0% \u2192 32.9%; O/U market blend (alpha 0.80): model 8.4% \u00b7 no-vig market 46.3% \u2192 35.5%. Standard-unit play \u00b7 Also: NSH +1.5 (HIGH PROB).",
+    "priceSource": "market",
+    "modelProb": 0.9164,
+    "marketProb": 0.5366,
+    "blendAlpha": 0.8,
+    "startMs": 1791938700000,
+    "leadMin": 713,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_NYI_VAN_NHL_NYIML",
+    "date": "2026-10-13",
+    "hA": "NYI",
+    "awA": "VAN",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "ML",
+    "betOn": "NYI ML",
+    "winProb": 0.6834370515183557,
+    "ml": "-222",
+    "decOdds": 1.45,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895891001,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: NYI ML \u2014 HIGH PROB (68.3% win prob, EV -0.9% \u00b7 MARKET PRICE -222 (EV at market -0.9%) \u00b7 MARKET-BLENDED: model 80.3% \u00b7 no-vig market 65.9% \u2192 68.3% (alpha 0.85))\nMODEL: Projected 1.5\u20132.3 (total 3.8) (OT/SO in 20% of outcomes), from a 25k-sim Monte Carlo.",
+    "priceSource": "market",
+    "modelProb": 0.8025,
+    "marketProb": 0.6588,
+    "blendAlpha": 0.85,
+    "startMs": 1791935100000,
+    "leadMin": 653,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_NYI_VAN_NHL_UNDER6.5",
+    "date": "2026-10-13",
+    "hA": "NYI",
+    "awA": "VAN",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 6.5",
+    "winProb": 0.648879305224344,
+    "ml": "-133",
+    "decOdds": 1.75,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895890894,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 6.5 \u2014 OPTIMAL (64.9% win prob, EV +13.6% \u00b7 MARKET PRICE -133 (EV at market +13.6%) \u00b7 MARKET-BLENDED: model 91.2% \u00b7 no-vig market 54.5% \u2192 64.9% (alpha 0.80))\nMODEL: Projected 1.5\u20132.3 (total 3.8) (OT/SO in 20% of outcomes) \u2014 UNDER hits 91.2% of outcomes vs the 6.5 line, from a 25k-sim Monte Carlo.\nWHY: Best market: UNDER 6.5 graded OPTIMAL (64.9%, EV +13.6%). MC projects 3.8 goals vs the 6.5 line (91% under in sims). GSAx: +4.5 vs -10.8 (injury adj: NYI: Mathew Barzal C OUT -> scoring -4.1%) points to tighter defense/goaltending. MC 66% / xGF 50% / hv +6.4pp / ST +7.1pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.85): model 80.2% \u00b7 no-vig market 65.9% \u2192 68.3%; Puck line market blend (alpha 0.82): model 39.3% \u00b7 no-vig market 44.3% \u2192 43.4%; O/U market blend (alpha 0.80): model 8.8% \u00b7 no-vig market 45.5% \u2192 35.1%. Standard-unit play \u00b7 Also: NYI ML (HIGH PROB).",
+    "priceSource": "market",
+    "modelProb": 0.9122,
+    "marketProb": 0.5455,
+    "blendAlpha": 0.8,
+    "startMs": 1791935100000,
+    "leadMin": 653,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_OTT_STL_NHL_STL+1.5",
+    "date": "2026-10-13",
+    "hA": "OTT",
+    "awA": "STL",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "STL +1.5",
+    "winProb": 0.7033587776046455,
+    "ml": "-270",
+    "decOdds": 1.37,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895890657,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: STL +1.5 \u2014 HIGH PROB (70.3% win prob, EV -3.6% \u00b7 MARKET PRICE -270 (EV at market -3.6%) \u00b7 MARKET-BLENDED: model 73.3% \u00b7 no-vig market 69.7% \u2192 70.3% (alpha 0.82))\nMODEL: Projected 1.5\u20131.7 (total 3.2) (OT/SO in 23% of outcomes) \u2014 underdog covers +1.5 in 73.3% of outcomes (incl. late-game empty-net margin calibration), from a 25k-sim Monte Carlo.",
+    "priceSource": "market",
+    "modelProb": 0.7327,
+    "marketProb": 0.6969,
+    "blendAlpha": 0.825,
+    "startMs": 1791934200000,
+    "leadMin": 638,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_OTT_STL_NHL_UNDER5.5",
+    "date": "2026-10-13",
+    "hA": "OTT",
+    "awA": "STL",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 5.5",
+    "winProb": 0.5878010328655037,
+    "ml": "+100",
+    "decOdds": 2,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895890535,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 5.5 \u2014 HIGH PROB (58.8% win prob, EV +17.6% \u00b7 MARKET PRICE +100 (EV at market +17.6%) \u00b7 MARKET-BLENDED: model 89.4% \u00b7 no-vig market 47.8% \u2192 58.8% (alpha 0.80))\nMODEL: Projected 1.5\u20131.7 (total 3.2) (OT/SO in 23% of outcomes) \u2014 UNDER hits 89.4% of outcomes vs the 5.5 line, from a 25k-sim Monte Carlo.\nWHY: Best market: UNDER 5.5 graded HIGH PROB (58.8%, EV +17.6%). MC projects 3.2 goals vs the 5.5 line (89% under in sims). GSAx: +6.9 vs +2.7 (injury adj: OTT: Artem Zub D OUT, Jake Sanderson D OUT, William Eklund LW OUT -> scoring -7.5%) points to tighter defense/goaltending. MC 56% / xGF 50% / hv -3.3pp / ST +0.4pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.85): model 63.8% \u00b7 no-vig market 51.2% \u2192 53.1%; Puck line market blend (alpha 0.82): model 26.7% \u00b7 no-vig market 30.3% \u2192 29.7%; O/U market blend (alpha 0.80): model 10.6% \u00b7 no-vig market 52.2% \u2192 41.2%. Half-unit play \u00b7 Also: STL +1.5 (HIGH PROB).",
+    "priceSource": "market",
+    "modelProb": 0.8938,
+    "marketProb": 0.4778,
+    "blendAlpha": 0.8,
+    "startMs": 1791934200000,
+    "leadMin": 638,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_PHI_SEA_NHL_SEA+1.5",
+    "date": "2026-10-13",
+    "hA": "PHI",
+    "awA": "SEA",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "SEA +1.5",
+    "winProb": 0.7371367169382159,
+    "ml": "-256",
+    "decOdds": 1.39,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895890326,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: SEA +1.5 \u2014 HIGH PROB (73.7% win prob, EV +2.5% \u00b7 MARKET PRICE -256 (EV at market +2.5%) \u00b7 MARKET-BLENDED: model 88.2% \u00b7 no-vig market 68.7% \u2192 73.7% (alpha 0.80))\nMODEL: Projected 2.3\u20131.4 (total 3.7) (OT/SO in 20% of outcomes) \u2014 underdog covers +1.5 in 88.2% of outcomes (incl. late-game empty-net margin calibration), from a 25k-sim Monte Carlo.\nWHY: Best market: SEA +1.5 graded HIGH PROB (73.7%, EV +2.5%). Dog covers +1.5 in 73.7% of sims (proj 1.4\u20132.3). GSAx: +2.7 vs +1.1 (injury adj: PHI: Cam York D DAY-TO-DAY, Travis Konecny RW OUT, Rasmus Ristolainen D OUT -> scoring -4.6%) keeps this within a goal. MC 33% / xGF 50% / hv +5.7pp / ST -1.1pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.83): model 45.9% \u00b7 no-vig market 52.2% \u2192 51.1%; Puck line market blend (alpha 0.80): model 11.8% \u00b7 no-vig market 31.3% \u2192 26.3%; O/U market blend (alpha 0.77): model 17.0% \u00b7 no-vig market 55.0% \u2192 44.7%. Half-unit play \u00b7 Also: UNDER 5.5 (LEAN).",
+    "priceSource": "market",
+    "modelProb": 0.8821,
+    "marketProb": 0.6869,
+    "blendAlpha": 0.8,
+    "startMs": 1791932400000,
+    "leadMin": 608,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "RB Leipzig",
     "id": "2026-10-13_RB Leipzig_PSV Eindhoven_CL_RBLeipzigWin",
     "ml": "-110",
@@ -77385,6 +77862,62 @@
     }
   },
   {
+    "id": "2026-10-13_SJS_BOS_NHL_SJS+1.5",
+    "date": "2026-10-13",
+    "hA": "SJS",
+    "awA": "BOS",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "SJS +1.5",
+    "winProb": 0.6897266959280737,
+    "ml": "-282",
+    "decOdds": 1.355,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895893100,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: SJS +1.5 \u2014 HIGH PROB (69.0% win prob, EV -6.5% \u00b7 MARKET PRICE -282 (EV at market -6.5%) \u00b7 MARKET-BLENDED: model 66.8% \u00b7 no-vig market 69.4% \u2192 69.0% (alpha 0.82))\nMODEL: Projected 2.1\u20131.5 (total 3.6) (OT/SO in 22% of outcomes) \u2014 underdog covers +1.5 in 84.9% of outcomes (incl. late-game empty-net margin calibration), from a 25k-sim Monte Carlo.",
+    "priceSource": "market",
+    "modelProb": 0.6685,
+    "marketProb": 0.6941,
+    "blendAlpha": 0.825,
+    "startMs": 1791946800000,
+    "leadMin": 848,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-13_SJS_BOS_NHL_UNDER6.5",
+    "date": "2026-10-13",
+    "hA": "SJS",
+    "awA": "BOS",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 6.5",
+    "winProb": 0.6520458200153312,
+    "ml": "-130",
+    "decOdds": 1.77,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895892983,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 6.5 \u2014 OPTIMAL (65.2% win prob, EV +15.4% \u00b7 MARKET PRICE -130 (EV at market +15.4%) \u00b7 MARKET-BLENDED: model 92.8% \u00b7 no-vig market 53.7% \u2192 65.2% (alpha 0.80))\nMODEL: Projected 2.1\u20131.5 (total 3.6) (OT/SO in 22% of outcomes) \u2014 UNDER hits 92.8% of outcomes vs the 6.5 line, from a 25k-sim Monte Carlo.\nWHY: Best market: UNDER 6.5 graded OPTIMAL (65.2%, EV +15.4%). MC projects 3.6 goals vs the 6.5 line (93% under in sims). GSAx: +4.8 vs -0.3 points to tighter defense/goaltending. MC 39% / xGF 50% / hv -1.5pp / ST -1.4pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.85): model 41.3% \u00b7 no-vig market 50.0% \u2192 48.7%; Puck line market blend (alpha 0.82): model 33.1% \u00b7 no-vig market 30.6% \u2192 31.0%; O/U market blend (alpha 0.80): model 7.2% \u00b7 no-vig market 46.3% \u2192 34.8%. Standard-unit play \u00b7 Also: SJS +1.5 (HIGH PROB).",
+    "priceSource": "market",
+    "modelProb": 0.9278,
+    "marketProb": 0.5366,
+    "blendAlpha": 0.8,
+    "startMs": 1791946800000,
+    "leadMin": 848,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Sabah FK",
     "id": "2026-10-13_Sabah FK_Slavia Prague_CL_SlaviaPragueWin",
     "ml": "-110",
@@ -77437,6 +77970,34 @@
         "home": 0.94
       }
     }
+  },
+  {
+    "id": "2026-10-13_UTA_TOR_NHL_UNDER6.5",
+    "date": "2026-10-13",
+    "hA": "UTA",
+    "awA": "TOR",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 6.5",
+    "winProb": 0.5967034810739789,
+    "ml": "-106",
+    "decOdds": 1.945,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791895892261,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 6.5 \u2014 HIGH PROB (59.7% win prob, EV +16.1% \u00b7 MARKET PRICE -106 (EV at market +16.1%) \u00b7 MARKET-BLENDED: model 86.1% \u00b7 no-vig market 49.1% \u2192 59.7% (alpha 0.77))\nMODEL: Projected 1.7\u20132.5 (total 4.3) (OT/SO in 19% of outcomes) \u2014 UNDER hits 86.1% of outcomes vs the 6.5 line, from a 25k-sim Monte Carlo.\nWHY: Best market: UNDER 6.5 graded HIGH PROB (59.7%, EV +16.1%). MC projects 4.3 goals vs the 6.5 line (86% under in sims). GSAx: +1.9 vs +4.7 (injury adj: UTA: Michael Carcone LW OUT -> scoring -0.6% | TOR: Max Domi C OUT -> scoring -1%) points to tighter defense/goaltending. MC 64% / xGF 50% / hv +7.8pp / ST -2.1pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.83): model 80.1% \u00b7 no-vig market 58.4% \u2192 62.6%; Puck line market blend (alpha 0.80): model 39.5% \u00b7 no-vig market 38.3% \u2192 38.5%; O/U market blend (alpha 0.77): model 13.9% \u00b7 no-vig market 50.9% \u2192 40.3%. Half-unit play \u00b7 Also: UTA ML (LEAN).",
+    "priceSource": "market",
+    "modelProb": 0.8613,
+    "marketProb": 0.4908,
+    "blendAlpha": 0.77,
+    "startMs": 1791939600000,
+    "leadMin": 728,
+    "lockTiming": "pre"
   },
   {
     "hA": "Viking FK",
@@ -77601,274 +78162,330 @@
     }
   },
   {
-    "id": "2026-10-14_AS Roma_Real Madrid_CL_ASRomaWin",
-    "date": "2026-10-14",
-    "hA": "AS Roma",
-    "awA": "Real Madrid",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "ML",
-    "betOn": "AS Roma Win",
-    "winProb": 0.6030668117413903,
-    "ml": "-110",
-    "decOdds": 1.91,
+    "id": "2026-10-13_WPG_MIN_NHL_UNDER6.5",
+    "date": "2026-10-13",
+    "hA": "WPG",
+    "awA": "MIN",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 6.5",
+    "winProb": 0.6571033469558193,
+    "ml": "-125",
+    "decOdds": 1.8,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1791879864827,
+    "lockedAt": 1791895891341,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "form": {
-        "home": 0.998875,
-        "away": 0.9672468750000001
-      },
-      "standings": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: AS Roma Win \u2014 OPTIMAL (60.3% win prob, EV +117.1%)\nMODEL: Projected 1.28\u20131.93 goals (xG 1.28/1.94), BTTS 61%, from a 25k-sim Monte Carlo.\nWHY: xG basis: AS Roma 1.94 xG/G vs Real Madrid 1.28 xG/G. 3-way: Home 60% / Draw 30% / Away 37%. MC proj: 1.93 \u2013 1.28 (3.21 total vs 3.5 line, BTTS 61%). Goal spread: AS Roma -0.5 covers 53%, Real Madrid +0.5 covers 47% (proj margin +0.65). AS Roma xG edge unpriced by market. Kelly 30.0%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: UNDER 3.5 (LEAN), AS Roma -0.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
-    "startMs": 1792004400000,
-    "leadMin": 2076,
+    "reasoning": "PICK: UNDER 6.5 \u2014 OPTIMAL (65.7% win prob, EV +18.3% \u00b7 MARKET PRICE -125 (EV at market +18.3%) \u00b7 MARKET-BLENDED: model 93.9% \u00b7 no-vig market 53.3% \u2192 65.7% (alpha 0.80))\nMODEL: Projected 2.0\u20131.5 (total 3.4) (OT/SO in 22% of outcomes) \u2014 UNDER hits 93.9% of outcomes vs the 6.5 line, from a 25k-sim Monte Carlo.\nWHY: Best market: UNDER 6.5 graded OPTIMAL (65.7%, EV +18.3%). MC projects 3.4 goals vs the 6.5 line (94% under in sims). GSAx: +7.0 vs +2.8 (injury adj: WPG: Josh Morrissey D DAY-TO-DAY -> scoring -1.1% | MIN: Brock Faber D OUT -> scoring -3%) points to tighter defense/goaltending. MC 40% / xGF 50% / hv -0.9pp / ST -6.6pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.85): model 48.8% \u00b7 no-vig market 50.0% \u2192 49.8%; Puck line market blend (alpha 0.82): model 31.4% \u00b7 no-vig market 30.4% \u2192 30.6%; O/U market blend (alpha 0.80): model 6.1% \u00b7 no-vig market 46.8% \u2192 34.3%. Standard-unit play \u00b7 Also: WPG +1.5 (HIGH PROB).",
+    "priceSource": "market",
+    "modelProb": 0.9389,
+    "marketProb": 0.5325,
+    "blendAlpha": 0.8,
+    "startMs": 1791936900000,
+    "leadMin": 683,
     "lockTiming": "pre"
   },
   {
-    "id": "2026-10-14_Aston Villa_Fenerbahce_CL_Fenerbahce+0.5",
-    "date": "2026-10-14",
-    "hA": "Aston Villa",
-    "awA": "Fenerbahce",
-    "sport": "CL",
-    "league": "CL",
+    "id": "2026-10-13_WPG_MIN_NHL_WPG+1.5",
+    "date": "2026-10-13",
+    "hA": "WPG",
+    "awA": "MIN",
+    "sport": "NHL",
+    "league": "NHL",
     "betType": "SPREAD",
-    "betOn": "Fenerbahce +0.5",
-    "winProb": 0.6425679431251855,
-    "ml": "-110",
-    "decOdds": 1.91,
+    "betOn": "WPG +1.5",
+    "winProb": 0.6942297968023945,
+    "ml": "-274",
+    "decOdds": 1.365,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1791879865530,
+    "lockedAt": 1791895891545,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.9840489371356684,
-        "away": 0.94
-      },
-      "form": {
-        "home": 1.005125,
-        "away": 1
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: Fenerbahce +0.5 \u2014 OPTIMAL (64.3% win prob, EV +22.7% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.62\u20130.78 goals (xG 0.61/0.77), BTTS 25%, from a 25k-sim Monte Carlo.",
-    "startMs": 1792004400000,
-    "leadMin": 2076,
+    "reasoning": "PICK: WPG +1.5 \u2014 HIGH PROB (69.4% win prob, EV -5.2% \u00b7 MARKET PRICE -274 (EV at market -5.2%) \u00b7 MARKET-BLENDED: model 68.6% \u00b7 no-vig market 69.6% \u2192 69.4% (alpha 0.82))\nMODEL: Projected 2.0\u20131.5 (total 3.4) (OT/SO in 22% of outcomes) \u2014 underdog covers +1.5 in 84.3% of outcomes (incl. late-game empty-net margin calibration), from a 25k-sim Monte Carlo.",
+    "priceSource": "market",
+    "modelProb": 0.6859,
+    "marketProb": 0.696,
+    "blendAlpha": 0.825,
+    "startMs": 1791936900000,
+    "leadMin": 683,
     "lockTiming": "pre"
   },
   {
-    "id": "2026-10-14_Aston Villa_Fenerbahce_CL_UNDER2.5",
-    "date": "2026-10-14",
-    "hA": "Aston Villa",
-    "awA": "Fenerbahce",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
-    "betOn": "UNDER 2.5",
-    "winProb": 0.68,
+    "hA": "AS Roma",
+    "id": "2026-10-14_AS Roma_Real Madrid_CL_ASRomaWin",
     "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1791879865182,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.9840489371356684,
-        "away": 0.94
-      },
-      "form": {
-        "home": 1.005125,
-        "away": 1
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: UNDER 2.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.62\u20130.78 goals (xG 0.61/0.77), BTTS 25% \u2014 OVER 2.5 hits 16.6% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Aston Villa 0.77 xG/G vs Fenerbahce 0.61 xG/G. 3-way: Home 48% / Draw 45% / Away 33%. MC proj: 0.78 \u2013 0.62 (1.39 total vs 2.5 line, BTTS 25%). Goal spread: Aston Villa -0.5 covers 36%, Fenerbahce +0.5 covers 64% (proj margin +0.16). Combined xG 1.39 supports a tighter, lower-scoring line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Fenerbahce +0.5 (OPTIMAL). Factors moving this pick: Standings (H) -6%, Fbref (A) -6%, Standings (A) -6%.",
-    "startMs": 1792004400000,
-    "leadMin": 2076,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-14_Feyenoord Rotterdam_Como_CL_ComoWin",
+    "awA": "Real Madrid",
     "date": "2026-10-14",
-    "hA": "Feyenoord Rotterdam",
-    "awA": "Como",
+    "betOn": "AS Roma Win",
     "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
     "league": "CL",
+    "source": "manual",
     "betType": "ML",
-    "betOn": "Como Win",
-    "winProb": 0.798492541840008,
-    "ml": "-110",
     "decOdds": 1.91,
-    "wager": 0,
+    "leadMin": 2076,
     "outcome": "pending",
-    "lockedAt": 1791879864045,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1792004400000,
+    "winProb": 0.6030668117413903,
+    "lockedAt": 1791879864827,
+    "reasoning": "PICK: AS Roma Win \u2014 OPTIMAL (60.3% win prob, EV +117.1%)\nMODEL: Projected 1.28\u20131.93 goals (xG 1.28/1.94), BTTS 61%, from a 25k-sim Monte Carlo.\nWHY: xG basis: AS Roma 1.94 xG/G vs Real Madrid 1.28 xG/G. 3-way: Home 60% / Draw 30% / Away 37%. MC proj: 1.93 \u2013 1.28 (3.21 total vs 3.5 line, BTTS 61%). Goal spread: AS Roma -0.5 covers 53%, Real Madrid +0.5 covers 47% (proj margin +0.65). AS Roma xG edge unpriced by market. Kelly 30.0%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: UNDER 3.5 (LEAN), AS Roma -0.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.06
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1,
-        "away": 0.9858750000000001
+        "away": 0.9672468750000001,
+        "home": 0.998875
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 1.06
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 1.06,
+        "home": 1.06
       }
-    },
-    "reasoning": "PICK: Como Win \u2014 PREMIUM (79.8% win prob, EV +55.9%)\nMODEL: Projected 3.51\u20130.89 goals (xG 3.53/0.90), BTTS 57%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Feyenoord Rotterdam 0.90 xG/G vs Como 3.53 xG/G. 3-way: Home 13% / Draw 15% / Away 80%. MC proj: 0.89 \u2013 3.51 (4.41 total vs 3.5 line, BTTS 57%). Goal spread: Como -2.5 covers 50%, Feyenoord Rotterdam +2.5 covers 50% (proj margin -2.62). Como road xG edge underpriced. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: OVER 3.5 (OPTIMAL), Como -2.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
-    "startMs": 1791996300000,
-    "leadMin": 1941,
-    "lockTiming": "pre"
+    }
   },
   {
-    "id": "2026-10-14_Feyenoord Rotterdam_Como_CL_OVER3.5",
-    "date": "2026-10-14",
-    "hA": "Feyenoord Rotterdam",
-    "awA": "Como",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
-    "betOn": "OVER 3.5",
-    "winProb": 0.6447390422807937,
+    "hA": "Aston Villa",
+    "id": "2026-10-14_Aston Villa_Fenerbahce_CL_Fenerbahce+0.5",
     "ml": "-110",
-    "decOdds": 1.91,
+    "awA": "Fenerbahce",
+    "date": "2026-10-14",
+    "betOn": "Fenerbahce +0.5",
+    "sport": "CL",
     "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1791879864327,
-    "hScore": null,
     "aScore": null,
+    "hScore": null,
+    "league": "CL",
     "source": "manual",
+    "betType": "SPREAD",
+    "decOdds": 1.91,
+    "leadMin": 2076,
+    "outcome": "pending",
+    "startMs": 1792004400000,
+    "winProb": 0.6425679431251855,
+    "lockedAt": 1791879865530,
+    "reasoning": "PICK: Fenerbahce +0.5 \u2014 OPTIMAL (64.3% win prob, EV +22.7% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.62\u20130.78 goals (xG 0.61/0.77), BTTS 25%, from a 25k-sim Monte Carlo.",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.06
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1,
-        "away": 0.9858750000000001
+        "away": 1,
+        "home": 1.005125
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.9840489371356684
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 0.94,
+        "home": 0.94
       }
-    },
-    "reasoning": "PICK: OVER 3.5 \u2014 OPTIMAL (64.5% win prob, EV +23.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 3.51\u20130.89 goals (xG 3.53/0.90), BTTS 57% \u2014 OVER 3.5 hits 64.4% of outcomes, from a 25k-sim Monte Carlo.",
-    "startMs": 1791996300000,
+    }
+  },
+  {
+    "hA": "Aston Villa",
+    "id": "2026-10-14_Aston Villa_Fenerbahce_CL_UNDER2.5",
+    "ml": "-110",
+    "awA": "Fenerbahce",
+    "date": "2026-10-14",
+    "betOn": "UNDER 2.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.91,
+    "leadMin": 2076,
+    "outcome": "pending",
+    "startMs": 1792004400000,
+    "winProb": 0.68,
+    "lockedAt": 1791879865182,
+    "reasoning": "PICK: UNDER 2.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.62\u20130.78 goals (xG 0.61/0.77), BTTS 25% \u2014 OVER 2.5 hits 16.6% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Aston Villa 0.77 xG/G vs Fenerbahce 0.61 xG/G. 3-way: Home 48% / Draw 45% / Away 33%. MC proj: 0.78 \u2013 0.62 (1.39 total vs 2.5 line, BTTS 25%). Goal spread: Aston Villa -0.5 covers 36%, Fenerbahce +0.5 covers 64% (proj margin +0.16). Combined xG 1.39 supports a tighter, lower-scoring line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Fenerbahce +0.5 (OPTIMAL). Factors moving this pick: Standings (H) -6%, Fbref (A) -6%, Standings (A) -6%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 1,
+        "home": 1.005125
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.9840489371356684
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 0.94,
+        "home": 0.94
+      }
+    }
+  },
+  {
+    "hA": "Feyenoord Rotterdam",
+    "id": "2026-10-14_Feyenoord Rotterdam_Como_CL_ComoWin",
+    "ml": "-110",
+    "awA": "Como",
+    "date": "2026-10-14",
+    "betOn": "Como Win",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.91,
     "leadMin": 1941,
-    "lockTiming": "pre"
+    "outcome": "pending",
+    "startMs": 1791996300000,
+    "winProb": 0.798492541840008,
+    "lockedAt": 1791879864045,
+    "reasoning": "PICK: Como Win \u2014 PREMIUM (79.8% win prob, EV +55.9%)\nMODEL: Projected 3.51\u20130.89 goals (xG 3.53/0.90), BTTS 57%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Feyenoord Rotterdam 0.90 xG/G vs Como 3.53 xG/G. 3-way: Home 13% / Draw 15% / Away 80%. MC proj: 0.89 \u2013 3.51 (4.41 total vs 3.5 line, BTTS 57%). Goal spread: Como -2.5 covers 50%, Feyenoord Rotterdam +2.5 covers 50% (proj margin -2.62). Como road xG edge underpriced. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: OVER 3.5 (OPTIMAL), Como -2.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.9858750000000001,
+        "home": 1
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 0.94
+      }
+    }
+  },
+  {
+    "hA": "Feyenoord Rotterdam",
+    "id": "2026-10-14_Feyenoord Rotterdam_Como_CL_OVER3.5",
+    "ml": "-110",
+    "awA": "Como",
+    "date": "2026-10-14",
+    "betOn": "OVER 3.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.91,
+    "leadMin": 1941,
+    "outcome": "pending",
+    "startMs": 1791996300000,
+    "winProb": 0.6447390422807937,
+    "lockedAt": 1791879864327,
+    "reasoning": "PICK: OVER 3.5 \u2014 OPTIMAL (64.5% win prob, EV +23.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 3.51\u20130.89 goals (xG 3.53/0.90), BTTS 57% \u2014 OVER 3.5 hits 64.4% of outcomes, from a 25k-sim Monte Carlo.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.9858750000000001,
+        "home": 1
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 0.94
+      }
+    }
   },
   {
     "hA": "IFK Helsinki",
@@ -77955,328 +78572,328 @@
     "priceSource": "market"
   },
   {
-    "id": "2026-10-14_LASK Linz_Liverpool_CL_UNDER3.5",
-    "date": "2026-10-14",
     "hA": "LASK Linz",
+    "id": "2026-10-14_LASK Linz_Liverpool_CL_UNDER3.5",
+    "ml": "-110",
     "awA": "Liverpool",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
+    "date": "2026-10-14",
     "betOn": "UNDER 3.5",
-    "winProb": 0.68,
-    "ml": "-110",
-    "decOdds": 1.91,
+    "sport": "CL",
     "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1791879864647,
-    "hScore": null,
     "aScore": null,
+    "hScore": null,
+    "league": "CL",
     "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "form": {
-        "home": 1,
-        "away": 0.9854805555555556
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: UNDER 3.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.35\u20130.61 goals (xG 1.36/0.61), BTTS 34% \u2014 OVER 3.5 hits 13.5% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: LASK Linz 0.61 xG/G vs Liverpool 1.36 xG/G. 3-way: Home 21% / Draw 34% / Away 69%. MC proj: 0.61 \u2013 1.35 (1.97 total vs 3.5 line, BTTS 34%). Goal spread: Liverpool -0.5 covers 55%, LASK Linz +0.5 covers 45% (proj margin -0.74). Combined xG 1.97 supports a tighter, lower-scoring line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Liverpool -0.5 (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Fbref (A) +6%, Standings (A) +6%.",
-    "startMs": 1791996300000,
+    "betType": "OU",
+    "decOdds": 1.91,
     "leadMin": 1941,
-    "lockTiming": "pre"
+    "outcome": "pending",
+    "startMs": 1791996300000,
+    "winProb": 0.68,
+    "lockedAt": 1791879864647,
+    "reasoning": "PICK: UNDER 3.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.35\u20130.61 goals (xG 1.36/0.61), BTTS 34% \u2014 OVER 3.5 hits 13.5% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: LASK Linz 0.61 xG/G vs Liverpool 1.36 xG/G. 3-way: Home 21% / Draw 34% / Away 69%. MC proj: 0.61 \u2013 1.35 (1.97 total vs 3.5 line, BTTS 34%). Goal spread: Liverpool -0.5 covers 55%, LASK Linz +0.5 covers 45% (proj margin -0.74). Combined xG 1.97 supports a tighter, lower-scoring line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Liverpool -0.5 (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Fbref (A) +6%, Standings (A) +6%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.9854805555555556,
+        "home": 1
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 0.94
+      }
+    }
   },
   {
-    "id": "2026-10-14_Real Betis_FC Porto_CL_RealBetisWin",
-    "date": "2026-10-14",
     "hA": "Real Betis",
+    "id": "2026-10-14_Real Betis_FC Porto_CL_RealBetisWin",
+    "ml": "-110",
     "awA": "FC Porto",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "ML",
+    "date": "2026-10-14",
     "betOn": "Real Betis Win",
-    "winProb": 0.7884383670173405,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1791879865768,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.0544724745349892,
-        "away": 0.94
-      },
-      "form": {
-        "home": 1.0329285714285714,
-        "away": 1
-      },
-      "standings": {
-        "home": 1.06,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: Real Betis Win \u2014 PREMIUM (78.8% win prob, EV +61.6%)\nMODEL: Projected 0.37\u20132.47 goals (xG 0.37/2.47), BTTS 28%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Real Betis 2.47 xG/G vs FC Porto 0.37 xG/G. 3-way: Home 79% / Draw 19% / Away 10%. MC proj: 2.47 \u2013 0.37 (2.84 total vs 2.5 line, BTTS 28%). Goal spread: Real Betis -2.5 covers 38%, FC Porto +2.5 covers 62% (proj margin +2.10). Real Betis xG edge unpriced by market. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: FC Porto +2.5 (OPTIMAL), OVER 2.5 (LEAN). Factors moving this pick: Standings +6%, Fbref +5%, Form +3%.",
-    "startMs": 1792004400000,
-    "leadMin": 2076,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-14_Shakhtar Donetsk_AEK Athens_CL_AEKAthens+0.5",
-    "date": "2026-10-14",
-    "hA": "Shakhtar Donetsk",
-    "awA": "AEK Athens",
     "sport": "CL",
-    "league": "CL",
-    "betType": "SPREAD",
-    "betOn": "AEK Athens +0.5",
-    "winProb": 1,
-    "ml": "-110",
-    "decOdds": 1.91,
     "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1791879866135,
-    "hScore": null,
     "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "form": {
-        "home": 1,
-        "away": 1
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: AEK Athens +0.5 \u2014 PREMIUM (100.0% win prob, EV +90.9% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.45\u20130.88 goals (xG 0.45/0.90), BTTS 21%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Shakhtar Donetsk 0.00 xG/G vs AEK Athens 0.45 xG/G. 3-way: Home 59% / Draw 45% / Away 27%. MC proj: 0.88 \u2013 0.45 (1.33 total vs 2.5 line, BTTS 21%). Goal spread: Shakhtar Donetsk -0.5 covers 0%, AEK Athens +0.5 covers 100% (proj margin +0.43). AEK Athens priced to survive within 0.5 even if outscored. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: UNDER 2.5 (PREMIUM), Shakhtar Donetsk Win (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Fbref (A) -6%, Standings (A) +6%.",
-    "startMs": 1792004400000,
-    "leadMin": 2076,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-14_Shakhtar Donetsk_AEK Athens_CL_UNDER2.5",
-    "date": "2026-10-14",
-    "hA": "Shakhtar Donetsk",
-    "awA": "AEK Athens",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
-    "betOn": "UNDER 2.5",
-    "winProb": 0.68,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1791879866390,
     "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "form": {
-        "home": 1,
-        "away": 1
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: UNDER 2.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.45\u20130.88 goals (xG 0.45/0.90), BTTS 21% \u2014 OVER 2.5 hits 14.7% of outcomes, from a 25k-sim Monte Carlo.",
-    "startMs": 1792004400000,
-    "leadMin": 2076,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-14_Slovan Bratislava_VfB Stuttgart_CL_OVER3.5",
-    "date": "2026-10-14",
-    "hA": "Slovan Bratislava",
-    "awA": "VfB Stuttgart",
-    "sport": "CL",
     "league": "CL",
-    "betType": "OU",
-    "betOn": "OVER 3.5",
-    "winProb": 0.68,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1791879866576,
-    "hScore": null,
-    "aScore": null,
     "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.0573693883626472
-      },
-      "form": {
-        "home": 1,
-        "away": 0.9757
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 0.9994505494505496
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: OVER 3.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 3.86\u20131.36 goals (xG 3.84/1.37), BTTS 73% \u2014 OVER 3.5 hits 76.8% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Slovan Bratislava 1.37 xG/G vs VfB Stuttgart 3.84 xG/G. 3-way: Home 12% / Draw 15% / Away 80%. MC proj: 1.36 \u2013 3.86 (5.23 total vs 3.5 line, BTTS 73%). Goal spread: VfB Stuttgart -2.5 covers 48%, Slovan Bratislava +2.5 covers 52% (proj margin -2.50). Combined xG 5.23 supports goals above the line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Slovan Bratislava +2.5 (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Fbref (A) +6%.",
-    "startMs": 1792004400000,
-    "leadMin": 2076,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-14_Slovan Bratislava_VfB Stuttgart_CL_VfBStuttgartWin",
-    "date": "2026-10-14",
-    "hA": "Slovan Bratislava",
-    "awA": "VfB Stuttgart",
-    "sport": "CL",
-    "league": "CL",
     "betType": "ML",
-    "betOn": "VfB Stuttgart Win",
-    "winProb": 0.8046356284212524,
-    "ml": "-110",
     "decOdds": 1.91,
-    "wager": 0,
+    "leadMin": 2076,
     "outcome": "pending",
-    "lockedAt": 1791879866934,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1792004400000,
+    "winProb": 0.7884383670173405,
+    "lockedAt": 1791879865768,
+    "reasoning": "PICK: Real Betis Win \u2014 PREMIUM (78.8% win prob, EV +61.6%)\nMODEL: Projected 0.37\u20132.47 goals (xG 0.37/2.47), BTTS 28%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Real Betis 2.47 xG/G vs FC Porto 0.37 xG/G. 3-way: Home 79% / Draw 19% / Away 10%. MC proj: 2.47 \u2013 0.37 (2.84 total vs 2.5 line, BTTS 28%). Goal spread: Real Betis -2.5 covers 38%, FC Porto +2.5 covers 62% (proj margin +2.10). Real Betis xG edge unpriced by market. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: FC Porto +2.5 (OPTIMAL), OVER 2.5 (LEAN). Factors moving this pick: Standings +6%, Fbref +5%, Form +3%.",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.0573693883626472
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1,
-        "away": 0.9757
+        "away": 1,
+        "home": 1.0329285714285714
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 1.0544724745349892
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.9994505494505496
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 0.94,
+        "home": 1.06
       }
-    },
-    "reasoning": "PICK: VfB Stuttgart Win \u2014 SKIP (80.5% win prob, EV +4.1%)\nMODEL: Projected 3.86\u20131.36 goals (xG 3.84/1.37), BTTS 73%, from a 25k-sim Monte Carlo.",
-    "startMs": 1792004400000,
+    }
+  },
+  {
+    "hA": "Shakhtar Donetsk",
+    "id": "2026-10-14_Shakhtar Donetsk_AEK Athens_CL_AEKAthens+0.5",
+    "ml": "-110",
+    "awA": "AEK Athens",
+    "date": "2026-10-14",
+    "betOn": "AEK Athens +0.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "betType": "SPREAD",
+    "decOdds": 1.91,
     "leadMin": 2076,
-    "lockTiming": "pre"
+    "outcome": "pending",
+    "startMs": 1792004400000,
+    "winProb": 1,
+    "lockedAt": 1791879866135,
+    "reasoning": "PICK: AEK Athens +0.5 \u2014 PREMIUM (100.0% win prob, EV +90.9% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.45\u20130.88 goals (xG 0.45/0.90), BTTS 21%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Shakhtar Donetsk 0.00 xG/G vs AEK Athens 0.45 xG/G. 3-way: Home 59% / Draw 45% / Away 27%. MC proj: 0.88 \u2013 0.45 (1.33 total vs 2.5 line, BTTS 21%). Goal spread: Shakhtar Donetsk -0.5 covers 0%, AEK Athens +0.5 covers 100% (proj margin +0.43). AEK Athens priced to survive within 0.5 even if outscored. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: UNDER 2.5 (PREMIUM), Shakhtar Donetsk Win (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Fbref (A) -6%, Standings (A) +6%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 1,
+        "home": 1
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 0.94
+      }
+    }
+  },
+  {
+    "hA": "Shakhtar Donetsk",
+    "id": "2026-10-14_Shakhtar Donetsk_AEK Athens_CL_UNDER2.5",
+    "ml": "-110",
+    "awA": "AEK Athens",
+    "date": "2026-10-14",
+    "betOn": "UNDER 2.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.91,
+    "leadMin": 2076,
+    "outcome": "pending",
+    "startMs": 1792004400000,
+    "winProb": 0.68,
+    "lockedAt": 1791879866390,
+    "reasoning": "PICK: UNDER 2.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.45\u20130.88 goals (xG 0.45/0.90), BTTS 21% \u2014 OVER 2.5 hits 14.7% of outcomes, from a 25k-sim Monte Carlo.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 1,
+        "home": 1
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 0.94
+      }
+    }
+  },
+  {
+    "hA": "Slovan Bratislava",
+    "id": "2026-10-14_Slovan Bratislava_VfB Stuttgart_CL_OVER3.5",
+    "ml": "-110",
+    "awA": "VfB Stuttgart",
+    "date": "2026-10-14",
+    "betOn": "OVER 3.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.91,
+    "leadMin": 2076,
+    "outcome": "pending",
+    "startMs": 1792004400000,
+    "winProb": 0.68,
+    "lockedAt": 1791879866576,
+    "reasoning": "PICK: OVER 3.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 3.86\u20131.36 goals (xG 3.84/1.37), BTTS 73% \u2014 OVER 3.5 hits 76.8% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Slovan Bratislava 1.37 xG/G vs VfB Stuttgart 3.84 xG/G. 3-way: Home 12% / Draw 15% / Away 80%. MC proj: 1.36 \u2013 3.86 (5.23 total vs 3.5 line, BTTS 73%). Goal spread: VfB Stuttgart -2.5 covers 48%, Slovan Bratislava +2.5 covers 52% (proj margin -2.50). Combined xG 5.23 supports goals above the line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Slovan Bratislava +2.5 (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Fbref (A) +6%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.9757,
+        "home": 1
+      },
+      "fbref": {
+        "away": 1.0573693883626472,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 0.9994505494505496,
+        "home": 0.94
+      }
+    }
+  },
+  {
+    "hA": "Slovan Bratislava",
+    "id": "2026-10-14_Slovan Bratislava_VfB Stuttgart_CL_VfBStuttgartWin",
+    "ml": "-110",
+    "awA": "VfB Stuttgart",
+    "date": "2026-10-14",
+    "betOn": "VfB Stuttgart Win",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.91,
+    "leadMin": 2076,
+    "outcome": "pending",
+    "startMs": 1792004400000,
+    "winProb": 0.8046356284212524,
+    "lockedAt": 1791879866934,
+    "reasoning": "PICK: VfB Stuttgart Win \u2014 SKIP (80.5% win prob, EV +4.1%)\nMODEL: Projected 3.86\u20131.36 goals (xG 3.84/1.37), BTTS 73%, from a 25k-sim Monte Carlo.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.9757,
+        "home": 1
+      },
+      "fbref": {
+        "away": 1.0573693883626472,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 0.9994505494505496,
+        "home": 0.94
+      }
+    }
   },
   {
     "hA": "LAD @ ARI",
