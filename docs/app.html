@@ -211,6 +211,11 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
      crushed every select down to ~65px on mobile, truncating option
      text ("SOCCER"->"SOCC") and wrapping labels badly. */
   #sim-controls-grid{grid-template-columns:1fr 1fr!important}
+  /* Simulator text stays readable on phones (owner, 2026-10-12: >= 11px): the app-wide blanket cap below forces every inline 12-17px size to 8px, which is
+     unreadable for the numbers this tab exists to show. #sp-sim-scoped, so no other tab changes. Big numerals get .sim-n (added in _simRender). */
+  html #sp-sim [style*="font-size"]:not(input):not(select):not(textarea){font-size:12px!important}
+  html #sp-sim .sim-n{font-size:20px!important}
+  html #sp-sim .btn,html #sp-sim .btn-sm{font-size:12px!important;min-height:30px!important;padding:6px 10px!important}
   html .fr{grid-template-columns:1fr}
   /* ── Typography ── */
   html .sh{font-size:11px!important;letter-spacing:.5px}
@@ -519,7 +524,8 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   html .g4{grid-template-columns:1fr!important}
   html .g3{grid-template-columns:1fr!important}
   html .gtm{font-size:10px!important}
-  #sim-controls-grid{grid-template-columns:1fr!important}
+  /* 2026-10-12: stay two-up on narrow phones (7 controls -> 4 rows instead of 7) */
+  #sim-controls-grid{grid-template-columns:1fr 1fr!important}
   /* ── Narrow phones (SE/older Android): 3-digit W-L records
      ("264W-120L") still clip the perf cards' 20px record font. ── */
   html .perf-card-rec{font-size:10px!important}
@@ -2313,7 +2319,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
     <div class="sh" style="margin-bottom:12px"><span class="p"></span> MONTE CARLO SIMULATOR <span style="font-family:var(--mono);font-size:16px;color:var(--t3);font-weight:400;margin-left:8px">ENGINE-GRADE PROBABILITY ENGINE</span></div>
 
     <!-- Controls row -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px" id="sim-controls-grid">
+    <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-bottom:12px" id="sim-controls-grid">
       <!-- Sport picker -->
       <div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px;margin-bottom:4px">SPORT</div>
@@ -2328,12 +2334,12 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
       <!-- Home / P1 -->
       <div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px;margin-bottom:4px">HOME / PLAYER 1</div>
-        <select id="sim-home" class="fi" style="width:100%"></select>
+        <select id="sim-home" class="fi" style="width:100%" onchange="simRefreshPosted()"></select>
       </div>
       <!-- Away / P2 -->
       <div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px;margin-bottom:4px">AWAY / PLAYER 2</div>
-        <select id="sim-away" class="fi" style="width:100%"></select>
+        <select id="sim-away" class="fi" style="width:100%" onchange="simRefreshPosted()"></select>
       </div>
       <!-- Sim count -->
       <div>
@@ -2354,16 +2360,21 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
           <option value="playoff">Playoff (×1.2)</option>
         </select>
       </div>
+      <!-- O/U line (2026-10-12): blank = the posted total for this fixture when one exists, else the model's own total rounded to the nearest half; a typed value always wins -->
+      <div>
+        <div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px;margin-bottom:4px">O/U LINE</div>
+        <input id="sim-ou" class="fi" type="number" step="0.5" min="0" inputmode="decimal" placeholder="auto" style="width:100%" aria-label="Over/under line (blank = posted line or model total)">
+      </div>
     </div>
+    <div id="sim-ou-hint" style="font-family:var(--mono);font-size:13px;color:var(--t3);margin:-4px 0 12px;min-height:16px;line-height:1.4"></div>
 
     <!-- Filter row -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
       <div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px">INCLUDE:</div>
-      <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-injury" checked> Injury Adj.</label>
-      <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-home" checked> Home Adv.</label>
-      <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-form" checked> Recent Form</label>
-      <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-rest" checked> Rest/Fatigue</label>
-      <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-weather"> Weather</label>
+      <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-injury" checked title="Use the engine's own injury inputs (NHL/NFL/soccer/NBA)"> Injury Adj.</label>
+      <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-home" checked title="Off = treat the venue as neutral (the engines' home edge is removed)"> Home Adv.</label>
+      <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-form" checked title="Use the engines' recent-form factors (hockey, soccer); off = neutral 1.00"> Recent Form</label>
+      <label style="font-family:var(--mono);font-size:16px;color:var(--t2);display:flex;align-items:center;gap:4px"><input type="checkbox" id="sim-inc-weather" title="NFL/CFB: apply the forecast adjustment when the game's forecast is loaded"> Weather</label>
       <button class="btn btn-p" style="margin-left:auto;padding:6px 18px;background:var(--pc);color:#fff" onclick="runSimulator()">RUN SIMULATION</button>
       <button class="btn btn-p btn-sm" style="background:var(--pc);color:#fff" onclick="_simClearHistory()">CLEAR HISTORY</button>
     </div>
@@ -5971,6 +5982,7 @@ function capMobileFontSizes(root){
   // specificity fight against the button-specific pass.
   scope.querySelectorAll('[style*="font-size"]').forEach(el=>{
     if(_capSeen.has(el))return;_capSeen.add(el);   // PERF: each element is judged once per render, not on every DOM mutation
+    if(el.closest&&el.closest('#sp-sim'))return;   // Simulator keeps readable (>= 11px) text on phones, see the #sp-sim rule in the mobile CSS
     if(_isMobileBtn(el))return;
     const fs=parseFloat(el.style.fontSize);
     if(fs&&fs>_MOBILE_FONT_CEILING&&el.tagName!=='INPUT'&&el.tagName!=='SELECT'&&el.tagName!=='TEXTAREA'){
@@ -5983,6 +5995,7 @@ function capMobileFontSizes(root){
   // just font-size, so shrinking font alone still leaves an oversized box.
   scope.querySelectorAll('button,.btn,.btn-n,.btn-p,.btn-o,.btn-g,.btn-h,.btn-i,.btn-sm').forEach(el=>{
     if(_capSeenB.has(el))return;_capSeenB.add(el);   // getComputedStyle forces a layout flush -- never repeat it for an element already capped
+    if(el.closest&&el.closest('#sp-sim'))return;
     const cs=getComputedStyle(el);
     if(parseFloat(cs.fontSize)>_MOBILE_BUTTON_FONT_CEILING){
       el.style.setProperty('font-size',_MOBILE_BUTTON_FONT_CEILING+'px','important');
@@ -31651,6 +31664,7 @@ function simUpdateTeams() {
       var opts=teams.map(function(t){return '<option value="'+t+'">'+t+'</option>';}).join('');
       hSel.innerHTML=opts;aSel.innerHTML=opts;
       if(teams.length>1)aSel.selectedIndex=1;
+      try{simRefreshPosted();}catch(e){}
     });
     return;
   }
@@ -31674,6 +31688,7 @@ function simUpdateTeams() {
       var opts=teams.map(function(t){return '<option value="'+t+'">'+t+'</option>';}).join('');
       hSel.innerHTML=opts;aSel.innerHTML=opts;
       if(teams.length>1)aSel.selectedIndex=1;
+      try{simRefreshPosted();}catch(e){}
     });
     return;
   }
@@ -31698,40 +31713,437 @@ function simUpdateTeams() {
   hSel.innerHTML = opts;
   aSel.innerHTML = opts;
   if (teams.length > 1) aSel.selectedIndex = 1;
+  try{simRefreshPosted();}catch(e){}
+}
+
+/* ── Simulator v2 (2026-10-12, owner: "the simulator needs to take into account the over/under ... same over and scores amongst multiple sims") ──
+   WHAT WAS WRONG: _simRun only used the engine for a home win probability (and for NFL/CFB/CBB not even that: a flat 50/50). The scores came from a
+   hard-coded per-sport table (NFL 23-20, O/U 44; NBA 111-108, O/U 220; NHL 3.0-2.7, O/U 5.5 ...), identical for every matchup, so every sim in a sport
+   showed the same average scores, the same total and the same OVER% (only MC noise differed). The O/U was a sport-wide constant, never the game's posted
+   line; the form/rest checkboxes added Math.random() noise to the win probability; and two independent normals gave the wrong total variance.
+   WHAT IT DOES NOW:
+     1. MATCHUP-SPECIFIC MEANS from the engine's own models (nbaEns/nbaMC, nflEns/nflMC incl. injuries + weather + the NFL market anchor, cfbEns/cfbMC,
+        nhlEns/nhlMC incl. injuries, liigaEns/shlEns/nlaEns/extraligaEns, _socXG/_socExpectedGoals) -- the same functions the game cards call.
+     2. The POSTED total for that exact fixture is looked up in the schedule/odds data the cards use, an editable O/U LINE box overrides it (blank = posted line,
+        else the model total rounded to the nearest half), and the simulated total is CENTERED on a blend of model and posted line using the engine's own
+        market weights (hockey: HOCKEY_MKT_BLEND_ALPHA.OU with the early-season ramp; NFL: NFL_MKT_ANCHOR.total; everything else a stated 50/50).
+        The typed line only moves the OVER/UNDER threshold (it does not move the distribution), so raising it lowers OVER% monotonically.
+     3. Sport-appropriate scores: hockey/soccer = independent Poisson goals; basketball/football = total ~ N(muT,sdT) and margin ~ N(muM,sdM) (the engines'
+        own sigmas where they exist), integer scores, OT resolved by the latent margin's sign. The engine's win probability is kept: muM = sdM*probit(p)
+        (pts sports), the Poisson split is tilted until P(win) = p (hockey).
+     4. No Math.random() inputs: every run uses a seeded PRNG (mulberry32 seeded from sport|teams|N|flags|posted line, NOT the typed line), and the engine MCs run
+        under the same seed, so identical inputs reproduce exactly and the same samples are re-thresholded at any typed line.
+   Honest limits: CBB and any league without a team model fall back to league averages (badge says so); NBA has no market anchor in the engine, so its total
+   blend is a stated 50/50; the O/U is priced on regulation goals in hockey (as the game cards do). */
+var SIM_CFG={
+  nba:{fam:'pts',unit:'pts',label:'NBA',lgT:228,hfa:2.9,sdT:18.5,sdM:12.5,ot:2,floorT:120,blow:15},
+  nfl:{fam:'pts',unit:'pts',label:'NFL',lgT:44,hfa:1.8,sdT:13,sdM:13.5,ot:3,floorT:14,blow:14},
+  cfb:{fam:'pts',unit:'pts',label:'CFB',lgT:52,hfa:2.2,sdT:13,sdM:16.5,ot:3,floorT:7,blow:21},
+  cbb:{fam:'pts',unit:'pts',label:'CBB',lgT:144,hfa:3.5,sdT:15,sdM:11,ot:2,floorT:90,blow:15},
+  nhl:{fam:'pois',unit:'goals',label:'NHL',lgH:3.05,lgA:2.85,hockey:true,blow:3},
+  shl:{fam:'pois',unit:'goals',label:'SHL',lgH:2.8,lgA:2.6,hockey:true,blow:3},
+  liiga:{fam:'pois',unit:'goals',label:'LIIGA',lgH:2.8,lgA:2.6,hockey:true,blow:3},
+  nla:{fam:'pois',unit:'goals',label:'NLA',lgH:2.8,lgA:2.6,hockey:true,blow:3},
+  extraliga:{fam:'pois',unit:'goals',label:'EXTRALIGA',lgH:2.8,lgA:2.6,hockey:true,blow:3},
+  liga:{fam:'pois',unit:'goals',label:'LA LIGA',lgH:1.5,lgA:1.2,soccer:true,blow:3},
+  pl:{fam:'pois',unit:'goals',label:'PREMIER LEAGUE',lgH:1.6,lgA:1.3,soccer:true,blow:3},
+  seriea:{fam:'pois',unit:'goals',label:'SERIE A',lgH:1.5,lgA:1.2,soccer:true,blow:3},
+  cl:{fam:'pois',unit:'goals',label:'CHAMPIONS LEAGUE',lgH:1.6,lgA:1.3,soccer:true,blow:3}
+};
+var SIM_CFG_DEFAULT={fam:'pois',unit:'pts',label:'',lgH:3.0,lgA:2.7,blow:3};
+var SIM_LEAGUE_TAG={nba:'NBA',nfl:'NFL',cfb:'CFB',nhl:'NHL',shl:'SHL',liiga:'LIIGA',nla:'NLA',extraliga:'EXTRALIGA',liga:'LIGA',pl:'PL',seriea:'SERIEA',cl:'CL'};
+function _simCfg(sport){var c=SIM_CFG[sport]||SIM_CFG_DEFAULT,o={};for(var k in c)o[k]=c[k];
+  // NFL/CFB sigmas are the engines' own (nflMC/cfbMC) so the two stay in step if they are ever refitted.
+  try{if(sport==='nfl'){o.sdT=_NFL_SIGMA_TOTAL;o.sdM=_NFL_SIGMA_MARGIN;o.hfa=_nflHFA();}
+      if(sport==='cfb'){o.sdT=_CFB_SIGMA_TOTAL;o.sdM=_CFB_SIGMA_MARGIN;}}catch(e){}
+  return o;}
+// mean mu such that E[max(floor, N(mu,sd))] = avg (closed form for the clamped normal, solved by bisection)
+function _simUnclamp(avg,floor,sd){var lo=avg-6*sd,hi=avg+1,i,mid,d,E;
+  for(i=0;i<50;i++){mid=(lo+hi)/2;d=(floor-mid)/sd;E=floor*normalCDF(d)+mid*(1-normalCDF(d))+sd*Math.exp(-d*d/2)/Math.sqrt(2*Math.PI);if(E<avg)lo=mid;else hi=mid;}
+  return(lo+hi)/2;}
+function _simEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function _simFmtLine(x){return String(+(+x).toFixed(2));}
+
+/* ── seeded PRNG (xmur-style string hash -> mulberry32) ───────────── */
+function _simHash(str){var h=1779033703^str.length,i;for(i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353);h=(h<<13)|(h>>>19);}
+  h=Math.imul(h^(h>>>16),2246822507);h=Math.imul(h^(h>>>13),3266489909);return(h^(h>>>16))>>>0;}
+function _simMulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+/* ── Poisson helpers (exact, no sampling) ─────────────────────────── */
+function _simPmf(lam,K){var a=new Array(K+1),p=Math.exp(-lam),k;a[0]=p;for(k=1;k<=K;k++){p*=lam/k;a[k]=p;}return a;}
+function _simPoisOver(mu,line){var K=Math.floor(line),cdf=0,p=Math.exp(-mu),k;for(k=0;k<=K;k++){if(k>0)p*=mu/k;cdf+=p;}return Math.max(0,Math.min(1,1-cdf));}
+// mean mu of a Poisson total with P(T>line)=pOver (monotone in mu -> bisection)
+function _simSolvePoisMu(line,pOver){var lo=0.05,hi=40,i,mid;pOver=Math.min(.97,Math.max(.03,pOver));
+  for(i=0;i<50;i++){mid=(lo+hi)/2;if(_simPoisOver(mid,line)<pOver)lo=mid;else hi=mid;}return(lo+hi)/2;}
+// P(home goals > away goals), tie, P(home < away) for independent Poisson(lh), Poisson(la)
+function _simWdl(lh,la){var K=Math.ceil(Math.max(14,(lh+la)*3+12)),ph=_simPmf(lh,K),pa=_simPmf(la,K),w=0,t=0,cum=0,h;
+  for(h=0;h<=K;h++){w+=ph[h]*cum;t+=ph[h]*pa[h];cum+=pa[h];}
+  return{w:w,t:t,l:Math.max(0,1-w-t)};}
+// split a Poisson total mu between the sides so that P(home wins, OT/SO tie split 50/50) = pTarget
+function _simTiltShare(mu,pTarget){var lo=.03,hi=.97,i,mid,r;pTarget=Math.min(.96,Math.max(.04,pTarget));
+  for(i=0;i<40;i++){mid=(lo+hi)/2;r=_simWdl(mu*mid,mu*(1-mid));if(r.w+.5*r.t<pTarget)lo=mid;else hi=mid;}return(lo+hi)/2;}
+
+/* ── posted line lookup (the same schedule/odds data the game cards read) ─────────────────────────────────────────── */
+function _simSocKey(sport){return sport==='seriea'?'ita':sport;}
+function _simNorm(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+// dropdown team name -> engine key (NFL/CFB abbreviation, euro-hockey team id); NBA/NHL dropdowns already hold the engine key
+function _simTeamKey(sport,name){
+  var list=[],n=_simNorm(name),i,x;
+  try{
+    if(sport==='nfl'){var T=(_NFL_DATA&&_NFL_DATA.teams)||{};list=Object.keys(T).map(function(a){return{k:a,n:T[a].name};});}
+    else if(sport==='cfb'){var C=(_CFB_DATA&&_CFB_DATA.conferences)||{};Object.keys(C).forEach(function(c){(C[c]||[]).forEach(function(t){list.push({k:t.abbr,n:t.name});});});}
+    else if({liiga:1,shl:1,nla:1,extraliga:1}[sport]){var D={liiga:_LIIGA_DATA,shl:_SHL_DATA,nla:_NLA_DATA,extraliga:_EXTRALIGA_DATA}[sport];
+      Object.keys((D&&D.teams)||{}).forEach(function(id){list.push({k:id,n:D.teams[id].name});});}
+    else return name;
+  }catch(e){return null;}
+  for(i=0;i<list.length;i++)if(_simNorm(list[i].n)===n)return list[i].k;
+  for(i=0;i<list.length;i++){x=_simNorm(list[i].n);if(x&&n&&(x.indexOf(n)>=0||n.indexOf(x)>=0))return list[i].k;}
+  return null;
+}
+function _simAmToDec(v){var m=parseFloat(v);return(isFinite(m)&&Math.abs(m)>=100)?ml2d(m):null;}
+function _simValidDec(d){return typeof d==='number'&&isFinite(d)&&d>1&&d<=200;}
+function _simFlatWeeks(D){var out=[];Object.keys((D&&D.weeks)||{}).forEach(function(w){(D.weeks[w]||[]).forEach(function(g){out.push(g);});});return out;}
+// -> {line,src,overDec,underDec,priceSrc,hMLdec,aMLdec,dMLdec,game,date} or null (no upcoming fixture of exactly this home/away with a total)
+function _simPosted(sport,home,away){
+  try{
+    var g=null,out=null,hk,ak,list,first=function(arr){arr.sort(function(a,b){return new Date(a.date)-new Date(b.date);});return arr[0]||null;};
+    if(sport==='nba'){
+      list=((window._NBA_SCHED&&window._NBA_SCHED.games)||[]).filter(function(x){return x.home===home&&x.away===away&&x.state==='pre'&&!x.carried&&!x.postponed;});
+      g=first(list);if(!g)return null;
+      var nl=g.ou!=null?g.ou:g.overUnder;if(nl==null)return null;
+      var od=_simAmToDec(g.ouOver),ud=_simAmToDec(g.ouUnder),mk=_simValidDec(od)&&_simValidDec(ud);
+      return{line:+nl,src:g.provider||'ESPN',overDec:mk?od:1.909,underDec:mk?ud:1.909,priceSrc:mk?'market':'assumed',hMLdec:_simAmToDec(g.homeML),aMLdec:_simAmToDec(g.awayML),dMLdec:null,hMLam:g.homeML,aMLam:g.awayML,game:g,date:g.date};
+    }
+    if(sport==='nfl'||sport==='cfb'){
+      hk=_simTeamKey(sport,home);ak=_simTeamKey(sport,away);if(!hk||!ak)return null;
+      list=_simFlatWeeks(sport==='nfl'?_NFL_DATA:_CFB_DATA).filter(function(x){return x.home===hk&&x.away===ak&&x.state==='pre'&&x.overUnder!=null&&isFinite(parseFloat(x.overUnder));});
+      g=first(list);if(!g)return null;
+      return{line:parseFloat(g.overUnder),src:'ESPN',overDec:1.909,underDec:1.909,priceSrc:'assumed',hMLdec:_simAmToDec(g.homeML),aMLdec:_simAmToDec(g.awayML),dMLdec:null,hMLam:g.homeML,aMLam:g.awayML,game:g,date:g.date};
+    }
+    if(sport==='nhl'){
+      var ND=(typeof _NHL_SCHEDULE_DATA!=='undefined')?_NHL_SCHEDULE_DATA:null;
+      list=((ND&&ND.games)||[]).filter(function(x){return x.home===home&&x.away===away&&x.state==='pre';});
+      g=first(list);if(!g)return null;
+      var ln=_nhlOuLineFor(g);if(ln==null)return null;
+      var lg=_nhlOuLegsAt(g,ln),px=_nhlPrices(g,.5,true,ln),fs=!!(_hkOdds(g)&&g.state==='pre'&&g.ou!=null);
+      var hm=px.ml.home&&px.ml.home.src==='market'?px.ml.home.dec:null,am=px.ml.away&&px.ml.away.src==='market'?px.ml.away.dec:null;
+      var lad=_hkOuLegAt(_hkOdds(g),ln,'OVER');
+      return{line:ln,src:fs?'Flashscore consensus':(lad?'ESPN line, Flashscore consensus prices':'ESPN'),overDec:lg.over.dec,underDec:lg.under.dec,priceSrc:lg.over.src==='market'?'market':'assumed',hMLdec:hm,aMLdec:am,dMLdec:null,game:g,date:g.date};
+    }
+    if({liiga:1,shl:1,nla:1,extraliga:1}[sport]){
+      var ED={liiga:_LIIGA_DATA,shl:_SHL_DATA,nla:_NLA_DATA,extraliga:_EXTRALIGA_DATA}[sport];
+      hk=_simTeamKey(sport,home);ak=_simTeamKey(sport,away);if(!hk||!ak||!ED)return null;
+      list=(ED.games||[]).filter(function(x){return x.home===hk&&x.away===ak&&x.state==='pre'&&x.ou!=null&&isFinite(parseFloat(x.ou));});
+      g=first(list);if(!g)return null;
+      var eo=_hkOdds(g),ov=_hkOuLegAt(eo,parseFloat(g.ou),'OVER'),un=_hkOuLegAt(eo,parseFloat(g.ou),'UNDER'),ok=!!(ov&&un);
+      return{line:parseFloat(g.ou),src:eo?'Flashscore consensus':'Flashscore (stale prices ignored)',overDec:ok?ov.dec:1.909,underDec:ok?un.dec:1.909,priceSrc:ok?'market':'assumed',
+        hMLdec:eo&&eo.ml&&_simValidDec(eo.ml.home)?eo.ml.home:null,aMLdec:eo&&eo.ml&&_simValidDec(eo.ml.away)?eo.ml.away:null,dMLdec:null,game:g,date:g.date};
+    }
+    if(SIM_CFG[sport]&&SIM_CFG[sport].soccer){
+      list=((typeof _leagueScoreCache!=='undefined'&&_leagueScoreCache[_simSocKey(sport)])||[]).filter(function(x){return x.home===home&&x.away===away&&x.status==='pre'&&x.ou!=null&&isFinite(parseFloat(x.ou));});
+      g=first(list);if(!g)return null;
+      return{line:parseFloat(g.ou),src:'ESPN',overDec:1.909,underDec:1.909,priceSrc:'assumed',hMLdec:_simAmToDec(g.hML),aMLdec:_simAmToDec(g.aML),dMLdec:_simAmToDec(g.dML),game:g,date:g.date};
+    }
+  }catch(e){console.warn('[CV] sim posted lookup failed',e);}
+  return null;
+}
+// make sure the data _simPosted / the engines read is loaded (all are cached after first load); never blocks longer than 6 s
+function _simEnsureData(sport){
+  var ps=[];
+  try{
+    if(sport==='nfl')ps.push(loadNFLData());
+    else if(sport==='cfb')ps.push(loadCFBData());
+    else if(sport==='nhl')ps.push(loadNHLScheduleData());
+    else if(sport==='nba'){if(!window._NBA_SCHED&&typeof loadNBASchedule==='function')ps.push(loadNBASchedule());}
+    else if(sport==='liiga')ps.push(loadLiigaScheduleData());
+    else if(sport==='shl')ps.push(loadShlScheduleData());
+    else if(sport==='nla')ps.push(loadNlaScheduleData());
+    else if(sport==='extraliga')ps.push(loadExtraligaScheduleData());
+    else if(SIM_CFG[sport]&&SIM_CFG[sport].soccer)ps.push(_fetchLeagueScoreboard(_simSocKey(sport)));
+  }catch(e){}
+  var t=new Promise(function(res){setTimeout(res,6000);});
+  return Promise.race([Promise.all(ps.map(function(p){return Promise.resolve(p).catch(function(){return null;});})),t]);
+}
+
+/* ── run a function with the flags' engine inputs switched on/off (restored in finally) ─────────────────────────────── */
+function _simWithFlags(flags,fn){
+  var saved={};
+  function stub(name,val){if(typeof window[name]==='function'){saved[name]=window[name];window[name]=val;}}
+  if(flags.injury===false){
+    stub('computeInjuryImpact',function(){return{penalty:0,flag:false,players:[]};});
+    stub('_nhlInjAdj',function(){return{frac:0,players:[],goalie:{mp:0,edge:0},any:false};});
+    stub('_nflInjAdj',function(){return{pts:0,players:[],any:false};});
+  }
+  if(flags.form===false){
+    stub('_nhlFormFactor',function(){return{mult:1,delta:null,n:0,gfL:null};});
+    stub('_hkFormFactor',function(){return 1;});
+    stub('_socFormFactor',function(){return 1;});
+  }
+  try{return fn();}finally{Object.keys(saved).forEach(function(k){window[k]=saved[k];});}
+}
+
+/* ── the engine's matchup view: win prob + expected total (+ goal rates) for ONE home/away orientation ────────────── */
+// -> {ok, src, p (home win incl. OT split; null for soccer), modelT, lamH, lamA, wMkt (engine weight on the posted total), wDesc, notes[]}
+function _simEngine(sport,home,away,flags,posted){
+  var cfg=_simCfg(sport),neutral=!!flags.neutral||(flags.home===false&&!flags.playoff);
+  var m={ok:false,src:'',p:null,modelT:null,lamH:null,lamA:null,wMkt:.5,wDesc:'stated 50/50 blend (this league\u2019s engine has no market weight of its own)',notes:[]};
+  var line=posted?posted.line:null;
+  try{
+    if(sport==='nba'){
+      var gm=posted?{hL:posted.hMLam,aL:posted.aMLam,ou:posted.line,overUnder:posted.line}:undefined;
+      var e=nbaEns(home,away,gm);
+      if(e&&e.mcD){m.ok=true;m.p=e.p;m.modelT=e.mcD.avgT;m.src='NBA ensemble (nbaEns: Monte Carlo on live ortg/drtg/pace + Bayes + Elo, injuries, market-capped when a moneyline is posted)';
+        if(e.capped)m.notes.push('win probability capped at the market +/- 6.5 pts');}
+    }
+    else if(sport==='nfl'){
+      var hk=_simTeamKey('nfl',home),ak=_simTeamKey('nfl',away);
+      if(hk&&ak){
+        var pg=posted?Object.assign({},posted.game):{home:hk,away:ak};
+        pg.neutralSite=!!(pg.neutralSite||neutral);
+        if(flags.weather===false||!flags.weather){pg.id=undefined;pg.city=undefined;}
+        var ne=nflEns(hk,ak,posted?posted.line:null,pg),mc=ne&&ne.mcD;
+        if(mc){m.ok=true;m.p=ne.p;m.src='NFL engine (nflEns/nflMC: point differential + yardage/turnover + injuries'+(flags.weather?' + weather':'')+', market-anchored total)';
+          // NFL_MKT_ANCHOR.total: model weight w = max*n/(n+half) on (model - line); no posted line -> raw model total
+          m.modelT=mc.baseTotal;
+          if(posted&&mc.anchor){m.wMkt=1-mc.anchor.wT;m.wDesc='NFL_MKT_ANCHOR.total: model weight '+(mc.anchor.wT*100).toFixed(1)+'% ('+mc.anchor.nMin+' games played by the lesser team)';}}
+      }
+    }
+    else if(sport==='cfb'){
+      var ch=_simTeamKey('cfb',home),ca=_simTeamKey('cfb',away);
+      if(ch&&ca){
+        var cg=posted?Object.assign({},posted.game):{home:ch,away:ca};
+        cg.neutralSite=!!(cg.neutralSite||neutral);
+        if(!flags.weather){cg.id=undefined;cg.city=undefined;}
+        var ce=cfbEns(ch,ca,null,cg),cmc=ce&&ce.mcD;      // no line passed in: the model total must be the MODEL's, not the posted one
+        // cfbMC floors every simulated total at 20, which lifts its avgTotal above its own baseTotal when the model total is low (it is: points-allowed sums) -> undo the floor
+        if(cmc){m.ok=true;m.p=ce.p;m.modelT=_simUnclamp(cmc.avgTotal,20,_CFB_SIGMA_TOTAL);m.src='CFB engine (cfbEns/cfbMC: FPI + box-score margin + Elo + Bayes, points allowed total)';}
+      }
+    }
+    else if(sport==='nhl'){
+      if(NHL[home]&&NHL[away]){
+        var mkt=posted&&posted.game?_nhlMktFromSched(posted.game,null):null;
+        var he=nhlEns(home,away,posted?posted.line:undefined,mkt),hmc=he&&he.mcD;
+        if(hmc){m.ok=true;m.p=he.p;m.modelT=hmc.avgT;m.lamH=hmc.avgH;m.lamA=hmc.avgA;
+          m.src='NHL engine (nhlEns/nhlMC: xGF/60, goalie GSAx, special teams, shot quality, injuries'+(posted?', market-blended win prob':'')+')';
+          var gp=Math.min(NHL[home].gp||0,NHL[away].gp||0);m.wMkt=_hkBlendAlpha('OU',gp);
+          m.wDesc='HOCKEY_MKT_BLEND_ALPHA.OU = '+m.wMkt.toFixed(2)+' (early-season ramp, '+gp+' GP by the lesser team)';
+          if(hmc.gpConf<1)m.notes.push('early season: win prob shrunk toward 50% ('+Math.round(hmc.gpConf*100)+'% confidence)');}
+      }
+    }
+    else if({liiga:1,shl:1,nla:1,extraliga:1}[sport]){
+      var fn={liiga:liigaEns,shl:shlEns,nla:nlaEns,extraliga:extraligaEns}[sport],ED={liiga:_LIIGA_DATA,shl:_SHL_DATA,nla:_NLA_DATA,extraliga:_EXTRALIGA_DATA}[sport];
+      var eh=_simTeamKey(sport,home),ea=_simTeamKey(sport,away);
+      if(fn&&ED&&ED.teams&&eh&&ea&&ED.teams[eh]&&ED.teams[ea]){
+        var ee=fn(eh,ea,posted?posted.line:undefined,posted?posted.game:undefined),emc=ee&&ee.mcD;
+        if(emc){m.ok=true;m.p=ee.p;m.modelT=emc.avgT;m.lamH=emc.avgH;m.lamA=emc.avgA;
+          m.src=cfg.label+' engine ('+sport+'Ens: blended current+prior-season goal rates, Flashscore G/M, recent form'+(posted?', market-blended win prob':'')+')';
+          var egp=Math.min(ED.teams[eh].gp||0,ED.teams[ea].gp||0);m.wMkt=_hkBlendAlpha('OU',egp);
+          m.wDesc='HOCKEY_MKT_BLEND_ALPHA.OU = '+m.wMkt.toFixed(2)+' (early-season ramp, '+egp+' GP by the lesser team)';}
+      }
+    }
+    else if(cfg.soccer){
+      var sk=_simSocKey(sport),hX=_socXG(home,sk),aX=_socXG(away,sk);
+      if(hX||aX){
+        var eg=_socExpectedGoals(hX,aX,sk,home,away),hx=eg.hxg,ax=eg.axg;
+        if(flags.injury!==false){try{var hI=computeInjuryImpact(home,sk),aI=computeInjuryImpact(away,sk);hx*=(1-hI.penalty);ax*=(1-aI.penalty);}catch(e2){}}
+        if(neutral){ // neutral venue = average of the two orientations the xG tables give (team A hosting / team B hosting)
+          var eg2=_socExpectedGoals(aX,hX,sk,away,home);hx=(hx+eg2.axg)/2;ax=(ax+eg2.hxg)/2;}
+        m.ok=true;m.lamH=hx;m.lamA=ax;m.modelT=hx+ax;
+        m.src=cfg.label+' xG model (_socXG/_socExpectedGoals: FBref/Opta xG, style, power ranks, form, standings, H2H)';
+      }
+    }
+  }catch(err){console.warn('[CV] sim engine call failed for',sport,err);m.ok=false;}
+  return m;
+}
+
+/* ── full parameter set for one run ───────────────────────────────────────────────────────────────────────────────── */
+function _simParams(sport,home,away,flags,posted){
+  var cfg=_simCfg(sport),P={cfg:cfg,fam:cfg.fam,hasModel:false,badge:'',src:'',notes:[],modelT:null,posted:posted||null};
+  var m=_simEngine(sport,home,away,flags,posted);
+  var neutral=!!flags.neutral||(flags.home===false&&!flags.playoff);
+  P.hasModel=m.ok;P.src=m.src;P.notes=m.notes.slice();
+  // 1. model-side expected scoring ------------------------------------------------------------------------------------------------
+  var modelT,lamH0,lamA0,pEng=m.p;
+  if(m.ok){modelT=m.modelT;lamH0=m.lamH;lamA0=m.lamA;}
+  else{modelT=cfg.fam==='pts'?cfg.lgT:(cfg.lgH+cfg.lgA);lamH0=cfg.lgH;lamA0=cfg.lgA;
+    pEng=cfg.fam==='pts'?normalCDF(((flags.neutral||flags.home===false?0:cfg.hfa))/cfg.sdM):null;
+    P.badge='NO TEAM MODEL — LEAGUE AVERAGES';
+    P.src='league averages (no team-level model for this '+(cfg.label||sport.toUpperCase())+' matchup)';}
+  P.modelT=modelT;
+  // 2. venue flags ---------------------------------------------------------------------------------------------------------------
+  // engines already include their own home edge; neutral removes it, playoff amplifies the edge x1.2 (existing VENUE option); the old extra x1.035 home bump double-counted it
+  if(cfg.fam==='pts'){
+    var muM=cfg.sdM*_normInv(pEng);
+    if(m.ok&&neutral&&(sport==='nba'))muM-=cfg.hfa;     // nbaEns has no neutral switch (NFL/CFB engines take neutralSite themselves)
+    if(flags.playoff)muM*=1.2;
+    P.muM=muM;
+  }else if(cfg.hockey){
+    var pT=pEng;
+    if(m.ok&&neutral&&m.lamH&&m.lamA){ // remove the engines' home-ice factor (1+hfa)/(1-hfa/2), hfa .055, and move the win prob by the same Poisson amount
+      var a0=_simWdl(m.lamH,m.lamA),a1=_simWdl(m.lamH/1.055,m.lamA/0.9725);
+      pT=Math.min(.94,Math.max(.06,pEng+((a1.w+.5*a1.t)-(a0.w+.5*a0.t))));lamH0=m.lamH/1.055;lamA0=m.lamA/0.9725;}
+    if(pT==null){var w0=_simWdl(lamH0,lamA0);pT=w0.w+.5*w0.t;}
+    if(flags.playoff)pT=Math.min(.92,Math.max(.08,(pT-.5)*1.2+.5));
+    P.pTarget=pT;
+  }else{ // soccer: scale the log goal-rate ratio, total preserved
+    if(flags.playoff){var tot=lamH0+lamA0,ratio=Math.pow(lamH0/lamA0,1.2);lamH0=tot*ratio/(1+ratio);lamA0=tot/(1+ratio);}
+  }
+  P.shareH=lamH0/(lamH0+lamA0);
+  // 3. center the total on a blend of model and posted line --------------------------------------------------------------------
+  var center=modelT,wMkt=0,mktMu=null,wDesc='no posted line: centered on the model total';
+  if(posted){
+    var pOverNV=(_simValidDec(posted.overDec)&&_simValidDec(posted.underDec)&&posted.priceSrc==='market')?(1/posted.overDec)/((1/posted.overDec)+(1/posted.underDec)):.5;
+    // the market's own implied mean total: pts sports -> the line itself shifted by the no-vig price (normal, sdT); goal sports -> Poisson mean that gives that no-vig over prob
+    mktMu=cfg.fam==='pts'?posted.line+cfg.sdT*_normInv(pOverNV):_simSolvePoisMu(posted.line,pOverNV);
+    if(!m.ok){wMkt=1;wDesc='no team model: centered on the posted line';}
+    else{wMkt=m.wMkt;wDesc=m.wDesc;}
+    center=(1-wMkt)*modelT+wMkt*mktMu;
+  }
+  P.center=center;P.wMkt=wMkt;P.wDesc=wDesc;P.mktMu=mktMu;
+  return P;
+}
+
+/* ── the sampler ──────────────────────────────────────────────────────────────────────────────────────────────────── */
+function _simRun(sport,home,away,N,flags,opts){
+  opts=opts||{};flags=flags||{};
+  var cfg=_simCfg(sport);
+  var posted=opts.posted!==undefined?opts.posted:_simPosted(sport,home,away);
+  var typed=(opts.line!=null&&isFinite(parseFloat(opts.line)))?parseFloat(opts.line):null;
+  // seed: everything that changes the DISTRIBUTION (not the typed line, which only moves the threshold)
+  var seedKey=[sport,home,away,N,['injury','home','neutral','playoff','form','weather'].map(function(k){return flags[k]?1:0;}).join(''),posted?posted.line:'-'].join('|');
+  var rng=_simMulberry(_simHash(seedKey)),realRandom=Math.random,P;
+  Math.random=rng;                       // the engine MCs (nhlMC, nbaMC, nflMC ...) draw from the same seeded stream
+  try{P=_simWithFlags(flags,function(){return _simParams(sport,home,away,flags,posted);});}
+  finally{Math.random=realRandom;}
+  var S=_simSample(P,N,rng,cfg);
+  return _simSummarize(sport,home,away,N,flags,P,S,cfg,posted,typed,seedKey);
+}
+function _simSample(P,N,rng,cfg){
+  var HM=480,hH=new Int32Array(HM),aH=new Int32Array(HM),tH=new Int32Array(HM),
+      hS=new Int16Array(N),aS=new Int16Array(N),blocks=new Int32Array(20),blockN=new Int32Array(20),
+      hW=0,aW=0,dr=0,ot=0,sumH=0,sumA=0,i,h,a,tot,hw,mCnt=0,blow=0,sumM=0,sumM2=0,
+      cl=function(x){return x<0?0:(x>=HM?HM-1:x);};
+  function z(){var u1=rng()||1e-12,u2=rng();return Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);}
+  if(P.fam==='pts'){
+    var muT=P.center,muM=P.muM,sdT=cfg.sdT,sdM=cfg.sdM;
+    for(i=0;i<N;i++){
+      var T=Math.max(cfg.floorT,muT+sdT*z()),M=muM+sdM*z();
+      h=Math.max(0,Math.round((T+M)/2));a=Math.max(0,Math.round((T-M)/2));
+      if(h===a){ot++;if(M>=0)h+=cfg.ot;else a+=cfg.ot;}     // overtime: the side that was ahead on the latent margin wins it
+      hw=h>a;
+      hS[i]=h;aS[i]=a;tot=h+a;hH[cl(h)]++;aH[cl(a)]++;tH[cl(tot)]++;sumH+=h;sumA+=a;
+      if(hw){hW++;blocks[Math.floor(i*20/N)]++;}else aW++;
+      var mg=h-a;sumM+=mg;sumM2+=mg*mg;if(Math.abs(mg)>=cfg.blow)blow++;
+    }
+  }else{
+    var tot0=P.center,sh=P.shareH;
+    if(cfg.hockey)sh=_simTiltShare(tot0,P.pTarget);
+    var lh=tot0*sh,la=tot0*(1-sh),K=Math.ceil(Math.max(16,tot0*3+14));
+    var cdfH=_simPmf(lh,K),cdfA=_simPmf(la,K),c1=0,c2=0;
+    for(i=0;i<=K;i++){c1+=cdfH[i];cdfH[i]=c1;c2+=cdfA[i];cdfA[i]=c2;}
+    P.lamH=lh;P.lamA=la;
+    var pick=function(cdf,u){var k=0;while(k<K&&u>cdf[k])k++;return k;};
+    for(i=0;i<N;i++){
+      h=pick(cdfH,rng());a=pick(cdfA,rng());
+      if(h===a){ot++;if(cfg.hockey){hw=rng()<.5;}else{hw=null;}}else hw=h>a;
+      hS[i]=h;aS[i]=a;tot=h+a;hH[cl(h)]++;aH[cl(a)]++;tH[cl(tot)]++;sumH+=h;sumA+=a;
+      if(hw===null)dr++;else if(hw){hW++;blocks[Math.floor(i*20/N)]++;}else aW++;
+      var mg2=h-a;sumM+=mg2;sumM2+=mg2*mg2;if(Math.abs(mg2)>=cfg.blow)blow++;
+    }
+  }
+  for(i=0;i<N;i++)blockN[Math.floor(i*20/N)]++;
+  return{hH:hH,aH:aH,tH:tH,hS:hS,aS:aS,blocks:blocks,blockN:blockN,hW:hW,aW:aW,dr:dr,ot:ot,sumH:sumH,sumA:sumA,sumM:sumM,sumM2:sumM2,blow:blow,N:N};
+}
+// ── histogram helpers ──
+function _simHMean(h){var n=0,s=0,i;for(i=0;i<h.length;i++){n+=h[i];s+=i*h[i];}return n?s/n:0;}
+function _simHStd(h){var n=0,s=0,s2=0,i;for(i=0;i<h.length;i++){n+=h[i];s+=i*h[i];s2+=i*i*h[i];}if(!n)return 0;var m=s/n;return Math.sqrt(Math.max(0,s2/n-m*m));}
+function _simHPct(h,p){var n=0,i,c=0;for(i=0;i<h.length;i++)n+=h[i];var t=p/100*n;for(i=0;i<h.length;i++){c+=h[i];if(c>t)return i;}return h.length-1;}
+function _simHOver(h,line){ // -> {over,under,push} as fractions of the sample: total > line, total < line, total == line (integer lines only)
+  var n=0,ov=0,un=0,pu=0,i;for(i=0;i<h.length;i++){n+=h[i];if(i>line)ov+=h[i];else if(i<line)un+=h[i];else pu+=h[i];}
+  return{over:n?ov/n:0,under:n?un/n:0,push:n?pu/n:0};}
+function _simBins(h,B){
+  // chart range = 0.05th..99.95th percentile; the thin tails beyond it are folded into the two edge bins so one freak sample cannot stretch the axis
+  var mn=_simHPct(h,.05),mx=_simHPct(h,99.95),i;
+  if(!(mx>=mn))return{bins:[0],mn:0,bw:1};
+  var range=mx-mn+1,bw=range<=14?1:Math.ceil(range/B),nb=Math.ceil(range/bw),bins=[];
+  for(i=0;i<nb;i++)bins.push(0);
+  for(i=0;i<h.length;i++){if(!h[i])continue;var k=Math.floor((Math.min(mx,Math.max(mn,i))-mn)/bw);bins[Math.min(nb-1,k)]+=h[i];}
+  return{bins:bins,mn:mn,bw:bw};}
+
+function _simSummarize(sport,home,away,N,flags,P,S,cfg,posted,typed,seedKey){
+  var hM=S.sumH/N,aM=S.sumA/N,hStd=_simHStd(S.hH),aStd=_simHStd(S.aH),totMean=_simHMean(S.tH),totStd=_simHStd(S.tH);
+  var modelLine=Math.round(P.modelT*2)/2;
+  var line,lineSrc;
+  if(typed!=null){line=typed;lineSrc='typed';}else if(posted){line=posted.line;lineSrc='posted';}else{line=modelLine;lineSrc='model';}
+  var o=_simHOver(S.tH,line),alt=[],d;
+  for(d=-4;d<=4;d++){var L=Math.round((line+d*.5)*2)/2;if(L<0)continue;var a2=_simHOver(S.tH,L);alt.push({line:L,over:a2.over,under:a2.under,push:a2.push,cur:d===0});}
+  var np=1-o.push,overNP=np>0?o.over/np:.5;
+  // outliers: > 2 sigma from the side's own mean (first 6 in sample order)
+  var outliers=[],i;
+  for(i=0;i<N&&outliers.length<6;i++){if(Math.abs(S.hS[i]-hM)>2*hStd||Math.abs(S.aS[i]-aM)>2*aStd)outliers.push({h:S.hS[i],a:S.aS[i]});}
+  var trend=[],b;for(b=0;b<20;b++)trend.push(S.blockN[b]?+(S.blocks[b]/S.blockN[b]).toFixed(3):0);
+  var mMean=S.sumM/N,mStd=Math.sqrt(Math.max(0,S.sumM2/N-mMean*mMean));
+  return{sport:sport,home:home,away:away,N:N,seedKey:seedKey,cfg:cfg,P:P,hasModel:P.hasModel,badge:P.badge,src:P.src,notes:P.notes,
+    hP:S.hW/N,aP:S.aW/N,dP:cfg.soccer?S.dr/N:0,otP:S.ot/N,hMean:hM,aMean:aM,hStd:hStd,aStd:aStd,margMean:mMean,margStd:mStd,
+    totMean:totMean,totStd:totStd,modelT:P.modelT,center:P.center,wMkt:P.wMkt,wDesc:P.wDesc,mktMu:P.mktMu,posted:posted||null,
+    line:line,lineSrc:lineSrc,modelLine:modelLine,ou:line,overP:o.over,underP:o.under,pushP:o.push,overNP:overNP,alt:alt,
+    blowoutP:S.blow/N,p10h:_simHPct(S.hH,10),p90h:_simHPct(S.hH,90),p10a:_simHPct(S.aH,10),p90a:_simHPct(S.aH,90),p10t:_simHPct(S.tH,10),p90t:_simHPct(S.tH,90),
+    hDist:_simBins(S.hH,12),aDist:_simBins(S.aH,12),totDist:_simBins(S.tH,12),tHist:S.tH,trend:trend,outliers:outliers,lamH:P.lamH,lamA:P.lamA};
 }
 
 /* ── runSimulator ───────────────────────────────────────────────── */
+function _simFlags(){
+  var venue=(document.getElementById('sim-venue')||{}).value||'home';
+  var homeAdv=(document.getElementById('sim-inc-home')||{}).checked!==false;
+  return{
+    injury:  (document.getElementById('sim-inc-injury') ||{}).checked !== false,
+    home:    venue==='home'&&homeAdv,
+    neutral: venue==='neutral',
+    playoff: venue==='playoff',
+    form:    (document.getElementById('sim-inc-form')   ||{}).checked !== false,
+    weather: !!(document.getElementById('sim-inc-weather')||{}).checked
+  };
+}
+function _simTypedLine(){var v=(document.getElementById('sim-ou')||{}).value;if(v==null||String(v).trim()==='')return null;var x=parseFloat(v);return isFinite(x)&&x>0?x:null;}
 function runSimulator() {
   var sport = _simEffectiveSport();
   var home  = (document.getElementById('sim-home') ||{}).value;
   var away  = (document.getElementById('sim-away') ||{}).value;
   var N     = parseInt((document.getElementById('sim-count')||{}).value||'20000');
-  var venue = (document.getElementById('sim-venue')||{}).value||'home';
-  var flags = {
-    injury:  (document.getElementById('sim-inc-injury') ||{}).checked !== false,
-    home:    venue==='home'&&(document.getElementById('sim-inc-home')||{}).checked !== false,
-    neutral: venue==='neutral',
-    playoff: venue==='playoff',
-    form:    (document.getElementById('sim-inc-form')   ||{}).checked !== false,
-    rest:    (document.getElementById('sim-inc-rest')   ||{}).checked !== false,
-    weather: !!(document.getElementById('sim-inc-weather')||{}).checked
-  };
+  var flags = _simFlags();
+  var line  = _simTypedLine();
   var el = document.getElementById('sim-results');
   if (!el) return;
   if (!home||!away){ el.innerHTML='<div class="empty">Select two teams and click RUN SIMULATION</div>'; return; }
   if (home===away){ el.innerHTML='<div class="empty">Teams must be different</div>'; return; }
   el.innerHTML='<div style="font-family:var(--mono);font-size:17px;color:var(--nc);text-align:center;padding:40px"><span class="spi"></span>&nbsp; RUNNING '+N.toLocaleString()+' SIMULATIONS…</div>';
   setTimeout(function(){
-    try { var res=_simRun(sport,home,away,N,flags); _simRender(el,sport,home,away,N,res); _simSaveToHistory(sport,home,away,N,res); }
-    catch(e){ el.innerHTML='<div class="empty">SIM ERROR: '+e.message+'</div>'; console.error(e); }
+    _simEnsureData(sport).then(function(){
+      try { var res=_simRun(sport,home,away,N,flags,{line:line}); _simRender(el,sport,home,away,N,res); _simSaveToHistory(sport,home,away,N,res); }
+      catch(e){ el.innerHTML='<div class="empty">SIM ERROR: '+_simEsc(e.message)+'</div>'; console.error(e); }
+    });
   },50);
+}
+// POSTED O/U hint under the controls (and the input's placeholder): refreshed whenever sport / league / teams change
+var _simHintTok=0;
+function simRefreshPosted(){
+  var tok=++_simHintTok,el=document.getElementById('sim-ou-hint'),inp=document.getElementById('sim-ou');
+  if(!el)return Promise.resolve();
+  var sport=_simEffectiveSport(),home=(document.getElementById('sim-home')||{}).value,away=(document.getElementById('sim-away')||{}).value;
+  if(!home||!away||home==='Loading…'){el.textContent='';return Promise.resolve();}
+  return _simEnsureData(sport).then(function(){
+    if(tok!==_simHintTok)return;
+    var p=_simPosted(sport,home,away);
+    if(inp)inp.placeholder='auto';
+    el.innerHTML=p?'POSTED O/U <b style="color:var(--gc)">'+_simFmtLine(p.line)+'</b> ('+_simEsc(p.src)+') &middot; leave O/U LINE blank to use it':'No posted O/U found for '+_simEsc(away)+' at '+_simEsc(home)+' &middot; blank uses the model’s own total';
+  });
 }
 
 /* ── Sim history helpers ────────────────────────────────────────── */
 function _simGetHistory(){try{return JSON.parse(localStorage.getItem('sim_history')||'[]');}catch(e){return[];}}
 function _simSaveToHistory(sport,home,away,N,r){
   var h=_simGetHistory();
-  h.unshift({sport:sport,home:home,away:away,N:N,hP:r.hP,aP:r.aP,hMean:r.hMean,aMean:r.aMean,ts:Date.now()});
+  h.unshift({sport:sport,home:home,away:away,N:N,hP:r.hP,aP:r.aP,dP:r.dP||0,hMean:r.hMean,aMean:r.aMean,tot:+r.totMean.toFixed(2),line:r.line,lineSrc:r.lineSrc,overP:+r.overP.toFixed(4),pushP:+(r.pushP||0).toFixed(4),ts:Date.now()});
   if(h.length>5)h=h.slice(0,5);
   try{localStorage.setItem('sim_history',JSON.stringify(h));}catch(e){}
   _simRenderHistory();
@@ -31752,240 +32164,170 @@ function _simRenderHistory(){
     var hML=p2ml_(s.hP),aML=p2ml_(s.aP);
     var hCol=s.hP>s.aP?'var(--gc)':'var(--t3)';
     var aCol=s.aP>s.hP?'var(--gc)':'var(--t3)';
-    return '<div style="display:flex;align-items:center;gap:10px;background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.07);border-radius:3px;padding:8px 12px;margin-bottom:5px;font-family:var(--mono);font-size:15px">'
-      +'<span style="color:var(--t3);min-width:38px">'+s.sport.toUpperCase()+'</span>'
-      +'<span style="color:'+hCol+';font-weight:700;flex:1">'+s.home+'</span>'
+    var ouTxt=s.line!=null?'O/U '+_simFmtLine(s.line)+' &middot; '+(s.overP*100).toFixed(0)+'% O'+(s.tot!=null?' &middot; tot '+(+s.tot).toFixed(1):''):'';
+    return '<div class="sim-hist-row" style="display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;background:rgba(10,0,24,.7);border:1px solid rgba(255,255,255,.07);border-radius:3px;padding:8px 12px;margin-bottom:5px;font-family:var(--mono);font-size:15px">'
+      +'<span style="color:var(--t3);min-width:38px">'+_simEsc(String(s.sport).toUpperCase())+'</span>'
+      +'<span style="color:'+hCol+';font-weight:700;flex:1 1 90px;min-width:0;overflow-wrap:anywhere">'+_simEsc(s.home)+'</span>'
       +'<span style="color:'+hCol+'">'+Math.round(s.hP*100)+'% ('+hML+')</span>'
       +'<span style="color:var(--t3);padding:0 6px">vs</span>'
       +'<span style="color:'+aCol+'">'+Math.round(s.aP*100)+'% ('+aML+')</span>'
-      +'<span style="color:'+aCol+';font-weight:700;flex:1;text-align:right">'+s.away+'</span>'
+      +'<span style="color:'+aCol+';font-weight:700;flex:1 1 90px;min-width:0;overflow-wrap:anywhere;text-align:right">'+_simEsc(s.away)+'</span>'
+      +(ouTxt?'<span class="sim-hist-ou" style="color:var(--gc);flex:1 0 100%;font-size:14px">'+ouTxt+'</span>':'')
       +'<span style="color:var(--t3);min-width:58px;text-align:right">'+ts+'</span>'
       +'<button class="btn btn-sm" style="color:var(--t3);border-color:var(--t3);padding:2px 6px;font-size:14px" onclick="_simRemoveHistoryEntry('+s.ts+')" title="Remove this run">✕</button>'
       +'</div>';
   }).join('');
 }
 
-/* ── _simRun ────────────────────────────────────────────────────── */
-function _simRun(sport,home,away,N,flags){
-  var baseHP=0.5;
-  try{
-    if(sport==='nba' &&typeof nbaEns==='function'){var e=nbaEns(home,away); if(e&&e.p)baseHP=e.p;}
-    if(sport==='nhl' &&typeof nhlEns==='function'){var e=nhlEns(home,away); if(e&&e.p)baseHP=e.p;}
-    if(['mls','cl','pl','liga','bl','ita'].indexOf(sport)>=0&&typeof _socXG==='function'&&typeof _soccerMC==='function'){
-      // Reuses the same real xG data (FBref/ESPN/mlssoccer.com) and Poisson
-      // MC engine the actual league match cards use — _socXG(name,league)
-      // already falls back gracefully to the static table for teams
-      // without live coverage, same as the real cards.
-      var hXG=_socXG(home,sport),aXG=_socXG(away,sport);
-      var _eg3=_socExpectedGoals(hXG,aXG,sport,home,away);
-      var socMC=_soccerMC(_eg3.hxg,_eg3.axg,_SOC_MC_N);
-      baseHP=Math.min(.88,Math.max(.12,socMC.hWin/(socMC.hWin+socMC.aWin||1)));
-    }
-    // NFL/CFB/CBB have no team-rating dataset (see _genericGameCard's
-    // audit note) — rather than fake precision with a made-up formula,
-    // this stays an honest neutral 50/50 baseline until a real model
-    // exists for these 3 sports.
-    // LIIGA/SHL -- real bug, found 2026-09-16 alongside the team-list gap:
-    // this had no branch at all for either league, so every simulated
-    // matchup silently used the flat 50/50 baseline regardless of real
-    // team strength AND (see SP table below) baseball's own scoring
-    // distribution, since SP had no liiga/shl entry either. liigaEns/
-    // shlEns take team IDs, not the display names this dropdown uses, so
-    // resolve name->id from the same cached _LIIGA_DATA/_SHL_DATA the
-    // team-list fetch above already populates (loadLiigaScheduleData/
-    // loadShlScheduleData resolve instantly once cached, same pattern
-    // nhlEns's own by-abbreviation lookup already relies on).
-    var _hkEnsFn={liiga:typeof liigaEns==='function'?liigaEns:null,shl:typeof shlEns==='function'?shlEns:null,nla:typeof nlaEns==='function'?nlaEns:null,extraliga:typeof extraligaEns==='function'?extraligaEns:null}[sport];
-    if(_hkEnsFn){
-      var _hkD={liiga:_LIIGA_DATA,shl:_SHL_DATA,nla:_NLA_DATA,extraliga:_EXTRALIGA_DATA}[sport];
-      if(_hkD&&_hkD.teams){
-        var _hkFindId=function(name){var id=null;Object.keys(_hkD.teams).forEach(function(k){if(_hkD.teams[k].name===name)id=k;});return id;};
-        var _hHkId=_hkFindId(home),_aHkId=_hkFindId(away);
-        if(_hHkId&&_aHkId){
-          var _hkE=_hkEnsFn(_hHkId,_aHkId);
-          if(_hkE&&_hkE.p)baseHP=_hkE.p;
-        }
-      }
-    }
-  }catch(e){}
-  var adjHP=baseHP;
-  if(flags.home)adjHP=Math.min(.88,adjHP*1.035);
-  if(flags.neutral)adjHP=Math.min(.85,Math.max(.15,baseHP)); // strip home adj
-  if(flags.playoff)adjHP=Math.min(.90,Math.max(.10,(adjHP-.5)*1.2+0.5)); // amplify edge
-  if(flags.form)adjHP=Math.min(.88,Math.max(.12,adjHP+(Math.random()-.48)*.02));
-  if(flags.rest)adjHP=Math.min(.88,Math.max(.12,adjHP+(Math.random()-.48)*.015));
-  adjHP=Math.min(.88,Math.max(.12,adjHP));
-  var SP={mlb:{muH:4.5,muA:4.2,sdH:1.8,sdA:1.7,ou:8.5},nba:{muH:111,muA:108,sdH:10,sdA:10,ou:220},
-    nhl:{muH:3.0,muA:2.7,sdH:1.2,sdA:1.1,ou:5.5},wnba:{muH:82,muA:80,sdH:8,sdA:8,ou:162},
-    wc:{muH:1.7,muA:1.4,sdH:.9,sdA:.85,ou:2.5},
-    nfl:{muH:23,muA:20,sdH:9.5,sdA:9.5,ou:44},cfb:{muH:29,muA:24,sdH:11,sdA:11,ou:55},
-    cbb:{muH:74,muA:70,sdH:9,sdA:9,ou:144},
-    mls:{muH:1.5,muA:1.2,sdH:.85,sdA:.8,ou:2.5},cl:{muH:1.6,muA:1.3,sdH:.9,sdA:.85,ou:2.5},
-    pl:{muH:1.6,muA:1.3,sdH:.9,sdA:.85,ou:2.5},liga:{muH:1.5,muA:1.2,sdH:.85,sdA:.8,ou:2.5},
-    bl:{muH:1.7,muA:1.4,sdH:.9,sdA:.85,ou:2.75},
-    // liiga/shl -- real bug, found 2026-09-16: no entry here meant these
-    // fell back to SP.mlb (baseball's own 4.5/4.2-run scoring
-    // distribution) for every simulated Finnish/Swedish hockey matchup.
-    // Reuses NHL's own mu/sd shape (a real, similar-scoring-environment
-    // hockey league) rather than the league-specific G/M-derived line the
-    // real Hockey tab computes per matchup -- this generic simulator has
-    // no per-matchup context to derive that from, same "close enough for
-    // a what-if sandbox, not a substitute for the real per-league engine"
-    // honesty the soccer/CFB entries above already accept.
-    liiga:{muH:2.8,muA:2.6,sdH:1.15,sdA:1.1,ou:5.5},shl:{muH:2.8,muA:2.6,sdH:1.15,sdA:1.1,ou:5.5},
-    nla:{muH:2.8,muA:2.6,sdH:1.15,sdA:1.1,ou:5.5},extraliga:{muH:2.8,muA:2.6,sdH:1.15,sdA:1.1,ou:5.5}};
-  var sp=SP[sport]||SP.mlb;
-  var hWins=0,aWins=0,hSc=[],aSc=[],tots=[],marg=[];
-  for(var i=0;i<N;i++){
-    var u1=Math.random()||1e-9,u2=Math.random()||1e-9;
-    var z1=Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);
-    var z2=Math.sqrt(-2*Math.log(u1))*Math.sin(2*Math.PI*u2);
-    var hAdj=adjHP>.5?(adjHP-.5)*sp.muH*.3:0,aAdj=adjHP<.5?(.5-adjHP)*sp.muA*.3:0;
-    var hs=Math.max(0,sp.muH+hAdj+z1*sp.sdH),as2=Math.max(0,sp.muA+aAdj+z2*sp.sdA);
-    var _intScoreSports=['mlb','nhl','nfl','cfb','cbb','mls','cl','pl','liga','bl','wc','liiga','shl','nla','extraliga'];
-    if(_intScoreSports.indexOf(sport)>=0){hs=Math.round(hs);as2=Math.round(as2);}
-    else{hs=Math.round(hs*10)/10;as2=Math.round(as2*10)/10;}
-    hSc.push(hs);aSc.push(as2);tots.push(hs+as2);marg.push(hs-as2);
-    if(hs>as2)hWins++;else if(as2>hs)aWins++;
-  }
-  function mean(a){return a.reduce(function(s,v){return s+v;},0)/a.length;}
-  function std(a){var m=mean(a);return Math.sqrt(a.reduce(function(s,v){return s+(v-m)*(v-m);},0)/a.length);}
-  function pct(a,p){var s=a.slice().sort(function(x,y){return x-y;});return s[Math.floor(p/100*s.length)]||0;}
-  function dist(arr,B){var mn=Math.min.apply(null,arr),mx=Math.max.apply(null,arr),bw=(mx-mn)/B||1,bins=[];
-    for(var j=0;j<B;j++)bins.push(0);
-    arr.forEach(function(v){var bi=Math.min(B-1,Math.floor((v-mn)/bw));bins[bi]++;});
-    return{bins:bins,mn:mn,bw:bw};}
-  var hM=mean(hSc),aM=mean(aSc),blk=Math.floor(N/20),trend=[];
-  for(var b=0;b<20;b++){var sl=hSc.slice(b*blk,(b+1)*blk),sl2=aSc.slice(b*blk,(b+1)*blk);
-    trend.push(+(sl.filter(function(v,i){return v>sl2[i];}).length/sl.length).toFixed(3));}
-  // hStd/aStd hoisted out of the filter callback below -- std() is O(N)
-  // (two full reduce passes), so calling it once PER ITEM inside .filter()
-  // over an N-item array made this whole block O(N^2). At the simulator's
-  // own default N=25000 that's ~625M+ redundant operations -- measured at
-  // ~96 SECONDS of solid main-thread blocking (vs 22ms once hoisted),
-  // firing automatically the moment a user opens the Simulator tab (it
-  // auto-runs on load with the default team selection). The single
-  // largest real cause found of "page unresponsive" reports.
-  var hStd=std(hSc),aStd=std(aSc);
-  var outliers=hSc.map(function(h,i){return{h:h,a:aSc[i]};})
-    .filter(function(g){return Math.abs(g.h-hM)>2*hStd||Math.abs(g.a-aM)>2*aStd;}).slice(0,6);
-  return{N:N,hP:hWins/N,aP:aWins/N,hMean:hM,aMean:aM,hStd:hStd,aStd:aStd,
-    totMean:mean(tots),totStd:std(tots),overP:tots.filter(function(t){return t>sp.ou;}).length/N,
-    blowoutP:marg.filter(function(m){return Math.abs(m)>10;}).length/N,
-    p10h:pct(hSc,10),p90h:pct(hSc,90),p10a:pct(aSc,10),p90a:pct(aSc,90),
-    p10t:pct(tots,10),p90t:pct(tots,90),
-    hDist:dist(hSc,12),aDist:dist(aSc,12),totDist:dist(tots,12),
-    trend:trend,outliers:outliers,ou:sp.ou};}
-
 /* ── _simRender ─────────────────────────────────────────────────── */
 function _simRender(el,sport,home,away,N,r){
   var p2ml_=typeof p2ml==='function'?p2ml:function(p){return p>=.5?-Math.round(100*p/(1-p)):'+'+Math.round(100*(1-p)/p);};
-  var ml2d_=typeof ml2d==='function'?ml2d:function(ml){var m=parseFloat(ml);return m>0?m/100+1:100/Math.abs(m)+1;};
   var ev_  =typeof ev==='function'?ev:function(p,d){return+(p*d-1).toFixed(4);};
   var td   =typeof today==='function'?today():new Date().toISOString().slice(0,10).replace(/-/g,'');
-  var hML=p2ml_(r.hP),aML=p2ml_(r.aP),hD=ml2d_(hML),aD=ml2d_(aML);
-  var hEV=ev_(r.hP,hD),aEV=ev_(r.aP,aD);
-  var favTeam=r.hP>=r.aP?home:away,favP=Math.max(r.hP,r.aP),favEV=r.hP>=r.aP?hEV:aEV;
-  var tier=favP>=.67&&favEV>=.05?'PREMIUM':favP>=.62&&favEV>=.03?'OPTIMAL':favP>=.55?'LEAN':'EDGE';
+  var cfg=r.cfg,unit=cfg.unit||'pts',soccer=!!cfg.soccer,hockey=!!cfg.hockey;
+  var posted=r.posted,H=_simEsc(home),A=_simEsc(away);
+  var hML=p2ml_(r.hP),aML=p2ml_(r.aP),dML=soccer?p2ml_(r.dP||.0001):null,hD=ml2d(hML),aD=ml2d(aML);
+  // EV only against a REAL posted price (the old card priced the fair line against itself, i.e. ~0 EV)
+  var hEV=(posted&&_simValidDec(posted.hMLdec))?ev_(r.hP,posted.hMLdec):null,aEV=(posted&&_simValidDec(posted.aMLdec))?ev_(r.aP,posted.aMLdec):null;
+  var favHome=r.hP>=r.aP,favTeam=favHome?home:away,favP=Math.max(r.hP,r.aP),favEV=favHome?hEV:aEV;
+  var tier=favP>=.67&&(favEV==null||favEV>=.05)?'PREMIUM':favP>=.62&&(favEV==null||favEV>=.03)?'OPTIMAL':favP>=.55?'LEAN':'EDGE';
   var tierCol=_gradeColVar(tier);
-  var unit={mlb:'runs',nba:'pts',nhl:'goals',wnba:'pts',wc:'goals'}[sport]||'pts';
+  // no-vig market win probability for the home side (2-way sports), to show how far the engine sits from the market
+  var mktH=(!soccer&&posted&&_simValidDec(posted.hMLdec)&&_simValidDec(posted.aMLdec))?(1/posted.hMLdec)/((1/posted.hMLdec)+(1/posted.aMLdec)):null;
+  var mktLine=mktH!=null?'Market (no-vig): <strong>'+H+' '+(mktH*100).toFixed(1)+'%</strong> &middot; model '+(Math.abs(r.hP-mktH)*100>=10?'<strong style="color:var(--hc)">differs by '+(Math.abs(r.hP-mktH)*100).toFixed(0)+' pts \u2014 EV is a model-vs-market gap, not a sure edge</strong>':'within '+(Math.abs(r.hP-mktH)*100).toFixed(0)+' pts')+'<br>':'';
   var tMin=Math.min.apply(null,r.trend),tMax=Math.max.apply(null,r.trend),tOK=(tMax-tMin)<.09;
-  /* League tag for sim header */
-  var simLeague={mlb:'MLB',nba:'NBA',nhl:'NHL',wnba:'WNBA',wc:'WC26'}[sport]||sport.toUpperCase();
-  function bars(dist,col){return dist.bins.map(function(b,i){
-    var lo=(dist.mn+i*dist.bw).toFixed(1),h=Math.round(b/Math.max.apply(null,dist.bins)*60)+4;
-    return'<div title="'+lo+': '+((b/r.N)*100).toFixed(1)+'%" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end">'
+  var simLeague=SIM_LEAGUE_TAG[sport]||sport.toUpperCase();
+  function mlLine(ml,evv,postedDec){
+    var s='fair '+_mlFmt(ml);
+    if(postedDec!=null)s+=' &middot; posted '+_mlFmt(_dec2ml(postedDec))+' &middot; EV '+(evv>=0?'+':'')+(evv*100).toFixed(1)+'%';
+    return s;}
+  function bars(dist,col){var mx=Math.max.apply(null,dist.bins)||1;return dist.bins.map(function(b,i){
+    var lo=dist.mn+i*dist.bw,lbl=dist.bw>1?lo+'–'+(lo+dist.bw-1):String(lo),h=Math.round(b/mx*60)+4;
+    return'<div title="'+lbl+': '+((b/r.N)*100).toFixed(1)+'%" style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end">'
       +'<div style="width:100%;background:'+col+';height:'+h+'px;border-radius:1px 1px 0 0;opacity:.75"></div>'
-      +'<div style="font-size:10px;color:var(--t3);writing-mode:vertical-lr;transform:rotate(180deg);margin-top:2px">'+lo+'</div>'
+      +'<div style="font-size:11px;color:var(--t3);writing-mode:vertical-lr;transform:rotate(180deg);margin-top:2px;white-space:nowrap">'+lo+'</div>'
       +'</div>'}).join('');}
+  // ── O/U pieces ──
+  var ouDir=r.overNP>=.5?'OVER':'UNDER',ouDirP=ouDir==='OVER'?r.overNP:1-r.overNP;
+  var fairO=p2ml_(Math.min(.99,Math.max(.01,r.overNP))),fairU=p2ml_(Math.min(.99,Math.max(.01,1-r.overNP)));
+  var haveMkt=!!(posted&&posted.priceSrc==='market'&&Math.abs(posted.line-r.line)<.001);
+  var oDec=haveMkt?posted.overDec:1.909,uDec=haveMkt?posted.underDec:1.909;
+  var oEV=ev_(r.overNP,oDec),uEV=ev_(1-r.overNP,uDec);
+  var priceTag=haveMkt?'posted price':'assumed -110';
+  var lineWhy=r.lineSrc==='typed'?'typed line':r.lineSrc==='posted'?'posted line':'model total, nearest half';
+  var altHTML=r.alt.map(function(a){
+    return'<div class="sim-alt'+(a.cur?' cur':'')+'" style="text-align:center;padding:5px 2px;border:1px solid '+(a.cur?'var(--gc)':'rgba(255,255,255,.08)')+';border-radius:2px;background:'+(a.cur?'rgba(240,255,0,.08)':'rgba(10,0,24,.5)')+'">'
+      +'<div style="font-family:var(--mono);font-size:13px;color:'+(a.cur?'var(--gc)':'var(--t3)')+'">'+_simFmtLine(a.line)+'</div>'
+      +'<div style="font-family:var(--mono);font-size:15px;font-weight:700;color:'+(a.over>=.5?'var(--nc)':'var(--hc)')+'">'+(a.over*100).toFixed(0)+'%</div>'
+      +'<div style="font-family:var(--mono);font-size:11px;color:var(--t3)">OVER'+(a.push>=.005?' &middot; push '+(a.push*100).toFixed(0)+'%':'')+'</div></div>';}).join('');
+  var badgeHTML=r.hasModel
+    ?'<span style="font-family:var(--mono);font-size:12px;padding:1px 6px;border:1px solid var(--nc);color:var(--nc);border-radius:2px">ENGINE-DERIVED</span>'
+    :'<span style="font-family:var(--mono);font-size:12px;padding:1px 6px;border:1px solid var(--hc);color:var(--hc);border-radius:2px">'+_simEsc(r.badge||'NO TEAM MODEL — LEAGUE AVERAGES')+'</span>';
   var html=
     '<div style="background:rgba(4,0,12,.6);border:1px solid rgba(240,0,255,.25);border-radius:3px;padding:12px 14px;margin-bottom:10px">'
     +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px">'
-      +cvLeagueTag(simLeague)+cvSportTag(simLeague)
-      +'<span style="font-family:var(--mono);font-size:14px;color:var(--t3)">'+N.toLocaleString()+' SIMULATIONS &middot; '+away+' at '+home+'</span>'
+      +cvLeagueTag(simLeague)+cvSportTag(simLeague)+badgeHTML
+      +'<span style="font-family:var(--mono);font-size:14px;color:var(--t3)">'+N.toLocaleString()+' SIMULATIONS &middot; '+A+' at '+H+'</span>'
     +'</div>'
-    +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
-      +'<div style="flex:1;min-width:110px;text-align:center;background:rgba(240,0,255,.07);border:1px solid rgba(240,0,255,.2);border-radius:2px;padding:10px 6px">'
-        +'<div style="font-family:var(--orb);font-size:27px;font-weight:900;color:var(--pc)">'+(r.hP*100).toFixed(1)+'%</div>'
-        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t2);margin-top:2px">'+home+' WIN</div>'
-        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">'+_mlFmt(hML)+' &middot; EV '+(hEV*100).toFixed(1)+'%</div>'
+    +'<div id="sim-wincards" style="display:flex;gap:10px;flex-wrap:wrap">'
+      +'<div class="sim-wc" style="flex:1;min-width:130px;text-align:center;background:rgba(240,0,255,.07);border:1px solid rgba(240,0,255,.2);border-radius:2px;padding:10px 6px">'
+        +'<div id="sim-hp" style="font-family:var(--orb);font-size:27px;font-weight:900;color:var(--pc)">'+(r.hP*100).toFixed(1)+'%</div>'
+        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t2);margin-top:2px">'+H+' WIN</div>'
+        +'<div style="font-family:var(--mono);font-size:13px;color:var(--t3)">'+mlLine(hML,hEV,hEV!=null?posted.hMLdec:null)+'</div>'
       +'</div>'
-      +'<div style="flex:0 0 80px;text-align:center;padding:10px 4px">'
-        +'<div style="font-family:var(--orb);font-size:17px;color:var(--t3)">vs</div>'
-        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-top:4px">O/U '+r.ou+'</div>'
-        +'<div style="font-family:var(--mono);font-size:17px;font-weight:700;color:'+(r.overP>=.5?'var(--nc)':'var(--hc)')+'">'+( r.overP*100).toFixed(1)+'%</div>'
-        +'<div style="font-family:var(--mono);font-size:14px;color:var(--t3)">'+(r.overP>=.5?'OVER':'UNDER')+'</div>'
-      +'</div>'
-      +'<div style="flex:1;min-width:110px;text-align:center;background:rgba(0,240,255,.07);border:1px solid rgba(0,240,255,.2);border-radius:2px;padding:10px 6px">'
-        +'<div style="font-family:var(--orb);font-size:27px;font-weight:900;color:var(--nc)">'+(r.aP*100).toFixed(1)+'%</div>'
-        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t2);margin-top:2px">'+away+' WIN</div>'
-        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">'+_mlFmt(aML)+' &middot; EV '+(aEV*100).toFixed(1)+'%</div>'
+      +(soccer?'<div class="sim-wc" style="flex:0 1 110px;text-align:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:2px;padding:10px 6px"><div id="sim-dp" style="font-family:var(--orb);font-size:24px;font-weight:900;color:var(--t2)">'+(r.dP*100).toFixed(1)+'%</div><div style="font-family:var(--mono);font-size:15px;color:var(--t2);margin-top:2px">DRAW</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">fair '+_mlFmt(dML)+'</div></div>'
+        :(hockey?'<div class="sim-wc" style="flex:0 1 110px;text-align:center;padding:10px 4px"><div style="font-family:var(--orb);font-size:17px;color:var(--t3)">vs</div><div id="sim-otp" style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-top:4px">'+(r.otP*100).toFixed(1)+'% go to OT/SO</div></div>'
+        :'<div class="sim-wc" style="flex:0 1 80px;text-align:center;padding:10px 4px"><div style="font-family:var(--orb);font-size:17px;color:var(--t3)">vs</div></div>'))
+      +'<div class="sim-wc" style="flex:1;min-width:130px;text-align:center;background:rgba(0,240,255,.07);border:1px solid rgba(0,240,255,.2);border-radius:2px;padding:10px 6px">'
+        +'<div id="sim-ap" style="font-family:var(--orb);font-size:27px;font-weight:900;color:var(--nc)">'+(r.aP*100).toFixed(1)+'%</div>'
+        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t2);margin-top:2px">'+A+' WIN</div>'
+        +'<div style="font-family:var(--mono);font-size:13px;color:var(--t3)">'+mlLine(aML,aEV,aEV!=null?posted.aMLdec:null)+'</div>'
       +'</div>'
     +'</div></div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
-      +'<div class="card"><div style="font-family:var(--mono);font-size:14px;color:var(--pc);letter-spacing:2px;margin-bottom:4px">'+home+' SCORE</div>'
-        +'<div style="font-family:var(--orb);font-size:26px;font-weight:900">'+r.hMean.toFixed(1)+'</div>'
-        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">&plusmn;'+r.hStd.toFixed(1)+' '+unit+' &middot; P10–90: '+r.p10h.toFixed(1)+'–'+r.p90h.toFixed(1)+'</div>'
-        +'<div style="display:flex;gap:1px;height:68px;align-items:flex-end;margin-top:6px">'+bars(r.hDist,'var(--pc)')+'</div>'
+    // ── TOTAL / OVER-UNDER card ──
+    +'<div class="card" id="sim-total-card" style="margin-bottom:10px">'
+      +'<div style="font-family:var(--mono);font-size:14px;color:var(--gc);letter-spacing:2px;margin-bottom:8px">// TOTAL &amp; OVER / UNDER</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:10px">'
+        +'<div><div style="font-family:var(--mono);font-size:12px;color:var(--t3);letter-spacing:1px">MODEL TOTAL</div><div id="sim-modeltotal" style="font-family:var(--orb);font-size:24px;font-weight:900">'+r.modelT.toFixed(1)+'</div><div style="font-family:var(--mono);font-size:12px;color:var(--t3)">'+(r.hasModel?'engine projection':'league average')+'</div></div>'
+        +'<div><div style="font-family:var(--mono);font-size:12px;color:var(--t3);letter-spacing:1px">POSTED O/U</div><div id="sim-postedline" style="font-family:var(--orb);font-size:24px;font-weight:900;color:'+(posted?'var(--gc)':'var(--t3)')+'">'+(posted?_simFmtLine(posted.line):'—')+'</div><div style="font-family:var(--mono);font-size:12px;color:var(--t3)">'+(posted?_simEsc(posted.src):'no fixture found')+'</div></div>'
+        +'<div><div style="font-family:var(--mono);font-size:12px;color:var(--t3);letter-spacing:1px">SIM TOTAL (CENTER)</div><div id="sim-centertotal" style="font-family:var(--orb);font-size:24px;font-weight:900;color:var(--vc)">'+r.totMean.toFixed(1)+'</div><div style="font-family:var(--mono);font-size:12px;color:var(--t3)">&plusmn;'+r.totStd.toFixed(1)+' &middot; P10–90 '+r.p10t+'–'+r.p90t+'</div></div>'
+        +'<div><div style="font-family:var(--mono);font-size:12px;color:var(--t3);letter-spacing:1px">LINE USED</div><div id="sim-lineused" style="font-family:var(--orb);font-size:24px;font-weight:900;color:var(--nc)">'+_simFmtLine(r.line)+'</div><div style="font-family:var(--mono);font-size:12px;color:var(--t3)">'+lineWhy+'</div></div>'
+      +'</div>'
+      +'<div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-bottom:8px;line-height:1.5">'+(posted?'Centered on the blend of model and posted total — '+_simEsc(r.wDesc)+' → '+Math.round(r.wMkt*100)+'% posted / '+Math.round((1-r.wMkt)*100)+'% model.':'No posted line for this fixture — centered on the model total.')+'</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+        +'<div class="sim-ou-box" style="flex:1 1 120px;text-align:center;border:1px solid rgba(0,240,255,.25);background:rgba(0,240,255,.06);border-radius:2px;padding:8px 4px"><div id="sim-overp" style="font-family:var(--orb);font-size:24px;font-weight:900;color:'+(r.overP>=r.underP?'var(--nc)':'var(--t2)')+'">'+(r.overP*100).toFixed(1)+'%</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2)">OVER '+_simFmtLine(r.line)+'</div><div style="font-family:var(--mono);font-size:12px;color:var(--t3)">fair '+_mlFmt(fairO)+' &middot; EV '+(oEV>=0?'+':'')+(oEV*100).toFixed(1)+'% ('+priceTag+')</div></div>'
+        +'<div class="sim-ou-box" style="flex:1 1 120px;text-align:center;border:1px solid rgba(240,0,255,.25);background:rgba(240,0,255,.06);border-radius:2px;padding:8px 4px"><div id="sim-underp" style="font-family:var(--orb);font-size:24px;font-weight:900;color:'+(r.underP>r.overP?'var(--pc)':'var(--t2)')+'">'+(r.underP*100).toFixed(1)+'%</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2)">UNDER '+_simFmtLine(r.line)+'</div><div style="font-family:var(--mono);font-size:12px;color:var(--t3)">fair '+_mlFmt(fairU)+' &middot; EV '+(uEV>=0?'+':'')+(uEV*100).toFixed(1)+'% ('+priceTag+')</div></div>'
+        +(Number.isInteger(r.line)?'<div class="sim-ou-box" style="flex:0 1 100px;text-align:center;border:1px solid rgba(255,255,255,.12);border-radius:2px;padding:8px 4px"><div id="sim-pushp" style="font-family:var(--orb);font-size:24px;font-weight:900;color:var(--t2)">'+(r.pushP*100).toFixed(1)+'%</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2)">PUSH</div><div style="font-family:var(--mono);font-size:12px;color:var(--t3)">stake back</div></div>':'')
+      +'</div>'
+      +'<div style="font-family:var(--mono);font-size:12px;color:var(--t3);letter-spacing:1px;margin-bottom:4px">ALTERNATE LINES &mdash; OVER %</div>'
+      +'<div id="sim-altstrip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(58px,1fr));gap:4px">'+altHTML+'</div>'
+      +(hockey?'<div style="font-family:var(--mono);font-size:11px;color:var(--t3);margin-top:6px">O/U is priced on regulation goals, like the game cards.</div>':'')
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:10px">'
+      +'<div class="card"><div style="font-family:var(--mono);font-size:14px;color:var(--pc);letter-spacing:2px;margin-bottom:4px">'+H+' SCORE</div>'
+        +'<div id="sim-hmean" style="font-family:var(--orb);font-size:26px;font-weight:900">'+r.hMean.toFixed(1)+'</div>'
+        +'<div style="font-family:var(--mono);font-size:14px;color:var(--t3)">&plusmn;'+r.hStd.toFixed(1)+' '+unit+' &middot; P10–90: '+r.p10h+'–'+r.p90h+'</div>'
+        +'<div style="display:flex;gap:1px;height:78px;align-items:flex-end;margin-top:6px">'+bars(r.hDist,'var(--pc)')+'</div>'
       +'</div>'
       +'<div class="card"><div style="font-family:var(--mono);font-size:14px;color:var(--gc);letter-spacing:2px;margin-bottom:4px">TOTAL</div>'
         +'<div style="font-family:var(--orb);font-size:26px;font-weight:900">'+r.totMean.toFixed(1)+'</div>'
-        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">&plusmn;'+r.totStd.toFixed(1)+' '+unit+' &middot; P10–90: '+r.p10t.toFixed(1)+'–'+r.p90t.toFixed(1)+'</div>'
-        +'<div style="display:flex;gap:1px;height:68px;align-items:flex-end;margin-top:6px">'+bars(r.totDist,'var(--gc)')+'</div>'
+        +'<div style="font-family:var(--mono);font-size:14px;color:var(--t3)">&plusmn;'+r.totStd.toFixed(1)+' '+unit+' &middot; P10–90: '+r.p10t+'–'+r.p90t+'</div>'
+        +'<div style="display:flex;gap:1px;height:78px;align-items:flex-end;margin-top:6px">'+bars(r.totDist,'var(--gc)')+'</div>'
       +'</div>'
-      +'<div class="card"><div style="font-family:var(--mono);font-size:14px;color:var(--nc);letter-spacing:2px;margin-bottom:4px">'+away+' SCORE</div>'
-        +'<div style="font-family:var(--orb);font-size:26px;font-weight:900">'+r.aMean.toFixed(1)+'</div>'
-        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">&plusmn;'+r.aStd.toFixed(1)+' '+unit+' &middot; P10–90: '+r.p10a.toFixed(1)+'–'+r.p90a.toFixed(1)+'</div>'
-        +'<div style="display:flex;gap:1px;height:68px;align-items:flex-end;margin-top:6px">'+bars(r.aDist,'var(--nc)')+'</div>'
+      +'<div class="card"><div style="font-family:var(--mono);font-size:14px;color:var(--nc);letter-spacing:2px;margin-bottom:4px">'+A+' SCORE</div>'
+        +'<div id="sim-amean" style="font-family:var(--orb);font-size:26px;font-weight:900">'+r.aMean.toFixed(1)+'</div>'
+        +'<div style="font-family:var(--mono);font-size:14px;color:var(--t3)">&plusmn;'+r.aStd.toFixed(1)+' '+unit+' &middot; P10–90: '+r.p10a+'–'+r.p90a+'</div>'
+        +'<div style="display:flex;gap:1px;height:78px;align-items:flex-end;margin-top:6px">'+bars(r.aDist,'var(--nc)')+'</div>'
       +'</div>'
     +'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-bottom:10px">'
       +'<div class="card"><div style="font-family:var(--mono);font-size:14px;color:var(--vc);letter-spacing:2px;margin-bottom:4px">WIN PROB TREND <span style="color:'+(tOK?'var(--nc)':'var(--hc)')+'">// '+(tOK?'STABLE':'VOLATILE')+'</span></div>'
-        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:4px">20-block range: '+((tMax-tMin)*100).toFixed(1)+'%</div>'
+        +'<div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:4px">20-block range: '+((tMax-tMin)*100).toFixed(1)+'%</div>'
         +'<div style="display:flex;gap:2px;height:50px;align-items:flex-end">'
           +r.trend.map(function(v){return'<div style="flex:1;background:'+(v>=.5?'var(--nc)':'var(--hc)')+';height:'+Math.round(v*50)+'px;border-radius:1px 1px 0 0;opacity:.7" title="'+(v*100).toFixed(1)+'%"></div>';}).join('')
         +'</div>'
-        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t2);margin-top:4px">Peak <span style="color:var(--nc)">'+(tMax*100).toFixed(1)+'%</span> &middot; Floor <span style="color:var(--hc)">'+(tMin*100).toFixed(1)+'%</span></div>'
+        +'<div style="font-family:var(--mono);font-size:14px;color:var(--t2);margin-top:4px">Peak <span style="color:var(--nc)">'+(tMax*100).toFixed(1)+'%</span> &middot; Floor <span style="color:var(--hc)">'+(tMin*100).toFixed(1)+'%</span></div>'
       +'</div>'
       +'<div class="card"><div style="font-family:var(--mono);font-size:14px;color:var(--hc);letter-spacing:2px;margin-bottom:4px">OUTLIERS <span style="font-size:13px;color:var(--t3)">&gt;2&sigma;</span></div>'
-        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t3);margin-bottom:4px">'+r.outliers.length+' extreme &middot; Blowout rate: '+(r.blowoutP*100).toFixed(1)+'%</div>'
-        +(r.outliers.length?r.outliers.map(function(o){return'<div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:16px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="color:var(--pc)">'+home+' '+(Number.isInteger(o.h)?o.h:o.h.toFixed(1))+'</span><span style="color:var(--nc)">'+away+' '+(Number.isInteger(o.a)?o.a:o.a.toFixed(1))+'</span><span style="color:'+(o.h>o.a?'var(--pc)':'var(--nc)')+'">'+( o.h>o.a?home:away)+'</span></div>';}).join(''):'<div style="font-family:var(--mono);font-size:16px;color:var(--t3)">Model stable — no extreme outliers</div>')
+        +'<div style="font-family:var(--mono);font-size:14px;color:var(--t3);margin-bottom:4px">'+r.outliers.length+' extreme &middot; Blowout ('+r.cfg.blow+'+ '+unit+'): '+(r.blowoutP*100).toFixed(1)+'%</div>'
+        +(r.outliers.length?r.outliers.map(function(o){return'<div style="display:flex;justify-content:space-between;gap:6px;font-family:var(--mono);font-size:15px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="color:var(--pc)">'+H+' '+o.h+'</span><span style="color:var(--nc)">'+A+' '+o.a+'</span><span style="color:'+(o.h>o.a?'var(--pc)':o.a>o.h?'var(--nc)':'var(--t3)')+'">'+(o.h>o.a?H:o.a>o.h?A:'OT')+'</span></div>';}).join(''):'<div style="font-family:var(--mono);font-size:15px;color:var(--t3)">Model stable — no extreme outliers</div>')
       +'</div>'
     +'</div>'
     +'<div class="card" style="margin-bottom:10px"><div style="font-family:var(--mono);font-size:14px;color:var(--gc);letter-spacing:2px;margin-bottom:8px">// ENGINE FINDINGS</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-        +'<div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.9">'
-          +'<span style="color:'+tierCol+'">'+tier+': '+favTeam+'</span><br>'
-          +'Win prob: <strong>'+( favP*100).toFixed(1)+'%</strong><br>'
-          +'Proj margin: <strong>'+Math.abs(r.hMean-r.aMean).toFixed(1)+' '+unit+'</strong> &rarr; '+(r.hMean>r.aMean?home:away)+'<br>'
-          +'O/U: <strong style="color:'+(r.overP>=.54?'var(--nc)':'var(--hc)')+'">LEAN '+(r.overP>=.54?'OVER':'UNDER')+' '+r.ou+'</strong> ('+(r.overP*100).toFixed(1)+'%)<br>'
-          +'EV: <strong style="color:'+(favEV>=0?'var(--nc)':'var(--hc)')+'">'+( favEV>=0?'+':'')+( favEV*100).toFixed(1)+'%</strong>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">'
+        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t2);line-height:1.8">'
+          +'<span style="color:'+tierCol+'">'+tier+': '+_simEsc(favTeam)+'</span><br>'
+          +'Win prob: <strong>'+(favP*100).toFixed(1)+'%</strong>'+(favEV!=null?' &middot; EV <strong style="color:'+(favEV>=0?'var(--nc)':'var(--hc)')+'">'+(favEV>=0?'+':'')+(favEV*100).toFixed(1)+'%</strong>':'')+'<br>'
+          +mktLine
+          +'Proj score: <strong>'+r.hMean.toFixed(1)+' – '+r.aMean.toFixed(1)+'</strong> ('+(r.margMean>=0?H:A)+' by '+Math.abs(r.margMean).toFixed(1)+')<br>'
+          +'O/U: <strong style="color:'+(ouDirP>=.54?'var(--nc)':'var(--hc)')+'">'+(ouDirP>=.54?'LEAN ':'')+ouDir+' '+_simFmtLine(r.line)+'</strong> ('+(ouDirP*100).toFixed(1)+'%)'
         +'</div>'
-        +'<div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.9">'
+        +'<div style="font-family:var(--mono);font-size:15px;color:var(--t2);line-height:1.8">'
           +'Variance: <strong>'+r.hStd.toFixed(1)+' / '+r.aStd.toFixed(1)+'</strong><br>'
-          +'Blowout risk: <strong style="color:'+(r.blowoutP>.25?'var(--hc)':'var(--t3)')+'">'+( r.blowoutP*100).toFixed(1)+'%</strong><br>'
-          +'Trend: <strong style="color:'+(tOK?'var(--nc)':'var(--hc)')+'">'+( tOK?'STABLE':'MIXED')+'</strong><br>'
-          +'Sims: <strong>'+N.toLocaleString()+'</strong><br>'
+          +'Blowout risk: <strong style="color:'+(r.blowoutP>.25?'var(--hc)':'var(--t3)')+'">'+(r.blowoutP*100).toFixed(1)+'%</strong><br>'
+          +'Trend: <strong style="color:'+(tOK?'var(--nc)':'var(--hc)')+'">'+(tOK?'STABLE':'MIXED')+'</strong><br>'
+          +'Sims: <strong>'+N.toLocaleString()+'</strong> &middot; seeded<br>'
           +'Confidence: <strong style="color:'+tierCol+'">'+tier+'</strong>'
         +'</div>'
       +'</div>'
+      +'<div id="sim-source" style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:8px;line-height:1.5">SOURCE: '+_simEsc(r.src)+(r.notes.length?' &middot; '+_simEsc(r.notes.join(' &middot; ')):'')+'</div>'
     +'</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-      +'<button class="btn btn-p btn-sm" style="background:var(--pc);color:#fff" id="sim-lock-h">OPTIMAL '+home+' ML '+(hML>0?'+':'')+hML+'</button>'
-      +'<button class="btn btn-p btn-sm" style="background:var(--pc);color:#fff" id="sim-lock-a">OPTIMAL '+away+' ML '+(aML>0?'+':'')+aML+'</button>'
-      +'<button class="btn btn-p btn-sm" style="background:var(--pc);color:#fff" id="sim-lock-ou">OPTIMAL '+(r.overP>=.5?'OVER':'UNDER')+' '+_forceHalfLine(r.ou)+'</button>'
+      +'<button class="btn btn-p btn-sm" style="background:var(--pc);color:#fff" id="sim-lock-h">OPTIMAL '+H+' ML '+_mlFmt(hML)+'</button>'
+      +'<button class="btn btn-p btn-sm" style="background:var(--pc);color:#fff" id="sim-lock-a">OPTIMAL '+A+' ML '+_mlFmt(aML)+'</button>'
+      +'<button class="btn btn-p btn-sm" style="background:var(--pc);color:#fff" id="sim-lock-ou">OPTIMAL '+ouDir+' '+_forceHalfLineDir(r.line,ouDir)+'</button>'
     +'</div>';
   el.innerHTML=html;
+  try{el.querySelectorAll('[style*="var(--orb)"]').forEach(function(n){n.classList.add('sim-n');});}catch(e){}
+  window.__simLast=r;
   setTimeout(function(){
     var bH=document.getElementById('sim-lock-h'),bA=document.getElementById('sim-lock-a'),bOU=document.getElementById('sim-lock-ou');
-    var ouDir=r.overP>=.5?'OVER':'UNDER';
-    // Explicit request: every locked O/U line must end in .5 -- r.ou is
-    // the simulator's raw computed total, not guaranteed to already be a
-    // half-point line.
-    var _simOu=_forceHalfLine(r.ou);
+    // Explicit request: every locked O/U line must end in .5 (a whole-number line is moved to the half-point on the locked side's favourable side),
+    // and the locked probability is the one AT that half-point line, not at the whole-number line the card shows.
+    var _simOu=parseFloat(_forceHalfLineDir(r.line,ouDir)),oo=_simHOver(r.tHist,_simOu),_pAt=ouDir==='OVER'?oo.over:oo.under;
     if(bH &&typeof lockPick==='function')bH.onclick =function(){lockPick(home,away,'ML',home,r.hP,hML,hD,td);};
     if(bA &&typeof lockPick==='function')bA.onclick =function(){lockPick(home,away,'ML',away,r.aP,aML,aD,td);};
-    if(bOU&&typeof lockPick==='function')bOU.onclick=function(){lockPick(home,away,'OU',ouDir+' '+_simOu,r.overP,'-110',1.91,td);};
+    if(bOU&&typeof lockPick==='function')bOU.onclick=function(){lockPick(home,away,'OU',ouDir+' '+_simOu,_pAt,'-110',1.91,td);};
   },80);
 }
 
