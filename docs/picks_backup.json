@@ -76495,12 +76495,12 @@
     "lockedAt": 1791811423574,
     "modelProb": 0.7458,
     "reasoning": "PICK: BUF +9.5 \u2014 ADJUSTED LINE (67.3% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted BUF +3.5 to BUF +9.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.4%; the 6-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected margin +2.7 (LAR), total 54.4, from a 25k-sim Monte Carlo.",
+    "settledAt": 1791868492463,
     "blendAlpha": 0.9,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.5,
-    "priceSource": "estimated",
-    "settledAt": 1791868492463
+    "priceSource": "estimated"
   },
   {
     "hA": "LAR",
@@ -76951,6 +76951,60 @@
         "home": 1.06
       }
     }
+  },
+  {
+    "id": "2026-10-13_Atl\u00e9tico Madrid_Manchester United_CL_OVER2.5",
+    "date": "2026-10-13",
+    "hA": "Atl\u00e9tico Madrid",
+    "awA": "Manchester United",
+    "sport": "CL",
+    "league": "CL",
+    "betType": "OU",
+    "betOn": "OVER 2.5",
+    "winProb": 0.6501759057997754,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791879867286,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "form": {
+        "home": 1.011607142857143,
+        "away": 1.0015
+      },
+      "standings": {
+        "home": 1.06,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: OVER 2.5 \u2014 OPTIMAL (65.0% win prob, EV +24.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.28\u20132.06 goals (xG 1.28/2.07), BTTS 63% \u2014 OVER 2.5 hits 64.7% of outcomes, from a 25k-sim Monte Carlo.",
+    "startMs": 1791918000000,
+    "leadMin": 636,
+    "lockTiming": "pre"
   },
   {
     "hA": "Galatasaray",
@@ -77547,87 +77601,681 @@
     }
   },
   {
-    "id": "2026-10-14_IFK Helsinki_TPS Turku_LIIGA_IFKHelsinki+1.5",
+    "id": "2026-10-14_AS Roma_Real Madrid_CL_ASRomaWin",
     "date": "2026-10-14",
+    "hA": "AS Roma",
+    "awA": "Real Madrid",
+    "sport": "CL",
+    "league": "CL",
+    "betType": "ML",
+    "betOn": "AS Roma Win",
+    "winProb": 0.6030668117413903,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791879864827,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "form": {
+        "home": 0.998875,
+        "away": 0.9672468750000001
+      },
+      "standings": {
+        "home": 1.06,
+        "away": 1.06
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: AS Roma Win \u2014 OPTIMAL (60.3% win prob, EV +117.1%)\nMODEL: Projected 1.28\u20131.93 goals (xG 1.28/1.94), BTTS 61%, from a 25k-sim Monte Carlo.\nWHY: xG basis: AS Roma 1.94 xG/G vs Real Madrid 1.28 xG/G. 3-way: Home 60% / Draw 30% / Away 37%. MC proj: 1.93 \u2013 1.28 (3.21 total vs 3.5 line, BTTS 61%). Goal spread: AS Roma -0.5 covers 53%, Real Madrid +0.5 covers 47% (proj margin +0.65). AS Roma xG edge unpriced by market. Kelly 30.0%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: UNDER 3.5 (LEAN), AS Roma -0.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
+    "startMs": 1792004400000,
+    "leadMin": 2076,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-14_Aston Villa_Fenerbahce_CL_Fenerbahce+0.5",
+    "date": "2026-10-14",
+    "hA": "Aston Villa",
+    "awA": "Fenerbahce",
+    "sport": "CL",
+    "league": "CL",
+    "betType": "SPREAD",
+    "betOn": "Fenerbahce +0.5",
+    "winProb": 0.6425679431251855,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791879865530,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.9840489371356684,
+        "away": 0.94
+      },
+      "form": {
+        "home": 1.005125,
+        "away": 1
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: Fenerbahce +0.5 \u2014 OPTIMAL (64.3% win prob, EV +22.7% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.62\u20130.78 goals (xG 0.61/0.77), BTTS 25%, from a 25k-sim Monte Carlo.",
+    "startMs": 1792004400000,
+    "leadMin": 2076,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-14_Aston Villa_Fenerbahce_CL_UNDER2.5",
+    "date": "2026-10-14",
+    "hA": "Aston Villa",
+    "awA": "Fenerbahce",
+    "sport": "CL",
+    "league": "CL",
+    "betType": "OU",
+    "betOn": "UNDER 2.5",
+    "winProb": 0.68,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791879865182,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.9840489371356684,
+        "away": 0.94
+      },
+      "form": {
+        "home": 1.005125,
+        "away": 1
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: UNDER 2.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.62\u20130.78 goals (xG 0.61/0.77), BTTS 25% \u2014 OVER 2.5 hits 16.6% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Aston Villa 0.77 xG/G vs Fenerbahce 0.61 xG/G. 3-way: Home 48% / Draw 45% / Away 33%. MC proj: 0.78 \u2013 0.62 (1.39 total vs 2.5 line, BTTS 25%). Goal spread: Aston Villa -0.5 covers 36%, Fenerbahce +0.5 covers 64% (proj margin +0.16). Combined xG 1.39 supports a tighter, lower-scoring line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Fenerbahce +0.5 (OPTIMAL). Factors moving this pick: Standings (H) -6%, Fbref (A) -6%, Standings (A) -6%.",
+    "startMs": 1792004400000,
+    "leadMin": 2076,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-14_Feyenoord Rotterdam_Como_CL_ComoWin",
+    "date": "2026-10-14",
+    "hA": "Feyenoord Rotterdam",
+    "awA": "Como",
+    "sport": "CL",
+    "league": "CL",
+    "betType": "ML",
+    "betOn": "Como Win",
+    "winProb": 0.798492541840008,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791879864045,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 1.06
+      },
+      "form": {
+        "home": 1,
+        "away": 0.9858750000000001
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 1.06
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: Como Win \u2014 PREMIUM (79.8% win prob, EV +55.9%)\nMODEL: Projected 3.51\u20130.89 goals (xG 3.53/0.90), BTTS 57%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Feyenoord Rotterdam 0.90 xG/G vs Como 3.53 xG/G. 3-way: Home 13% / Draw 15% / Away 80%. MC proj: 0.89 \u2013 3.51 (4.41 total vs 3.5 line, BTTS 57%). Goal spread: Como -2.5 covers 50%, Feyenoord Rotterdam +2.5 covers 50% (proj margin -2.62). Como road xG edge underpriced. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: OVER 3.5 (OPTIMAL), Como -2.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
+    "startMs": 1791996300000,
+    "leadMin": 1941,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-14_Feyenoord Rotterdam_Como_CL_OVER3.5",
+    "date": "2026-10-14",
+    "hA": "Feyenoord Rotterdam",
+    "awA": "Como",
+    "sport": "CL",
+    "league": "CL",
+    "betType": "OU",
+    "betOn": "OVER 3.5",
+    "winProb": 0.6447390422807937,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791879864327,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 1.06
+      },
+      "form": {
+        "home": 1,
+        "away": 0.9858750000000001
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 1.06
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: OVER 3.5 \u2014 OPTIMAL (64.5% win prob, EV +23.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 3.51\u20130.89 goals (xG 3.53/0.90), BTTS 57% \u2014 OVER 3.5 hits 64.4% of outcomes, from a 25k-sim Monte Carlo.",
+    "startMs": 1791996300000,
+    "leadMin": 1941,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "IFK Helsinki",
-    "awA": "TPS Turku",
-    "sport": "LIIGA",
-    "league": "LIIGA",
-    "betType": "SPREAD",
-    "betOn": "IFK Helsinki +1.5",
-    "winProb": 0.6779103538266982,
+    "id": "2026-10-14_IFK Helsinki_TPS Turku_LIIGA_IFKHelsinki+1.5",
     "ml": "-250",
+    "awA": "TPS Turku",
+    "date": "2026-10-14",
+    "betOn": "IFK Helsinki +1.5",
+    "sport": "LIIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "LIIGA",
+    "source": "manual",
+    "betType": "SPREAD",
     "decOdds": 1.4,
-    "wager": 0,
+    "leadMin": 1890,
     "outcome": "pending",
+    "startMs": 1791991800000,
+    "winProb": 0.6779103538266982,
     "lockedAt": 1791878394892,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "reasoning": "PICK: IFK Helsinki +1.5 \u2014 HIGH PROB (67.8% win prob, EV -5.1% \u00b7 MARKET PRICE -250 (EV at market -5.1%) \u00b7 MARKET-BLENDED: model 69.5% \u00b7 no-vig market 67.1% \u2192 67.8% (alpha 0.70))\nMODEL: Projected 2.7\u20132.8 (total 5.6) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: IFK Helsinki 2.67/3.07 (11GP this season, 60GP prior) vs TPS Turku 2.51/2.58 (11GP, 60GP prior). Market line: 5.5 (IFK Helsinki 5.51, TPS Turku 4.89). Record: IFK Helsinki 3-5-1OTW-2OTL vs TPS Turku 5-5-1OTL. Exact-Poisson proj: TPS Turku 2.7 \u2013 IFK Helsinki 2.8 (5.6 total vs 5.5 line). IFK Helsinki +1.5 covers in 67.8% of the model's blended scoring+margin projection (fav covers 32.2%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 46.6% \u00b7 no-vig market 44.6% \u2192 45.1%; Puck line market blend (alpha 0.70): model 30.5% \u00b7 no-vig market 32.9% \u2192 32.2%; O/U market blend (alpha 0.65): model 48.0% \u00b7 no-vig market 43.6% \u2192 45.1%. Half-unit play.",
-    "priceSource": "market",
     "modelProb": 0.6947,
+    "reasoning": "PICK: IFK Helsinki +1.5 \u2014 HIGH PROB (67.8% win prob, EV -5.1% \u00b7 MARKET PRICE -250 (EV at market -5.1%) \u00b7 MARKET-BLENDED: model 69.5% \u00b7 no-vig market 67.1% \u2192 67.8% (alpha 0.70))\nMODEL: Projected 2.7\u20132.8 (total 5.6) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: IFK Helsinki 2.67/3.07 (11GP this season, 60GP prior) vs TPS Turku 2.51/2.58 (11GP, 60GP prior). Market line: 5.5 (IFK Helsinki 5.51, TPS Turku 4.89). Record: IFK Helsinki 3-5-1OTW-2OTL vs TPS Turku 5-5-1OTL. Exact-Poisson proj: TPS Turku 2.7 \u2013 IFK Helsinki 2.8 (5.6 total vs 5.5 line). IFK Helsinki +1.5 covers in 67.8% of the model's blended scoring+margin projection (fav covers 32.2%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 46.6% \u00b7 no-vig market 44.6% \u2192 45.1%; Puck line market blend (alpha 0.70): model 30.5% \u00b7 no-vig market 32.9% \u2192 32.2%; O/U market blend (alpha 0.65): model 48.0% \u00b7 no-vig market 43.6% \u2192 45.1%. Half-unit play.",
+    "blendAlpha": 0.7,
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
     "marketProb": 0.6706,
-    "blendAlpha": 0.7,
-    "startMs": 1791991800000,
-    "leadMin": 1890,
-    "lockTiming": "pre"
+    "priceSource": "market"
   },
   {
-    "id": "2026-10-14_JYP_Lukko_LIIGA_Lukko+1.5",
-    "date": "2026-10-14",
     "hA": "JYP",
-    "awA": "Lukko",
-    "sport": "LIIGA",
-    "league": "LIIGA",
-    "betType": "SPREAD",
-    "betOn": "Lukko +1.5",
-    "winProb": 0.6839679738716153,
+    "id": "2026-10-14_JYP_Lukko_LIIGA_Lukko+1.5",
     "ml": "-270",
+    "awA": "Lukko",
+    "date": "2026-10-14",
+    "betOn": "Lukko +1.5",
+    "sport": "LIIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "LIIGA",
+    "source": "manual",
+    "betType": "SPREAD",
     "decOdds": 1.37,
+    "leadMin": 1890,
+    "outcome": "pending",
+    "startMs": 1791991800000,
+    "winProb": 0.6839679738716153,
+    "lockedAt": 1791878395185,
+    "modelProb": 0.678,
+    "reasoning": "PICK: Lukko +1.5 \u2014 HIGH PROB (68.4% win prob, EV -6.3% \u00b7 MARKET PRICE -270 (EV at market -6.3%) \u00b7 MARKET-BLENDED: model 67.8% \u00b7 no-vig market 68.7% \u2192 68.4% (alpha 0.70))\nMODEL: Projected 2.8\u20132.8 (total 5.6) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: JYP 3.18/2.75 (10GP this season, 60GP prior) vs Lukko 2.84/2.33 (11GP, 60GP prior). Market line: 5.5 (JYP 5.80, Lukko 5.00). Record: JYP 7-3 vs Lukko 6-4-1OTW. Exact-Poisson proj: Lukko 2.8 \u2013 JYP 2.8 (5.6 total vs 5.5 line). Lukko +1.5 covers in 68.4% of the model's blended scoring+margin projection (fav covers 31.6%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 59.9% \u00b7 no-vig market 52.0% \u2192 54.0%; Puck line market blend (alpha 0.70): model 32.2% \u00b7 no-vig market 31.4% \u2192 31.6%; O/U market blend (alpha 0.65): model 48.3% \u00b7 no-vig market 48.0% \u2192 48.1%. Half-unit play.",
+    "blendAlpha": 0.7,
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "marketProb": 0.6865,
+    "priceSource": "market"
+  },
+  {
+    "hA": "KalPa",
+    "id": "2026-10-14_KalPa_Assat_LIIGA_KalPa+1.5",
+    "ml": "-286",
+    "awA": "Assat",
+    "date": "2026-10-14",
+    "betOn": "KalPa +1.5",
+    "sport": "LIIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "LIIGA",
+    "source": "manual",
+    "betType": "SPREAD",
+    "decOdds": 1.35,
+    "leadMin": 1890,
+    "outcome": "pending",
+    "startMs": 1791991800000,
+    "winProb": 0.7018847687506214,
+    "lockedAt": 1791878395357,
+    "modelProb": 0.6909,
+    "reasoning": "PICK: KalPa +1.5 \u2014 HIGH PROB (70.2% win prob, EV -5.3% \u00b7 MARKET PRICE -286 (EV at market -5.3%) \u00b7 MARKET-BLENDED: model 69.1% \u00b7 no-vig market 70.7% \u2192 70.2% (alpha 0.70))\nMODEL: Projected 2.6\u20132.6 (total 5.3) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: KalPa 2.74/2.79 (11GP this season, 60GP prior) vs Assat 2.63/2.45 (12GP, 60GP prior). Market line: 5.5 (KalPa 5.40, Assat 4.86). Record: KalPa 4-6-1OTL vs Assat 6-3-1OTW-2OTL. Exact-Poisson proj: Assat 2.6 \u2013 KalPa 2.6 (5.3 total vs 5.5 line). KalPa +1.5 covers in 70.2% of the model's blended scoring+margin projection (fav covers 29.8%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 47.0% \u00b7 no-vig market 48.0% \u2192 47.7%; Puck line market blend (alpha 0.70): model 30.9% \u00b7 no-vig market 29.3% \u2192 29.8%; O/U market blend (alpha 0.65): model 43.0% \u00b7 no-vig market 38.6% \u2192 40.1%. Half-unit play.",
+    "blendAlpha": 0.7,
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "marketProb": 0.7065,
+    "priceSource": "market"
+  },
+  {
+    "id": "2026-10-14_LASK Linz_Liverpool_CL_UNDER3.5",
+    "date": "2026-10-14",
+    "hA": "LASK Linz",
+    "awA": "Liverpool",
+    "sport": "CL",
+    "league": "CL",
+    "betType": "OU",
+    "betOn": "UNDER 3.5",
+    "winProb": 0.68,
+    "ml": "-110",
+    "decOdds": 1.91,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1791878395185,
+    "lockedAt": 1791879864647,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
-    "reasoning": "PICK: Lukko +1.5 \u2014 HIGH PROB (68.4% win prob, EV -6.3% \u00b7 MARKET PRICE -270 (EV at market -6.3%) \u00b7 MARKET-BLENDED: model 67.8% \u00b7 no-vig market 68.7% \u2192 68.4% (alpha 0.70))\nMODEL: Projected 2.8\u20132.8 (total 5.6) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: JYP 3.18/2.75 (10GP this season, 60GP prior) vs Lukko 2.84/2.33 (11GP, 60GP prior). Market line: 5.5 (JYP 5.80, Lukko 5.00). Record: JYP 7-3 vs Lukko 6-4-1OTW. Exact-Poisson proj: Lukko 2.8 \u2013 JYP 2.8 (5.6 total vs 5.5 line). Lukko +1.5 covers in 68.4% of the model's blended scoring+margin projection (fav covers 31.6%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 59.9% \u00b7 no-vig market 52.0% \u2192 54.0%; Puck line market blend (alpha 0.70): model 32.2% \u00b7 no-vig market 31.4% \u2192 31.6%; O/U market blend (alpha 0.65): model 48.3% \u00b7 no-vig market 48.0% \u2192 48.1%. Half-unit play.",
-    "priceSource": "market",
-    "modelProb": 0.678,
-    "marketProb": 0.6865,
-    "blendAlpha": 0.7,
-    "startMs": 1791991800000,
-    "leadMin": 1890,
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 1.06
+      },
+      "form": {
+        "home": 1,
+        "away": 0.9854805555555556
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 1.06
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: UNDER 3.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.35\u20130.61 goals (xG 1.36/0.61), BTTS 34% \u2014 OVER 3.5 hits 13.5% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: LASK Linz 0.61 xG/G vs Liverpool 1.36 xG/G. 3-way: Home 21% / Draw 34% / Away 69%. MC proj: 0.61 \u2013 1.35 (1.97 total vs 3.5 line, BTTS 34%). Goal spread: Liverpool -0.5 covers 55%, LASK Linz +0.5 covers 45% (proj margin -0.74). Combined xG 1.97 supports a tighter, lower-scoring line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Liverpool -0.5 (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Fbref (A) +6%, Standings (A) +6%.",
+    "startMs": 1791996300000,
+    "leadMin": 1941,
     "lockTiming": "pre"
   },
   {
-    "id": "2026-10-14_KalPa_Assat_LIIGA_KalPa+1.5",
+    "id": "2026-10-14_Real Betis_FC Porto_CL_RealBetisWin",
     "date": "2026-10-14",
-    "hA": "KalPa",
-    "awA": "Assat",
-    "sport": "LIIGA",
-    "league": "LIIGA",
-    "betType": "SPREAD",
-    "betOn": "KalPa +1.5",
-    "winProb": 0.7018847687506214,
-    "ml": "-286",
-    "decOdds": 1.35,
+    "hA": "Real Betis",
+    "awA": "FC Porto",
+    "sport": "CL",
+    "league": "CL",
+    "betType": "ML",
+    "betOn": "Real Betis Win",
+    "winProb": 0.7884383670173405,
+    "ml": "-110",
+    "decOdds": 1.91,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1791878395357,
+    "lockedAt": 1791879865768,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
-    "reasoning": "PICK: KalPa +1.5 \u2014 HIGH PROB (70.2% win prob, EV -5.3% \u00b7 MARKET PRICE -286 (EV at market -5.3%) \u00b7 MARKET-BLENDED: model 69.1% \u00b7 no-vig market 70.7% \u2192 70.2% (alpha 0.70))\nMODEL: Projected 2.6\u20132.6 (total 5.3) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: KalPa 2.74/2.79 (11GP this season, 60GP prior) vs Assat 2.63/2.45 (12GP, 60GP prior). Market line: 5.5 (KalPa 5.40, Assat 4.86). Record: KalPa 4-6-1OTL vs Assat 6-3-1OTW-2OTL. Exact-Poisson proj: Assat 2.6 \u2013 KalPa 2.6 (5.3 total vs 5.5 line). KalPa +1.5 covers in 70.2% of the model's blended scoring+margin projection (fav covers 29.8%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 47.0% \u00b7 no-vig market 48.0% \u2192 47.7%; Puck line market blend (alpha 0.70): model 30.9% \u00b7 no-vig market 29.3% \u2192 29.8%; O/U market blend (alpha 0.65): model 43.0% \u00b7 no-vig market 38.6% \u2192 40.1%. Half-unit play.",
-    "priceSource": "market",
-    "modelProb": 0.6909,
-    "marketProb": 0.7065,
-    "blendAlpha": 0.7,
-    "startMs": 1791991800000,
-    "leadMin": 1890,
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 1.0544724745349892,
+        "away": 0.94
+      },
+      "form": {
+        "home": 1.0329285714285714,
+        "away": 1
+      },
+      "standings": {
+        "home": 1.06,
+        "away": 0.94
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: Real Betis Win \u2014 PREMIUM (78.8% win prob, EV +61.6%)\nMODEL: Projected 0.37\u20132.47 goals (xG 0.37/2.47), BTTS 28%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Real Betis 2.47 xG/G vs FC Porto 0.37 xG/G. 3-way: Home 79% / Draw 19% / Away 10%. MC proj: 2.47 \u2013 0.37 (2.84 total vs 2.5 line, BTTS 28%). Goal spread: Real Betis -2.5 covers 38%, FC Porto +2.5 covers 62% (proj margin +2.10). Real Betis xG edge unpriced by market. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: FC Porto +2.5 (OPTIMAL), OVER 2.5 (LEAN). Factors moving this pick: Standings +6%, Fbref +5%, Form +3%.",
+    "startMs": 1792004400000,
+    "leadMin": 2076,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-14_Shakhtar Donetsk_AEK Athens_CL_AEKAthens+0.5",
+    "date": "2026-10-14",
+    "hA": "Shakhtar Donetsk",
+    "awA": "AEK Athens",
+    "sport": "CL",
+    "league": "CL",
+    "betType": "SPREAD",
+    "betOn": "AEK Athens +0.5",
+    "winProb": 1,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791879866135,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "form": {
+        "home": 1,
+        "away": 1
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 1.06
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: AEK Athens +0.5 \u2014 PREMIUM (100.0% win prob, EV +90.9% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.45\u20130.88 goals (xG 0.45/0.90), BTTS 21%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Shakhtar Donetsk 0.00 xG/G vs AEK Athens 0.45 xG/G. 3-way: Home 59% / Draw 45% / Away 27%. MC proj: 0.88 \u2013 0.45 (1.33 total vs 2.5 line, BTTS 21%). Goal spread: Shakhtar Donetsk -0.5 covers 0%, AEK Athens +0.5 covers 100% (proj margin +0.43). AEK Athens priced to survive within 0.5 even if outscored. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: UNDER 2.5 (PREMIUM), Shakhtar Donetsk Win (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Fbref (A) -6%, Standings (A) +6%.",
+    "startMs": 1792004400000,
+    "leadMin": 2076,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-14_Shakhtar Donetsk_AEK Athens_CL_UNDER2.5",
+    "date": "2026-10-14",
+    "hA": "Shakhtar Donetsk",
+    "awA": "AEK Athens",
+    "sport": "CL",
+    "league": "CL",
+    "betType": "OU",
+    "betOn": "UNDER 2.5",
+    "winProb": 0.68,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791879866390,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 0.94
+      },
+      "form": {
+        "home": 1,
+        "away": 1
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 1.06
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: UNDER 2.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.45\u20130.88 goals (xG 0.45/0.90), BTTS 21% \u2014 OVER 2.5 hits 14.7% of outcomes, from a 25k-sim Monte Carlo.",
+    "startMs": 1792004400000,
+    "leadMin": 2076,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-14_Slovan Bratislava_VfB Stuttgart_CL_OVER3.5",
+    "date": "2026-10-14",
+    "hA": "Slovan Bratislava",
+    "awA": "VfB Stuttgart",
+    "sport": "CL",
+    "league": "CL",
+    "betType": "OU",
+    "betOn": "OVER 3.5",
+    "winProb": 0.68,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791879866576,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 1.0573693883626472
+      },
+      "form": {
+        "home": 1,
+        "away": 0.9757
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 0.9994505494505496
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: OVER 3.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 3.86\u20131.36 goals (xG 3.84/1.37), BTTS 73% \u2014 OVER 3.5 hits 76.8% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Slovan Bratislava 1.37 xG/G vs VfB Stuttgart 3.84 xG/G. 3-way: Home 12% / Draw 15% / Away 80%. MC proj: 1.36 \u2013 3.86 (5.23 total vs 3.5 line, BTTS 73%). Goal spread: VfB Stuttgart -2.5 covers 48%, Slovan Bratislava +2.5 covers 52% (proj margin -2.50). Combined xG 5.23 supports goals above the line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Slovan Bratislava +2.5 (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Fbref (A) +6%.",
+    "startMs": 1792004400000,
+    "leadMin": 2076,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-14_Slovan Bratislava_VfB Stuttgart_CL_VfBStuttgartWin",
+    "date": "2026-10-14",
+    "hA": "Slovan Bratislava",
+    "awA": "VfB Stuttgart",
+    "sport": "CL",
+    "league": "CL",
+    "betType": "ML",
+    "betOn": "VfB Stuttgart Win",
+    "winProb": 0.8046356284212524,
+    "ml": "-110",
+    "decOdds": 1.91,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1791879866934,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "socFactors": {
+      "style": {
+        "home": 1,
+        "away": 1
+      },
+      "power": {
+        "home": 1,
+        "away": 1
+      },
+      "advanced": {
+        "home": 1,
+        "away": 1
+      },
+      "fbref": {
+        "home": 0.94,
+        "away": 1.0573693883626472
+      },
+      "form": {
+        "home": 1,
+        "away": 0.9757
+      },
+      "standings": {
+        "home": 0.94,
+        "away": 0.9994505494505496
+      },
+      "h2h": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    "reasoning": "PICK: VfB Stuttgart Win \u2014 SKIP (80.5% win prob, EV +4.1%)\nMODEL: Projected 3.86\u20131.36 goals (xG 3.84/1.37), BTTS 73%, from a 25k-sim Monte Carlo.",
+    "startMs": 1792004400000,
+    "leadMin": 2076,
     "lockTiming": "pre"
   },
   {
