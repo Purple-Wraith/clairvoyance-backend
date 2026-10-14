@@ -794,9 +794,10 @@ rect.mom-pin{fill:rgba(255,221,0,.09)}line.mom-pin{stroke:var(--gc);stroke-width
 .prow2-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .prow2-top .ptag,.prow2-top .pill{box-sizing:border-box;width:104px;height:26px;padding:0 6px!important;display:inline-flex!important;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px!important;font-weight:400;letter-spacing:.5px;line-height:1;border-radius:2px!important;white-space:nowrap;text-transform:uppercase}
 .prow2-top .pill{font-weight:700!important}
+.prow2-top .ptag{max-width:100%;overflow:hidden}   /* whatever the device font does, a tag's text can never paint outside its own border */
 .ptag-sub{border:1px solid rgba(240,0,255,.6);color:#f000ff;text-shadow:0 0 6px rgba(240,0,255,.8)}
 .ptag-lg{border:1px solid var(--nc);color:var(--nc)}
-.prow2-top .ptag.ptag-long{font-size:10px!important;letter-spacing:0;white-space:normal;line-height:1.05;text-align:center;padding:0 4px!important}   /* CHAMPIONS LEAGUE / PREMIER LEAGUE are wider than the fixed 104px tag: wrap to two lines inside it instead of spilling out */
+.prow2-top .ptag.ptag-long{font-size:10px!important;letter-spacing:0;white-space:normal;overflow:hidden;overflow-wrap:anywhere;line-height:1.05;text-align:center;padding:0 3px!important}   /* CHAMPIONS LEAGUE / PREMIER LEAGUE are wider than the fixed 104px tag: wrap to two lines inside it instead of spilling out */
 .ptag-date{border:1px solid rgba(255,255,255,.15);color:var(--nc)}
 .prow2-side{display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex:0 0 auto;align-self:stretch}
 .prow2-match{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:15px;color:var(--t2);flex-wrap:wrap}
