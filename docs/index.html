@@ -7415,6 +7415,7 @@ function applyNHLEdgeData(edge){
     if(r.ga60!=null)NHL[abbr].ga60=r.ga60;
     if(r.pp!=null)NHL[abbr].pp=r.pp;
     if(r.pk!=null)NHL[abbr].pk=r.pk;
+    if(r.priorW!=null)NHL[abbr].priorW=r.priorW;   // last season's share of this team's rates (fetch_nhl_edge) -- nhlMC fades its CURRENT-season-only signals by the same amount
   }
   _nhlDeriveHV();
 }
@@ -7673,7 +7674,9 @@ async function renderGoaliesFromBackend(){
 // League-average reference points for the special-teams/shot-quality/
 // goaltending nudges below -- centering points only, not claimed as
 // precise constants, same role _CFB_MEDIAN_CAPACITY plays for CFB.
-const _NHL_LG_PP=.205,_NHL_LG_PK=.795,_NHL_LG_GA60=2.9,_NHL_LG_GF60=2.9;
+// league-total normaliser for nhlMC's lambdas (the zone/speed/special-teams/shot-quality/goalie multipliers net slightly >1 across a full league round-robin): fitted 2026-10-13 so the all-pairs mean projected total = the real ~6.1 goals/game
+const _NHL_LAM_NORM=.93;
+const _NHL_LG_PP=.205,_NHL_LG_PK=.795,_NHL_LG_GA60=3.0,_NHL_LG_GF60=3.0;
 // ── NHL recent-form term (added 2026-10-03, explicit request) ──────────────────────
 // A team's OWN scoring over its last NHL_FORM_N completed games vs its season-rate input (h.gf60), applied as a
 // multiplier on that team's OWN lambda only -- never the opponent's allowed-goals side -- the same convention
@@ -7829,8 +7832,14 @@ function _nhlInjNote(mc){
 function nhlMC(hA,awA,n=25000,marketOU){
   const h=NHL[hA],aw=NHL[awA];if(!h||!aw)return null;
   const hfa=.055;
-  const hOff=h.gf60*(1+(h.hv.off-aw.hv.def)*.11)*(1+h.hv.fin*.04);
-  const aOff=aw.gf60*(1+(aw.hv.off-h.hv.def)*.11)*(1+aw.hv.fin*.04);
+  // Current-season-only signals (MoneyPuck z-scored hv.off/def/fin for the 28 derived teams, goalie gsax/hdsv, live Corsi/HDCF) have NO last-season counterpart, so they get the
+  // current-season share of the owner's blend (1 - priorW: 10% after 2 games, 30% after 5, 60% after 10, 80% after 15, 100% from 20) instead of full weight off 5 games.
+  // 2026-10-13: a 5-game z-score of +-2 was moving a team's scoring rate +-40% and ranging projected totals 4.0-9.7. Hand-curated teams keep their full hv. Fail-open to 1 (no priorW).
+  const cs=t=>t._syntheticEntry?Math.max(0,Math.min(1,1-(t.priorW||0))):1;
+  const hCs=cs(h),aCs=cs(aw);
+  const hvTerm=(o,d)=>Math.max(-.15,Math.min(.15,(o-d)*.11));
+  const hOff=h.gf60*(1+hvTerm(h.hv.off*hCs,aw.hv.def*aCs))*(1+h.hv.fin*hCs*.04);
+  const aOff=aw.gf60*(1+hvTerm(aw.hv.off*aCs,h.hv.def*hCs))*(1+aw.hv.fin*aCs*.04);
   const hZone=h.edge?.zone_off||h.edge?.zoneOff||50,aZone=aw.edge?.zone_off||aw.edge?.zoneOff||50;
   const hZadj=1+(hZone-50)*.006,aZadj=1+(aZone-50)*.006;
   const hSpd=h.edge?.avg_spd||h.edge?.spd||20.5,aSpd=aw.edge?.avg_spd||aw.edge?.spd||20.5;
@@ -7856,8 +7865,8 @@ function nhlMC(hA,awA,n=25000,marketOU){
   const hHdcfVal=hLiveCf?.hdcfPct!=null?hLiveCf.hdcfPct*100:(h.hdcf??50);
   const aCfVal=aLiveCf?.cfPct!=null?aLiveCf.cfPct*100:(aw.cf5!=null?aw.cf5*100:50);
   const aHdcfVal=aLiveCf?.hdcfPct!=null?aLiveCf.hdcfPct*100:(aw.hdcf??50);
-  const hSqAdj=sqAdj(((hCfVal-50)+(hHdcfVal-50))/2*.002);
-  const aSqAdj=sqAdj(((aCfVal-50)+(aHdcfVal-50))/2*.002);
+  const hSqAdj=sqAdj(((hCfVal-50)+(hHdcfVal-50))/2*.002*hCs);
+  const aSqAdj=sqAdj(((aCfVal-50)+(aHdcfVal-50))/2*.002*aCs);
   // Goaltending: gsax stays the primary driver (already the sim's own
   // signal), but sv%/high-danger sv% now refine it into a composite
   // instead of being scraped and never read -- a secondary 30% weight,
@@ -7867,9 +7876,10 @@ function nhlMC(hA,awA,n=25000,marketOU){
   // composite is scaled by (1-severity) -- neutralised toward league average, fail-open to the exact old value (gk.mp = gk.edge = 0).
   const injH=_nhlInjAdj(hA),injA=_nhlInjAdj(awA);
   const goalieComposite=(t,gk)=>{
-    const gsaxPart=(t.gsax??0)*.7*(1-gk.mp);
+    const tc=t===h?hCs:aCs;   // gsax / hdsv are this-season-only MoneyPuck numbers; sv% is already prior-blended in the Edge file
+    const gsaxPart=(t.gsax??0)*.7*(1-gk.mp)*tc;
     const svPart=t.sv!=null?(t.sv-.91)*100*.18*(1-gk.edge):0;
-    const hdsvPart=t.hdsv!=null?(t.hdsv-.90)*100*.12*(1-gk.mp):0;
+    const hdsvPart=t.hdsv!=null?(t.hdsv-.90)*100*.12*(1-gk.mp)*tc:0;
     return gsaxPart+svPart+hdsvPart;
   };
   const hGlv=Math.max(.87,Math.min(1.13,1-(goalieComposite(aw,injA.goalie)/80))),aGlv=Math.max(.87,Math.min(1.13,1-(goalieComposite(h,injH.goalie)/80)));
@@ -7877,13 +7887,16 @@ function nhlMC(hA,awA,n=25000,marketOU){
   // the hv.def qualitative rating already in hOff/aOff above -- a real,
   // independently-scraped rate stat, kept small since hv.def already
   // covers most of the same ground.
-  const gaAdj=v=>Math.max(.97,Math.min(1.03,1+v));
-  const hGaAdj=gaAdj(((aw.ga60??_NHL_LG_GA60)-_NHL_LG_GA60)*-.03);
-  const aGaAdj=gaAdj(((h.ga60??_NHL_LG_GA60)-_NHL_LG_GA60)*-.03);
+  // 2026-10-13 SCALE FIX: lambda is now the team's goals-per-game rate (gf60, ~3.0) times the OPPONENT's goals-against rate relative to league (ga60/LG, +-15%), so a
+  // league-average pair projects ~6.0 total like the real ~6.1 (89 games played). It was gf60*.55 with ga60 worth +-3%: every projection ran ~3.0-4.5, which made nearly every
+  // UNDER 6.5 read 85-97% and every +1.5 cover read 80%+ (the whole 10-13 slate flagged as 'best market UNDER'). Recent form + the 70/30 fade of last season's rates are in gf60/ga60 already.
+  const gaAdj=v=>Math.max(.9,Math.min(1.1,Math.sqrt(v)));   // sqrt: ga60 already contains the goalie's results (goalieComposite below) and is a few-games rate early on -- half the raw ratio, +-10%
+  const hGaAdj=gaAdj((aw.ga60??_NHL_LG_GA60)/_NHL_LG_GA60);
+  const aGaAdj=gaAdj((h.ga60??_NHL_LG_GA60)/_NHL_LG_GA60);
   // Recent own-scoring form (see NHL_FORM_* above) -- each team's OWN lambda only. Exactly 1.0 today (NHL_FORM_K=0).
   const hForm=_nhlFormFactor(hA,h.gf60),aForm=_nhlFormFactor(awA,aw.gf60);
-  const hLam=Math.max(.4,hOff*.55*hGlv*(1+hfa)*hZadj*hSadj*(1+mpAdj)*hStAdj*hSqAdj*hGaAdj*hForm.mult*(1-injH.frac));
-  const aLam=Math.max(.4,aOff*.55*aGlv*(1-hfa*.5)*aZadj*aSadj*(1-mpAdj)*aStAdj*aSqAdj*aGaAdj*aForm.mult*(1-injA.frac));
+  const hLam=Math.max(.4,hOff*_NHL_LAM_NORM*hGlv*(1+hfa)*hZadj*hSadj*(1+mpAdj)*hStAdj*hSqAdj*hGaAdj*hForm.mult*(1-injH.frac));
+  const aLam=Math.max(.4,aOff*_NHL_LAM_NORM*aGlv*(1-hfa*.5)*aZadj*aSadj*(1-mpAdj)*aStAdj*aSqAdj*aGaAdj*aForm.mult*(1-injA.frac));
   // Real bug fixed 2026-09-29: this used to ONLY check the hardcoded
   // TONIGHT array (a single stale entry from last season's Cup Final),
   // so for every real 2026-27 matchup ouLine silently fell back to a

@@ -217,7 +217,7 @@ const ctx={console,Date,Math,JSON,String,Array,Object,isFinite,parseFloat,Number
 ctx.window={};
 vm.createContext(ctx);
 function run(code){return vm.runInContext(code,ctx);}
-run('var NHL={}; var _NFL_DATA=null; const _NHL_LG_GF60=2.9;');
+run('var NHL={}; var _NFL_DATA=null; const _NHL_LG_GF60=3.0;');
 run(%(NHL_BLOCK)s);
 run(%(NFL_BLOCK)s);
 run('const _CFB_WX_CACHE={}; const cfbWeatherImpact=()=>({totalAdj:0,label:""}); const _forceHalfLine=x=>Math.round(x*2)/2; const _boxMullerZ=()=>0; const _NFL_LG_TOTAL=44, _NFL_SIGMA_MARGIN=13.5,_NFL_SIGMA_TOTAL=10.0; function _nflHFA(){return 1.8;}');
@@ -321,7 +321,7 @@ class AppSide(unittest.TestCase):
         cls.R = run_node()
 
     def test_constants_match_what_the_python_side_assumes(self):
-        self.assertIn("_NHL_LG_GF60=2.9", APP)
+        self.assertIn("_NHL_LG_GF60=3.0", APP)
         self.assertIn("NHL_INJ_REPL_PPG={F:.30,D:.20}", APP)       # scripts/_nhl_skaters.py POS_DEFAULT_PPG == replacement level
         self.assertEqual(K.POS_DEFAULT_PPG, {"F": 0.30, "D": 0.20})
 
@@ -348,18 +348,18 @@ class AppSide(unittest.TestCase):
         self.assertEqual(a["players"][0]["pct"], 5.0)
 
     def test_nhl_regular_forward_magnitude_and_severity(self):
-        self.assertAlmostEqual(self.R["nhl_good"]["frac"], (0.80 - 0.30) * 0.20 / 2.9, places=6)           # ~3.4%
-        self.assertAlmostEqual(self.R["nhl_quest"]["frac"], 0.3 * (0.80 - 0.30) * 0.20 / 2.9, places=6)
-        self.assertAlmostEqual(self.R["nhl_pastreturn"]["frac"], 0.5 * (0.80 - 0.30) * 0.20 / 2.9, places=6)
-        self.assertAlmostEqual(self.R["nhl_d"]["frac"], (0.60 - 0.20) * 0.20 / 2.9, places=6)
+        self.assertAlmostEqual(self.R["nhl_good"]["frac"], (0.80 - 0.30) * 0.20 / 3.0, places=6)           # ~3.4%
+        self.assertAlmostEqual(self.R["nhl_quest"]["frac"], 0.3 * (0.80 - 0.30) * 0.20 / 3.0, places=6)
+        self.assertAlmostEqual(self.R["nhl_pastreturn"]["frac"], 0.5 * (0.80 - 0.30) * 0.20 / 3.0, places=6)
+        self.assertAlmostEqual(self.R["nhl_d"]["frac"], (0.60 - 0.20) * 0.20 / 3.0, places=6)
 
     def test_nhl_team_cap_8pct(self):
         self.assertAlmostEqual(self.R["nhl_teamcap"]["frac"], 0.08)
         self.assertEqual(len(self.R["nhl_teamcap"]["players"]), 5)
 
     def test_nhl_same_name_resolved_by_position_group(self):
-        self.assertAlmostEqual(self.R["nhl_aho_f"]["frac"], (0.97 - 0.30) * 0.20 / 2.9, places=6)
-        self.assertAlmostEqual(self.R["nhl_aho_d"]["frac"], (0.41 - 0.20) * 0.20 / 2.9, places=6)
+        self.assertAlmostEqual(self.R["nhl_aho_f"]["frac"], (0.97 - 0.30) * 0.20 / 3.0, places=6)
+        self.assertAlmostEqual(self.R["nhl_aho_d"]["frac"], (0.41 - 0.20) * 0.20 / 3.0, places=6)
 
     def test_nhl_goalie_rule(self):
         # fixture: BOS's MoneyPuck (gsax/hdsv) goalie is Swayman, its NHL-stats (sv) goalie is Ullmark -- each feed is neutralised independently

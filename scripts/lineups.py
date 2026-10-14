@@ -70,7 +70,7 @@ LINEUP_MATCH_TOLERANCE_MIN = 180 # an ESPN event matches a leg when home+away ag
 # ── NHL RULES ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 NHL_MC_ENSEMBLE_WEIGHT = 0.64    # nhlEns: mc.hwP*(.64/.50)*NHL_ENS.mc at the default NHL_ENS (.50): share of the ensemble that is the goal-rate simulation
 NHL_GSAX_ENSEMBLE_WEIGHT = 0.19  # nhlEns: edgeRaw = gE*.19 ..., gE = (home gsax - away gsax)/100 enters the ensemble at weight 1 (edgeRaw*(1/.30)*.30)
-NHL_LG_GOALS = 2.9               # app.html _NHL_LG_GF60: scoring rate used only when the pick carries no "MC PROJ" line to size the sensitivity
+NHL_LG_GOALS = 3.0               # app.html _NHL_LG_GF60: scoring rate used only when the pick carries no "MC PROJ" line to size the sensitivity
 NHL_REPLACEMENT_MIN_SHOTS = 60   # a replacement goalie needs at least this many shots faced (about two starts) before his own season rows are used: the model's composite
                                  # reads a goalie with 9 shots faced and 0-for-1 on high-danger chances as -10.9 (hdsv term), which is noise.  Below it he is rated league
                                  # average, the same neutral value the model gives an injured starter.  (The goalie the model ALREADY rates is mirrored as-is.)

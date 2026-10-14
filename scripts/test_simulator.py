@@ -155,9 +155,9 @@ class Sim(unittest.TestCase):
 
     def test_ii_posted_line_pulls_the_total_toward_the_market_with_the_engines_weights(self):
         hp = "{line:%s,src:'test',overDec:1.909,underDec:1.909,priceSrc:'assumed',hMLdec:null,aMLdec:null,dMLdec:null,game:{}}"
-        lo = self.sim("nhl", "BOS", "CHI", None, hp % "6.5")
+        lo = self.sim("nhl", "BOS", "CHI", None, hp % "8.5")
         none = self.sim("nhl", "BOS", "CHI", None, "null")
-        self.assertGreater(lo["center"], none["center"] + 1.0)                              # model total ~3.7, market 6.5 -> hockey alpha pulls it most of the way
+        self.assertGreater(lo["center"], none["center"] + 1.0)                              # model total ~6.1, market 8.5 -> hockey alpha pulls it most of the way
         self.assertGreater(lo["wMkt"], 0.6)                                                  # HOCKEY_MKT_BLEND_ALPHA.OU .65 (+ early-season ramp)
         nfl = self.sim("nfl", "Kansas City Chiefs", "Buffalo Bills", None, hp % "44.5")
         self.assertAlmostEqual(nfl["totMean"], 44.5, delta=2.0)                              # NFL_MKT_ANCHOR.total: model weight <= 10% -> ~the line
