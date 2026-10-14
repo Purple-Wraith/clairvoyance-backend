@@ -6,10 +6,10 @@
     "detail": "settle check ran -- nothing pending to settle"
   },
   "lastLock": {
-    "tsUTC": "2026-10-14T15:23:36Z",
-    "tsMT": "2026-10-14 09:23 AM MT",
+    "tsUTC": "2026-10-14T18:01:33Z",
+    "tsMT": "2026-10-14 12:01 PM MT",
     "ok": true,
-    "detail": "CFB lock pass completed, 0 locked this pass, 18 pick(s) verified for 2026-10-14"
+    "detail": "lock pass completed, 20 pick(s) verified for 2026-10-14; 8 leg(s) skipped: game already started"
   },
   "lastSoccerEveningLock": {
     "tsUTC": "2026-10-14T06:40:50Z",
@@ -30,32 +30,6 @@
     "detail": "SHL/Liiga/NLA/Extraliga rolling-horizon pass completed, 9 locked this pass, 26 pick(s) verified for 2026-10-14 + 2026-10-15"
   },
   "lockPasses": [
-    {
-      "key": "lastSoccerEveningLock",
-      "kind": "soccer-evening",
-      "label": "SOCCER \u2014 UPCOMING SLATE",
-      "tsUTC": "2026-10-08T07:58:02Z",
-      "tsMT": "2026-10-08 01:58 AM MT",
-      "dates": [
-        "2026-10-08",
-        "2026-10-09"
-      ],
-      "live": true,
-      "complete": true,
-      "qualifying": 2,
-      "new": 2,
-      "already": 0,
-      "failed": 0,
-      "skippedStarted": 0,
-      "games": 1,
-      "started": 0,
-      "upcoming": 1,
-      "nextStartMs": 1791572400000.0,
-      "nextStartMT": "Fri 10-09 01:00 PM MT",
-      "marginMin": 2102,
-      "noPriceGames": 0,
-      "late": false
-    },
     {
       "key": "lastCfbEveningLock",
       "kind": "cfb-evening",
@@ -1554,11 +1528,34 @@
       "marginMin": null,
       "noPriceGames": 0,
       "late": false
+    },
+    {
+      "key": "lastLock",
+      "kind": "main",
+      "label": "ALL PRODUCTS",
+      "tsUTC": "2026-10-14T18:01:33Z",
+      "tsMT": "2026-10-14 12:01 PM MT",
+      "dates": [
+        "2026-10-14"
+      ],
+      "live": true,
+      "complete": true,
+      "qualifying": 9,
+      "new": 0,
+      "already": 9,
+      "failed": 0,
+      "skippedStarted": 8,
+      "games": 14,
+      "started": 5,
+      "upcoming": 9,
+      "nextStartMs": 1792004400000.0,
+      "nextStartMT": "Wed 10-14 01:00 PM MT",
+      "marginMin": 58,
+      "noPriceGames": 0,
+      "late": true
     }
   ],
   "ownerAlerts": {
-    "3f8fd9d5ca92": "2026-10-11T16:25:42Z",
-    "9fa9e070dcc9": "2026-10-11T16:47:51Z",
     "26ea4f3eca86": "2026-10-11T18:05:35Z",
     "4dead1ab6a9d": "2026-10-11T18:19:54Z",
     "bb2e7e70cbdd": "2026-10-11T21:26:08Z",
@@ -1589,7 +1586,8 @@
     "be0a9aa830aa": "2026-10-14T02:07:31Z",
     "8288a58f5b96": "2026-10-14T02:25:21Z",
     "d0b5344bf4c7": "2026-10-14T14:41:08Z",
-    "bf1ebde15fd8": "2026-10-14T16:01:02Z"
+    "bf1ebde15fd8": "2026-10-14T16:01:02Z",
+    "e6d28e5d964d": "2026-10-14T18:01:33Z"
   },
   "lastWatchdog": {
     "tsUTC": "2026-10-14T16:01:02Z",
