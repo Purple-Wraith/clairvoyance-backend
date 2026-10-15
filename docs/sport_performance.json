@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-10-15 11:50 MT",
+  "generated_at": "2026-10-15 12:12 MT",
   "basis": "all locks (including picks locked after the game started)",
   "basis_note": "Figures count every settled pick in scope, including picks locked after the game had started. basis_detail shows how many of those there are.",
   "classifier": "scripts/lock_timing.py",
   "basis_detail": {
-    "settled_pre_start": 1203,
-    "settled_locked_after_start_included": 185,
+    "settled_pre_start": 1205,
+    "settled_locked_after_start_included": 188,
     "settled_unknown_timing_included": 279,
     "unknown_timing_by_league": {
       "NBA": 135,
@@ -17,7 +17,24 @@
   },
   "today": {
     "label": "TODAY",
-    "leagues": [],
+    "leagues": [
+      {
+        "lbl": "LIIGA",
+        "w": 2,
+        "l": 1,
+        "n": 3,
+        "pct": 0.6666666666666666,
+        "units": -0.1200000000000001
+      },
+      {
+        "lbl": "EXTRALIGA",
+        "w": 2,
+        "l": 0,
+        "n": 2,
+        "pct": 1,
+        "units": 1.1349999999999998
+      }
+    ],
     "excluded_late": 0
   },
   "lastMonth": {
@@ -143,19 +160,19 @@
       },
       {
         "lbl": "LIIGA",
-        "w": 27,
-        "l": 11,
-        "n": 38,
-        "pct": 0.7105263157894737,
-        "units": 4.5180000000000025
+        "w": 29,
+        "l": 12,
+        "n": 41,
+        "pct": 0.7073170731707317,
+        "units": 4.398000000000003
       },
       {
         "lbl": "EXTRALIGA",
-        "w": 22,
+        "w": 24,
         "l": 11,
-        "n": 33,
-        "pct": 0.6666666666666666,
-        "units": 1.2605144225762777
+        "n": 35,
+        "pct": 0.6857142857142857,
+        "units": 2.395514422576278
       },
       {
         "lbl": "NLA",
@@ -244,6 +261,14 @@
         "units": 2.262795821837546
       },
       {
+        "lbl": "LIIGA",
+        "w": 16,
+        "l": 2,
+        "n": 18,
+        "pct": 0.8888888888888888,
+        "units": 6.355000000000002
+      },
+      {
         "lbl": "NLA",
         "w": 14,
         "l": 4,
@@ -252,20 +277,20 @@
         "units": 3.8099999999999996
       },
       {
-        "lbl": "LIIGA",
-        "w": 14,
-        "l": 1,
-        "n": 15,
-        "pct": 0.9333333333333333,
-        "units": 6.475000000000001
-      },
-      {
         "lbl": "Premier League",
         "w": 9,
         "l": 5,
         "n": 14,
         "pct": 0.6428571428571429,
         "units": 3.1900000000000004
+      },
+      {
+        "lbl": "EXTRALIGA",
+        "w": 10,
+        "l": 3,
+        "n": 13,
+        "pct": 0.7692307692307693,
+        "units": 2.03
       },
       {
         "lbl": "Serie A",
@@ -282,14 +307,6 @@
         "n": 12,
         "pct": 0.75,
         "units": 5.079000000000001
-      },
-      {
-        "lbl": "EXTRALIGA",
-        "w": 8,
-        "l": 3,
-        "n": 11,
-        "pct": 0.7272727272727273,
-        "units": 0.8949999999999998
       },
       {
         "lbl": "SHL",
@@ -339,11 +356,11 @@
       },
       {
         "lbl": "LIIGA",
-        "w": 85,
-        "l": 33,
-        "n": 118,
-        "pct": 0.7203389830508474,
-        "units": 29.191863793280177
+        "w": 87,
+        "l": 34,
+        "n": 121,
+        "pct": 0.71900826446281,
+        "units": 29.071863793280176
       },
       {
         "lbl": "La Liga",
@@ -395,11 +412,11 @@
       },
       {
         "lbl": "EXTRALIGA",
-        "w": 40,
+        "w": 42,
         "l": 16,
-        "n": 56,
-        "pct": 0.7142857142857143,
-        "units": 12.261514422576283
+        "n": 58,
+        "pct": 0.7241379310344828,
+        "units": 13.396514422576283
       }
     ],
     "excluded_late": 0
@@ -1131,6 +1148,21 @@
         1791955697797,
         1,
         0.91
+      ],
+      [
+        1791959145680,
+        1,
+        0.48
+      ],
+      [
+        1791959145844,
+        1,
+        0.4
+      ],
+      [
+        1792082936611,
+        0,
+        -1
       ]
     ],
     "EXTRALIGA": [
@@ -1223,6 +1255,16 @@
         1791723268765,
         0,
         -1
+      ],
+      [
+        1792082919661,
+        1,
+        0.355
+      ],
+      [
+        1792082922493,
+        1,
+        0.78
       ]
     ],
     "CFB": [
