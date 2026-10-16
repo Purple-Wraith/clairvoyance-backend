@@ -3695,7 +3695,8 @@ function _hkValidDec(d){return typeof d==='number'&&isFinite(d)&&d>1.0&&d<=200;}
 function _dec2ml(d){if(!_hkValidDec(d))return null;return d>=2?'+'+Math.round((d-1)*100):String(-Math.round(100/(d-1)));}
 function _hkOdds(g){
   const o=g&&g.odds;if(!o)return null;
-  if(g.state!=='post'&&o.at){const t=Date.parse(o.at);if(isFinite(t)&&Date.now()-t>_HK_ODDS_MAX_AGE_MS)return null;}
+  if(g.state!=='post'&&g.state!=='in'&&o.at){const t=Date.parse(o.at);   // started games keep their PRE-GAME snapshot (the scraper only prices 'pre' games and carries the last one over), so no age cut-off once underway
+   if(isFinite(t)&&Date.now()-t>_HK_ODDS_MAX_AGE_MS)return null;}
   return o;
 }
 function _hkLeg(dec,src){return{src:src,dec:dec,ml:_dec2ml(dec)};}
@@ -3984,7 +3985,7 @@ function _nhlEspnLeg(american){
 function _nhlEspnOk(g){return !!g&&g.state==='pre'&&(g.espnLive||_nhlFreshSched());}
 function _nhlOuLineFor(g){
   // Flashscore consensus main line when this game has fresh Flashscore odds, else ESPN's line.
-  try{if(g&&g.ou!=null&&isFinite(parseFloat(g.ou))&&_hkOdds(g)&&g.state==='pre')return parseFloat(g.ou);}catch(e){}
+  try{if(g&&g.ou!=null&&isFinite(parseFloat(g.ou))&&_hkOdds(g)&&(g.state==='pre'||g.state==='in'))return parseFloat(g.ou);}catch(e){}
   return g&&g.overUnder!=null&&isFinite(parseFloat(g.overUnder))?parseFloat(g.overUnder):null;
 }
 function _nhlOuLegsAt(g,line){
@@ -4016,7 +4017,7 @@ function _nhlSchedGame(hn,an,dateIso){
   try{
     const D=(typeof _NHL_SCHEDULE_DATA!=='undefined')?_NHL_SCHEDULE_DATA:null;if(!D||!Array.isArray(D.games))return null;
     const t=dateIso?Date.parse(dateIso):NaN;
-    const c=D.games.filter(x=>x.home===hn&&x.away===an&&x.state==='pre'&&(!isFinite(t)||Math.abs(Date.parse(x.date)-t)<=18*3600*1000));
+    const c=D.games.filter(x=>x.home===hn&&x.away===an&&(x.state==='pre'||x.state==='in')&&(!isFinite(t)||Math.abs(Date.parse(x.date)-t)<=18*3600*1000));
     return c.length===1?c[0]:null;
   }catch(e){return null;}
 }
@@ -11440,9 +11441,9 @@ let _NHL_SCHEDULE_DATA=null;
 // the Flashscore Asian-handicap +/-1.5 rows ride along as mkt.pl so nhlEns can blend the puck line too.
 function _nhlMktFromSched(g,espnBase){
   try{
-    if(!g||g.state!=='pre')return null;
+    if(!g||(g.state!=='pre'&&!(g.state==='in'&&_hkOdds(g))))return null;   // a game in progress keeps its pre-game Flashscore prices (ESPN's own fields are in-play there, so they stay pre-only)
     let m=espnBase?{...espnBase}:null; // live scoreboard ESPN fields (always fresh) when the caller has them
-    if(!m&&_nhlFreshSched())m={hML:g.homeML,aML:g.awayML,ouLine:g.overUnder,overOdds:g.ouOver,underOdds:g.ouUnder};
+    if(!m&&g.state==='pre'&&_nhlFreshSched())m={hML:g.homeML,aML:g.awayML,ouLine:g.overUnder,overOdds:g.ouOver,underOdds:g.ouUnder};
     const o=_hkOdds(g);
     if(o){
       m=m||{};
