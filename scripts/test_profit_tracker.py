@@ -1253,7 +1253,13 @@ class Profit(unittest.TestCase):
             pg.keyboard.press("End"); pg.keyboard.press("Enter"); self.assertEqual(pg.evaluate("_ptU.pin.chart"), cid); self.assertGreater(pg.locator("#pt-drill-%s .pt-r" % cid).count(), 0)
             pg.keyboard.press("Escape"); self.assertEqual(pg.evaluate("_ptU.pin"), None)
         # range-mode keyboard: books, not weeks
-        pg.click("[data-ptact=dmode][data-v=range]"); pg.focus(".pt-chart[data-ptid=d]"); pg.keyboard.press("End"); self.assertIn("COMBINED", self.tip_wait(pg))
+        pg.click("[data-ptact=dmode][data-v=range]"); pg.wait_for_timeout(200)
+        tip = ""
+        for _ in range(6):                                  # the click re-renders the chart; on a slow runner the first focus/End landed on the old one (flaked on GitHub 2026-10-16)
+            pg.focus(".pt-chart[data-ptid=d]"); pg.keyboard.press("End"); tip = self.tip_wait(pg, 1500)
+            if "COMBINED" in tip:
+                break
+        self.assertIn("COMBINED", tip)
         pg.keyboard.press("Enter"); self.assertEqual(pg.evaluate("_ptU.pin"), {"chart": "d", "key": "COMBINED"})
         # monthly drill uses calendar-month boundaries
         pg.click("[data-ptact=view][data-v=month]")
