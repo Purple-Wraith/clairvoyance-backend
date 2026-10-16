@@ -80903,543 +80903,1895 @@
     "priceSource": "market"
   },
   {
-    "id": "2026-10-17_Bologna_Internazionale_SERIEA_Bologna+1.5",
+    "id": "2026-10-17_AFA_UNLV_CFB_AFA+5.5",
     "date": "2026-10-17",
+    "hA": "AFA",
+    "awA": "UNLV",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "AFA +5.5",
+    "winProb": 0.6903,
+    "ml": "-278",
+    "decOdds": 1.36,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132009283,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: AFA +5.5 \u2014 ADJUSTED LINE (69.0% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted AFA -1.5 to AFA +5.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 73.7%; the 7-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin +9.4 (AFA), total 38.7, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -1.5,
+      "line": 5.5,
+      "shift": 7,
+      "postedLabel": "AFA -1.5",
+      "postedProb": 0.7373512760400173,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792265400000,
+    "leadMin": 2223,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_ARMY_FAU_CFB_ARMY+4.5",
+    "date": "2026-10-17",
+    "hA": "ARMY",
+    "awA": "FAU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "ARMY +4.5",
+    "winProb": 0.6903,
+    "ml": "-278",
+    "decOdds": 1.36,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132007387,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: ARMY +4.5 \u2014 ADJUSTED LINE (69.0% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted ARMY -2.5 to ARMY +4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 71.5%; the 7-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin +9.4 (ARMY), total 45.7, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -2.5,
+      "line": 4.5,
+      "shift": 7,
+      "postedLabel": "ARMY -2.5",
+      "postedProb": 0.7154889207708831,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792252800000,
+    "leadMin": 2013,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_BC_PITT_CFB_PITTML",
+    "date": "2026-10-17",
+    "hA": "BC",
+    "awA": "PITT",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "ML",
+    "betOn": "PITT ML",
+    "winProb": 0.8024238398899348,
+    "ml": -406,
+    "decOdds": 1.2463054187192117,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132007267,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: PITT ML \u2014 SKIP (80.2% win prob, EV +0.0%)\nMODEL: Projected margin +19.0 (PITT), total 38.5, from a 25k-sim Monte Carlo.\nWHY: PITT ML \u00b7 SKIP \u00b7 80.2% \u00b7 EV +0.0% FPI has BC at -5.3 (#90 nationally) and PITT at +11.4 (#31) \u2014 a 16.7-point model gap, a significant edge. BC is home \u2014 this model uses a team-specific 4.63-point home-field edge here (vs the 2.2-pt default), derived from BC's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: BC ranks #70 nationally, PITT #94 \u2014 BC has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): BC 37, PITT 71.9. Elo (built from this season's own final scores, separate from FPI): BC 1481 (12 games played), PITT 1579 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: BC 2-3, PITT 5-1. Turnover margin: BC +1, PITT +1 on the season \u2014 roughly a wash. Season TD production: BC 5 passing / 6 rushing, PITT 17 passing / 10 rushing (season totals, not per-game rates) \u2014 PITT has scored more often through the air and on the ground so far.",
+    "startMs": 1792252800000,
+    "leadMin": 2013,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_BC_PITT_CFB_UNDER47.5",
+    "date": "2026-10-17",
+    "hA": "BC",
+    "awA": "PITT",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 47.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132007043,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 47.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 42.5 to UNDER 47.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 62.1%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +19.0 (PITT), total 38.5, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 42.5,
+      "line": 47.5,
+      "shift": 5,
+      "postedLabel": "UNDER 42.5",
+      "postedProb": 0.6208416970792456,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792252800000,
+    "leadMin": 2013,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_BGSU_BALL_CFB_BGSU+0.5",
+    "date": "2026-10-17",
+    "hA": "BGSU",
+    "awA": "BALL",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "BGSU +0.5",
+    "winProb": 0.6903,
+    "ml": "-278",
+    "decOdds": 1.36,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132007583,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: BGSU +0.5 \u2014 ADJUSTED LINE (69.0% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted BGSU -6.5 to BGSU +0.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 64.0%; the 7-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin +11.5 (BGSU), total 68.1, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -6.5,
+      "line": 0.5,
+      "shift": 7,
+      "postedLabel": "BGSU -6.5",
+      "postedProb": 0.6399266785941231,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792252800000,
+    "leadMin": 2013,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_BYU_ND_CFB_NDML",
+    "date": "2026-10-17",
+    "hA": "BYU",
+    "awA": "ND",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "ML",
+    "betOn": "ND ML",
+    "winProb": 0.7577193423324073,
+    "ml": -313,
+    "decOdds": 1.3194888178913737,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132011024,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: ND ML \u2014 SKIP (75.8% win prob, EV -0.0%)\nMODEL: Projected margin +18.5 (ND), total 27.7, from a 25k-sim Monte Carlo.\nWHY: ND ML \u00b7 SKIP \u00b7 75.8% \u00b7 EV -0.0% FPI has BYU at +15.7 (#14 nationally) and ND at +29.5 (#1) \u2014 a 13.8-point model gap, a significant edge. BYU is home \u2014 this model uses a team-specific 5.26-point home-field edge here (vs the 2.2-pt default), derived from BYU's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: BYU ranks #85 nationally, ND #61 \u2014 ND has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): BYU 82.7, ND 94.2. Elo (built from this season's own final scores, separate from FPI): BYU 1617 (12 games played), ND 1646 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: BYU 5-0, ND 6-0. Turnover margin: BYU +0, ND +8 on the season \u2014 a real disparity that tends to swing close games. Season TD production: BYU 8 passing / 14 rushing, ND 17 passing / 15 rushing (season totals, not per-game rates) \u2014 ND has scored more often through the air and on the ground so far.",
+    "startMs": 1792279800000,
+    "leadMin": 2463,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Bologna",
+    "id": "2026-10-17_Bologna_Internazionale_SERIEA_Bologna+1.5",
+    "ml": "-110",
     "awA": "Internazionale",
-    "sport": "SERIEA",
-    "league": "SERIEA",
-    "betType": "SPREAD",
+    "date": "2026-10-17",
     "betOn": "Bologna +1.5",
-    "winProb": 0.6607493194218474,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1792131615929,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "form": {
-        "home": 0.996,
-        "away": 0.9867
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 0.96,
-        "away": 1.04
-      }
-    },
-    "reasoning": "PICK: Bologna +1.5 \u2014 PREMIUM (66.1% win prob, EV +26.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.77\u20130.84 goals (xG 1.77/0.84), BTTS 47%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Bologna 0.84 xG/G vs Internazionale 1.77 xG/G. 3-way: Home 23% / Draw 30% / Away 66%. MC proj: 0.84 \u2013 1.77 (2.61 total vs 2.5 line, BTTS 47%). Goal spread: Internazionale -1.5 covers 34%, Bologna +1.5 covers 66% (proj margin -0.94). Bologna priced to survive within 1.5 even if outscored. Kelly 28.8%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Internazionale Win (PREMIUM), UNDER 2.5 (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, H2H (H) -4%, Fbref (A) +6%, Standings (A) +6%, H2H (A) +4%.",
-    "startMs": 1792252800000,
-    "leadMin": 2020,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-17_Brentford_Liverpool_PL_SOC_BrentfordWin",
-    "date": "2026-10-17",
-    "hA": "Brentford",
-    "awA": "Liverpool",
-    "sport": "PL",
-    "league": "PL",
-    "betType": "ML",
-    "betOn": "Brentford Win",
-    "winProb": 0.6190853353985993,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1792131613877,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.0083883150816142,
-        "away": 1.06
-      },
-      "form": {
-        "home": 1.00125,
-        "away": 0.9901666666666666
-      },
-      "standings": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1.02,
-        "away": 0.98
-      }
-    },
-    "reasoning": "PICK: Brentford Win \u2014 OPTIMAL (61.9% win prob, EV +48.6%)\nMODEL: Projected 1.39\u20131.80 goals (xG 1.38/1.80), BTTS 63%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Brentford 1.80 xG/G vs Liverpool 1.38 xG/G. 3-way: Home 62% / Draw 31% / Away 39%. MC proj: 1.80 \u2013 1.39 (3.19 total vs 2.5 line, BTTS 63%). Goal spread: Brentford -0.5 covers 47%, Liverpool +0.5 covers 53% (proj margin +0.41). Brentford xG edge unpriced by market. Kelly 30.0%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: OVER 2.5 (OPTIMAL), Liverpool +0.5 (LEAN). Factors moving this pick: Standings +6%.",
-    "startMs": 1792245600000,
-    "leadMin": 1900,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-17_Brentford_Liverpool_PL_SOC_OVER2.5",
-    "date": "2026-10-17",
-    "hA": "Brentford",
-    "awA": "Liverpool",
-    "sport": "PL",
-    "league": "PL",
-    "betType": "OU",
-    "betOn": "OVER 2.5",
-    "winProb": 0.61691192567412,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1792131614184,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.0083883150816142,
-        "away": 1.06
-      },
-      "form": {
-        "home": 1.00125,
-        "away": 0.9901666666666666
-      },
-      "standings": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1.02,
-        "away": 0.98
-      }
-    },
-    "reasoning": "PICK: OVER 2.5 \u2014 OPTIMAL (61.7% win prob, EV +17.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.39\u20131.80 goals (xG 1.38/1.80), BTTS 63% \u2014 OVER 2.5 hits 61.9% of outcomes, from a 25k-sim Monte Carlo.",
-    "startMs": 1792245600000,
-    "leadMin": 1900,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-17_Espanyol_Atl\u00e9tico Madrid_LIGA_Atl\u00e9ticoMadridWin",
-    "date": "2026-10-17",
-    "hA": "Espanyol",
-    "awA": "Atl\u00e9tico Madrid",
-    "sport": "LIGA",
-    "league": "LIGA",
-    "betType": "ML",
-    "betOn": "Atl\u00e9tico Madrid Win",
-    "winProb": 0.6473737346662928,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1792131614684,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "form": {
-        "home": 0.99775,
-        "away": 1.0078571428571428
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 0.98,
-        "away": 1.02
-      }
-    },
-    "reasoning": "PICK: Atl\u00e9tico Madrid Win \u2014 PREMIUM (64.7% win prob, EV +11.0%)\nMODEL: Projected 1.78\u20131.13 goals (xG 1.77/1.13), BTTS 56%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Espanyol 1.13 xG/G vs Atl\u00e9tico Madrid 1.77 xG/G. 3-way: Home 31% / Draw 31% / Away 65%. MC proj: 1.13 \u2013 1.78 (2.91 total vs 2.5 line, BTTS 56%). Goal spread: Atl\u00e9tico Madrid -0.5 covers 52%, Espanyol +0.5 covers 48% (proj margin -0.65). Atl\u00e9tico Madrid road xG edge underpriced. Kelly 15.4%. PREMIUM \u00b7 Full-unit play \u00b7 Also: OVER 2.5 (LEAN), Atl\u00e9tico Madrid -0.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
-    "startMs": 1792238400000,
-    "leadMin": 1780,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-17_Everton_Chelsea_PL_SOC_OVER2.5",
-    "date": "2026-10-17",
-    "hA": "Everton",
-    "awA": "Chelsea",
-    "sport": "PL",
-    "league": "PL",
-    "betType": "OU",
-    "betOn": "OVER 2.5",
-    "winProb": 0.6552828216418595,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1792131613718,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.0435753688598046,
-        "away": 1.06
-      },
-      "form": {
-        "home": 1.0005,
-        "away": 0.997
-      },
-      "standings": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1.02,
-        "away": 0.98
-      }
-    },
-    "reasoning": "PICK: OVER 2.5 \u2014 PREMIUM (65.5% win prob, EV +25.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.55\u20131.81 goals (xG 1.55/1.82), BTTS 66% \u2014 OVER 2.5 hits 65.5% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Everton 1.82 xG/G vs Chelsea 1.55 xG/G. 3-way: Home 58% / Draw 30% / Away 44%. MC proj: 1.81 \u2013 1.55 (3.36 total vs 2.5 line, BTTS 66%). Goal spread: Everton -0.5 covers 44%, Chelsea +0.5 covers 56% (proj margin +0.25). Combined xG 3.36 supports goals above the line. Kelly 27.6%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Everton Win (LEAN), Chelsea +0.5 (LEAN). Factors moving this pick: Standings (H) +6%, Fbref (H) +4%, Fbref (A) +6%, Standings (A) +6%.",
-    "startMs": 1792236600000,
-    "leadMin": 1750,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-17_Manchester City_Ipswich Town_PL_SOC_OVER3.5",
-    "date": "2026-10-17",
-    "hA": "Manchester City",
-    "awA": "Ipswich Town",
-    "sport": "PL",
-    "league": "PL",
-    "betType": "OU",
-    "betOn": "OVER 3.5",
-    "winProb": 0.6262875514144057,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1792131614358,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.06,
-        "away": 0.94
-      },
-      "form": {
-        "home": 1.0261666666666667,
-        "away": 0.985
-      },
-      "standings": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: OVER 3.5 \u2014 OPTIMAL (62.6% win prob, EV +19.6% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.33\u20132.98 goals (xG 1.33/2.99), BTTS 70% \u2014 OVER 3.5 hits 62.6% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Manchester City 2.99 xG/G vs Ipswich Town 1.33 xG/G. 3-way: Home 74% / Draw 20% / Away 18%. MC proj: 2.98 \u2013 1.33 (4.32 total vs 3.5 line, BTTS 70%). Goal spread: Manchester City -1.5 covers 52%, Ipswich Town +1.5 covers 48% (proj margin +1.65). Combined xG 4.32 supports goals above the line. Kelly 21.5%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: Manchester City -1.5 (LEAN). Factors moving this pick: Fbref (H) +6%, Standings (H) +6%, Fbref (A) -6%, Standings (A) +6%.",
-    "startMs": 1792245600000,
-    "leadMin": 1900,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-17_Real Betis_Barcelona_LIGA_BarcelonaWin",
-    "date": "2026-10-17",
-    "hA": "Real Betis",
-    "awA": "Barcelona",
-    "sport": "LIGA",
-    "league": "LIGA",
-    "betType": "ML",
-    "betOn": "Barcelona Win",
-    "winProb": 0.6753845337697038,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1792131615206,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.017882068522926,
-        "away": 1.06
-      },
-      "form": {
-        "home": 1.0329285714285714,
-        "away": 1.0304375000000001
-      },
-      "standings": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 0.94,
-        "away": 1.06
-      }
-    },
-    "reasoning": "PICK: Barcelona Win \u2014 PREMIUM (67.5% win prob, EV -3.7%)\nMODEL: Projected 2.59\u20131.50 goals (xG 2.60/1.50), BTTS 72%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Real Betis 1.50 xG/G vs Barcelona 2.60 xG/G. 3-way: Home 27% / Draw 24% / Away 68%. MC proj: 1.50 \u2013 2.59 (4.09 total vs 3.5 line, BTTS 72%). Goal spread: Barcelona -1.5 covers 41%, Real Betis +1.5 covers 59% (proj margin -1.08). Barcelona road xG edge underpriced. Kelly 0.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Real Betis +1.5 (LEAN), OVER 3.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%, H2H +6%, Form +3%.",
-    "startMs": 1792252800000,
-    "leadMin": 2020,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-17_Valencia_Athletic Club_LIGA_Valencia+0.5",
-    "date": "2026-10-17",
-    "hA": "Valencia",
-    "awA": "Athletic Club",
-    "sport": "LIGA",
-    "league": "LIGA",
-    "betType": "SPREAD",
-    "betOn": "Valencia +0.5",
-    "winProb": 0.6180401965866902,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1792131615383,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "form": {
-        "home": 0.9840833333333333,
-        "away": 1.03875
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 0.9800918836140888
-      },
-      "h2h": {
-        "home": 1.06,
-        "away": 0.94
-      }
-    },
-    "reasoning": "PICK: Valencia +0.5 \u2014 OPTIMAL (61.8% win prob, EV +18.0% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.26\u20131.19 goals (xG 1.26/1.19), BTTS 50%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Valencia 1.19 xG/G vs Athletic Club 1.26 xG/G. 3-way: Home 43% / Draw 35% / Away 48%. MC proj: 1.19 \u2013 1.26 (2.45 total vs 2.5 line, BTTS 50%). Goal spread: Athletic Club -0.5 covers 38%, Valencia +0.5 covers 62% (proj margin -0.07). Valencia priced to survive within 0.5 even if outscored. Kelly 19.8%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: UNDER 2.5 (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, H2H (H) +6%, Fbref (A) -6%, H2H (A) -6%, Form (A) +4%.",
-    "startMs": 1792263600000,
-    "leadMin": 2200,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-10-17_Venezia_Napoli_SERIEA_NapoliWin",
-    "date": "2026-10-17",
-    "hA": "Venezia",
-    "awA": "Napoli",
     "sport": "SERIEA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
     "league": "SERIEA",
-    "betType": "ML",
-    "betOn": "Napoli Win",
-    "winProb": 0.7120296142196811,
-    "ml": "-110",
+    "source": "manual",
+    "betType": "SPREAD",
     "decOdds": 1.91,
+    "leadMin": 2020,
+    "outcome": "pending",
+    "startMs": 1792252800000,
+    "winProb": 0.6607493194218474,
+    "lockedAt": 1792131615929,
+    "reasoning": "PICK: Bologna +1.5 \u2014 PREMIUM (66.1% win prob, EV +26.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.77\u20130.84 goals (xG 1.77/0.84), BTTS 47%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Bologna 0.84 xG/G vs Internazionale 1.77 xG/G. 3-way: Home 23% / Draw 30% / Away 66%. MC proj: 0.84 \u2013 1.77 (2.61 total vs 2.5 line, BTTS 47%). Goal spread: Internazionale -1.5 covers 34%, Bologna +1.5 covers 66% (proj margin -0.94). Bologna priced to survive within 1.5 even if outscored. Kelly 28.8%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Internazionale Win (PREMIUM), UNDER 2.5 (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, H2H (H) -4%, Fbref (A) +6%, Standings (A) +6%, H2H (A) +4%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1.04,
+        "home": 0.96
+      },
+      "form": {
+        "away": 0.9867,
+        "home": 0.996
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 0.94
+      }
+    }
+  },
+  {
+    "hA": "Brentford",
+    "id": "2026-10-17_Brentford_Liverpool_PL_SOC_BrentfordWin",
+    "ml": "-110",
+    "awA": "Liverpool",
+    "date": "2026-10-17",
+    "betOn": "Brentford Win",
+    "sport": "PL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "PL",
+    "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.91,
+    "leadMin": 1900,
+    "outcome": "pending",
+    "startMs": 1792245600000,
+    "winProb": 0.6190853353985993,
+    "lockedAt": 1792131613877,
+    "reasoning": "PICK: Brentford Win \u2014 OPTIMAL (61.9% win prob, EV +48.6%)\nMODEL: Projected 1.39\u20131.80 goals (xG 1.38/1.80), BTTS 63%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Brentford 1.80 xG/G vs Liverpool 1.38 xG/G. 3-way: Home 62% / Draw 31% / Away 39%. MC proj: 1.80 \u2013 1.39 (3.19 total vs 2.5 line, BTTS 63%). Goal spread: Brentford -0.5 covers 47%, Liverpool +0.5 covers 53% (proj margin +0.41). Brentford xG edge unpriced by market. Kelly 30.0%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: OVER 2.5 (OPTIMAL), Liverpool +0.5 (LEAN). Factors moving this pick: Standings +6%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 0.98,
+        "home": 1.02
+      },
+      "form": {
+        "away": 0.9901666666666666,
+        "home": 1.00125
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 1.0083883150816142
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 1.06
+      }
+    }
+  },
+  {
+    "hA": "Brentford",
+    "id": "2026-10-17_Brentford_Liverpool_PL_SOC_OVER2.5",
+    "ml": "-110",
+    "awA": "Liverpool",
+    "date": "2026-10-17",
+    "betOn": "OVER 2.5",
+    "sport": "PL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "PL",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.91,
+    "leadMin": 1900,
+    "outcome": "pending",
+    "startMs": 1792245600000,
+    "winProb": 0.61691192567412,
+    "lockedAt": 1792131614184,
+    "reasoning": "PICK: OVER 2.5 \u2014 OPTIMAL (61.7% win prob, EV +17.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.39\u20131.80 goals (xG 1.38/1.80), BTTS 63% \u2014 OVER 2.5 hits 61.9% of outcomes, from a 25k-sim Monte Carlo.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 0.98,
+        "home": 1.02
+      },
+      "form": {
+        "away": 0.9901666666666666,
+        "home": 1.00125
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 1.0083883150816142
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 1.06
+      }
+    }
+  },
+  {
+    "id": "2026-10-17_CAL_WAKE_CFB_UNDER58.5",
+    "date": "2026-10-17",
+    "hA": "CAL",
+    "awA": "WAKE",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 58.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1792131615769,
+    "lockedAt": 1792132012731,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "form": {
-        "home": 1.0016666666666667,
-        "away": 0.9863
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
+    "reasoning": "PICK: UNDER 58.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 53.5 to UNDER 58.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 69.1%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +18.5 (WAKE), total 47.0, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 53.5,
+      "line": 58.5,
+      "shift": 5,
+      "postedLabel": "UNDER 53.5",
+      "postedProb": 0.6914624665510107,
+      "postedDec": 1.909,
+      "postedMl": "-110"
     },
-    "reasoning": "PICK: Napoli Win \u2014 PREMIUM (71.2% win prob, EV +18.7%)\nMODEL: Projected 2.29\u20130.78 goals (xG 2.29/0.79), BTTS 49%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Venezia 0.79 xG/G vs Napoli 2.29 xG/G. 3-way: Home 17% / Draw 24% / Away 71%. MC proj: 0.78 \u2013 2.29 (3.07 total vs 2.5 line, BTTS 49%). Goal spread: Napoli -1.5 covers 48%, Venezia +1.5 covers 52% (proj margin -1.50). Napoli road xG edge underpriced. Kelly 28.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: OVER 2.5 (LEAN), Venezia +1.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
-    "startMs": 1792242000000,
-    "leadMin": 1840,
+    "startMs": 1792290600000,
+    "leadMin": 2643,
     "lockTiming": "pre"
   },
   {
-    "id": "2026-10-17_Villarreal_Elche_LIGA_Elche+1.5",
+    "id": "2026-10-17_CAL_WAKE_CFB_WAKEML",
     "date": "2026-10-17",
-    "hA": "Villarreal",
-    "awA": "Elche",
-    "sport": "LIGA",
-    "league": "LIGA",
-    "betType": "SPREAD",
-    "betOn": "Elche +1.5",
-    "winProb": 0.6611721469362901,
-    "ml": "-110",
-    "decOdds": 1.91,
+    "hA": "CAL",
+    "awA": "WAKE",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "ML",
+    "betOn": "WAKE ML",
+    "winProb": 0.79028750253817,
+    "ml": -377,
+    "decOdds": 1.2652519893899203,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1792131614876,
+    "lockedAt": 1792132012860,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
+    "reasoning": "PICK: WAKE ML \u2014 SKIP (79.0% win prob, EV -0.0%)\nMODEL: Projected margin +18.5 (WAKE), total 47.0, from a 25k-sim Monte Carlo.\nWHY: WAKE ML \u00b7 SKIP \u00b7 79.0% \u00b7 EV -0.0% FPI has CAL at -1.8 (#75 nationally) and WAKE at +13.6 (#22) \u2014 a 15.4-point model gap, a significant edge. CAL is home \u2014 this model uses a team-specific 2.56-point home-field edge here (vs the 2.2-pt default), derived from CAL's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: CAL ranks #82 nationally, WAKE #24 \u2014 WAKE has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): CAL 51.5, WAKE 78.2. Elo (built from this season's own final scores, separate from FPI): CAL 1488 (12 games played), WAKE 1584 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: CAL 3-3, WAKE 5-1. Turnover margin: CAL +2, WAKE +2 on the season \u2014 roughly a wash. Season TD production: CAL 11 passing / 7 rushing, WAKE 13 passing / 14 rushing (season totals, not per-game rates) \u2014 WAKE has scored more often through the air and on the ground so far.",
+    "startMs": 1792290600000,
+    "leadMin": 2643,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_CMU_WMU_CFB_WMU-0.5",
+    "date": "2026-10-17",
+    "hA": "CMU",
+    "awA": "WMU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "WMU -0.5",
+    "winProb": 0.679,
+    "ml": "-262",
+    "decOdds": 1.381,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132008062,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: WMU -0.5 \u2014 ADJUSTED LINE (67.9% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted WMU -7.0 to WMU -0.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 74.2%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +15.1 (WMU), total 43.9, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -7,
+      "line": -0.5,
+      "shift": 6.5,
+      "postedLabel": "WMU -7.0",
+      "postedProb": 0.7416506794926662,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792258200000,
+    "leadMin": 2103,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_COLO_UTAH_CFB_UTAHML",
+    "date": "2026-10-17",
+    "hA": "COLO",
+    "awA": "UTAH",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "ML",
+    "betOn": "UTAH ML",
+    "winProb": 0.834773799392174,
+    "ml": -505,
+    "decOdds": 1.198019801980198,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132012454,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UTAH ML \u2014 SKIP (83.5% win prob, EV +0.0%)\nMODEL: Projected margin +21.5 (UTAH), total 38.8, from a 25k-sim Monte Carlo.\nWHY: UTAH ML \u00b7 SKIP \u00b7 83.5% \u00b7 EV +0.0% FPI has COLO at -0.4 (#71 nationally) and UTAH at +18.8 (#10) \u2014 a 19.2-point model gap, a significant edge. COLO is home \u2014 this model uses a team-specific 6.73-point home-field edge here (vs the 2.2-pt default), derived from COLO's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: COLO ranks #11 nationally, UTAH #113 \u2014 COLO has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): COLO 49.4, UTAH 85.9. Elo (built from this season's own final scores, separate from FPI): COLO 1470 (12 games played), UTAH 1618 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: COLO 2-3, UTAH 5-0. Turnover margin: COLO -2, UTAH +0 on the season \u2014 roughly a wash. Season TD production: COLO 8 passing / 4 rushing, UTAH 14 passing / 15 rushing (season totals, not per-game rates) \u2014 UTAH has scored more often through the air and on the ground so far.",
+    "startMs": 1792289700000,
+    "leadMin": 2628,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_DUKE_UNC_CFB_DUKE+3.5",
+    "date": "2026-10-17",
+    "hA": "DUKE",
+    "awA": "UNC",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "DUKE +3.5",
+    "winProb": 0.679,
+    "ml": "-262",
+    "decOdds": 1.381,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132008824,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: DUKE +3.5 \u2014 ADJUSTED LINE (67.9% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted DUKE -3.0 to DUKE +3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 71.8%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +15.5 (DUKE), total 34.4, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -3,
+      "line": 3.5,
+      "shift": 6.5,
+      "postedLabel": "DUKE -3.0",
+      "postedProb": 0.7184731538825619,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792265400000,
+    "leadMin": 2223,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_EMU_TOL_CFB_UNDER58.5",
+    "date": "2026-10-17",
+    "hA": "EMU",
+    "awA": "TOL",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 58.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132009507,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 58.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 53.5 to UNDER 58.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 60.6%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +15.1 (TOL), total 50.0, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 53.5,
+      "line": 58.5,
+      "shift": 5,
+      "postedLabel": "UNDER 53.5",
+      "postedProb": 0.6061238882410435,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792265400000,
+    "leadMin": 2223,
+    "lockTiming": "pre"
+  },
+  {
+    "hA": "Espanyol",
+    "id": "2026-10-17_Espanyol_Atl\u00e9tico Madrid_LIGA_Atl\u00e9ticoMadridWin",
+    "ml": "-110",
+    "awA": "Atl\u00e9tico Madrid",
+    "date": "2026-10-17",
+    "betOn": "Atl\u00e9tico Madrid Win",
+    "sport": "LIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "LIGA",
+    "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.91,
+    "leadMin": 1780,
+    "outcome": "pending",
+    "startMs": 1792238400000,
+    "winProb": 0.6473737346662928,
+    "lockedAt": 1792131614684,
+    "reasoning": "PICK: Atl\u00e9tico Madrid Win \u2014 PREMIUM (64.7% win prob, EV +11.0%)\nMODEL: Projected 1.78\u20131.13 goals (xG 1.77/1.13), BTTS 56%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Espanyol 1.13 xG/G vs Atl\u00e9tico Madrid 1.77 xG/G. 3-way: Home 31% / Draw 31% / Away 65%. MC proj: 1.13 \u2013 1.78 (2.91 total vs 2.5 line, BTTS 56%). Goal spread: Atl\u00e9tico Madrid -0.5 covers 52%, Espanyol +0.5 covers 48% (proj margin -0.65). Atl\u00e9tico Madrid road xG edge underpriced. Kelly 15.4%. PREMIUM \u00b7 Full-unit play \u00b7 Also: OVER 2.5 (LEAN), Atl\u00e9tico Madrid -0.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.06,
-        "away": 1.0237125225038255
+      "h2h": {
+        "away": 1.02,
+        "home": 0.98
       },
       "form": {
-        "home": 0.99325,
-        "away": 1.0316
+        "away": 1.0078571428571428,
+        "home": 0.99775
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1.06,
-        "away": 0.94
+        "away": 1.06,
+        "home": 0.94
       }
+    }
+  },
+  {
+    "hA": "Everton",
+    "id": "2026-10-17_Everton_Chelsea_PL_SOC_OVER2.5",
+    "ml": "-110",
+    "awA": "Chelsea",
+    "date": "2026-10-17",
+    "betOn": "OVER 2.5",
+    "sport": "PL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "PL",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.91,
+    "leadMin": 1750,
+    "outcome": "pending",
+    "startMs": 1792236600000,
+    "winProb": 0.6552828216418595,
+    "lockedAt": 1792131613718,
+    "reasoning": "PICK: OVER 2.5 \u2014 PREMIUM (65.5% win prob, EV +25.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.55\u20131.81 goals (xG 1.55/1.82), BTTS 66% \u2014 OVER 2.5 hits 65.5% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Everton 1.82 xG/G vs Chelsea 1.55 xG/G. 3-way: Home 58% / Draw 30% / Away 44%. MC proj: 1.81 \u2013 1.55 (3.36 total vs 2.5 line, BTTS 66%). Goal spread: Everton -0.5 covers 44%, Chelsea +0.5 covers 56% (proj margin +0.25). Combined xG 3.36 supports goals above the line. Kelly 27.6%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Everton Win (LEAN), Chelsea +0.5 (LEAN). Factors moving this pick: Standings (H) +6%, Fbref (H) +4%, Fbref (A) +6%, Standings (A) +6%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 0.98,
+        "home": 1.02
+      },
+      "form": {
+        "away": 0.997,
+        "home": 1.0005
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 1.0435753688598046
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 1.06
+      }
+    }
+  },
+  {
+    "id": "2026-10-17_HAW_UNM_CFB_UNDER49.5",
+    "date": "2026-10-17",
+    "hA": "HAW",
+    "awA": "UNM",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 49.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132013275,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 49.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 44.5 to UNDER 49.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 72.1%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +18.5 (UNM), total 36.9, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 44.5,
+      "line": 49.5,
+      "shift": 5,
+      "postedLabel": "UNDER 44.5",
+      "postedProb": 0.7205968658706474,
+      "postedDec": 1.909,
+      "postedMl": "-110"
     },
-    "reasoning": "PICK: Elche +1.5 \u2014 PREMIUM (66.1% win prob, EV +26.2% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.32\u20132.13 goals (xG 1.32/2.12), BTTS 64%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Villarreal 2.12 xG/G vs Elche 1.32 xG/G. 3-way: Home 64% / Draw 27% / Away 29%. MC proj: 2.13 \u2013 1.32 (3.44 total vs 3.5 line, BTTS 64%). Goal spread: Villarreal -1.5 covers 34%, Elche +1.5 covers 66% (proj margin +0.81). Elche priced to survive within 1.5 even if outscored. Kelly 28.8%. PREMIUM \u00b7 Full-unit play \u00b7 Also: UNDER 3.5 (LEAN). Factors moving this pick: Fbref (H) +6%, Standings (H) -6%, H2H (H) +6%, Standings (A) -6%, H2H (A) -6%, Form (A) +3%.",
-    "startMs": 1792246500000,
+    "startMs": 1792290600000,
+    "leadMin": 2643,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_HAW_UNM_CFB_UNMML",
+    "date": "2026-10-17",
+    "hA": "HAW",
+    "awA": "UNM",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "ML",
+    "betOn": "UNM ML",
+    "winProb": 0.8235945797047146,
+    "ml": -467,
+    "decOdds": 1.214132762312634,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132013400,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNM ML \u2014 SKIP (82.4% win prob, EV +0.0%)\nMODEL: Projected margin +18.5 (UNM), total 36.9, from a 25k-sim Monte Carlo.\nWHY: UNM ML \u00b7 SKIP \u00b7 82.4% \u00b7 EV +0.0% FPI has HAW at -12.7 (#113 nationally) and UNM at +9.1 (#38) \u2014 a 21.8-point model gap, a significant edge. HAW is home \u2014 this model uses a team-specific 4.86-point home-field edge here (vs the 2.2-pt default), derived from HAW's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: HAW ranks #121 nationally, UNM #96 \u2014 UNM has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): HAW 27, UNM 80.4. Elo (built from this season's own final scores, separate from FPI): HAW 1416 (12 games played), UNM 1580 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: HAW 1-5, UNM 4-1. Turnover margin: HAW +1, UNM +8 on the season \u2014 a real disparity that tends to swing close games. Season TD production: HAW 6 passing / 4 rushing, UNM 8 passing / 18 rushing (season totals, not per-game rates) \u2014 UNM has scored more often through the air and on the ground so far.",
+    "startMs": 1792290600000,
+    "leadMin": 2643,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_HOU_OKST_CFB_HOU+2.5",
+    "date": "2026-10-17",
+    "hA": "HOU",
+    "awA": "OKST",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "HOU +2.5",
+    "winProb": 0.6903,
+    "ml": "-278",
+    "decOdds": 1.36,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132011390,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: HOU +2.5 \u2014 ADJUSTED LINE (69.0% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted HOU -4.5 to HOU +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 68.9%; the 7-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin +14.2 (HOU), total 40.9, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -4.5,
+      "line": 2.5,
+      "shift": 7,
+      "postedLabel": "HOU -4.5",
+      "postedProb": 0.6888086044843205,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792279800000,
+    "leadMin": 2463,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_M-OH_AKR_CFB_M-OH-3.5",
+    "date": "2026-10-17",
+    "hA": "M-OH",
+    "awA": "AKR",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "M-OH -3.5",
+    "winProb": 0.679,
+    "ml": "-262",
+    "decOdds": 1.381,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132009618,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: M-OH -3.5 \u2014 ADJUSTED LINE (67.9% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted M-OH -10.0 to M-OH -3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 71.1%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +16.7 (M-OH), total 59.6, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -10,
+      "line": -3.5,
+      "shift": 6.5,
+      "postedLabel": "M-OH -10.0",
+      "postedProb": 0.7110469743336737,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792265400000,
+    "leadMin": 2223,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_MD_RUTG_CFB_OVER51.5",
+    "date": "2026-10-17",
+    "hA": "MD",
+    "awA": "RUTG",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "OVER 51.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132007714,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 51.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted OVER 56.5 to OVER 51.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 72.0%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +4.7 (MD), total 65.1, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 56.5,
+      "line": 51.5,
+      "shift": 5,
+      "postedLabel": "OVER 56.5",
+      "postedProb": 0.7195588475888192,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792254600000,
+    "leadMin": 2043,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_MIA_FSU_CFB_MIAML",
+    "date": "2026-10-17",
+    "hA": "MIA",
+    "awA": "FSU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "ML",
+    "betOn": "MIA ML",
+    "winProb": 0.7752919160906057,
+    "ml": -345,
+    "decOdds": 1.289855072463768,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132010183,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: MIA ML \u2014 SKIP (77.5% win prob, EV +0.0%)\nMODEL: Projected margin +24.9 (MIA), total 36.0, from a 25k-sim Monte Carlo.\nWHY: MIA ML \u00b7 SKIP \u00b7 77.5% \u00b7 EV +0.0% FPI has MIA at +27.7 (#4 nationally) and FSU at +8.4 (#41) \u2014 a 19.3-point model gap, a significant edge. MIA is home \u2014 this model uses a team-specific 1.36-point home-field edge here (vs the 2.2-pt default), derived from MIA's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: MIA ranks #62 nationally, FSU #19 \u2014 FSU has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): MIA 92.1, FSU 63.4. Elo (built from this season's own final scores, separate from FPI): MIA 1644 (12 games played), FSU 1521 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: MIA 5-0, FSU 3-3. Turnover margin: MIA +2, FSU +1 on the season \u2014 roughly a wash. Season TD production: MIA 18 passing / 14 rushing, FSU 8 passing / 16 rushing (season totals, not per-game rates) \u2014 MIA has scored more often through the air and on the ground so far.",
+    "startMs": 1792278000000,
+    "leadMin": 2433,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_MICH_PSU_CFB_UNDER47.5",
+    "date": "2026-10-17",
+    "hA": "MICH",
+    "awA": "PSU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 47.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132008955,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 47.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 42.5 to UNDER 47.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 71.5%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin -1.7 (MICH), total 35.1, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 42.5,
+      "line": 47.5,
+      "shift": 5,
+      "postedLabel": "UNDER 42.5",
+      "postedProb": 0.715400268716682,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792265400000,
+    "leadMin": 2223,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_MSU_NU_CFB_NUML",
+    "date": "2026-10-17",
+    "hA": "MSU",
+    "awA": "NU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "ML",
+    "betOn": "NU ML",
+    "winProb": 0.7633232483697209,
+    "ml": -323,
+    "decOdds": 1.3095975232198143,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132006704,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: NU ML \u2014 SKIP (76.3% win prob, EV -0.0%)\nMODEL: Projected margin +14.8 (NU), total 42.1, from a 25k-sim Monte Carlo.\nWHY: NU ML \u00b7 SKIP \u00b7 76.3% \u00b7 EV -0.0% FPI has MSU at +1.4 (#60 nationally) and NU at +14 (#20) \u2014 a 12.6-point model gap, a significant edge. MSU is home \u2014 this model uses a team-specific 6.96-point home-field edge here (vs the 2.2-pt default), derived from MSU's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: MSU ranks #12 nationally, NU #31 \u2014 MSU has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): MSU 54.6, NU 81.3. Elo (built from this season's own final scores, separate from FPI): MSU 1469 (12 games played), NU 1577 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: MSU 2-4, NU 4-1. Turnover margin: MSU +1, NU +0 on the season \u2014 roughly a wash. Season TD production: MSU 5 passing / 9 rushing, NU 9 passing / 12 rushing (season totals, not per-game rates) \u2014 NU has scored more often through the air and on the ground so far.",
+    "startMs": 1792252800000,
+    "leadMin": 2013,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_MSU_NU_CFB_UNDER54.5",
+    "date": "2026-10-17",
+    "hA": "MSU",
+    "awA": "NU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 54.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132006554,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 54.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 49.5 to UNDER 54.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 71.5%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +14.8 (NU), total 42.1, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 49.5,
+      "line": 54.5,
+      "shift": 5,
+      "postedLabel": "UNDER 49.5",
+      "postedProb": 0.715400268716682,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792252800000,
+    "leadMin": 2013,
+    "lockTiming": "pre"
+  },
+  {
+    "hA": "Manchester City",
+    "id": "2026-10-17_Manchester City_Ipswich Town_PL_SOC_OVER3.5",
+    "ml": "-110",
+    "awA": "Ipswich Town",
+    "date": "2026-10-17",
+    "betOn": "OVER 3.5",
+    "sport": "PL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "PL",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.91,
+    "leadMin": 1900,
+    "outcome": "pending",
+    "startMs": 1792245600000,
+    "winProb": 0.6262875514144057,
+    "lockedAt": 1792131614358,
+    "reasoning": "PICK: OVER 3.5 \u2014 OPTIMAL (62.6% win prob, EV +19.6% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.33\u20132.98 goals (xG 1.33/2.99), BTTS 70% \u2014 OVER 3.5 hits 62.6% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Manchester City 2.99 xG/G vs Ipswich Town 1.33 xG/G. 3-way: Home 74% / Draw 20% / Away 18%. MC proj: 2.98 \u2013 1.33 (4.32 total vs 3.5 line, BTTS 70%). Goal spread: Manchester City -1.5 covers 52%, Ipswich Town +1.5 covers 48% (proj margin +1.65). Combined xG 4.32 supports goals above the line. Kelly 21.5%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: Manchester City -1.5 (LEAN). Factors moving this pick: Fbref (H) +6%, Standings (H) +6%, Fbref (A) -6%, Standings (A) +6%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.985,
+        "home": 1.0261666666666667
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 1.06
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 1.06
+      }
+    }
+  },
+  {
+    "id": "2026-10-17_NDSU_NEV_CFB_NDSU-7.5",
+    "date": "2026-10-17",
+    "hA": "NDSU",
+    "awA": "NEV",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "NDSU -7.5",
+    "winProb": 0.6903,
+    "ml": "-278",
+    "decOdds": 1.36,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132010905,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: NDSU -7.5 \u2014 ADJUSTED LINE (69.0% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted NDSU -14.5 to NDSU -7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 70.9%; the 7-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin +21.1 (NDSU), total 33.5, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -14.5,
+      "line": -7.5,
+      "shift": 7,
+      "postedLabel": "NDSU -14.5",
+      "postedProb": 0.7088177483189654,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792278000000,
+    "leadMin": 2433,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_ORE_NEB_CFB_NEB+13.5",
+    "date": "2026-10-17",
+    "hA": "ORE",
+    "awA": "NEB",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "NEB +13.5",
+    "winProb": 0.679,
+    "ml": "-262",
+    "decOdds": 1.381,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132013638,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: NEB +13.5 \u2014 ADJUSTED LINE (67.9% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted NEB +7.0 to NEB +13.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 70.1%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin -1.7 (ORE), total 37.8, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 7,
+      "line": 13.5,
+      "shift": 6.5,
+      "postedLabel": "NEB +7.0",
+      "postedProb": 0.700997914425965,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792292400000,
+    "leadMin": 2673,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_ORST_WSU_CFB_UNDER57.5",
+    "date": "2026-10-17",
+    "hA": "ORST",
+    "awA": "WSU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 57.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132009941,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 57.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 52.5 to UNDER 57.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 69.7%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +18.2 (ORST), total 45.8, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 52.5,
+      "line": 57.5,
+      "shift": 5,
+      "postedLabel": "UNDER 52.5",
+      "postedProb": 0.6968578730420074,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792274400000,
+    "leadMin": 2373,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_RICE_TLSA_CFB_OVER41.5",
+    "date": "2026-10-17",
+    "hA": "RICE",
+    "awA": "TLSA",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "OVER 41.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132009824,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 41.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted OVER 46.5 to OVER 41.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 65.2%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +7.4 (TLSA), total 51.0, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 46.5,
+      "line": 41.5,
+      "shift": 5,
+      "postedLabel": "OVER 46.5",
+      "postedProb": 0.6520744907296422,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792269000000,
+    "leadMin": 2283,
+    "lockTiming": "pre"
+  },
+  {
+    "hA": "Real Betis",
+    "id": "2026-10-17_Real Betis_Barcelona_LIGA_BarcelonaWin",
+    "ml": "-110",
+    "awA": "Barcelona",
+    "date": "2026-10-17",
+    "betOn": "Barcelona Win",
+    "sport": "LIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "LIGA",
+    "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.91,
+    "leadMin": 2020,
+    "outcome": "pending",
+    "startMs": 1792252800000,
+    "winProb": 0.6753845337697038,
+    "lockedAt": 1792131615206,
+    "reasoning": "PICK: Barcelona Win \u2014 PREMIUM (67.5% win prob, EV -3.7%)\nMODEL: Projected 2.59\u20131.50 goals (xG 2.60/1.50), BTTS 72%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Real Betis 1.50 xG/G vs Barcelona 2.60 xG/G. 3-way: Home 27% / Draw 24% / Away 68%. MC proj: 1.50 \u2013 2.59 (4.09 total vs 3.5 line, BTTS 72%). Goal spread: Barcelona -1.5 covers 41%, Real Betis +1.5 covers 59% (proj margin -1.08). Barcelona road xG edge underpriced. Kelly 0.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Real Betis +1.5 (LEAN), OVER 3.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%, H2H +6%, Form +3%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "form": {
+        "away": 1.0304375000000001,
+        "home": 1.0329285714285714
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 1.017882068522926
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 1.06
+      }
+    }
+  },
+  {
+    "id": "2026-10-17_SAC_OHIO_CFB_OHIOML",
+    "date": "2026-10-17",
+    "hA": "SAC",
+    "awA": "OHIO",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "ML",
+    "betOn": "OHIO ML",
+    "winProb": 0.8260976815478239,
+    "ml": -475,
+    "decOdds": 1.2105263157894737,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132012323,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OHIO ML \u2014 SKIP (82.6% win prob, EV +0.0%)\nMODEL: Projected margin +19.8 (OHIO), total 54.7, from a 25k-sim Monte Carlo.\nWHY: OHIO ML \u00b7 SKIP \u00b7 82.6% \u00b7 EV +0.0% FPI has SAC at -29.4 (#138 nationally) and OHIO at -9.3 (#103) \u2014 a 20.1-point model gap, a significant edge. SAC is home \u2014 this model uses a team-specific 6.96-point home-field edge here (vs the 2.2-pt default), derived from SAC's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: SAC ranks #130 nationally, OHIO #92 \u2014 OHIO has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): SAC 11.5, OHIO 44.9. Elo (built from this season's own final scores, separate from FPI): SAC 1404 (12 games played), OHIO 1530 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: SAC 1-5, OHIO 4-2. Turnover margin: SAC -3, OHIO -1 on the season \u2014 roughly a wash. Season TD production: SAC 6 passing / 4 rushing, OHIO 10 passing / 9 rushing (season totals, not per-game rates) \u2014 OHIO has scored more often through the air and on the ground so far.",
+    "startMs": 1792288800000,
+    "leadMin": 2613,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_SAC_OHIO_CFB_OVER43.5",
+    "date": "2026-10-17",
+    "hA": "SAC",
+    "awA": "OHIO",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "OVER 43.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132012091,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 43.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted OVER 48.5 to OVER 43.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 72.6%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +19.8 (OHIO), total 54.7, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 48.5,
+      "line": 43.5,
+      "shift": 5,
+      "postedLabel": "OVER 48.5",
+      "postedProb": 0.7260083855527415,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792288800000,
+    "leadMin": 2613,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_SDSU_FRES_CFB_OVER40.5",
+    "date": "2026-10-17",
+    "hA": "SDSU",
+    "awA": "FRES",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "OVER 40.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132013075,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 40.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted OVER 45.5 to OVER 40.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 71.9%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +12.8 (FRES), total 54.9, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 45.5,
+      "line": 40.5,
+      "shift": 5,
+      "postedLabel": "OVER 45.5",
+      "postedProb": 0.7194442255487086,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792290600000,
+    "leadMin": 2643,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_SMU_UVA_CFB_UVA+16.5",
+    "date": "2026-10-17",
+    "hA": "SMU",
+    "awA": "UVA",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "UVA +16.5",
+    "winProb": 0.6903,
+    "ml": "-278",
+    "decOdds": 1.36,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132006343,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UVA +16.5 \u2014 ADJUSTED LINE (69.0% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted UVA +9.5 to UVA +16.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 62.6%; the 7-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin +4.2 (SMU), total 42.5, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 9.5,
+      "line": 16.5,
+      "shift": 7,
+      "postedLabel": "UVA +9.5",
+      "postedProb": 0.625975110424027,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792252800000,
+    "leadMin": 2013,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_SYR_LOU_CFB_SYR+22.5",
+    "date": "2026-10-17",
+    "hA": "SYR",
+    "awA": "LOU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "SYR +22.5",
+    "winProb": 0.6903,
+    "ml": "-278",
+    "decOdds": 1.36,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132011595,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: SYR +22.5 \u2014 ADJUSTED LINE (69.0% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted SYR +15.5 to SYR +22.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 72.8%; the 7-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin +5.5 (LOU), total 51.7, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 15.5,
+      "line": 22.5,
+      "shift": 7,
+      "postedLabel": "SYR +15.5",
+      "postedProb": 0.7277627997283624,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792279800000,
+    "leadMin": 2463,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_TEM_CLT_CFB_TEMML",
+    "date": "2026-10-17",
+    "hA": "TEM",
+    "awA": "CLT",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "ML",
+    "betOn": "TEM ML",
+    "winProb": 0.7690761487600211,
+    "ml": -333,
+    "decOdds": 1.3003003003003002,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132007922,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: TEM ML \u2014 SKIP (76.9% win prob, EV +0.0%)\nMODEL: Projected margin +21.7 (TEM), total 68.5, from a 25k-sim Monte Carlo.\nWHY: TEM ML \u00b7 SKIP \u00b7 76.9% \u00b7 EV +0.0% FPI has TEM at -7.3 (#96 nationally) and CLT at -25.2 (#137) \u2014 a 17.9-point model gap, a significant edge. TEM is home \u2014 this model uses a team-specific -0.74-point home-field edge here (vs the 2.2-pt default), derived from TEM's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: TEM ranks #111 nationally, CLT #64 \u2014 CLT has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): TEM 41.5, CLT 13.5. Elo (built from this season's own final scores, separate from FPI): TEM 1463 (12 games played), CLT 1380 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: TEM 2-4, CLT 0-6. Turnover margin: TEM -2, CLT -3 on the season \u2014 roughly a wash. Season TD production: TEM 9 passing / 7 rushing, CLT 4 passing / 6 rushing (season totals, not per-game rates) \u2014 TEM has scored more often through the air and on the ground so far.",
+    "startMs": 1792256400000,
+    "leadMin": 2073,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_TEX_FLA_CFB_UNDER56.5",
+    "date": "2026-10-17",
+    "hA": "TEX",
+    "awA": "FLA",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 56.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132006225,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 56.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 51.5 to UNDER 56.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 68.3%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +14.6 (TEX), total 45.3, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 51.5,
+      "line": 56.5,
+      "shift": 5,
+      "postedLabel": "UNDER 51.5",
+      "postedProb": 0.6832915434474783,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792252800000,
+    "leadMin": 2013,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_TTU_ASU_CFB_UNDER55.5",
+    "date": "2026-10-17",
+    "hA": "TTU",
+    "awA": "ASU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 55.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132008382,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 55.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 50.5 to UNDER 55.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 68.6%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +19.1 (TTU), total 44.2, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 50.5,
+      "line": 55.5,
+      "shift": 5,
+      "postedLabel": "UNDER 50.5",
+      "postedProb": 0.6860253976482464,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792265400000,
+    "leadMin": 2223,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_UCLA_WIS_CFB_UNDER47.5",
+    "date": "2026-10-17",
+    "hA": "UCLA",
+    "awA": "WIS",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 47.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132011277,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 47.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 42.5 to UNDER 47.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 70.5%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +4.8 (UCLA), total 35.5, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 42.5,
+      "line": 47.5,
+      "shift": 5,
+      "postedLabel": "UNDER 42.5",
+      "postedProb": 0.7048707997101262,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792279800000,
+    "leadMin": 2463,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_UGA_AUB_CFB_UGAML",
+    "date": "2026-10-17",
+    "hA": "UGA",
+    "awA": "AUB",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "ML",
+    "betOn": "UGA ML",
+    "winProb": 0.7827910812666885,
+    "ml": -360,
+    "decOdds": 1.2777777777777777,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132008281,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UGA ML \u2014 SKIP (78.3% win prob, EV +0.0%)\nMODEL: Projected margin +27.8 (UGA), total 36.1, from a 25k-sim Monte Carlo.\nWHY: UGA ML \u00b7 SKIP \u00b7 78.3% \u00b7 EV +0.0% FPI has UGA at +28.9 (#2 nationally) and AUB at +11.4 (#32) \u2014 a 17.5-point model gap, a significant edge. UGA is home \u2014 this model uses a team-specific 6.96-point home-field edge here (vs the 2.2-pt default), derived from UGA's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: UGA ranks #33 nationally, AUB #26 \u2014 comparable schedule difficulty so far. Overall efficiency (0-100 scale, ~50 = average): UGA 93.2, AUB 68.3. Elo (built from this season's own final scores, separate from FPI): UGA 1640 (12 games played), AUB 1523 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: UGA 6-0, AUB 3-2. Turnover margin: UGA +5, AUB +1 on the season \u2014 a real disparity that tends to swing close games. Season TD production: UGA 17 passing / 17 rushing, AUB 8 passing / 7 rushing (season totals, not per-game rates) \u2014 UGA has scored more often through the air and on the ground so far.",
+    "startMs": 1792265400000,
+    "leadMin": 2223,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_USF_KENT_CFB_OVER40.5",
+    "date": "2026-10-17",
+    "hA": "USF",
+    "awA": "KENT",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "OVER 40.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132010531,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 40.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted OVER 45.5 to OVER 40.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 65.2%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +25.0 (USF), total 50.0, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 45.5,
+      "line": 40.5,
+      "shift": 5,
+      "postedLabel": "OVER 45.5",
+      "postedProb": 0.6520744907296422,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792278000000,
+    "leadMin": 2433,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_USF_KENT_CFB_USFML",
+    "date": "2026-10-17",
+    "hA": "USF",
+    "awA": "KENT",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "ML",
+    "betOn": "USF ML",
+    "winProb": 0.7692625081800795,
+    "ml": -333,
+    "decOdds": 1.3003003003003002,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132010638,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: USF ML \u2014 SKIP (76.9% win prob, EV +0.0%)\nMODEL: Projected margin +25.0 (USF), total 50.0, from a 25k-sim Monte Carlo.\nWHY: USF ML \u00b7 SKIP \u00b7 76.9% \u00b7 EV +0.0% FPI has USF at -2.6 (#78 nationally) and KENT at -21.6 (#133) \u2014 a 19.0-point model gap, a significant edge. USF is home \u2014 this model uses a team-specific 4.76-point home-field edge here (vs the 2.2-pt default), derived from USF's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: USF ranks #122 nationally, KENT #34 \u2014 KENT has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): USF 49.7, KENT 19. Elo (built from this season's own final scores, separate from FPI): USF 1538 (12 games played), KENT 1452 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: USF 4-2, KENT 2-4. Turnover margin: USF +0, KENT +0 on the season \u2014 roughly a wash. Season TD production: USF 5 passing / 14 rushing, KENT 4 passing / 5 rushing (season totals, not per-game rates) \u2014 USF has scored more often through the air and on the ground so far.",
+    "startMs": 1792278000000,
+    "leadMin": 2433,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_UTEP_SJSU_CFB_SJSU-0.5",
+    "date": "2026-10-17",
+    "hA": "UTEP",
+    "awA": "SJSU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "SJSU -0.5",
+    "winProb": 0.679,
+    "ml": "-262",
+    "decOdds": 1.381,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132011970,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: SJSU -0.5 \u2014 ADJUSTED LINE (67.9% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted SJSU -7.0 to SJSU -0.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.5%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +11.0 (SJSU), total 63.1, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -7,
+      "line": -0.5,
+      "shift": 6.5,
+      "postedLabel": "SJSU -7.0",
+      "postedProb": 0.6150775033130148,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792285200000,
+    "leadMin": 2553,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_UTSA_NAVY_CFB_UNDER60.5",
+    "date": "2026-10-17",
+    "hA": "UTSA",
+    "awA": "NAVY",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 60.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132011740,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 60.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 55.5 to UNDER 60.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 68.3%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +5.1 (UTSA), total 49.3, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 55.5,
+      "line": 60.5,
+      "shift": 5,
+      "postedLabel": "UNDER 55.5",
+      "postedProb": 0.6832915434474783,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792281600000,
+    "leadMin": 2493,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_VAN_ARK_CFB_OVER44.5",
+    "date": "2026-10-17",
+    "hA": "VAN",
+    "awA": "ARK",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "OVER 44.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132010293,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 44.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted OVER 49.5 to OVER 44.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 69.7%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +6.1 (VAN), total 57.2, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 49.5,
+      "line": 44.5,
+      "shift": 5,
+      "postedLabel": "OVER 49.5",
+      "postedProb": 0.6968700740276397,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792278000000,
+    "leadMin": 2433,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_VT_GT_CFB_VT-3.5",
+    "date": "2026-10-17",
+    "hA": "VT",
+    "awA": "GT",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "VT -3.5",
+    "winProb": 0.679,
+    "ml": "-262",
+    "decOdds": 1.381,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132008563,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: VT -3.5 \u2014 ADJUSTED LINE (67.9% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted VT -10.0 to VT -3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 65.1%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +15.5 (VT), total 46.6, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -10,
+      "line": -3.5,
+      "shift": 6.5,
+      "postedLabel": "VT -10.0",
+      "postedProb": 0.6514187234530036,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792265400000,
+    "leadMin": 2223,
+    "lockTiming": "pre"
+  },
+  {
+    "hA": "Valencia",
+    "id": "2026-10-17_Valencia_Athletic Club_LIGA_Valencia+0.5",
+    "ml": "-110",
+    "awA": "Athletic Club",
+    "date": "2026-10-17",
+    "betOn": "Valencia +0.5",
+    "sport": "LIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "LIGA",
+    "source": "manual",
+    "betType": "SPREAD",
+    "decOdds": 1.91,
+    "leadMin": 2200,
+    "outcome": "pending",
+    "startMs": 1792263600000,
+    "winProb": 0.6180401965866902,
+    "lockedAt": 1792131615383,
+    "reasoning": "PICK: Valencia +0.5 \u2014 OPTIMAL (61.8% win prob, EV +18.0% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.26\u20131.19 goals (xG 1.26/1.19), BTTS 50%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Valencia 1.19 xG/G vs Athletic Club 1.26 xG/G. 3-way: Home 43% / Draw 35% / Away 48%. MC proj: 1.19 \u2013 1.26 (2.45 total vs 2.5 line, BTTS 50%). Goal spread: Athletic Club -0.5 covers 38%, Valencia +0.5 covers 62% (proj margin -0.07). Valencia priced to survive within 0.5 even if outscored. Kelly 19.8%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: UNDER 2.5 (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, H2H (H) +6%, Fbref (A) -6%, H2H (A) -6%, Form (A) +4%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 0.94,
+        "home": 1.06
+      },
+      "form": {
+        "away": 1.03875,
+        "home": 0.9840833333333333
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 0.9800918836140888,
+        "home": 0.94
+      }
+    }
+  },
+  {
+    "hA": "Venezia",
+    "id": "2026-10-17_Venezia_Napoli_SERIEA_NapoliWin",
+    "ml": "-110",
+    "awA": "Napoli",
+    "date": "2026-10-17",
+    "betOn": "Napoli Win",
+    "sport": "SERIEA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "SERIEA",
+    "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.91,
+    "leadMin": 1840,
+    "outcome": "pending",
+    "startMs": 1792242000000,
+    "winProb": 0.7120296142196811,
+    "lockedAt": 1792131615769,
+    "reasoning": "PICK: Napoli Win \u2014 PREMIUM (71.2% win prob, EV +18.7%)\nMODEL: Projected 2.29\u20130.78 goals (xG 2.29/0.79), BTTS 49%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Venezia 0.79 xG/G vs Napoli 2.29 xG/G. 3-way: Home 17% / Draw 24% / Away 71%. MC proj: 0.78 \u2013 2.29 (3.07 total vs 2.5 line, BTTS 49%). Goal spread: Napoli -1.5 covers 48%, Venezia +1.5 covers 52% (proj margin -1.50). Napoli road xG edge underpriced. Kelly 28.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: OVER 2.5 (LEAN), Venezia +1.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.9863,
+        "home": 1.0016666666666667
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 0.94
+      }
+    }
+  },
+  {
+    "hA": "Villarreal",
+    "id": "2026-10-17_Villarreal_Elche_LIGA_Elche+1.5",
+    "ml": "-110",
+    "awA": "Elche",
+    "date": "2026-10-17",
+    "betOn": "Elche +1.5",
+    "sport": "LIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "LIGA",
+    "source": "manual",
+    "betType": "SPREAD",
+    "decOdds": 1.91,
     "leadMin": 1915,
+    "outcome": "pending",
+    "startMs": 1792246500000,
+    "winProb": 0.6611721469362901,
+    "lockedAt": 1792131614876,
+    "reasoning": "PICK: Elche +1.5 \u2014 PREMIUM (66.1% win prob, EV +26.2% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.32\u20132.13 goals (xG 1.32/2.12), BTTS 64%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Villarreal 2.12 xG/G vs Elche 1.32 xG/G. 3-way: Home 64% / Draw 27% / Away 29%. MC proj: 2.13 \u2013 1.32 (3.44 total vs 3.5 line, BTTS 64%). Goal spread: Villarreal -1.5 covers 34%, Elche +1.5 covers 66% (proj margin +0.81). Elche priced to survive within 1.5 even if outscored. Kelly 28.8%. PREMIUM \u00b7 Full-unit play \u00b7 Also: UNDER 3.5 (LEAN). Factors moving this pick: Fbref (H) +6%, Standings (H) -6%, H2H (H) +6%, Standings (A) -6%, H2H (A) -6%, Form (A) +3%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 0.94,
+        "home": 1.06
+      },
+      "form": {
+        "away": 1.0316,
+        "home": 0.99325
+      },
+      "fbref": {
+        "away": 1.0237125225038255,
+        "home": 1.06
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 0.94,
+        "home": 0.94
+      }
+    }
+  },
+  {
+    "id": "2026-10-17_WVU_CIN_CFB_UNDER68.5",
+    "date": "2026-10-17",
+    "hA": "WVU",
+    "awA": "CIN",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 68.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132006883,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 68.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 63.5 to UNDER 68.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 72.1%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin -5.5 (WVU), total 55.9, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 63.5,
+      "line": 68.5,
+      "shift": 5,
+      "postedLabel": "UNDER 63.5",
+      "postedProb": 0.7205968658706474,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792252800000,
+    "leadMin": 2013,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-17_WYO_NIU_CFB_WYO-1.5",
+    "date": "2026-10-17",
+    "hA": "WYO",
+    "awA": "NIU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "WYO -1.5",
+    "winProb": 0.6903,
+    "ml": "-278",
+    "decOdds": 1.36,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792132009187,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: WYO -1.5 \u2014 ADJUSTED LINE (69.0% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted WYO -8.5 to WYO -1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 65.8%; the 7-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin +14.3 (WYO), total 55.0, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -8.5,
+      "line": -1.5,
+      "shift": 7,
+      "postedLabel": "WYO -8.5",
+      "postedProb": 0.6582591129841329,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792265400000,
+    "leadMin": 2223,
     "lockTiming": "pre"
   },
   {
