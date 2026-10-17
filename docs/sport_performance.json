@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-10-17 07:31 MT",
+  "generated_at": "2026-10-17 08:01 MT",
   "basis": "all locks (including picks locked after the game started)",
   "basis_note": "Figures count every settled pick in scope, including picks locked after the game had started. basis_detail shows how many of those there are.",
   "classifier": "scripts/lock_timing.py",
   "basis_detail": {
-    "settled_pre_start": 1256,
+    "settled_pre_start": 1259,
     "settled_locked_after_start_included": 189,
     "settled_unknown_timing_included": 279,
     "unknown_timing_by_league": {
@@ -17,7 +17,24 @@
   },
   "today": {
     "label": "TODAY",
-    "leagues": [],
+    "leagues": [
+      {
+        "lbl": "Premier League",
+        "w": 0,
+        "l": 2,
+        "n": 2,
+        "pct": 0,
+        "units": -2
+      },
+      {
+        "lbl": "La Liga",
+        "w": 1,
+        "l": 0,
+        "n": 1,
+        "pct": 1,
+        "units": 0.9099999999999999
+      }
+    ],
     "excluded_late": 0
   },
   "lastMonth": {
@@ -37,7 +54,7 @@
         "l": 22,
         "n": 80,
         "pct": 0.725,
-        "units": 24.673863793280162
+        "units": 24.67386379328016
       },
       {
         "lbl": "NFL",
@@ -183,19 +200,19 @@
       },
       {
         "lbl": "La Liga",
-        "w": 12,
+        "w": 13,
         "l": 4,
-        "n": 16,
-        "pct": 0.75,
-        "units": 6.809000000000001
+        "n": 17,
+        "pct": 0.7647058823529411,
+        "units": 7.719000000000001
       },
       {
         "lbl": "Premier League",
         "w": 9,
-        "l": 5,
-        "n": 14,
-        "pct": 0.6428571428571429,
-        "units": 3.1900000000000004
+        "l": 7,
+        "n": 16,
+        "pct": 0.5625,
+        "units": 1.1900000000000004
       },
       {
         "lbl": "Serie A",
@@ -269,11 +286,19 @@
       },
       {
         "lbl": "La Liga",
-        "w": 4,
+        "w": 5,
         "l": 1,
+        "n": 6,
+        "pct": 0.8333333333333334,
+        "units": 3.5490000000000004
+      },
+      {
+        "lbl": "Premier League",
+        "w": 0,
+        "l": 5,
         "n": 5,
-        "pct": 0.8,
-        "units": 2.6390000000000002
+        "pct": 0,
+        "units": -5
       },
       {
         "lbl": "Serie A",
@@ -290,14 +315,6 @@
         "n": 4,
         "pct": 0.75,
         "units": 0.4149999999999998
-      },
-      {
-        "lbl": "Premier League",
-        "w": 0,
-        "l": 3,
-        "n": 3,
-        "pct": 0,
-        "units": -3
       }
     ],
     "excluded_late": 0
@@ -319,7 +336,7 @@
         "l": 58,
         "n": 267,
         "pct": 0.7827715355805244,
-        "units": 90.22853700662891
+        "units": 90.2285370066289
       },
       {
         "lbl": "NBA",
@@ -343,15 +360,15 @@
         "l": 36,
         "n": 125,
         "pct": 0.712,
-        "units": 28.391863793280177
+        "units": 28.39186379328017
       },
       {
         "lbl": "La Liga",
-        "w": 81,
+        "w": 82,
         "l": 34,
-        "n": 115,
-        "pct": 0.7043478260869566,
-        "units": 37.96199999999996
+        "n": 116,
+        "pct": 0.7068965517241379,
+        "units": 38.87199999999996
       },
       {
         "lbl": "SHL",
@@ -372,10 +389,10 @@
       {
         "lbl": "Premier League",
         "w": 52,
-        "l": 26,
-        "n": 78,
-        "pct": 0.6666666666666666,
-        "units": 20.274000000000004
+        "l": 28,
+        "n": 80,
+        "pct": 0.65,
+        "units": 18.274000000000004
       },
       {
         "lbl": "EXTRALIGA",
@@ -1682,6 +1699,11 @@
         1792045447318,
         1,
         0.91
+      ],
+      [
+        1792131614684,
+        1,
+        0.91
       ]
     ],
     "Premier League": [
@@ -1752,6 +1774,16 @@
       ],
       [
         1791811432171,
+        0,
+        -1
+      ],
+      [
+        1792131613718,
+        0,
+        -1
+      ],
+      [
+        1792217272076,
         0,
         -1
       ]
