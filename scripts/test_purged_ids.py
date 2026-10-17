@@ -40,6 +40,9 @@ class Base(unittest.TestCase):
         pg.wait_for_timeout(800)
         return pg
 
+NBA_EARLY_OPENER = ["2026-10-17_NY_PHI_NBA_NY+0.5", "2026-10-17_SA_OKC_NBA_SAML", "2026-10-17_SA_OKC_NBA_UNDER239.5"]
+
+
 class Purged(Base):
     __test__ = True
 
@@ -49,7 +52,7 @@ class Purged(Base):
 
     def test_app_carries_exactly_those_ids(self):
         pg = self.page()
-        self.assertEqual(sorted(pg.evaluate("[..._CV_PURGED_IDS]")), IDS)
+        self.assertEqual(sorted(pg.evaluate("[..._CV_PURGED_IDS]")), sorted(IDS + NBA_EARLY_OPENER))   # + the three Oct-20 NBA opener picks locked on Oct 17 with the wrong date (removed 2026-10-17, data/purged/nba_early_opener_20261017_before.json)
         self.assertTrue(pg.evaluate("i=>_getWipedIds().has(i)", IDS[0]))
         pg.close()
 
