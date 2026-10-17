@@ -81296,12 +81296,12 @@
     "lockedAt": 1792191925585,
     "modelProb": 0.6571,
     "reasoning": "PICK: TPS Turku +1.5 \u2014 HIGH PROB (68.0% win prob, EV -6.8% \u00b7 MARKET PRICE -270 (EV at market -6.8%) \u00b7 MARKET-BLENDED: model 65.7% \u00b7 no-vig market 69.0% \u2192 68.0% (alpha 0.70))\nMODEL: Projected 2.4\u20132.8 (total 5.2) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Assat 2.60/2.28 (14GP this season, 60GP prior) vs TPS Turku 2.67/2.53 (13GP, 60GP prior). Market line: 5.5 (Assat 4.70, TPS Turku 5.00). Record: Assat 8-3-1OTW-2OTL vs TPS Turku 6-5-1OTW-1OTL. Exact-Poisson proj: TPS Turku 2.4 \u2013 Assat 2.8 (5.2 total vs 5.5 line). TPS Turku +1.5 covers in 68.0% of the model's blended scoring+margin projection (fav covers 32.0%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 63.1% \u00b7 no-vig market 52.5% \u2192 55.2%; Puck line market blend (alpha 0.70): model 34.3% \u00b7 no-vig market 31.0% \u2192 32.0%; O/U market blend (alpha 0.65): model 42.0% \u00b7 no-vig market 39.6% \u2192 40.4%. Half-unit play.",
+    "settledAt": 1792256514351,
     "blendAlpha": 0.7,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.69,
-    "priceSource": "market",
-    "settledAt": 1792256514351
+    "priceSource": "market"
   },
   {
     "hA": "Assat",
@@ -81324,10 +81324,10 @@
     "winProb": 0.6659999999999999,
     "lockedAt": 1792218722616,
     "reasoning": "PICK: UNDER 6.5 \u2014 MANUAL LINE (66.6% estimated win prob at this line)\nLINE EDITED: the line was changed by hand from UNDER 5.5 to UNDER 6.5. The win probability is the card's 59.6% for UNDER 5.5, adjusted 7.0 points of probability per point of line for this O/U -- a simple estimate, not a re-run of the engine's model.\nPRICE: a standard assumed price, not a market quote.\nMODEL: Projected 2.4\u20132.8 (total 5.2) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).",
+    "settledAt": 1792256514352,
     "lockOrigin": "manual",
     "lockTiming": "pre",
-    "priceSource": "assumed",
-    "settledAt": 1792256514352
+    "priceSource": "assumed"
   },
   {
     "hA": "BC",
@@ -81454,14 +81454,14 @@
     "betOn": "Bologna +1.5",
     "sport": "SERIEA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 3,
+    "hScore": 1,
     "league": "SERIEA",
     "source": "manual",
     "betType": "SPREAD",
     "decOdds": 1.91,
     "leadMin": 2020,
-    "outcome": "pending",
+    "outcome": "loss",
     "startMs": 1792252800000,
     "winProb": 0.6607493194218474,
     "lockedAt": 1792131615929,
@@ -81497,7 +81497,8 @@
         "away": 1.06,
         "home": 0.94
       }
-    }
+    },
+    "settledAt": 1792260106755
   },
   {
     "hA": "Brentford",
@@ -82219,6 +82220,34 @@
   },
   {
     "hA": "Fribourg",
+    "id": "2026-10-17_Fribourg_Lugano_NLA_Fribourg",
+    "ml": "-222",
+    "awA": "Lugano",
+    "date": "2026-10-17",
+    "betOn": "Fribourg",
+    "sport": "NLA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "NLA",
+    "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.45,
+    "leadMin": 8,
+    "outcome": "pending",
+    "startMs": 1792259100000,
+    "winProb": 0.622,
+    "lockedAt": 1792258623965,
+    "modelProb": 0.5474,
+    "reasoning": "PICK: Fribourg ML \u2014 SKIP (62.2% win prob, EV -9.8% \u00b7 MARKET PRICE -222 (EV at market -9.8%) \u00b7 MARKET-BLENDED: model 54.7% \u00b7 no-vig market 64.6% \u2192 62.2% (alpha 0.75))\nMODEL: Projected 2.8\u20133.4 (total 6.1) (OT/SO in 16% of outcomes), from an exact Poisson distribution (not a simulation).",
+    "blendAlpha": 0.75,
+    "lockOrigin": "manual",
+    "lockTiming": "pre",
+    "marketProb": 0.6463,
+    "priceSource": "market"
+  },
+  {
+    "hA": "Fribourg",
     "id": "2026-10-17_Fribourg_Lugano_NLA_OVER5.5",
     "ml": "-152",
     "awA": "Lugano",
@@ -82417,12 +82446,12 @@
     "lockedAt": 1792191925952,
     "modelProb": 0.8538,
     "reasoning": "PICK: Ilves ML \u2014 HIGH PROB (73.2% win prob, EV +0.3% \u00b7 MARKET PRICE -270 (EV at market +0.3%) \u00b7 MARKET-BLENDED: model 85.4% \u00b7 no-vig market 67.9% \u2192 73.2% (alpha 0.75))\nMODEL: Projected 2.0\u20133.2 (total 5.2) (OT/SO in 16% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Ilves 2.94/2.24 (13GP this season, 60GP prior) vs Jokerit 1.93/3.29 (14GP). Market line: 5.5 (Ilves 5.01, Jokerit 5.00). Record: Ilves 8-4-1OTW vs Jokerit 2-9-1OTW-2OTL. Exact-Poisson proj: Jokerit 2.0 \u2013 Ilves 3.2 (5.2 total vs 5.5 line). Ilves's scoring edge versus the moneyline price. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 85.4% \u00b7 no-vig market 67.9% \u2192 73.2%; Puck line market blend (alpha 0.70): model 54.5% \u00b7 no-vig market 46.5% \u2192 48.9%; O/U market blend (alpha 0.65): model 42.4% \u00b7 no-vig market 42.4% \u2192 42.4%. Half-unit play \u00b7 Also: UNDER 5.5 (HIGH PROB).",
+    "settledAt": 1792256514352,
     "blendAlpha": 0.75,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6792,
-    "priceSource": "market",
-    "settledAt": 1792256514352
+    "priceSource": "market"
   },
   {
     "hA": "Ilves",
@@ -82446,12 +82475,12 @@
     "lockedAt": 1792191926219,
     "modelProb": 0.5758,
     "reasoning": "PICK: UNDER 5.5 \u2014 HIGH PROB (57.6% win prob, EV -6.7% \u00b7 MARKET PRICE -161 (EV at market -6.7%) \u00b7 MARKET-BLENDED: model 57.6% \u00b7 no-vig market 57.6% \u2192 57.6% (alpha 0.65))\nMODEL: Projected 2.0\u20133.2 (total 5.2) (OT/SO in 16% of outcomes) \u2014 UNDER hits 57.6% of outcomes vs the 5.5 line, from an exact Poisson distribution (not a simulation).",
+    "settledAt": 1792256514353,
     "blendAlpha": 0.65,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.5759,
-    "priceSource": "market",
-    "settledAt": 1792256514353
+    "priceSource": "market"
   },
   {
     "hA": "Jukurit",
@@ -82462,14 +82491,14 @@
     "betOn": "Jukurit +1.5",
     "sport": "LIIGA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 2,
+    "hScore": 3,
     "league": "LIIGA",
     "source": "manual",
     "betType": "SPREAD",
     "decOdds": 1.465,
     "leadMin": 985,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792251000000,
     "winProb": 0.6573264414743369,
     "lockedAt": 1792191928367,
@@ -82479,7 +82508,8 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6461,
-    "priceSource": "market"
+    "priceSource": "market",
+    "settledAt": 1792260111246
   },
   {
     "hA": "KSU",
@@ -82537,12 +82567,12 @@
     "lockedAt": 1792191926923,
     "modelProb": 0.6913,
     "reasoning": "PICK: Pelicans +1.5 \u2014 HIGH PROB (68.8% win prob, EV -5.0% \u00b7 MARKET PRICE -263 (EV at market -5.0%) \u00b7 MARKET-BLENDED: model 69.1% \u00b7 no-vig market 68.7% \u2192 68.8% (alpha 0.70))\nMODEL: Projected 2.4\u20132.6 (total 5.0) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: KalPa 2.58/2.69 (12GP this season, 60GP prior) vs Pelicans 2.28/2.42 (11GP, 60GP prior). Market line: 5.5 (KalPa 5.18, Pelicans 4.54). Record: KalPa 4-7-1OTL vs Pelicans 5-5-1OTL. Exact-Poisson proj: Pelicans 2.4 \u2013 KalPa 2.6 (5.0 total vs 5.5 line). Pelicans +1.5 covers in 68.8% of the model's blended scoring+margin projection (fav covers 31.2%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 48.5% \u00b7 no-vig market 53.0% \u2192 51.9%; Puck line market blend (alpha 0.70): model 30.9% \u00b7 no-vig market 31.3% \u2192 31.2%; O/U market blend (alpha 0.65): model 37.9% \u00b7 no-vig market 41.3% \u2192 40.1%. Half-unit play \u00b7 Also: UNDER 5.5 (HIGH PROB).",
+    "settledAt": 1792256514353,
     "blendAlpha": 0.7,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6867,
-    "priceSource": "market",
-    "settledAt": 1792256514353
+    "priceSource": "market"
   },
   {
     "hA": "KalPa",
@@ -82566,12 +82596,12 @@
     "lockedAt": 1792191927322,
     "modelProb": 0.621,
     "reasoning": "PICK: UNDER 5.5 \u2014 HIGH PROB (59.9% win prob, EV -5.3% \u00b7 MARKET PRICE -172 (EV at market -5.3%) \u00b7 MARKET-BLENDED: model 62.1% \u00b7 no-vig market 58.8% \u2192 59.9% (alpha 0.65))\nMODEL: Projected 2.4\u20132.6 (total 5.0) (OT/SO in 18% of outcomes) \u2014 UNDER hits 62.1% of outcomes vs the 5.5 line, from an exact Poisson distribution (not a simulation).",
+    "settledAt": 1792256514353,
     "blendAlpha": 0.65,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.5875,
-    "priceSource": "market",
-    "settledAt": 1792256514353
+    "priceSource": "market"
   },
   {
     "hA": "Karpat",
@@ -82595,12 +82625,12 @@
     "lockedAt": 1792191927487,
     "modelProb": 0.7632,
     "reasoning": "PICK: Karpat ML \u2014 HIGH PROB (67.6% win prob, EV -2.6% \u00b7 MARKET PRICE -227 (EV at market -2.6%) \u00b7 MARKET-BLENDED: model 76.3% \u00b7 no-vig market 64.4% \u2192 67.6% (alpha 0.75))\nMODEL: Projected 2.7\u20133.5 (total 6.2) (OT/SO in 16% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Karpat 2.88/2.88 (14GP this season, 60GP prior) vs KooKoo 2.67/3.70 (13GP, 60GP prior). Market line: 5.5 (Karpat 5.37, KooKoo 6.29). Record: Karpat 5-3-3OTW-3OTL vs KooKoo 1-11-1OTL. Exact-Poisson proj: KooKoo 2.7 \u2013 Karpat 3.5 (6.2 total vs 5.5 line). Karpat's scoring edge versus the moneyline price. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 76.3% \u00b7 no-vig market 64.4% \u2192 67.6%; Puck line market blend (alpha 0.70): model 45.1% \u00b7 no-vig market 42.4% \u2192 43.2%; O/U market blend (alpha 0.65): model 58.2% \u00b7 no-vig market 50.0% \u2192 52.9%. Half-unit play.",
+    "settledAt": 1792256514354,
     "blendAlpha": 0.75,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6436,
-    "priceSource": "market",
-    "settledAt": 1792256514354
+    "priceSource": "market"
   },
   {
     "hA": "LAK",
@@ -82738,12 +82768,12 @@
     "lockedAt": 1792191927849,
     "modelProb": 0.5606,
     "reasoning": "PICK: UNDER 5.5 \u2014 HIGH PROB (56.1% win prob, EV -5.7% \u00b7 MARKET PRICE -147 (EV at market -5.7%) \u00b7 MARKET-BLENDED: model 56.1% \u00b7 no-vig market 56.1% \u2192 56.1% (alpha 0.65))\nMODEL: Projected 2.5\u20132.8 (total 5.3) (OT/SO in 18% of outcomes) \u2014 UNDER hits 56.1% of outcomes vs the 5.5 line, from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Lukko 2.73/2.27 (13GP this season, 60GP prior) vs Kiekko-Espoo 2.98/2.58 (14GP, 60GP prior). Market line: 5.5 (Lukko 4.85, Kiekko-Espoo 5.25). Record: Lukko 7-4-1OTW-1OTL vs Kiekko-Espoo 5-5-1OTW-3OTL. Exact-Poisson proj: Kiekko-Espoo 2.5 \u2013 Lukko 2.8 (5.3 total vs 5.5 line). Combined scoring rate supports a tighter finish under the 5.5 line. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 64.8% \u00b7 no-vig market 58.6% \u2192 60.2%; Puck line market blend (alpha 0.70): model 34.9% \u00b7 no-vig market 36.1% \u2192 35.8%; O/U market blend (alpha 0.65): model 43.9% \u00b7 no-vig market 43.9% \u2192 43.9%. Half-unit play.",
+    "settledAt": 1792256514354,
     "blendAlpha": 0.65,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.5614,
-    "priceSource": "market",
-    "settledAt": 1792256514354
+    "priceSource": "market"
   },
   {
     "hA": "Lulea",
@@ -83438,6 +83468,34 @@
   },
   {
     "hA": "Rapperswil-Jona",
+    "id": "2026-10-17_Rapperswil-Jona_Biel_NLA_OVER5.5",
+    "ml": "-152",
+    "awA": "Biel",
+    "date": "2026-10-17",
+    "betOn": "OVER 5.5",
+    "sport": "NLA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "NLA",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.66,
+    "leadMin": 8,
+    "outcome": "pending",
+    "startMs": 1792259100000,
+    "winProb": 0.569,
+    "lockedAt": 1792258642864,
+    "modelProb": 0.5892,
+    "reasoning": "PICK: OVER 5.5 \u2014 HIGH PROB (56.9% win prob, EV -5.5% \u00b7 MARKET PRICE -152 (EV at market -5.5%) \u00b7 MARKET-BLENDED: model 58.9% \u00b7 no-vig market 55.9% \u2192 56.9% (alpha 0.65))\nMODEL: Projected 3.1\u20133.1 (total 6.2) (OT/SO in 16% of outcomes) \u2014 OVER hits 58.9% of outcomes vs the 5.5 line, from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Rapperswil-Jona 2.70/3.58 (12GP this season, 52GP prior) vs Biel 2.89/3.43 (11GP, 52GP prior). Market line: 5.5 (Rapperswil-Jona 6.02, Biel 6.09). Record: Rapperswil-Jona 2-7-2OTW-1OTL vs Biel 3-7-1OTL. Exact-Poisson proj: Biel 3.1 \u2013 Rapperswil-Jona 3.1 (6.2 total vs 5.5 line). Combined scoring rate supports goals above the 5.5 line. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 47.2% \u00b7 no-vig market 50.0% \u2192 49.3%; Puck line market blend (alpha 0.70): model 34.5% \u00b7 no-vig market 29.7% \u2192 31.1%; O/U market blend (alpha 0.65): model 58.9% \u00b7 no-vig market 55.9% \u2192 56.9%. Half-unit play.",
+    "blendAlpha": 0.65,
+    "lockOrigin": "manual",
+    "lockTiming": "pre",
+    "marketProb": 0.5585,
+    "priceSource": "market"
+  },
+  {
+    "hA": "Rapperswil-Jona",
     "id": "2026-10-17_Rapperswil-Jona_Biel_NLA_Rapperswil-Jona+1.5",
     "ml": "-241",
     "awA": "Biel",
@@ -83870,12 +83928,12 @@
     "lockedAt": 1792191928003,
     "modelProb": 0.7439,
     "reasoning": "PICK: SaiPa ML \u2014 HIGH PROB (66.9% win prob, EV -3.0% \u00b7 MARKET PRICE -222 (EV at market -3.0%) \u00b7 MARKET-BLENDED: model 74.4% \u00b7 no-vig market 64.2% \u2192 66.9% (alpha 0.75))\nMODEL: Projected 2.4\u20133.1 (total 5.5) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: SaiPa 2.96/2.13 (12GP this season, 60GP prior) vs IFK Helsinki 2.69/3.12 (12GP, 60GP prior). Market line: 5.5 (SaiPa 4.88, IFK Helsinki 5.58). Record: SaiPa 6-3-2OTW-1OTL vs IFK Helsinki 3-5-1OTW-3OTL. Exact-Poisson proj: IFK Helsinki 2.4 \u2013 SaiPa 3.1 (5.5 total vs 5.5 line). SaiPa's scoring edge versus the moneyline price. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 74.4% \u00b7 no-vig market 64.2% \u2192 66.9%; Puck line market blend (alpha 0.70): model 42.0% \u00b7 no-vig market 42.0% \u2192 42.0%; O/U market blend (alpha 0.65): model 47.6% \u00b7 no-vig market 46.7% \u2192 47.0%. Half-unit play.",
+    "settledAt": 1792256514354,
     "blendAlpha": 0.75,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.642,
-    "priceSource": "market",
-    "settledAt": 1792256514354
+    "priceSource": "market"
   },
   {
     "hA": "TBL",
