@@ -160,6 +160,12 @@ class NbaPreseasonGuard(unittest.TestCase):
                 return {x["leg"].get("hA") if "leg" in x else x.get("hA") for x in a.build_qualifying({"gameLegs": legs, "propLegs": []}, now=now)}
             self.assertNotIn("NY", teams([self._nba_leg("NY", "PHI", ms(2026, 10, 20, 23))]))            # the Oct 20 opener on Oct 17: beyond today + tomorrow (this is what got locked with a wrong date)
             self.assertNotIn("BOS", teams([self._nba_leg("BOS", "MIA", ms(2026, 10, 18, 23))]))          # inside the horizon but before the regular season = preseason
+            orig2 = a._nba_regular_season_start
+            a._nba_regular_season_start = lambda: None                                                    # NBA is same-day only: tomorrow's game is not locked today even in season
+            self.assertNotIn("DEN", teams([self._nba_leg("DEN", "LAL", ms(2026, 10, 18, 23))]))
+            a._nba_regular_season_start = orig2
+            seen = {x.get("hA") or x["leg"].get("hA") for x in a.build_qualifying({"gameLegs": [self._nba_leg("NY", "PHI", ms(2026, 10, 20, 23))], "propLegs": []}, now=0)}
+            self.assertIn("NY", seen)                                                                     # now=0 = the watchdog's observe-only call: it must still SEE every leg
             on_open = datetime(2026, 10, 20, 9, 0, tzinfo=ZoneInfo("America/Denver"))
             got = {x.get("hA") or x["leg"].get("hA") for x in a.build_qualifying({"gameLegs": [self._nba_leg("NY", "PHI", ms(2026, 10, 20, 23))], "propLegs": []}, now=on_open)}
             self.assertIn("NY", got)                                                                      # opening day itself locks normally
