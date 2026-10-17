@@ -146,6 +146,26 @@ class NbaPreseasonGuard(unittest.TestCase):
         teams = {(x.get("hA") or x["leg"].get("hA")) for x in q}
         self.assertNotIn("DEN", teams); self.assertIn("BOS", teams)          # preseason pair dropped (game AND prop), regular-season pair kept
 
+    def _nba_leg(self, h, aw, start_ms):
+        return {"sport": "NBA", "hA": h, "awA": aw, "startMs": start_ms, "markets": [{"side": "over", "label": "OVER 220.5", "prob": .8, "tierN": 3, "evVal": .1, "ml": "-110", "dec": 1.9}]}
+
+    def test_games_before_the_regular_season_or_beyond_the_horizon_are_never_locked(self):
+        from datetime import timezone
+        now = datetime(2026, 10, 17, 9, 33, tzinfo=ZoneInfo("America/Denver"))
+        ms = lambda y, m, d, hh: int(datetime(y, m, d, hh, 0, tzinfo=timezone.utc).timestamp() * 1000)
+        orig = a._nba_regular_season_start
+        a._nba_regular_season_start = lambda: "2026-10-20"
+        try:
+            def teams(legs):
+                return {x["leg"].get("hA") if "leg" in x else x.get("hA") for x in a.build_qualifying({"gameLegs": legs, "propLegs": []}, now=now)}
+            self.assertNotIn("NY", teams([self._nba_leg("NY", "PHI", ms(2026, 10, 20, 23))]))            # the Oct 20 opener on Oct 17: beyond today + tomorrow (this is what got locked with a wrong date)
+            self.assertNotIn("BOS", teams([self._nba_leg("BOS", "MIA", ms(2026, 10, 18, 23))]))          # inside the horizon but before the regular season = preseason
+            on_open = datetime(2026, 10, 20, 9, 0, tzinfo=ZoneInfo("America/Denver"))
+            got = {x.get("hA") or x["leg"].get("hA") for x in a.build_qualifying({"gameLegs": [self._nba_leg("NY", "PHI", ms(2026, 10, 20, 23))], "propLegs": []}, now=on_open)}
+            self.assertIn("NY", got)                                                                      # opening day itself locks normally
+        finally:
+            a._nba_regular_season_start = orig
+
     def test_pairs_come_from_the_schedule_files(self):
         pairs = a._nba_preseason_pairs()                                      # runs against docs/nba_schedule.json: must be a set and never raise
         self.assertIsInstance(pairs, set)

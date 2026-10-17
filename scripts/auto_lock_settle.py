@@ -2580,6 +2580,21 @@ def _nba_preseason_pairs() -> set:
     return out
 
 
+def _nba_regular_season_start() -> str | None:
+    """First regular-season date (YYYY-MM-DD) from docs/nba_schedule.json's own `regularSeason.start`, or None. Anything NBA before it is preseason, whatever the per-game flags say."""
+    try:
+        return ((json.loads((ROOT / "docs" / "nba_schedule.json").read_text()).get("regularSeason") or {}).get("start")) or None
+    except Exception:
+        return None
+
+
+def _beyond_horizon(start_ms, now=None) -> bool:
+    """True when a game starts on an MT date AFTER the rolling horizon (today + tomorrow). The picks are stamped with a date, and settlement looks that date up -- a game three days
+    out locked today would carry today's date and never grade (found 2026-10-17: the NBA opener, Oct 20, locked on Oct 17). Unknown start -> False (callers keep their own rules)."""
+    d = mt_date_of_ms(start_ms)
+    return bool(d) and d > max(horizon_dates(now))
+
+
 def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, now=None,
                      guard_stats: dict | None = None) -> list[dict]:
     """only_sports: if given, restricts to exactly these sport tags (e.g.
@@ -2606,6 +2621,14 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
             continue
         if sport == "NBA" and frozenset({gl.get("hA"), gl.get("awA")}) in _pre_nba:
             log(f"  skip NBA PRESEASON game {gl.get('awA')} @ {gl.get('hA')} (never locked or emailed)")
+            continue
+        if sport == "NBA":
+            _rs, _gd = _nba_regular_season_start(), mt_date_of_ms(gl.get("startMs"))
+            if _rs and _gd and _gd < _rs:
+                log(f"  skip NBA game {gl.get('awA')} @ {gl.get('hA')} on {_gd}: before the regular season ({_rs}) -- preseason is never locked or emailed")
+                continue
+        if _beyond_horizon(gl.get("startMs"), now):
+            log(f"  skip {sport} game {gl.get('awA')} @ {gl.get('hA')} on {mt_date_of_ms(gl.get('startMs'))}: beyond the lock horizon (today + tomorrow); a later pass locks it on its own date")
             continue
         guard_ok, guard_reason, _guard_mins = start_guard(sport, gl.get("startMs"), now)
         game_skipped = 0
