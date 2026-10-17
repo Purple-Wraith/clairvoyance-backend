@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-10-17T19:04:32.635Z",
+ "updated_at": "2026-10-17T19:06:38.186Z",
  "picks": [
   {
    "id": "2026-10-03_Hameenlinna_Karpat_LIIGA_Karpat-1.5",
@@ -3247,6 +3247,57 @@
    "lockTiming": "pre",
    "marketProb": 0.5585,
    "priceSource": "market"
+  },
+  {
+   "id": "cfb_2026-10-17_IU_OSU_ML_OSU",
+   "date": "2026-10-17",
+   "hA": "IU",
+   "awA": "OSU",
+   "sport": "FOOTBALL",
+   "league": "CFB",
+   "betType": "ML",
+   "betOn": "OSU",
+   "winProb": 0.405,
+   "ml": "+147",
+   "decOdds": 2.4699999999999998,
+   "ou": null,
+   "wager": 0,
+   "outcome": "pending",
+   "lockedAt": 1792263985019,
+   "lockOrigin": "manual"
+  },
+  {
+   "id": "2026-10-17_IU_OSU_CFB_UNDER55.5",
+   "date": "2026-10-17",
+   "hA": "IU",
+   "awA": "OSU",
+   "sport": "CFB",
+   "league": "CFB",
+   "betType": "OU",
+   "betOn": "UNDER 55.5",
+   "winProb": 0.6806,
+   "ml": "-264",
+   "decOdds": 1.378,
+   "wager": 0,
+   "outcome": "pending",
+   "lockedAt": 1792263989623,
+   "hScore": null,
+   "aScore": null,
+   "source": "manual",
+   "lockOrigin": "manual",
+   "priceSource": "estimated",
+   "reasoning": "PICK: UNDER 55.5 — ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 50.5 to UNDER 55.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 95.0%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +0.2 (OSU), total 28.1, from a 25k-sim Monte Carlo.",
+   "altLine": {
+    "posted": 50.5,
+    "line": 55.5,
+    "shift": 5,
+    "postedLabel": "UNDER 50.5",
+    "postedDec": 1.909,
+    "postedMl": "-110"
+   },
+   "startMs": 1792252800000,
+   "leadMin": -186,
+   "lockTiming": "late-manual"
   }
  ]
 }
