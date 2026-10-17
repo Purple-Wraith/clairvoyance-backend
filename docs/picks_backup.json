@@ -80490,14 +80490,14 @@
     "betOn": "COL ML",
     "sport": "NHL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 2,
+    "hScore": 5,
     "league": "NHL",
     "source": "manual",
     "betType": "ML",
     "decOdds": 1.46,
     "leadMin": 899,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792198800000,
     "winProb": 0.6598878176762725,
     "lockedAt": 1792144880870,
@@ -80507,7 +80507,8 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6573,
-    "priceSource": "market"
+    "priceSource": "market",
+    "settledAt": 1792209076161
   },
   {
     "hA": "COL",
@@ -80518,21 +80519,22 @@
     "betOn": "OVER 5.5",
     "sport": "NHL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 2,
+    "hScore": 5,
     "league": "NHL",
     "source": "manual",
     "betType": "OU",
     "decOdds": 1.5,
     "leadMin": 202,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792198800000,
     "winProb": 0.6080000000000001,
     "lockedAt": 1792186703266,
     "reasoning": "PICK: OVER 5.5 \u2014 MANUAL LINE (60.8% estimated win prob at this line)\nLINE EDITED: the line was changed by hand from OVER 6.5 to OVER 5.5. The win probability is the card's 53.8% for OVER 6.5, adjusted 7.0 points of probability per point of line for this O/U -- a simple estimate, not a re-run of the engine's model.\nPRICE: a standard assumed price, not a market quote.\nMODEL: Projected 3.1\u20134.1 (total 7.2) (OT/SO in 14% of outcomes), from a 25k-sim Monte Carlo.",
     "lockOrigin": "manual",
     "lockTiming": "pre",
-    "priceSource": "market"
+    "priceSource": "market",
+    "settledAt": 1792209076162
   },
   {
     "hA": "Deportivo",
@@ -80850,8 +80852,8 @@
     "betOn": "OVER 44.5",
     "sport": "CFB",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 38,
+    "hScore": 26,
     "league": "CFB",
     "source": "manual",
     "altLine": {
@@ -80866,14 +80868,15 @@
     "betType": "OU",
     "decOdds": 1.378,
     "leadMin": 541,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792195200000,
     "winProb": 0.6806,
     "lockedAt": 1792162765921,
     "reasoning": "PICK: OVER 44.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted OVER 49.5 to OVER 44.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 68.0%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin -3.5 (PUR), total 53.5, from a 25k-sim Monte Carlo.",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1792209075706
   },
   {
     "hA": "PUR",
@@ -80884,8 +80887,8 @@
     "betOn": "WASH +10.5",
     "sport": "CFB",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 38,
+    "hScore": 26,
     "league": "CFB",
     "source": "manual",
     "altLine": {
@@ -80900,14 +80903,15 @@
     "betType": "SPREAD",
     "decOdds": 1.36,
     "leadMin": 2489,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792195200000,
     "winProb": 0.6903,
     "lockedAt": 1792045841584,
     "reasoning": "PICK: WASH +10.5 \u2014 ADJUSTED LINE (69.0% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted WASH +3.5 to WASH +10.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 66.0%; the 7-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin -3.3 (PUR), total 53.6, from a 25k-sim Monte Carlo.",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1792209075706
   },
   {
     "hA": "Pelicans",
@@ -81087,7 +81091,7 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "priceSource": "estimated",
-    "settledAt": 1792207266177
+    "settledAt": 1792209075704
   },
   {
     "hA": "TULN",
@@ -81112,7 +81116,7 @@
     "reasoning": "PICK: MEM ML \u2014 PREMIUM (74.1% win prob, EV -0.0%)\nMODEL: Projected margin +13.2 (MEM), total 43.6, from a 25k-sim Monte Carlo.\nWHY: MEM ML \u00b7 PREMIUM \u00b7 74.1% \u00b7 EV -0.0% FPI has TULN at -3.3 (#81 nationally) and MEM at +4.4 (#54) \u2014 a 7.7-point model gap, a moderate edge. TULN is home \u2014 this model uses a team-specific 4.74-point home-field edge here (vs the 2.2-pt default), derived from TULN's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: TULN ranks #75 nationally, MEM #101 \u2014 TULN has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): TULN 44, MEM 63.9. Elo (built from this season's own final scores, separate from FPI): TULN 1480 (12 games played), MEM 1584 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: TULN 2-3, MEM 5-1. Turnover margin: TULN +2, MEM +5 on the season \u2014 roughly a wash. Season TD production: TULN 4 passing / 7 rushing, MEM 18 passing / 12 rushing (season totals, not per-game rates) \u2014 MEM has scored more often through the air and on the ground so far.",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "settledAt": 1792207266178
+    "settledAt": 1792209075705
   },
   {
     "hA": "Trinec",
@@ -84343,10 +84347,13 @@
     "league": "CFB",
     "betType": "ML",
     "decOdds": 1.847457627118644,
-    "outcome": "pending",
+    "outcome": "win",
     "winProb": 0.542,
     "lockedAt": 1792187055177,
-    "lockOrigin": "manual"
+    "lockOrigin": "manual",
+    "settledAt": 1792209075706,
+    "hScore": 26,
+    "aScore": 38
   },
   {
     "hA": "PARLAY",
