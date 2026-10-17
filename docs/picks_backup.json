@@ -81466,6 +81466,7 @@
     "winProb": 0.6607493194218474,
     "lockedAt": 1792131615929,
     "reasoning": "PICK: Bologna +1.5 \u2014 PREMIUM (66.1% win prob, EV +26.1% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.77\u20130.84 goals (xG 1.77/0.84), BTTS 47%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Bologna 0.84 xG/G vs Internazionale 1.77 xG/G. 3-way: Home 23% / Draw 30% / Away 66%. MC proj: 0.84 \u2013 1.77 (2.61 total vs 2.5 line, BTTS 47%). Goal spread: Internazionale -1.5 covers 34%, Bologna +1.5 covers 66% (proj margin -0.94). Bologna priced to survive within 1.5 even if outscored. Kelly 28.8%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Internazionale Win (PREMIUM), UNDER 2.5 (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, H2H (H) -4%, Fbref (A) +6%, Standings (A) +6%, H2H (A) +4%.",
+    "settledAt": 1792260106755,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "socFactors": {
@@ -81497,8 +81498,7 @@
         "away": 1.06,
         "home": 0.94
       }
-    },
-    "settledAt": 1792260106755
+    }
   },
   {
     "hA": "Brentford",
@@ -82504,12 +82504,12 @@
     "lockedAt": 1792191928367,
     "modelProb": 0.6828,
     "reasoning": "PICK: Jukurit +1.5 \u2014 HIGH PROB (65.7% win prob, EV -3.7% \u00b7 MARKET PRICE -215 (EV at market -3.7%) \u00b7 MARKET-BLENDED: model 68.3% \u00b7 no-vig market 64.6% \u2192 65.7% (alpha 0.70))\nMODEL: Projected 2.7\u20132.5 (total 5.1) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Jukurit 2.46/2.31 (14GP this season, 60GP prior) vs Tappara 3.16/2.29 (12GP, 60GP prior). Market line: 4.5 (Jukurit 4.52, Tappara 5.32). Record: Jukurit 6-5-3OTW vs Tappara 5-5-2OTW. Exact-Poisson proj: Tappara 2.7 \u2013 Jukurit 2.5 (5.1 total vs 4.5 line). Jukurit +1.5 covers in 65.7% of the model's blended scoring+margin projection (fav covers 34.3%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 47.7% \u00b7 no-vig market 41.4% \u2192 43.0%; Puck line market blend (alpha 0.70): model 31.7% \u00b7 no-vig market 35.4% \u2192 34.3%; O/U market blend (alpha 0.65): model 58.1% \u00b7 no-vig market 60.4% \u2192 59.6%. Half-unit play.",
+    "settledAt": 1792260111246,
     "blendAlpha": 0.7,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6461,
-    "priceSource": "market",
-    "settledAt": 1792260111246
+    "priceSource": "market"
   },
   {
     "hA": "KSU",
@@ -83237,14 +83237,14 @@
     "betOn": "Newcastle United Win",
     "sport": "PL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 1,
+    "hScore": 0,
     "league": "PL",
     "source": "manual",
     "betType": "ML",
     "decOdds": 1.91,
     "leadMin": 622,
-    "outcome": "pending",
+    "outcome": "loss",
     "startMs": 1792254600000,
     "winProb": 0.6208417915624643,
     "lockedAt": 1792217272462,
@@ -83280,7 +83280,8 @@
         "away": 0.94,
         "home": 0.9937888198757766
       }
-    }
+    },
+    "settledAt": 1792261910042
   },
   {
     "hA": "Newcastle United",
@@ -83291,14 +83292,14 @@
     "betOn": "UNDER 3.5",
     "sport": "PL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 1,
+    "hScore": 0,
     "league": "PL",
     "source": "manual",
     "betType": "OU",
     "decOdds": 1.91,
     "leadMin": 416,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792254600000,
     "winProb": 0.6541325969729639,
     "lockedAt": 1792229622201,
@@ -83334,7 +83335,8 @@
         "away": 0.94,
         "home": 0.9937888198757766
       }
-    }
+    },
+    "settledAt": 1792261910044
   },
   {
     "hA": "ORE",
@@ -83531,14 +83533,14 @@
     "betOn": "Barcelona Win",
     "sport": "LIGA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 5,
+    "hScore": 2,
     "league": "LIGA",
     "source": "manual",
     "betType": "ML",
     "decOdds": 1.91,
     "leadMin": 2020,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792252800000,
     "winProb": 0.6753845337697038,
     "lockedAt": 1792131615206,
@@ -83574,7 +83576,8 @@
         "away": 1.06,
         "home": 1.06
       }
-    }
+    },
+    "settledAt": 1792261910708
   },
   {
     "hA": "Real Betis",
@@ -83585,14 +83588,14 @@
     "betOn": "UNDER 4.5",
     "sport": "LIGA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 5,
+    "hScore": 2,
     "league": "LIGA",
     "source": "manual",
     "betType": "OU",
     "decOdds": 1.91,
     "leadMin": 592,
-    "outcome": "pending",
+    "outcome": "loss",
     "startMs": 1792252800000,
     "winProb": 0.6098601614123845,
     "lockedAt": 1792217272780,
@@ -83628,7 +83631,8 @@
         "away": 1.06,
         "home": 1.06
       }
-    }
+    },
+    "settledAt": 1792261910709
   },
   {
     "hA": "Rogle",
