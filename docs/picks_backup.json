@@ -84017,20 +84017,21 @@
     "betOn": "OHIO ML",
     "sport": "CFB",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 48,
+    "hScore": 7,
     "league": "CFB",
     "source": "manual",
     "betType": "ML",
     "decOdds": 1.2105263157894737,
     "leadMin": 2613,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792288800000,
     "winProb": 0.8260976815478239,
     "lockedAt": 1792132012323,
     "reasoning": "PICK: OHIO ML \u2014 SKIP (82.6% win prob, EV +0.0%)\nMODEL: Projected margin +19.8 (OHIO), total 54.7, from a 25k-sim Monte Carlo.\nWHY: OHIO ML \u00b7 SKIP \u00b7 82.6% \u00b7 EV +0.0% FPI has SAC at -29.4 (#138 nationally) and OHIO at -9.3 (#103) \u2014 a 20.1-point model gap, a significant edge. SAC is home \u2014 this model uses a team-specific 6.96-point home-field edge here (vs the 2.2-pt default), derived from SAC's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: SAC ranks #130 nationally, OHIO #92 \u2014 OHIO has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): SAC 11.5, OHIO 44.9. Elo (built from this season's own final scores, separate from FPI): SAC 1404 (12 games played), OHIO 1530 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: SAC 1-5, OHIO 4-2. Turnover margin: SAC -3, OHIO -1 on the season \u2014 roughly a wash. Season TD production: SAC 6 passing / 4 rushing, OHIO 10 passing / 9 rushing (season totals, not per-game rates) \u2014 OHIO has scored more often through the air and on the ground so far.",
     "lockOrigin": "auto",
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1792301471000
   },
   {
     "hA": "SAC",
@@ -84041,8 +84042,8 @@
     "betOn": "OVER 43.5",
     "sport": "CFB",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 48,
+    "hScore": 7,
     "league": "CFB",
     "source": "manual",
     "altLine": {
@@ -84057,14 +84058,15 @@
     "betType": "OU",
     "decOdds": 1.378,
     "leadMin": 2613,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792288800000,
     "winProb": 0.6806,
     "lockedAt": 1792132012091,
     "reasoning": "PICK: OVER 43.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted OVER 48.5 to OVER 43.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 72.6%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +19.8 (OHIO), total 54.7, from a 25k-sim Monte Carlo.",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1792301471000
   },
   {
     "hA": "SDSU",
@@ -84706,12 +84708,12 @@
     "lockedAt": 1792277581890,
     "modelProb": 0.379,
     "reasoning": "PICK: UNDER 6.5 \u2014 SKIP (45.2% win prob, EV -9.7% \u00b7 MARKET PRICE +100 (EV at market -9.7%) \u00b7 MARKET-BLENDED: model 37.9% \u00b7 no-vig market 47.8% \u2192 45.2% (alpha 0.74))\nMODEL: Projected 3.4\u20134.1 (total 7.5) (OT/SO in 15% of outcomes) \u2014 UNDER hits 37.9% of outcomes vs the 6.5 line, from a 25k-sim Monte Carlo.",
+    "settledAt": 1792299073808,
     "blendAlpha": 0.74,
     "lockOrigin": "manual",
     "lockTiming": "pre",
     "marketProb": 0.4778,
-    "priceSource": "market",
-    "settledAt": 1792299073808
+    "priceSource": "market"
   },
   {
     "hA": "UTEP",
@@ -84743,10 +84745,10 @@
     "winProb": 0.679,
     "lockedAt": 1792132011970,
     "reasoning": "PICK: SJSU -0.5 \u2014 ADJUSTED LINE (67.9% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted SJSU -7.0 to SJSU -0.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.5%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +11.0 (SJSU), total 63.1, from a 25k-sim Monte Carlo.",
+    "settledAt": 1792299070669,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1792299070669
+    "priceSource": "estimated"
   },
   {
     "hA": "UTSA",
@@ -84839,10 +84841,10 @@
     "winProb": 0.6240000000000001,
     "lockedAt": 1792277504822,
     "reasoning": "PICK: OVER 5.5 \u2014 MANUAL LINE (62.4% estimated win prob at this line)\nLINE EDITED: the line was changed by hand from OVER 6.5 to OVER 5.5. The win probability is the card's 55.4% for OVER 6.5, adjusted 7.0 points of probability per point of line for this O/U -- a simple estimate, not a re-run of the engine's model.\nPRICE: a standard assumed price, not a market quote.\nMODEL: Projected 3.2\u20134.4 (total 7.5) (OT/SO in 14% of outcomes), from a 25k-sim Monte Carlo.",
+    "settledAt": 1792299073809,
     "lockOrigin": "manual",
     "lockTiming": "pre",
-    "priceSource": "market",
-    "settledAt": 1792299073809
+    "priceSource": "market"
   },
   {
     "hA": "VGK",
@@ -84866,12 +84868,12 @@
     "lockedAt": 1792229618564,
     "modelProb": 0.6926,
     "reasoning": "PICK: VGK ML \u2014 HIGH PROB (67.6% win prob, EV -4.0% \u00b7 MARKET PRICE -238 (EV at market -4.0%) \u00b7 MARKET-BLENDED: model 69.3% \u00b7 no-vig market 67.1% \u2192 67.6% (alpha 0.79))\nMODEL: Projected 3.1\u20134.2 (total 7.3) (OT/SO in 14% of outcomes), from a 25k-sim Monte Carlo.\nWHY: Best market: VGK ML graded HIGH PROB (67.6%, EV -4.0%). GSAx: +1.5 vs +0.4 (injury adj: VGK: Parker Wotherspoon D OUT -> scoring -0.6% | PIT: Egor Chinakhov RW OUT, Justin Brazeau RW OUT -> scoring -2.9%) favors VGK. MC 66% / xGF 50% / hv +4.7pp / ST +0.3pp / SQ +0.0pp \u00b7 ML market blend (alpha 0.79): model 69.3% \u00b7 no-vig market 67.1% \u2192 67.6%; Puck line market blend (alpha 0.75): model 48.1% \u00b7 no-vig market 46.8% \u2192 47.1%; O/U market blend (alpha 0.71): model 60.2% \u00b7 no-vig market 51.2% \u2192 53.8%. Half-unit play.",
+    "settledAt": 1792299073809,
     "blendAlpha": 0.79,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6713,
-    "priceSource": "market",
-    "settledAt": 1792299073809
+    "priceSource": "market"
   },
   {
     "hA": "VT",
