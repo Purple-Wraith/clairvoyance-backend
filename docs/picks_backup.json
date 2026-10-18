@@ -84907,14 +84907,14 @@
     "betOn": "AC Milan Win",
     "sport": "SERIEA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 2,
+    "hScore": 3,
     "league": "SERIEA",
     "source": "manual",
     "betType": "ML",
     "decOdds": 1.91,
     "leadMin": 2032,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792339200000,
     "winProb": 0.7477107225640203,
     "lockedAt": 1792217271504,
@@ -84950,7 +84950,8 @@
         "away": 1.06,
         "home": 1.06
       }
-    }
+    },
+    "settledAt": 1792346476706
   },
   {
     "hA": "AC Milan",
@@ -84961,14 +84962,14 @@
     "betOn": "Atalanta +1.5",
     "sport": "SERIEA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 2,
+    "hScore": 3,
     "league": "SERIEA",
     "source": "manual",
     "betType": "SPREAD",
     "decOdds": 1.91,
     "leadMin": 566,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792339200000,
     "winProb": 0.6674111741267332,
     "lockedAt": 1792305250323,
@@ -85004,7 +85005,8 @@
         "away": 1.06,
         "home": 1.06
       }
-    }
+    },
+    "settledAt": 1792346476707
   },
   {
     "hA": "AFC Bournemouth",
@@ -85949,12 +85951,12 @@
     "lockedAt": 1792222566710,
     "modelProb": 0.7067,
     "reasoning": "PICK: Liberec +1.5 \u2014 HIGH PROB (68.4% win prob, EV -4.2% \u00b7 MARKET PRICE -250 (EV at market -4.2%) \u00b7 MARKET-BLENDED: model 70.7% \u00b7 no-vig market 67.4% \u2192 68.4% (alpha 0.70))\nMODEL: Projected 2.9\u20132.8 (total 5.7) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Kometa Brno 2.71/2.88 (10GP this season, 52GP prior) vs Liberec 2.87/2.61 (10GP, 52GP prior). Market line: 5.5 (Kometa Brno 5.35, Liberec 5.25). Record: Kometa Brno 3-4-2OTW-1OTL vs Liberec 4-4-2OTL. Exact-Poisson proj: Liberec 2.9 \u2013 Kometa Brno 2.8 (5.7 total vs 5.5 line). Liberec +1.5 covers in 68.4% of the model's blended scoring+margin projection (fav covers 31.6%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 46.3% \u00b7 no-vig market 54.4% \u2192 52.4%; Puck line market blend (alpha 0.70): model 29.3% \u00b7 no-vig market 32.6% \u2192 31.6%; O/U market blend (alpha 0.65): model 50.0% \u00b7 no-vig market 48.9% \u2192 49.3%. Half-unit play.",
+    "settledAt": 1792344711972,
     "blendAlpha": 0.7,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6744,
-    "priceSource": "market",
-    "settledAt": 1792344711972
+    "priceSource": "market"
   },
   {
     "hA": "LAR",
@@ -86208,6 +86210,7 @@
     "winProb": 0.7191106523846127,
     "lockedAt": 1792217270184,
     "reasoning": "PICK: Arsenal Win \u2014 PREMIUM (71.9% win prob, EV +16.9%)\nMODEL: Projected 1.32\u20130.67 goals (xG 1.31/0.67), BTTS 36%, from a 25k-sim Monte Carlo.\nWHY: xG basis: Nottingham Forest 0.67 xG/G vs Arsenal 1.31 xG/G. 3-way: Home 25% / Draw 36% / Away 72%. MC proj: 0.67 \u2013 1.32 (1.99 total vs 2.5 line, BTTS 36%). Goal spread: Arsenal -0.5 covers 52%, Nottingham Forest +0.5 covers 48% (proj margin -0.64). Arsenal road xG edge underpriced. Kelly 27.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: UNDER 2.5 (PREMIUM), Arsenal -0.5 (LEAN). Factors moving this pick: Standings +6%, H2H +6%, Fbref +4%.",
+    "settledAt": 1792344705560,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "socFactors": {
@@ -86239,8 +86242,7 @@
         "away": 1.06,
         "home": 0.94
       }
-    },
-    "settledAt": 1792344705560
+    }
   },
   {
     "hA": "Nottingham Forest",
@@ -86263,6 +86265,7 @@
     "winProb": 0.68,
     "lockedAt": 1792217269965,
     "reasoning": "PICK: UNDER 2.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.32\u20130.67 goals (xG 1.31/0.67), BTTS 36% \u2014 OVER 2.5 hits 32.2% of outcomes, from a 25k-sim Monte Carlo.",
+    "settledAt": 1792344705561,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "socFactors": {
@@ -86294,8 +86297,7 @@
         "away": 1.06,
         "home": 0.94
       }
-    },
-    "settledAt": 1792344705561
+    }
   },
   {
     "hA": "Olomouc",
@@ -86319,12 +86321,12 @@
     "lockedAt": 1792222566858,
     "modelProb": 0.7605,
     "reasoning": "PICK: Pardubice ML \u2014 HIGH PROB (75.7% win prob, EV -6.1% \u00b7 MARKET PRICE -417 (EV at market -6.1%) \u00b7 MARKET-BLENDED: model 76.0% \u00b7 no-vig market 75.6% \u2192 75.7% (alpha 0.75))\nMODEL: Projected 3.6\u20132.3 (total 5.9) (OT/SO in 15% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Olomouc 1.97/3.42 (11GP this season, 52GP prior) vs Pardubice 3.78/2.56 (11GP, 52GP prior). Market line: 5.5 (Olomouc 5.30, Pardubice 6.19). Record: Olomouc 1-9-1OTW vs Pardubice 8-2-1OTW. Exact-Poisson proj: Pardubice 3.6 \u2013 Olomouc 2.3 (5.9 total vs 5.5 line). Pardubice road value the record alone doesn't capture. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 24.0% \u00b7 no-vig market 24.4% \u2192 24.3%; Puck line market blend (alpha 0.70): model 59.8% \u00b7 no-vig market 55.9% \u2192 57.0%; O/U market blend (alpha 0.65): model 53.5% \u00b7 no-vig market 53.0% \u2192 53.2%. Half-unit play.",
+    "settledAt": 1792344711973,
     "blendAlpha": 0.75,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.7564,
-    "priceSource": "market",
-    "settledAt": 1792344711973
+    "priceSource": "market"
   },
   {
     "hA": "Osasuna",
@@ -86477,12 +86479,12 @@
     "lockedAt": 1792303947763,
     "modelProb": 0.7231,
     "reasoning": "PICK: Plzen ML \u2014 HIGH PROB (69.4% win prob, EV -5.6% \u00b7 MARKET PRICE -278 (EV at market -5.6%) \u00b7 MARKET-BLENDED: model 72.3% \u00b7 no-vig market 68.5% \u2192 69.4% (alpha 0.75))\nMODEL: Projected 2.1\u20133.0 (total 5.1) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Plzen 2.44/2.12 (11GP this season, 52GP prior) vs Vitkovice 2.36/3.33 (10GP, 52GP prior). Market line: 4.5 (Plzen 4.24, Vitkovice 5.56). Record: Plzen 3-4-3OTW-1OTL vs Vitkovice 2-7-1OTL. Exact-Poisson proj: Vitkovice 2.1 \u2013 Plzen 3.0 (5.1 total vs 4.5 line). Plzen's scoring edge versus the moneyline price. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 72.3% \u00b7 no-vig market 68.4% \u2192 69.4%; Puck line market blend (alpha 0.70): model 44.2% \u00b7 no-vig market 45.0% \u2192 44.8%; O/U market blend (alpha 0.65): model 57.7% \u00b7 no-vig market 60.4% \u2192 59.5%. Half-unit play.",
+    "settledAt": 1792344711972,
     "blendAlpha": 0.75,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6845,
-    "priceSource": "market",
-    "settledAt": 1792344711972
+    "priceSource": "market"
   },
   {
     "hA": "Real Madrid",
