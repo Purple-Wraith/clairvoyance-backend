@@ -56,7 +56,24 @@ class Compare(unittest.TestCase):
           return {dates: last.map(x => x.date), wins: last.map(x => x.win), venues: last.map(x => x.home), html: _cmpFormHTML('X', 'Y', last, _cmpResults(G, 'Y', 5), _cmpResults(G, 'X', 99), _cmpResults(G, 'Y', 99))}; }""")
         self.assertEqual(r["dates"], ["2026-10-03", "2026-10-02", "2026-10-01"])                      # newest first, the unplayed game is skipped
         self.assertEqual(r["wins"], [True, False, True]); self.assertEqual(r["venues"], [False, False, True])
-        self.assertIn("mom-pip w", r["html"]); self.assertIn("mom-pip l", r["html"]); self.assertIn("W 4-2 at Ys", r["html"]); self.assertIn("home 1-0 · road 1-1", r["html"])
+        self.assertIn("mom-pip w", r["html"]); self.assertIn("mom-pip l", r["html"]); self.assertIn("WIN 4-2 at Ys", r["html"]); self.assertIn("data-tip=", r["html"]); self.assertIn("showDotTip(this)", r["html"]); self.assertIn("home 1-0 · road 1-1", r["html"])
+
+    def test_hovering_a_bubble_shows_the_game(self):
+        """Hover on the FORM bubbles has to open the same tooltip the Home bubbles use (reported not working 2026-10-18)."""
+        pg = self.pg
+        pg.evaluate("""() => { const ids = Object.keys(_SHL_DATA.teams); const h = _SHL_DATA.teams[ids[0]], a = _SHL_DATA.teams[ids[1]];
+          document.getElementById('cmpbox')?.remove();
+          const w = document.createElement('div'); w.id = 'cmpbox'; w.style.cssText = 'position:fixed;top:0;left:0;width:370px;background:#06010e;padding:8px;z-index:90000';
+          w.innerHTML = _hkCompareRadarHTML('t_hv', h.name, a.name, 'SHL', h, a, _shlBlendedRates(h), _shlBlendedRates(a), ids[0], ids[1]); document.body.appendChild(w); _switchRadarTab('t_hv', 4); }""")
+        pip = pg.locator("#cmpbox .mom-pip").first
+        self.assertGreater(pip.count(), 0)
+        pip.hover()
+        pg.wait_for_selector("#dot-tip", timeout=3000)
+        txt = pg.inner_text("#dot-tip")
+        self.assertRegex(txt, r"\d{4}-\d{2}-\d{2} · (HOME|ROAD)"); self.assertRegex(txt, r"\d+-\d+"); self.assertRegex(txt, r"(WIN|LOSS)")
+        pg.mouse.move(5, 790)
+        pg.wait_for_selector("#dot-tip", state="detached", timeout=3000)
+        pg.evaluate("document.getElementById('cmpbox')?.remove()")
 
     def test_every_league_card_panel_has_the_new_tabs(self):
         out = self.pg.evaluate("""() => { const o = {};

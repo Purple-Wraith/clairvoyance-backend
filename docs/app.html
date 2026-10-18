@@ -4935,7 +4935,13 @@ function _cmpFormBlockHTML(name,col,last,all){
   if(!last.length)return`<div style="margin-bottom:8px"><div style="color:${col};font-weight:700;margin-bottom:2px">${esc(name)}</div><div style="color:var(--t3);font-size:12px">No completed games yet.</div></div>`;
   const ordered=last.slice().reverse();
   let streak=1;const nw=last[0].win;for(let i=1;i<last.length&&last[i].win===nw;i++)streak++;
-  const pips=ordered.map((r,i)=>`<span class="mom-pip ${r.win?'w':'l'}${i===ordered.length-1?' st':''}" title="${r.win?'W':'L'} ${r.gf}-${r.ga} ${r.home?'vs':'at'} ${esc(r.opp)} (${esc(r.date)})" aria-label="${r.win?'Win':'Loss'} ${r.gf}-${r.ga} ${r.home?'vs':'at'} ${esc(r.opp)}"></span>`).join('<span style="display:inline-block;width:5px"></span>');
+  const cl=t=>String(t==null?'':t).replace(/[|"<>&]/g,' ').replace(/\s+/g,' ').trim();
+  // hover / tap / keyboard focus shows the game through the same tooltip the Home bubbles use (showDotTip: data-tip lines split on '|'); `title` stays as the no-JS fallback
+  const pips=ordered.map((r,i)=>{
+    const lb=`${r.win?'WIN':'LOSS'} ${r.gf}-${r.ga} ${r.home?'vs':'at'} ${cl(r.opp)}`;
+    const tip=[cl(r.date)+' · '+(r.home?'HOME':'ROAD'),`${r.home?'vs':'at'} ${cl(r.opp)}`,`${r.gf}-${r.ga}`,r.win?'✓ WIN':'✗ LOSS'].join('|');
+    return`<span class="mom-pip ${r.win?'w':'l'}${i===ordered.length-1?' st':''}" role="img" tabindex="0" title="${lb}" aria-label="${lb}" data-tip="${tip}" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" onfocus="showDotTip(this)" onblur="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2500)"></span>`;
+  }).join('<span style="display:inline-block;width:5px"></span>');
   const w=last.filter(r=>r.win).length,gf=last.reduce((a,r)=>a+r.gf,0)/last.length,ga=last.reduce((a,r)=>a+r.ga,0)/last.length;
   const rec=(arr)=>`${arr.filter(r=>r.win).length}-${arr.filter(r=>!r.win).length}`;
   const hm=all.filter(r=>r.home),rd=all.filter(r=>!r.home);
