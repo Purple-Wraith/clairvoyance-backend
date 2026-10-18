@@ -2007,6 +2007,15 @@ def fetch_nhl_edge() -> dict:
 _MP_TEAM_FIELDS = ("xgfPct","xgf60","xga60","cfPct","hdcfPct","gf","ga","shots","hdgf","hdga","scgf","scga")
 _MP_GOALIE_BLEND_FIELDS = ("gsaa","savePct","xSavePct","hdSavePct","mdSavePct","ldSavePct")
 
+def _per60(total, ice_seconds) -> float:
+    """A counting stat over `ice_seconds` of ice time, as a per-60-minutes rate (0.0 when either is missing)."""
+    try:
+        hrs = float(ice_seconds) / 3600.0
+        return float(total) / hrs if hrs > 0 else 0.0
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _mp_load_teams(year: int) -> dict:
     rows = fetch_csv_rows(f"{MP_BASE}/{year}/regular/teams.csv")
     out: dict = {}
@@ -2017,8 +2026,10 @@ def _mp_load_teams(year: int) -> dict:
         try:
             out.setdefault(team, {})[situation] = {
                 "xgfPct":    float(row.get("xGoalsPercentage") or 0),
-                "xgf60":     float(row.get("xGoalsForPer60") or row.get("xGoalsFor") or 0),
-                "xga60":     float(row.get("xGoalsAgainstPer60") or row.get("xGoalsAgainst") or 0),
+                # per 60 minutes of ice time. teams.csv has no *Per60 columns, so this used to fall back to the raw xGoalsFor / xGoalsAgainst TOTALS (e.g. 19.8 for 5v5 over eight games) -- not a rate, and
+                # larger for any team that had simply played more games, which skewed every z-score built from it (app.html _nhlDeriveHV). iceTime is seconds.
+                "xgf60":     (float(row.get("xGoalsForPer60") or 0) or _per60(row.get("xGoalsFor"), row.get("iceTime"))),
+                "xga60":     (float(row.get("xGoalsAgainstPer60") or 0) or _per60(row.get("xGoalsAgainst"), row.get("iceTime"))),
                 "cfPct":     float(row.get("corsiPercentage") or 0),
                 # share of high-danger shots for / (for + against), 0-1. (It used to fall back to the raw high-danger shot COUNT, which the app read as a percentage.)
                 "hdcfPct":   (lambda f, a: f / (f + a) if (f + a) > 0 else 0.0)(float(row.get("highDangerShotsFor") or 0), float(row.get("highDangerShotsAgainst") or 0)),
