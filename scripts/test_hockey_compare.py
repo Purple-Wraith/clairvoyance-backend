@@ -75,6 +75,24 @@ class Compare(unittest.TestCase):
         pg.wait_for_selector("#dot-tip", state="detached", timeout=3000)
         pg.evaluate("document.getElementById('cmpbox')?.remove()")
 
+    def test_an_open_compare_panel_survives_a_card_re_render(self):
+        """Reported 2026-10-17: the COMPARE panel closed by itself. Cards re-render on every refresh and rebuild the panel hidden on its first tab; the open state and chosen tab must come back."""
+        pg = self.pg
+        pg.evaluate("""() => { document.getElementById('rr')?.remove(); const w = document.createElement('div'); w.id = 'rr'; w.style.cssText = 'position:fixed;top:0;left:0;width:372px;max-height:100vh;overflow:auto;background:#06010e;z-index:90000';
+          const g = _SHL_DATA.games.find(x => x.state === 'pre'); window.__rrg = g; w.innerHTML = _shlMatchCard(g); document.body.appendChild(w); }""")
+        pg.click("#rr button:has-text('COMPARE')")
+        self.assertTrue(pg.evaluate("[...document.querySelectorAll('#rr [id^=radar_]')].some(e => e.style.display === 'block')"))
+        pg.click("#rr [data-radar-tab$='::4']")                                        # FORM
+        self.assertEqual(pg.evaluate("[...document.querySelectorAll('#rr [id^=radarpanel_]')].filter(e => e.style.display === 'block').map(e => e.id.split('_').pop())"), ["4"])
+        pg.evaluate("() => { document.getElementById('rr').innerHTML = _shlMatchCard(window.__rrg); }")           # what a refresh does
+        pg.wait_for_timeout(50)
+        self.assertTrue(pg.evaluate("[...document.querySelectorAll('#rr [id^=radar_]')].some(e => e.style.display === 'block')"), "panel closed after the re-render")
+        self.assertEqual(pg.evaluate("[...document.querySelectorAll('#rr [id^=radarpanel_]')].filter(e => e.style.display === 'block').map(e => e.id.split('_').pop())"), ["4"])
+        pg.click("#rr button:has-text('COMPARE')")                                      # the user closes it: it must stay closed through the next refresh
+        pg.evaluate("() => { document.getElementById('rr').innerHTML = _shlMatchCard(window.__rrg); }"); pg.wait_for_timeout(50)
+        self.assertFalse(pg.evaluate("[...document.querySelectorAll('#rr [id^=radar_]')].some(e => e.style.display === 'block')"))
+        pg.evaluate("document.getElementById('rr')?.remove(); window._cmpOpen = {}; window._cmpTab = {}")
+
     def test_every_league_card_panel_has_the_new_tabs(self):
         out = self.pg.evaluate("""() => { const o = {};
           const cfg = {SHL: [_SHL_DATA, _shlBlendedRates], LIIGA: [_LIIGA_DATA, _liigaBlendedRates], NLA: [_NLA_DATA, _nlaBlendedRates], EXTRALIGA: [_EXTRALIGA_DATA, _extraligaBlendedRates]};

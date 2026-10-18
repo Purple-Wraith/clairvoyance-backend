@@ -4866,10 +4866,34 @@ function _matchupRadarSVG(labels,seriesA,seriesB,uid){
     +rings+axes+dataShape(seriesA,colA,gA)+dataShape(seriesB,colB,gB)+axLabels
     +`<circle cx="${CX}" cy="${CY}" r="2" fill="rgba(220,190,255,.5)"/></svg>`;
 }
+// Open / closed and active-tab memory for COMPARE panels (owner, 2026-10-17: "the compare tab is closing by itself"). The cards re-render on every refresh (live scores, schedule updates, every
+// few minutes) and rebuild each panel from its template, which always starts hidden on the MATCHUP tab -- so an open panel snapped shut mid-read. The state now lives outside the DOM and a
+// MutationObserver puts it back, in the same microtask as the re-render (before the browser paints, so there is no flash of a closed panel).
+window._cmpOpen=window._cmpOpen||{};   // panel id -> true while the user has it open
+window._cmpTab=window._cmpTab||{};     // tab-strip uid -> index of the tab the user picked
 function _toggleMatchupRadar(id){
   const el=document.getElementById('radar_'+id);
-  if(el)el.style.display=el.style.display==='none'?'block':'none';
+  if(!el)return;
+  const open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  if(open){window._cmpOpen[id]=true;const ks=Object.keys(window._cmpOpen);if(ks.length>60)delete window._cmpOpen[ks[0]];}
+  else delete window._cmpOpen[id];
 }
+function _cmpRestore(){
+  try{
+    const o=window._cmpOpen;
+    for(const id in o){const el=document.getElementById('radar_'+id);if(el&&el.style.display==='none')el.style.display='block';}
+    const t=window._cmpTab;
+    for(const uid in t){const el=document.getElementById('radarpanel_'+uid+'_'+t[uid]);if(el&&el.style.display==='none')_applyRadarTab(uid,t[uid]);}
+  }catch(e){}
+}
+try{
+  if(typeof MutationObserver!=='undefined'&&!window._cmpObs){
+    window._cmpObs=new MutationObserver(()=>{if(Object.keys(window._cmpOpen).length||Object.keys(window._cmpTab).length)_cmpRestore();});
+    const _cmpAttach=()=>{if(document.body)window._cmpObs.observe(document.body,{childList:true,subtree:true});else document.addEventListener('DOMContentLoaded',_cmpAttach,{once:true});};
+    _cmpAttach();
+  }
+}catch(e){}
 // Wraps 2+ pre-rendered radar SVGs (e.g. overall matchup / offense-only /
 // defense-only) behind a small tab strip inside one COMPARE panel, instead
 // of a separate button+panel per breakdown. All panels are rendered once
@@ -4881,6 +4905,10 @@ function _radarTabPanelHTML(uid,tabs){
   return`<div style="display:flex;justify-content:center;gap:6px;margin-bottom:8px">${strip}</div>${bodies}`;
 }
 function _switchRadarTab(uid,idx){
+  window._cmpTab[uid]=idx;
+  _applyRadarTab(uid,idx);
+}
+function _applyRadarTab(uid,idx){
   document.querySelectorAll(`[id^="radarpanel_${uid}_"]`).forEach(el=>{el.style.display='none';});
   const active=document.getElementById(`radarpanel_${uid}_${idx}`);if(active)active.style.display='block';
   document.querySelectorAll(`[data-radar-tab^="${uid}::"]`).forEach(btn=>{
@@ -9394,7 +9422,7 @@ function _cfbRadarAxisValues(abbr,f,side){
     stScore,
     clamp(toDiff,-12,12),
     sosRank!=null?100-clamp(sosRank,1,134):50,
-    clamp(_cfbTeamHFA(abbr),0,6),
+    clamp(_cfbTeamHFA(abbr),0,7),   // the model's team home-field points run up to ~7 (most large-stadium teams sit at the cap)
   ];
 }
 // Finer-grained breakdown than the combined matchup radar's single
@@ -9404,16 +9432,20 @@ function _cfbRadarAxisValues(abbr,f,side){
 // counts are labeled as such (not per-game) for the same reason
 // _cfbPickReasoning already does -- gamesPlayed isn't scraped, so a
 // per-game rate would be a guess.
+// games played = completed non-preseason games in this season's schedule; touchdown counts are season totals, so they are scaled per game
+function _cfbGpOf(abbr){
+  try{let n=0;Object.values(_CFB_DATA.weeks||{}).forEach(w=>(w||[]).forEach(g=>{if(g&&g.state==='post'&&g.seasonType!==1&&(g.home===abbr||g.away===abbr))n++;}));return n;}catch(e){return 0;}
+}
 function _cfbOffenseRadarValues(abbr,f,side){
   const clamp=(v,lo,hi)=>v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));
-  const p=side==='h'?'h':'a';
+  const p=side==='h'?'h':'a',gp=_cfbGpOf(abbr),rate=v=>(v!=null&&gp>0)?v/gp:null;
   return[
     clamp(f[p+'OffPassYdsG'],100,350),
     clamp(f[p+'OffRushYdsG'],80,300),
     clamp(f[p+'Off3rd'],25,55),
     clamp(f[p+'OffTODiff'],-12,12),
-    clamp(f[p+'OffPassTD'],0,40),
-    clamp(f[p+'OffRushTD'],0,45),
+    clamp(rate(f[p+'OffPassTD']),0.3,3.2),
+    clamp(rate(f[p+'OffRushTD']),0.3,3.5),
   ];
 }
 function _cfbDefenseRadarValues(abbr,f,side){
@@ -9421,14 +9453,14 @@ function _cfbDefenseRadarValues(abbr,f,side){
   const _n=v=>{const x=parseFloat(v);return(v!=null&&v!=='--'&&!isNaN(x))?x:null;};
   const totYdsAllowed=_n(D.stats[abbr]?.defenseAllowed?.yardsPerGame);
   const clamp=(v,lo,hi)=>v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));
-  const p=side==='h'?'h':'a';
+  const p=side==='h'?'h':'a',gp=_cfbGpOf(abbr),rate=v=>(v!=null&&gp>0)?v/gp:null;
   return[
     100-clamp(f[p+'DefPtsG'],15,45),
     100-clamp(totYdsAllowed,280,500),
     100-clamp(f[p+'DefPassYdsG'],150,320),
     100-clamp(f[p+'DefRushYdsG'],80,250),
-    100-clamp(f[p+'DefPassTD'],0,35),
-    100-clamp(f[p+'DefRushTD'],0,35),
+    100-clamp(rate(f[p+'DefPassTD']),0.3,3),
+    100-clamp(rate(f[p+'DefRushTD']),0.2,3),
   ];
 }
 function _cfbMatchupRadarSVG(g,f){
@@ -9721,10 +9753,10 @@ function _cfbGameCard(g){
       ${_radarTabPanelHTML('cfb_'+gidSafe,[
         {label:'MATCHUP',svg:_cfbMatchupRadarSVG(g,facts)},
         {label:'OFFENSE',svg:_matchupRadarSVG(['Passing','Rushing','3rd down%','Turnovers','Pass TDs','Rush TDs'],_cfbOffenseRadarValues(g.home,facts,'h'),_cfbOffenseRadarValues(g.away,facts,'a'),'cfb_'+gidSafe+'_o')},
-        {label:'DEFENSE',svg:_matchupRadarSVG(['Points allowed','Total yds allowed','Pass yds allowed','Rush yds allowed','Pass TDs allowed','Rush TDs allowed'],_cfbDefenseRadarValues(g.home,facts,'h'),_cfbDefenseRadarValues(g.away,facts,'a'),'cfb_'+gidSafe+'_d')},
+        {label:'DEFENSE',svg:_matchupRadarSVG(['Pts allowed','Yds allowed','Pass yds','Rush yds','Pass TDs','Rush TDs'],_cfbDefenseRadarValues(g.home,facts,'h'),_cfbDefenseRadarValues(g.away,facts,'a'),'cfb_'+gidSafe+'_d')},
         ..._cfbCompareTabs(g,facts),
       ])}
-      <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real scraped/computed stat normalized 0-100 (missing data defaults to the 50 midpoint, not guessed). TD counts are season totals, not per-game rates. Home edge (MATCHUP tab) reflects each team's own team-specific HFA, not just today's home team.</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real scraped/computed stat normalized 0-100 (missing data defaults to the 50 midpoint, not guessed). On the DEFENSE tab every axis is what the defense ALLOWS (a bigger shape = a stingier defense). TD axes are per-game rates. Home edge (MATCHUP tab) reflects each team's own team-specific HFA, not just today's home team.</div>
     </div>
     ${liveStatus?_footballLocksDisabledHTML(liveStatus):''}<div class="brow${(liveStatus&&!liveStatus.isLive)?' lockoff':''}"${(liveStatus&&!liveStatus.isLive)?' inert aria-disabled="true"':''}>
       <div class="${hCS.c} chip" style="flex:1" onclick="lockCFBGame('${g.home}','${g.away}','ML','${g.home}','${hML}',${hP.toFixed(3)})"><div class="cht">ML ${g.home}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
@@ -10527,6 +10559,8 @@ function _nflRankLabel(abbr){
 // stronger summary signal than SOS anyway) and the flat model-wide HFA
 // constant, honestly identical for both teams since no team-specific
 // number exists yet.
+// games played from the standings (wins + losses + ties); NFL touchdown counts are season totals, so they are turned into per-game rates before they are scaled
+function _nflGpOf(abbr){const s=_NFL_DATA?.standings?.[abbr]||{};const n=v=>{const x=parseFloat(v);return isNaN(x)?0:x;};return n(s.wins)+n(s.losses)+n(s.ties);}
 function _nflMatchupRadarValues(abbr){
   const D=_NFL_DATA;const s=D?.standings?.[abbr]||{};
   const stats=D?.stats?.[abbr]||{};
@@ -10536,11 +10570,12 @@ function _nflMatchupRadarValues(abbr){
   const offYds=(_n(off.netPassingYardsPerGame)??0)+(_n(off.rushingYardsPerGame)??0)||null;
   const games=(_n(s.wins)??0)+(_n(s.losses)??0)+(_n(s.ties)??0);
   const diffPg=games>0?_n(s.differential)/games:null;
-  const stScore=_n(def.totalPointsPerGame)!=null?100-clamp(_n(def.totalPointsPerGame),15,32):50; // placeholder until real ST fields are scraped for every team
+  // 3rd axis was a "special teams" placeholder that just re-read points allowed (so it duplicated the defense axis exactly, 2026-10-17 audit); it is now passing efficiency (yards per attempt), a real
+  // number every team has. Kicking / punting detail is not scraped for the NFL.
   return[
-    clamp(offYds,280,420),
+    clamp(offYds,250,430),
     100-clamp(_n(def.totalPointsPerGame),15,32),
-    stScore,
+    clamp(_n(off.yardsPerPassAttempt),5.6,9),
     clamp(_n(off.turnOverDifferential),-15,15),
     clamp(diffPg,-15,15),
     clamp(_nflHFA(),0,4),
@@ -10550,26 +10585,28 @@ function _nflOffenseRadarValues(abbr){
   const D=_NFL_DATA;const off=D?.stats?.[abbr]?.offense||{};
   const clamp=(v,lo,hi)=>v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));
   const _n=v=>{const x=parseFloat(v);return isNaN(x)?null:x;};
+  const gp=_nflGpOf(abbr),rate=v=>(_n(v)!=null&&gp>0)?_n(v)/gp:null;
   return[
     clamp(_n(off.netPassingYardsPerGame),150,300),
     clamp(_n(off.rushingYardsPerGame),70,180),
     clamp(_n(off.thirdDownConvPct),28,48),
     clamp(_n(off.turnOverDifferential),-15,15),
-    clamp(_n(off.passingTouchdowns),8,35),
-    clamp(_n(off.rushingTouchdowns),4,20),
+    clamp(rate(off.passingTouchdowns),0.4,2.8),
+    clamp(rate(off.rushingTouchdowns),0.2,2.4),
   ];
 }
 function _nflDefenseRadarValues(abbr){
   const D=_NFL_DATA;const def=D?.stats?.[abbr]?.defenseAllowed||{};
   const clamp=(v,lo,hi)=>v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));
   const _n=v=>{const x=parseFloat(v);return isNaN(x)?null:x;};
+  const gp=_nflGpOf(abbr),rate=v=>(_n(v)!=null&&gp>0)?_n(v)/gp:null;
   return[
     100-clamp(_n(def.totalPointsPerGame),15,32),
     100-clamp(_n(def.yardsPerGame),280,420),
     100-clamp(_n(def.netPassingYardsPerGame),150,300),
     100-clamp(_n(def.rushingYardsPerGame),70,180),
-    100-clamp(_n(def.passingTouchdowns),8,35),
-    100-clamp(_n(def.rushingTouchdowns),4,20),
+    100-clamp(rate(def.passingTouchdowns),0.5,2.8),
+    100-clamp(rate(def.rushingTouchdowns),0.2,2.2),
   ];
 }
 window._nflActiveTab='games';
@@ -10753,13 +10790,13 @@ function _nflGameCard2(g){
       </div>
       ${(()=>{try{
         return _radarTabPanelHTML('nfl2_'+gidSafe,[
-          {label:'MATCHUP',svg:_matchupRadarSVG(['Offense','Defense','Special teams','Turnovers','Point diff','Home edge'],_nflMatchupRadarValues(g.home),_nflMatchupRadarValues(g.away),'nfl2_'+gidSafe+'_m')},
+          {label:'MATCHUP',svg:_matchupRadarSVG(['Offense','Defense','Pass eff.','Turnovers','Point diff','Home edge'],_nflMatchupRadarValues(g.home),_nflMatchupRadarValues(g.away),'nfl2_'+gidSafe+'_m')},
           {label:'OFFENSE',svg:_matchupRadarSVG(['Passing','Rushing','3rd down%','Turnover diff','Pass TDs','Rush TDs'],_nflOffenseRadarValues(g.home),_nflOffenseRadarValues(g.away),'nfl2_'+gidSafe+'_o')},
-          {label:'DEFENSE',svg:_matchupRadarSVG(['Points allowed','Total yds allowed','Pass yds allowed','Rush yds allowed','Pass TDs allowed','Rush TDs allowed'],_nflDefenseRadarValues(g.home),_nflDefenseRadarValues(g.away),'nfl2_'+gidSafe+'_d')},
+          {label:'DEFENSE',svg:_matchupRadarSVG(['Pts allowed','Yds allowed','Pass yds','Rush yds','Pass TDs','Rush TDs'],_nflDefenseRadarValues(g.home),_nflDefenseRadarValues(g.away),'nfl2_'+gidSafe+'_d')},
           ..._nflCompareTabs(g),
         ]);
       }catch(e){return'';}})()}
-      <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real scraped stat normalized 0-100 (missing data defaults to the 50 midpoint, not guessed). Special teams is a placeholder until full ST fields are scraped for every team. TD counts are season totals, not per-game rates. Home edge uses the model's flat HFA constant (no team-specific figure built for NFL yet).</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real scraped stat normalized 0-100 (missing data defaults to the 50 midpoint, not guessed). On the DEFENSE tab every axis is what the defense ALLOWS (a bigger shape = a stingier defense). Pass efficiency is yards per attempt (kicking/punting detail is not scraped). TD axes are per-game rates. Home edge uses the model's flat HFA constant, so it is the same for both teams (no team-specific figure built for NFL yet).</div>
     </div>
     ${liveStatus?_footballLocksDisabledHTML(liveStatus):''}<div class="brow${(liveStatus&&!liveStatus.isLive)?' lockoff':''}"${(liveStatus&&!liveStatus.isLive)?' inert aria-disabled="true"':''}>
       <div class="${hCS.c} chip" style="flex:1" onclick="lockNFLGame('${g.home}','${g.away}','ML','${g.home}','${hML}',${hP.toFixed(3)})"><div class="cht">ML ${g.home}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
@@ -11096,7 +11133,12 @@ function _nhlRadarAxisValues(team,opp){
   const stAvg=(hv.pp!=null&&hv.pk!=null)?(hv.pp+hv.pk)/2:(hv.pp??hv.pk??null);
   const spd=team.edge?.avg_spd||team.edge?.spd,zone=team.edge?.zone_off||team.edge?.zoneOff;
   const spdZone=(spd!=null||zone!=null)?((spd!=null?clamp(spd,19,22):50)*.5+(zone!=null?clamp(zone,40,60):50)*.5):50;
-  const xgShare=(team.xgf5!=null&&opp?.xgf5!=null&&(team.xgf5+opp.xgf5)>0)?(team.xgf5/(team.xgf5+opp.xgf5))*100:50;
+  // xG share: the two teams' expected-goals-for shares against each other. Used to read only the static xgf5 field, which 28 of 32 teams do not have, so the axis sat at 50 for nearly every
+  // matchup; now falls back to MoneyPuck's live 5v5 xGF% (found 2026-10-17 auditing the spider charts).
+  const _abOf=t=>{for(const k in NHL)if(NHL[k]===t)return k;return null;};
+  const _xg=t=>{if(t?.xgf5!=null)return t.xgf5;const l=_nhlLiveCf(_abOf(t));return l?.xgfPct!=null?l.xgfPct:null;};
+  const _tx=_xg(team),_ox=_xg(opp);
+  const xgShare=(_tx!=null&&_ox!=null&&(_tx+_ox)>0)?clamp((_tx/(_tx+_ox))*100,35,65):50;   // shares run .41-.57, so scale the 35-65 window (a bare share barely moves the chart)
   return[
     clamp(team.gf60,2.0,3.8),
     clamp(hv.def,-2,3),
@@ -11136,9 +11178,9 @@ function _nhlOffenseRadarValues(team,abbr){
   return[
     clamp(team.gf60,2.0,3.8),
     clamp(team.pp!=null?team.pp*100:null,14,28),
-    clamp(cf,44,56),
+    clamp(cf,42,58),
     clamp(hdcf,42,58),
-    clamp(xgf,44,58),
+    clamp(xgf,40,60),
     clamp(team.hv?.fin,-2,3),
   ];
 }
@@ -11147,8 +11189,8 @@ function _nhlDefenseRadarValues(team){
   return[
     100-clamp(team.ga60,1.8,3.6),
     clamp(team.pk!=null?team.pk*100:null,72,88),
-    clamp(team.sv!=null?team.sv*100:null,89,93),
-    clamp(team.hdsv!=null?team.hdsv*100:null,86,94),
+    clamp(team.sv!=null?team.sv*100:null,87,94),     // team save % runs .88-.93 this early in a season: the old 89-93 window floored a third of the league
+    clamp(team.hdsv!=null?team.hdsv*100:null,60,92),   // early-season high-danger save % is a handful of shots per goalie (observed .38-1.00, median .70); the old 86-94 window floored 91% of teams
     100-clamp(team.gaa,1.8,3.6),
     clamp(team.gsax,-15,15),
   ];
@@ -13156,9 +13198,9 @@ function _hkOffenseRadarValuesQH(qh,b){
   const clamp=(v,lo,hi)=>v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));
   return[
     clamp(qh.shotsPerGp,18,42),
-    clamp(qh.shPct,2,20),
-    clamp(b?b.pp:qh.ppPct,0,100),   // power play: this/last-season blend (see _hkQHBlend)
-    clamp(qh.gPerGp,0.5,7),
+    clamp(qh.shPct,3,16),
+    clamp(b?b.pp:qh.ppPct,10,35),   // power play: this/last-season blend (see _hkQHBlend); real values run 12-33%, so the old 0-100 window squashed every team into the bottom fifth
+    clamp(qh.gPerGp,1.5,5.5),
   ];
 }
 function _hkDefenseRadarValuesQH(qh,seasonRates,b){
@@ -13166,8 +13208,8 @@ function _hkDefenseRadarValuesQH(qh,seasonRates,b){
   const sv=b?b.sv:qh.svPct,pk=b?b.pk:qh.pkPct;
   return[
     100-clamp(seasonRates?.ga,2.0,4.0), // real Flashscore blended GA rate, same source _hkBasicRadarValues already uses
-    clamp(sv!=null?sv*100:null,80,100),
-    clamp(pk,0,100),
+    clamp(sv!=null?sv*100:null,86,95),
+    clamp(pk,60,95),
   ];
 }
 // Single entry point both _liigaMatchCard/_shlMatchCard call -- decides
@@ -13239,11 +13281,11 @@ function _hkCompareExtraTabs(LGD,homeName,awayName,hId,aId,hTeam,aTeam,hR,aR,hQH
 function _hkBasicRadarValues(team,rates){
   const clamp=(v,lo,hi)=>v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));
   const gp=team?.gp||0;
-  const ptsPct=(gp&&team.pts!=null)?(team.pts/(gp*2))*100:null;
+  const ptsPct=(gp&&team.pts!=null)?(team.pts/(gp*3))*100:null;   // all four leagues award 3-2-1-0 points, so the maximum is 3 per game (it was divided by 2: two thirds of teams read as 100%)
   return[
     clamp(rates.gf,2.0,4.0),
     100-clamp(rates.ga,2.0,4.0),
-    clamp(ptsPct,30,70),
+    clamp(ptsPct,20,80),
     clamp(rates.gm,4.5,7.0),
   ];
 }
@@ -14854,47 +14896,48 @@ function renderNBALockedBets(){
 // all yet (BBRef's per-game/misc tables aren't scraped for every team) --
 // those axes stay on NBA_BBREF and fall back to the neutral 50 midpoint
 // for any other team rather than guessing.
+// Windows are the real 2025-26 league spread (mean +- ~2.2 sd) so a normal team sits mid-chart. Live data only: the old OFFENSE / DEFENSE tabs leaned on the static NBA_BBREF per-game table (PPG,
+// 3P%, AST, STL, BLK, points allowed), which only ever had a few teams, so 87% of teams read as the 50 midpoint on those axes (found 2026-10-17 auditing the spider charts).
 function _nbaMatchupRadarValues(abbr){
   const live=window.__CV_DATA?.nba?.teamAdv?.[abbr]||{};
   const ff=window.__CV_DATA?.nba?.fourFactors?.[abbr]||{};
   const adv=NBA_BBREF[abbr]?.adv||{};
   const clamp=(v,lo,hi)=>v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));
   return[
-    clamp(live.ortg??adv.off_rtg,105,125),
-    100-clamp(live.drtg??adv.def_rtg,100,120),
-    clamp(live.net_rtg??adv.net_rtg,-5,15),
-    clamp(live.pace??adv.pace,92,104),
-    clamp(live.ts_pct??adv.ts,.54,.64),
-    100-clamp(ff.tov_pct??adv.tov,10,16),
+    clamp(live.ortg??adv.off_rtg,108.5,123),
+    100-clamp(live.drtg??adv.def_rtg,108.5,123),
+    clamp(live.net_rtg??adv.net_rtg,-12,12),
+    clamp(live.pace??adv.pace,94,104.5),
+    clamp(live.ts_pct??adv.ts,.55,.62),
+    100-clamp(ff.tov_pct??adv.tov,10.5,15),
   ];
 }
 function _nbaOffenseRadarValues(abbr){
+  const live=window.__CV_DATA?.nba?.teamAdv?.[abbr]||{};
   const ff=window.__CV_DATA?.nba?.fourFactors?.[abbr]||{};
-  const pg=NBA_BBREF[abbr]?.pg||{};
   const p100=NBA_BBREF[abbr]?.p100||{};
   const clamp=(v,lo,hi)=>v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));
   return[
-    clamp(pg.pts,105,125),
-    clamp(ff.efg_pct??p100.efg_pct,.50,.62),
-    clamp(pg.fg3_pct,.33,.42),
-    clamp(pg.ast,20,30),
-    clamp(ff.orb_pct??p100.orb_pct,20,32),
-    clamp(ff.ft_rate??p100.ft_rate,.20,.36),
+    clamp(live.ortg,108.5,123),
+    clamp(ff.efg_pct??live.efg_pct??p100.efg_pct,.515,.58),
+    clamp(live.ts_pct,.55,.62),
+    clamp(ff.orb_pct??p100.orb_pct,20,33),
+    clamp(ff.ft_rate??p100.ft_rate,.16,.25),
+    100-clamp(ff.tov_pct,10.5,15),
   ];
 }
 function _nbaDefenseRadarValues(abbr){
+  const live=window.__CV_DATA?.nba?.teamAdv?.[abbr]||{};
   const ff=window.__CV_DATA?.nba?.fourFactors?.[abbr]||{};
-  const opp=NBA_BBREF[abbr]?.opp_pg||{};
   const p100=NBA_BBREF[abbr]?.p100||{};
-  const pg=NBA_BBREF[abbr]?.pg||{};
   const clamp=(v,lo,hi)=>v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));
   return[
-    100-clamp(opp.pts,100,120),
-    100-clamp(ff.opp_efg_pct??p100.opp_efg,.48,.58),
-    clamp(pg.stl,6,10),
-    clamp(pg.blk,3.5,7),
-    clamp(pg.drb,32,38),
-    clamp(ff.opp_tov_pct??p100.opp_tov_pct,13,19),
+    100-clamp(live.drtg,108.5,123),
+    100-clamp(ff.opp_efg_pct??p100.opp_efg,.515,.58),
+    clamp(ff.opp_tov_pct??p100.opp_tov_pct,10.5,15),
+    clamp(ff.drb_pct,70,78),
+    clamp(live.net_rtg,-12,12),
+    100-clamp(ff.opp_ft_rate,.17,.255),
   ];
 }
 function _nbaGameCard(espnEv){
@@ -15086,12 +15129,12 @@ const espnSprdNum=-_sprdL;const sprdFav=_mktFav;const sprdLbl=sprdFav+' '+espnSp
     ${(()=>{try{
       return _radarTabPanelHTML('nba_'+_nbaGidSafe,[
         {label:'MATCHUP',svg:_matchupRadarSVG(['Off Rating','Def Rating','Net Rating','Pace','TS%','Turnover%'],_nbaMatchupRadarValues(hn),_nbaMatchupRadarValues(an),'nba_'+_nbaGidSafe+'_m')},
-        {label:'OFFENSE',svg:_matchupRadarSVG(['PPG','eFG%','3PT%','AST','ORB%','FT Rate'],_nbaOffenseRadarValues(hn),_nbaOffenseRadarValues(an),'nba_'+_nbaGidSafe+'_o')},
-        {label:'DEFENSE',svg:_matchupRadarSVG(['Pts Allowed','eFG% Allowed','STL','BLK','DRB','Opp TOV%'],_nbaDefenseRadarValues(hn),_nbaDefenseRadarValues(an),'nba_'+_nbaGidSafe+'_d')},
+        {label:'OFFENSE',svg:_matchupRadarSVG(['Off Rating','eFG%','TS%','ORB%','FT Rate','Ball security'],_nbaOffenseRadarValues(hn),_nbaOffenseRadarValues(an),'nba_'+_nbaGidSafe+'_o')},
+        {label:'DEFENSE',svg:_matchupRadarSVG(['Def Rating','eFG% Allowed','Forced TOV%','DRB%','Net Rating','FT Rate Allowed'],_nbaDefenseRadarValues(hn),_nbaDefenseRadarValues(an),'nba_'+_nbaGidSafe+'_d')},
         ..._nbaCompareTabs(hn,an,espnEv.date),
       ]);
     }catch(e){return'';}})()}
-    <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real stat normalized 0-100 (missing data defaults to the 50 midpoint, not guessed). Built from NBA_BBREF, currently populated for the active playoff/Finals teams -- other teams read as neutral until the regular-season dataset is rebuilt.</div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real team stat scaled 0-100 across the league's real spread (last season's ratings and four factors until this season has enough games); missing data defaults to the 50 midpoint, not guessed.</div>
   </div>
   ${pre?'':_footballLocksDisabledHTML({isLive:live})}${`<div class="brow${(pre||live)?'':' lockoff'}"${(pre||live)?'':' inert aria-disabled="true"'}>
     <div class="${hCS.c} chip" style="flex:1" onclick="lockPick('${hn}','${an}','NBA','${hn}',${hP.toFixed(3)},'${hML}',${hD.toFixed(3)},'${today()}')"><div class="cht">ML ${hn}</div><div class="cho">${_mlFmt(hML)}</div><div class="chp">${(hP*100).toFixed(1)}%</div><div class="cgrade"><span class="pill ${hCS.pl}">${hCS.lb}</span></div>${_highHitBadgeHTML(hP)}</div>
@@ -27787,33 +27830,36 @@ function _socOffenseRadarValues(name,leagueKey){
   var directAttackGoals=(seq&&att&&att.played)?seq.direct_attack_goals/att.played:null;
   return[
     clamp(xgPg,0.6,2.4),
-    clamp(shotConv,8,22),
+    clamp(shotConv,5,16),            // real shot conversion runs 5-14%; the old 8-22 window floored a third of the league
     clamp(posPerc,35,65),
     clamp(finalThirdPct,55,80),
-    clamp(directAttackGoals,0,0.6),
-    clamp(goalsVsXg,-0.4,0.4),
+    clamp(directAttackGoals,0,0.35), // direct-attack goals per game are 0-0.5 and mostly 0-0.2 (small counts early in a season)
+    clamp(goalsVsXg,-0.6,0.6),
   ];
 }
 // Real per-team defense-side signals from Opta's defending/pressing
 // categories, normalized 0-100 (inverted where lower-is-better, e.g.
 // goals conceded, so a higher chart value always reads as "better" like
 // every other radar in this app).
+// Opta's `defending` rows carry no games-played count (only `attacking` does), so every per-game defensive axis divided by undefined and read as the 50 midpoint for every club -- xGA, goals against,
+// goals-vs-xG conceded and defensive actions were all flat (found 2026-10-17 auditing the spider charts). Games played now comes from the club's attacking row.
 function _socDefenseRadarValues(name,leagueKey){
   var d=window.__CV_OPTA&&window.__CV_OPTA[leagueKey];
   var clamp=function(v,lo,hi){return v==null?50:Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100));};
   if(!d)return[50,50,50,50,50,50];
-  var def=_optaFindTeam(d.defending,name),press=_optaFindTeam(d.pressing,name);
-  var xgaPg=(def&&def.played)?def.xg_against/def.played:null;
-  var gaPg=(def&&def.played)?def.goals_against/def.played:null;
+  var def=_optaFindTeam(d.defending,name),press=_optaFindTeam(d.pressing,name),att=_optaFindTeam(d.attacking,name);
+  var played=(att&&att.played)||(def&&def.played)||null;
+  var xgaPg=(def&&played)?def.xg_against/played:null;
+  var gaPg=(def&&played)?def.goals_against/played:null;
   var shotConvAgainst=def?def.shot_conv_against:null;
-  var goalsVsXgConceded=(def&&def.played)?(def.xg_against-def.goals_against)/def.played:null;
+  var goalsVsXgConceded=(def&&played)?(def.xg_against-def.goals_against)/played:null;
   var ppda=press?press.ppda:null;
-  var defActionsPg=(press&&def&&def.played)?press.defensive_actions/def.played:null;
+  var defActionsPg=(press&&played)?press.defensive_actions/played:null;
   return[
     100-clamp(xgaPg,0.6,2.4),
     100-clamp(gaPg,0.5,2.5),
-    100-clamp(shotConvAgainst,8,22),
-    clamp(goalsVsXgConceded,-0.4,0.4),
+    100-clamp(shotConvAgainst,5,16),
+    clamp(goalsVsXgConceded,-0.6,0.6),
     100-clamp(ppda,7,16),
     clamp(defActionsPg,15,35),
   ];

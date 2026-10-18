@@ -84,6 +84,19 @@ class Sports(unittest.TestCase):
           return q.map(n => { const t = _optaFindTeam(rows, n); return t ? t.team : null; }); }""")
         self.assertEqual(r, ["Man City", "Man Utd", "Spurs", "FC Bayern", "Bayer 04", "Köln", "M'gladbach", "Paris SG", "Inter", "Milan", "Atlético", "Arsenal", None])
 
+    def test_every_sport_panel_fits_a_320px_phone(self):
+        r = self.pg.evaluate("""() => { const o = {}; const flat = Object.values(_NFL_DATA.weeks).flat(); const g = flat.find(x => x.seasonType === 2);
+          const cf = Object.values(_CFB_DATA.weeks).flat().find(x => x.state === 'pre' && _CFB_DATA.fpi[x.home] && _CFB_DATA.fpi[x.away]); const e = cfbEns(cf.home, cf.away, cf.overUnder, cf);
+          const sets = {NBA: _nbaCompareTabs('DEN', 'LAL', '2026-10-21T01:30Z'), NFL: _nflCompareTabs(g), CFB: _cfbCompareTabs(cf, _cfbAnalysisFacts(cf, e.mcD, e)),
+            PL: _socCompareTabs('pl', {home: Object.keys(window.__CV_FBREF.pl.teams)[0], away: Object.keys(window.__CV_FBREF.pl.teams)[1]}, 'Premier League'),
+            CL: _socCompareTabs('cl', {home: Object.keys(window.__CV_FBREF.cl.teams)[0], away: Object.keys(window.__CV_FBREF.cl.teams)[1]}, 'Champions League')};
+          for (const [k, tabs] of Object.entries(sets)) { const w = document.createElement('div'); w.style.cssText = 'position:fixed;top:0;left:0;width:300px;background:#06010e;padding:8px;z-index:90000;overflow-x:auto'; w.id = 'fit_' + k;
+            w.innerHTML = _radarTabPanelHTML('fit_' + k, tabs.map(t => t)); document.body.appendChild(w); o[k] = [];
+            for (let i = 0; i < tabs.length; i++) { _switchRadarTab('fit_' + k, i); o[k].push(w.scrollWidth <= w.clientWidth + 1); } w.remove(); }
+          window._cmpTab = {}; return o; }""")
+        for k, v in r.items():
+            self.assertTrue(all(v), (k, v))
+
     def test_draws_get_their_own_bubble_and_record(self):
         html = self.pg.evaluate("""() => _cmpFormHTML('A', 'H', [{date: '2026-10-02', home: true, opp: 'X', gf: 1, ga: 1, win: false, draw: true}, {date: '2026-10-01', home: false, opp: 'Y', gf: 2, ga: 0, win: true, draw: false}], [], [], [], '', {draws: true})""")
         self.assertIn("mom-pip d", html); self.assertIn("1-1-0", html); self.assertIn("= DRAW", html); self.assertIn("D1 streak", html)
