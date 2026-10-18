@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""European hockey PP% / PK% / goalie SV% from QuantHockey in the model (owner, 2026-10-17): ingest, last/this-season blend, regression, capped nudges, switch, and real-data coverage.
+"""European hockey PP% / PK% / goalie SV% from QuantHockey as SEPARATE metrics (owner, 2026-10-17): ingest, last/this-season blend on the NHL curve, real-data coverage, the card panel -- and proof they never touch goals or probabilities.
 
     python3 scripts/test_hockey_qh_model.py
 """
@@ -48,56 +48,52 @@ class Model(unittest.TestCase):
         cls.pw = sync_playwright().start(); cls.b = cls.pw.chromium.launch(); cls.pg = cls.b.new_page()
         cls.pg.route("**/*", lambda r: r.continue_() if r.request.url.startswith("http://127.0.0.1") else r.abort())
         cls.pg.goto(f"http://127.0.0.1:{cls.srv.server_address[1]}/app.html?nosb=1", wait_until="domcontentloaded")
-        cls.pg.wait_for_function("typeof _hkQHAdjFor==='function'&&typeof loadShlScheduleData==='function'", timeout=90000)
-        cls.pg.evaluate("Promise.all([loadLiigaScheduleData(),loadShlScheduleData(),loadNlaScheduleData(),loadExtraligaScheduleData()])")
+        cls.pg.wait_for_function("typeof _hkQHBlend==='function'&&typeof loadShlScheduleData==='function'", timeout=90000)
+        cls.pg.evaluate("Promise.all([loadLiigaScheduleData(),loadShlScheduleData(),loadNlaScheduleData(),loadExtraligaScheduleData(),loadLiigaQuantHockeyData(),loadShlQuantHockeyData(),loadNlaQuantHockeyData(),loadExtraligaQuantHockeyData()])")
 
     @classmethod
     def tearDownClass(cls):
         cls.b.close(); cls.pw.stop(); cls.srv.shutdown()
 
-    def test_blend_and_regression_match_the_formula(self):
-        qh = {"teams": {}}
-        def team(slug, gp, ppg_cur, ppg_prev):
-            return {"name": slug, "slug": slug, "gp": gp, "ppo": 100, "ppg": ppg_cur, "pko": 100, "ppgAllowed": 20, "sv": 900, "svPct": .9,
-                    "prev": {"gp": 52, "ppo": 100, "ppg": ppg_prev, "pko": 100, "ppgAllowed": 20, "sv": 900, "svPct": .9}}
-        qh["teams"]["a"] = team("a", 10, 40, 20); qh["teams"]["b"] = team("b", 10, 20, 20); qh["teams"]["c"] = team("c", 10, 20, 20)
-        got = self.pg.evaluate("q=>_hkQHLeague(q).bySlug.a.pp", qh)
-        lg_cur = (40 + 20 + 20) / 300
-        cur = (40 + 40 * lg_cur) / (100 + 40); prev = 0.20
-        self.assertAlmostEqual(got, 0.6 * cur + 0.4 * prev, places=6)                   # 10 games: 60% this season on the NHL curve
-        early = self.pg.evaluate("q=>{q.teams.a.gp=2;return _hkQHLeague(q).bySlug.a.pp}", json.loads(json.dumps(qh)))
-        self.assertAlmostEqual(early, 0.1 * cur + 0.9 * prev, places=6)                  # 2 games: 10%
-        full = self.pg.evaluate("q=>{q.teams.a.gp=20;return _hkQHLeague(q).bySlug.a.pp}", json.loads(json.dumps(qh)))
-        self.assertAlmostEqual(full, cur, places=6)                                      # 20 games: this season only
-        noprev = json.loads(json.dumps(qh)); del noprev["teams"]["a"]["prev"]
-        self.assertAlmostEqual(self.pg.evaluate("q=>_hkQHLeague(q).bySlug.a.pp", noprev), (40 + 40 * (80 / 300)) / 140, places=3)   # promoted team: this season alone (league mean from the others)
+    def test_blend_uses_the_nhl_curve_and_degrades_without_last_season(self):
+        t = lambda gp, prev=True: {"gp": gp, "ppPct": 30.0, "pkPct": 80.0, "svPct": 0.920, **({"prev": {"gp": 52, "ppPct": 24.0, "pkPct": 76.0, "svPct": 0.900}} if prev else {})}
+        pp = lambda gp, prev=True: self.pg.evaluate("t=>_hkQHBlend(t).pp", t(gp, prev))
+        self.assertAlmostEqual(pp(10), 0.6 * 30 + 0.4 * 24, places=6)                    # 10 games: 60% this season
+        self.assertAlmostEqual(pp(2), 0.1 * 30 + 0.9 * 24, places=6)                     # 2 games: 10%
+        self.assertAlmostEqual(pp(20), 30.0, places=6)                                   # 20 games: this season only
+        self.assertAlmostEqual(pp(10, prev=False), 30.0, places=6)                       # promoted / returning team: this season alone
+        b = self.pg.evaluate("t=>_hkQHBlend(t)", t(5))
+        self.assertAlmostEqual(b["pk"], 0.3 * 80 + 0.7 * 76, places=6); self.assertAlmostEqual(b["sv"], 0.3 * 0.920 + 0.7 * 0.900, places=6)
+        self.assertAlmostEqual(b["w"], 0.3, places=6)
 
     def test_every_real_team_in_all_four_leagues_has_data(self):
         r = self.pg.evaluate("""() => { const o = {};
           const cfg = {LIIGA: [_LIIGA_DATA, _LIIGA_QH_DATA], SHL: [_SHL_DATA, _SHL_QH_DATA], NLA: [_NLA_DATA, _NLA_QH_DATA], EXTRALIGA: [_EXTRALIGA_DATA, _EXTRALIGA_QH_DATA]};
-          for (const [k, [D, qh]] of Object.entries(cfg)) { const miss = []; for (const t of Object.values(D.teams)) { const x = _hkQHTeamRates(qh, t.name); if (!x || x.pp == null || x.pk == null || x.sv == null) miss.push(t.name); } o[k] = miss; }
+          for (const [k, [D, qh]] of Object.entries(cfg)) { const miss = []; for (const t of Object.values(D.teams)) { const row = _hkQHStatsFor(t.name, qh), b = _hkQHBlend(row); if (!b || b.pp == null || b.pk == null || b.sv == null) miss.push(t.name); } o[k] = miss; }
           return o; }""")
         self.assertEqual(r, {"LIIGA": [], "SHL": [], "NLA": [], "EXTRALIGA": []}, r)
 
-    def test_nudges_are_capped_and_league_neutral(self):
-        r = self.pg.evaluate("""() => { const out = {}; const cfg = {LIIGA: [_LIIGA_DATA, liigaMC], SHL: [_SHL_DATA, shlMC], NLA: [_NLA_DATA, nlaMC], EXTRALIGA: [_EXTRALIGA_DATA, extraligaMC]};
-          for (const [k, [D, mc]] of Object.entries(cfg)) { const ids = Object.keys(D.teams); let on = 0, off = 0, n = 0, mx = 0;
-            for (const a of ids) for (const b of ids) { if (a === b) continue; HK_QH_MODEL_ON = true; const x = mc(a, b, 6.5); HK_QH_MODEL_ON = false; const y = mc(a, b, 6.5); HK_QH_MODEL_ON = true;
-              on += x.avgT; off += y.avgT; n++; mx = Math.max(mx, Math.abs(x.avgH / y.avgH - 1), Math.abs(x.avgA / y.avgA - 1)); }
-            out[k] = {shift: (on - off) / n, maxRel: mx}; }
+    def test_they_never_change_goals_or_probabilities(self):
+        """PP% / PK% / SV% are separate metrics (owner, 2026-10-17): every projection must be identical with the QuantHockey snapshot present, absent, or wildly different."""
+        r = self.pg.evaluate("""() => { const out = {}; const cfg = {LIIGA: [_LIIGA_DATA, liigaMC, '_LIIGA_QH_DATA'], SHL: [_SHL_DATA, shlMC, '_SHL_QH_DATA'], NLA: [_NLA_DATA, nlaMC, '_NLA_QH_DATA'], EXTRALIGA: [_EXTRALIGA_DATA, extraligaMC, '_EXTRALIGA_QH_DATA']};
+          for (const [k, [D, mc, v]] of Object.entries(cfg)) { const ids = Object.keys(D.teams); const keep = eval(v);
+            const snap = (a, b) => { const x = mc(a, b, 6.5); return [x.avgH, x.avgA, x.hwP, x.overP, x.rl15].join(','); };
+            let same = true; const pairs = [[ids[0], ids[1]], [ids[2], ids[3]], [ids[4], ids[0]]];
+            const base = pairs.map(p => snap(...p));
+            eval(v + ' = null'); const none = pairs.map(p => snap(...p));
+            const crazy = JSON.parse(JSON.stringify(keep)); Object.values(crazy.teams).forEach(t => { t.ppPct = 99; t.pkPct = 10; t.svPct = 0.99; });
+            eval(v + ' = crazy'); const wild = pairs.map(p => snap(...p));
+            eval(v + ' = keep');
+            out[k] = {none: none.join('|') === base.join('|'), wild: wild.join('|') === base.join('|')}; }
           return out; }""")
         for k, v in r.items():
-            self.assertLess(abs(v["shift"]), 0.06, (k, v))                              # a league-average matchup moves ~nothing: terms are relative to the league mean
-            self.assertLess(v["maxRel"], 0.05 * 1.04 + 0.04 * 1.05 + 0.02, (k, v))      # ST cap 5% x goalie cap 4%
+            self.assertEqual(v, {"none": True, "wild": True}, (k, v))
 
-    def test_switch_off_and_missing_snapshot_are_exactly_the_old_model(self):
-        r = self.pg.evaluate("""() => { const ids = Object.keys(_SHL_DATA.teams); const [a, b] = ids;
-          HK_QH_MODEL_ON = false; const off = shlMC(a, b, 6.5).avgT; HK_QH_MODEL_ON = true;
-          const keep = _SHL_QH_DATA; _SHL_QH_DATA = null; const none = shlMC(a, b, 6.5).avgT; _SHL_QH_DATA = keep;
-          const adj = _hkQHAdjFor('SHL', {name: 'No Such Club'}, _SHL_DATA.teams[b]);
-          return {off, none, adj}; }""")
-        self.assertEqual(r["off"], r["none"])
-        self.assertEqual(r["adj"], {"h": 1, "a": 1})
+    def test_cards_show_the_separate_metrics_with_their_weights(self):
+        html = self.pg.evaluate("""() => { const ids = Object.keys(_SHL_DATA.teams); const h = _SHL_DATA.teams[ids[0]], a = _SHL_DATA.teams[ids[1]];
+          return _hkCompareRadarHTML('t_shl', h.name, a.name, 'SHL', h, a, _shlBlendedRates(h), _shlBlendedRates(a)); }""")
+        for needle in ("SPECIAL TEAMS", "POWER PLAY %", "PENALTY KILL %", "TEAM SAVE %", "WEIGHTS", "this /", "do not feed goals for/against"):
+            self.assertIn(needle, html)
 
 
 if __name__ == "__main__":
