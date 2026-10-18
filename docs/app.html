@@ -12211,8 +12211,8 @@ let _LIIGA_DATA=null;
 function loadLiigaScheduleData(){
   if(_LIIGA_DATA)return Promise.resolve(_LIIGA_DATA);
   return fetch('liiga_schedule.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{
-    _LIIGA_DATA=d||{teams:{},games:[]};
-    return _LIIGA_DATA;
+    const D0=d||{teams:{},games:[]};
+    return loadLiigaQuantHockeyData().then(()=>{_LIIGA_DATA=D0;return D0;});   // the QuantHockey snapshot loads first and the data is published only after it: the MC reads it for PP%/PK%/SV%
   });
 }
 // Season-progress-weighted blend: early season leans on last year's full
@@ -12230,6 +12230,69 @@ function _hkThisW(gp){
   const g=Math.max(0,+gp||0),C=[[0,0],[2,.1],[5,.3],[10,.6],[15,.8],[20,1]];
   for(let i=1;i<C.length;i++)if(g<=C[i][0]){const a=C[i-1],b=C[i];return a[1]+(b[1]-a[1])*(g-a[0])/(b[0]-a[0]);}
   return 1;
+}
+// ── European hockey: special teams (PP%/PK%) + team goaltending (SV%) from QuantHockey, blended last season / this season (owner, 2026-10-17) ──────────────────────────────────────
+// The NHL model already reads power play, penalty kill and goalie save %; the four European leagues only had goals for/against. QuantHockey's team table (docs/{league}_quanthockey.json, refreshed
+// with scripts/quanthockey_ingest.py -- quanthockey.com blocks unattended runners, so it is refreshed from a browser session) carries PPO/PPG, PKO/PPG-A and saves/SV% for this season and, under
+// `prev`, last season. Zone starts are NHL-only data: neither QuantHockey nor Flashscore publishes them for these leagues, so there is no zone-start term here.
+//   * each season's rate is first regressed toward its own league mean (a few games of PP or saves is mostly luck): (events + K*league) / (chances + K), K = 40 power plays / 40 times short / 400 shots
+//   * then blended on the same curve as goals for/against (_hkThisW: this season 10/30/60/80/100% at 2/5/10/15/20 games); a team with no last-season row (promoted / returning) runs on this season alone
+//   * a team's goals are nudged by: its own PP% vs the opponent's PK% (+-5% cap, same form as nhlMC's stAdj) and the opponent's goalie: -1.5% per save-% point above league (+-4% cap)
+// The terms are relative to the league mean, so a league-average matchup moves nothing. The earlier point-in-time backtest (scripts/backtest_quanthockey_signal.py) found no usable signal in these
+// numbers, so every effect is small and capped; HK_QH_MODEL_ON=false switches the whole thing off.
+let HK_QH_MODEL_ON=true;   // a switch, not a constant: tests flip it to measure the effect
+const HK_QH_K={pp:40,pk:40,sv:400},HK_QH_ST_CAP=.05,HK_QH_GK_PER_PT=.015,HK_QH_GK_CAP=.04;
+const _HK_QH_MEMO=new WeakMap();
+function _hkQHLeague(qh){
+  if(!qh||!qh.teams)return null;
+  let m=_HK_QH_MEMO.get(qh);if(m)return m;
+  const rows=Object.values(qh.teams);
+  const cnt=(t,which)=>{  // {pp:[events,chances],pk:[...],sv:[...]} for one season row, null parts when missing
+    if(!t)return null;
+    const ppo=t.ppo,ppg=t.ppg,pko=t.pko,pga=t.ppgAllowed,sv=t.sv,svp=t.svPct;
+    const shots=(sv!=null&&svp>0)?sv/svp:null;
+    return{pp:(ppo>0&&ppg!=null)?[ppg,ppo]:null,pk:(pko>0&&pga!=null)?[pko-pga,pko]:null,sv:(shots>0)?[sv,shots]:null};
+  };
+  const mean={cur:{},prev:{}};
+  for(const season of ['cur','prev'])for(const k of ['pp','pk','sv']){
+    let a=0,b=0;rows.forEach(t=>{const c=cnt(season==='cur'?t:t.prev)?.[k];if(c){a+=c[0];b+=c[1];}});
+    mean[season][k]=b>0?a/b:null;
+  }
+  const reg=(c,k,lg)=>(c&&lg!=null)?(c[0]+HK_QH_K[k]*lg)/(c[1]+HK_QH_K[k]):null;
+  const rate=(t,k)=>{
+    const cur=reg(cnt(t)?.[k],k,mean.cur[k]),prev=t.prev?reg(cnt(t.prev)?.[k],k,mean.prev[k]):null;
+    if(cur==null)return prev;
+    if(prev==null)return cur;
+    const w=_hkThisW(t.gp||0);return cur*w+prev*(1-w);
+  };
+  const bySlug={},sum={pp:0,pk:0,sv:0},n={pp:0,pk:0,sv:0};
+  rows.forEach(t=>{const r={pp:rate(t,'pp'),pk:rate(t,'pk'),sv:rate(t,'sv')};bySlug[t.slug]=r;for(const k of ['pp','pk','sv'])if(r[k]!=null){sum[k]+=r[k];n[k]++;}});
+  m={bySlug,lg:{pp:n.pp?sum.pp/n.pp:null,pk:n.pk?sum.pk/n.pk:null,sv:n.sv?sum.sv/n.sv:null},rows,names:new Map()};
+  _HK_QH_MEMO.set(qh,m);return m;
+}
+function _hkQHTeamRates(qh,appName){
+  const m=_hkQHLeague(qh);if(!m)return null;
+  let t=m.names.get(appName);
+  if(t===undefined){t=_hkFuzzyFindQH(appName,m.rows)||null;m.names.set(appName,t);}
+  return t?m.bySlug[t.slug]:null;
+}
+// h / aw = the app's team objects (they carry .name). Returns multipliers for the HOME and AWAY team's expected goals.
+function _hkQHAdjFor(league,h,aw){
+  try{
+    if(!HK_QH_MODEL_ON)return{h:1,a:1};
+    const qh={LIIGA:_LIIGA_QH_DATA,SHL:_SHL_QH_DATA,NLA:_NLA_QH_DATA,EXTRALIGA:_EXTRALIGA_QH_DATA}[league];
+    const L=_hkQHLeague(qh);if(!L||!h||!aw)return{h:1,a:1};
+    const H=_hkQHTeamRates(qh,h.name),A=_hkQHTeamRates(qh,aw.name);if(!H||!A)return{h:1,a:1};
+    const clamp=(v,c)=>Math.max(1-c,Math.min(1+c,v));
+    const side=(own,opp)=>{
+      let st=0;
+      if(own.pp!=null&&L.lg.pp!=null)st+=(own.pp-L.lg.pp)*.5;
+      if(opp.pk!=null&&L.lg.pk!=null)st-=(opp.pk-L.lg.pk)*.5;
+      const gk=(opp.sv!=null&&L.lg.sv!=null)?1-(opp.sv-L.lg.sv)*100*HK_QH_GK_PER_PT:1;
+      return clamp(1+st,HK_QH_ST_CAP)*clamp(gk,HK_QH_GK_CAP);
+    };
+    return{h:side(H,A),a:side(A,H)};
+  }catch(e){return{h:1,a:1};}
 }
 function _liigaBlendedRates(team){
   if(!team)return{gf:2.8,ga:2.8,gm:5.5,gp:0};
@@ -12262,8 +12325,9 @@ function liigaMC(homeId,awayId,marketOU){
   // _socFormFactor already established.
   const hForm=_hkFormFactor(homeId,D.games,hR),aForm=_hkFormFactor(awayId,D.games,aR);
   const hfa=.055; // same magnitude nhlMC's own home-ice constant
-  const hLam=Math.max(.4,((hR.gf*hForm+aR.ga)/2)*(1+hfa));
-  const aLam=Math.max(.4,((aR.gf*aForm+hR.ga)/2)*(1-hfa*.5));
+  const _qa=_hkQHAdjFor('LIIGA',h,aw);   // special teams + goaltending from QuantHockey (see _hkQHAdjFor); {h:1,a:1} when the snapshot is missing
+  const hLam=Math.max(.4,((hR.gf*hForm+aR.ga)/2)*(1+hfa)*_qa.h);
+  const aLam=Math.max(.4,((aR.gf*aForm+hR.ga)/2)*(1-hfa*.5)*_qa.a);
   // Exact analytic (Poisson convolution), not another Monte Carlo pass --
   // same "exact, not simulated" preference _socMarginDist/_socSpreadProb
   // already established for soccer goal spreads, directly reusable here
@@ -12412,8 +12476,8 @@ let _NLA_DATA=null;
 function loadNlaScheduleData(){
   if(_NLA_DATA)return Promise.resolve(_NLA_DATA);
   return fetch('nla_schedule.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{
-    _NLA_DATA=d||{teams:{},games:[]};
-    return _NLA_DATA;
+    const D0=d||{teams:{},games:[]};
+    return loadNlaQuantHockeyData().then(()=>{_NLA_DATA=D0;return D0;});   // the QuantHockey snapshot loads first and the data is published only after it: the MC reads it for PP%/PK%/SV%
   });
 }
 function _nlaBlendedRates(team){
@@ -12436,8 +12500,9 @@ function nlaMC(homeId,awayId,marketOU){
   const hR=_nlaBlendedRates(h),aR=_nlaBlendedRates(aw);
   const hForm=_hkFormFactor(homeId,D.games,hR),aForm=_hkFormFactor(awayId,D.games,aR);
   const hfa=.055;
-  const hLam=Math.max(.4,((hR.gf*hForm+aR.ga)/2)*(1+hfa));
-  const aLam=Math.max(.4,((aR.gf*aForm+hR.ga)/2)*(1-hfa*.5));
+  const _qa=_hkQHAdjFor('NLA',h,aw);   // special teams + goaltending from QuantHockey (see _hkQHAdjFor); {h:1,a:1} when the snapshot is missing
+  const hLam=Math.max(.4,((hR.gf*hForm+aR.ga)/2)*(1+hfa)*_qa.h);
+  const aLam=Math.max(.4,((aR.gf*aForm+hR.ga)/2)*(1-hfa*.5)*_qa.a);
   const dist=_socMarginDist(hLam,aLam);
   let hwP=0,awP=0,otP=0;
   Object.keys(dist).forEach(m=>{const mm=parseFloat(m);if(mm>0)hwP+=dist[m];else if(mm<0)awP+=dist[m];else otP+=dist[m];});
@@ -12528,8 +12593,8 @@ let _EXTRALIGA_DATA=null;
 function loadExtraligaScheduleData(){
   if(_EXTRALIGA_DATA)return Promise.resolve(_EXTRALIGA_DATA);
   return fetch('extraliga_schedule.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{
-    _EXTRALIGA_DATA=d||{teams:{},games:[]};
-    return _EXTRALIGA_DATA;
+    const D0=d||{teams:{},games:[]};
+    return loadExtraligaQuantHockeyData().then(()=>{_EXTRALIGA_DATA=D0;return D0;});   // the QuantHockey snapshot loads first and the data is published only after it: the MC reads it for PP%/PK%/SV%
   });
 }
 function _extraligaBlendedRates(team){
@@ -12552,8 +12617,9 @@ function extraligaMC(homeId,awayId,marketOU){
   const hR=_extraligaBlendedRates(h),aR=_extraligaBlendedRates(aw);
   const hForm=_hkFormFactor(homeId,D.games,hR),aForm=_hkFormFactor(awayId,D.games,aR);
   const hfa=.055;
-  const hLam=Math.max(.4,((hR.gf*hForm+aR.ga)/2)*(1+hfa));
-  const aLam=Math.max(.4,((aR.gf*aForm+hR.ga)/2)*(1-hfa*.5));
+  const _qa=_hkQHAdjFor('EXTRALIGA',h,aw);   // special teams + goaltending from QuantHockey (see _hkQHAdjFor); {h:1,a:1} when the snapshot is missing
+  const hLam=Math.max(.4,((hR.gf*hForm+aR.ga)/2)*(1+hfa)*_qa.h);
+  const aLam=Math.max(.4,((aR.gf*aForm+hR.ga)/2)*(1-hfa*.5)*_qa.a);
   const dist=_socMarginDist(hLam,aLam);
   let hwP=0,awP=0,otP=0;
   Object.keys(dist).forEach(m=>{const mm=parseFloat(m);if(mm>0)hwP+=dist[m];else if(mm<0)awP+=dist[m];else otP+=dist[m];});
@@ -13365,8 +13431,8 @@ let _SHL_DATA=null;
 function loadShlScheduleData(){
   if(_SHL_DATA)return Promise.resolve(_SHL_DATA);
   return fetch('shl_schedule.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{
-    _SHL_DATA=d||{teams:{},games:[]};
-    return _SHL_DATA;
+    const D0=d||{teams:{},games:[]};
+    return loadShlQuantHockeyData().then(()=>{_SHL_DATA=D0;return D0;});   // the QuantHockey snapshot loads first and the data is published only after it: the MC reads it for PP%/PK%/SV%
   });
 }
 // Season-progress-weighted blend: early season leans on last year's full
@@ -13408,8 +13474,9 @@ function shlMC(homeId,awayId,marketOU){
   // identical comment and _hkFormFactor's definition.
   const hForm=_hkFormFactor(homeId,D.games,hR),aForm=_hkFormFactor(awayId,D.games,aR);
   const hfa=.055; // same magnitude nhlMC's own home-ice constant
-  const hLam=Math.max(.4,((hR.gf*hForm+aR.ga)/2)*(1+hfa));
-  const aLam=Math.max(.4,((aR.gf*aForm+hR.ga)/2)*(1-hfa*.5));
+  const _qa=_hkQHAdjFor('SHL',h,aw);   // special teams + goaltending from QuantHockey (see _hkQHAdjFor); {h:1,a:1} when the snapshot is missing
+  const hLam=Math.max(.4,((hR.gf*hForm+aR.ga)/2)*(1+hfa)*_qa.h);
+  const aLam=Math.max(.4,((aR.gf*aForm+hR.ga)/2)*(1-hfa*.5)*_qa.a);
   // Exact analytic (Poisson convolution), not another Monte Carlo pass --
   // same "exact, not simulated" preference _socMarginDist/_socSpreadProb
   // already established for soccer goal spreads, directly reusable here
