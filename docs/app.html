@@ -653,7 +653,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .mom-l10{display:flex;align-items:center;flex-wrap:wrap;gap:6px 5px;padding:6px 9px;border:1px solid rgba(255,255,255,.08);border-radius:3px;background:rgba(0,0,0,.28)}
 .mom-l10t{font-family:var(--mono);font-size:11px;letter-spacing:1.6px;color:var(--t3);margin-right:4px}
 .mom-pip{display:inline-block;width:14px;height:14px;border-radius:50%;flex-shrink:0;cursor:pointer;vertical-align:middle;background:var(--bc);box-shadow:0 0 6px var(--bc)}   /* same look as the Overall tab's form dots and the league recent-form bubbles: flat win/loss colour + soft glow; hover/tap shows the event + result */
-.mom-pip.w{--bc:#00e644}.mom-pip.l{--bc:#ff2090}
+.mom-pip.w{--bc:#00e644}.mom-pip.l{--bc:#ff2090}.mom-pip.d{--bc:#9aabb8}
 .mom-pip:focus-visible{outline:2px solid var(--pc);outline-offset:2px}
 .mom-pip.st{box-shadow:0 0 0 1px #05030a,0 0 0 2px var(--bc),0 0 10px var(--bc)}   /* the current streak keeps a ring */
 .mom-pip.nw{background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.18);opacity:1}
@@ -4901,8 +4901,19 @@ function _cmpResults(games,key,n){
   played.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   return played.slice(0,n||10).map(g=>{
     const home=g.home===key,gf=home?g.homeScore:g.awayScore,ga=home?g.awayScore:g.homeScore;
-    return{date:String(g.date||'').slice(0,10),home,opp:home?(g.awayName||g.away):(g.homeName||g.home),gf,ga,win:gf>ga};
+    return{date:String(g.date||'').slice(0,10),home,opp:home?(g.awayName||g.away):(g.homeName||g.home),gf,ga,win:gf>ga,draw:gf===ga};
   });
+}
+// whole days between a team's previous completed game and `dateIso` (null when it has none) -- NFL / NBA / CFB rest rows
+function _cmpRestDays(games,key,dateIso){
+  const t=Date.parse(dateIso);if(!isFinite(t))return null;
+  let best=null;
+  (games||[]).forEach(g=>{
+    if(!g||g.state!=='post'||(g.home!==key&&g.away!==key))return;
+    const d=Date.parse(g.date);if(!isFinite(d)||d>=t)return;
+    if(best==null||d>best)best=d;
+  });
+  return best==null?null:Math.max(0,Math.round((t-best)/864e5));
 }
 // rows: [{lbl,a,h,fmt,dir(1 higher is better|-1 lower is better|0 neutral),scale,subA,subH,txt}] -- a = away team, h = home team. A row with `txt` is shown as text only (a record).
 function _cmpStatsHTML(aName,hName,rows,note){
@@ -4929,28 +4940,33 @@ function _cmpStatsHTML(aName,hName,rows,note){
     +`<div style="display:grid;grid-template-columns:1fr 1.25fr 1fr;gap:4px;padding-bottom:3px"><div style="text-align:center;color:${_CMP_A};font-weight:700">${esc(aName)}</div><div></div><div style="text-align:center;color:${_CMP_H};font-weight:700">${esc(hName)}</div></div>`
     +sum+body+(note?`<div style="color:var(--t3);font-size:10px;text-align:center;margin-top:5px;line-height:1.4">${esc(note)}</div>`:'')+`</div>`;
 }
-// FORM tab: one block per team -- last results as W/L bubbles (oldest -> newest; hover for the game), recent GF/GA per game and home / road record over `allResults` (this season).
-function _cmpFormBlockHTML(name,col,last,all){
-  const esc=_escHtml;
+// FORM tab: one block per team -- last results as W/D/L bubbles (oldest -> newest; hover for the game), recent for/against per game and home / road record over `all` (this season).
+// opt: {gf:'GF',ga:'GA' (labels: GF/GA for goals, PF/PA for football and basketball points), dec:1, draws:true (soccer / football ties get a grey D bubble and a W-D-L record)}
+function _cmpFormBlockHTML(name,col,last,all,opt){
+  const esc=_escHtml,o=opt||{},gfL=o.gf||'GF',gaL=o.ga||'GA',dec=o.dec==null?1:o.dec;
   if(!last.length)return`<div style="margin-bottom:8px"><div style="color:${col};font-weight:700;margin-bottom:2px">${esc(name)}</div><div style="color:var(--t3);font-size:12px">No completed games yet.</div></div>`;
+  const code=r=>r.win?'W':(r.draw?'D':'L');
   const ordered=last.slice().reverse();
-  let streak=1;const nw=last[0].win;for(let i=1;i<last.length&&last[i].win===nw;i++)streak++;
+  let streak=1;const sc=code(last[0]);for(let i=1;i<last.length&&code(last[i])===sc;i++)streak++;
   const cl=t=>String(t==null?'':t).replace(/[|"<>&]/g,' ').replace(/\s+/g,' ').trim();
   // hover / tap / keyboard focus shows the game through the same tooltip the Home bubbles use (showDotTip: data-tip lines split on '|'); `title` stays as the no-JS fallback
   const pips=ordered.map((r,i)=>{
-    const lb=`${r.win?'WIN':'LOSS'} ${r.gf}-${r.ga} ${r.home?'vs':'at'} ${cl(r.opp)}`;
-    const tip=[cl(r.date)+' · '+(r.home?'HOME':'ROAD'),`${r.home?'vs':'at'} ${cl(r.opp)}`,`${r.gf}-${r.ga}`,r.win?'✓ WIN':'✗ LOSS'].join('|');
-    return`<span class="mom-pip ${r.win?'w':'l'}${i===ordered.length-1?' st':''}" role="img" tabindex="0" title="${lb}" aria-label="${lb}" data-tip="${tip}" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" onfocus="showDotTip(this)" onblur="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2500)"></span>`;
+    const word=r.win?'WIN':(r.draw?'DRAW':'LOSS');
+    const lb=`${word} ${r.gf}-${r.ga} ${r.home?'vs':'at'} ${cl(r.opp)}`;
+    const tip=[cl(r.date)+' · '+(r.home?'HOME':'ROAD'),`${r.home?'vs':'at'} ${cl(r.opp)}`,`${r.gf}-${r.ga}`,r.win?'✓ WIN':(r.draw?'= DRAW':'✗ LOSS')].join('|');
+    return`<span class="mom-pip ${r.win?'w':(r.draw?'d':'l')}${i===ordered.length-1?' st':''}" role="img" tabindex="0" title="${lb}" aria-label="${lb}" data-tip="${tip}" onmouseenter="showDotTip(this)" onmouseleave="hideDotTip()" onfocus="showDotTip(this)" onblur="hideDotTip()" ontouchstart="showDotTip(this)" ontouchend="setTimeout(hideDotTip,2500)"></span>`;
   }).join('<span style="display:inline-block;width:5px"></span>');
-  const w=last.filter(r=>r.win).length,gf=last.reduce((a,r)=>a+r.gf,0)/last.length,ga=last.reduce((a,r)=>a+r.ga,0)/last.length;
-  const rec=(arr)=>`${arr.filter(r=>r.win).length}-${arr.filter(r=>!r.win).length}`;
+  const cnt=(arr,c)=>arr.filter(r=>code(r)===c).length;
+  const rec=(arr)=>o.draws?`${cnt(arr,'W')}-${cnt(arr,'D')}-${cnt(arr,'L')}`:`${cnt(arr,'W')}-${arr.length-cnt(arr,'W')}`;
+  const gf=last.reduce((a,r)=>a+r.gf,0)/last.length,ga=last.reduce((a,r)=>a+r.ga,0)/last.length;
   const hm=all.filter(r=>r.home),rd=all.filter(r=>!r.home);
-  return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="color:${col};font-weight:700">${esc(name)}</span><span style="color:var(--t3);font-size:11px">last ${last.length}: ${w}-${last.length-w} · ${nw?'W':'L'}${streak} streak</span></div>`
+  const sg=(v)=>(v>=0?'+':'')+v.toFixed(dec);
+  return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="color:${col};font-weight:700">${esc(name)}</span><span style="color:var(--t3);font-size:11px">last ${last.length}: ${rec(last)} · ${sc}${streak} streak</span></div>`
     +`<div style="margin:4px 0 3px">${pips}</div>`
-    +`<div style="display:flex;gap:12px;flex-wrap:wrap;color:var(--t2);font-size:12px"><span>GF ${gf.toFixed(1)}/g</span><span>GA ${ga.toFixed(1)}/g</span><span>diff ${(gf-ga)>=0?'+':''}${(gf-ga).toFixed(1)}</span><span style="color:var(--t3)">home ${rec(hm)} · road ${rec(rd)}</span></div></div>`;
+    +`<div style="display:flex;gap:12px;flex-wrap:wrap;color:var(--t2);font-size:12px"><span>${gfL} ${gf.toFixed(dec)}/g</span><span>${gaL} ${ga.toFixed(dec)}/g</span><span>diff ${sg(gf-ga)}</span><span style="color:var(--t3)">home ${rec(hm)} · road ${rec(rd)}</span></div></div>`;
 }
-function _cmpFormHTML(aName,hName,aGames,hGames,aAll,hAll,note){
-  return`<div style="font-family:var(--mono);font-size:13px">${_cmpFormBlockHTML(aName,_CMP_A,aGames,aAll)}${_cmpFormBlockHTML(hName,_CMP_H,hGames,hAll)}`
+function _cmpFormHTML(aName,hName,aGames,hGames,aAll,hAll,note,opt){
+  return`<div style="font-family:var(--mono);font-size:13px">${_cmpFormBlockHTML(aName,_CMP_A,aGames,aAll,opt)}${_cmpFormBlockHTML(hName,_CMP_H,hGames,hAll,opt)}`
     +`<div style="color:var(--t3);font-size:10px;text-align:center;line-height:1.4">${_escHtml(note||'Completed games this season; hover (or long-press) a bubble for the score. Display only.')}</div></div>`;
 }
 // ── MC PROJ bar — shared across all sport game cards ─────────────────────────
@@ -9706,6 +9722,7 @@ function _cfbGameCard(g){
         {label:'MATCHUP',svg:_cfbMatchupRadarSVG(g,facts)},
         {label:'OFFENSE',svg:_matchupRadarSVG(['Passing','Rushing','3rd down%','Turnovers','Pass TDs','Rush TDs'],_cfbOffenseRadarValues(g.home,facts,'h'),_cfbOffenseRadarValues(g.away,facts,'a'),'cfb_'+gidSafe+'_o')},
         {label:'DEFENSE',svg:_matchupRadarSVG(['Points allowed','Total yds allowed','Pass yds allowed','Rush yds allowed','Pass TDs allowed','Rush TDs allowed'],_cfbDefenseRadarValues(g.home,facts,'h'),_cfbDefenseRadarValues(g.away,facts,'a'),'cfb_'+gidSafe+'_d')},
+        ..._cfbCompareTabs(g,facts),
       ])}
       <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real scraped/computed stat normalized 0-100 (missing data defaults to the 50 midpoint, not guessed). TD counts are season totals, not per-game rates. Home edge (MATCHUP tab) reflects each team's own team-specific HFA, not just today's home team.</div>
     </div>
@@ -10739,6 +10756,7 @@ function _nflGameCard2(g){
           {label:'MATCHUP',svg:_matchupRadarSVG(['Offense','Defense','Special teams','Turnovers','Point diff','Home edge'],_nflMatchupRadarValues(g.home),_nflMatchupRadarValues(g.away),'nfl2_'+gidSafe+'_m')},
           {label:'OFFENSE',svg:_matchupRadarSVG(['Passing','Rushing','3rd down%','Turnover diff','Pass TDs','Rush TDs'],_nflOffenseRadarValues(g.home),_nflOffenseRadarValues(g.away),'nfl2_'+gidSafe+'_o')},
           {label:'DEFENSE',svg:_matchupRadarSVG(['Points allowed','Total yds allowed','Pass yds allowed','Rush yds allowed','Pass TDs allowed','Rush TDs allowed'],_nflDefenseRadarValues(g.home),_nflDefenseRadarValues(g.away),'nfl2_'+gidSafe+'_d')},
+          ..._nflCompareTabs(g),
         ]);
       }catch(e){return'';}})()}
       <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real scraped stat normalized 0-100 (missing data defaults to the 50 midpoint, not guessed). Special teams is a placeholder until full ST fields are scraped for every team. TD counts are season totals, not per-game rates. Home edge uses the model's flat HFA constant (no team-specific figure built for NFL yet).</div>
@@ -11134,6 +11152,181 @@ function _nhlDefenseRadarValues(team){
     100-clamp(team.gaa,1.8,3.6),
     clamp(team.gsax,-15,15),
   ];
+}
+// ── STATS + FORM tabs for the other sports (NBA, NFL, CFB, soccer), each built from what that sport's own data actually has ────────────────────────────────────────────────────────────
+// Same helpers as hockey (_cmpStatsHTML / _cmpFormHTML); rows are chosen per sport and per league, missing numbers are left out, nothing here feeds a model.
+const _cmpNum=v=>{const x=parseFloat(v);return(v==null||v==='--'||v===''||!isFinite(x))?null:x;};
+const _cmpFlatWeeks=W=>{const o=[];Object.keys(W||{}).forEach(k=>(W[k]||[]).forEach(g=>o.push(g)));return o;};
+function _cmpRow(lbl,away,home,fmt,dir,scale,extra){return Object.assign({lbl,a:_cmpNum(away),h:_cmpNum(home),fmt,dir:dir==null?1:dir,scale:scale||1},extra||{});}
+const _cmpFmt={f0:v=>v.toFixed(0),f1:v=>v.toFixed(1),f2:v=>v.toFixed(2),p1:v=>v.toFixed(1)+'%',s1:v=>(v>=0?'+':'')+v.toFixed(1),s2:v=>(v>=0?'+':'')+v.toFixed(2),sv:v=>v.toFixed(3).replace(/^0/,'')};
+
+// NBA ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+function _nbaCompareTabs(hn,an,dateIso){
+  try{
+    const F=_cmpFmt,CD=window.__CV_DATA||{},nb=CD.nba||{};
+    const adv=nb.teamAdv||{},ff=nb.fourFactors||{},rt=(nb.teamRatings&&nb.teamRatings.teams)||{};
+    const SG=((window._NBA_SCHED&&window._NBA_SCHED.games)||[]).filter(g=>g&&!g.preseason&&g.seasonType!==1&&!g.carried&&!g.postponed);   // regular season only
+    const A=(k,f)=>(adv[k]||{})[f],X=(k,f)=>(ff[k]||{})[f],R=(k,s,f)=>((rt[k]||{})[s]||{})[f];
+    const pct=v=>_cmpNum(v)==null?null:v*100;
+    const cur=k=>(R(k,'current','gp')>0)?`${R(k,'current','w')}-${R(k,'current','l')}`:null;
+    const pri=k=>(R(k,'prior','w')!=null)?`${R(k,'prior','w')}-${R(k,'prior','l')}`:null;
+    const ss=(adv[hn]&&adv[hn].season)||(adv[an]&&adv[an].season),lbl=ss?`${ss-1}-${String(ss).slice(2)}`:'last season';
+    const mov=k=>(R(k,'current','gp')>0)?R(k,'current','mov'):R(k,'prior','mov');
+    const rest=(k)=>dateIso?_cmpRestDays(SG,k,dateIso):null;
+    const rows=[
+      {lbl:'RECORD (THIS SEASON)',a:cur(an),h:cur(hn),txt:1},
+      {lbl:`RECORD (${lbl})`,a:pri(an),h:pri(hn),txt:1},
+      _cmpRow('ELO RATING',(rt[an]||{}).elo,(rt[hn]||{}).elo,F.f0,1,100),
+      _cmpRow('MARGIN OF VICTORY',mov(an),mov(hn),F.s1,1,6),
+      _cmpRow(`NET RATING (${lbl})`,A(an,'net_rtg'),A(hn,'net_rtg'),F.s1,1,6),
+      _cmpRow('OFFENSIVE RATING',A(an,'ortg'),A(hn,'ortg'),F.f1,1,6),
+      _cmpRow('DEFENSIVE RATING',A(an,'drtg'),A(hn,'drtg'),F.f1,-1,6),
+      _cmpRow('PACE',A(an,'pace'),A(hn,'pace'),F.f1,0,5),
+      _cmpRow('EFFECTIVE FG %',pct(A(an,'efg_pct')),pct(A(hn,'efg_pct')),F.p1,1,4),
+      _cmpRow('TRUE SHOOTING %',pct(A(an,'ts_pct')),pct(A(hn,'ts_pct')),F.p1,1,4),
+      _cmpRow('TURNOVER %',X(an,'tov_pct'),X(hn,'tov_pct'),F.p1,-1,3),
+      _cmpRow('OFFENSIVE REB %',X(an,'orb_pct'),X(hn,'orb_pct'),F.p1,1,5),
+      _cmpRow('FREE-THROW RATE',pct(X(an,'ft_rate')),pct(X(hn,'ft_rate')),F.p1,1,6),
+      _cmpRow('OPP EFFECTIVE FG %',pct(X(an,'opp_efg_pct')),pct(X(hn,'opp_efg_pct')),F.p1,-1,4),
+      _cmpRow('OPP TURNOVER %',X(an,'opp_tov_pct'),X(hn,'opp_tov_pct'),F.p1,1,3),
+      _cmpRow('DEFENSIVE REB %',X(an,'drb_pct'),X(hn,'drb_pct'),F.p1,1,4),
+      _cmpRow('DAYS OF REST',rest(an),rest(hn),F.f0,1,3),
+    ];
+    const note=`Ratings, shooting, rebounding and turnover figures are ${lbl} numbers until this season has enough games; record, margin, rest and form are this season. A back-to-back shows as 1 day of rest.`;
+    return[
+      {label:'STATS',svg:_cmpStatsHTML(an,hn,rows,note)},
+      {label:'FORM',svg:_cmpFormHTML(an,hn,_cmpResults(SG,an,10),_cmpResults(SG,hn,10),_cmpResults(SG,an,99),_cmpResults(SG,hn,99),'Completed regular-season games only (preseason is excluded). Hover (or long-press) a bubble for the score. Display only.',{gf:'PF',ga:'PA',dec:1})},
+    ];
+  }catch(e){return[];}
+}
+
+// NFL ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+function _nflCompareTabs(g){
+  try{
+    const F=_cmpFmt,ND=_NFL_DATA;if(!ND)return[];
+    const h=g.home,a=g.away,stg=ND.standings||{},stats=ND.stats||{};
+    const WK=_cmpFlatWeeks(ND.weeks).filter(x=>x&&x.seasonType!==1);                     // regular season + playoffs, never the preseason
+    const S=(k)=>stg[k]||{},O=(k)=>(stats[k]||{}).offense||{},DF=(k)=>(stats[k]||{}).defenseAllowed||{};
+    const gp=k=>(_cmpNum(S(k).wins)||0)+(_cmpNum(S(k).losses)||0)+(_cmpNum(S(k).ties)||0);
+    const per=(k,f)=>gp(k)>0&&_cmpNum(S(k)[f])!=null?_cmpNum(S(k)[f])/gp(k):null;
+    const rec=k=>gp(k)>0?`${S(k).wins|0}-${S(k).losses|0}${(S(k).ties|0)?'-'+(S(k).ties|0):''}`:null;
+    const rest=k=>_cmpRestDays(WK,k,g.date);
+    const rows=[
+      {lbl:'RECORD',a:rec(a),h:rec(h),txt:1},
+      _cmpRow('POINTS FOR /GAME',per(a,'pointsFor'),per(h,'pointsFor'),F.f1,1,8),
+      _cmpRow('POINTS AGAINST /GAME',per(a,'pointsAgainst'),per(h,'pointsAgainst'),F.f1,-1,8),
+      _cmpRow('POINT DIFF /GAME',per(a,'differential'),per(h,'differential'),F.s1,1,10),
+      _cmpRow('TOTAL YARDS /GAME',O(a).yardsPerGame,O(h).yardsPerGame,F.f1,1,80),
+      _cmpRow('PASSING YARDS /GAME',O(a).netPassingYardsPerGame,O(h).netPassingYardsPerGame,F.f1,1,50),
+      _cmpRow('RUSHING YARDS /GAME',O(a).rushingYardsPerGame,O(h).rushingYardsPerGame,F.f1,1,40),
+      _cmpRow('YARDS PER PASS ATTEMPT',O(a).yardsPerPassAttempt,O(h).yardsPerPassAttempt,F.f1,1,1.5),
+      _cmpRow('YARDS PER RUSH',O(a).yardsPerRushAttempt,O(h).yardsPerRushAttempt,F.f1,1,1),
+      _cmpRow('3RD-DOWN CONVERSION %',O(a).thirdDownConvPct,O(h).thirdDownConvPct,F.p1,1,8),
+      _cmpRow('TURNOVER DIFFERENTIAL',O(a).turnOverDifferential,O(h).turnOverDifferential,F.s1,1,6),
+      _cmpRow('YARDS ALLOWED /GAME',DF(a).yardsPerGame,DF(h).yardsPerGame,F.f1,-1,80),
+      _cmpRow('PASS YARDS ALLOWED /GAME',DF(a).netPassingYardsPerGame,DF(h).netPassingYardsPerGame,F.f1,-1,50),
+      _cmpRow('RUSH YARDS ALLOWED /GAME',DF(a).rushingYardsPerGame,DF(h).rushingYardsPerGame,F.f1,-1,40),
+      _cmpRow('DAYS OF REST',rest(a),rest(h),F.f0,1,4),
+    ];
+    const note=`Season-to-date from ESPN team stats and standings (${gp(a)} / ${gp(h)} games played). Missing numbers are left out; the home-field edge is a flat model constant, not team-specific.`;
+    return[
+      {label:'STATS',svg:_cmpStatsHTML(a,h,rows,note)},
+      {label:'FORM',svg:_cmpFormHTML(a,h,_cmpResults(WK,a,5),_cmpResults(WK,h,5),_cmpResults(WK,a,99),_cmpResults(WK,h,99),'Completed games this season (preseason excluded). Hover (or long-press) a bubble for the score. Display only.',{gf:'PF',ga:'PA',dec:1,draws:true})},
+    ];
+  }catch(e){return[];}
+}
+
+// CFB ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+function _cfbCompareTabs(g,f){
+  try{
+    const F=_cmpFmt,CD=_CFB_DATA;if(!CD||!f)return[];
+    const h=g.home,a=g.away;
+    const WK=_cmpFlatWeeks(CD.weeks).filter(x=>x&&x.seasonType!==1);
+    const res=k=>_cmpResults(WK,k,99);
+    const rec=k=>{const r=res(k);return r.length?`${r.filter(x=>x.win).length}-${r.filter(x=>!x.win).length}`:null;};
+    const rest=k=>_cmpRestDays(WK,k,g.date);
+    const pg=(k)=>{const r=res(k);return r.length?{f:r.reduce((s,x)=>s+x.gf,0)/r.length,a:r.reduce((s,x)=>s+x.ga,0)/r.length}:null;};
+    const ph=pg(h),pa=pg(a);
+    const rows=[
+      {lbl:'RECORD',a:rec(a),h:rec(h),txt:1},
+      _cmpRow('ESPN FPI (POWER RATING)',f.aFpi,f.hFpi,F.s1,1,8),
+      _cmpRow('FPI RANK',f.aFpiRank,f.hFpiRank,F.f0,-1,40),
+      _cmpRow('OUR ELO',f.aEloGames>0||f.hEloGames>0?f.aElo:null,f.aEloGames>0||f.hEloGames>0?f.hElo:null,F.f0,1,100),
+      _cmpRow('POINTS FOR /GAME',pa&&pa.f,ph&&ph.f,F.f1,1,10),
+      _cmpRow('POINTS AGAINST /GAME',pa&&pa.a,ph&&ph.a,F.f1,-1,10),
+      _cmpRow('PASSING YARDS /GAME',f.aOffPassYdsG,f.hOffPassYdsG,F.f1,1,60),
+      _cmpRow('RUSHING YARDS /GAME',f.aOffRushYdsG,f.hOffRushYdsG,F.f1,1,60),
+      _cmpRow('3RD-DOWN CONVERSION %',f.aOff3rd,f.hOff3rd,F.p1,1,8),
+      _cmpRow('TURNOVER DIFFERENTIAL',f.aOffTODiff,f.hOffTODiff,F.s1,1,6),
+      _cmpRow('PASS YARDS ALLOWED /GAME',f.aDefPassYdsG,f.hDefPassYdsG,F.f1,-1,60),
+      _cmpRow('RUSH YARDS ALLOWED /GAME',f.aDefRushYdsG,f.hDefRushYdsG,F.f1,-1,60),
+      _cmpRow('OFFENSE EFFICIENCY',f.aOffEff,f.hOffEff,F.f1,1,10),
+      _cmpRow('DEFENSE EFFICIENCY',f.aDefEff,f.hDefEff,F.f1,1,10),
+      _cmpRow('STRENGTH-OF-SCHEDULE RANK',f.aSosRank,f.hSosRank,F.f0,0,40),
+      _cmpRow('HOME-FIELD EDGE (PTS)',null,f.hfa,F.f1,0,2),
+      _cmpRow('DAYS OF REST',rest(a),rest(h),F.f0,1,4),
+    ];
+    const note=`ESPN FPI, our Elo (built from this season's finals), team stats and results. TD totals are season counts and are not shown; missing numbers are left out.${g.neutralSite?' Neutral site: no home-field edge.':''}`;
+    return[
+      {label:'STATS',svg:_cmpStatsHTML(a,h,rows,note)},
+      {label:'FORM',svg:_cmpFormHTML(a,h,_cmpResults(WK,a,5),_cmpResults(WK,h,5),res(a),res(h),'FBS results this season, including games against FCS opponents when ESPN lists them. Hover (or long-press) a bubble for the score. Display only.',{gf:'PF',ga:'PA',dec:1})},
+    ];
+  }catch(e){return[];}
+}
+
+// Soccer (Premier League, La Liga, Serie A, Bundesliga, MLS, Champions League) ------------------------------------------------------------------------------------------------------
+// FBref team rows (docs/soccer_fbref.json, all five competitions) carry per-game attacking numbers, possession, shots, home/away splits and the full match log; Opta (PL / Serie A / Bundesliga /
+// MLS only) adds pressing and shot-conversion detail. The Champions League merges each club's domestic match log into its form.
+function _socCompareTabs(leagueKey,g,leagueName){
+  try{
+    const F=_cmpFmt,FB=window.__CV_FBREF||{};
+    const find=(lk,name)=>{const t=FB[lk]&&FB[lk].teams;if(!t||!name)return null;const k=_socFuzzyFind(name,Object.keys(t));return k?t[k]:null;};
+    const dom=(name)=>{if(leagueKey!=='cl')return null;const ctx=_clDomesticContext(name);return ctx?find(ctx.domKey,name):null;};
+    const logOf=(name)=>{
+      const own=find(leagueKey,name),d=dom(name);
+      const rows=[].concat((own&&own.matchLog)||[],(d&&d.matchLog)||[]).filter(m=>m&&m.gf!=null&&m.ga!=null&&m.date);
+      const seen={};const out=[];
+      rows.forEach(m=>{const k=m.date+'|'+m.opponent;if(!seen[k]){seen[k]=1;out.push(m);}});
+      out.sort((x,y)=>String(x.date).localeCompare(String(y.date)));
+      return out;
+    };
+    const toRes=m=>({date:String(m.date).slice(0,10),home:m.homeAway==='home',opp:m.opponent,gf:m.gf,ga:m.ga,win:m.gf>m.ga,draw:m.gf===m.ga});
+    const hRow=find(leagueKey,g.home)||dom(g.home),aRow=find(leagueKey,g.away)||dom(g.away);
+    const seasonOf=(log)=>log.reduce((m,x)=>Math.max(m,x.season||0),0);
+    const thisSeason=(name)=>{const l=logOf(name),s=seasonOf(l);return l.filter(m=>(m.season||0)===s);};
+    const hS=thisSeason(g.home).map(toRes),aS=thisSeason(g.away).map(toRes);
+    const wdl=a=>a.length?`${a.filter(r=>r.win).length}-${a.filter(r=>r.draw).length}-${a.filter(r=>!r.win&&!r.draw).length}`:null;
+    const ppg=a=>a.length?a.reduce((s,r)=>s+(r.win?3:r.draw?1:0),0)/a.length:null;
+    const pgv=(a,k)=>a.length?a.reduce((s,r)=>s+r[k],0)/a.length:null;
+    const pg=(row,f)=>(row&&row.mp&&_cmpNum(row[f])!=null)?row[f]/row.mp:null;
+    const venue=(arr,home)=>{const v=arr.filter(r=>r.home===home);return v.length?{rec:wdl(v),ppg:ppg(v)}:null;};
+    const hH=venue(hS,true),aA=venue(aS,false);
+    const opta=window.__CV_OPTA&&window.__CV_OPTA[leagueKey];
+    const oa=n=>opta?_optaFindTeam(opta.attacking,n):null,od=n=>opta?_optaFindTeam(opta.defending,n):null,op=n=>opta?_optaFindTeam(opta.pressing,n):null;
+    const rows=[
+      {lbl:'RECORD THIS SEASON (W-D-L)',a:wdl(aS),h:wdl(hS),txt:1},
+      _cmpRow('POINTS /GAME',ppg(aS),ppg(hS),F.f2,1,1),
+      _cmpRow('GOALS FOR /GAME',aS.length?pgv(aS,'gf'):pg(aRow,'gf'),hS.length?pgv(hS,'gf'):pg(hRow,'gf'),F.f2,1,1),
+      _cmpRow('GOALS AGAINST /GAME',aS.length?pgv(aS,'ga'):pg(aRow,'ga'),hS.length?pgv(hS,'ga'):pg(hRow,'ga'),F.f2,-1,1),
+      _cmpRow('xG FOR /GAME',pg(aRow,'xg'),pg(hRow,'xg'),F.f2,1,0.8),
+      _cmpRow('xG AGAINST /GAME',pg(aRow,'xga'),pg(hRow,'xga'),F.f2,-1,0.8),
+      _cmpRow('POSSESSION %',aRow&&aRow.poss,hRow&&hRow.poss,F.p1,0,10),
+      _cmpRow('SHOTS /GAME',aRow&&aRow.shots_pg,hRow&&hRow.shots_pg,F.f1,1,5),
+      _cmpRow('SHOTS ON TARGET /GAME',aRow&&aRow.sot_pg,hRow&&hRow.sot_pg,F.f1,1,2),
+      {lbl:'VENUE RECORD (ROAD · HOME)',a:aA?aA.rec:null,h:hH?hH.rec:null,txt:1},
+      _cmpRow('POINTS /GAME (ROAD · HOME)',aA&&aA.ppg,hH&&hH.ppg,F.f2,1,1),
+      _cmpRow('PRESSING (PPDA, LOWER = HIGHER PRESS)',op(g.away)&&op(g.away).ppda,op(g.home)&&op(g.home).ppda,F.f1,-1,4),
+      _cmpRow('SHOT CONVERSION %',oa(g.away)&&oa(g.away).shot_conv,oa(g.home)&&oa(g.home).shot_conv,F.p1,1,4),
+      _cmpRow('xG PER SHOT',oa(g.away)&&oa(g.away).xg_per_shot,oa(g.home)&&oa(g.home).xg_per_shot,F.f2,1,0.04),
+      _cmpRow('OPP SHOT CONVERSION %',od(g.away)&&od(g.away).shot_conv_against,od(g.home)&&od(g.home).shot_conv_against,F.p1,-1,4),
+    ];
+    const mp=r=>(r&&r.mp)||0;
+    const note=`${leagueName}: FBref team stats${opta?' + Opta pressing / shot-quality':''} (${mp(aRow)} / ${mp(hRow)} matches played)${leagueKey==='cl'?'. Record, form and points include each club\'s domestic league games.':'.'} Missing numbers are left out. The first record is the away side on the road, the second the home side at home.`;
+    return[
+      {label:'STATS',svg:_cmpStatsHTML(g.away,g.home,rows,note)},
+      {label:'FORM',svg:_cmpFormHTML(g.away,g.home,logOf(g.away).slice(-5).reverse().map(toRes),logOf(g.home).slice(-5).reverse().map(toRes),aS,hS,leagueKey==='cl'?'Last five games across the Champions League and domestic league; the home / road record is this season. Hover (or long-press) a bubble for the score. Display only.':'Last five league games (latest on the right); home / road record is this season. Hover (or long-press) a bubble for the score. Display only.',{gf:'GF',ga:'GA',dec:1,draws:true})},
+    ];
+  }catch(e){return[];}
 }
 // STATS + FORM tabs for the NHL COMPARE panel (see _cmpStatsHTML). a = away, h = home.
 function _nhlCompareTabs(hn,an){
@@ -14895,6 +15088,7 @@ const espnSprdNum=-_sprdL;const sprdFav=_mktFav;const sprdLbl=sprdFav+' '+espnSp
         {label:'MATCHUP',svg:_matchupRadarSVG(['Off Rating','Def Rating','Net Rating','Pace','TS%','Turnover%'],_nbaMatchupRadarValues(hn),_nbaMatchupRadarValues(an),'nba_'+_nbaGidSafe+'_m')},
         {label:'OFFENSE',svg:_matchupRadarSVG(['PPG','eFG%','3PT%','AST','ORB%','FT Rate'],_nbaOffenseRadarValues(hn),_nbaOffenseRadarValues(an),'nba_'+_nbaGidSafe+'_o')},
         {label:'DEFENSE',svg:_matchupRadarSVG(['Pts Allowed','eFG% Allowed','STL','BLK','DRB','Opp TOV%'],_nbaDefenseRadarValues(hn),_nbaDefenseRadarValues(an),'nba_'+_nbaGidSafe+'_d')},
+        ..._nbaCompareTabs(hn,an,espnEv.date),
       ]);
     }catch(e){return'';}})()}
     <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real stat normalized 0-100 (missing data defaults to the 50 midpoint, not guessed). Built from NBA_BBREF, currently populated for the active playoff/Finals teams -- other teams read as neutral until the regular-season dataset is rebuilt.</div>
@@ -27560,10 +27754,21 @@ function loadLeagueOptaStats(key){
 // Looks a team up across attacking/passing/sequences/pressing/defending
 // by fuzzy name match, same tolerant matching _socXG's finder functions
 // already use (exact -> substring either direction).
+// Opta writes club names its own way (Man City, Spurs, FC Bayern, Paris SG ...), so the plain "one name contains the other" test missed the big clubs -- their OFFENSE / DEFENSE radar axes quietly
+// read as the 50 midpoint (found 2026-10-17 building the COMPARE STATS tab). Accents are ignored and a short alias table covers the rest.
+var _OPTA_ALIASES={'manchester city':'man city','manchester united':'man utd','tottenham hotspur':'spurs','tottenham':'spurs','nottingham forest':'forest','aston villa':'villa','crystal palace':'palace',
+  'bayern munich':'fc bayern','bayern':'fc bayern','bayer leverkusen':'bayer 04','leverkusen':'bayer 04','fc cologne':'koln','1. fc koln':'koln','cologne':'koln','borussia monchengladbach':"m'gladbach",'monchengladbach':"m'gladbach",
+  'borussia dortmund':'dortmund','rb leipzig':'leipzig','eintracht frankfurt':'frankfurt','vfb stuttgart':'stuttgart','werder bremen':'bremen','hamburger sv':'hamburg','paris saint-germain':'paris sg','paris saint germain':'paris sg','psg':'paris sg',
+  'internazionale':'inter','inter milan':'inter','ac milan':'milan','atletico madrid':'atletico','athletic club':'athletic','real betis':'betis','celta vigo':'celta','rayo vallecano':'rayo','bodo/glimt':'bodo','fenerbahce':'fenerbahce'};
 function _optaFindTeam(rows,name){
   if(!rows||!name)return null;
-  var k=name.toLowerCase().trim();
-  return rows.find(function(t){var tk=(t.team||'').toLowerCase();return tk===k||k.indexOf(tk)>=0||tk.indexOf(k)>=0;})||null;
+  var nm=function(x){return String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();};
+  var k=nm(name);
+  var hit=rows.find(function(t){var tk=nm(t.team);return tk===k||k.indexOf(tk)>=0||tk.indexOf(k)>=0;});
+  if(hit)return hit;
+  var al=_OPTA_ALIASES[k];
+  if(al){var a=nm(al);hit=rows.find(function(t){var tk=nm(t.team);return tk===a||tk.indexOf(a)>=0;});}
+  return hit||null;
 }
 // Real per-team offense-side signals from Opta's attacking/passing/
 // sequences categories, normalized 0-100. Missing data (league not
@@ -28629,16 +28834,20 @@ function _renderSocMatchCardRaw(g,leagueKey){
       // stats.py actually covers (pl/ita/bl/mls) -- La Liga and Champions
       // League don't have this data at all, so they honestly keep just
       // the 4-axis matchup view above rather than a fake breakdown.
-      if(_OPTA_LEAGUES.indexOf(leagueKey)<0){
-        return '<div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Only 4 axes -- xG/xGA/actual-goals data is what this engine has real, per-team numbers for in '+leagueName+'. No offense/defense breakdown or possession/form axes since Opta detail isn\'t scraped for this league yet.</div>'+matchupSvg;
+      var tabs=[{label:'MATCHUP',svg:matchupSvg}];
+      var hasOptaLg=_OPTA_LEAGUES.indexOf(leagueKey)>=0;
+      if(hasOptaLg){
+        var offH=_socOffenseRadarValues(g.home,leagueKey),offA=_socOffenseRadarValues(g.away,leagueKey);
+        var defH=_socDefenseRadarValues(g.home,leagueKey),defA=_socDefenseRadarValues(g.away,leagueKey);
+        tabs.push({label:'OFFENSE',svg:_matchupRadarSVG(['xG/game','Shot conv%','Possession%','Final-3rd pass%','Direct atk goals','Goals vs xG'],offH,offA,socUid+'_o')});
+        tabs.push({label:'DEFENSE',svg:_matchupRadarSVG(['xGA/game','Goals against/g','Opp shot conv%','Goals vs xG (def)','Press (PPDA)','Def actions/g'],defH,defA,socUid+'_d')});
       }
-      var offH=_socOffenseRadarValues(g.home,leagueKey),offA=_socOffenseRadarValues(g.away,leagueKey);
-      var defH=_socDefenseRadarValues(g.home,leagueKey),defA=_socDefenseRadarValues(g.away,leagueKey);
-      var offSvg=_matchupRadarSVG(['xG/game','Shot conv%','Possession%','Final-3rd pass%','Direct atk goals','Goals vs xG'],offH,offA,socUid+'_o');
-      var defSvg=_matchupRadarSVG(['xGA/game','Goals against/g','Opp shot conv%','Goals vs xG (def)','Press (PPDA)','Def actions/g'],defH,defA,socUid+'_d');
+      tabs=tabs.concat(_socCompareTabs(leagueKey,g,leagueName));
       var hasOpta=!!(window.__CV_OPTA&&window.__CV_OPTA[leagueKey]);
-      return _radarTabPanelHTML(socUid,[{label:'MATCHUP',svg:matchupSvg},{label:'OFFENSE',svg:offSvg},{label:'DEFENSE',svg:defSvg}])
-        +(hasOpta?'':'<div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Offense/defense tabs are loading real Opta data for '+leagueName+' -- showing the 50 midpoint per axis until it lands (reopen COMPARE after the match list refreshes).</div>');
+      var socNote=!hasOptaLg
+        ?'Radar: xG / xGA / actual goals. Opta detail (OFFENSE / DEFENSE axes) is not scraped for '+leagueName+'; the STATS and FORM tabs use FBref team stats and match logs.'
+        :(hasOpta?'':'Offense/defense tabs are loading real Opta data for '+leagueName+' -- showing the 50 midpoint per axis until it lands (reopen COMPARE after the match list refreshes).');
+      return _radarTabPanelHTML(socUid,tabs)+(socNote?'<div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">'+socNote+'</div>':'');
     }catch(e){return'';}})()
     +'</div>'
     +scoreHtml
