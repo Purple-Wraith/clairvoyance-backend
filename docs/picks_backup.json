@@ -84029,9 +84029,9 @@
     "winProb": 0.8260976815478239,
     "lockedAt": 1792132012323,
     "reasoning": "PICK: OHIO ML \u2014 SKIP (82.6% win prob, EV +0.0%)\nMODEL: Projected margin +19.8 (OHIO), total 54.7, from a 25k-sim Monte Carlo.\nWHY: OHIO ML \u00b7 SKIP \u00b7 82.6% \u00b7 EV +0.0% FPI has SAC at -29.4 (#138 nationally) and OHIO at -9.3 (#103) \u2014 a 20.1-point model gap, a significant edge. SAC is home \u2014 this model uses a team-specific 6.96-point home-field edge here (vs the 2.2-pt default), derived from SAC's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: SAC ranks #130 nationally, OHIO #92 \u2014 OHIO has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): SAC 11.5, OHIO 44.9. Elo (built from this season's own final scores, separate from FPI): SAC 1404 (12 games played), OHIO 1530 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: SAC 1-5, OHIO 4-2. Turnover margin: SAC -3, OHIO -1 on the season \u2014 roughly a wash. Season TD production: SAC 6 passing / 4 rushing, OHIO 10 passing / 9 rushing (season totals, not per-game rates) \u2014 OHIO has scored more often through the air and on the ground so far.",
+    "settledAt": 1792301471000,
     "lockOrigin": "auto",
-    "lockTiming": "pre",
-    "settledAt": 1792301471000
+    "lockTiming": "pre"
   },
   {
     "hA": "SAC",
@@ -84063,10 +84063,10 @@
     "winProb": 0.6806,
     "lockedAt": 1792132012091,
     "reasoning": "PICK: OVER 43.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted OVER 48.5 to OVER 43.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 72.6%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +19.8 (OHIO), total 54.7, from a 25k-sim Monte Carlo.",
+    "settledAt": 1792301471000,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1792301471000
+    "priceSource": "estimated"
   },
   {
     "hA": "SDSU",
@@ -86083,6 +86083,34 @@
         "home": 0.94
       }
     }
+  },
+  {
+    "id": "2026-10-18_Plzen_Vitkovice_EXTRALIGA_PlzenML",
+    "date": "2026-10-18",
+    "hA": "Plzen",
+    "awA": "Vitkovice",
+    "sport": "EXTRALIGA",
+    "league": "EXTRALIGA",
+    "betType": "ML",
+    "betOn": "Plzen ML",
+    "winProb": 0.6943849872391802,
+    "ml": "-278",
+    "decOdds": 1.36,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792303947763,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: Plzen ML \u2014 HIGH PROB (69.4% win prob, EV -5.6% \u00b7 MARKET PRICE -278 (EV at market -5.6%) \u00b7 MARKET-BLENDED: model 72.3% \u00b7 no-vig market 68.5% \u2192 69.4% (alpha 0.75))\nMODEL: Projected 2.1\u20133.0 (total 5.1) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Plzen 2.44/2.12 (11GP this season, 52GP prior) vs Vitkovice 2.36/3.33 (10GP, 52GP prior). Market line: 4.5 (Plzen 4.24, Vitkovice 5.56). Record: Plzen 3-4-3OTW-1OTL vs Vitkovice 2-7-1OTL. Exact-Poisson proj: Vitkovice 2.1 \u2013 Plzen 3.0 (5.1 total vs 4.5 line). Plzen's scoring edge versus the moneyline price. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 72.3% \u00b7 no-vig market 68.4% \u2192 69.4%; Puck line market blend (alpha 0.70): model 44.2% \u00b7 no-vig market 45.0% \u2192 44.8%; O/U market blend (alpha 0.65): model 57.7% \u00b7 no-vig market 60.4% \u2192 59.5%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.7231,
+    "marketProb": 0.6845,
+    "blendAlpha": 0.75,
+    "startMs": 1792333800000,
+    "leadMin": 498,
+    "lockTiming": "pre"
   },
   {
     "hA": "Real Madrid",
