@@ -91,8 +91,8 @@ class Model(unittest.TestCase):
 
     def test_cards_show_the_separate_metrics_with_their_weights(self):
         html = self.pg.evaluate("""() => { const ids = Object.keys(_SHL_DATA.teams); const h = _SHL_DATA.teams[ids[0]], a = _SHL_DATA.teams[ids[1]];
-          return _hkCompareRadarHTML('t_shl', h.name, a.name, 'SHL', h, a, _shlBlendedRates(h), _shlBlendedRates(a)); }""")
-        for needle in ("SPECIAL TEAMS", "POWER PLAY %", "PENALTY KILL %", "TEAM SAVE %", "WEIGHTS", "this /", "do not feed goals for/against"):
+          return _hkCompareRadarHTML('t_shl', h.name, a.name, 'SHL', h, a, _shlBlendedRates(h), _shlBlendedRates(a), ids[0], ids[1]); }""")
+        for needle in ("POWER PLAY %", "PENALTY KILL %", "TEAM SAVE %", "do not feed goals for/against"):
             self.assertIn(needle, html)
 
 

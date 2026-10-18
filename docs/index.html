@@ -4891,6 +4891,62 @@ function _switchRadarTab(uid,idx){
   });
 }
 
+// ── Enhanced COMPARE for hockey (NHL, SHL, Liiga, NLA, Extraliga; owner, 2026-10-17) ───────────────────────────────────────────────────────────────────────────────────────────────
+// Two tabs next to the radars: STATS (the real numbers behind the radar axes, head to head, with who leads each row and a lead count) and FORM (last results as win/loss bubbles with
+// hover detail, recent goals for/against, home/road record). Pure display: nothing here feeds a model. Away is cyan / left, home is magenta / right, same as the radar and the logos.
+const _CMP_A='#00f0ff',_CMP_H='#f000ff';
+// last n completed games for one team, newest first. `games` = a schedule file's games (NHL: abbreviations, European leagues: Flashscore ids) -- same shape in all five.
+function _cmpResults(games,key,n){
+  const played=(games||[]).filter(g=>g&&g.state==='post'&&g.homeScore!=null&&g.awayScore!=null&&(g.home===key||g.away===key));
+  played.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  return played.slice(0,n||10).map(g=>{
+    const home=g.home===key,gf=home?g.homeScore:g.awayScore,ga=home?g.awayScore:g.homeScore;
+    return{date:String(g.date||'').slice(0,10),home,opp:home?(g.awayName||g.away):(g.homeName||g.home),gf,ga,win:gf>ga};
+  });
+}
+// rows: [{lbl,a,h,fmt,dir(1 higher is better|-1 lower is better|0 neutral),scale,subA,subH,txt}] -- a = away team, h = home team. A row with `txt` is shown as text only (a record).
+function _cmpStatsHTML(aName,hName,rows,note){
+  const esc=_escHtml;
+  let leadA=0,leadH=0,even=0;
+  const body=rows.filter(r=>r&&(r.txt?(r.a!=null||r.h!=null):(r.a!=null&&r.h!=null))).map(r=>{
+    if(r.txt)return`<div style="display:grid;grid-template-columns:1fr 1.25fr 1fr;align-items:center;gap:4px;padding:3px 0;border-top:1px solid rgba(255,255,255,.05)"><div style="text-align:center;color:${_CMP_A}">${esc(r.a)}</div><div style="text-align:center;color:var(--t3);font-size:10px;letter-spacing:.5px">${esc(r.lbl)}</div><div style="text-align:center;color:${_CMP_H}">${esc(r.h)}</div></div>`;
+    const d=(r.a-r.h)*(r.dir||0),eps=Math.abs(r.scale||1)*0.02;
+    const lead=!r.dir?0:(d>eps?-1:(d<-eps?1:0));   // -1 away leads, +1 home leads, 0 even / neutral
+    if(r.dir){if(lead<0)leadA++;else if(lead>0)leadH++;else even++;}
+    const share=Math.max(.06,Math.min(.94,.5+((r.a-r.h)*(r.dir>=0?1:-1))/(2*(r.scale||1))*0.9));
+    const fa=lead<0?'font-weight:700;':(lead>0?'opacity:.62;':''),fh=lead>0?'font-weight:700;':(lead<0?'opacity:.62;':'');
+    const sub=(x)=>x?`<div style="color:var(--t3);font-size:9px;font-weight:400;line-height:1.1">${esc(x)}</div>`:'';
+    return`<div style="display:grid;grid-template-columns:1fr 1.25fr 1fr;align-items:center;gap:4px;padding:3px 0;border-top:1px solid rgba(255,255,255,.05)">`
+      +`<div style="text-align:center;color:${_CMP_A};${fa}">${esc(r.fmt(r.a))}${sub(r.subA)}</div>`
+      +`<div style="text-align:center"><div style="color:var(--t3);font-size:10px;letter-spacing:.5px;margin-bottom:2px">${esc(r.lbl)}</div>`
+      +`<div style="display:flex;height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.06)"><span style="width:${(share*100).toFixed(1)}%;background:${_CMP_A};opacity:${lead<=0?.9:.35}"></span><span style="width:${((1-share)*100).toFixed(1)}%;background:${_CMP_H};opacity:${lead>=0?.9:.35}"></span></div></div>`
+      +`<div style="text-align:center;color:${_CMP_H};${fh}">${esc(r.fmt(r.h))}${sub(r.subH)}</div></div>`;
+  }).join('');
+  if(!body)return'<div style="font-family:var(--mono);font-size:12px;color:var(--t3);text-align:center;padding:10px">No comparable numbers for this matchup yet.</div>';
+  const tot=leadA+leadH+even;
+  const sum=tot?`<div style="display:flex;justify-content:center;gap:12px;margin:2px 0 4px;font-size:12px"><span style="color:${_CMP_A}">${esc(aName)} leads ${leadA}</span><span style="color:var(--t3)">${even} even</span><span style="color:${_CMP_H}">${esc(hName)} leads ${leadH}</span></div>`:'';
+  return`<div style="font-family:var(--mono);font-size:12px">`
+    +`<div style="display:grid;grid-template-columns:1fr 1.25fr 1fr;gap:4px;padding-bottom:3px"><div style="text-align:center;color:${_CMP_A};font-weight:700">${esc(aName)}</div><div></div><div style="text-align:center;color:${_CMP_H};font-weight:700">${esc(hName)}</div></div>`
+    +sum+body+(note?`<div style="color:var(--t3);font-size:10px;text-align:center;margin-top:5px;line-height:1.4">${esc(note)}</div>`:'')+`</div>`;
+}
+// FORM tab: one block per team -- last results as W/L bubbles (oldest -> newest; hover for the game), recent GF/GA per game and home / road record over `allResults` (this season).
+function _cmpFormBlockHTML(name,col,last,all){
+  const esc=_escHtml;
+  if(!last.length)return`<div style="margin-bottom:8px"><div style="color:${col};font-weight:700;margin-bottom:2px">${esc(name)}</div><div style="color:var(--t3);font-size:12px">No completed games yet.</div></div>`;
+  const ordered=last.slice().reverse();
+  let streak=1;const nw=last[0].win;for(let i=1;i<last.length&&last[i].win===nw;i++)streak++;
+  const pips=ordered.map((r,i)=>`<span class="mom-pip ${r.win?'w':'l'}${i===ordered.length-1?' st':''}" title="${r.win?'W':'L'} ${r.gf}-${r.ga} ${r.home?'vs':'at'} ${esc(r.opp)} (${esc(r.date)})" aria-label="${r.win?'Win':'Loss'} ${r.gf}-${r.ga} ${r.home?'vs':'at'} ${esc(r.opp)}"></span>`).join('<span style="display:inline-block;width:5px"></span>');
+  const w=last.filter(r=>r.win).length,gf=last.reduce((a,r)=>a+r.gf,0)/last.length,ga=last.reduce((a,r)=>a+r.ga,0)/last.length;
+  const rec=(arr)=>`${arr.filter(r=>r.win).length}-${arr.filter(r=>!r.win).length}`;
+  const hm=all.filter(r=>r.home),rd=all.filter(r=>!r.home);
+  return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="color:${col};font-weight:700">${esc(name)}</span><span style="color:var(--t3);font-size:11px">last ${last.length}: ${w}-${last.length-w} · ${nw?'W':'L'}${streak} streak</span></div>`
+    +`<div style="margin:4px 0 3px">${pips}</div>`
+    +`<div style="display:flex;gap:12px;flex-wrap:wrap;color:var(--t2);font-size:12px"><span>GF ${gf.toFixed(1)}/g</span><span>GA ${ga.toFixed(1)}/g</span><span>diff ${(gf-ga)>=0?'+':''}${(gf-ga).toFixed(1)}</span><span style="color:var(--t3)">home ${rec(hm)} · road ${rec(rd)}</span></div></div>`;
+}
+function _cmpFormHTML(aName,hName,aGames,hGames,aAll,hAll,note){
+  return`<div style="font-family:var(--mono);font-size:13px">${_cmpFormBlockHTML(aName,_CMP_A,aGames,aAll)}${_cmpFormBlockHTML(hName,_CMP_H,hGames,hAll)}`
+    +`<div style="color:var(--t3);font-size:10px;text-align:center;line-height:1.4">${_escHtml(note||'Completed games this season; hover (or long-press) a bubble for the score. Display only.')}</div></div>`;
+}
 // ── MC PROJ bar — shared across all sport game cards ─────────────────────────
 // Shared "model recommended line vs market" panel -- same pattern CFB
 // originated (see the inline block that used to live only in CFB's card),
@@ -7677,8 +7733,8 @@ async function renderGoaliesFromBackend(){
 // League-average reference points for the special-teams/shot-quality/
 // goaltending nudges below -- centering points only, not claimed as
 // precise constants, same role _CFB_MEDIAN_CAPACITY plays for CFB.
-// league-total normaliser for nhlMC's lambdas (the zone/speed/special-teams/shot-quality/goalie multipliers net slightly >1 across a full league round-robin): fitted 2026-10-13 so the all-pairs mean projected total = the real ~6.1 goals/game
-const _NHL_LAM_NORM=.93;
+// league-total normaliser for nhlMC's lambdas (the zone/speed/special-teams/shot-quality/goalie multipliers net slightly >1 across a full league round-robin): fitted so the all-pairs mean projected total = the real ~6.1 goals/game (.92 on 2026-10-13; .97 on 2026-10-17 once the high-danger share stopped reading as 1200% and pinning every team at the +5% shot-quality cap)
+const _NHL_LAM_NORM=.97;
 const _NHL_LG_PP=.205,_NHL_LG_PK=.795,_NHL_LG_GA60=3.0,_NHL_LG_GF60=3.0;
 // ── NHL recent-form term (added 2026-10-03, explicit request) ──────────────────────
 // A team's OWN scoring over its last NHL_FORM_N completed games vs its season-rate input (h.gf60), applied as a
@@ -11039,7 +11095,8 @@ function _nhlRadarAxisValues(team,opp){
 function _nhlLiveCf(abbr){
   const mp=MONEYPUCK.teams&&MONEYPUCK.teams[abbr]&&MONEYPUCK.teams[abbr]['5on5'];
   if(!mp)return null;
-  return{cfPct:mp.cfPct,hdcfPct:mp.hdcfPct,xgfPct:mp.xgfPct};
+  // hdcfPct is a 0-1 share. Until the scraper was fixed (2026-10-17) it carried a high-danger shot COUNT (e.g. 12) -- read as 1200%, it pinned every team's shot-quality term at its +5% cap and drew a maxed radar axis; anything not a share is ignored.
+  return{cfPct:mp.cfPct,hdcfPct:(mp.hdcfPct>0&&mp.hdcfPct<=1)?mp.hdcfPct:null,xgfPct:mp.xgfPct};
 }
 // Finer-grained breakdown than the combined matchup radar's single
 // offense/defense axes -- uses the real per-team rate stats (gf60/ga60,
@@ -11071,6 +11128,43 @@ function _nhlDefenseRadarValues(team){
     100-clamp(team.gaa,1.8,3.6),
     clamp(team.gsax,-15,15),
   ];
+}
+// STATS + FORM tabs for the NHL COMPARE panel (see _cmpStatsHTML). a = away, h = home.
+function _nhlCompareTabs(hn,an){
+  try{
+    const h=NHL[hn]||{},a=NHL[an]||{};
+    const G=(typeof _NHL_SCHEDULE_DATA!=='undefined'&&_NHL_SCHEDULE_DATA&&_NHL_SCHEDULE_DATA.games)||[];
+    const f1=v=>v.toFixed(1),fp=v=>v.toFixed(1)+'%',f2=v=>v.toFixed(2),fsv=v=>v.toFixed(3).replace(/^0/,''),fsg=v=>(v>=0?'+':'')+v.toFixed(1);
+    const adv=(t,ab)=>{const l=_nhlLiveCf(ab);return{cf:l?.cfPct!=null?l.cfPct*100:(t.cf5!=null?t.cf5*100:null),hd:l?.hdcfPct!=null?l.hdcfPct*100:(t.hdcf??null),xg:l?.xgfPct!=null?l.xgfPct*100:(t.xgf5!=null?t.xgf5*100:null)};};
+    const ha=adv(h,hn),aa=adv(a,an);
+    const n=(v)=>(v==null||!isFinite(v))?null:v;
+    const pts=t=>t.gp?t.pts/(t.gp*2)*100:null;
+    const big=(k)=>{const b=_hkBigMarginRate(k,G);return b&&b.n?b.big/b.n*100:null;};
+    const rec=t=>t.gp?`${t.w||0}-${t.l||0}-${t.otl||0}`:null;
+    const rows=[
+      {lbl:'RECORD (W-L-OTL)',a:rec(a),h:rec(h),txt:1},
+      {lbl:'POINTS %',a:n(pts(a)),h:n(pts(h)),fmt:fp,dir:1,scale:20},
+      {lbl:'GOALS FOR /GAME',a:n(a.gf60),h:n(h.gf60),fmt:f2,dir:1,scale:1},
+      {lbl:'GOALS AGAINST /GAME',a:n(a.ga60),h:n(h.ga60),fmt:f2,dir:-1,scale:1},
+      {lbl:'GOAL DIFF /GAME',a:(a.gf60!=null&&a.ga60!=null)?a.gf60-a.ga60:null,h:(h.gf60!=null&&h.ga60!=null)?h.gf60-h.ga60:null,fmt:fsg,dir:1,scale:1.5},
+      {lbl:'WIN BY 2+ GOALS',a:n(big(an)),h:n(big(hn)),fmt:fp,dir:1,scale:25},
+      {lbl:'POWER PLAY %',a:a.pp!=null?a.pp*100:null,h:h.pp!=null?h.pp*100:null,fmt:fp,dir:1,scale:10},
+      {lbl:'PENALTY KILL %',a:a.pk!=null?a.pk*100:null,h:h.pk!=null?h.pk*100:null,fmt:fp,dir:1,scale:10},
+      {lbl:'TEAM SAVE %',a:n(a.sv),h:n(h.sv),fmt:fsv,dir:1,scale:.02},
+      {lbl:'GOALS AGAINST AVG (GAA)',a:n(a.gaa),h:n(h.gaa),fmt:f2,dir:-1,scale:1},
+      {lbl:'GOALIE GSAx',a:n(a.gsax),h:n(h.gsax),fmt:fsg,dir:1,scale:10},
+      {lbl:'xGOALS FOR %',a:n(aa.xg),h:n(ha.xg),fmt:fp,dir:1,scale:6},
+      {lbl:'SHOT ATTEMPTS % (CORSI)',a:n(aa.cf),h:n(ha.cf),fmt:fp,dir:1,scale:6},
+      {lbl:'HIGH-DANGER CHANCES %',a:n(aa.hd),h:n(ha.hd),fmt:fp,dir:1,scale:8},
+      {lbl:'OFFENSIVE-ZONE STARTS %',a:n(a.edge?.zone_off??a.edge?.zoneOff),h:n(h.edge?.zone_off??h.edge?.zoneOff),fmt:fp,dir:1,scale:8},
+    ];
+    const wk=t=>t.priorW!=null?Math.round((1-t.priorW)*100)+'%':'n/a';
+    const note=`Rates (goals, PP%, PK%, save %, zone starts) blend last season and this one on the NHL curve — ${an} ${wk(a)} / ${hn} ${wk(h)} this season. Season-to-date; missing numbers are left out.`;
+    return[
+      {label:'STATS',svg:_cmpStatsHTML(an,hn,rows,note)},
+      {label:'FORM',svg:_cmpFormHTML(an,hn,_cmpResults(G,an,10),_cmpResults(G,hn,10),_cmpResults(G,an,99),_cmpResults(G,hn,99))},
+    ];
+  }catch(e){return[];}
 }
 function _nhlGameCard(espnEv){
       const c=espnEv.competitions?.[0];if(!c)return'';
@@ -11238,6 +11332,7 @@ function _nhlGameCard(espnEv){
         {label:'MATCHUP',svg:_matchupRadarSVG(['Offense','Defense','Goaltending','Special teams','Speed/zone','xG share'],_nhlRadarAxisValues(hNHL,aNHL),_nhlRadarAxisValues(aNHL,hNHL),'nhl_'+hn+'_'+an+'_m')},
         {label:'OFFENSE',svg:_matchupRadarSVG(['GF/60','PP%','Corsi F%','HD chances%','xGF%','Finishing'],_nhlOffenseRadarValues(hNHL,hn),_nhlOffenseRadarValues(aNHL,an),'nhl_'+hn+'_'+an+'_o')},
         {label:'DEFENSE',svg:_matchupRadarSVG(['GA/60','PK%','Save%','HD save%','GAA','GSAx'],_nhlDefenseRadarValues(hNHL),_nhlDefenseRadarValues(aNHL),'nhl_'+hn+'_'+an+'_d')},
+        ..._nhlCompareTabs(hn,an),
       ]);
     }catch(e){return'';}})()}
     <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real input this app already has for this team (GF/60, PP%/PK%, Corsi, high-danger chances, save%, GSAx, Edge speed/zone) normalized 0-100. Missing data defaults to the 50 midpoint.</div>
@@ -11581,6 +11676,7 @@ function _nhlUpcomingCardRaw(g,dayIdx){
           {label:'MATCHUP',svg:_matchupRadarSVG(['Offense','Defense','Goaltending','Special teams','Speed/zone','xG share'],_nhlRadarAxisValues(h,aw),_nhlRadarAxisValues(aw,h),'nhlu_'+uid+'_m')},
           {label:'OFFENSE',svg:_matchupRadarSVG(['GF/60','PP%','Corsi F%','HD chances%','xGF%','Finishing'],_nhlOffenseRadarValues(h,g.home),_nhlOffenseRadarValues(aw,g.away),'nhlu_'+uid+'_o')},
           {label:'DEFENSE',svg:_matchupRadarSVG(['GA/60','PK%','Save%','HD save%','GAA','GSAx'],_nhlDefenseRadarValues(h),_nhlDefenseRadarValues(aw),'nhlu_'+uid+'_d')},
+          ..._nhlCompareTabs(g.home,g.away),
         ]);
       }catch(e){return'';}})()}
       <div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Each axis is a real input this app already has for this team (GF/60, PP%/PK%, Corsi, high-danger chances, save%, GSAx, Edge speed/zone) normalized 0-100. Missing data defaults to the 50 midpoint.</div>
@@ -12244,21 +12340,6 @@ function _hkQHBlend(t){
   const cur={pp:t.ppPct,pk:t.pkPct,sv:t.svPct},prev=p?{pp:p.ppPct,pk:p.pkPct,sv:p.svPct}:null;
   return{pp:mix(cur.pp,prev?prev.pp:null),pk:mix(cur.pk,prev?prev.pk:null),sv:mix(cur.sv,prev?prev.sv:null),w,cur,prev,gp:t.gp||0,prevGp:p?p.gp:null};
 }
-function _hkQHMetricsHTML(homeName,awayName,H,A){
-  if(!H||!A)return'';
-  const f1=v=>v==null?'--':v.toFixed(1)+'%',fs=v=>v==null?'--':v.toFixed(3).replace(/^0/,'');
-  const cell=(b,key,fmt)=>{
-    const sub=b.prev?`<span style="color:var(--t3);font-size:10px"> (${fmt(b.cur[key])} / ${fmt(b.prev[key])})</span>`:`<span style="color:var(--t3);font-size:10px"> (${fmt(b.cur[key])} this season only)</span>`;
-    return`<td style="padding:2px 6px;text-align:center;color:var(--nc)">${fmt(b[key])}${sub}</td>`;
-  };
-  const row=(lbl,key,fmt)=>`<tr><td style="padding:2px 6px;color:var(--t2)">${lbl}</td>${cell(H,key,fmt)}${cell(A,key,fmt)}</tr>`;
-  const wTxt=b=>b.prev?`${Math.round(b.w*100)}% this / ${Math.round((1-b.w)*100)}% last season`:'this season only';
-  return`<div style="margin-top:4px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px">`
-    +`<tr><th style="padding:2px 6px;text-align:left;color:var(--t3);font-weight:400">SPECIAL TEAMS &amp; GOALIE<div style="font-size:10px;color:var(--t3)">blended · (this / last season)</div></th><th style="padding:2px 6px;color:var(--t)">${_escHtml(homeName)}</th><th style="padding:2px 6px;color:var(--t)">${_escHtml(awayName)}</th></tr>`
-    +row('POWER PLAY %','pp',f1)+row('PENALTY KILL %','pk',f1)+row('TEAM SAVE %','sv',fs)
-    +`<tr><td style="padding:2px 6px;color:var(--t3);font-size:10px">WEIGHTS</td><td style="padding:2px 6px;text-align:center;color:var(--t3);font-size:10px">${wTxt(H)} (${H.gp} GP)</td><td style="padding:2px 6px;text-align:center;color:var(--t3);font-size:10px">${wTxt(A)} (${A.gp} GP)</td></tr>`
-    +`</table></div>`;
-}
 function _liigaBlendedRates(team){
   if(!team)return{gf:2.8,ga:2.8,gm:5.5,gp:0};
   const CAP=20; // full current-season weight once a team has 20 real games
@@ -12895,23 +12976,58 @@ function _hkDefenseRadarValuesQH(qh,seasonRates,b){
 // opponent doesn't) between the richer 3-tab MATCHUP/OFFENSE/DEFENSE
 // radar and the existing MATCHUP-only fallback, so a partial/missing
 // import degrades gracefully instead of erroring or half-rendering.
-function _hkCompareRadarHTML(uid,homeName,awayName,league,hTeam,aTeam,hRates,aRates){
+function _hkCompareRadarHTML(uid,homeName,awayName,league,hTeam,aTeam,hRates,aRates,hId,aId){
   // Lookup map, not a binary ternary -- refactored 2026-09-22 when NLA/
   // Extraliga joined Liiga/SHL as QuantHockey-enriched leagues (a
   // league==='LIIGA'?A:B ternary silently mis-routed every league past
   // the first two to SHL's own data).
   const qhData={LIIGA:_LIIGA_QH_DATA,SHL:_SHL_QH_DATA,NLA:_NLA_QH_DATA,EXTRALIGA:_EXTRALIGA_QH_DATA}[league]||null;
+  const LGD={LIIGA:_LIIGA_DATA,SHL:_SHL_DATA,NLA:_NLA_DATA,EXTRALIGA:_EXTRALIGA_DATA}[league]||null;
   const hQH=_hkQHStatsFor(homeName,qhData),aQH=_hkQHStatsFor(awayName,qhData);
   const matchupSvg=_matchupRadarSVG(['Scoring rate','Defense','Points %','Pace (G/M)'],_hkBasicRadarValues(hTeam,hRates),_hkBasicRadarValues(aTeam,aRates),uid+'_m');
-  if(!hQH||!aQH){
-    return matchupSvg+`<div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Only 4 axes -- blended GF/GA rate, points %, and pace (G/M) are what this engine has real per-team numbers for in ${league}. No possession/goaltending/special-teams data imported for this matchup yet.</div>`;
-  }
+  const tabs=[{label:'MATCHUP',svg:matchupSvg}];
   const hB=_hkQHBlend(hQH),aB=_hkQHBlend(aQH);
-  const offSvg=_matchupRadarSVG(['Shots/GP','SH%','PP%','Goals/GP'],_hkOffenseRadarValuesQH(hQH,hB),_hkOffenseRadarValuesQH(aQH,aB),uid+'_o');
-  const defSvg=_matchupRadarSVG(['GA/GP','SV%','PK%'],_hkDefenseRadarValuesQH(hQH,hRates,hB),_hkDefenseRadarValuesQH(aQH,aRates,aB),uid+'_d');
-  return _radarTabPanelHTML(uid,[{label:'MATCHUP',svg:matchupSvg},{label:'OFFENSE',svg:offSvg},{label:'DEFENSE',svg:defSvg}])
-    +_hkQHMetricsHTML(homeName,awayName,hB,aB)
-    +`<div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">PP% / PK% / save % are blended last season + this season on the NHL curve from a QuantHockey snapshot (${qhData.generated_at||'date unknown'}, refreshed weekly, not live). Shown as separate metrics only -- they do not feed goals for/against or the win-probability model.</div>`;
+  if(hQH&&aQH){
+    tabs.push({label:'OFFENSE',svg:_matchupRadarSVG(['Shots/GP','SH%','PP%','Goals/GP'],_hkOffenseRadarValuesQH(hQH,hB),_hkOffenseRadarValuesQH(aQH,aB),uid+'_o')});
+    tabs.push({label:'DEFENSE',svg:_matchupRadarSVG(['GA/GP','SV%','PK%'],_hkDefenseRadarValuesQH(hQH,hRates,hB),_hkDefenseRadarValuesQH(aQH,aRates,aB),uid+'_d')});
+  }
+  tabs.push(..._hkCompareExtraTabs(LGD,homeName,awayName,hId,aId,hTeam,aTeam,hRates,aRates,hQH,aQH,hB,aB));
+  const note=(hQH&&aQH)
+    ?`PP% / PK% / save % are blended last season + this season on the NHL curve from a QuantHockey snapshot (${qhData.generated_at||'date unknown'}, refreshed weekly, not live). Shown as separate metrics only -- they do not feed goals for/against or the win-probability model.`
+    :`Radar axes: blended GF/GA rate, points %, and pace (G/M). No QuantHockey special-teams / goaltending numbers are imported for this matchup yet (STATS and FORM below still show everything this engine has).`;
+  return _radarTabPanelHTML(uid,tabs)+`<div style="font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-top:2px">${note}</div>`;
+}
+// STATS + FORM tabs for the four European leagues' COMPARE panel (see _cmpStatsHTML). h* = home, a* = away; hQH/aQH/hB/aB may be null (no QuantHockey row).
+function _hkCompareExtraTabs(LGD,homeName,awayName,hId,aId,hTeam,aTeam,hR,aR,hQH,aQH,hB,aB){
+  try{
+    const G=(LGD&&LGD.games)||[];
+    const f1=v=>v.toFixed(1),fp=v=>v.toFixed(1)+'%',f2=v=>v.toFixed(2),fsv=v=>v.toFixed(3).replace(/^0/,''),fsg=v=>(v>=0?'+':'')+v.toFixed(2);
+    const n=v=>(v==null||!isFinite(v))?null:v;
+    const rec=t=>(t&&t.gp)?`${t.w||0}-${t.wo||0}-${t.lo||0}-${t.l||0}`:null;
+    const ppg=t=>(t&&t.gp&&t.pts!=null)?t.pts/t.gp:null;
+    const big=id=>{const b=id?_hkBigMarginRate(id,G):null;return b&&b.n?b.big/b.n*100:null;};
+    const gd=r=>(r&&r.gf!=null&&r.ga!=null)?r.gf-r.ga:null;
+    const sub=(b,k,fmt)=>b&&b.prev&&b.cur[k]!=null&&b.prev[k]!=null?`${fmt(b.cur[k])} / ${fmt(b.prev[k])}`:null;   // this season / last season
+    const rows=[
+      {lbl:'RECORD (W-OTW-OTL-L)',a:rec(aTeam),h:rec(hTeam),txt:1},
+      {lbl:'POINTS /GAME',a:n(ppg(aTeam)),h:n(ppg(hTeam)),fmt:f2,dir:1,scale:1},
+      {lbl:'GOALS FOR /GAME',a:n(aR&&aR.gf),h:n(hR&&hR.gf),fmt:f2,dir:1,scale:1},
+      {lbl:'GOALS AGAINST /GAME',a:n(aR&&aR.ga),h:n(hR&&hR.ga),fmt:f2,dir:-1,scale:1},
+      {lbl:'GOAL DIFF /GAME',a:n(gd(aR)),h:n(gd(hR)),fmt:fsg,dir:1,scale:1.5},
+      {lbl:'PACE (GOALS /MATCH)',a:n(aR&&aR.gm),h:n(hR&&hR.gm),fmt:f1,dir:0,scale:1},
+      {lbl:'WIN BY 2+ GOALS',a:n(big(aId)),h:n(big(hId)),fmt:fp,dir:1,scale:25},
+      {lbl:'SHOTS /GAME',a:n(aQH&&aQH.shotsPerGp),h:n(hQH&&hQH.shotsPerGp),fmt:f1,dir:1,scale:6},
+      {lbl:'SHOOTING %',a:n(aQH&&aQH.shPct),h:n(hQH&&hQH.shPct),fmt:fp,dir:1,scale:4},
+      {lbl:'POWER PLAY %',a:n(aB&&aB.pp),h:n(hB&&hB.pp),fmt:fp,dir:1,scale:10,subA:sub(aB,'pp',fp),subH:sub(hB,'pp',fp)},
+      {lbl:'PENALTY KILL %',a:n(aB&&aB.pk),h:n(hB&&hB.pk),fmt:fp,dir:1,scale:10,subA:sub(aB,'pk',fp),subH:sub(hB,'pk',fp)},
+      {lbl:'TEAM SAVE %',a:n(aB&&aB.sv),h:n(hB&&hB.sv),fmt:fsv,dir:1,scale:.02,subA:sub(aB,'sv',fsv),subH:sub(hB,'sv',fsv)},
+    ];
+    const wk=(t)=>{const w=_hkThisW(t&&t.gp||0);return(t&&t.prevSeason)?Math.round(w*100)+'%':'100%';};
+    const note=`Goals, PP%, PK% and save % blend last season + this season on the NHL curve (${awayName} ${wk(aTeam)} / ${homeName} ${wk(hTeam)} this season, ${(aTeam&&aTeam.gp)||0} / ${(hTeam&&hTeam.gp)||0} GP). Small grey figures under PP%, PK% and save % = this season / last season.`;
+    const tabs=[{label:'STATS',svg:_cmpStatsHTML(awayName,homeName,rows,note)}];
+    tabs.push({label:'FORM',svg:_cmpFormHTML(awayName,homeName,_cmpResults(G,aId,5),_cmpResults(G,hId,5),_cmpResults(G,aId,99),_cmpResults(G,hId,99))});
+    return tabs;
+  }catch(e){return[];}
 }
 // Shared by Liiga and SHL COMPARE panels -- same team-object shape
 // ({gp,pts,gf,ga,gm,prevSeason}), same blended-rate approach (see
@@ -13029,7 +13145,7 @@ function _liigaMatchCardRaw(g){
         <span style="color:#00f0ff">${_teamLogoHTML('liiga',g.away,'a',22,{ring:'cyan',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span><span style="color:#f000ff">${_teamLogoHTML('liiga',g.home,'h',22,{ring:'magenta',url:h.logo,name:g.homeName})}■ ${g.homeName}</span>
       </div>
       ${(()=>{try{
-        return _hkCompareRadarHTML('liiga_'+g.id,g.homeName,g.awayName,'LIIGA',h,aw,hR,aR);
+        return _hkCompareRadarHTML('liiga_'+g.id,g.homeName,g.awayName,'LIIGA',h,aw,hR,aR,g.home,g.away);
       }catch(e){return'';}})()}
     </div>
     <div class="brow">
@@ -13172,7 +13288,7 @@ function _nlaMatchCardRaw(g){
         <span style="color:#00f0ff">${_teamLogoHTML('nla',g.away,'a',22,{ring:'cyan',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span><span style="color:#f000ff">${_teamLogoHTML('nla',g.home,'h',22,{ring:'magenta',url:h.logo,name:g.homeName})}■ ${g.homeName}</span>
       </div>
       ${(()=>{try{
-        return _hkCompareRadarHTML('nla_'+g.id,g.homeName,g.awayName,'NLA',h,aw,hR,aR);
+        return _hkCompareRadarHTML('nla_'+g.id,g.homeName,g.awayName,'NLA',h,aw,hR,aR,g.home,g.away);
       }catch(e){return'';}})()}
     </div>
     <div class="brow">
@@ -13311,7 +13427,7 @@ function _extraligaMatchCardRaw(g){
         <span style="color:#00f0ff">${_teamLogoHTML('extraliga',g.away,'a',22,{ring:'cyan',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span><span style="color:#f000ff">${_teamLogoHTML('extraliga',g.home,'h',22,{ring:'magenta',url:h.logo,name:g.homeName})}■ ${g.homeName}</span>
       </div>
       ${(()=>{try{
-        return _hkCompareRadarHTML('extraliga_'+g.id,g.homeName,g.awayName,'EXTRALIGA',h,aw,hR,aR);
+        return _hkCompareRadarHTML('extraliga_'+g.id,g.homeName,g.awayName,'EXTRALIGA',h,aw,hR,aR,g.home,g.away);
       }catch(e){return'';}})()}
     </div>
     <div class="brow">
@@ -13631,7 +13747,7 @@ function _shlMatchCardRaw(g){
         <span style="color:#00f0ff">${_teamLogoHTML('shl',g.away,'a',22,{ring:'cyan',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span><span style="color:#f000ff">${_teamLogoHTML('shl',g.home,'h',22,{ring:'magenta',url:h.logo,name:g.homeName})}■ ${g.homeName}</span>
       </div>
       ${(()=>{try{
-        return _hkCompareRadarHTML('shl_'+g.id,g.homeName,g.awayName,'SHL',h,aw,hR,aR);
+        return _hkCompareRadarHTML('shl_'+g.id,g.homeName,g.awayName,'SHL',h,aw,hR,aR,g.home,g.away);
       }catch(e){return'';}})()}
     </div>
     <div class="brow">

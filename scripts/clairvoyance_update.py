@@ -2020,7 +2020,8 @@ def _mp_load_teams(year: int) -> dict:
                 "xgf60":     float(row.get("xGoalsForPer60") or row.get("xGoalsFor") or 0),
                 "xga60":     float(row.get("xGoalsAgainstPer60") or row.get("xGoalsAgainst") or 0),
                 "cfPct":     float(row.get("corsiPercentage") or 0),
-                "hdcfPct":   float(row.get("highDangerShotsForPercentage") or row.get("highDangerShotsFor") or 0),
+                # share of high-danger shots for / (for + against), 0-1. (It used to fall back to the raw high-danger shot COUNT, which the app read as a percentage.)
+                "hdcfPct":   (lambda f, a: f / (f + a) if (f + a) > 0 else 0.0)(float(row.get("highDangerShotsFor") or 0), float(row.get("highDangerShotsAgainst") or 0)),
                 "gf":        float(row.get("goalsFor") or 0),
                 "ga":        float(row.get("goalsAgainst") or 0),
                 "shots":     float(row.get("shotsOnGoalFor") or 0),

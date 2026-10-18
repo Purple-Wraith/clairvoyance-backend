@@ -57,6 +57,13 @@ class Scale(unittest.TestCase):
         self.assertLess(j["lo"], j["hi"] - 0.1, j)          # same awful goalie numbers: 90% last-season weight mutes them, 0% lets them through
         self.assertLess(j["lo"], 6.6, j)
 
+    def test_a_high_danger_count_is_never_read_as_a_percentage(self):
+        """MoneyPuck's hdcfPct used to carry a shot COUNT (12 -> read as 1200%), pinning every team at the +5% shot-quality cap (found 2026-10-17)."""
+        r = self.pg.evaluate("""() => { MONEYPUCK.teams = MONEYPUCK.teams || {};
+          MONEYPUCK.teams.ZZ1 = {'5on5': {cfPct: .52, hdcfPct: 12, xgfPct: .55}}; MONEYPUCK.teams.ZZ2 = {'5on5': {cfPct: .5, hdcfPct: .54, xgfPct: .5}}; MONEYPUCK.teams.ZZ3 = {'5on5': {cfPct: .5, hdcfPct: 0, xgfPct: .5}};
+          const o = [_nhlLiveCf('ZZ1').hdcfPct, _nhlLiveCf('ZZ2').hdcfPct, _nhlLiveCf('ZZ3').hdcfPct]; delete MONEYPUCK.teams.ZZ1; delete MONEYPUCK.teams.ZZ2; delete MONEYPUCK.teams.ZZ3; return o; }""")
+        self.assertEqual(r, [None, 0.54, None])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
