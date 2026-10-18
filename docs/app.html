@@ -7783,8 +7783,8 @@ async function renderGoaliesFromBackend(){
 // League-average reference points for the special-teams/shot-quality/
 // goaltending nudges below -- centering points only, not claimed as
 // precise constants, same role _CFB_MEDIAN_CAPACITY plays for CFB.
-// league-total normaliser for nhlMC's lambdas (the zone/speed/special-teams/shot-quality/goalie multipliers net slightly >1 across a full league round-robin): fitted so the all-pairs mean projected total = the real ~6.1 goals/game (.92 on 2026-10-13; .97 on 2026-10-17 once the high-danger share stopped reading as 1200% and pinning every team at the +5% shot-quality cap)
-const _NHL_LAM_NORM=.97;
+// league-total normaliser for nhlMC's lambdas (the zone/speed/special-teams/shot-quality/goalie multipliers net slightly >1 across a full league round-robin): fitted so the all-pairs mean projected total = the real ~6.1 goals/game (.92 on 2026-10-13; .97 on 2026-10-17 once the high-danger share stopped reading as 1200% and pinning every team at the +5% shot-quality cap; .977 on 2026-10-18 after MoneyPuck xGF/60 became a real per-60 rate and the derived-rating coefficient was halved to .055 / cap 8%, which brought the spread of projected totals from sd .82 to .76)
+const _NHL_LAM_NORM=.977;
 const _NHL_LG_PP=.205,_NHL_LG_PK=.795,_NHL_LG_GA60=3.0,_NHL_LG_GF60=3.0;
 // ── NHL recent-form term (added 2026-10-03, explicit request) ──────────────────────
 // A team's OWN scoring over its last NHL_FORM_N completed games vs its season-rate input (h.gf60), applied as a
@@ -7946,7 +7946,7 @@ function nhlMC(hA,awA,n=25000,marketOU){
   // 2026-10-13: a 5-game z-score of +-2 was moving a team's scoring rate +-40% and ranging projected totals 4.0-9.7. Hand-curated teams keep their full hv. Fail-open to 1 (no priorW).
   const cs=t=>t._syntheticEntry?Math.max(0,Math.min(1,1-(t.priorW||0))):1;
   const hCs=cs(h),aCs=cs(aw);
-  const hvTerm=(o,d)=>Math.max(-.15,Math.min(.15,(o-d)*.11));
+  const hvTerm=(o,d)=>Math.max(-.08,Math.min(.08,(o-d)*.055));
   const hOff=h.gf60*(1+hvTerm(h.hv.off*hCs,aw.hv.def*aCs))*(1+h.hv.fin*hCs*.04);
   const aOff=aw.gf60*(1+hvTerm(aw.hv.off*aCs,h.hv.def*hCs))*(1+aw.hv.fin*aCs*.04);
   const hZone=h.edge?.zone_off||h.edge?.zoneOff||50,aZone=aw.edge?.zone_off||aw.edge?.zoneOff||50;
