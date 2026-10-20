@@ -69,6 +69,19 @@ class WorkflowRefs(unittest.TestCase):
         self.assertIn("kickoffs.json", text)                                   # self-heal + kickoff build untouched
         self.assertIn("scripts/build_kickoffs.py", text)
 
+    def test_a_manual_lock_relay_commit_never_redeploys_the_site(self):
+        """The app commits docs/manual_locks.json / relay_ping.json from the owner's phone on every lock; each commit used to start a 2.8 MB Pages redeploy whose cache purge made the site
+        503 / time out mid-use (owner report 2026-10-20). Both files are excluded from the push trigger AND from the 'docs/ changed' check; the site reads manual_locks.json only in the Supabase-down fallback."""
+        text = (WF / "pages-deploy.yml").read_text()
+        for f in ("manual_locks.json", "relay_ping.json"):
+            self.assertIn(f"- '!docs/{f}'", text, f)
+            self.assertIn(f"':!docs/{f}'", text, f)
+        app = (ROOT / "docs" / "app.html").read_text()
+        # the only read from the Pages origin is the Supabase-down fallback (manual locks made on another device); it rides along with the next deploy for any OTHER change, so it is at most a few
+        # deploys stale. Pin that it stays inside that fallback rather than becoming a normal-path dependency:
+        self.assertEqual(app.count("fetch('manual_locks.json"), 1)
+        self.assertIn("Supabase unreachable", app[app.index("fetch('manual_locks.json") - 900:app.index("fetch('manual_locks.json")])
+
     def test_mobile_sync_workflow_run_names_are_real_workflows(self):
         """mobile-sync.yml still mirrors on `workflow_run` (not part of the publish step): every name it lists must be a real workflow."""
         text = (WF / "mobile-sync.yml").read_text()

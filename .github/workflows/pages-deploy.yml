@@ -25,6 +25,10 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      # The app's own manual-lock relay (and its token self-test) commits these from the user's phone. They are read through the GitHub API and by CI checkouts (the Pages copy is only used by the app's Supabase-down fallback, and rides along with the next deploy for any other change),
+      # but every lock tap used to start a full 2.8 MB redeploy -- and the cache purge made the site 503 / time out while the user was in the middle of using it (2026-10-20).
+      - '!docs/manual_locks.json'
+      - '!docs/relay_ping.json'
   # EVERY bot-driven deploy comes through here.  2026-10-10: the old `workflow_run` allowlist (18 workflow NAMES that had to be kept in sync by hand -- and silently drifted:
   # 11 docs-writing workflows were missing on 2026-08-30, 4 stale names on 2026-10-05) is gone.  Instead every workflow that writes to the repo ends with ONE shared step,
   # `uses: ./.github/actions/publish`, which commits + pushes (fetch/rebase retry) and then runs `gh workflow run pages-deploy.yml` when docs/ changed.  workflow_dispatch IS allowed with
@@ -87,7 +91,7 @@ jobs:
           if [ -z "$LAST_SHA" ]; then
             echo "No prior successful deploy found -- proceeding."
             echo "skip=false" >> "$GITHUB_OUTPUT"
-          elif git diff --quiet "$LAST_SHA" HEAD -- docs/ 2>/dev/null; then
+          elif git diff --quiet "$LAST_SHA" HEAD -- docs/ ':!docs/manual_locks.json' ':!docs/relay_ping.json' 2>/dev/null; then
             echo "docs/ unchanged since last deploy ($LAST_SHA) -- skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
