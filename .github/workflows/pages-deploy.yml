@@ -130,3 +130,15 @@ jobs:
         id: deployment
         if: steps.check.outputs.skip != 'true' || steps.kick.outputs.skip == 'false'
         uses: actions/deploy-pages@v4
+
+      - name: Warm the CDN with the files a launch fetches first
+        # A deploy purges GitHub Pages' cache, and a COLD large file is slow to come back (measured 2026-10-20: app.html 34 s, data.json 4 s; cached 0.4 s), so the first home-screen launch after
+        # every deploy could look dead. Fetch the plain URLs and the current cache-bucket URLs the app asks for (see _cb() in docs/app.html) once, right after the deploy. Best effort only.
+        if: steps.deployment.outcome == 'success'
+        continue-on-error: true
+        run: |
+          base=https://purple-wraith.github.io/clairvoyance-backend
+          now=$(date +%s)
+          for u in "app.html" "" "data.json?$((now/180))" "picks_backup.json?t=$((now/300))" "soccer_fbref.json?$((now/300))" "ledger_archive.json?v=$((now/600))" "nba_schedule.json?$((now/180))" "version.json"; do
+            curl -s -m 90 -o /dev/null -w "warm /$u %{http_code} %{size_download}B %{time_total}s\n" "$base/$u" || echo "warm /$u failed"
+          done

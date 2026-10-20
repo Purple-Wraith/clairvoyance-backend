@@ -47,6 +47,10 @@
     wrap('toLocaleTimeString',o=>hasTime(o)?{}:{hour:'numeric',minute:'numeric',second:'numeric'});
   }catch(e){}
 })();
+/* CACHE BUCKET (2026-10-20): GitHub Pages keeps each URL in its CDN cache, so a query string that changes every millisecond (?t=Date.now()) makes EVERY request a cold origin fetch. Measured the same day:
+   a cold app.html took 34 s and a cold data.json 4 s (the same files cached: 0.4 s) -- a home-screen launch fired a dozen of them and the app looked dead. _cb(minutes) gives every device the same
+   query string for that many minutes, so the CDN answers from cache and only the first request in a window pays the cold fetch. Use it for anything big; tiny must-be-fresh files may keep Date.now(). */
+window._cb=function(minutes){return Math.floor(Date.now()/(Math.max(1,minutes||1)*60000));};
 </script>
 <script src="config.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -6835,7 +6839,7 @@ async function _relayPush(){
   }catch(e){console.warn('[CV] manual-lock relay:',e.message);}
 }
 async function loadPicksFromBackupJSON(){
-  const r=await fetch('picks_backup.json?t='+Date.now());
+  const r=await fetch('picks_backup.json?t='+_cb(5));
   if(!r.ok)throw new Error('backup fetch HTTP '+r.status);
   const content=await r.json();
   if(!Array.isArray(content)||!content.length)return;
@@ -17878,7 +17882,7 @@ async function _ovrArchToggle(){
   if(A.open&&!A.data&&!A.loading){
     A.loading=true;A.fail=false;renderOverallHistory();
     try{
-      const r=await fetch('ledger_archive.json?v='+Date.now());
+      const r=await fetch('ledger_archive.json?v='+_cb(10));
       if(!r.ok)throw new Error('HTTP '+r.status);
       const j=await r.json();A.data=Array.isArray(j.picks)?j.picks:[];
     }catch(e){A.fail=true;console.warn('[CV] archive load failed:',e.message);}
@@ -19066,7 +19070,7 @@ async function renderEngineHealth(){
   el.innerHTML='<div class="loading"><span class="spi"></span> LOADING ENGINE HEALTH…</div>';
   let status=null,ver=null,ghRuns=null,ghErr=null,scraperLog=null,calWeights=null;
   try{
-    const r=await fetch('automation_status.json?_v='+Date.now(),{cache:'no-store'});
+    const r=await fetch('automation_status.json?_v='+_cb(2),{cache:'no-store'});
     if(r.ok)status=await r.json();
   }catch(e){}
   try{
@@ -21130,7 +21134,7 @@ window._hdrTrigger=_hdrTrigger;
   async function renderAutomationStatus(){
     let status=null;
     try{
-      const r=await fetch('automation_status.json?_v='+Date.now());
+      const r=await fetch('automation_status.json?_v='+_cb(2));
       if(r.ok)status=await r.json();
     }catch(e){}
     const isMobile=window.matchMedia('(max-width:768px)').matches;
@@ -22650,7 +22654,7 @@ async function loadRemoteData(force=false){
   const cacheAge=Date.now()-(parseInt(localStorage.getItem(cacheKey)||'0'));
   if(!force&&cacheAge<4*60*1000&&window.__CV_DATA){return;}
   try{
-    const r=await fetch(`data.json?${Date.now()}`,{cache:'no-cache'});
+    const r=await fetch(`data.json?${_cb(3)}`,{cache:'no-cache'});
     if(!r.ok)throw new Error(r.status);
     const d=await r.json();
     window.__CV_DATA=d;
@@ -22698,7 +22702,7 @@ async function loadRemoteData(force=false){
 window.__CV_FBREF = null;
 async function loadSoccerFBref(){
   try{
-    const r=await fetch(`soccer_fbref.json?${Date.now()}`,{cache:'no-cache'});
+    const r=await fetch(`soccer_fbref.json?${_cb(5)}`,{cache:'no-cache'});
     if(!r.ok)throw new Error(r.status);
     window.__CV_FBREF=await r.json();
     console.log('[CV] FBref soccer data loaded:',Object.keys(window.__CV_FBREF||{}).length,'leagues');
@@ -22729,7 +22733,7 @@ window._NBA_SCHED=null;
 function _nbaEtToday(){return new Date().toLocaleDateString('sv-SE',{timeZone:'America/New_York'});}
 async function loadNBASchedule(){
   try{
-    const r=await fetch('nba_schedule.json?'+Date.now(),{cache:'no-store'});if(!r.ok)return;
+    const r=await fetch('nba_schedule.json?'+_cb(3),{cache:'no-store'});if(!r.ok)return;
     window._NBA_SCHED=await r.json();
     _applyNBASchedule();
   }catch(e){}
@@ -23708,7 +23712,7 @@ let _liveInterval=null;
 
 async function loadLiveData(){
   try{
-    const r=await fetch(`live_data.json?${Date.now()}`,{cache:'no-cache'});
+    const r=await fetch(`live_data.json?${_cb(1)}`,{cache:'no-cache'});
     if(!r.ok)return;
     const d=await r.json();
     window.__CV_FILE_LIVE_TS=d.ts;

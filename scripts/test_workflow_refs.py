@@ -82,6 +82,19 @@ class WorkflowRefs(unittest.TestCase):
         self.assertEqual(app.count("fetch('manual_locks.json"), 1)
         self.assertIn("Supabase unreachable", app[app.index("fetch('manual_locks.json") - 900:app.index("fetch('manual_locks.json")])
 
+    def test_big_data_files_use_shared_cache_buckets_not_millisecond_busters(self):
+        """A ?t=Date.now() query is a unique URL every time, so GitHub Pages serves it cold from origin (measured 2026-10-20: cold app.html 34 s, cold data.json 4 s, cached 0.4 s) and a phone launch
+        fired a dozen of them. The multi-hundred-KB files use _cb(minutes), one value per time window shared by every device, and the deploy warms those URLs."""
+        app = (ROOT / "docs" / "app.html").read_text()
+        for f in ("data.json", "picks_backup.json", "soccer_fbref.json", "ledger_archive.json", "nba_schedule.json"):
+            self.assertNotRegex(app, r"fetch\(['\"`]" + re.escape(f) + r"\?[^)]*Date\.now\(\)", f)
+            self.assertRegex(app, r"fetch\(['\"`]" + re.escape(f) + r"\?[^)]*_cb\(\d+\)", f)
+        self.assertIn("window._cb=function(minutes)", app)
+        wf = (WF / "pages-deploy.yml").read_text()
+        self.assertIn("Warm the CDN", wf); self.assertIn("steps.deployment.outcome == 'success'", wf)
+        for f in ("data.json?$((now/180))", "picks_backup.json?t=$((now/300))"):
+            self.assertIn(f, wf)                                                  # same bucket maths as _cb(3) / _cb(5)
+
     def test_mobile_sync_workflow_run_names_are_real_workflows(self):
         """mobile-sync.yml still mirrors on `workflow_run` (not part of the publish step): every name it lists must be a real workflow."""
         text = (WF / "mobile-sync.yml").read_text()
