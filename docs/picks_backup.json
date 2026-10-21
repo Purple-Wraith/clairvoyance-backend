@@ -89016,58 +89016,58 @@
     }
   },
   {
-    "id": "2026-10-21_Como_Manchester United_CL_UNDER3.5",
-    "date": "2026-10-21",
     "hA": "Como",
-    "awA": "Manchester United",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
-    "betOn": "UNDER 3.5",
-    "winProb": 0.6497325623501626,
+    "id": "2026-10-21_Como_Manchester United_CL_UNDER3.5",
     "ml": "-110",
-    "decOdds": 1.91,
+    "awA": "Manchester United",
+    "date": "2026-10-21",
+    "betOn": "UNDER 3.5",
+    "sport": "CL",
     "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1792564375910,
-    "hScore": null,
     "aScore": null,
+    "hScore": null,
+    "league": "CL",
     "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.91,
+    "leadMin": 612,
+    "outcome": "pending",
+    "startMs": 1792601100000,
+    "winProb": 0.6497325623501626,
+    "lockedAt": 1792564375910,
+    "reasoning": "PICK: UNDER 3.5 \u2014 OPTIMAL (65.0% win prob, EV +24.0% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.18\u20131.80 goals (xG 1.18/1.80), BTTS 58% \u2014 OVER 3.5 hits 34.8% of outcomes, from a 25k-sim Monte Carlo.",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.06,
-        "away": 1.06
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 0.9915,
-        "away": 0.9713333333333334
+        "away": 0.9713333333333334,
+        "home": 0.9915
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 1.06
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 1.06,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 0.94,
+        "home": 1.06
       }
-    },
-    "reasoning": "PICK: UNDER 3.5 \u2014 OPTIMAL (65.0% win prob, EV +24.0% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.18\u20131.80 goals (xG 1.18/1.80), BTTS 58% \u2014 OVER 3.5 hits 34.8% of outcomes, from a 25k-sim Monte Carlo.",
-    "startMs": 1792601100000,
-    "leadMin": 612,
-    "lockTiming": "pre"
+    }
   },
   {
     "hA": "Internazionale",
@@ -89722,6 +89722,40 @@
     "lockTiming": "pre",
     "marketProb": 0.5658,
     "priceSource": "market"
+  },
+  {
+    "id": "2026-10-22_MEM_ECU_CFB_UNDER59.5",
+    "date": "2026-10-22",
+    "hA": "MEM",
+    "awA": "ECU",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 59.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792564626948,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 59.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 54.5 to UNDER 59.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 73.6%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +17.1 (MEM), total 46.3, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 54.5,
+      "line": 59.5,
+      "shift": 5,
+      "postedLabel": "UNDER 54.5",
+      "postedProb": 0.7359043494459566,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1792711800000,
+    "leadMin": 2453,
+    "lockTiming": "pre"
   },
   {
     "hA": "Rogle",
