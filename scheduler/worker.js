@@ -305,10 +305,6 @@ export async function handleProfit(request, env, sleep = (ms) => new Promise((r)
   return json(next, 200, cors);
 }
 
-// ── Owner chat assistant (GET/POST /chat) -- see chat.js (owner-only, metered, read-only; the browser runs the data tools) ──
-export { handleChat, CHAT_MODELS, CHAT_LIMITS, CHAT_TOOLS, SYSTEM_PROMPT } from "./chat.js";
-import { handleChat as _handleChat } from "./chat.js";
-
 export default {
   async scheduled(event, env, ctx) {
     const results = await runTick(env, event.scheduledTime);
@@ -321,7 +317,6 @@ export default {
     const path = new URL(request.url).pathname;
     if (path === "/trigger") return handleTrigger(request, env || {});
     if (path === "/profit") return handleProfit(request, env || {});
-    if (path === "/chat") return _handleChat(request, env || {}, fetch, { corsFor, safeEqual });
     const now = Date.now();
     const { starts, games } = await loadKickoffs(fetch);
     const kickoffSweeps = [];

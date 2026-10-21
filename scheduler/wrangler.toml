@@ -17,13 +17,3 @@ crons = ["*/10 * * * *"]
 [[kv_namespaces]]
 binding = "PROFIT"
 id = "5fcf1722461c405684b2a6b8a03443db"
-
-# OWNER CHAT ASSISTANT (POST/GET /chat, see chat.js). One-time setup, from this folder:
-#   1) npx wrangler secret put ANTHROPIC_API_KEY      -> paste a key from a DEDICATED Anthropic workspace, and set a monthly spend limit on that workspace in the Anthropic Console (the hard backstop)
-#   2) npx wrangler deploy
-# Spending is metered in the PROFIT KV namespace above (the chat refuses to run without it). Defaults: $1.50/day, $15/month, $0.75/day for DEEP mode, 150 questions/day. Change them here if you want:
-# [vars]
-# CHAT_DAILY_USD = "1.5"
-# CHAT_MONTHLY_USD = "15"
-# CHAT_DEEP_DAILY_USD = "0.75"
-# CHAT_ENABLED = "1"      # "0" = kill switch
