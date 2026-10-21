@@ -44,7 +44,7 @@ def main() -> int:
     if not words:
         import shutil
         if shutil.which("node"):
-            for mjs in ("relay/test_parse.mjs", "scheduler/test_scheduler.mjs"):
+            for mjs in ("relay/test_parse.mjs", "scheduler/test_scheduler.mjs", "scheduler/test_chat.mjs"):
                 results.append(run(["node", mjs], mjs))
         else:
             print("SKIP  node tests (node not installed)")
