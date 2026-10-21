@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-10-20 22:01 MT",
+  "generated_at": "2026-10-20 22:31 MT",
   "basis": "all locks (including picks locked after the game started)",
   "basis_note": "Figures count every settled pick in scope, including picks locked after the game had started. basis_detail shows how many of those there are.",
   "classifier": "scripts/lock_timing.py",
   "basis_detail": {
-    "settled_pre_start": 1456,
+    "settled_pre_start": 1457,
     "settled_locked_after_start_included": 204,
-    "settled_unknown_timing_included": 281,
+    "settled_unknown_timing_included": 284,
     "unknown_timing_by_league": {
-      "NBA": 137,
+      "NBA": 140,
       "NHL": 118,
       "SERIEA": 11,
       "LIGA": 8,
@@ -25,6 +25,14 @@
         "n": 16,
         "pct": 0.8125,
         "units": 8.83
+      },
+      {
+        "lbl": "NBA",
+        "w": 5,
+        "l": 3,
+        "n": 8,
+        "pct": 0.625,
+        "units": -0.619018753215993
       },
       {
         "lbl": "LIIGA",
@@ -49,14 +57,6 @@
         "n": 4,
         "pct": 0.5,
         "units": -0.7949999999999999
-      },
-      {
-        "lbl": "NBA",
-        "w": 3,
-        "l": 1,
-        "n": 4,
-        "pct": 0.75,
-        "units": 0.3795716082297902
       },
       {
         "lbl": "SHL",
@@ -86,7 +86,7 @@
         "l": 22,
         "n": 80,
         "pct": 0.725,
-        "units": 24.673863793280162
+        "units": 24.67386379328016
       },
       {
         "lbl": "NFL",
@@ -256,11 +256,11 @@
       },
       {
         "lbl": "NBA",
-        "w": 3,
-        "l": 1,
-        "n": 4,
-        "pct": 0.75,
-        "units": 0.3795716082297902
+        "w": 5,
+        "l": 3,
+        "n": 8,
+        "pct": 0.625,
+        "units": -0.619018753215993
       }
     ],
     "excluded_late": 0
@@ -358,11 +358,11 @@
       },
       {
         "lbl": "NBA",
-        "w": 3,
-        "l": 1,
-        "n": 4,
-        "pct": 0.75,
-        "units": 0.3795716082297902
+        "w": 5,
+        "l": 3,
+        "n": 8,
+        "pct": 0.625,
+        "units": -0.619018753215993
       }
     ],
     "excluded_late": 0
@@ -384,7 +384,7 @@
         "l": 68,
         "n": 304,
         "pct": 0.7763157894736842,
-        "units": 97.06853700662889
+        "units": 97.0685370066289
       },
       {
         "lbl": "NFL",
@@ -395,20 +395,20 @@
         "units": 13.105573823584024
       },
       {
+        "lbl": "NBA",
+        "w": 111,
+        "l": 32,
+        "n": 143,
+        "pct": 0.7762237762237763,
+        "units": 56.39983838964112
+      },
+      {
         "lbl": "LIIGA",
         "w": 102,
         "l": 39,
         "n": 141,
         "pct": 0.723404255319149,
-        "units": 31.521863793280183
-      },
-      {
-        "lbl": "NBA",
-        "w": 109,
-        "l": 30,
-        "n": 139,
-        "pct": 0.7841726618705036,
-        "units": 57.39842875108691
+        "units": 31.521863793280176
       },
       {
         "lbl": "La Liga",
@@ -2229,6 +2229,11 @@
         -1
       ],
       [
+        1792491315209,
+        1,
+        0.399
+      ],
+      [
         1792491315382,
         1,
         0.4854
@@ -2237,6 +2242,21 @@
         1792491315687,
         1,
         0.5181
+      ],
+      [
+        1792491315826,
+        0,
+        -1
+      ],
+      [
+        1792491316014,
+        1,
+        0.6024
+      ],
+      [
+        1792519252598,
+        0,
+        -1
       ]
     ]
   }
