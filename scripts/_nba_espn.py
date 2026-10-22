@@ -389,6 +389,18 @@ def form_from_games(games: list[dict], n: int = FORM_N, min_games_for_sd: int = 
     return {"last5": last5, "stdev": sd, "lastGame": games[0]["date"] or None, "n": len(games)}
 
 
+def form_with_fill(cur: list[dict], prev: list[dict], n: int = FORM_N, min_games_for_sd: int = 10) -> dict:
+    """Form from THIS season's games first, topped up from last season's (newest first) until there are `n` -- owner rule 2026-10-22.  Spread (stdev) comes from this
+    season alone once it has `min_games_for_sd` games, otherwise from both seasons.  `thisSeason` = how many of the form games are from the current season."""
+    both = sorted(list(cur) + list(prev), key=lambda g: g["date"], reverse=True)
+    out = form_from_games(both, n, min_games_for_sd)
+    if len(cur) >= min_games_for_sd:
+        out["stdev"] = form_from_games(cur, n, min_games_for_sd)["stdev"]
+    if out["last5"]:
+        out["last5"]["thisSeason"] = min(len(cur), n)
+    return out
+
+
 def normalize_status(raw: str | None) -> str:
     s = (raw or "").strip()
     return s if s else "active"
@@ -483,8 +495,13 @@ def fetch_player_props(ctx: Ctx, season: int, roster: dict | None, injuries: lis
                 stale_from_prev += 1
             continue
         games = parse_gamelog(data)
-        if games:
-            forms[pid] = form_from_games(games)
+        prev_games: list[dict] = []
+        if len(games) < max(FORM_N, 10):     # early season: top the form (and the spread) up from last season's log
+            pdata, _pst = ctx.get_json(GAMELOG_URL.format(id=pid), {**_COMMON, "season": season - 1}, "espn.gamelog")
+            ctx.sleep(PROPS_PACE_S)
+            prev_games = parse_gamelog(pdata)
+        if games or prev_games:
+            forms[pid] = form_with_fill(games, prev_games)
             info["gamelogFetched"] += 1
         else:
             info["gamelogFailed"] += 1       # 200 but no regular-season rows / unknown layout

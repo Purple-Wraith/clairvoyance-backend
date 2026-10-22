@@ -388,6 +388,25 @@ class GameLog(unittest.TestCase):
         self.assertIsNone(f["stdev"])
         self.assertEqual(f["last5"]["n"], 5)
 
+    def test_form_fills_from_last_season_to_five(self):
+        g = ne.parse_gamelog(GAMELOG)
+        cur, prev = [dict(x, date="2026-11-0%d" % (i + 1)) for i, x in enumerate(g[:2])], g[2:30]
+        f = ne.form_with_fill(cur, prev)
+        self.assertEqual(f["last5"]["n"], 5)
+        self.assertEqual(f["last5"]["thisSeason"], 2)
+        exp = cur[::-1] + prev[:3]                                   # newest first: 2 this-season games, then the 3 latest of last season
+        self.assertAlmostEqual(f["last5"]["ppg"], round(sum(x["pts"] for x in exp) / 5, 1))
+        self.assertEqual(f["lastGame"], "2026-11-02")
+        self.assertIsNotNone(f["stdev"])                              # < 10 this-season games: spread from both seasons
+
+    def test_form_uses_this_season_alone_once_it_has_five(self):
+        g = ne.parse_gamelog(GAMELOG)
+        cur = [dict(x, date="2026-11-%02d" % (i + 1)) for i, x in enumerate(g[:12])]
+        f = ne.form_with_fill(cur, g[12:40])
+        self.assertEqual(f["last5"]["thisSeason"], 5)
+        self.assertAlmostEqual(f["last5"]["ppg"], round(sum(x["pts"] for x in sorted(cur, key=lambda x: x["date"], reverse=True)[:5]) / 5, 1))
+        self.assertAlmostEqual(f["stdev"]["pts"], round(statistics.stdev(x["pts"] for x in cur), 2))   # 12 games: this season's own spread
+
     def test_empty_and_unknown_layout(self):
         self.assertEqual(ne.parse_gamelog(None), [])
         self.assertEqual(ne.parse_gamelog({"names": ["minutes"], "seasonTypes": []}), [])
@@ -460,6 +479,25 @@ class PropsFetch(unittest.TestCase):
         self.assertEqual(espn2.gamelog_ids, [])                      # same gp -> no game-log requests at all
         self.assertEqual((info2["gamelogCached"], info2["gamelogFetched"]), (14, 0))
         self.assertEqual(block2["players"], block["players"])
+
+    def test_early_season_log_is_topped_up_from_last_season(self):
+        full = ne.parse_gamelog(GAMELOG)
+        calls = []
+        real = ne.parse_gamelog
+        def short_then_full(data):
+            calls.append(1)
+            out = real(data)
+            return out[:3] if len(calls) % 2 == 1 else out          # this season's log (3 games), then last season's (full)
+        ne.parse_gamelog = short_then_full
+        try:
+            block, info, espn, _ = self.fetch()
+        finally:
+            ne.parse_gamelog = real
+        self.assertEqual(len(espn.gamelog_ids), 28)                     # two requests per player: this season + last
+        p = block["players"][0]
+        self.assertEqual(p["last5"]["n"], 5)
+        self.assertEqual(p["last5"]["thisSeason"], 3)
+        self.assertIsNotNone(p["stdev"])
 
     def test_only_changed_gp_refetched(self):
         block, *_ = self.fetch()
@@ -721,7 +759,7 @@ class Wiring(unittest.TestCase):
         self.assertEqual((pp["season"], pp["source"], pp["n"], pp["withForm"]), (2026, "espn", 14, 14))
         p = pp["players"][0]
         self.assertEqual(set(p), {"id", "name", "team", "pos", "gp", "mpg", "ppg", "rpg", "apg", "tpm", "spg", "bpg", "last5", "stdev", "lastGame", "status"})
-        self.assertEqual(set(p["last5"]), {"n", "ppg", "rpg", "apg", "tpm", "mpg"})
+        self.assertEqual(set(p["last5"]), {"n", "ppg", "rpg", "apg", "tpm", "mpg", "thisSeason"})
         self.assertEqual(set(p["stdev"]), {"pts", "reb", "ast", "tpm"})
         self.assertLess(len(json.dumps(pp)), 150 * 1024)
         self.assertEqual(len(self.espn.gamelog_ids), 14)

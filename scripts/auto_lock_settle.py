@@ -2601,6 +2601,24 @@ def _beyond_horizon(start_ms, now=None, same_day_only: bool = False) -> bool:
     return bool(d) and d > max(horizon_dates(now, 1 if same_day_only else 2))
 
 
+PROP_ALT_LINES = True       # owner 2026-10-22: NBA props lock at the adjusted line (PTS 5-6, REB/AST 2-3 toward safety) when _propAltLine found one
+
+
+def _apply_prop_alt(p: dict) -> dict:
+    """A prop leg that carries an adjusted line (`alt`, from docs/app.html _propAltLine) becomes that bet: line, win probability and (estimated) price move to the adjusted
+    line and `altLine` records the posted one -- everything downstream (lock, email, ledger lookup) then sees one consistent leg."""
+    alt = p.get("alt") if PROP_ALT_LINES else None
+    if not alt or alt.get("line") is None or p.get("sportTag") != "NBA":
+        return p
+    side = "OVER" if p.get("over") is not False else "UNDER"
+    stat = p.get("statAbbr") or ""
+    leg = dict(p)
+    leg.update({"line": alt["line"], "prob": alt["prob"], "ml": alt.get("mlStr") or alt.get("ml"), "hitRate": f"{round(alt['prob'] * 100)}%"})
+    leg["altLine"] = {"posted": p.get("line"), "line": alt["line"], "shift": alt.get("shift"), "postedProb": p.get("prob"), "postedMl": p.get("ml"),
+                      "postedLabel": f"{p.get('player')} {side} {stat} {p.get('line')}".replace("  ", " ")}
+    return leg
+
+
 def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, now=None,
                      guard_stats: dict | None = None) -> list[dict]:
     """only_sports: if given, restricts to exactly these sport tags (e.g.
@@ -2830,7 +2848,7 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                 continue
             if p.get("sportTag") == "NBA" and frozenset({p.get("hA"), p.get("awA")}) in _pre_nba:
                 continue                      # NBA preseason prop: never locked or emailed
-            qualifying.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": p})
+            qualifying.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": _apply_prop_alt(p)})
     return qualifying
 
 
@@ -2986,16 +3004,17 @@ def lock_prop_leg(page, sport: str, leg: dict) -> str:
         # this purpose -- passed through here as `leg.statAbbr`.
         return page.evaluate(
             """
-            ({ team, player, line, over, prob, ml, sport, opp, stat, reasoning }) => {
+            ({ team, player, line, over, prob, ml, sport, opp, stat, reasoning, altLine }) => {
               const before = getP().length;
-              lockProp(team, player, line, over, prob, ml, sport, opp, stat, reasoning);
+              lockProp(team, player, line, over, prob, ml, sport, opp, stat, reasoning, altLine);
               return getP().length > before ? 'locked' : 'already-locked';
             }
             """,
             {"team": leg.get("team"), "player": leg.get("player"), "line": leg.get("line"),
              "over": leg.get("over") is not False, "prob": leg.get("prob") or (leg.get("conf", 0) / 100),
              "ml": leg.get("ml"), "sport": sport, "opp": leg.get("opp") or "",
-             "stat": leg.get("statAbbr") or "", "reasoning": leg.get("reasoning") or None},
+             "stat": leg.get("statAbbr") or "", "reasoning": leg.get("reasoning") or None,
+             "altLine": leg.get("altLine") or None},
         )
     # NFL branch removed 2026-09-23 alongside NFL player props leaving
     # gather_legs() entirely (see its own comment) -- a leg tagged "NFL"
