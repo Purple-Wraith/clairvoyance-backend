@@ -2,14 +2,15 @@ name: Tests
 
 # Runs validate.py + every scripts/test_*.py (scripts/run_tests.py) on each push or PR that touches code the engine runs, so a regression
 # is caught when it is pushed instead of when a scheduled workflow breaks hours later. GitHub emails the repo owner when a run fails.
+# The relay bot's manual_locks.json / relay_ping.json commits (every few minutes) are excluded: each one used to cancel the in-flight run, so no run ever finished.
 # Read-only: no secrets, no Supabase writes (the browser tests run the app with ?nosb=1 against a local server).
 
 on:
   push:
     branches: [main]
-    paths: ['scripts/**', 'docs/*.html', 'docs/*.json', 'docs/config.js', '.github/workflows/**', '.github/actions/**', 'relay/**', 'scheduler/**']
+    paths: ['scripts/**', 'docs/*.html', 'docs/*.json', '!docs/manual_locks.json', '!docs/relay_ping.json', 'docs/config.js', '.github/workflows/**', '.github/actions/**', 'relay/**', 'scheduler/**']
   pull_request:
-    paths: ['scripts/**', 'docs/*.html', 'docs/*.json', 'docs/config.js', '.github/workflows/**', '.github/actions/**', 'relay/**', 'scheduler/**']
+    paths: ['scripts/**', 'docs/*.html', 'docs/*.json', '!docs/manual_locks.json', '!docs/relay_ping.json', 'docs/config.js', '.github/workflows/**', '.github/actions/**', 'relay/**', 'scheduler/**']
   workflow_dispatch: {}
 
 permissions:
