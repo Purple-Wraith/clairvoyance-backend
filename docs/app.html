@@ -4675,7 +4675,10 @@ function _propOppDefFactor(sport,oppAbbr){
   const haveLeague=rows.length>=8;
   const lgAvg=haveLeague?(rows.reduce((s,v)=>s+v,0)/rows.length):lgFallback;
   const pct=(raw-lgAvg)/lgAvg; // higher drtg/ga60 = worse defense = boosts offense
-  const factor=Math.max(-0.12,Math.min(0.12,pct));
+  // Cap on how far an opponent's defense may move a player's projection: NBA 7% (owner, 2026-10-22; was 12%), NHL unchanged at 12%. Last season's NBA ratings only span -6.9%..+5.9%, so today the cap changes
+  // nothing -- it is the guard for when this season's ratings take over: a handful of games makes team ratings swing far wider than the real defensive effect on one player.
+  const cap=sport==='NBA'?.07:.12;
+  const factor=Math.max(-cap,Math.min(cap,pct));
   return{factor,raw,lgAvg,realAvg:haveLeague,note:null};
 }
 function propMC(mu,sigma,line,n){
@@ -15698,7 +15701,7 @@ function _mergeNBAPlayerProps(byName){
       var k=p.name.toLowerCase();   // _basketballStatsFromLeaders keys by lower-cased name: using the original case created a second row for every player
       var e=byName[k];
       if(!e){e=byName[k]={name:p.name,team:p.team,gp:p.gp,ppg:p.ppg,rpg:p.rpg,apg:p.apg,tpg:p.tpm,mpg:p.mpg};}
-      e.pos=e.pos||p.pos;e.last5=p.last5||null;e.stdev=p.stdev||null;e.status=p.status||'';e.espnId=p.id;
+      e.pos=e.pos||p.pos;e.last5=p.last5||null;e.lastGame=p.lastGame||null;e.stdev=p.stdev||null;e.status=p.status||'';e.espnId=p.id;
     });
   }catch(x){}
   return byName;
@@ -15887,7 +15890,9 @@ function _generateNBAProps(games,statsData){
         var baseN=base;
         var line=parseFloat(_forceHalfLine(baseN));
         // recent form (last 5 games, ESPN game logs) moves the PROJECTION by 25% of the gap; the LINE stays the season average, as a book would post it
-        var formV=pl.last5&&({ppg:pl.last5.ppg,rpg:pl.last5.rpg,apg:pl.last5.apg})[statKey];
+        // form only counts when it is recent: before a player has played this season, his 'last 5' is last April's tail end, which runs below his season average and used to tilt the whole slate UNDER
+        var formFresh=!!pl.lastGame&&(Date.now()-Date.parse(pl.lastGame+'T12:00:00Z'))<=30*864e5;
+        var formV=formFresh&&pl.last5?({ppg:pl.last5.ppg,rpg:pl.last5.rpg,apg:pl.last5.apg})[statKey]:null;
         var muBase=(formV!=null&&pl.last5.n>=3)?baseN*0.75+formV*0.25:baseN;
         var adjMu=Math.max(0.1,muBase*(1+factor));
         // the player's own game-to-game standard deviation (game logs) replaces the generic coefficient-of-variation guess when we have it
