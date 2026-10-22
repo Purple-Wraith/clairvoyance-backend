@@ -35530,6 +35530,7 @@ function _ptBind(){
 .ask-m th{color:var(--nc)}
 .ask-tools{align-self:flex-start;font-size:11px;color:var(--t3);letter-spacing:.5px}
 .ask-chips{display:flex;flex-wrap:wrap;gap:6px}
+.ask-gh{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;color:var(--t3);margin:8px 0 -2px}.ask-ideas{border:1px solid rgba(240,0,255,.4);background:none;color:var(--pc);font-family:var(--mono);font-size:12px;letter-spacing:1px;border-radius:3px;padding:3px 8px;cursor:pointer}
 .ask-chip{border:1px solid rgba(240,0,255,.4);background:rgba(240,0,255,.07);color:var(--t2);border-radius:14px;padding:5px 10px;font-family:var(--mono);font-size:12px;cursor:pointer}
 .ask-in{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid rgba(255,255,255,.08)}
 .ask-in textarea{flex:1;resize:none;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);border-radius:4px;color:var(--t);font-family:var(--mono);font-size:16px;padding:8px;max-height:96px;min-height:38px}
@@ -35551,7 +35552,7 @@ const _chatEsc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 // ── tiny, safe markdown: escape first, then **bold**, `code`, lists, tables, paragraphs
 function _chatMd(src){
   const lines=_chatEsc(src).split('\n'),out=[];let i=0;
-  const inl=t=>t.replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+  const inl=t=>t.replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/(^|[\s(])_([^_\n]+)_(?=$|[\s).,;:])/g,'$1<i>$2</i>');
   while(i<lines.length){
     const L=lines[i];
     if(/^\s*\|.*\|\s*$/.test(L)&&i+1<lines.length&&/^\s*\|[\s:|-]+\|\s*$/.test(lines[i+1])){
@@ -35564,6 +35565,7 @@ function _chatMd(src){
     if(/^\s*\d+[.)]\s+/.test(L)){const it=[];while(i<lines.length&&/^\s*\d+[.)]\s+/.test(lines[i])){it.push('<li>'+inl(lines[i].replace(/^\s*\d+[.)]\s+/,''))+'</li>');i++;}out.push('<ol>'+it.join('')+'</ol>');continue;}
     if(!L.trim()){i++;continue;}
     const para=[];while(i<lines.length&&lines[i].trim()&&!/^\s*([-*•]|\d+[.)])\s+/.test(lines[i])&&!/^\s*\|.*\|\s*$/.test(lines[i])){para.push(inl(lines[i]));i++;}
+    if(!para.length){i++;continue;}                                     // never stall on a line no rule consumes
     out.push('<p>'+para.join('<br>')+'</p>');
   }
   return out.join('');
@@ -35573,13 +35575,16 @@ function _chatMd(src){
 const _chatTag=p=>{try{return String(window._normSport?window._normSport(p):p.sport||'').toUpperCase();}catch(e){return String(p.sport||'').toUpperCase();}};
 function _chatSum(rows){
   let w=0,l=0,ps=0,pe=0,u=0;
-  rows.forEach(p=>{const o=p.outcome,d=parseFloat(p.decOdds);if(o==='win'){w++;u+=(isFinite(d)?d-1:0);}else if(o==='loss'){l++;u-=1;}else if(o==='push')ps++;else if(o==='pending')pe++;});
-  return{n:rows.length,wins:w,losses:l,pushes:ps,pending:pe,winPct:(w+l)?+(w/(w+l)*100).toFixed(1):null,units:+u.toFixed(2)};
+  rows.forEach(p=>{const o=p.outcome,d=parseFloat(p.decOdds)||2;                   // a pick with no stored price counts at 2.0, exactly like the Home / Overall tiles
+    if(o==='win'){w++;u+=d-1;}else if(o==='loss'){l++;u-=1;}else if(o==='push')ps++;else if(o==='pending')pe++;});
+  const st=w+l+ps;
+  return{n:rows.length,wins:w,losses:l,pushes:ps,pending:pe,winPct:(w+l)?+(w/(w+l)*100).toFixed(1):null,units:+u.toFixed(2),roi:st?+(u/st*100).toFixed(1):null};
 }
 function _chatWeek(d){const t=new Date(d+'T12:00:00Z');if(isNaN(t))return d;const day=(t.getUTCDay()+6)%7;t.setUTCDate(t.getUTCDate()-day);return'wk '+t.toISOString().slice(0,10);}
 function _chatSide(p){
-  const b=String(p.betOn||'').toUpperCase();
-  if(p.betType==='OU')return/^OVER/.test(b)?'OVER':/^UNDER/.test(b)?'UNDER':'?';
+  const b=String(p.betOn||'').toUpperCase(),bt=String(p.betType||'').toUpperCase();
+  if(bt==='OU'||bt==='PROP'){const m=b.match(bt==='PROP'?/\b(OVER|UNDER)\b/:/^\s*(OVER|UNDER)/);return m?m[1]:'?';}   // a prop's betOn is "Player UNDER STAT line"
+  if(bt==='SPREAD'||bt==='RL'){const m=b.match(/([+-]\d+(?:\.\d+)?)\s*$/);return m?(m[1][0]==='+'?'underdog':'favourite'):'?';}   // giving points = favourite, getting them = underdog
   const d=parseFloat(p.decOdds);return isFinite(d)?(d<2?'favourite':'underdog'):'?';
 }
 function _chatRow(p){
@@ -35587,15 +35592,17 @@ function _chatRow(p){
   return{id:p.id,date:p.date,sport:_chatTag(p),type:p.betType,pick:p.betOn,game:(p.awA&&p.hA)?`${p.awA} @ ${p.hA}`:null,outcome:p.outcome,prob:p.winProb!=null?+(p.winProb*100).toFixed(1):null,odds:p.ml||null,
     units:p.outcome==='win'&&isFinite(d)?+(d-1).toFixed(2):p.outcome==='loss'?-1:0,score,adjLine:!!p.altLine||undefined};
 }
+// the working ledger, limited to ACTIVE leagues (retired leagues are excluded from every figure in the app) unless a retired league was asked for by name
+function _chatLedgerAll(a){return(typeof getP==='function'?getP():[]).filter(p=>p&&!_isParlay(p)&&p.outcome!=='_removed'&&((a&&a.include_retired)||_CHAT_ACTIVE.has(_chatTag(p))));}
 function _chatT_ledger_query(a){
   a=a||{};
-  const all=(typeof getP==='function'?getP():[]).filter(p=>p&&p.betType!=='PARLAY');
+  const all=_chatLedgerAll(a);
   const sports=a.sport?String(a.sport).toUpperCase().split(/[ ,]+/).filter(Boolean):null;
   const txt=a.text?String(a.text).toLowerCase():null;
   let rows=all.filter(p=>{
     if(sports&&!sports.includes(_chatTag(p)))return false;
     if(a.bet_type&&!String(a.bet_type).toUpperCase().split(/[ ,]+/).includes(String(p.betType||'').toUpperCase()))return false;
-    if(a.side&&_chatSide(p)!==String(a.side).toUpperCase())return false;
+    if(a.side&&_chatSide(p).toUpperCase()!==String(a.side).toUpperCase())return false;
     if(a.outcome){const o=String(a.outcome).toLowerCase();if(o==='settled'){if(!['win','loss','push'].includes(p.outcome))return false;}else if(p.outcome!==o)return false;}
     if(a.date_from&&String(p.date)<a.date_from)return false;
     if(a.date_to&&String(p.date)>a.date_to)return false;
@@ -35604,23 +35611,25 @@ function _chatT_ledger_query(a){
     if(txt&&![p.betOn,p.hA,p.awA,p.id,p.player].join(' ').toLowerCase().includes(txt))return false;
     return true;
   });
-  const out={matched:rows.length,summary:_chatSum(rows),ledgerSize:all.length,note:'units: 1 flat unit per pick (win = decimal odds - 1, loss = -1); parlays are excluded'};
+  const raw=rows;
+  const out={raw:raw,matched:rows.length,summary:_chatSum(rows),ledgerSize:all.length,note:'units: 1 flat unit per pick (win = decimal odds - 1, loss = -1)'};
   if(a.group_by){
     const keyOf={sport:_chatTag,bet_type:p=>p.betType||'?',month:p=>String(p.date||'').slice(0,7),week:p=>_chatWeek(String(p.date||'')),date:p=>p.date,sport_and_type:p=>_chatTag(p)+' '+(p.betType||'?'),
       prob_band:p=>{const x=Math.floor((p.winProb||0)*20)*5;return x+'-'+(x+5)+'%';},outcome:p=>p.outcome||'?',side:_chatSide}[a.group_by];
     if(keyOf){const g={};rows.forEach(p=>{const k=keyOf(p);(g[k]=g[k]||[]).push(p);});
-      out.groups=Object.entries(g).map(([k,v])=>({key:k,..._chatSum(v)})).sort((x,y)=>String(y.key).localeCompare(String(x.key))).slice(0,40);}
+      out.groups=Object.entries(g).map(([k,v])=>({key:k,..._chatSum(v)})).sort((x,y)=>String(y.key).localeCompare(String(x.key))).slice(0,200);}
   }
   const lim=Math.max(0,Math.min(40,parseInt(a.limit)||12));
   rows=rows.slice().sort((x,y)=>String(y.date).localeCompare(String(x.date))||((y.lockedAt||0)-(x.lockedAt||0)));
   out.rows=rows.slice(0,lim).map(_chatRow);
   return out;
 }
+const _chatIso=ms=>{try{if(!ms)return null;const d=new Date(ms);return isNaN(d)?null:d.toISOString();}catch(e){return null;}};
 function _chatT_get_pick(a){
   const p=(typeof getP==='function'?getP():[]).find(x=>x&&x.id===(a&&a.id));
   if(!p)return{error:'no pick with that id'};
   const r=_chatRow(p);
-  return Object.assign(r,{lockedAt:p.lockedAt?new Date(p.lockedAt).toISOString():null,settledAt:p.settledAt?new Date(p.settledAt).toISOString():null,startMs:p.startMs?new Date(p.startMs).toISOString():null,source:p.source||null,priceSource:p.priceSource||null,
+  return Object.assign(r,{lockedAt:_chatIso(p.lockedAt),settledAt:_chatIso(p.settledAt),startMs:_chatIso(p.startMs),source:p.source||null,priceSource:p.priceSource||null,
     modelProb:p.modelProb??null,marketProb:p.marketProb??null,reasoning:p.reasoning?String(p.reasoning).slice(0,3500):null,altLine:p.altLine||null});
 }
 const _chatMT=iso=>{try{return new Date(iso).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});}catch(e){return'';}};
@@ -35670,7 +35679,7 @@ async function _chatT_team_stats(a){
 }
 async function _chatT_engine_status(){
   let st=null;try{const r=await fetch('automation_status.json?_v='+_cb(2),{cache:'no-store'});if(r.ok)st=await r.json();}catch(e){}
-  const all=(typeof getP==='function'?getP():[]).filter(p=>p&&p.betType!=='PARLAY');
+  const all=_chatLedgerAll({});
   const pick=o=>o?_chatPick(o,['tsMT','ok','detail']):null;
   return{automation:st?{lastLock:pick(st.lastLock),lastSettle:pick(st.lastSettle),lastHockeyEveningLock:pick(st.lastHockeyEveningLock),lastSoccerEveningLock:pick(st.lastSoccerEveningLock),lastCfbEveningLock:pick(st.lastCfbEveningLock)}:'not reachable',
     dataGenerated:(window.__CV_DATA&&window.__CV_DATA.generated)||null,ledger:_chatSum(all.filter(p=>['win','loss','push'].includes(p.outcome))),pendingNow:all.filter(p=>p.outcome==='pending').length,nowMT:new Date().toLocaleString('en-US',{timeZone:'America/Denver'})};
@@ -35679,52 +35688,76 @@ async function _chatT_engine_status(){
 // ═══ THE LOCAL "BRAIN" (no API, no cost) ════════════════════════════════════════════════════════════════════════
 // Questions are understood by plain rules -- keywords for the sport, bet type, side, time window and what is being asked -- then answered by the read-only tools above, straight from the data
 // this page already holds. Nothing is sent anywhere. It answers the question types below; anything else gets an honest "I can't answer that" with examples, never a guess.
+// FIGURES FOLLOW THE APP'S OWN RULES (audit 2026-10-22): active leagues only (retired leagues are excluded from every published figure), a pick with no stored price counts at 2.0 like the
+// Home / Overall tiles, and where late manual locks exist the PUBLISHED basis (pre-start locks only) is shown next to the all-picks figure.
+const _CHAT_ACTIVE=new Set(['NBA','NHL','SHL','LIIGA','NLA','EXTRALIGA','NFL','CFB','FB','PL','LIGA','CL','SERIEA']);   // the Analytics / BY LEAGUE allowlist
+const _CHAT_RETIRED=new Set(['MLB','WNBA','WTA','ATP','WC','TEN','XP','MLS','BUND','WORLD_CUP','SOC']);
 const _CHAT_SPORTS=[
   [/\bwnba\b/,['WNBA']],[/\bnba\b/,['NBA']],[/\bnhl\b/,['NHL']],[/\bmlb\b|baseball/,['MLB']],[/\bnfl\b/,['NFL']],[/\bcfb\b|college football|ncaaf/,['CFB']],
   [/\bshl\b/,['SHL']],[/\bliiga\b/,['LIIGA']],[/\bnla\b/,['NLA']],[/extraliga/,['EXTRALIGA']],
   [/premier league|\bepl\b/,['PL']],[/la ?liga/,['LIGA']],[/serie ?a\b/,['SERIEA']],[/champions league|\bucl\b/,['CL']],[/\bmls\b/,['MLS']],[/bundesliga/,['BUND']],
   [/\batp\b/,['ATP']],[/\bwta\b/,['WTA']],[/tennis/,['ATP','WTA']],
-  [/hockey/,['NHL','SHL','LIIGA','NLA','EXTRALIGA']],[/soccer/,['PL','LIGA','SERIEA','CL','MLS','BUND','SOC','WORLD_CUP','WC']],[/basketball/,['NBA','WNBA']],[/football/,['NFL','CFB']]];
+  [/hockey/,['NHL','SHL','LIIGA','NLA','EXTRALIGA']],[/soccer/,['PL','LIGA','SERIEA','CL']],[/basketball/,['NBA']],[/football/,['NFL','CFB']]];
 const _CHAT_SCHED_KEY={NBA:'nba',NHL:'nhl',SHL:'shl',LIIGA:'liiga',NLA:'nla',EXTRALIGA:'extraliga',NFL:'nfl',CFB:'cfb'};
-const _CHAT_STOP=new Set('the a an is are was were of for on in at to and or my me i you your our how what who which why did does do doing been be it its this that these those with about from by as any all each every show tell give list pick picks bet bets today tonight tomorrow yesterday week month season model like top best worst good bad please can could would should there their them they get got have has had not no yes now just last past next than then more most much many some into out up down over under'.split(' '));
+const _CHAT_STOP=new Set('the a an is are was were of for on in at to and or my me i you your our how what who which why did does do doing been be it its this that these those with about from by as any all each every show tell give list overs unders game games slate card play plays lean leans line lines market markets moneyline moneylines total totals spread spreads will think predict prediction green profit profitable money making pick picks bet bets today tonight tomorrow yesterday week month season model like top best worst good bad please can could would should there their them they get got have has had not no yes now just last past next than then more most much many some into out up down over under oct nov dec jan feb mar apr may jun jul aug sep sept'.split(' '));
+const _CHAT_MONTHS={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
 function _chatEnt(q){
-  const t=q.toLowerCase(),e={sports:null,types:null,side:null,from:null,to:null,when:null,outcome:null,group:null};
-  const sp=new Set(),lab=[];_CHAT_SPORTS.forEach(([re,tags])=>{const m=t.match(re);if(m){tags.forEach(x=>sp.add(x));lab.push(m[0].trim());}});
-  // "college football" also matches the generic football rule; the specific league wins
-  if(sp.has('CFB')&&/college/.test(t))sp.delete('NFL');
-  if(sp.size){e.sports=[...sp];e.sportLabel=[...new Set(lab)].join('/').toUpperCase();}
+  const t=q.toLowerCase(),e={sports:null,sportLabel:null,nLabels:0,types:null,side:null,minProb:null,maxProb:null,from:null,to:null,when:null,outcome:null,group:null,compareSides:false};
+  const sp=new Set(),lab=[],hits=[];_CHAT_SPORTS.forEach(([re,tags])=>{const m=t.match(re);if(m)hits.push({w:m[0].trim(),tags});});
+  hits.forEach(h=>{const covered=hits.some(o=>o!==h&&o.tags.length<h.tags.length&&o.tags.every(x=>h.tags.includes(x)));if(!covered||h.tags.length===1){h.tags.forEach(x=>sp.add(x));lab.push(h.w);}else h.tags.forEach(x=>sp.add(x));});   // "NHL hockey" / "college football": the generic word does not become a second sport
+  if(sp.has('CFB')&&/college/.test(t))sp.delete('NFL');           // "college football" also matches the generic football rule; the specific league wins
+  if(sp.size){e.sports=[...sp];e.sportLabel=[...new Set(lab)].join('/').toUpperCase();e.nLabels=new Set(lab).size;}
+  let tt=t,mp;                                                       // probability thresholds: "over 70%", "70% plus", "high confidence" (and they must not be read as the OVER / UNDER side)
+  if((mp=tt.match(/(?:over|above|at least|more than|greater than|>=?)\s*(\d{2})\s*%/))){e.minProb=+mp[1]/100;tt=tt.replace(mp[0],' ');}
+  else if((mp=tt.match(/(\d{2})\s*%\s*(?:plus|\+|or (?:higher|more|better)|and (?:up|above|over))/))){e.minProb=+mp[1]/100;tt=tt.replace(mp[0],' ');}
+  else if(/high (?:confidence|probability)|most confident (?:picks?|bets?)|very confident/.test(tt)){e.minProb=.7;}
+  if((mp=tt.match(/(?:under|below|less than|at most|<=?)\s*(\d{2})\s*%/))){e.maxProb=+mp[1]/100;tt=tt.replace(mp[0],' ');}
+  tt=tt.replace(/\bover (?:the )?(?:last|past|this|next|season|month|week|year|time|all)\b/g,' ');     // "over the last 30 days" is a time window, not the OVER side
   const ty=[];
   if(/spread|\bats\b|against the spread|puck ?line|run ?line/.test(t))ty.push('SPREAD','RL');
-  if(/\bo\/u\b|totals?\b|over.?under|\bovers?\b|\bunders?\b/.test(t))ty.push('OU');
-  if(/money ?line|\bml\b|straight up|\bwinners?\b/.test(t))ty.push('ML');
+  if(/\bo\/u\b|\btotals\b|\btotal (?:line|bets?|picks?|market)|over.?under|\bovers?\b|\bunders?\b/.test(tt))ty.push('OU');
+  if(/money ?line|\bml\b|straight up/.test(t))ty.push('ML');
   if(/\bprops?\b|player props/.test(t))ty.push('PROP');
   if(ty.length)e.types=ty;
-  if(/\bunders?\b/.test(t)&&!/\bovers?\b/.test(t))e.side='UNDER';else if(/\bovers?\b/.test(t)&&!/\bunders?\b/.test(t))e.side='OVER';
+  const hasO=/\bovers?\b/.test(tt),hasU=/\bunders?\b/.test(tt);
+  if(hasU&&!hasO)e.side='UNDER';else if(hasO&&!hasU)e.side='OVER';
+  else if(/\b(underdogs?|dogs?)\b/.test(t))e.side='underdog';else if(/\b(favou?rites?|favs?|chalk)\b/.test(t))e.side='favourite';
+  if(hasO&&hasU){e.compareSides=true;e.group='side';if(!e.types)e.types=['OU'];}
   const td=today(),dayMs=864e5,dAgo=n=>nDaysAgoET(n);
   const mon=(()=>{const d=new Date(td+'T12:00:00Z');return new Date(d-((d.getUTCDay()+6)%7)*dayMs).toISOString().slice(0,10);})();
+  const yr=+td.slice(0,4),pad=n=>String(n).padStart(2,'0');
+  const asDate=(mo,d)=>{if(mo<1||mo>12||d<1||d>31)return null;let iso=`${yr}-${pad(mo)}-${pad(d)}`;if(iso>td)iso=`${yr-1}-${pad(mo)}-${pad(d)}`;return iso;};   // a date later than today means last year
   let m;
-  if(/\byesterday\b/.test(t)){e.from=e.to=dAgo(1);e.when='yesterday';}
+  if((m=t.match(/\b(20\d\d-\d\d-\d\d)\b/))){e.from=e.to=m[1];e.when=m[1];}
+  else if((m=t.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\.? (\d{1,2})(?:st|nd|rd|th)?\b/))){const iso=asDate(_CHAT_MONTHS[m[1]],+m[2]);if(iso){e.from=e.to=iso;e.when=iso;}}
+  else if((m=t.match(/\b(\d{1,2})\/(\d{1,2})\b/))){const iso=asDate(+m[1],+m[2]);if(iso){e.from=e.to=iso;e.when=iso;}}
+  else if(/\byesterday\b/.test(t)){e.from=e.to=dAgo(1);e.when='yesterday';}
   else if(/\btoday\b|\btonight\b/.test(t)){e.from=e.to=td;e.when='today';}
   else if(/\blast week\b/.test(t)){const s=new Date(new Date(mon+'T12:00:00Z')-7*dayMs).toISOString().slice(0,10);e.from=s;e.to=new Date(new Date(mon+'T12:00:00Z')-dayMs).toISOString().slice(0,10);e.when='last week';}
   else if(/\bthis week\b/.test(t)){e.from=mon;e.to=td;e.when='this week';}
-  else if((m=t.match(/(?:last|past) (\d{1,3}) days?/))){e.from=dAgo(Math.min(365,+m[1])-1);e.to=td;e.when='the last '+m[1]+' days';}
+  else if((m=t.match(/(?:last|past) (\d{1,3}) days?/))){const n=Math.max(1,Math.min(365,+m[1]));e.from=dAgo(n-1);e.to=td;e.when='the last '+n+' days';}
   else if(/(?:last|past) (?:7 days|week)/.test(t)){e.from=dAgo(6);e.to=td;e.when='the last 7 days';}
   else if(/last month/.test(t)){const d=new Date(td.slice(0,7)+'-15T12:00:00Z');d.setUTCMonth(d.getUTCMonth()-1);const ym=d.toISOString().slice(0,7);e.from=ym+'-01';e.to=ym+'-31';e.when='last month ('+ym+')';}
   else if(/this month/.test(t)){e.from=td.slice(0,7)+'-01';e.to=td;e.when='this month';}
   if(/\bpending\b|\bopen\b|\bunsettled\b|still (?:live|open)/.test(t))e.outcome='pending';
-  if(/(?:each|every|per|by) (?:sport|league)|sport by sport|which sports?|best sport|worst sport/.test(t))e.group='sport';
-  else if(/(?:each|every|per|by) (?:bet ?type|market|kind)|which (?:bet ?types?|markets?)/.test(t))e.group='bet_type';
-  else if(/by month|monthly|each month|per month/.test(t))e.group='month';
-  else if(/by week|weekly|each week|per week/.test(t))e.group='week';
-  else if(/by day|daily|each day|per day/.test(t))e.group='date';
-  else if(/prob(?:ability)? band|by confidence|by probability/.test(t))e.group='prob_band';
+  if(!e.group){
+    if(/(?:each|every|per|by) (?:sport|league)|sport by sport|which sports?|best sport|worst sport|\bbest league|\bworst league/.test(t))e.group='sport';
+    else if(/(?:each|every|per|by) (?:bet ?type|market|kind)|which (?:bet ?types?|markets?)|best (?:bet ?type|market)|worst (?:bet ?type|market)/.test(t))e.group='bet_type';
+    else if(/by month|monthly|each month|per month/.test(t))e.group='month';
+    else if(/by week|weekly|each week|per week/.test(t))e.group='week';
+    else if(/by day|daily|each day|per day/.test(t))e.group='date';
+    else if(/prob(?:ability)? band|by confidence|by probability/.test(t))e.group='prob_band';
+    else if(e.nLabels>=2)e.group='sport';                          // "NHL vs NBA", "NHL and NBA record": a side-by-side table
+  }
   return e;
 }
 const _CHAT_GLOSS=[
-  [/\b(grades?|premium|optimal|lean)\b/,'**Grades** rank a pick by its win probability and its price edge: PREMIUM above OPTIMAL above LEAN. Each sport has its own bands; for example MLB needs 68% and +7% EV for PREMIUM, 63% and +4% for OPTIMAL, 56% and +1% for LEAN. Player props use probability bands only: PREMIUM 67%+, OPTIMAL 62%+, LEAN 55%+.'],
+  [/\b(grades?|premium|optimal|lean)\b/,'**Grades** rank a pick by its win probability and its price edge: PREMIUM above OPTIMAL above LEAN. Each sport has its own probability and EV bands. Player props use probability bands only: PREMIUM 67%+, OPTIMAL 62%+, LEAN 55%+.'],
   [/\bskip\b/,'**SKIP** is the value grade: there is no price edge at the posted line. It does not mean the pick is unlikely to win; a SKIP can carry a high win probability.'],
   [/adj\.? ?line|adjusted line|alt(?:ernate|ernative)? line/,'**ADJ. LINE (adjusted line)** moves a pick\'s line toward safety, to a target of about 67% win probability (62% floor): an OVER line comes down, an UNDER line goes up. NBA props shift 5-6 points for PTS and 2-3 for REB/AST; CFB/NFL/NBA spreads and totals and hockey totals have their own bands. The price is an ESTIMATE (fair price plus about 4.5% vig), so you win more often but at shorter odds.'],
-  [/\bunits?\b|\broi\b|\bprofit\b/,'**Units** are flat: 1 unit per pick. A win pays (decimal odds - 1), a loss costs 1, a push 0. Parlays are excluded. ROI is units divided by settled picks.'],
+  [/\bunits?\b|\broi\b|\bprofit\b/,'**Units** are flat: 1 unit per pick. A win pays (decimal odds - 1), a loss costs 1, a push 0; a pick with no stored price counts at 2.0, like the Home tiles. ROI is units divided by settled picks.'],
+  [/pre.?start|published (basis|figures?)|late (lock|manual)/,'**Published basis = pre-start locks only.** Picks known to have been locked after their game started are left out of every published figure, because the result was largely known. ASK shows the all-picks number and, when it differs, the published one next to it.'],
+  [/retired|archiv/,'**Retired leagues** (MLB, WNBA, tennis, MLS, Bundesliga, World Cup...) are excluded from every figure in the app and their settled picks are archived. ASK follows the same rule: active leagues only.'],
   [/\bev\b|expected value/,'**EV (expected value)** = win probability x decimal odds - 1. Positive EV means the price pays more than the model thinks the pick is worth.'],
   [/win prob|hit rate|probabilit|monte carlo|\bmc\b|simulat/,'**Win probability / MC** is the model\'s chance the pick wins, from a Monte Carlo simulation of the game (or of the player\'s stat for props). For props it is directional, not market-calibrated, and capped at 68%.'],
   [/\bpush\b/,'A **push** is a tie with the line (for example a total of exactly 6 on a 6.0 line). The stake is returned, so it counts 0 units.'],
@@ -35732,18 +35765,17 @@ const _CHAT_GLOSS=[
   [/\bsettle|\bpending\b/,'**Pending** means the game has not finished or has not been graded yet. Settlement runs automatically after games end and marks each pick win, loss or push.'],
   [/spread|puck ?line|run ?line/,'A **spread** (puck line / run line in hockey and baseball) is a bet on the winning margin: a -7.5 favourite must win by 8 or more, a +7.5 underdog must lose by 7 or fewer (or win).'],
   [/\bsigma\b|stdev|standard deviation/,'**Sigma / stdev** is how much a player\'s stat swings from game to game; the prop simulation uses it to turn a projection into a probability.']];
-function _chatFmtSum(s){return`${s.wins}-${s.losses}${s.pushes?'-'+s.pushes:''}${s.winPct!=null?' ('+s.winPct+'%)':''} · ${s.units>=0?'+':''}${s.units}u`+(s.pending?` · ${s.pending} pending`:'');}
+const _chatU=u=>(u>=0?'+':'')+u;
+function _chatFmtSum(s){return`${s.wins}-${s.losses}${s.pushes?'-'+s.pushes:''}${s.winPct!=null?' ('+s.winPct+'%)':''} · ${_chatU(s.units)}u`+(s.roi!=null?` · ROI ${_chatU(s.roi)}%`:'')+(s.pending?` · ${s.pending} pending`:'');}
 function _chatRange(e){return e.when||'all time';}
 const _chatTitle=s=>String(s||'').replace(/_/g,' ').toUpperCase();
 function _chatRowsMd(rows,max){
   return rows.slice(0,max||12).map(r=>{const o=r.outcome==='win'?'WIN':r.outcome==='loss'?'LOSS':r.outcome==='push'?'PUSH':'pending';
-    return`- **${r.sport}** ${r.game?r.game+' — ':''}${r.pick||''}${r.prob!=null?' · '+r.prob+'%':''}${r.odds?' · '+r.odds:''} · ${o}${r.adjLine?' · ADJ. LINE':''}`;}).join('\n');
+    return`- **${r.sport}** ${r.game?r.game+' — ':''}${r.pick||''}${r.prob!=null?' · '+r.prob+'%':''}${r.odds?' · '+r.odds:''} · ${o}${r.adjLine?' · ADJ. LINE':''}${r.date?' · '+r.date:''}`;}).join('\n');
 }
 // the words in the question that could name a team / player / pick (sports, stop words and numbers removed)
-function _chatNames(q){
-  const sportWords=/^(nhl|nba|wnba|mlb|nfl|cfb|shl|liiga|nla|extraliga|atp|wta|mls|hockey|soccer|football|baseball|basketball|tennis|spread|spreads|total|totals|prop|props|moneyline|record|units?|wins?|won|losses|pending|locked|sport|sports|league|leagues|market|markets|type|types|kind)$/;
-  return q.toLowerCase().replace(/[^a-z0-9.' -]/g,' ').split(/\s+/).filter(w=>w.length>=3&&!_CHAT_STOP.has(w)&&!sportWords.test(w)&&!/^\d/.test(w));
-}
+const _CHAT_NONNAME=/^(nhl|nba|wnba|mlb|nfl|cfb|shl|liiga|nla|extraliga|atp|wta|mls|hockey|soccer|football|baseball|basketball|tennis|spread|spreads|total|totals|prop|props|moneyline|record|units?|wins?|won|losses|lost|pending|locked|sport|sports|league|leagues|market|markets|type|types|kind|streak|calibration|accurate|accuracy|projection|projections|average|averages|averaging|points|rebounds|assists|stats|stat|form|compare|versus|working|results?|recent|latest|biggest|biggest|win|loss)$/;
+function _chatNames(q){return q.toLowerCase().replace(/[^a-z0-9.' -]/g,' ').split(/\s+/).map(w=>w.replace(/'s$/,'')).filter(w=>w.length>=3&&!_CHAT_STOP.has(w)&&!_CHAT_NONNAME.test(w)&&!/^\d/.test(w));}
 function _chatFindPicks(words,pool,needAll){
   if(!words.length)return[];
   const need=needAll?1:Math.ceil(words.length/2);
@@ -35752,42 +35784,106 @@ function _chatFindPicks(words,pool,needAll){
   scored.sort((a,b)=>b.s-a.s||String(b.p.date).localeCompare(String(a.p.date))||((b.p.lockedAt||0)-(a.p.lockedAt||0)));
   return scored.map(x=>x.p);
 }
-const _chatLedger=()=>(typeof getP==='function'?getP():[]).filter(p=>p&&p.betType!=='PARLAY'&&p.outcome!=='_removed');
+const _chatLedger=()=>_chatLedgerAll({});
 function _chatQueryArgs(e,extra){
   const a=Object.assign({},extra||{});
-  if(e.sports)a.sport=e.sports.join(',');if(e.types)a.bet_type=e.types.join(',');if(e.side)a.side=e.side;
+  if(e.sports){a.sport=e.sports.join(',');if(e.sports.some(s=>!_CHAT_ACTIVE.has(s)))a.include_retired=true;}
+  if(e.types)a.bet_type=e.types.join(',');if(e.side)a.side=e.side;if(e.minProb!=null)a.min_prob=e.minProb;if(e.maxProb!=null)a.max_prob=e.maxProb;
   if(e.from)a.date_from=e.from;if(e.to)a.date_to=e.to;if(e.outcome&&!a.outcome)a.outcome=e.outcome;if(e.group)a.group_by=e.group;
   return a;
 }
-function _chatScope(e){return[e.sports&&(e.sportLabel||e.sports.join('/')),e.types&&(e.types.includes('OU')&&e.side?e.side+'S':e.types.join('/')),(!e.types&&e.side)?e.side+'S':null].filter(Boolean).join(' ')||'all picks';}
+function _chatScope(e){
+  const sd=e.side?(e.side==='underdog'?'UNDERDOGS':e.side==='favourite'?'FAVOURITES':e.side+'S'):null;
+  const tl=(e.types||[]).filter(t=>t!=='RL'&&!(t==='OU'&&sd&&(e.side==='OVER'||e.side==='UNDER'))).join('/');
+  return[e.sports&&(e.sportLabel||e.sports.join('/')),tl||null,sd,e.minProb!=null?'stated '+Math.round(e.minProb*100)+'%+':null,e.maxProb!=null?'stated under '+Math.round(e.maxProb*100)+'%':null].filter(Boolean).join(' ')||'all picks';
+}
+const _chatSmall=s=>(s.wins+s.losses)<20?`\n_Small sample: only ${s.wins+s.losses} settled pick${(s.wins+s.losses)===1?'':'s'}, so treat this as noise, not a trend._`:'';
+const _chatSettledOf=rows=>rows.filter(p=>p.outcome==='win'||p.outcome==='loss');
+const _chatChips=(...l)=>l.map(x=>typeof x==='string'?{label:x,q:x}:x);
 
 // ── intents ───────────────────────────────────────────────────────────────────────────────────────────────────
 function _chatHelp(){
-  return'I answer from Clairvoyance\'s own data, with no outside service and nothing sent anywhere. Try:\n- **Records:** "How are NHL UNDERs doing this month?", "record by sport", "units last 7 days", "NBA props record"\n- **Today:** "What is locked today?", "pending bets", "NBA games tonight", "who plays tomorrow in the NHL?"\n- **A pick:** "Why Jokic UNDER?", "why was the top pick locked?"\n- **Props:** "best NBA props today"\n- **A team:** "How is Toronto doing?", "Boston stats"\n- **Terms:** "what is an adjusted line?", "what does SKIP mean?", "what are units?"\n- **Engine:** "is the automation healthy?"\nI can only read data, never lock, settle or change anything.';
+  return'I answer from Clairvoyance\'s own data, with no outside service and nothing sent anywhere. Figures follow the app\'s rules: active leagues only, flat 1-unit picks. Try:\n- **Records:** "How are NHL UNDERs doing this month?", "record by sport", "NHL vs NBA", "overs vs unders", "units last 7 days", "record on Oct 20"\n- **Trends:** "current streak", "what is working?", "are the probabilities accurate?"\n- **Results:** "what lost yesterday?", "last 10 picks", "biggest wins this month"\n- **Today:** "picks for games tonight" (moneyline, spread and total for every game), "NHL spreads tonight", "picks for CLE PHI", "What is locked today?", "pending bets", "NBA games tonight", "who plays tomorrow in the NHL?"\n- **A pick or player:** "Why Jokic UNDER?", "Jokic stats", "best NBA props today"\n- **A team:** "How is Toronto doing?"\n- **Terms and engine:** "what is an adjusted line?", "what does published basis mean?", "is the automation healthy?"\nI can only read data, never lock, settle or change anything. Follow-ups work: after a record, try "what about NBA?" or "this month".';
 }
-function _chatPerf(e){
+async function _chatPerf(e){
   const a=_chatQueryArgs(e,{limit:1});
   const r=_chatT_ledger_query(a);
   const scope=_chatScope(e);
-  if(!r.matched)return{text:`No ${scope==='all picks'?'':scope+' '}picks found for ${_chatRange(e)}.`,used:['ledger']};
-  const lines=[`**${_chatTitle(scope)} · ${_chatRange(e)}** — ${_chatFmtSum(r.summary)} (${r.matched} picks)`];
+  const retired=(e.sports||[]).filter(s=>!_CHAT_ACTIVE.has(s));
+  const pre=retired.length?`**${retired.join('/')} ${retired.length>1?'are':'is'} retired**, so ${retired.length>1?'they are':'it is'} excluded from every figure in the app and settled picks are archived (all retired leagues together: ${_ARCH_SUM.w}-${_ARCH_SUM.l}). Anything still in the working ledger:\n\n`:'';
+  if(!r.matched)return{text:pre+`No ${scope==='all picks'?'':scope+' '}picks found for ${_chatRange(e)}.`,used:['ledger']};
+  let kept=null;
+  try{await Promise.race([_pubEnsureTiming(),new Promise(res=>setTimeout(res,6000))]);if(window._tbIdx||window._CV_PUBLIC_EXCLUDE_IDS)kept=_chatSum(r.raw.filter(p=>!_pubDrop(p)));}catch(x){}
+  const lines=[pre+`**${_chatTitle(scope)} · ${_chatRange(e)}** — ${_chatFmtSum(r.summary)} (${r.matched} picks)`];
+  if(kept&&(kept.wins+kept.losses+kept.pushes)!==(r.summary.wins+r.summary.losses+r.summary.pushes))lines.push(`Published basis (pre-start locks only): ${_chatFmtSum(kept)} — ${(r.summary.wins+r.summary.losses+r.summary.pushes)-(kept.wins+kept.losses+kept.pushes)} late-locked pick(s) excluded.`);
   if(r.groups&&r.groups.length){
     lines.push('','| '+_chatTitle(e.group)+' | W-L | Win % | Units | Pending |','|---|---|---|---|---|');
     const gs=r.groups.slice();if(['sport','bet_type','prob_band','side'].includes(e.group))gs.sort((x,y)=>y.units-x.units);   // best first; months/weeks/days stay newest first
-    gs.forEach(g=>lines.push(`| ${g.key==='?'?'OTHER':g.key} | ${g.wins}-${g.losses}${g.pushes?'-'+g.pushes:''} | ${g.winPct!=null?g.winPct+'%':'-'} | ${g.units>=0?'+':''}${g.units} | ${g.pending||0} |`));
+    gs.forEach(g=>lines.push(`| ${g.key==='?'?'OTHER':g.key} | ${g.wins}-${g.losses}${g.pushes?'-'+g.pushes:''} | ${g.winPct!=null?g.winPct+'%':'-'} | ${_chatU(g.units)} | ${g.pending||0} |`));
   }
-  lines.push('','_Units: 1 flat unit per pick, parlays excluded. Win % ignores pending picks and pushes._');
-  return{text:lines.join('\n'),used:['ledger']};
+  const sm=_chatSmall(r.summary);if(sm)lines.push(sm.trim());
+  if(e.side==='underdog'||e.side==='favourite')lines.push('_Favourite = giving points on a spread or priced shorter than even money on a moneyline; underdog = the other side. Over/under picks are not included._');
+  lines.push('','_Units: 1 flat unit per pick (no stored price counts at 2.0); active leagues only. Win % ignores pending picks and pushes._');
+  _chat.last=e;
+  return{text:lines.join('\n'),used:['ledger'],chips:_chatChips('this month','last 7 days','yesterday','by sport','by bet type','overs vs unders','what is working?','are the probabilities accurate?')};
 }
 function _chatSlate(e){
   const day=e.from&&e.from===e.to?e.from:today();
-  const a=_chatQueryArgs(e,{limit:40});
-  if(e.outcome==='pending'&&!e.from){delete a.date_from;delete a.date_to;}else{a.date_from=a.date_to=day;}
+  const a=_chatQueryArgs(e,{limit:200});
+  if(e.outcome==='pending'&&!e.from){delete a.date_from;delete a.date_to;}else if(e.from){a.date_from=e.from;a.date_to=e.to||e.from;}else{a.date_from=a.date_to=day;}   // a range ("this week") is honoured, not forced to today
   const r=_chatT_ledger_query(a);
   if(!r.matched)return{text:e.outcome==='pending'?'Nothing is pending right now.':`Nothing locked for ${e.when||day}${e.sports?' in '+e.sports.join('/'):''}.`,used:['ledger']};
   const head=e.outcome==='pending'?`**${r.matched} pending pick${r.matched===1?'':'s'}**`:`**${r.matched} pick${r.matched===1?'':'s'} locked ${e.when||day}** — ${_chatFmtSum(r.summary)}`;
   const rows=r.rows.slice().sort((x,y)=>(y.prob||0)-(x.prob||0));
-  return{text:head+'\n'+_chatRowsMd(rows,15)+(r.matched>15?`\n_…and ${r.matched-15} more, highest probability first._`:''),used:['ledger']};
+  return{text:head+'\n'+_chatRowsMd(rows,15)+(r.matched>15?`\n_…and ${r.matched-15} more, highest probability first._`:''),used:['ledger'],chips:_chatChips('picks for games tonight','best NBA props today','pending bets','NBA games tonight','how did we do yesterday?')};
+}
+// recent / best / worst results: "what lost yesterday", "last 10 picks", "biggest wins this month"
+function _chatList(q,e){
+  const t=q.toLowerCase();
+  const n=Math.max(1,Math.min(25,+((t.match(/last (\d{1,2}) (?:picks?|bets?|results?|losses|wins|losers|winners)/)||[])[1])||10));
+  const win=/\b(won|wins|winners?|winning)\b/.test(t),loss=/\b(lost|losses|losing|losers?)\b/.test(t);
+  const outcome=win&&!loss?'win':loss&&!win?'loss':null;
+  const a=_chatQueryArgs(e,{limit:1});if(outcome)a.outcome=outcome;else delete a.outcome;
+  const r=_chatT_ledger_query(a);
+  if(!r.raw.length)return{text:`No ${outcome==='win'?'wins':outcome==='loss'?'losses':'picks'} found${e.when?' for '+e.when:''}${e.sports?' in '+(e.sportLabel||e.sports.join('/')):''}.`,used:['ledger']};
+  const biggest=/\b(biggest|best|largest|most confident|worst)\b/.test(t);
+  const un=p=>p.outcome==='win'?(parseFloat(p.decOdds)||2)-1:p.outcome==='loss'?-1:0;
+  let rows=r.raw.slice();
+  if(biggest&&outcome==='win')rows.sort((x,y)=>un(y)-un(x));
+  else if(biggest&&outcome==='loss')rows.sort((x,y)=>(y.winProb||0)-(x.winProb||0));            // every loss costs 1 unit, so "biggest" = the most confident miss
+  else rows.sort((x,y)=>(y.lockedAt||0)-(x.lockedAt||0)||String(y.date).localeCompare(String(x.date)));
+  const sum=_chatSum(r.raw);
+  const label=outcome==='win'?'Wins':outcome==='loss'?'Losses':'Picks';
+  return{text:`**${biggest&&outcome==='loss'?'Most confident losses':biggest&&outcome?'Biggest '+label.toLowerCase():'Latest '+label.toLowerCase()} · ${_chatScope(e)} · ${_chatRange(e)}** (${r.raw.length} match${outcome?'':'; '+_chatFmtSum(sum)})\n`+_chatRowsMd(rows.slice(0,n).map(_chatRow),n),used:['ledger']};
+}
+function _chatStreak(e){
+  const r=_chatT_ledger_query(_chatQueryArgs(e,{limit:1}));
+  const s=_chatSettledOf(r.raw).sort((x,y)=>String(x.date).localeCompare(String(y.date))||(x.lockedAt||0)-(y.lockedAt||0));   // picks settle in batches, so order by game date then lock time
+  if(!s.length)return{text:'No settled picks to measure a streak.',used:['ledger']};
+  let cur=0,curT=null,bestW=0,bestL=0,run=0,runT=null;
+  s.forEach(p=>{if(p.outcome===runT)run++;else{run=1;runT=p.outcome;}if(runT==='win'&&run>bestW)bestW=run;if(runT==='loss'&&run>bestL)bestL=run;});
+  cur=run;curT=runT;
+  return{text:`**${_chatTitle(_chatScope(e))} · ${_chatRange(e)}** — current streak: **${cur} ${curT==='win'?'win':'loss'}${cur===1?'':(curT==='win'?'s':'es')}** in a row.\nLongest win streak ${bestW}, longest losing streak ${bestL} (${s.length} settled picks, ordered by game date then lock time).`,used:['ledger']};
+}
+// calibration: do the stated win probabilities match what actually happened?
+function _chatCalib(e){
+  const r=_chatT_ledger_query(_chatQueryArgs(e,{limit:1}));
+  const s=_chatSettledOf(r.raw).filter(p=>p.winProb>0&&p.winProb<1);
+  if(s.length<10)return{text:'Not enough settled picks with a stored win probability to check calibration.',used:['ledger']};
+  const bands={};s.forEach(p=>{const b=p.winProb<.5?0:Math.min(95,Math.floor(p.winProb*20)*5);(bands[b]=bands[b]||[]).push(p);});   // 0 = every pick stated under 50%
+  const lines=['| Stated | Picks | Predicted | Actual | Gap |','|---|---|---|---|---|'];const flags=[];
+  Object.keys(bands).map(Number).sort((a,b)=>a-b).forEach(b=>{const v=bands[b],pr=v.reduce((a,p)=>a+p.winProb,0)/v.length*100,ac=v.filter(p=>p.outcome==='win').length/v.length*100,gap=ac-pr;
+    lines.push(`| ${b===0?'under 50%':b+'-'+(b+5)+'%'} | ${v.length} | ${pr.toFixed(1)}% | ${ac.toFixed(1)}% | ${_chatU(+gap.toFixed(1))} |`);if(v.length>=20&&Math.abs(gap)>=5)flags.push(`${b===0?'under-50%':b+'-'+(b+5)+'%'} picks ${gap<0?'win less':'win more'} than stated (${ac.toFixed(0)}% vs ${pr.toFixed(0)}%)`);});
+  const P=s.reduce((a,p)=>a+p.winProb,0)/s.length*100,A=s.filter(p=>p.outcome==='win').length/s.length*100;
+  return{text:`**Calibration · ${_chatScope(e)} · ${_chatRange(e)}** — ${s.length} settled picks: stated ${P.toFixed(1)}% on average, actual ${A.toFixed(1)}% (${_chatU(+(A-P).toFixed(1))} pts).\n\n`+lines.join('\n')+(flags.length?'\n\n**Worth a look:** '+flags.join('; ')+'.':'\n\nNo band with 20+ picks is off by 5 points or more.')+'\n_Includes late manual locks, which win more often than their stated probability._',used:['ledger']};
+}
+// "what is working": sport x bet type cells ranked, only cells with enough settled picks to mean anything
+function _chatWorking(e){
+  const r=_chatT_ledger_query(_chatQueryArgs(Object.assign({},e,{group:'sport_and_type'}),{limit:1}));
+  const g=(r.groups||[]).filter(x=>x.wins+x.losses>=15);
+  if(g.length<2)return{text:'Not enough settled picks per market yet (need 15+ in a sport and bet type).',used:['ledger']};
+  const byU=g.slice().sort((a,b)=>b.units-a.units),k=Math.min(3,Math.floor(g.length/2)),f=x=>`- **${x.key}** — ${x.wins}-${x.losses} (${x.winPct}%) · ${_chatU(x.units)}u`;
+  return{text:`**What is working · ${_chatRange(e)}** (sport and bet type with 15+ settled picks)\n**Best by units**\n${byU.slice(0,k).map(f).join('\n')}\n**Weakest by units**\n${byU.slice(-k).reverse().map(f).join('\n')}\n_Units use flat 1-unit picks; weak cells with few picks can be luck._`,used:['ledger']};
 }
 function _chatWhy(q,e){
   const pool=_chatLedger();
@@ -35817,10 +35913,13 @@ async function _chatSchedule(e){
   }
   return{text:out.length?`**Games ${day}**\n`+out.join('\n'):`No games found for ${day}${e.sports?' in '+e.sports.join('/'):''}.`,used};
 }
+async function _chatTodayNbaGames(day){
+  return((window._NBA_SCHED&&window._NBA_SCHED.games)||[]).filter(g=>g&&!g.preseason&&g.seasonType!==1&&!g.carried&&!g.postponed&&g.state==='pre'&&g.date&&_chatMT(g.date)===day).map(g=>({h:g.home,a:g.away}));
+}
 async function _chatBestProps(e){
   if(typeof _generateNBAProps!=='function'||typeof _fetchNBAPlayerStats!=='function')return{text:'Props are not available on this device right now.',used:[]};
   const day=e.from&&e.from===e.to?e.from:today();
-  const games=((window._NBA_SCHED&&window._NBA_SCHED.games)||[]).filter(g=>g&&!g.preseason&&g.seasonType!==1&&!g.carried&&!g.postponed&&g.state==='pre'&&g.date&&_chatMT(g.date)===day).map(g=>({h:g.home,a:g.away}));
+  const games=await _chatTodayNbaGames(day);
   if(!games.length)return{text:`No NBA regular-season games left to project for ${day}.`,used:['schedule NBA']};
   const stats=await _fetchNBAPlayerStats();if(!stats)return{text:'NBA player stats are unavailable right now.',used:[]};
   const props=_generateNBAProps(games,stats).filter(p=>p.grade!=='SKIP');
@@ -35829,6 +35928,40 @@ async function _chatBestProps(e){
   if(!list.length)return{text:`No prop clears the model's bar for ${day}.`,used:['props']};
   const line=p=>`- **${p.player}** (${p.team} vs ${p.opp}) ${p.over?'OVER':'UNDER'} ${p.line} ${p.statAbbr} · ${Math.round(p.prob*100)}% · ${p.grade}`+(p.alt?` — ADJ. LINE ${p.over?'OVER':'UNDER'} ${p.alt.line} · ${Math.round(p.alt.prob*100)}% · ${p.alt.mlStr} est.`:'');
   return{text:`**${strong.length?'Top NBA props':'Closest NBA props (none reach OPTIMAL)'} ${day}**\n`+list.map(line).join('\n')+'\n_Lines come from the player\'s own averages, form and the matchup; ESPN publishes no sportsbook prop lines, so there is no book line to compare._',used:['props','schedule NBA']};
+}
+// a player: averages, recent form, and today's props when his team plays
+async function _chatPlayer(q,e,strong){
+  if(typeof _fetchNBAPlayerStats!=='function')return null;
+  const names=_chatNames(q);if(!names.length)return null;
+  let stats=null;try{stats=await _fetchNBAPlayerStats();}catch(x){}
+  if(!stats)return null;
+  const list=Object.values(stats).filter(p=>p&&p.name);
+  const scored=list.map(p=>{const toks=p.name.toLowerCase().split(/[^a-z']+/).filter(Boolean);let sc=0;names.forEach(w=>{if(toks.includes(w))sc++;});return{p,sc};}).filter(x=>x.sc>0);
+  if(!scored.length)return null;
+  const top=Math.max(...scored.map(x=>x.sc)),best=scored.filter(x=>x.sc===top).map(x=>x.p);
+  if(strong&&top<2)return null;                                     // strong = a FULL name matched; a lone word ("james") could just as well be a team
+  if(best.length>1&&top<2)return{text:'Which player? '+best.slice(0,6).map(p=>`${p.name} (${p.team})`).join(', ')+'. Add the first name.',used:['player stats']};
+  const p=best[0],f=p.last5;
+  const out=[`**${p.name}** (${p.team}${p.pos?', '+p.pos:''}) — ${p.ppg} PTS · ${p.rpg} REB · ${p.apg} AST per game${p.gp?' over '+p.gp+' games':''}${p.status&&p.status!=='active'?' · status: '+p.status:''}`];
+  if(f)out.push(`Recent form (last ${f.n}): ${f.ppg} PTS · ${f.rpg} REB · ${f.apg} AST`+(f.thisSeason!=null?` (${f.thisSeason} from this season, the rest from last season)`:''));
+  const day=today(),games=(await _chatTodayNbaGames(day)).filter(g=>g.h===p.team||g.a===p.team);
+  if(games.length&&typeof _generateNBAProps==='function'){
+    const mine=_generateNBAProps(games,stats).filter(x=>x.player===p.name);
+    if(mine.length)out.push('**Today\'s props**',...mine.map(x=>`- ${x.over?'OVER':'UNDER'} ${x.line} ${x.statAbbr} · ${Math.round(x.prob*100)}% · ${x.grade}${x.alt?` — ADJ. LINE ${x.alt.line} · ${x.alt.mlStr} est.`:''}`));
+  }else out.push('_His team has no NBA game left today._');
+  out.push('_Averages are last season\'s until the new season has enough games._');
+  return{text:out.join('\n'),used:['player stats'+(games.length?', props':'')]};
+}
+// "who will win Celtics Knicks", "should I bet the Lakers": ASK makes no new predictions -- it shows the locked / graded picks that involve those names
+async function _chatMatchup(q,e){
+  const names=_chatNames(q);
+  const tn=await _chatTonight(q,e,{names});
+  if(tn&&/^\*\*Tonight/.test(tn.text))return tn;                      // a game today: the model's lean in every market
+  if(!names.length)return tn;
+  const pool=_chatLedger().filter(p=>p.outcome==='pending'||p.date===today());
+  const found=_chatFindPicks(names,pool);
+  if(!found.length)return{text:`I do not see a game today for ${names.join(' / ')}, and there is no locked pick on it. I do not make predictions outside the engine's own picks.`,used:['top picks','ledger']};
+  return{text:`**Locked picks matching "${names.join(' ')}"**\n`+_chatRowsMd(found.slice(0,8).map(_chatRow),8),used:['ledger']};
 }
 async function _chatTeam(q,e){
   const names=_chatNames(q);if(!names.length)return null;
@@ -35854,75 +35987,205 @@ async function _chatStatusMd(){
   const s=await _chatT_engine_status();
   const f=o=>o?`${o.tsMT||'?'}${o.ok===false?' — FAILED':''}${o.detail?' · '+String(o.detail).slice(0,90):''}`:'n/a';
   const a=s.automation;
-  const out=['**Engine status**',`Now: ${s.nowMT} MT`,`Data generated: ${s.dataGenerated||'n/a'}`,`Record (settled): ${_chatFmtSum(s.ledger)} · ${s.pendingNow} pending`];
+  const out=['**Engine status**',`Now: ${s.nowMT} MT`,`Data generated: ${s.dataGenerated||'n/a'}`,`Record (settled, active leagues): ${_chatFmtSum(s.ledger)} · ${s.pendingNow} pending`];
   if(a&&typeof a==='object')out.push(`Last lock: ${f(a.lastLock)}`,`Last settle: ${f(a.lastSettle)}`);else out.push('Automation status file not reachable.');
   return{text:out.join('\n'),used:['engine status']};
 }
+// a follow-up ("what about NBA?", "this month", "and unders?") keeps the previous question's filters except what it changes
+const _chatFollow=(t,e,perfWords)=>/^(and|what about|how about|same (for|but)|now|also|only|just|ok(ay)?|then|what if|try)\b/.test(t)||(t.split(/\s+/).length<=4&&!perfWords&&!e.sports&&!e.types&&!e.side&&!!(e.from||e.group));   // a bare "this month" / "by sport" continues; a fresh sport or bet type never inherits
+function _chatMerge(last,e){
+  const m=Object.assign({},last,{group:null,compareSides:false});
+  ['sports','sportLabel','nLabels','types','side','from','to','when','outcome','group','compareSides','minProb','maxProb'].forEach(k=>{const v=e[k];if(v!=null&&v!==false)m[k]=v;});
+  if(e.from==null&&e.to==null){m.from=last.from;m.to=last.to;m.when=last.when;}
+  return m;
+}
 
-async function _chatAnswer(q){
-  const t=q.toLowerCase().trim(),e=_chatEnt(q);e._q=t;
-  const any=!!(e.sports||e.types||e.side||e.from||e.group||e.outcome);
+
+// ═══ TONIGHT'S PICKS: the model's view of every game today, all three markets ═══════════════════════════════════
+// Reuses computeTopPicksToday() -- the Top Picks tab's own gatherer, which renders each game's card and returns its markets (moneyline, spread / puck line, total) with the model's probability,
+// price and grade. Nothing is invented here; a locked pick for the same game and market is flagged from the ledger.
+const _CHAT_SPR=new Set(['sprdFav','sprdDog','rlFav','rlDog','plFav','plDog','ahFav','ahDog']),_CHAT_TOT=new Set(['over','under','setsOver','setsUnder']);
+const _chatCat=side=>_CHAT_SPR.has(side)?'spread':_CHAT_TOT.has(side)?'total':'ml';
+const _CHAT_LEG_TAG={PL:'SOC_PL',LIGA:'SOC_LIGA',SERIEA:'SOC_ITA',CL:'SOC_CL'};
+const _CHAT_LEG_NAME={SOC_PL:'PREMIER LEAGUE',SOC_LIGA:'LA LIGA',SOC_ITA:'SERIE A',SOC_CL:'CHAMPIONS LEAGUE'};
+const _CHAT_SPORT_ORDER=['NBA','NHL','NFL','CFB','SHL','LIIGA','NLA','EXTRALIGA','SOC_PL','SOC_LIGA','SOC_ITA','SOC_CL'];
+const _chatTier=n=>n>=3?'PREMIUM':n===2?'OPTIMAL':n===1?'LEAN':'';
+const _chatPrice=ml=>{if(ml==null||ml==='')return'';const n=parseFloat(ml);return isFinite(n)?(n>0?'+'+n:''+n):String(ml);};
+async function _chatTonightLegs(){
+  const c=_chat.tonight;if(c&&Date.now()-c.at<120000)return c.legs;
+  if(typeof computeTopPicksToday!=='function')return[];
+  const legs=(await computeTopPicksToday())||[];
+  _chat.tonight={at:Date.now(),legs:legs.slice()};return _chat.tonight.legs;
+}
+function _chatLegNames(l){          // what a question may call a game's teams: abbreviations plus the full names the app knows
+  const out=[l.hA,l.awA].map(x=>String(x||'').toLowerCase());
+  // abbreviations repeat across leagues (BOS is the Celtics AND the Bruins), so a game's full names come only from its own league's table
+  if(l.sport==='NBA')try{const T=(((window.__CV_DATA||{}).nba||{}).teamRatings||{}).teams||{};[l.hA,l.awA].forEach(a=>{if(T[a]&&T[a].name)out.push(String(T[a].name).toLowerCase());});}catch(x){}
+  if(l.sport==='NHL')try{const nh=_chatNhlNames();[l.hA,l.awA].forEach(a=>{if(nh[a])out.push(nh[a].toLowerCase());});}catch(x){}
+  return out;
+}
+function _chatMtTime(ms){try{return new Date(ms).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Denver'});}catch(x){return'';}}
+async function _chatTonight(q,e,opt){
+  opt=opt||{};
+  const t=q.toLowerCase();
+  if(/\btomorrow\b/.test(t))return{text:'Tomorrow\'s picks are not generated until the day itself. Ask again tomorrow morning, or say "who plays tomorrow in the NHL?" for the schedule.',used:[]};
+  let legs=[];try{legs=await _chatTonightLegs();}catch(x){}
+  if(!legs.length)return{text:'No games with model picks are available for today yet. The cards generate from the live schedule; try again in a minute, or open the Top Picks tab.',used:['top picks']};
+  const names=opt.names||[];
+  let list=legs.filter(l=>l&&l.markets&&l.markets.length);
+  if(e.sports)list=list.filter(l=>e.sports.some(sp=>l.sport===sp||l.sport===_CHAT_LEG_TAG[sp]));
+  if(names.length)list=list.filter(l=>{const nm=_chatLegNames(l);return names.some(w=>nm.some(n=>n===w||n.split(/[^a-z0-9]+/).includes(w)));});
+  if(!list.length)return{text:`No game today matches ${names.length?names.join(' / '):(e.sportLabel||'that')}. ${names.length?'':'I have '+[...new Set(legs.map(l=>_CHAT_LEG_NAME[l.sport]||l.sport))].join(', ')+' games today.'}`.trim(),used:['top picks']};
+  const day=today(),locked=_chatLedgerAll({include_retired:true}).filter(p=>p.date===day&&p.outcome!=='_removed');
+  const lockedOf=(l,cat)=>locked.filter(p=>((p.hA===l.hA&&p.awA===l.awA)||(p.hA===l.awA&&p.awA===l.hA))&&({ML:'ml',SPREAD:'spread',RL:'spread',OU:'total'})[String(p.betType||'').toUpperCase()]===cat)[0];
+  const sideOf=(l,cat)=>l.markets.filter(m=>_chatCat(m.side)===cat).sort((a,b)=>(b.prob||0)-(a.prob||0));
+  const now=Date.now();
+  const cell=(l,cat,both)=>{
+    const ms=sideOf(l,cat);if(!ms.length)return'—';
+    const fmt=(m,star)=>`${star?'★ ':''}${m.label} ${Math.round((m.prob||0)*100)}%${m.ml!=null&&m.ml!==''?' ('+_chatPrice(m.ml)+')':''}${_chatTier(m.tierN)?' '+_chatTier(m.tierN):''}`;
+    const best=l.best&&ms.some(m=>m.label===l.best.label);
+    const lk=lockedOf(l,cat);
+    const body=both?ms.map((m,i)=>fmt(m,best&&m.label===l.best.label)).join(' · '):fmt(ms[0],best&&ms[0].label===l.best.label);
+    return body+(lk?` · LOCKED ${lk.betOn}`:'');
+  };
+  const wantCats=[];if(/spread|puck ?line|\bats\b/.test(t))wantCats.push('spread');if(/money ?line|\bml\b|who will win|winner/.test(t))wantCats.push('ml');if(/\btotals?\b|\bover\b|\bunder\b|o\/u/.test(t))wantCats.push('total');
+  const CATS=[['Moneyline','ml'],['Spread','spread'],['Total','total']].filter(([,c])=>!wantCats.length||wantCats.includes(c));   // a question about one market shows that market; otherwise all three
+  const when=l=>l.startMs?(l.startMs<now?'started':_chatMtTime(l.startMs)+' MT'):'';
+  list.sort((a,b)=>{const ia=_CHAT_SPORT_ORDER.indexOf(a.sport),ib=_CHAT_SPORT_ORDER.indexOf(b.sport);return(ia<0?99:ia)-(ib<0?99:ib)||(a.startMs||0)-(b.startMs||0);});
+  const out=[];
+  if(list.length<=2){                                          // one or two games: every side of every market
+    list.forEach(l=>{
+      out.push(`**${_CHAT_LEG_NAME[l.sport]||l.sport} · ${l.awA} @ ${l.hA}**${when(l)?' · '+when(l):''}`);
+      CATS.forEach(([lab,cat])=>out.push(`- **${lab}:** ${cell(l,cat,true)}`));
+      out.push('');
+    });
+  }else{
+    const bySport={};list.forEach(l=>(bySport[l.sport]=bySport[l.sport]||[]).push(l));
+    Object.keys(bySport).forEach(sp=>{
+      out.push(`**${_CHAT_LEG_NAME[sp]||sp}** — ${bySport[sp].length} game${bySport[sp].length===1?'':'s'}`,'','| Game | '+CATS.map(c=>c[0]).join(' | ')+' |','|---|'+CATS.map(()=>'---').join('|')+'|');
+      bySport[sp].forEach(l=>out.push(`| ${l.awA} @ ${l.hA}${when(l)?' · '+when(l):''} | ${CATS.map(([,c])=>cell(l,c)).join(' | ')} |`));
+      out.push('');
+    });
+  }
+  out.push('_The model\'s lean for each market (higher-probability side), not advice. ★ = the engine\'s best market for that game. The engine auto-locks only PREMIUM / OPTIMAL picks (and the hockey high-probability lane); LOCKED shows what is already in your ledger. Probabilities for non-moneyline markets are capped._');
+  return{text:`**Tonight\'s picks · ${day}** — ${list.length} game${list.length===1?'':'s'}\n\n`+out.join('\n'),used:['top picks','ledger'],chips:_chatChips('spreads tonight','over/unders tonight','moneylines tonight',...[...new Set(list.map(l=>l.sport))].slice(0,3).map(sp=>({label:(_CHAT_LEG_NAME[sp]||sp)+' picks tonight',q:(_CHAT_LEG_NAME[sp]||sp)+' picks tonight'})),'what is locked today?','best NBA props today')};
+}
+
+async function _chatAnswerCore(q){
+  q=String(q==null?'':q).slice(0,300);
+  const t=q.toLowerCase().trim().replace(/\bwin\s*(?:%|percent(?:age)?|rate)/g,'winpct');
+  if(!t)return{text:'Type a question, or say "help" for examples.',used:[]};
+  let e=_chatEnt(q);e._q=t;
+  const any=!!(e.sports||e.types||e.side||e.from||e.group||e.outcome||e.minProb!=null||e.maxProb!=null);
+  const perfWords=/\b(how many|profitable|making money|in the green|record|winpct|units?|profit|roi|how (is|are|has|have|did|do)|doing|performing|performance|results?|going|hit rate|accuracy|cashing|losing|winning)\b/.test(t);
   if(/^(help|\?|hi|hello|hey|what can you (do|answer)|how do i use)\b/.test(t)||/what can (you|i) (do|ask)/.test(t))return{text:_chatHelp(),used:[]};
   if(/\b(automation|engine|healthy|health|last (lock|settle)|is it working|system status)\b/.test(t))return _chatStatusMd();
   const defQ=/\b(what is|what's|what are|what does|what do|explain|define|meaning of|mean by|means?)\b/.test(t)||/\bhow does .* work\b/.test(t);
-  if(defQ&&!e.from&&!e.outcome&&!/\b(locked|pending|settled)\b/.test(t)&&!/\b(did|was)\b.*\b(pick|bet|lock)/.test(t)){
+  const metricAsk=/\b(what is|what's|what are)\b.*\b(my|our|the)\b.*\b(profit|roi|units?|hit rate|winpct|record)\b/.test(t)&&!/\b(mean|means|definition|explain|define)\b/.test(t);
+  if(defQ&&!metricAsk&&!e.group&&!e.from&&!e.outcome&&!/\brecord\b/.test(t)&&!/\d\s*%/.test(t)&&!/\b(locked|pending|settled)\b/.test(t)&&!/\b(did|was)\b.*\b(pick|bet|lock)/.test(t)){
     const hits=_CHAT_GLOSS.filter(([re])=>re.test(t));
     if(hits.length)return{text:hits.slice(0,3).map(h=>h[1]).join('\n\n'),used:['glossary']};
   }
   if(/\bwhy\b|\breason(ing)?\b|how (was|did) .*(graded|picked|chosen|selected)|\bexplain (the |this |that )?(pick|bet|lock)/.test(t))return _chatWhy(q,e);
-  if(/\bprops?\b/.test(t)&&/\b(best|top|which|who|good|worth|strongest|recommend)\b/.test(t)&&!/\b(record|doing|units|win ?%|profit|roi|history|so far|settled)\b/.test(t))return _chatBestProps(e);
-  if(/\b(who('s| is)? playing|who plays|plays? (today|tonight|tomorrow)|games?|schedule|slate|matchups?|tip.?off|fixtures?|kick.?off|what time)\b/.test(t)&&!/\b(record|units|win ?%|profit|roi)\b/.test(t))return _chatSchedule(e);
-  if(/\b(locked|lock(s)?|pending|open bets?|my picks|my bets|what (do|did) (we|i) have|bets (today|tonight))\b/.test(t)&&!/\b(record|units|win ?%|profit|roi|how (is|are|has|have))\b/.test(t)&&(e.from||e.outcome||/locked|my picks|my bets|what (do|did)/.test(t)))return _chatSlate(e);
-  const perfWords=/\b(record|win ?%|win rate|win percentage|units?|profit|roi|how (is|are|has|have|did|do)|doing|performing|performance|results?|going|hit rate|accuracy|cashing|losing|winning)\b/.test(t);
-  if((perfWords||e.group)&&(any||!_chatNames(q).length)){_chat.last=e;return _chatPerf(e);}
+  if(/calibrat|how accurate|are (the )?(probabilit|odds|percent)|predicted (vs|versus|and) actual|probabilit\w* (accurate|right|correct|reliable|honest)/.test(t))return _chatCalib(e);
+  if(/\bstreaks?\b/.test(t))return _chatStreak(e);
+  if(/\b(working|not working|what('s| is) (hot|cold)|leaks?|where (are|is) (we|it|the model) (winning|losing|strong|weak))\b/.test(t))return _chatWorking(e);
+  if(!e.group&&!/\b(how many|record|units?|winpct|roi)\b/.test(t)&&(/\blast (\d{1,2}) (picks?|bets?|results?|losses|wins|losers|winners)\b/.test(t)||/\b(recent|latest) (picks?|bets?|results?)\b/.test(t)||/\b(what|which|show|list|any)\b.*\b(lost|losses|losing|won|wins|winners|losers)\b/.test(t)||/\b(biggest|most confident|worst) (wins?|losses|winners|losers)\b/.test(t)||/\b(yesterday|today)'?s? results\b/.test(t)))return _chatList(q,e);
+  if(/\b(who (will|wins?|should win)|who'?s going to win|predict(ion)?s?|should i (bet|take|play)|(bet|pick) (on|the)|who do (you|we) (like|pick|take))\b/.test(t)&&!e.sports)return _chatMatchup(q,e);
+  if(/\bprops?\b/.test(t)&&/\b(best|top|which|who|good|worth|strongest|recommend)\b/.test(t)&&!/\b(record|doing|units|winpct|profit|roi|history|so far|settled)\b/.test(t))return _chatBestProps(e);
+  if(/\b(locked|lock(s)?|pending|open bets?|my picks|my bets|(do|did) (we|i) have|betting on|what are we (betting|playing|locking))\b/.test(t)&&!/\b(record|units|winpct|profit|roi|how (is|are|has|have))\b/.test(t)&&(e.from||e.outcome||/locked|my picks|my bets|(do|did) (we|i) have|betting on|what are we/.test(t)))return _chatSlate(e);
+  if(/\b(picks?|bets?|plays?|leans?|markets?|lines?|moneylines?|spreads?|totals?|over.?unders?|o\/u)\b/.test(t)&&/\b(tonight|today|tonight's|today's|slate|games?)\b/.test(t)&&!/\b(record|units?|winpct|roi|how many|did we|lost|won|calibrat|streak|working|accura|history|results?|locked|pending)\b/.test(t)&&!(e.from&&e.from!==today()&&!/\btonight\b/.test(t)))return _chatTonight(q,e,{names:_chatNames(q)});
+  if(/\b(picks?|bets?|plays?|leans?|markets?|lines?|moneylines?|spreads?|totals?|over.?unders?)\b/.test(t)&&_chatNames(q).length&&!any&&!/\b(record|units?|winpct|roi|how many|did we|lost|won|calibrat|streak|working|accura|history|results?|locked|pending|why)\b/.test(t)){const g=await _chatTonight(q,e,{names:_chatNames(q)});if(g&&/^\*\*Tonight/.test(g.text))return g;}   // "picks for CLE PHI": a game on today's slate
+  if(/\b(who('s| is)? playing|who plays|plays? (today|tonight|tomorrow)|games?|schedule|slate|matchups?|tip.?off|fixtures?|kick.?off|what time)\b/.test(t)&&!/\b(record|units|winpct|profit|roi)\b/.test(t))return _chatSchedule(e);
+  if(_chat.last&&_chatFollow(t,e,perfWords)&&any&&!_chatNames(q).length)return _chatPerf(_chatMerge(_chat.last,e));
+  const onlyWhen=any&&!e.sports&&!e.types&&!e.side&&e.minProb==null&&e.maxProb==null&&!e.group;      // the only entities are a date / outcome
+  if(perfWords&&onlyWhen&&_chatNames(q).length){const tm=await _chatTeam(q,e);if(tm)return tm;}          // "How are the Lakers doing this month?"
+  if((perfWords||e.group)&&(any||!_chatNames(q).length))return _chatPerf(e);
+  const fullName=await _chatPlayer(q,e,true);if(fullName)return fullName;     // "LeBron James" is a player, not James Madison
   const team=await _chatTeam(q,e);if(team)return team;
-  if(perfWords||any){_chat.last=e;return _chatPerf(e);}
+  const player=await _chatPlayer(q,e);if(player)return player;
+  if(perfWords||any)return _chatPerf(e);
   const hits=_CHAT_GLOSS.filter(([re])=>re.test(t));
   if(hits.length)return{text:hits.slice(0,2).map(h=>h[1]).join('\n\n'),used:['glossary']};
   const names=_chatNames(q),found=_chatFindPicks(names,_chatLedger());
   if(found.length){const rows=found.slice(0,10).map(_chatRow);return{text:`**Picks matching "${names.join(' ')}"**\n`+_chatRowsMd(rows,10),used:['ledger']};}
-  return{text:'I can\'t answer that from Clairvoyance\'s data. I can do records and units (by sport, bet type, side, week or month), what is locked or pending, today\'s games, the best NBA props, why a pick was made, team stats, the engine\'s status, and what terms like ADJ. LINE or SKIP mean. Say "help" for examples.',used:[]};
+  return{text:'I can\'t answer that from Clairvoyance\'s data. I can do records and units (by sport, bet type, side, week or month), streaks, what is working, calibration, recent results, what is locked or pending, today\'s games, the best NBA props, a player, why a pick was made, team stats, the engine\'s status, and what terms like ADJ. LINE or SKIP mean. Say "help" for examples.',used:[]};
+}
+
+async function _chatAnswer(q){                // never returns an empty answer: the UI treats null as an error
+  const r=await _chatAnswerCore(q);
+  const ok=r&&typeof r.text==='string'&&r.text.trim();
+  const out=ok?r:{text:'I could not work out an answer to that. Say "help" for examples of what I can do.',used:[]};
+  if(!out.chips||!out.chips.length)out.chips=_chatMoreChips(q);
+  return out;
 }
 
 // ═══ UI ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
-const _CHAT_SUGGEST=['How is each sport doing this month?','What is locked today?','How are NHL UNDERs doing?','Best NBA props today','Why was the top pick locked?','What is an adjusted line?'];
+const _CHAT_IDEAS=[
+  {g:'TONIGHT',q:['Picks for games tonight','NHL picks tonight','NBA picks tonight','Spreads tonight','Over/unders tonight','Moneylines tonight','Best NBA props today','What is locked today?','Who plays tomorrow in the NHL?','What are the pending bets?']},
+  {g:'RECORD',q:['How are we doing this month?','Record by sport','Record by bet type','NHL vs NBA','Overs vs unders','How did we do yesterday?','Units last 7 days','How are underdogs doing?','How are NHL UNDERs doing?','NBA props record','Record by month','Hockey totals record']},
+  {g:'TRENDS',q:['What is working?','Current streak','Are the probabilities accurate?','Record on picks stated 70%+','What lost yesterday?','Last 10 picks','Biggest wins this month','Most confident losses','Is the model profitable?','Record last week']},
+  {g:'PLAYERS & TEAMS',q:['Jokic stats','LeBron James','Why was the top pick locked?','Why Jokic UNDER?','How is Toronto doing?','How is Boston doing?','How is Farjestad doing?','Picks for DEN OKC']},
+  {g:'LEARN',q:['What is an adjusted line?','What does SKIP mean?','What are units?','What is the published basis?','What are the grades?','What are retired leagues?','Is the automation healthy?','Help']}];
+const _CHAT_POOL=[].concat(..._CHAT_IDEAS.map(x=>x.q));
+const _CHAT_SUGGEST=_CHAT_POOL;
+// follow-up ideas shown under an answer that did not supply its own: a few from the pool, never the question just asked
+function _chatMoreChips(q){const lq=String(q||'').toLowerCase();let h=0;for(const c of lq)h=(h*31+c.charCodeAt(0))>>>0;const pool=_CHAT_POOL.filter(x=>x.toLowerCase()!==lq);return _chatChips(...[0,3,7,11,17].map(k=>pool[(h+k*5)%pool.length]).filter((v,i,a)=>a.indexOf(v)===i));}
 function _chatBuild(){
   if(document.getElementById('cv-ask'))return;
-  const fab=document.createElement('button');fab.id='cv-ask-fab';fab.type='button';fab.setAttribute('aria-label','Ask Clairvoyance');fab.textContent='ASK';fab.onclick=()=>_chatToggle();document.body.appendChild(fab);
+  const fab=document.createElement('button');fab.id='cv-ask-fab';fab.type='button';fab.setAttribute('aria-label','Ask Clairvoyance');fab.setAttribute('aria-expanded','false');fab.setAttribute('aria-controls','cv-ask');fab.textContent='ASK';fab.onclick=()=>_chatToggle();document.body.appendChild(fab);
   const el=document.createElement('div');el.id='cv-ask';el.setAttribute('role','dialog');el.setAttribute('aria-label','Ask Clairvoyance');
-  el.innerHTML='<div class="ask-h"><b>ASK CLAIRVOYANCE</b><button class="ask-x" id="ask-new" title="New chat" aria-label="New chat" style="font-size:12px;letter-spacing:1px">NEW</button><button class="ask-x" id="ask-close" aria-label="Close">×</button></div>'
+  el.innerHTML='<div class="ask-h"><b>ASK CLAIRVOYANCE</b><button class="ask-ideas" id="ask-ideas" type="button" title="Suggested questions">IDEAS</button><button class="ask-x" id="ask-new" title="New chat" aria-label="New chat" style="font-size:12px;letter-spacing:1px">NEW</button><button class="ask-x" id="ask-close" aria-label="Close">×</button></div>'
    +'<div class="ask-log" id="ask-log" aria-live="polite"></div>'
-   +'<form class="ask-in" id="ask-form"><textarea id="ask-text" rows="1" placeholder="Ask about picks or records…" aria-label="Your question" enterkeyhint="send"></textarea><button type="submit" id="ask-send">SEND</button></form>';
+   +'<form class="ask-in" id="ask-form"><textarea id="ask-text" rows="1" maxlength="300" placeholder="Ask about picks or records…" aria-label="Your question" enterkeyhint="send"></textarea><button type="submit" id="ask-send">SEND</button></form>';
   document.body.appendChild(el);
   document.getElementById('ask-close').onclick=()=>_chatToggle(false);
+  document.getElementById('ask-ideas').onclick=()=>{if(_chat.busy)return;_chatAddIdeas();};
   document.getElementById('ask-new').onclick=()=>{if(_chat.busy)return;_chat.hist=[];_chat.last=null;_chatSave();_chatRender();};
   const ta=document.getElementById('ask-text');
   ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(96,ta.scrollHeight)+'px';});
   ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();document.getElementById('ask-form').requestSubmit();}});
   document.getElementById('ask-form').addEventListener('submit',e=>{e.preventDefault();const v=ta.value.trim();if(v&&!_chat.busy){ta.value='';ta.style.height='auto';_chatSend(v);}});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&_chat.open&&!e.defaultPrevented){_chatToggle(false);try{fab.focus();}catch(x){}}});
 }
 function _chatLog(){return document.getElementById('ask-log');}
 function _chatAdd(cls,html){const l=_chatLog();if(!l)return null;const d=document.createElement('div');d.className=cls;d.innerHTML=html;l.appendChild(d);l.scrollTop=l.scrollHeight;return d;}
+function _chatAddChips(chips){
+  if(!chips||!chips.length)return;
+  const c=_chatAdd('ask-chips','');if(!c)return;
+  chips.forEach(s=>{const b=document.createElement('button');b.type='button';b.className='ask-chip';b.textContent=s.label;b.onclick=()=>{if(!_chat.busy)_chatSend(s.q);};c.appendChild(b);});
+}
+function _chatAddIdeas(){                                       // every suggested question, grouped; also reachable any time from the IDEAS button
+  const first=_chatAdd('ask-m a',_chatMd('Pick a question, or type your own:'));
+  _CHAT_IDEAS.forEach(g=>{_chatAdd('ask-gh',_chatEsc(g.g));_chatAddChips(g.q.map(x=>({label:x,q:x})));});
+  try{if(first)first.scrollIntoView({block:'start'});}catch(e){}      // start at the top of the list, not the bottom
+}
 function _chatRender(){
   const l=_chatLog();if(!l)return;l.innerHTML='';
   if(!_chat.hist.length){
     _chatAdd('ask-m a',_chatMd('Ask me about your picks, records by sport or bet type, today\'s slate, why a pick was made, or what a term means. I answer from Clairvoyance\'s own data, with no outside service, and I can\'t change anything.'));
-    const c=_chatAdd('ask-chips','');_CHAT_SUGGEST.forEach(s=>{const b=document.createElement('button');b.type='button';b.className='ask-chip';b.textContent=s;b.onclick=()=>{if(!_chat.busy)_chatSend(s);};c.appendChild(b);});
+    _CHAT_IDEAS.forEach(g=>{_chatAdd('ask-gh',_chatEsc(g.g));_chatAddChips(g.q.map(x=>({label:x,q:x})));});
+    l.scrollTop=0;
   }else _chat.hist.forEach(m=>_chatAdd('ask-m '+(m.role==='user'?'u':'a'),m.role==='user'?_chatEsc(m.content):_chatMd(m.content)));
 }
 async function _chatSend(text){
   if(_chat.busy)return;_chat.busy=true;const send=document.getElementById('ask-send');if(send)send.disabled=true;
   if(!_chat.hist.length)_chatLog().innerHTML='';
+  document.querySelectorAll('#ask-log .ask-chips, #ask-log .ask-gh').forEach(x=>x.remove());     // chips belong to the latest answer only
   _chat.hist.push({role:'user',content:text});_chatAdd('ask-m u',_chatEsc(text));
+  if(_chat.hist.length>40)_chat.hist=_chat.hist.slice(-40);
+  {const lg=_chatLog();while(lg&&lg.children.length>80)lg.removeChild(lg.firstChild);}      // keep memory and the DOM bounded
   const wait=_chatAdd('ask-m a ask-dots','<span>●</span><span>●</span><span>●</span>');
   let ans=null,err=null;
   try{ans=await Promise.race([_chatAnswer(text),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),20000))]);}
   catch(e){err=e&&e.message==='timeout'?'That lookup took too long. Try again, or ask it more narrowly.':'Something went wrong answering that. Try rephrasing it.';}
   if(wait)wait.remove();
-  if(ans&&ans.text){
-    if(ans.used&&ans.used.length)_chatAdd('ask-tools','looked up: '+_chatEsc([...new Set(ans.used)].join(', ')));
-    _chat.hist.push({role:'assistant',content:ans.text});_chatAdd('ask-m a',_chatMd(ans.text));
-  }else{_chat.hist.pop();_chatAdd('ask-m e',_chatEsc(err||'No answer.'));}
+  try{
+    if(ans&&ans.text){
+      if(ans.used&&ans.used.length)_chatAdd('ask-tools','looked up: '+_chatEsc([...new Set(ans.used)].join(', ')));
+      _chat.hist.push({role:'assistant',content:ans.text});_chatAdd('ask-m a',_chatMd(ans.text));_chatAddChips(ans.chips);
+    }else{_chat.hist.pop();_chatAdd('ask-m e',_chatEsc(err||'No answer.'));}
+  }catch(x){_chatAdd('ask-m e',_chatEsc('Could not display that answer. Try rephrasing it.'));}      // the busy flag below is always released
   _chatSave();_chat.busy=false;if(send)send.disabled=false;
   const l=_chatLog();if(l)l.scrollTop=l.scrollHeight;
 }
@@ -35930,6 +36193,7 @@ function _chatToggle(force){
   const el=document.getElementById('cv-ask');if(!el)return;
   const open=force==null?!el.classList.contains('on'):!!force;
   el.classList.toggle('on',open);_chat.open=open;
+  const fab=document.getElementById('cv-ask-fab');if(fab)fab.setAttribute('aria-expanded',open?'true':'false');
   if(open){_chatRender();setTimeout(()=>{try{document.getElementById('ask-text').focus();}catch(e){}},50);}
 }
 function _chatInit(){
@@ -35939,6 +36203,20 @@ function _chatInit(){
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_chatInit);else _chatInit();
 </script>
 <!-- CHAT:END -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 </div><!-- /app -->
 
