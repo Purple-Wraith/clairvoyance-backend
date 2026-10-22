@@ -128,11 +128,17 @@ else:
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. SERVICE WORKER — must stay disabled
 # ─────────────────────────────────────────────────────────────────────────────
+# Re-enabled 2026-10-22 (owner request: home-screen app stalled on cold GitHub Pages fetches), ONLY in the guarded form below.  The May-2026 blank-page loops came from forced reloads;
+# the guarded form never reloads by itself, has a ?nosw=1 kill switch, and never runs in automation.
 sw = html.count('serviceWorker.register')
 if sw == 0:
     ok('No service worker registration')
+elif sw == 1 and "register('cv-sw.js'" in html and 'nosw=1' in html and 'navigator.webdriver' in html and 'function _cvSwInit' in html:
+    ok('Service worker registered only through the guarded _cvSwInit (kill switch ?nosw=1, never in automation)')
 else:
-    err(f'serviceWorker.register found ({sw}x) — re-enabling SW causes blank page loading loops')
+    err(f'serviceWorker.register found ({sw}x) outside the guarded _cvSwInit — an unguarded SW can cause blank page loading loops')
+if 'location.reload' in open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'docs', 'cv-sw.js'), encoding='utf-8').read() or 'navigate(' in open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'docs', 'cv-sw.js'), encoding='utf-8').read():
+    err('docs/cv-sw.js must never reload or navigate a page by itself')
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. CRITICAL HTML ELEMENTS

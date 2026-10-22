@@ -483,7 +483,7 @@ class Audit(unittest.TestCase):
     def test_no_request_goes_to_an_ai_or_unknown_host(self):
         pg = self.page()
         pg.wait_for_timeout(3000)
-        self.hosts.clear()                    # the app makes its own requests on load (incl. a dead localhost:8000 backend); only what ASK itself triggers is audited here
+        self.hosts.clear()                    # the app makes its own requests on load; only what ASK itself triggers is audited here
         for q in ["How is Toronto doing?", "who plays tonight", "NFL schedule", "best NBA props today", "Jokic stats", "is the automation healthy?", "record", "calibration"]:
             self.ask(q, pg)
         for h in self.hosts:

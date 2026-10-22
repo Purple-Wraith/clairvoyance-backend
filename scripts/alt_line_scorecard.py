@@ -91,12 +91,21 @@ def margin_total(p: dict):
 
 def grade(p: dict, line: float, bet_override: str | None = None):
     """Result of the pick's bet at `line`: 'win' | 'loss' | 'push' | None (cannot grade). `bet_override` grades a different bet text (the POSTED pick of a side-flipped total)."""
+    bt = (p.get("betType") or "").upper()
+    bet = str(bet_override if bet_override is not None else (p.get("betOn") or ""))
+    if bt == "PROP":                                       # a player prop grades on his actual stat from the box score (settlement stores it as playerResult)
+        try:
+            v = float(p.get("playerResult"))
+        except (TypeError, ValueError):
+            return None
+        m = re.search(r"\b(OVER|UNDER)\b", bet, re.I)
+        if not m:
+            return None
+        return "push" if v == line else ("win" if ((v > line) == (m.group(1).upper() == "OVER")) else "loss")
     sc = margin_total(p)
     if sc is None:
         return None
     h, a = sc
-    bt = (p.get("betType") or "").upper()
-    bet = str(bet_override if bet_override is not None else (p.get("betOn") or ""))
     if bt in ("OU", "O/U", "TOTAL"):
         side = "OVER" if bet.upper().startswith("OVER") else "UNDER"
         tot = h + a

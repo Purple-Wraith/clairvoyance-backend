@@ -70,6 +70,35 @@ class AltTracker(unittest.TestCase):
         self.assertEqual(sum(1 for r in rows if r[3]), 3)       # alt1, alt2, alt3 were saved by the shift
         pg.close()
 
+    def test_player_props_grade_from_the_box_score_stat(self):
+        def prop(i, on, posted, line, actual, outcome, shift):
+            d = {"id": f"altp{i}", "sport": "NBA", "betType": "PROP", "betOn": on, "hA": "HOM", "awA": "AWY", "player": "Test Guy", "date": "2026-10-22", "lockedAt": 1791200000000 + i,
+                 "decOdds": 1.4, "winProb": 0.68, "ml": "-250", "priceSource": "estimated", "outcome": outcome,
+                 "altLine": {"posted": posted, "line": line, "shift": shift, "postedLabel": on.replace(str(line), str(posted))}}
+            if actual is not None:
+                d["playerResult"] = actual            # what autoSettlePropsESPN stores from the box score
+            return d
+        cases = [(prop(1, "Test Guy OVER PTS 19.5", 24.5, 19.5, 22, "win", 5), "win", "loss"),      # 22 pts clears 19.5, misses 24.5 -> saved by the shift
+                 (prop(2, "Test Guy UNDER REB 12.5", 10.5, 12.5, 11, "win", 2), "win", "loss"),      # 11 reb: under 12.5 wins, under 10.5 loses
+                 (prop(3, "Test Guy OVER AST 4.5", 6.5, 4.5, 4, "loss", 2), "loss", "loss"),          # 4 ast: loses both
+                 (prop(4, "Test Guy OVER PTS 20", 25, 20, 20, "push", 5), "push", "loss"),            # exactly on the line: push
+                 (prop(5, "Test Guy OVER PTS 19.5", 24.5, 19.5, None, "win", 5), "win", None)]        # settled but no stat stored -> posted result unknown
+        pending = prop(6, "Test Guy OVER PTS 19.5", 24.5, 19.5, None, "pending", 5)
+        pg = self.page([c[0] for c in cases] + [pending])
+        rows = {r[0]: r for r in pg.evaluate("_altRows(getP()).map(r=>[r.p.id,r.alt,r.posted,r.saved])")}
+        for p, exp_alt, exp_post in cases:
+            self.assertEqual((rows[p["id"]][1], rows[p["id"]][2]), (exp_alt, exp_post), p["id"])
+            if exp_post is not None:                                                  # parity with the backend scorecard
+                self.assertEqual(sc.grade(p, float(p["altLine"]["posted"])), exp_post, "python (posted) " + p["id"])
+                self.assertEqual(sc.grade(p, float(p["altLine"]["line"])), exp_alt, "python (locked) " + p["id"])
+        self.assertTrue(rows["altp1"][3] and rows["altp2"][3] and not rows["altp3"][3])
+        note = pg.evaluate("_altNoteHTML(getP().find(p=>p.id==='altp2'))")
+        self.assertIn("ADJUSTED 2 REB", note)                                          # a prop moves in its own unit, not points
+        self.assertIn("SAVED BY SHIFT", note)
+        self.assertIn("ADJUSTED 5 PTS", pg.evaluate("_altNoteHTML(getP().find(p=>p.id==='altp1'))"))
+        self.assertEqual(rows["altp6"][1], "pending")
+        pg.close()
+
     def test_totals(self):
         pg = self.page()
         s = pg.evaluate("_altStats(_altRows(getP().filter(p=>p.id.startsWith('alt'))))")
