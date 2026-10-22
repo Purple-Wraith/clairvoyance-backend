@@ -89211,9 +89211,9 @@
     "winProb": 0.847,
     "lockedAt": 1792628003600,
     "reasoning": "PICK: HOU ML \u2014 SKIP (84.7% win prob, EV +3.9%)\nMODEL: Projected 107.1\u2013120.1 (total 227.2), from a 25k-sim Monte Carlo.",
+    "settledAt": 1792641764721,
     "lockOrigin": "manual",
-    "lockTiming": "pre",
-    "settledAt": 1792641083067
+    "lockTiming": "pre"
   },
   {
     "hA": "HOU",
@@ -89245,10 +89245,10 @@
     "winProb": 0.682,
     "lockedAt": 1792578221111,
     "reasoning": "PICK: HOU -3.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted HOU -9.5 to HOU -3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 63.2%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected 106.9\u2013120.1 (total 227.0), from a 25k-sim Monte Carlo.",
+    "settledAt": 1792641764719,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1792641083068
+    "priceSource": "estimated"
   },
   {
     "hA": "Internazionale",
@@ -89834,8 +89834,8 @@
     "betOn": "UNDER 239.5",
     "sport": "NBA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 83,
+    "hScore": 124,
     "league": "NBA",
     "source": "manual",
     "altLine": {
@@ -89850,14 +89850,15 @@
     "betType": "OU",
     "decOdds": 1.399,
     "leadMin": 936,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792634400000,
     "winProb": 0.67,
     "lockedAt": 1792578221260,
     "reasoning": "PICK: UNDER 239.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted UNDER 231.5 to UNDER 239.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.3%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected 111.6\u2013112.6 (total 224.2), from a 25k-sim Monte Carlo.",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1792643471635
   },
   {
     "hA": "Real Betis",
@@ -98548,8 +98549,7 @@
     "winProb": 0.6772,
     "lockedAt": 1792578221850,
     "reasoning": "PICK: Andrew Nembhard OVER AST 7.5 \u2014 PREMIUM (68% model hit rate)\nMODEL: projection 9.02 AST (season average 7.7, last-5 form 12, opponent adjustment +1.3) vs the 7.5 line, spread \u03c3 3.3, from a 5k-sim Monte Carlo.\nWHY: Andrew Nembhard averages 7.7 apg across 57 games this season. Opp NO DRtg 118.9 vs a 115.7 league average computed from every currently-loaded team, a 3% boost folded into the projection. No head-to-head history vs NO this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
-    "settledAt": 1792638074662,
-    "playerResult": 9
+    "settledAt": 1792638074662
   },
   {
     "hA": "POR",
@@ -98568,10 +98568,12 @@
     "player": "Deni Avdija",
     "betType": "PROP",
     "decOdds": 1.53475935828877,
-    "outcome": "pending",
+    "outcome": "loss",
     "winProb": 0.6514,
     "lockedAt": 1792578222313,
-    "reasoning": "PICK: Deni Avdija UNDER REB 7.5 \u2014 OPTIMAL (65% model hit rate)\nMODEL: projection 6.44 REB (season average 6.9, last-5 form 5.4, opponent adjustment -0.5) vs the 7.5 line, spread \u03c3 2.79, from a 5k-sim Monte Carlo.\nWHY: Deni Avdija averages 6.9 rpg across 66 games this season. Opp PHX DRtg 114.1 vs a 115.7 league average computed from every currently-loaded team, a -1% reduction folded into the projection. No head-to-head history vs PHX this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
+    "reasoning": "PICK: Deni Avdija UNDER REB 7.5 \u2014 OPTIMAL (65% model hit rate)\nMODEL: projection 6.44 REB (season average 6.9, last-5 form 5.4, opponent adjustment -0.5) vs the 7.5 line, spread \u03c3 2.79, from a 5k-sim Monte Carlo.\nWHY: Deni Avdija averages 6.9 rpg across 66 games this season. Opp PHX DRtg 114.1 vs a 115.7 league average computed from every currently-loaded team, a -1% reduction folded into the projection. No head-to-head history vs PHX this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+    "settledAt": 1792643474394,
+    "playerResult": 10
   },
   {
     "hA": "TOR",
@@ -98618,8 +98620,7 @@
     "winProb": 0.6617999999999999,
     "lockedAt": 1792578222122,
     "reasoning": "PICK: Keyonte George UNDER AST 6.5 \u2014 OPTIMAL (66% model hit rate)\nMODEL: projection 5.45 AST (season average 6.1, last-5 form 3, opponent adjustment -0.6) vs the 6.5 line, spread \u03c3 2.45, from a 5k-sim Monte Carlo.\nWHY: Keyonte George averages 6.1 apg across 54 games this season. Opp MEM DRtg 118.5 vs a 115.7 league average computed from every currently-loaded team, a 2% boost folded into the projection. No head-to-head history vs MEM this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
-    "settledAt": 1792638074662,
-    "playerResult": 5
+    "settledAt": 1792638074662
   },
   {
     "hA": "ORL",
