@@ -488,7 +488,7 @@ class Audit(unittest.TestCase):
             self.ask(q, pg)
         for h in self.hosts:
             self.assertNotRegex(h, r"anthropic|openai|googleapis\.com/v1|cohere|mistral|groq|huggingface", h)
-        allowed = re.compile(r"^(127\.0\.0\.1:\d+|site\.api\.espn\.com|cdn\.[\w.-]+|fonts\.[\w.-]+|[\w.-]*supabase[\w.-]*|[\w.-]*cloudflare[\w.-]*|[\w.-]*workers\.dev|[\w.-]*github[\w.-]*|api\.frankfurter\.[\w]+|[\w.-]*espncdn\.com|[\w.-]*gstatic\.com|[\w.-]*jsdelivr\.net|[\w.-]*unpkg\.com|[\w.-]*cdnjs[\w.-]*|[\w.-]*opta[\w.-]*|[\w.-]*quanthockey[\w.-]*|[\w.-]*moneypuck[\w.-]*|[\w.-]*nhle\.com|[\w.-]*sportsdata[\w.-]*|[\w.-]*basketball-reference[\w.-]*)$")
+        allowed = re.compile(r"^(127\.0\.0\.1:\d+|site\.api\.espn\.com|cdn\.[\w.-]+|fonts\.[\w.-]+|[\w.-]*supabase[\w.-]*|[\w.-]*cloudflare[\w.-]*|[\w.-]*workers\.dev|[\w.-]*github[\w.-]*|api\.frankfurter\.[\w]+|[\w.-]*gstatic\.com|[\w.-]*jsdelivr\.net|[\w.-]*unpkg\.com|[\w.-]*cdnjs[\w.-]*|[\w.-]*opta[\w.-]*|[\w.-]*quanthockey[\w.-]*|[\w.-]*moneypuck[\w.-]*|[\w.-]*nhle\.com|[\w.-]*sportsdata[\w.-]*|[\w.-]*basketball-reference[\w.-]*)$")
         unknown = sorted(h for h in self.hosts if not allowed.match(h))
         self.assertEqual(unknown, [], f"requests to hosts the app does not normally use: {unknown}")
         pg.close()
