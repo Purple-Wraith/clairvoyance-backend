@@ -48,6 +48,8 @@ class Tab(unittest.TestCase):
         pg.wait_for_function("typeof renderNBAUpcoming==='function'&&window._NBA_SCHED!==undefined")
         pg.wait_for_timeout(1500)
         pg.evaluate(f"window._nbaEtToday=()=>'{today}'")
+        # the page already rendered once on the REAL date; forget that day's selection so the faked date decides the default (once the real date is a game day, its selection would otherwise be kept)
+        pg.evaluate("(()=>{const s=document.getElementById('nba-filter-day');if(s){s.innerHTML='';delete s.dataset.key;}})()")
         pg.evaluate("navTap(document.querySelector(\"[onclick*=\\\"navTap(this,'nba')\\\"]\"),'nba')")
         pg.wait_for_timeout(500)
         return pg
