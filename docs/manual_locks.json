@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-10-22T18:23:00.321Z",
+ "updated_at": "2026-10-22T20:11:32.932Z",
  "picks": [
   {
    "id": "2026-10-03_Hameenlinna_Karpat_LIIGA_Karpat-1.5",
@@ -4699,28 +4699,6 @@
    "lockTiming": "late-manual"
   },
   {
-   "hA": "DEN",
-   "id": "prop_2026-10-22_NBA_NikolaJokic_REB_13.5_U",
-   "ml": "-188",
-   "awA": "OKC",
-   "conf": 0.6522,
-   "date": "2026-10-22",
-   "line": 13.5,
-   "over": false,
-   "team": "DEN",
-   "betOn": "Nikola Jokic UNDER REB 13.5",
-   "sport": "NBA",
-   "wager": 0,
-   "league": "NBA",
-   "player": "Nikola Jokic",
-   "betType": "PROP",
-   "decOdds": 1.5319148936170213,
-   "outcome": "pending",
-   "winProb": 0.6522,
-   "lockedAt": 1792664629600,
-   "reasoning": "PICK: Nikola Jokic UNDER REB 13.5 — OPTIMAL (65% model hit rate)\nMODEL: projection 11.94 REB (season average 12.9, last-5 form 12.6, opponent adjustment -1) vs the 13.5 line, spread σ 3.88, from a 5k-sim Monte Carlo.\nWHY: Nikola Jokic averages 12.9 rpg across 65 games this season. Opp OKC DRtg 107.7 vs a 115.7 league average computed from every currently-loaded team, a -7% reduction folded into the projection. No head-to-head history vs OKC this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
-  },
-  {
    "id": "2026-10-22_JYP_Hameenlinna_LIIGA_UNDER6.5",
    "date": "2026-10-22",
    "hA": "JYP",
@@ -4733,10 +4711,10 @@
    "ml": "-345",
    "decOdds": 1.29,
    "wager": 0,
-   "outcome": "pending",
+   "outcome": "win",
    "lockedAt": 1792681592657,
-   "hScore": null,
-   "aScore": null,
+   "hScore": 3,
+   "aScore": 2,
    "source": "manual",
    "lockOrigin": "manual",
    "priceSource": "estimated",
@@ -4752,7 +4730,8 @@
    },
    "startMs": 1792683000000,
    "leadMin": 23,
-   "lockTiming": "pre"
+   "lockTiming": "pre",
+   "settledAt": 1792693930596
   },
   {
    "id": "2026-10-22_Olomouc_Mlada Boleslav_EXTRALIGA_OVER4.5",
@@ -4767,17 +4746,18 @@
    "ml": "-200",
    "decOdds": 1.5,
    "wager": 0,
-   "outcome": "pending",
+   "outcome": "win",
    "lockedAt": 1792681865766,
-   "hScore": null,
-   "aScore": null,
+   "hScore": 4,
+   "aScore": 2,
    "source": "manual",
    "lockOrigin": "manual",
    "priceSource": "market",
    "reasoning": "PICK: OVER 4.5 — MANUAL LINE (47.8% estimated win prob at this line)\nLINE EDITED: the line was changed by hand from OVER 5.5 to OVER 4.5. The win probability is the card's 40.8% for OVER 5.5, adjusted 7.0 points of probability per point of line for this O/U -- a simple estimate, not a re-run of the engine's model.\nPRICE: a standard assumed price, not a market quote.\nMODEL: Projected 2.8–2.6 (total 5.4) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).",
    "startMs": 1792684800000,
    "leadMin": 49,
-   "lockTiming": "pre"
+   "lockTiming": "pre",
+   "settledAt": 1792693930712
   },
   {
    "id": "2026-10-22_Olomouc_Mlada Boleslav_EXTRALIGA_MladaBoleslav",
@@ -4792,10 +4772,10 @@
    "ml": "-120",
    "decOdds": 1.83,
    "wager": 0,
-   "outcome": "pending",
+   "outcome": "loss",
    "lockedAt": 1792681869370,
-   "hScore": null,
-   "aScore": null,
+   "hScore": 4,
+   "aScore": 2,
    "source": "manual",
    "lockOrigin": "manual",
    "priceSource": "market",
@@ -4805,7 +4785,8 @@
    "startMs": 1792684800000,
    "leadMin": 49,
    "lockTiming": "pre",
-   "reasoning": "PICK: Mlada Boleslav ML — SKIP (52.7% win prob, EV -3.5% · MARKET PRICE -120 (EV at market -3.5%) · MARKET-BLENDED: model 58.0% · no-vig market 50.9% → 52.7% (alpha 0.75))\nMODEL: Projected 2.8–2.6 (total 5.4) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation)."
+   "reasoning": "PICK: Mlada Boleslav ML — SKIP (52.7% win prob, EV -3.5% · MARKET PRICE -120 (EV at market -3.5%) · MARKET-BLENDED: model 58.0% · no-vig market 50.9% → 52.7% (alpha 0.75))\nMODEL: Projected 2.8–2.6 (total 5.4) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).",
+   "settledAt": 1792693930712
   },
   {
    "id": "2026-10-22_Orebro_Brynas_SHL_UNDER6.5",
@@ -4820,17 +4801,18 @@
    "ml": "-256",
    "decOdds": 1.39,
    "wager": 0,
-   "outcome": "pending",
+   "outcome": "win",
    "lockedAt": 1792682356194,
-   "hScore": null,
-   "aScore": null,
+   "hScore": 3,
+   "aScore": 2,
    "source": "manual",
    "lockOrigin": "manual",
    "priceSource": "market",
    "reasoning": "PICK: UNDER 6.5 — MANUAL LINE (50.4% estimated win prob at this line)\nLINE EDITED: the line was changed by hand from UNDER 4.5 to UNDER 6.5. The win probability is the card's 36.4% for UNDER 4.5, adjusted 7.0 points of probability per point of line for this O/U -- a simple estimate, not a re-run of the engine's model.\nPRICE: a standard assumed price, not a market quote.\nMODEL: Projected 2.8–2.5 (total 5.3) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).",
    "startMs": 1792688400000,
    "leadMin": 101,
-   "lockTiming": "pre"
+   "lockTiming": "pre",
+   "settledAt": 1792698806242
   },
   {
    "id": "2026-10-22_Rogle_Frolunda_SHL_UNDER6.5",
@@ -4845,17 +4827,18 @@
    "ml": "-333",
    "decOdds": 1.3,
    "wager": 0,
-   "outcome": "pending",
+   "outcome": "win",
    "lockedAt": 1792682584334,
-   "hScore": null,
-   "aScore": null,
+   "hScore": 4,
+   "aScore": 1,
    "source": "manual",
    "lockOrigin": "manual",
    "priceSource": "market",
    "reasoning": "PICK: UNDER 6.5 — MANUAL LINE (54.1% estimated win prob at this line)\nLINE EDITED: the line was changed by hand from UNDER 4.5 to UNDER 6.5. The win probability is the card's 40.1% for UNDER 4.5, adjusted 7.0 points of probability per point of line for this O/U -- a simple estimate, not a re-run of the engine's model.\nPRICE: a standard assumed price, not a market quote.\nMODEL: Projected 2.7–2.4 (total 5.1) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).",
    "startMs": 1792688400000,
    "leadMin": 97,
-   "lockTiming": "pre"
+   "lockTiming": "pre",
+   "settledAt": 1792698806242
   },
   {
    "id": "2026-10-22_Skelleftea_Djurgarden_SHL_OVER4.5",
@@ -4870,17 +4853,18 @@
    "ml": "-282",
    "decOdds": 1.355,
    "wager": 0,
-   "outcome": "pending",
+   "outcome": "win",
    "lockedAt": 1792682665519,
-   "hScore": null,
-   "aScore": null,
+   "hScore": 4,
+   "aScore": 1,
    "source": "manual",
    "lockOrigin": "manual",
    "priceSource": "market",
    "reasoning": "PICK: OVER 4.5 — MANUAL LINE (54.8% estimated win prob at this line)\nLINE EDITED: the line was changed by hand from OVER 5.5 to OVER 4.5. The win probability is the card's 47.8% for OVER 5.5, adjusted 7.0 points of probability per point of line for this O/U -- a simple estimate, not a re-run of the engine's model.\nPRICE: a standard assumed price, not a market quote.\nMODEL: Projected 2.3–3.3 (total 5.6) (OT/SO in 16% of outcomes), from an exact Poisson distribution (not a simulation).",
    "startMs": 1792688400000,
    "leadMin": 96,
-   "lockTiming": "pre"
+   "lockTiming": "pre",
+   "settledAt": 1792698806243
   },
   {
    "id": "2026-10-22_Vaxjo_Lulea_SHL_UNDER6.5",
@@ -4895,17 +4879,18 @@
    "ml": "-256",
    "decOdds": 1.39,
    "wager": 0,
-   "outcome": "pending",
+   "outcome": "win",
    "lockedAt": 1792682781265,
-   "hScore": null,
-   "aScore": null,
+   "hScore": 2,
+   "aScore": 1,
    "source": "manual",
    "lockOrigin": "manual",
    "priceSource": "market",
    "reasoning": "PICK: UNDER 6.5 — MANUAL LINE (60.7% estimated win prob at this line)\nLINE EDITED: the line was changed by hand from UNDER 5.5 to UNDER 6.5. The win probability is the card's 53.7% for UNDER 5.5, adjusted 7.0 points of probability per point of line for this O/U -- a simple estimate, not a re-run of the engine's model.\nPRICE: a standard assumed price, not a market quote.\nMODEL: Projected 2.8–3.0 (total 5.8) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).",
    "startMs": 1792688400000,
    "leadMin": 94,
-   "lockTiming": "pre"
+   "lockTiming": "pre",
+   "settledAt": 1792698806244
   },
   {
    "id": "2026-10-22_OKC_DEN_NBA_UNDER244.5",
