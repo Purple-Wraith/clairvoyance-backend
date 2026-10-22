@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-10-22T14:44:50.500Z",
+ "updated_at": "2026-10-22T15:06:41.301Z",
  "picks": [
   {
    "id": "2026-10-03_Hameenlinna_Karpat_LIIGA_Karpat-1.5",
@@ -4719,6 +4719,40 @@
    "winProb": 0.6522,
    "lockedAt": 1792664629600,
    "reasoning": "PICK: Nikola Jokic UNDER REB 13.5 — OPTIMAL (65% model hit rate)\nMODEL: projection 11.94 REB (season average 12.9, last-5 form 12.6, opponent adjustment -1) vs the 13.5 line, spread σ 3.88, from a 5k-sim Monte Carlo.\nWHY: Nikola Jokic averages 12.9 rpg across 65 games this season. Opp OKC DRtg 107.7 vs a 115.7 league average computed from every currently-loaded team, a -7% reduction folded into the projection. No head-to-head history vs OKC this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
+  },
+  {
+   "id": "2026-10-22_JYP_Hameenlinna_LIIGA_UNDER6.5",
+   "date": "2026-10-22",
+   "hA": "JYP",
+   "awA": "Hameenlinna",
+   "sport": "LIIGA",
+   "league": "LIIGA",
+   "betType": "OU",
+   "betOn": "UNDER 6.5",
+   "winProb": 0.7304,
+   "ml": "-345",
+   "decOdds": 1.29,
+   "wager": 0,
+   "outcome": "pending",
+   "lockedAt": 1792681592657,
+   "hScore": null,
+   "aScore": null,
+   "source": "manual",
+   "lockOrigin": "manual",
+   "priceSource": "estimated",
+   "reasoning": "PICK: UNDER 6.5 — ADJUSTED LINE (73.0% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 5.5 to UNDER 6.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 54.7%; the 1-goal cushion is priced from the historical margin curve for this market (about 73% to cover).\nMODEL: Projected 2.5–3.0 (total 5.5) (OT/SO in 17% of outcomes), from an exact Poisson distribution (not a simulation).",
+   "altLine": {
+    "posted": 5.5,
+    "line": 6.5,
+    "shift": 1,
+    "postedLabel": "UNDER 5.5",
+    "postedDec": 1.685,
+    "postedMl": "-146",
+    "flip": false
+   },
+   "startMs": 1792683000000,
+   "leadMin": 23,
+   "lockTiming": "pre"
   }
  ]
 }
