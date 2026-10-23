@@ -20212,6 +20212,7 @@ function _topPickRowHTML(e){
     <div style="text-align:right;flex-shrink:0">
       <span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${col};color:${col};border-radius:2px">${lbl}</span>${settledBadge}
       <div style="font-family:var(--mono);font-size:13px;color:var(--t2);margin-top:2px">${m.prob!=null?(m.prob*100).toFixed(1)+'%':'--'}</div>
+      ${e.kindRec&&e.kindRec.n>=10?`<div class="tp-kind" title="How this KIND of pick (league, bet type, adjusted line or not) has actually done over the last ${TOP_PICKS_RECENT_DAYS} days" style="font-family:var(--mono);font-size:11px;color:${e.weakKind?'#ffb300':'var(--t3)'}">${Math.round(100*e.kindRec.w/e.kindRec.n)}% LAST ${e.kindRec.n} SAME KIND${e.weakKind?' · DEMOTED':''}</div>`:''}
     </div>
   </div>`;
 }
@@ -20239,6 +20240,44 @@ function _topPicksEffective(l,mkt){
   }
   return{p:raw,alt:null};
 }
+// TRACK RECORD OF EACH KIND OF PICK (owner 2026-10-23: "improve the top picks tab ... so we can increase win %").  A walk-forward backtest (scripts/backtest_top_picks.py) found that what a kind of pick has
+// actually WON says more than its stated probability: picks stated 75%+ won 63% while 65-70% won 72%, and adjusted-line spreads won 82% against a stated 68%.  A "kind" is league x bet type x adjusted-line-or-not.
+// Its record is the last TOP_PICKS_RECENT_DAYS days of settled pre-start picks of that kind, shrunk (k=30) toward its bet type's record, which is shrunk toward the overall record.  A kind whose shrunk record is
+// under TOP_PICKS_WEAK is DEMOTED in the Top 10 (it still shows in its league section, and fills the list only if nothing better is left).  Honest limits: the backtest direction is positive in every window but
+// not significant on the post-fix data alone (20 days), so this only reorders a display list -- it never touches a lock -- and is re-tested as results accrue.  Past days (fromLedger) are never re-ranked with
+// today's records (that would be look-ahead).
+const TOP_PICKS_RECENT_DAYS=21,TOP_PICKS_WEAK=.65,TOP_PICKS_K=30;
+let _tpRecCache={at:0,v:null};
+function _tpKindOf(sportTag,side,isAlt){
+  const sp=String(sportTag||'').replace(/^SOC_/,'');
+  const g=['PL','LIGA','CL','SERIEA','ITA','BL','MLS'].includes(sp)?'SOC':sp;
+  const m=(side==='over'||side==='under')?'OU':(/^(sprd|pl|rl|ah)/.test(side||'')?'SPREAD':'ML');
+  return{g,m,alt:!!isAlt};
+}
+function _tpTrackRecords(){
+  const now=Date.now();
+  if(_tpRecCache.v&&now-_tpRecCache.at<60000)return _tpRecCache.v;
+  const cut=now-TOP_PICKS_RECENT_DAYS*864e5,cellL={},cellM={};let nAll=0,wAll=0;
+  try{
+    getP().forEach(p=>{
+      if(!p||(p.outcome!=='win'&&p.outcome!=='loss')||String(p.betType||'').toUpperCase()==='PROP'||_isParlay(p))return;
+      const t=p.settledAt||Date.parse((p.date||'')+'T12:00:00Z');if(!(t>=cut))return;
+      try{if(typeof _calEligible==='function'&&!_calEligible(p))return;}catch(e){}
+      const bt=String(p.betType||'').toUpperCase(),m=bt==='OU'?'OU':(bt==='SPREAD'||bt==='RL'||bt==='PL')?'SPREAD':'ML';
+      const sp=window._normSport?window._normSport(p):String(p.sport||'');
+      const k=_tpKindOf(sp,m==='OU'?'over':m==='SPREAD'?'sprdFav':'mlFav',!!p.altLine),w=p.outcome==='win'?1:0;
+      const kl=k.g+'|'+k.m+'|'+k.alt,km=k.m+'|'+k.alt;
+      (cellL[kl]=cellL[kl]||{n:0,w:0}).n++;cellL[kl].w+=w;(cellM[km]=cellM[km]||{n:0,w:0}).n++;cellM[km].w+=w;nAll++;wAll+=w;
+    });
+  }catch(e){}
+  const pool=nAll?wAll/nAll:.65;
+  const v={nAll,pool,rate(kind){
+    const m=cellM[kind.m+'|'+kind.alt]||{n:0,w:0},l=cellL[kind.g+'|'+kind.m+'|'+kind.alt]||{n:0,w:0};
+    const rm=(m.w+TOP_PICKS_K*pool)/(m.n+TOP_PICKS_K);
+    return{rate:(l.w+TOP_PICKS_K*rm)/(l.n+TOP_PICKS_K),n:l.n,w:l.w};
+  }};
+  _tpRecCache={at:now,v};return v;
+}
 function _topPicksRankLegs(legs){
   const qualifying=(legs||[]).filter(l=>l.best&&l.best.tierN>=1).map(l=>{
     let mkt=(l.markets||[]).find(m=>m.side===l.best.side)||{};
@@ -20247,9 +20286,12 @@ function _topPicksRankLegs(legs){
     if(eff.alt){best={...l.best,label:eff.alt.label,side:eff.alt.side||l.best.side};}
     if(eff.p!=null)mkt={...mkt,prob:eff.p};
     const settledOutcome=l.settledOutcome!==undefined?l.settledOutcome:_gradeSettledPick({...l,best});
-    return{...l,best,leagueTag:l.sport,leagueLabel:_topPicksLeagueLabel(l.sport),matchup:`${l.awA} @ ${l.hA}`,tierN:l.best.tierN,marketInfo:mkt,settledOutcome,effP:eff.p!=null?eff.p:0,altLine:eff.alt||null};
+    let kindRec=null;
+    if(!l.fromLedger){try{const tr=_tpTrackRecords();if(tr.nAll>=30)kindRec=tr.rate(_tpKindOf(l.sport,l.best.side,!!eff.alt));}catch(e){}}
+    return{...l,best,leagueTag:l.sport,leagueLabel:_topPicksLeagueLabel(l.sport),matchup:`${l.awA} @ ${l.hA}`,tierN:l.best.tierN,marketInfo:mkt,settledOutcome,effP:eff.p!=null?eff.p:0,altLine:eff.alt||null,
+      kindRec,weakKind:!!(kindRec&&kindRec.rate<TOP_PICKS_WEAK)};
   });
-  const rank=e=>e.effP*100+e.tierN;
+  const rank=e=>e.effP*100+e.tierN-(e.weakKind?100:0);        // a weak kind sinks below every other pick (still eligible to fill the list)
   const sorted=qualifying.slice().sort((a,b)=>rank(b)-rank(a));
   const top10=[],held=[],perLeague={};
   for(const e of sorted){
