@@ -6682,6 +6682,10 @@ function _mergeRemoteBetRows(rows){
         existing.settledAt=row.settled_at?new Date(row.settled_at).getTime():existing.settledAt;
         existing.hScore=remote.hScore??existing.hScore;
         existing.aScore=remote.aScore??existing.aScore;
+        // A settled PROP's box-score stat and a void marker travel with the settlement. Without these two lines a device that PULLED a prop settlement kept no stat, then pushed its copy on the next sync and
+        // overwrote the row on Supabase without it (found 2026-10-23: every prop settled since June had lost its playerResult that way, so adjusted-vs-posted prop grading had nothing to read).
+        if(remote.playerResult!==undefined)existing.playerResult=remote.playerResult;
+        if(remote.voidReason)existing.voidReason=remote.voidReason;
         updated++;
       }else if(remote.regradedNote&&existing.regradedNote!==remote.regradedNote&&row.outcome&&row.outcome!=='pending'){
         // Explicit manual correction of an already-SETTLED result (marked
@@ -6694,6 +6698,8 @@ function _mergeRemoteBetRows(rows){
         existing.settledAt=row.settled_at?new Date(row.settled_at).getTime():existing.settledAt;
         existing.hScore=remote.hScore??existing.hScore;
         existing.aScore=remote.aScore??existing.aScore;
+        if(remote.playerResult!==undefined)existing.playerResult=remote.playerResult;
+        if(remote.voidReason)existing.voidReason=remote.voidReason;
         existing.regradedNote=remote.regradedNote;
         updated++;
       }
@@ -19607,9 +19613,24 @@ async function autoSettlePropsESPN(targetDate){
   }
 
   // Fuzzy player name match: "Victor Wembanyama" vs "V. Wembanyama" or "Wembanyama"
+  // ACCURACY FIXES (2026-10-23, owner: make sure NBA props settle from the box score correctly), found with a stubbed-box-score test:
+  //  * ESPN spells "Nikola Joki\u0107" with an accent, props say "Nikola Jokic": names are now compared without diacritics / suffixes (Jr., III) so those props settle instead of sitting pending forever;
+  //  * a surname fallback ("Williams") used to take the FIRST Williams in either team's box score -- a prop on OKC's Jalen Williams was graded on Denver's Jalen Williams. The player is now looked up in HIS
+  //    OWN team's block, an exact full name wins, and an ambiguous surname is left pending rather than guessed;
+  //  * a player who did not play (didNotPlay / no stats / 0 minutes) used to read as zeros -- an UNDER "won" and an OVER "lost" on a bet sportsbooks void. It now settles as a push (void), voidReason 'DNP'.
+  const _normName=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/['.\u2019]/g,'').replace(/\b(jr|sr|ii|iii|iv)\b/g,' ').replace(/\s+/g,' ').trim();
+  const _TEAM_ALIAS={NYK:'NY',GSW:'GS',SAS:'SA',NOP:'NO',UTA:'UTAH',WAS:'WSH',PHO:'PHX',BRK:'BKN',CHO:'CHA'};
+  const canonTeam=a=>{a=String(a||'').toUpperCase().trim();return _TEAM_ALIAS[a]||a;};
+  function findAthlete(list,propPlayer){
+    const pp=_normName(propPlayer);
+    const exact=list.filter(a=>_normName(a.athlete?.displayName)===pp);
+    if(exact.length)return exact[0];
+    const loose=list.filter(a=>nameMatch(a.athlete?.displayName||'',propPlayer));
+    return loose.length===1?loose[0]:null;
+  }
   function nameMatch(displayName,propPlayer){
-    const dn=displayName.toLowerCase().replace(/['.]/g,'');
-    const pp=propPlayer.toLowerCase().replace(/['.]/g,'');
+    const dn=_normName(displayName);
+    const pp=_normName(propPlayer);
     if(dn===pp)return true;
     const ppParts=pp.split(' ');
     const lastName=ppParts[ppParts.length-1];
@@ -19657,7 +19678,14 @@ async function autoSettlePropsESPN(targetDate){
 
       // Find the right event for this bet (match by team abbreviation or date)
       let targetEvent=null;
-      for(const ev of events){
+      if(p.hA&&p.awA){                                                   // the game whose two teams are exactly this bet's two teams
+        for(const ev of events){
+          const c=ev.competitions?.[0];
+          const have=(c?.competitors||[]).map(t=>canonTeam(t.team?.abbreviation));
+          if(have.includes(canonTeam(p.hA))&&have.includes(canonTeam(p.awA))){targetEvent=ev;break;}
+        }
+      }
+      for(const ev of targetEvent?[]:events){
         const c=ev.competitions?.[0];
         const hn=c?.competitors?.find(t=>t.homeAway==='home')?.team?.abbreviation||'';
         const an=c?.competitors?.find(t=>t.homeAway==='away')?.team?.abbreviation||'';
@@ -19684,31 +19712,38 @@ async function autoSettlePropsESPN(targetDate){
       // (G/A/SOG/SV) instead of PTS/REB/AST, so it also needs its own
       // lookup (extractNHLStat) rather than the single-statBlock
       // PTS/REB/AST logic NBA/MLB share below.
-      let foundStat=null,foundPlayer=null;
+      let foundStat=null,foundPlayer=null,dnp=false;
+      let blocks=bs.boxscore.players;                                    // search only the player's OWN team when we know it (a bet's `team` is his team, `awA` the opponent)
+      if(p.team){const mine=blocks.filter(t=>canonTeam(t.team?.abbreviation)===canonTeam(p.team));if(mine.length)blocks=mine;}
       if(sport==='NFL'){
-        outer:for(const teamData of bs.boxscore.players){
+        outer:for(const teamData of blocks){
           const hit=extractNFLStat(teamData,parsed.player,parsed.stat);
           if(hit){foundPlayer=hit.dName;foundStat=hit.val;break outer;}
         }
       }else if(sport==='NHL'){
-        outer:for(const teamData of bs.boxscore.players){
+        outer:for(const teamData of blocks){
           const hit=extractNHLStat(teamData,parsed.player,parsed.stat);
           if(hit){foundPlayer=hit.dName;foundStat=hit.val;break outer;}
         }
       }else{
-        outer:for(const teamData of bs.boxscore.players){
+        outer:for(const teamData of blocks){
           const statBlock=teamData.statistics?.[0];if(!statBlock)continue;
           const names=statBlock.names||[];
-          for(const ath of(statBlock.athletes||[])){
-            const dName=ath.athlete?.displayName||'';
-            if(!nameMatch(dName,parsed.player))continue;
-            foundPlayer=dName;
-            foundStat=extractStat(names,ath.stats||[],parsed.stat);
-            break outer;
-          }
+          const ath=findAthlete(statBlock.athletes||[],parsed.player);
+          if(!ath)continue;
+          foundPlayer=ath.athlete?.displayName||'';
+          const sv=ath.stats||[],mi=names.findIndex(n=>String(n).toUpperCase()==='MIN'),mn=mi>=0?String(sv[mi]==null?'':sv[mi]).trim():'';
+          if(ath.didNotPlay===true||sv.length===0||(mi>=0&&/^(0|--?)?$/.test(mn))){dnp=true;foundStat=0;break outer;}   // did not play: the bet is void, never a zero-stat win/loss
+          foundStat=extractStat(names,sv,parsed.stat);
+          break outer;
         }
       }
       if(foundStat===null)continue;
+      if(dnp){
+        p.outcome='push';p.settledAt=Date.now();p.playerResult=null;p.voidReason='DNP';changed=true;
+        toast(`PROP VOID (DID NOT PLAY): ${parsed.player} ${parsed.stat} ${parsed.direction} ${parsed.line}`);
+        continue;
+      }
 
       const outcome=(parsed.direction==='OVER'?foundStat>parsed.line:foundStat<parsed.line)?'win':'loss';
       p.outcome=outcome;p.settledAt=Date.now();p.playerResult=foundStat;
