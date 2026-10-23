@@ -261,8 +261,10 @@ class Audit(unittest.TestCase):
         self.assertIn("UNDERDOGS", self.ask("how are underdogs doing")["text"])
         self.assertIn("Latest losses", self.ask("last 3 losses")["text"])
         self.assertIn("No losses found", self.ask("any losses on 2020-01-01")["text"])
-        self.assertIn("locked today", self.ask("what are we betting on tonight")["text"])
-        self.assertIn("do not see a game today", self.ask("who will win Celtics Knicks")["text"])      # no such game today: says so, never a made-up prediction
+        pg2 = self.tonight_page(self.synth())                                             # fixed slate + a known pick locked today: never depends on the day's real games
+        self.assertIn("locked today", self.ask("what are we betting on tonight", pg2)["text"])
+        self.assertIn("do not see a game today", self.ask("who will win Celtics Knicks", pg2)["text"])   # no such game on this slate: says so, never a made-up prediction
+        pg2.close()
         # a name in the question is never "what's"
         self.assertEqual(self.pg.evaluate("_chatNames(\"what's our best sport\")"), [])
 
