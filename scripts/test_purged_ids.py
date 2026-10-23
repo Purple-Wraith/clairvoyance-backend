@@ -42,6 +42,7 @@ class Base(unittest.TestCase):
 
 NBA_EARLY_OPENER = ["2026-10-17_NY_PHI_NBA_NY+0.5", "2026-10-17_SA_OKC_NBA_SAML", "2026-10-17_SA_OKC_NBA_UNDER239.5"]
 NBA_JOKIC_REB = ["prop_2026-10-22_NBA_NikolaJokic_REB_13.5_U"]      # removed 2026-10-22 (owner request): locked under the old prop rules, backup in data/purged/nba_jokic_reb_20261022_before.json
+RAYO_ABANDONED = ["2026-10-10_Rayo Vallecano_Athletic Club_LIGA_RayoVallecanoWin"]   # removed 2026-10-23 (owner request): ESPN abandoned the game at 0-0, the pick had been graded a loss; backup in data/purged/rayo_abandoned_20261023_before.json
 LEDGER_DUPLICATES = [r["id"] for r in json.loads((ROOT / "data" / "purged" / "ledger_duplicates_20261023_before.json").read_text())]   # 17 rows recorded twice (owner-approved removal 2026-10-23)
 
 
@@ -54,7 +55,7 @@ class Purged(Base):
 
     def test_app_carries_exactly_those_ids(self):
         pg = self.page()
-        self.assertEqual(sorted(pg.evaluate("[..._CV_PURGED_IDS]")), sorted(IDS + NBA_EARLY_OPENER + NBA_JOKIC_REB + LEDGER_DUPLICATES))   # + the three Oct-20 NBA opener picks locked on Oct 17 with the wrong date (removed 2026-10-17, data/purged/nba_early_opener_20261017_before.json)
+        self.assertEqual(sorted(pg.evaluate("[..._CV_PURGED_IDS]")), sorted(IDS + NBA_EARLY_OPENER + NBA_JOKIC_REB + LEDGER_DUPLICATES + RAYO_ABANDONED))   # + the three Oct-20 NBA opener picks locked on Oct 17 with the wrong date (removed 2026-10-17, data/purged/nba_early_opener_20261017_before.json)
         self.assertTrue(pg.evaluate("i=>_getWipedIds().has(i)", IDS[0]))
         pg.close()
 

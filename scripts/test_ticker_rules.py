@@ -36,7 +36,7 @@ class Ticker(unittest.TestCase):
         socketserver.TCPServer.allow_reuse_address = True
         cls.srv = socketserver.TCPServer(("127.0.0.1", 0), functools.partial(Quiet, directory=str(ROOT / "docs")))
         threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
-        cls.pw = sync_playwright().start(); cls.b = cls.pw.chromium.launch(); cls.pg = cls.b.new_page(viewport={"width": 1280, "height": 800})
+        cls.pw = sync_playwright().start(); cls.b = cls.pw.chromium.launch(); cls.pg = cls.b.new_context(timezone_id="UTC", viewport={"width": 1280, "height": 800}).new_page()   # CI runs in UTC; so do these tests, wherever they are run
         cls.pg.route("**/*espn.com/**", lambda r: r.abort())
         cls.pg.route("**/*workers.dev/**", lambda r: r.abort())
         cls.pg.goto(f"http://127.0.0.1:{cls.srv.server_address[1]}/app.html?nosb=1")
@@ -46,6 +46,11 @@ class Ticker(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.b.close(); cls.pw.stop(); cls.srv.shutdown()
+
+
+    def denver_midnight(self):
+        """ms of today's 00:00 in America/Denver (-06:00 in MDT, -07:00 in MST)"""
+        return self.pg.evaluate("()=>{let t=Date.parse(today()+'T00:00:00-06:00');if(_scDayOf(t)!==today())t=Date.parse(today()+'T00:00:00-07:00');return t}")
 
     def run_ticker(self, games, locks, fin=None, euro=None):
         """returns {order:[keys], html:{key:text}, chip:text, shown:bool}"""
@@ -123,7 +128,7 @@ class Ticker(unittest.TestCase):
 
     def test_a_late_game_that_ends_after_midnight_keeps_yesterdays_lock_for_30_minutes(self):
         now = self.pg.evaluate("Date.now()")
-        midnight = self.pg.evaluate("new Date().setHours(0,0,0,0)")
+        midnight = self.denver_midnight()
         games = [g("f1", "Pelicans", "Marmots", "post", startMs=midnight - 3 * 3600000, note="Final")]
         r = self.run_ticker(games, [lock("y", "Pelicans", "Marmots", "yesterday()")], fin={"nhl|f1": now - 60000})
         self.assertEqual(r["order"], ["nhl|f1"])
@@ -165,7 +170,7 @@ class Ticker(unittest.TestCase):
 
     def test_started_yesterday_is_judged_by_the_denver_date_not_the_browsers(self):
         now = self.pg.evaluate("Date.now()")
-        denver_midnight = self.pg.evaluate("new Date(today()+'T00:00:00-06:00').getTime()")
+        denver_midnight = self.denver_midnight()
         # a game that started 2 h before the Denver midnight (yesterday in Denver) and just finished, with a lock dated yesterday
         r = self.run_ticker([g("d1", "Pelicans", "Marmots", "post", startMs=denver_midnight - 2 * 3600000, note="Final")], [lock("y", "Pelicans", "Marmots", "yesterday()")], fin={"nhl|d1": now - 60000})
         self.assertEqual(r["order"], ["nhl|d1"])

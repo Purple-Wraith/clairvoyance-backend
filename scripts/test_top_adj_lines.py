@@ -216,6 +216,35 @@ class AdjTab(unittest.TestCase):
         self.assertIn("Narwhals 108 – Walruses 120", txt)
         self.assertIn("FINAL", txt)
 
+    def test_daily_win_rate_section_counts_locked_adjusted_lines_by_day(self):
+        td = self.pg.evaluate("today()")
+        sh = lambda d, n: self.pg.evaluate("([d,n])=>_scShift(d,n)", [d, n])
+        alt = {"posted": 220.5, "line": 214.5, "shift": 6, "postedLabel": "OVER 220.5"}
+        mk = lambda i, d, o, bt="OU", extra=None: dict({"id": f"d{i}", "hA": f"H{i}", "awA": f"A{i}", "sport": "NBA", "betType": bt, "betOn": "OVER 214.5", "date": d, "outcome": o, "altLine": alt, "decOdds": 1.4, "lockedAt": 1}, **(extra or {}))
+        y1, y2 = sh(td, -1), sh(td, -2)
+        led = [mk(1, y1, "win"), mk(2, y1, "win"), mk(3, y1, "loss"), mk(4, y1, "push"), mk(5, y2, "loss"), mk(6, y2, "win"), mk(7, td, "pending"),
+               mk(8, y1, "win", "PROP"),                                                       # adjusted PROPS are not game lines: left out
+               mk(9, y1, "_removed"),                                                          # removed rows never count
+               {"id": "plain", "hA": "P", "awA": "Q", "sport": "NBA", "betType": "OU", "betOn": "OVER 200.5", "date": y1, "outcome": "win", "decOdds": 1.9, "lockedAt": 1}]   # not an adjusted line
+        self.seed([e("NBA", "Zephyrs", "Quokkas", "OVER 214.5", .70)], led)
+        t = self.pg.evaluate("document.querySelector('.tp-adj-daily').innerText.replace(/\\n+/g,' | ')")
+        self.assertIn("DAILY WIN RATE", t)
+        rows = self.pg.evaluate("[...document.querySelectorAll('.tp-adj-day')].map(r=>r.innerText.replace(/\\n+/g,' '))")
+        self.assertIn("LAST 3 DAYS", rows[0]); self.assertIn("3W-2L", rows[0]); self.assertIn("60%", rows[0])      # y1: 2W-1L (+1 push), y2: 1W-1L, today: pending only
+        self.assertIn("ALL TIME", rows[1]); self.assertIn("3W-2L", rows[1])
+        day1 = next(r for r in rows if "2W-1L" in r)
+        self.assertIn("1P", day1); self.assertIn("67%", day1)                                                   # a push is left out of the percentage
+        self.assertTrue(any("0W-0L" in r and "1 PENDING" in r for r in rows))                                   # today: nothing settled yet
+
+    def test_daily_win_rate_shows_even_with_no_lines_today_and_says_so_when_empty(self):
+        self.seed([], [])
+        self.assertIn("NO LOCKED ADJUSTED LINES YET", self.pg.evaluate("document.getElementById('toppicks-adj').innerText"))
+        td = self.pg.evaluate("today()")
+        led = [{"id": "z1", "hA": "H", "awA": "A", "sport": "NHL", "betType": "OU", "betOn": "UNDER 6.5", "date": td, "outcome": "win", "altLine": {"posted": 5.5, "line": 6.5, "shift": 1, "postedLabel": "UNDER 5.5"}, "decOdds": 1.4, "lockedAt": 1}]
+        self.seed([], led)
+        t = self.pg.evaluate("document.getElementById('toppicks-adj').innerText")
+        self.assertIn("NO ADJUSTED LINES TODAY YET", t); self.assertIn("1W-0L", t)
+
     def test_the_lock_button_locks_that_exact_line(self):
         self.seed([e("NBA", "Walruses", "Narwhals", "OVER 221.5", .66)])
         self.pg.evaluate("window.__locked=[];window._lockAltKey=function(k){window.__locked.push(k)};document.getElementById('sp-toppicks').classList.add('act')")
