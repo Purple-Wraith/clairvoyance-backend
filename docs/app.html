@@ -5523,19 +5523,28 @@ function _altRowFor(sport,home,away,dateRaw,nm,off){
     if(!nm||!nm.mkts)return'';
     const best=(a,b)=>{const x=nm.mkts.find(m=>m.side===a),y=nm.mkts.find(m=>m.side===b);return x&&y?(x.prob>=y.prob?x:y):(x||y);};
     const d=new Date(dateRaw);const dateKey=isNaN(d)?String(dateRaw||'').slice(0,10):d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
-    // NBA totals show the adjusted line for BOTH sides (owner 2026-10-23): the cushion table is side-neutral, so an OVER moved down is as safe as an UNDER moved up. The model's lean side comes first;
-    // the other side is flagged 'OTHER SIDE' (its posted-line grade is not the lean's). Automatic locks still only take the model's lean side.
+    // NBA totals AND spreads show the adjusted line for BOTH sides (owner 2026-10-23): the cushion table is side-neutral, so an OVER moved down (or the other team's spread moved up) is as safe as the lean.
+    // The model's lean side comes first; the other side carries its OWN posted-line grade plus an 'OTHER SIDE' tag. Automatic locks still only take the model's lean side.
     const rowDefs=[['OU',best('over','under'),false],['SPREAD',best('sprdFav','sprdDog'),false]];
-    if(sport==='NBA'){const lean=rowDefs[0][1],opp=nm.mkts.find(x=>(x.side==='over'||x.side==='under')&&x!==lean);if(lean&&opp)rowDefs.splice(1,0,['OU',opp,true]);}
+    if(sport==='NBA'){
+      const oppOf=(sides,lean)=>lean&&nm.mkts.find(x=>sides.includes(x.side)&&x!==lean);
+      const oOU=oppOf(['over','under'],rowDefs[0][1]),oSP=oppOf(['sprdFav','sprdDog'],rowDefs[1][1]);
+      if(oOU)rowDefs.splice(1,0,['OU',oOU,true]);                    // lean total, other total, lean spread, other spread
+      if(oSP)rowDefs.push(['SPREAD',oSP,true]);
+    }
     const chips=rowDefs.map(([mkt,m,isOpp])=>{
       if(!m)return'';const alt=_altShift(sport,mkt,m.label,m.prob);if(!alt)return'';
       alt.postedDec=m.dec!=null?m.dec:null;alt.postedMl=m.ml!=null?String(m.ml):null;alt.postedProb=m.rawProb!=null?m.rawProb:(m.prob!=null?m.prob:null);   // the ORIGINAL posted price, kept with the pick (postedProb = the model's own number, pre-ceiling -- see MARKET_P_CEILING)
       const key=sport+'|'+dateKey+'|'+home+'|'+away+'|'+mkt+(isOpp?'|opp':'');
       window._altReg[key]={sport,hA:home,awA:away,date:dateKey,alt};
-      const cls=isOpp?'':(m.tierN===3?'pg':m.tierN===2?'pp':m.tierN===1?'pn':'');
-      const lb=isOpp?'OTHER SIDE':(['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN]||'');
+      // The badge grades the ADJUSTED line by its own win probability (PREMIUM 67%+, OPTIMAL 62%+, LEAN 55%+ -- the prop bands), because an adjusted line only exists for a pick the posted line did not grade
+      // well (hockey totals are adjusted precisely when the posted line is under the 56% lane floor, so they always read SKIP there). The posted line's grade is kept, small, beside it.
+      const ap=alt.prob;
+      const lb=ap>=.6695?'PREMIUM':ap>=.62?'OPTIMAL':ap>=.55?'LEAN':'';
+      const cls=lb==='PREMIUM'?'pg':lb==='OPTIMAL'?'pp':lb==='LEAN'?'pn':'';
+      const postedLb=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN]||'';
       const sh=alt.shift%1===0?alt.shift:alt.shift.toFixed(1);
-      return`<div class="altc"${off?'':` onclick="event.stopPropagation();_lockAltKey('${key.replace(/'/g,"\\'")}')"`}><div class="alt1"><span class="altp">${_escHtml(alt.label)}</span>${lb?`<span class="pill ${cls}">${lb}</span>`:''}</div><div class="alts">${Math.round(alt.prob*100)}% · est ${alt.ml} · ${_ALT_HK.has(sport)?(alt.flip?'FLIPS SIDE · ':'')+sh+(+sh===1?' goal':' goals'):'+'+sh+' pts'}</div><div class="altw">posted ${_escHtml(alt.postedLabel)} · ${Math.round(m.prob*100)}%</div></div>`;
+      return`<div class="altc"${off?'':` onclick="event.stopPropagation();_lockAltKey('${key.replace(/'/g,"\\'")}')"`}><div class="alt1"><span class="altp">${_escHtml(alt.label)}</span>${lb?`<span class="pill ${cls}">${lb}</span>`:''}${postedLb?`<span class="altpg" style="font-size:11px;letter-spacing:1px;color:var(--t3);margin-left:6px">POSTED ${postedLb}</span>`:''}${isOpp?'<span class="altos" style="font-size:11px;letter-spacing:1px;color:var(--t3);margin-left:6px">OTHER SIDE</span>':''}</div><div class="alts">${Math.round(alt.prob*100)}% · est ${alt.ml} · ${_ALT_HK.has(sport)?(alt.flip?'FLIPS SIDE · ':'')+sh+(+sh===1?' goal':' goals'):'+'+sh+' pts'}</div><div class="altw">posted ${_escHtml(alt.postedLabel)} · ${Math.round(m.prob*100)}%</div></div>`;
     }).join('');
     return chips?`<div class="altrow${off?' lockoff':''}"${off?' inert aria-disabled="true"':''}><div class="altk">${off?'ADJ. LINE · LOCKS CLOSED · EST. PRICE':'ADJ. LINE · LOCKS HERE · TAP TO LOCK · EST. PRICE'}</div>${chips}</div>`:'';
   }catch(e){return'';}
