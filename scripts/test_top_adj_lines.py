@@ -156,6 +156,66 @@ class AdjTab(unittest.TestCase):
         self.seed([e("NHL", "Pelicans", "Marmots", "UNDER 6.5", .80)], live=live)
         self.assertEqual(len(self.top_rows()), 1)                                # nothing open at all: the finished lines are ranked rather than leaving the block empty
 
+    def final(self, home, away, hs, as_, note="Final", tag="NBA", k="nba", **kw):
+        g = {"k": k, "tag": tag, "id": "x" + home, "home": home, "away": away, "homeScore": hs, "awayScore": as_, "state": "post", "note": note}
+        g.update(kw)
+        return g
+
+    def test_a_finished_line_shows_the_score_and_won_or_lost(self):
+        live = [self.final("Walruses", "Narwhals", 120, 108), self.final("Zephyrs", "Quokkas", 105, 99)]
+        self.seed([e("NBA", "Walruses", "Narwhals", "OVER 221.5", .66, line=221.5, posted=227.5),        # total 228 > 221.5: WON (and the posted 227.5 also won)
+                   e("NBA", "Zephyrs", "Quokkas", "OVER 214.5", .70, line=214.5, posted=220.5)], live=live)   # total 204 < 214.5: LOST
+        r = self.pg.evaluate("""[...document.querySelectorAll('#toppicks-adj .tp-adj-row')].map(x=>x.innerText.replace(/\\n+/g,' | '))""")
+        w = next(x for x in r if "Narwhals" in x); l = next(x for x in r if "Quokkas" in x)
+        self.assertIn("✓ WON", w); self.assertIn("Narwhals 108 – Walruses 120", w); self.assertIn("FINAL", w)
+        self.assertIn("✗ LOST", l); self.assertIn("Quokkas 99 – Zephyrs 105", l)
+        self.assertIn("NOT LOCKED", w)
+        self.assertIn("posted line would have", w)
+
+    def test_a_spread_is_graded_on_the_adjusted_line(self):
+        live = [self.final("Walruses", "Narwhals", 100, 104)]                                             # Narwhals won by 4
+        self.seed([e("NBA", "Walruses", "Narwhals", "Walruses +6.5", .70, "SPREAD", line=6.5, posted=-1.5, postedLabel="Walruses -1.5")], live=live)
+        t = " ".join(self.rows())
+        self.assertIn("✓ WON", t)                                                                         # Walruses lost by 4 but cover +6.5
+        self.assertIn("posted line would have LOST", t)                                                   # -1.5 would not have
+
+    def test_the_header_shows_the_results_record(self):
+        live = [self.final("Walruses", "Narwhals", 120, 108), self.final("Zephyrs", "Quokkas", 105, 99), self.final("Gulls", "Herons", 110, 100)]
+        self.seed([e("NBA", "Walruses", "Narwhals", "OVER 221.5", .66, line=221.5), e("NBA", "Zephyrs", "Quokkas", "OVER 214.5", .70), e("NBA", "Gulls", "Herons", "OVER 205.5", .68, line=205.5)], live=live)
+        self.assertIn("2W-1L", self.pg.evaluate("document.getElementById('toppicks-adj').innerText"))
+
+    def test_a_locked_line_uses_the_ledger_result(self):
+        td = self.pg.evaluate("today()")
+        led = [{"id": "L1", "hA": "Zephyrs", "awA": "Quokkas", "sport": "NBA", "betType": "OU", "betOn": "OVER 214.5", "date": td, "outcome": "win", "altLine": {"posted": 220.5, "line": 214.5, "shift": 6, "postedLabel": "OVER 220.5"}, "decOdds": 1.4, "lockedAt": 1}]
+        self.seed([e("NBA", "Zephyrs", "Quokkas", "OVER 214.5", .70)], led, live=[self.final("Zephyrs", "Quokkas", 130, 99)])
+        t = " ".join(self.rows())
+        self.assertIn("✓ WON", t); self.assertIn("WIN", t)
+
+    def test_a_postponed_game_has_no_result(self):
+        live = [self.final("Walruses", "Narwhals", 0, 0, completed=False)]
+        self.seed([e("NBA", "Walruses", "Narwhals", "OVER 221.5", .66)], live=live)
+        t = " ".join(self.rows())
+        self.assertNotIn("WON", t); self.assertNotIn("LOST", t)
+        self.assertIn("POSTPONED", t); self.assertIn("NO RESULT", t)
+
+    def test_a_shootout_game_is_not_graded_from_the_feed_score(self):
+        live = [self.final("Pelicans", "Marmots", 4, 3, note="Final/SO", tag="NHL", k="nhl")]
+        self.seed([e("NHL", "Pelicans", "Marmots", "UNDER 6.5", .66, line=6.5, posted=5.5)], live=live)
+        t = " ".join(self.rows())
+        self.assertNotIn("WON", t); self.assertNotIn("LOST", t)
+
+    def test_top_picks_rows_show_the_result_line(self):
+        r = self.pg.evaluate("""()=>{
+          _LV.games=[{k:'nba',tag:'NBA',id:'z',home:'Walruses',away:'Narwhals',homeScore:120,awayScore:108,state:'post',note:'Final'}];
+          const mk=(label,side,prob)=>({sport:'NBA',hA:'Walruses',awA:'Narwhals',best:{label,side,tierN:2},markets:[{side,label,prob}]});
+          const ranked=_topPicksRankLegs([mk('Walruses ML','mlFav',.7)]);
+          return ranked.top10.map(x=>_topPickRowHTML(x)).join('')}""")
+        import re
+        txt = re.sub(r"<[^>]+>", " ", r)
+        self.assertIn("✓ WON", txt)
+        self.assertIn("Narwhals 108 – Walruses 120", txt)
+        self.assertIn("FINAL", txt)
+
     def test_the_lock_button_locks_that_exact_line(self):
         self.seed([e("NBA", "Walruses", "Narwhals", "OVER 221.5", .66)])
         self.pg.evaluate("window.__locked=[];window._lockAltKey=function(k){window.__locked.push(k)};document.getElementById('sp-toppicks').classList.add('act')")

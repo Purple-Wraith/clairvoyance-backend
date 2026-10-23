@@ -4591,21 +4591,21 @@ function _pickRowHTML(p,o){
   // logos only inside the yesterday..tomorrow window (see _pickRecent)
   const lgOn=_pickRecent(p);
   const match=hasTeams
-    ?`${lgOn?_pickLogo(p,'a'):''}<span>${_teamName(p.awA,p.sport)}</span><em>at</em>${lgOn?_pickLogo(p,'h'):''}<span>${_teamName(p.hA,p.sport)}</span>`
-    :`<span>${o.title||_gameTitle(p.hA,p.awA,p.sport)||''}</span>`;
+    ?`${lgOn?_pickLogo(p,'a'):''}<span>${_escHtml(_teamName(p.awA,p.sport))}</span><em>at</em>${lgOn?_pickLogo(p,'h'):''}<span>${_escHtml(_teamName(p.hA,p.sport))}</span>`
+    :`<span>${_escHtml(o.title||_gameTitle(p.hA,p.awA,p.sport)||'')}</span>`;
   const conf=p.winProb?` · ${(p.winProb*100).toFixed(0)}%`:'';
   const fin=p.hScore!=null
-    ?`<div class="prow2-fin">FINAL: ${_teamName(p.awA,p.sport)} ${p.aScore} – ${p.hScore} ${_teamName(p.hA,p.sport)}</div>`
+    ?`<div class="prow2-fin">FINAL: ${_escHtml(_teamName(p.awA,p.sport))} ${_escHtml(p.aScore)} – ${_escHtml(p.hScore)} ${_escHtml(_teamName(p.hA,p.sport))}</div>`
     :`<div class="prow2-fin dim">${settled?'FINAL: —':'AWAITING FINAL'}</div>`;
   const act=settled
     ?`<div class="prow2-act two"><span class="prow2-st" style="color:${oc};border-color:${oc}">${st}</span>${o.removeHtml||''}</div>`
     :`<div class="prow2-act">${o.actions||''}</div>`;
   return`<div class="prow2 ${o.wrapClass||''}" data-pid="${String(p.id||'').replace(/[^\w.:-]/g,'')}" style="border-left-color:${oc}">
     <div class="prow2-main">
-      <div class="prow2-top">${(()=>{const d=_leagueDisplayLabel(window._normSport(p));return(d.sub?`<span class="ptag ptag-sub">${d.sub}</span>`:'')+`<span class="ptag ptag-lg${d.label.length>11?' ptag-long':''}">${d.label}</span>`;})()}${_gradeChipHtml(p)}${o.dateLbl?`<span class="ptag ptag-date">${o.dateLbl}</span>`:''}</div>
+      <div class="prow2-top">${(()=>{const d=_leagueDisplayLabel(window._normSport(p));return(d.sub?`<span class="ptag ptag-sub">${_escHtml(d.sub)}</span>`:'')+`<span class="ptag ptag-lg${d.label.length>11?' ptag-long':''}">${_escHtml(d.label)}</span>`;})()}${_gradeChipHtml(p)}${o.dateLbl?`<span class="ptag ptag-date">${o.dateLbl}</span>`:''}</div>
       <div class="prow2-match">${match}</div>
-      <div class="prow2-pick">${o.pickPrefix||''}${o.legHtml||_expandBetOn(p.betOn||p.betType||'',p.sport)}</div>
-      <div class="prow2-meta">${p.ml||''} · ${p.betType||''}${conf}</div>
+      <div class="prow2-pick">${o.pickPrefix||''}${o.legHtml||_escHtml(_expandBetOn(p.betOn||p.betType||'',p.sport))}</div>
+      <div class="prow2-meta">${_escHtml(p.ml||'')} · ${_escHtml(p.betType||'')}${conf}</div>
       ${p.altLine?_altNoteHTML(p):''}
       ${o.why?_whyThisPickHTML(p):''}
     </div>
@@ -5541,6 +5541,8 @@ function _altRowFor(sport,home,away,dateRaw,nm,off){
       if(oOU)rowDefs.splice(1,0,['OU',oOU,true]);                    // lean total, other total, lean spread, other spread
       if(oSP)rowDefs.push(['SPREAD',oSP,true]);
     }
+    // drop every line this game registered on an earlier render: a line the model no longer adjusts (probability moved past the threshold) must not stay listed / lockable in TOP ADJUSTED LINES
+    {const pre=sport+'|'+dateKey+'|'+home+'|'+away+'|';Object.keys(window._altReg).forEach(k=>{if(k.indexOf(pre)===0)delete window._altReg[k];});}
     const chips=rowDefs.map(([mkt,m,isOpp])=>{
       if(!m)return'';const alt=_altShift(sport,mkt,m.label,m.prob);if(!alt)return'';
       alt.postedDec=m.dec!=null?m.dec:null;alt.postedMl=m.ml!=null?String(m.ml):null;alt.postedProb=m.rawProb!=null?m.rawProb:(m.prob!=null?m.prob:null);   // the ORIGINAL posted price, kept with the pick (postedProb = the model's own number, pre-ceiling -- see MARKET_P_CEILING)
@@ -5611,7 +5613,8 @@ function _bestMarketBoxHTML(tierN,tierCol,tierLabel,bestLabel,bestProb,bestEvVal
 // anything older, or a pick from a sport/lock-path not yet wired up, shows
 // a graceful "no detailed reasoning captured" message instead of a blank
 // or broken expand.
-function _escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function _safeUrl(u){u=String(u==null?'':u).trim();return /^https?:\/\//i.test(u)?u:'';}   // news links come from external feeds: http(s) only (no javascript: URLs)
+function _escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}   // quotes too: it is used inside "..." attributes (audit 2026-10-23)
 function _toggleWhyPick(id){
   const row=document.getElementById(id);if(!row)return;
   const willOpen=row.style.display==='none';
@@ -6248,7 +6251,7 @@ function _isJunkPred(p){return/^test[_-]/i.test(p.id||'');}
 const _ARCH_TAGS=new Set(['MLB','WNBA','WTA','ATP','WC','TEN','XP','MLS','BUND']);
 // MLS + Bundesliga were retired 2026-09-23/27 and have no live picks, so ALL their settled picks are archived whatever their age (an age cut would hide picks later without them being in the archive file).
 const _ARCH_ANY_AGE=new Set(['MLS','BUND']);
-const _ARCH_SUM={n:2446,w:1695,l:751};   // retired-league picks: settled count / wins / losses (filled by scripts/build_ledger_archive.py)
+const _ARCH_SUM={n:2443,w:1692,l:751};   // retired-league picks: settled count / wins / losses (filled by scripts/build_ledger_archive.py)
 function _slimOn(){try{if(/[?&]slim=1(?:&|$)/.test(location.search||''))return true;if(/[?&]slim=0(?:&|$)/.test(location.search||''))return false;return navigator.webdriver!==true;}catch(e){return true;}}
 let _archCutV='',_archCutAt=0;
 function _archCut(){const n=Date.now();if(!_archCutV||n-_archCutAt>60000){_archCutV=_mtDateOf(n-21*86400000)||'';_archCutAt=n;}return _archCutV;}
@@ -10008,7 +10011,7 @@ async function autoSettleCFB(targetDate){
     let changed=false;
     for(const ev of(d.events||[])){
       const comp=(ev.competitions||[{}])[0];
-      if(comp.status?.type?.state!=='post')continue;
+      if(comp.status?.type?.state!=='post'||comp.status?.type?.completed===false)continue;   // postponed / abandoned = 'post' with no result
       if(_espnEventDenverDate(ev,comp)!==targetDate)continue;
       const home=comp.competitors?.find(c=>c.homeAway==='home');
       const away=comp.competitors?.find(c=>c.homeAway==='away');
@@ -10143,7 +10146,7 @@ async function autoSettleNCAAH(targetDate){
     let changed=false;
     for(const ev of(d.events||[])){
       const comp=(ev.competitions||[{}])[0];
-      if(comp.status?.type?.state!=='post')continue;
+      if(comp.status?.type?.state!=='post'||comp.status?.type?.completed===false)continue;   // postponed / abandoned = 'post' with no result
       if(_espnEventDenverDate(ev,comp)!==targetDate)continue;
       const home=comp.competitors?.find(c=>c.homeAway==='home');
       const away=comp.competitors?.find(c=>c.homeAway==='away');
@@ -10242,7 +10245,7 @@ async function autoSettleSoccer(targetDate){
       const d=await r.json();
       for(const ev of(d.events||[])){
         const comp=(ev.competitions||[{}])[0];
-        if(comp.status?.type?.state!=='post')continue;
+        if(comp.status?.type?.state!=='post'||comp.status?.type?.completed===false)continue;   // postponed / abandoned = 'post' with no result
         if(_espnEventDenverDate(ev,comp)!==targetDate)continue;
         const home=comp.competitors?.find(c=>c.homeAway==='home');
         const away=comp.competitors?.find(c=>c.homeAway==='away');
@@ -10996,7 +10999,7 @@ async function autoSettleNFL2(targetDate){
     let changed=false;
     for(const ev of(d.events||[])){
       const comp=(ev.competitions||[{}])[0];
-      if(comp.status?.type?.state!=='post')continue;
+      if(comp.status?.type?.state!=='post'||comp.status?.type?.completed===false)continue;   // postponed / abandoned = 'post' with no result
       if(_espnEventDenverDate(ev,comp)!==targetDate)continue;
       const home=comp.competitors?.find(c=>c.homeAway==='home');
       const away=comp.competitors?.find(c=>c.homeAway==='away');
@@ -19280,7 +19283,7 @@ async function autoSettleNBA(targetDate){
     let changed=false;
     for(const ev of(d.events||[])){
       const c=ev.competitions?.[0];if(!c)continue;
-      if(c.status?.type?.state!=='post')continue;
+      if(c.status?.type?.state!=='post'||c.status?.type?.completed===false)continue;
       if(_espnEventDenverDate(ev,c)!==targetDate)continue;
       const h=c.competitors?.find(t=>t.homeAway==='home');const a=c.competitors?.find(t=>t.homeAway==='away');
       const hn=h?.team?.abbreviation,an=a?.team?.abbreviation;
@@ -19426,9 +19429,16 @@ async function autoSettlePropsESPN(targetDate){
   // matched event's real date to the bet's date (not hardcoded to
   // today()), so adding the dates= param alone is enough here -- no
   // separate targetDate-based prediction filter needed.
-  targetDate=targetDate||today();
+  // AUDIT FIX 2026-10-23: a prop is graded from ITS OWN day's box score.  Called with no date it now settles each pending prop date (the last 5 days) in turn; before, only today's scoreboard
+  // was ever read, so a prop from yesterday (same team, back-to-back) could be graded from today's game, and one whose team was not playing today never settled.
+  if(!targetDate){
+    const t=today(),floor=_scShift(t,-5);
+    const dates=[...new Set(getP().filter(p=>p.outcome==='pending'&&p.betType==='PROP'&&p.date).map(p=>p.date))].filter(d=>d<=t&&d>=floor).sort();
+    for(const d of dates){try{await autoSettlePropsESPN(d);}catch(e){}}
+    return;
+  }
   const preds=getP();
-  const pending=preds.filter(p=>p.outcome==='pending'&&p.betType==='PROP');
+  const pending=preds.filter(p=>p.outcome==='pending'&&p.betType==='PROP'&&p.date===targetDate);
   if(!pending.length)return;
   let changed=false;
   const bsCache={};// eventId → boxscore data
@@ -19666,10 +19676,21 @@ async function autoSettlePropsESPN(targetDate){
     let events=[];
     try{
       const dSep=scoreboards[sport].includes('?')?'&':'?';
-      const r=await fetch(scoreboards[sport]+dSep+'dates='+targetDate.replace(/-/g,''));
-      if(!r.ok)continue;
-      const d=await r.json();
-      events=(d.events||[]).filter(ev=>ev.competitions?.[0]?.status?.type?.state==='post');
+      // ESPN files a game under its US-Eastern day, so a late game of a Denver day can sit on the next day's scoreboard: read both, keep the games whose DENVER date is the prop's day, finished only
+      // (a postponed / abandoned game is 'post' with completed:false and a 0-0 score -- never a result)
+      const days=[targetDate];if(targetDate<today())days.push(_scShift(targetDate,1));
+      const seen=new Set();
+      for(const dd of days){
+        const r=await fetch(scoreboards[sport]+dSep+'dates='+dd.replace(/-/g,''));
+        if(!r.ok)continue;
+        const d=await r.json();
+        (d.events||[]).forEach(ev=>{
+          const c0=ev.competitions?.[0],st=c0?.status?.type;
+          if(!c0||seen.has(ev.id)||st?.state!=='post'||st?.completed===false)return;
+          if(_espnEventDenverDate(ev,c0)!==targetDate)return;
+          seen.add(ev.id);events.push(ev);
+        });
+      }
     }catch(e){continue;}
 
     for(const ev of events){
@@ -19694,7 +19715,7 @@ async function autoSettlePropsESPN(targetDate){
           if(have.includes(canonTeam(p.hA))&&have.includes(canonTeam(p.awA))){targetEvent=ev;break;}
         }
       }
-      for(const ev of targetEvent?[]:events){
+      for(const ev of (targetEvent||(p.hA&&p.awA))?[]:events){     // both teams known and no game with exactly those two teams = leave it pending (never a game with one team in common)
         const c=ev.competitions?.[0];
         const hn=c?.competitors?.find(t=>t.homeAway==='home')?.team?.abbreviation||'';
         const an=c?.competitors?.find(t=>t.homeAway==='away')?.team?.abbreviation||'';
@@ -19760,7 +19781,13 @@ async function autoSettlePropsESPN(targetDate){
       toast(`PROP SETTLED: ${parsed.player} ${parsed.stat} ${foundStat} vs ${parsed.line} → ${outcome.toUpperCase()}`);try{notifySettlement(`${parsed.player} ${parsed.stat} ${parsed.direction} ${parsed.line}`,outcome);}catch(e){};
     }
   }
-  if(changed){saveP(preds);updHdr();}
+  if(changed){
+    // apply the results to a FRESH read of the ledger, by id: this function awaits many ESPN fetches, and saving the snapshot taken at the start would erase a pick locked (or a result written) meanwhile
+    const upd={};pending.forEach(p=>{if(p.outcome!=='pending'){const u={outcome:p.outcome,settledAt:p.settledAt,playerResult:p.playerResult};if(p.voidReason)u.voidReason=p.voidReason;upd[p.id]=u;}});
+    const cur=getP();
+    cur.forEach(q=>{const u=upd[q.id];if(u&&q.outcome==='pending')Object.assign(q,u);});
+    saveP(cur);updHdr();
+  }
 }
 
 
@@ -19910,7 +19937,7 @@ function showMidnightBanner(){
 function prepareDayEnd(){const yd=new Date(Date.now()-86400000).toLocaleDateString('sv-SE',{timeZone:'America/New_York'});const log=getDailyLog();if(log[yd]&&!log[yd].assessed){log[yd].assessed=true;saveDailyLog(log);if(document.getElementById('hist-list')?.closest('.tab.act'))renderHistory();toast(`// DAY ${yd} ASSESSED`);}}
 
 // ═══ NAVIGATION ══════════════════════════════════════════════
-function yesterday(){return new Date(Date.now()-86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});}
+function yesterday(){const d=new Date(today()+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);}   // calendar day before the Denver date (now-24h is wrong on the two DST days)
 function _scanCrossSportPicks(){
   const D=window.__CV_DATA;if(!D)return[];
   const todayStr=today();
@@ -20129,12 +20156,25 @@ async function computeTopPicksToday(){
 }
 // ── live / final result for a Top Picks row ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 const _TP_TAG={SOC_PL:'PL',SOC_LIGA:'LA LIGA',SOC_ITA:'SERIE A',SOC_CL:'UCL'};
+function _tpFindGame(e){
+  const games=(typeof _LV!=='undefined'?_LV.games:[]).concat(typeof _tkEuroGames==='function'?_tkEuroGames():[]);
+  const tag=_TP_TAG[e.sport]||e.sport;
+  return games.find(x=>x.tag===tag&&_tkMatch(e.hA,x.home)&&_tkMatch(e.awA,x.away))||null;
+}
+// One line for a pick's game result, shared by TOP PICKS and TOP ADJUSTED LINES (owner 2026-10-23: "show results with score and if it won or lost"):
+// final -> "✓ WON / ✗ LOST / PUSH · away 3 – home 2 · FINAL"; in progress -> the live score; postponed / abandoned -> says so (never a made-up result).
+function _tpResultLineHTML(res){
+  if(!res)return'';
+  const o=res.outcome,oc=o==='win'?'#00e644':o==='loss'?'#ff1a1a':'var(--t3)',base='font-family:var(--mono);font-size:12px;letter-spacing:.5px;margin-top:1px';
+  if(res.state==='post'&&(o==='win'||o==='loss'||o==='push'))
+    return`<div class="tp-res" style="${base};color:${oc};font-weight:700">${o==='win'?'✓ WON':o==='loss'?'✗ LOST':'PUSH'} · <span style="font-weight:400;color:var(--t2)">${_escHtml(res.text)}</span></div>`;
+  return`<div class="tp-res" style="${base};color:${res.col||'var(--t3)'}">${res.state==='in'?'● ':''}${_escHtml(res.text)}</div>`;
+}
 function _tpLiveResult(e){
   try{
-    const games=(typeof _LV!=='undefined'?_LV.games:[]).concat(typeof _tkEuroGames==='function'?_tkEuroGames():[]);
-    const tag=_TP_TAG[e.sport]||e.sport;
-    const g=games.find(x=>x.tag===tag&&_tkMatch(e.hA,x.home)&&_tkMatch(e.awA,x.away));
+    const g=_tpFindGame(e);
     if(!g||g.state==='pre')return null;
+    if(_lvIsVoid(g))return{state:'void',text:'POSTPONED / ABANDONED — NO RESULT',col:'var(--t3)',outcome:null};
     if(g.pending&&g.state==='post')return{state:'post',text:'RESULT PENDING (score updates after the next results refresh)',col:'var(--t3)',outcome:null};
     const sc=`${g.away} ${g.awayScore==null?'':g.awayScore} – ${g.home} ${g.homeScore==null?'':g.homeScore}`;
     if(g.state==='in')return{state:'in',text:g.pending?'IN PROGRESS · SCORE PENDING':`${sc} · ${g.note||'LIVE'}`,col:'var(--hc)',outcome:null};
@@ -20208,11 +20248,11 @@ function _topPickRowHTML(e){
   const _bdCol=_bd==='win'?'#00e644':_bd==='loss'?'#ff1a1a':'var(--t3)';
   const settledBadge=_bd?`<span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${_bdCol};color:${_bdCol};border-radius:2px;margin-left:3px">${_bd.toUpperCase()}</span>`:(_lvRes&&_lvRes.state==='in'?`<span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid var(--hc);color:var(--hc);border-radius:2px;margin-left:3px">LIVE</span>`:'');
   const gr=e.gameResult;
-  const scoreLine=(so&&gr&&gr.hScore!=null&&gr.aScore!=null)?` · ${e.awA} ${gr.aScore} – ${e.hA} ${gr.hScore}`:'';
+  const scoreLine='';   // the score now sits in the result line under the matchup (✓ WON / ✗ LOST · score · FINAL)
   // Live / final result straight from the live layer (ESPN scoreboards + the European schedule files) when the ledger/card has not graded the pick yet.
   const lv=(!so)?_tpLiveResult(e):null;
-  const liveLine=lv?`<div style="font-family:var(--mono);font-size:12px;color:${lv.col};letter-spacing:.5px;margin-top:1px">${lv.state==='in'?'● ':''}${_escHtml(lv.text)}</div>`:'';
-  return`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,0,24,.7);border-left:2px solid ${so==='loss'?'#ff1a1a':so==='win'?'#00e644':col};border-radius:2px;margin-bottom:5px">
+  const liveLine=so?_tpResultLineHTML({state:'post',outcome:so,text:(gr&&gr.hScore!=null&&gr.aScore!=null)?`${e.awA} ${gr.aScore} – ${e.hA} ${gr.hScore} · FINAL`:'FINAL'}):_tpResultLineHTML(lv);
+  return`<div class="tp-row" style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,0,24,.7);border-left:2px solid ${so==='loss'?'#ff1a1a':so==='win'?'#00e644':col};border-radius:2px;margin-bottom:5px">
     <div style="flex:1;min-width:0">
       <div style="font-family:var(--mono);font-size:12px;color:var(--pc);letter-spacing:1px">${_escHtml(e.leagueLabel)} · ${_escHtml(e.matchup)}${_escHtml(scoreLine)}</div>
       ${liveLine}
@@ -20530,7 +20570,7 @@ async function renderTopPicksToday(force,dateStr){
   el.innerHTML=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP PICKS${isToday?' TODAY':''} — ${_topPicksDateLabel(dateStr)}</div><div class="loading"><span class="spi"></span></div>`;
   try{
     let _tpLegs=null;
-    if(isToday)_tpLegs=await computeTopPicksToday();
+    if(isToday)_tpLegs=await _tpComputeShared();
     window._topPicksLegs=isToday?_tpLegs:null;
     const html=isToday?_renderTopPicksHTML(_tpLegs,dateStr):_renderTopPicksHistoryHTML(dateStr);
     window._topPicksCache={ts:Date.now(),dateKey:dateStr,html};
@@ -20549,6 +20589,10 @@ window.renderTopPicksToday=renderTopPicksToday;
 // model run, no new numbers).  Per game and market only the better side is listed (an over and an under of the same total are never both shown).  Ranked like the Top Picks tab: probability first, a KIND of
 // pick (league x bet type, adjusted) whose last-21-day record is under 65% sinks, at most 3 per league in the top 10.  Prices are estimates (fair price + vig), never bookmaker quotes.
 window._tpSubS=window._tpSubS||'picks';
+function _tpComputeShared(){   // ONE model run at a time, shared by TOP PICKS and TOP ADJUSTED LINES (they used to start two concurrent full runs)
+  if(!window._tpComputeP){window._tpComputeP=computeTopPicksToday().finally(()=>{window._tpComputeP=null;});}
+  return window._tpComputeP;
+}
 function tpSub(v){
   window._tpSubS=v==='adj'?'adj':'picks';
   document.querySelectorAll('#tp-subtabs .tpsb').forEach(b=>{const on=b.dataset.v===window._tpSubS;b.classList.toggle('act',on);b.setAttribute('aria-pressed',on?'true':'false');});
@@ -20573,18 +20617,28 @@ function _topAdjEntries(){
     if(tr&&tr.nAll>=30){try{kindRec=tr.rate(_tpKindOf(r.sport,a.mkt==='OU'?'over':'sprdFav',true));}catch(e){}}
     const lk=locks.find(p=>p.hA===r.hA&&p.awA===r.awA&&String(p.betOn).trim()===String(a.label).trim()&&(String(p.betType||'').toUpperCase()===a.mkt||(a.mkt==='SPREAD'&&/^(RL|PL)$/i.test(p.betType||''))));
     let live=null;try{live=_tpLiveResult({sport:r.sport,hA:r.hA,awA:r.awA});}catch(e){}
-    return Object.assign({},r,{lbl,leagueLabel:_topPicksLeagueLabel(r.sport),kindRec,weakKind:!!(kindRec&&kindRec.rate<TOP_PICKS_WEAK),lock:lk||null,live});
+    // RESULT: a locked line uses the ledger's own grade; an unlocked finished line is graded at the ADJUSTED line from the final score (and the posted line for comparison).  A shootout game is not graded
+    // from the feed score (a total excludes the shootout goal), and a postponed game has no result.
+    let outcome=null,postedOut=null;
+    const lkOut=lk&&(lk.outcome==='win'||lk.outcome==='loss'||lk.outcome==='push')?lk.outcome:null;
+    const g=live&&live.state==='post'?_tpFindGame({sport:r.sport,hA:r.hA,awA:r.awA}):null;
+    if(g&&!_lvIsVoid(g)&&g.homeScore!=null&&g.awayScore!=null&&!(/\bSO\b|shootout/i.test(g.note||''))){
+      const pp={betType:a.mkt,hScore:g.homeScore,aScore:g.awayScore,hA:r.hA,awA:r.awA};
+      try{outcome=_altGradeAt(pp,+a.line,a.label);postedOut=_altGradeAt(pp,+a.posted,a.postedLabel);}catch(x){}
+    }
+    return Object.assign({},r,{lbl,leagueLabel:_topPicksLeagueLabel(r.sport),kindRec,weakKind:!!(kindRec&&kindRec.rate<TOP_PICKS_WEAK),lock:lk||null,live,outcome:lkOut||outcome,postedOut});
   });
 }
 function _topAdjRank(e){return e.alt.prob*100-(e.weakKind?100:0);}
 function _topAdjRowHTML(e){
   const a=e.alt,col=_gradeColVar(e.lbl),unit=_ALT_HK.has(e.sport)?'goal':'pt',sh=a.shift%1===0?a.shift:(+a.shift).toFixed(1);
   const lk=e.lock,lv=e.live,lkOut=lk&&(lk.outcome==='win'||lk.outcome==='loss')?lk.outcome:null;
-  const bad=lkOut?(lkOut==='win'?'#00e644':'#ff1a1a'):null;
-  const started=lv&&(lv.state==='in'||lv.state==='post');
-  const liveLine=lv?`<div style="font-family:var(--mono);font-size:12px;color:${lv.col};letter-spacing:.5px;margin-top:1px">${lv.state==='in'?'● ':''}${_escHtml(lv.text)}</div>`:'';
+  const bad=e.outcome==='win'?'#00e644':e.outcome==='loss'?'#ff1a1a':null;      // row stripe: green / red once the line has a result (locked or graded from the final score)
+  const started=lv&&(lv.state==='in'||lv.state==='post'||lv.state==='void');
+  const liveLine=lv?_tpResultLineHTML(lv.state==='post'?Object.assign({},lv,{outcome:e.outcome||null}):lv):'';
+  const postedTxt=(lv&&lv.state==='post'&&e.postedOut)?` · posted line ${e.postedOut==='win'?'would have WON':e.postedOut==='loss'?'would have LOST':'would have PUSHED'}`:'';
   const action=lk?`<span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${bad||'var(--pc)'};color:${bad||'var(--pc)'};border-radius:2px;margin-left:3px">${lkOut?lkOut.toUpperCase():'LOCKED'}</span>`
-    :started?`<span style="font-family:var(--mono);font-size:11px;color:var(--t3)">${lv.state==='in'?'STARTED':'FINAL'}</span>`
+    :started?`<span style="font-family:var(--mono);font-size:11px;color:var(--t3)">${lv.state==='in'?'STARTED':lv.state==='void'?'NO RESULT':'NOT LOCKED'}</span>`
     :`<button type="button" class="btn tp-adj-lock" data-k="${_escHtml(e.key)}" onclick="_tpAdjLock(this)" style="margin-top:3px;font-size:12px;padding:5px 10px;min-height:32px">LOCK</button>`;
   const rec=e.kindRec&&e.kindRec.n>=10?`<div class="tp-kind" title="How this KIND of pick (league, bet type, adjusted line) has actually done over the last ${TOP_PICKS_RECENT_DAYS} days" style="font-family:var(--mono);font-size:11px;color:${e.weakKind?'#ffb300':'var(--t3)'}">${Math.round(100*e.kindRec.w/e.kindRec.n)}% LAST ${e.kindRec.n} SAME KIND${e.weakKind?' · DEMOTED':''}</div>`:'';
   return`<div class="tp-adj-row" style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,0,24,.7);border-left:2px solid ${bad||col};border-radius:2px;margin-bottom:5px">
@@ -20592,7 +20646,7 @@ function _topAdjRowHTML(e){
       <div style="font-family:var(--mono);font-size:12px;color:var(--pc);letter-spacing:1px">${_escHtml(e.leagueLabel)} · ${_escHtml(e.awA)} @ ${_escHtml(e.hA)}</div>
       ${liveLine}
       <div style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--nc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escHtml(a.label)}</div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--t3)">ADJ. LINE · moved ${sh} ${unit}${+a.shift===1?'':'s'} from posted ${_escHtml(a.postedLabel)} · est. ${_escHtml(String(a.ml))}</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--t3)">ADJ. LINE · moved ${sh} ${unit}${+a.shift===1?'':'s'} from posted ${_escHtml(a.postedLabel)} · est. ${_escHtml(String(a.ml))}${postedTxt}</div>
     </div>
     <div style="text-align:right;flex-shrink:0">
       <span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${col};color:${col};border-radius:2px">${e.lbl}</span>
@@ -20616,7 +20670,7 @@ function _topAdjHTML(){
   const note=`<div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-bottom:10px;line-height:1.5">Spreads and totals moved to a safer line, ranked by estimated win probability at the adjusted line. Prices are estimates (fair price + vig), not bookmaker quotes.${rec}</div>`;
   if(!entries.length)return header+note+`<div class="empty">NO ADJUSTED LINES TODAY YET<br><span style="font-size:13px;opacity:.6">They appear once today's games have lines and the model has a lean</span></div>`;
   // The top 10 is for lines you can still act on: games not finished (upcoming or in progress); finished games sink to the bottom of their league list.  Only when everything is finished does it rank them.
-  const fin=e=>!!(e.live&&e.live.state==='post');
+  const fin=e=>!!(e.live&&(e.live.state==='post'||e.live.state==='void'));
   const sorted=entries.slice().sort((a,b)=>(fin(a)-fin(b))||(_topAdjRank(b)-_topAdjRank(a)));
   const open=sorted.filter(e=>!fin(e)),pool=open.length?open:sorted;
   const top10=[],held=[],per={};
@@ -20627,10 +20681,10 @@ function _topAdjHTML(){
   }
   for(const e of held){if(top10.length>=10)break;top10.push(e);}
   top10.sort((a,b)=>_topAdjRank(b)-_topAdjRank(a));
-  const rec2=list=>{const w=list.filter(e=>e.lock&&e.lock.outcome==='win').length,l=list.filter(e=>e.lock&&e.lock.outcome==='loss').length;return(w||l)?` <span style="font-family:var(--mono);font-size:12px;font-weight:700"><span style="color:#00e644">${w}W</span>-<span style="color:#ff1a1a">${l}L</span></span>`:'';};
+  const rec2=list=>{const w=list.filter(e=>e.outcome==='win').length,l=list.filter(e=>e.outcome==='loss').length;return(w||l)?` <span style="font-family:var(--mono);font-size:12px;font-weight:700"><span style="color:#00e644">${w}W</span>-<span style="color:#ff1a1a">${l}L</span></span>`:'';};
   const byLeague={};sorted.forEach(e=>{(byLeague[e.leagueLabel]=byLeague[e.leagueLabel]||[]).push(e);});
   const sections=Object.keys(byLeague).sort().map(label=>`<div style="margin-bottom:10px">
-      <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--nc);margin-bottom:5px">${_escHtml(label.toUpperCase())} — ${byLeague[label].length} ADJUSTED LINE${byLeague[label].length===1?'':'S'}</div>
+      <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--nc);margin-bottom:5px">${_escHtml(label.toUpperCase())} — ${byLeague[label].length} ADJUSTED LINE${byLeague[label].length===1?'':'S'}${rec2(byLeague[label])}</div>
       ${byLeague[label].map(_topAdjRowHTML).join('')}
     </div>`).join('');
   return`${header}${note}
@@ -20647,11 +20701,11 @@ async function renderTopAdjLines(){
   const td=today(),now=Date.now();
   // the cards that register the lines are rendered by computeTopPicksToday(); run it only if nothing fresh has (10 min cache, same as the Top Picks tab) and wait if it is already running
   const cacheTs=(window._topPicksCache&&window._topPicksCache.dateKey===td)?window._topPicksCache.ts:0;
-  const fresh=Math.max(window._tpAdjAt||0,cacheTs);
+  const fresh=Math.max(window._tpAdjDay===td?(window._tpAdjAt||0):0,cacheTs);   // keyed by Denver date: yesterday's run never counts as fresh after midnight
   if(now-fresh>TOP_PICKS_TTL_MS||window._topPicksInFlight){
     el.innerHTML=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP ADJUSTED LINES TODAY — ${_topPicksDateLabel(td)}</div><div class="loading"><span class="spi"></span>FINDING TODAY'S ADJUSTED LINES…</div>`;
     if(window._topPicksInFlight){for(let i=0;i<150&&window._topPicksInFlight;i++)await new Promise(r=>setTimeout(r,400));}
-    else if(!window._tpAdjBusy){window._tpAdjBusy=true;try{await computeTopPicksToday();window._tpAdjAt=Date.now();}catch(e){}finally{window._tpAdjBusy=false;}}
+    else if(!window._tpAdjBusy){window._tpAdjBusy=true;try{await _tpComputeShared();window._tpAdjAt=Date.now();window._tpAdjDay=td;}catch(e){}finally{window._tpAdjBusy=false;}}
     else{for(let i=0;i<150&&window._tpAdjBusy;i++)await new Promise(r=>setTimeout(r,400));}
   }
   const el2=document.getElementById('toppicks-adj');if(el2)el2.innerHTML=_topAdjHTML();
@@ -22128,9 +22182,12 @@ function lockProp(team,player,line,over,conf,ml,sport,opp,stat,reasoning,altMeta
   const statTok=(stat||'').toString().trim().toUpperCase();
   const betOnStr=statTok?`${player} ${over?'OVER':'UNDER'} ${statTok} ${line}`:`${player} ${over?'OVER':'UNDER'} ${line}`;
   const propId=`prop_${today()}_${sport}_${player}_${statTok}_${line}_${over?'O':'U'}`.replace(/\s/g,'');
-  if(LOCKED_PROPS.some(p=>p.id===propId)){toast(`// ALREADY LOCKED: ${player} ${over?'OVER':'UNDER'} ${line}`);return;}
+  // dedupe against the whole LEDGER too, not just LOCKED_PROPS (a localStorage-only list that is EMPTY in every automated CI run): every later same-day lock pass used to re-lock all regenerated props
+  // as new pending rows with the same id and a fresh lockedAt (audit 2026-10-23: lockedAt flip-flopped in the backup history, and a settled prop could be reopened)
+  const _pp=LOCKED_PROPS.concat((()=>{try{return getP().filter(p=>p&&p.betType==='PROP'&&p.outcome!=='_removed');}catch(e){return[];}})());
+  if(_pp.some(p=>p.id===propId)){toast(`// ALREADY LOCKED: ${player} ${over?'OVER':'UNDER'} ${line}`);return;}
   // the same prop already locked at the OTHER line (posted vs adjusted) is the same bet: the model's simulated probability moves a little between passes and can flip a pick across the adjusted-line threshold
-  if(LOCKED_PROPS.some(p=>p.date===today()&&p.sport===sport&&p.player===player&&!!p.over===!!over&&String(p.betOn||'').toUpperCase().includes(' '+statTok+' ')&&(altMeta!=null&&altMeta!==''||p.altLine))){toast(`// ALREADY LOCKED: ${player} ${over?'OVER':'UNDER'} (other line)`);return;}
+  if(_pp.some(p=>p.date===today()&&p.sport===sport&&p.player===player&&!!p.over===!!over&&String(p.betOn||'').toUpperCase().includes(' '+statTok+' ')&&(altMeta!=null&&altMeta!==''||p.altLine))){toast(`// ALREADY LOCKED: ${player} ${over?'OVER':'UNDER'} (other line)`);return;}
   const prop={id:propId,team,player,line,over,conf,ml,lockedAt:Date.now(),outcome:'pending',date:today(),
     sport,league:sport,betType:'PROP',betOn:betOnStr,winProb:conf||0.60,
     // awA falls back to team only when no opponent was passed through —
@@ -23467,7 +23524,7 @@ async function _lvEspn(def,day){   // day = 'YYYYMMDD' for another day's scorebo
       const soccer=def.path.indexOf('soccer/')===0;
       const nm=t=>soccer?(t.team.displayName||t.team.shortDisplayName):(def.k==='nhl'?(_LV_NHL_FIX[t.team.abbreviation]||t.team.abbreviation):t.team.abbreviation);
       out.push({k:def.k,tag:def.tag,id:e.id,home:nm(h),away:nm(a),
-        homeScore:+h.score,awayScore:+a.score,homeLogo:h.team.logo,awayLogo:a.team.logo,state:ty.state,period:stt.period,displayClock:stt.displayClock,note:ty.shortDetail,startMs:Date.parse(e.date),seasonType:(e.season&&e.season.type)||null});
+        homeScore:+h.score,awayScore:+a.score,homeLogo:h.team.logo,awayLogo:a.team.logo,state:ty.state,completed:ty.completed,period:stt.period,displayClock:stt.displayClock,note:ty.shortDetail,startMs:Date.parse(e.date),seasonType:(e.season&&e.season.type)||null});
     });
     return out;
   }catch(e){return null;}
@@ -23618,7 +23675,7 @@ function _cvLabelTeam(s){return String(s||'').replace(/^\s*[#(]?\d+[)]?\s*/,'').
 function _cvPaintCardScores(){
   try{
     const games=((typeof _LV!=='undefined'&&_LV.games)||[]).concat(typeof _tkEuroGames==='function'?_tkEuroGames():[])
-      .filter(g=>g&&(g.state==='in'||g.state==='post')&&g.homeScore!=null&&g.awayScore!=null&&!isNaN(g.homeScore)&&!isNaN(g.awayScore));
+      .filter(g=>g&&(g.state==='in'||g.state==='post')&&!_lvIsVoid(g)&&g.homeScore!=null&&g.awayScore!=null&&!isNaN(g.homeScore)&&!isNaN(g.awayScore));
     document.querySelectorAll('.gc .gch').forEach(h=>{
       const np=h.querySelector('.np'),tm=h.querySelectorAll('.gtm');
       let box=h.querySelector('.cvscore');
@@ -23645,6 +23702,7 @@ function _cvPaintCardScores(){
 }catch(e){}})();
 const _TKM={order:[],sig:'',html:{},score:{},track:null,x:0,half:0,raf:0,last:0,hover:false,run:false,speed:46,anim:null,animHalf:0,animDur:0,px:0};
 // live status text: NHL -> "P2 12:34" (period + game clock; OT / SO labelled; intermissions keep ESPN's own text), everything else keeps ESPN's / the relay's note
+function _lvIsVoid(g){return !!g&&g.state==='post'&&g.completed===false;}   // postponed / abandoned / cancelled
 function _tkLiveStatus(it){
   const g=it.g;
   if(it.g.k==='nhl'&&g.period){
@@ -23697,13 +23755,25 @@ function _tkFinRec(){
   if(!_TKM.fin){try{_TKM.fin=JSON.parse(localStorage.getItem('cv_tk_fin')||'{}')||{};}catch(e){_TKM.fin={};}}
   return _TKM.fin;
 }
+// games seen IN PROGRESS on this device (persisted): their end is "now" the first time they show final, however long they ran (OT, delays); only a game first seen already final is dated from its start
+function _tkLiveSeen(){
+  if(!_TKM.seen){try{_TKM.seen=JSON.parse(localStorage.getItem('cv_tk_live')||'{}')||{};}catch(e){_TKM.seen={};}}
+  return _TKM.seen;
+}
+function _tkMarkLive(key,now){
+  const m=_tkLiveSeen();if(m[key])return;
+  m[key]=now;Object.keys(m).forEach(k=>{if(now-m[k]>24*3600000)delete m[k];});
+  try{localStorage.setItem('cv_tk_live',JSON.stringify(m));}catch(e){}
+}
 function _tkEndMs(it,now){
   const rec=_tkFinRec();
   if(rec[it.key]==null){
     const g=it.g;
-    rec[it.key]=g.startMs?Math.min(now,g.startMs+(_TK_GAME_HRS[g.k]||3)*3600000):now;
-    Object.keys(rec).forEach(k=>{if(now-rec[k]>12*3600000)delete rec[k];});
+    const end=_tkLiveSeen()[it.key]?now:(g.startMs?Math.min(now,g.startMs+(_TK_GAME_HRS[g.k]||3)*3600000):now);
+    Object.keys(rec).forEach(k=>{if(now-rec[k]>12*3600000)delete rec[k];});    // prune the OTHERS first: this entry must survive
+    rec[it.key]=end;
     try{localStorage.setItem('cv_tk_fin',JSON.stringify(rec));}catch(e){}
+    return end;
   }
   return rec[it.key];
 }
@@ -23719,9 +23789,11 @@ function renderTicker(){
     if(!all.length){_tkHide(el);return;}
     const td=today();let picks=[];
     try{const yd=yesterday();picks=getP().filter(p=>p&&p.id&&p.hA&&p.outcome!=='_removed'&&(p.date===td||p.date===yd));}catch(e){}
-    const items=[],midnight=new Date().setHours(0,0,0,0);
+    const items=[];
     all.forEach(g=>{
+      if(_lvIsVoid(g))return;                          // postponed / abandoned: ESPN calls it 'post' with no result -- never a FINAL chip
       const al=_LV_ALIAS[g.tag]||[g.tag],key=g.k+'|'+g.id;
+      if(g.state==='in')_tkMarkLive(key,now);
       const match=picks.filter(p=>{
         const sp=String(window._normSport?window._normSport(p):(p.league||p.sport||'')).toUpperCase();
         return al.includes(sp)&&_tkMatch(p.hA,g.home)&&_tkMatch(p.awA,g.away);
@@ -23732,8 +23804,8 @@ function renderTicker(){
       if(g.state==='pre')it.locks=match.filter(p=>p.date===td);
       else if(g.state==='post'){
         it.endMs=_tkEndMs(it,now);
-        if(now-it.endMs>_TK_KEEP_FINAL_MS)return;
-        const early=g.startMs&&g.startMs<midnight;
+        if(!(now-it.endMs<=_TK_KEEP_FINAL_MS))return;   // a non-finite end counts as expired
+        const early=g.startMs&&_scDayOf(g.startMs)!==td;     // Denver day, like every date in the app
         it.locks=match.filter(p=>p.date===td||(early&&p.date!==td));
       }else it.locks=match.filter(p=>p.date===td||g.state==='in');
       if(g.state!=='in'&&!it.locks.length)return;
@@ -26200,17 +26272,17 @@ function newsCard(article,showSport=true){
     <div class="card" style="border-left:3px solid ${tagCol}55;padding:10px">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;gap:8px">
         <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
-          <span style="font-family:var(--mono);font-size:15px;padding:2px 7px;border:1px solid ${sportCol}55;color:${sportCol};border-radius:2px;font-weight:700">${article.sport||'NEWS'}</span>
+          <span style="font-family:var(--mono);font-size:15px;padding:2px 7px;border:1px solid ${sportCol}55;color:${sportCol};border-radius:2px;font-weight:700">${_escHtml(article.sport||'NEWS')}</span>
           <span style="font-family:var(--mono);font-size:15px;padding:2px 7px;border:1px solid ${tagCol}44;color:${tagCol};border-radius:2px">${tag}</span>
-          ${article.team?`<span style="font-family:var(--mono);font-size:15px;color:rgba(220,190,255,.5);padding:2px 6px;border:1px solid rgba(220,190,255,.15);border-radius:2px">${article.team}</span>`:''}
-          ${article.player?`<span style="font-family:var(--mono);font-size:15px;color:rgba(255,221,0,.75);padding:2px 6px;border:1px solid rgba(255,221,0,.2);border-radius:2px">${article.player}</span>`:''}
+          ${article.team?`<span style="font-family:var(--mono);font-size:15px;color:rgba(220,190,255,.5);padding:2px 6px;border:1px solid rgba(220,190,255,.15);border-radius:2px">${_escHtml(article.team)}</span>`:''}
+          ${article.player?`<span style="font-family:var(--mono);font-size:15px;color:rgba(255,221,0,.75);padding:2px 6px;border:1px solid rgba(255,221,0,.2);border-radius:2px">${_escHtml(article.player)}</span>`:''}
         </div>
         <span style="font-family:var(--mono);font-size:14px;color:rgba(220,190,255,.4);white-space:nowrap;flex-shrink:0;text-align:right">${pubDate}</span>
       </div>
-      <div style="font-family:'Orbitron',sans-serif;font-size:17px;font-weight:700;color:var(--t);line-height:1.5;margin-bottom:5px">${article.headline}</div>
-      ${article.description?`<div style="font-family:var(--mono);font-size:16px;color:rgba(220,190,255,.75);line-height:1.7;margin-bottom:6px">${article.description.slice(0,280)}${article.description.length>280?'…':''}</div>`:''}
+      <div style="font-family:'Orbitron',sans-serif;font-size:17px;font-weight:700;color:var(--t);line-height:1.5;margin-bottom:5px">${_escHtml(article.headline)}</div>
+      ${article.description?`<div style="font-family:var(--mono);font-size:16px;color:rgba(220,190,255,.75);line-height:1.7;margin-bottom:6px">${_escHtml(article.description.slice(0,280))}${article.description.length>280?'…':''}</div>`:''}
       ${impl?`<div style="background:rgba(0,240,255,.04);border:1px solid rgba(0,240,255,.15);border-radius:2px;padding:7px 10px;margin-top:6px"><span style="font-family:var(--mono);font-size:14px;color:rgba(0,240,255,.6);letter-spacing:2px;display:block;margin-bottom:3px">// IMPLICATIONS</span><span style="font-family:var(--mono);font-size:16px;color:rgba(220,190,255,.85);line-height:1.7">${impl}</span></div>`:''}
-      ${article.link?`<a href="${article.link}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:15px;color:${sportCol};text-decoration:none;display:inline-block;margin-top:7px;padding:3px 10px;border:1px solid ${sportCol}33;border-radius:2px">READ MORE →</a>`:''}
+      ${_safeUrl(article.link)?`<a href="${_escHtml(_safeUrl(article.link))}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:15px;color:${sportCol};text-decoration:none;display:inline-block;margin-top:7px;padding:3px 10px;border:1px solid ${sportCol}33;border-radius:2px">READ MORE →</a>`:''}
     </div>
   </div>`;
 }
@@ -27664,9 +27736,9 @@ function renderNewsTab(){
         <span style="font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:2px;background:rgba(77,121,255,.1);color:${col};border:1px solid ${col}">${lbl}</span>
         <span style="font-family:var(--mono);font-size:11px;color:var(--t3)">${pubDate}</span>
       </div>
-      <div style="font-family:var(--orb);font-size:17px;font-weight:700;letter-spacing:.5px;color:var(--t);margin-bottom:5px;line-height:1.4">${a.headline}</div>
-      ${a.summary?`<div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${a.summary}</div>`:''}
-      ${a.link?`<a href="${a.link}" target="_blank" style="font-family:var(--mono);font-size:13px;color:var(--pc);text-decoration:none;margin-top:5px;display:inline-block">READ MORE →</a>`:''}
+      <div style="font-family:var(--orb);font-size:17px;font-weight:700;letter-spacing:.5px;color:var(--t);margin-bottom:5px;line-height:1.4">${_escHtml(a.headline)}</div>
+      ${a.summary?`<div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${_escHtml(a.summary)}</div>`:''}
+      ${_safeUrl(a.link)?`<a href="${_escHtml(_safeUrl(a.link))}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:13px;color:var(--pc);text-decoration:none;margin-top:5px;display:inline-block">READ MORE →</a>`:''}
     </div>`;
   }).join('');
 }

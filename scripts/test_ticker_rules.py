@@ -144,6 +144,32 @@ class Ticker(unittest.TestCase):
         self.assertEqual(r["without"], 0)                                        # the scores tab / card painter keep seeing only started games
         self.assertTrue(r["startMs"])
 
+    def test_a_final_that_ended_long_ago_is_dropped_and_its_end_time_is_kept(self):
+        now = self.pg.evaluate("Date.now()")
+        r = self.run_ticker([g("f9", "Pelicans", "Marmots", "post", startMs=now - 24 * 3600000, note="Final", k="nfl", tag="NFL")], [lock("y", "Pelicans", "Marmots", "yesterday()").replace("sport:'NHL'", "sport:'NFL'")])
+        self.assertFalse(r["shown"])                                             # a 24 h old final (e.g. still on a week-wide scoreboard) is not resurrected by yesterday's lock
+        self.assertIsNotNone(self.pg.evaluate("_TKM.fin['nfl|f9']"))             # and the end time was actually stored (the prune used to delete it)
+
+    def test_a_long_game_seen_live_keeps_its_full_30_minutes_after_it_ends(self):
+        now = self.pg.evaluate("Date.now()")
+        lk = [lock("a", "Pelicans", "Marmots")]
+        self.pg.evaluate("localStorage.removeItem('cv_tk_live');_TKM.seen=null")
+        self.run_ticker([g("f8", "Pelicans", "Marmots", "in", startMs=now - 4 * 3600000)], lk)               # three overtimes: 4 h in progress
+        r = self.run_ticker([g("f8", "Pelicans", "Marmots", "post", startMs=now - 4 * 3600000, note="Final")], lk)
+        self.assertEqual(r["order"], ["nhl|f8"])                                 # not dated from start + 2.8 h (which would already be past the window)
+
+    def test_a_postponed_or_abandoned_game_never_shows_as_final(self):
+        now = self.pg.evaluate("Date.now()")
+        r = self.run_ticker([g("v1", "Pelicans", "Marmots", "post", startMs=now - 3600000, note="Postponed", homeScore=0, awayScore=0, completed=False)], [lock("a", "Pelicans", "Marmots")])
+        self.assertFalse(r["shown"])
+
+    def test_started_yesterday_is_judged_by_the_denver_date_not_the_browsers(self):
+        now = self.pg.evaluate("Date.now()")
+        denver_midnight = self.pg.evaluate("new Date(today()+'T00:00:00-06:00').getTime()")
+        # a game that started 2 h before the Denver midnight (yesterday in Denver) and just finished, with a lock dated yesterday
+        r = self.run_ticker([g("d1", "Pelicans", "Marmots", "post", startMs=denver_midnight - 2 * 3600000, note="Final")], [lock("y", "Pelicans", "Marmots", "yesterday()")], fin={"nhl|d1": now - 60000})
+        self.assertEqual(r["order"], ["nhl|d1"])
+
     def test_nothing_live_and_nothing_locked_hides_the_ticker(self):
         now = self.pg.evaluate("Date.now()")
         r = self.run_ticker([g("p1", "Walruses", "Narwhals", "pre", startMs=now + 3600000)], [])

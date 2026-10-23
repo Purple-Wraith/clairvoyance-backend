@@ -1946,7 +1946,9 @@ def gather_legs(page) -> dict:
           try {
             if (typeof _generateNBAProps === 'function' && typeof _fetchNBAPlayerStats === 'function') {
               const stats = await _fetchNBAPlayerStats();
-              const games = window._nbaTodayGames || (typeof NBA_TONIGHT !== 'undefined' ? NBA_TONIGHT : []) || [];
+              // props are generated only for games that have NOT started (audit 2026-10-23: a weekend matinee prop could be locked after tip-off -- props carry no start time, so the pre-start guard
+              // the game legs go through never saw them). A feed entry with no state is treated as not started.
+              const games = (window._nbaTodayGames || (typeof NBA_TONIGHT !== 'undefined' ? NBA_TONIGHT : []) || []).filter(g => !g.state || g.state === 'pre');
               // Single call, not two -- _generateNBAProps runs a Monte Carlo
               // sim internally (same as its WNBA/NHL siblings), so calling
               // it twice (once for a count, once to push) would double the
