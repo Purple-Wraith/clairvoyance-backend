@@ -779,6 +779,7 @@ rect.mom-pin{fill:rgba(255,221,0,.09)}line.mom-pin{stroke:var(--gc);stroke-width
 .tpw>summary{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;cursor:pointer;padding:8px 10px;background:rgba(10,0,24,.7);border-left:2px solid var(--nc);border-radius:2px;font-family:var(--mono);font-size:13px;list-style:none}.tpw>summary::-webkit-details-marker{display:none}.tpw>summary::before{content:'▸';color:var(--nc)}.tpw[open]>summary::before{content:'▾'}
 .tpw .tpwd{color:var(--pc);letter-spacing:1px;min-width:92px}.tpw .tpwt{font-weight:700}.tpw .tpwa{color:var(--t3);font-size:12px}.tpw .tpwb{padding:2px 4px 8px}.tpw0>summary{list-style:none;cursor:pointer}.tpw0>summary::-webkit-details-marker{display:none}
 .lockoff{pointer-events:none;opacity:.62;filter:saturate(.75)}.lockoff *{cursor:default!important}
+.cvscore{font-family:var(--mono);text-align:right;margin-top:2px;line-height:1.25}.cvscore .cvs-st{display:block;font-size:12px;letter-spacing:1px;color:var(--t3)}.cvscore.lv .cvs-st{color:var(--hc)}.cvscore .cvs-sc{display:block;font-size:15px;color:var(--t)}.cvscore b{font-size:17px}
 .altrow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin-bottom:8px;font-family:var(--mono)}.altrow .altk{flex:1 0 100%;font-size:13px;letter-spacing:1px;color:var(--t3)}.altrow .altc{flex:1 1 150px;display:flex;flex-direction:column;gap:2px;padding:6px 9px;border-radius:3px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);cursor:pointer;min-width:0}.altrow .altc .alt1{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.altrow .altc .altp{font-family:var(--orb);font-size:16px;font-weight:700;color:var(--t)}.altrow .altc .alts{font-size:13px;color:var(--t2)}.altrow .altc .altw{font-size:12px;color:var(--t3)}.altrow .altc .pill{font-size:12px}
 .bmk2 .bmk2t{font-size:14px;padding:1px 6px;background:#0b0612;color:#fff;border-radius:2px;flex-shrink:0;font-weight:700}.bmk2 .bmk2k{font-size:13px;letter-spacing:1px;font-weight:700}.bmk2 .bmk2p{font-family:var(--orb);font-size:16px;font-weight:700}.bmk2 .bmk2s{font-size:14px;font-weight:700}
 /* GAME CARD */
@@ -23393,7 +23394,7 @@ async function refreshLive(force){
         // success: the relay's own gate (a final awaiting its confirmation poll is re-checked in 90 s); failure: retry every 5 min only while a game is in its window, else hourly -- never every 2 min around the clock
         rs.next=ok?(_LV.relay.pendingConfirm?Date.now()+90000:_lvRelayNext(Date.now())):Math.max(_lvRelayNext(Date.now()),Date.now()+300000);}
     }
-    if(res.length||force){try{_lvApplyToCards();}catch(e){}renderTicker();try{_tpRefreshResults();}catch(e){}try{_scOnLive();}catch(e){}}
+    if(res.length||force){try{_lvApplyToCards();}catch(e){}renderTicker();try{_tpRefreshResults();}catch(e){}try{_scOnLive();}catch(e){}try{_cvPaintCardScores();}catch(e){}}
   }catch(e){}
   _lvSchedule();
 }
@@ -23431,6 +23432,39 @@ function _lvApplyToCards(){
 // ── ticker ──
 function _tkNorm(s){const raw=String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const n=raw.replace(/\b(fc|cf|afc|sc|hc|ik|if|ac|as|us|ssc|rcd|ud|cd|sv)\b/g,'').replace(/[^a-z0-9]/g,'');return n||raw.replace(/[^a-z0-9]/g,'');}   // 'SC' / 'HC' are real CFB abbreviations: if stripping club prefixes leaves nothing, keep the name
 function _tkMatch(a,b){a=_tkNorm(a);b=_tkNorm(b);return !!a&&!!b&&(a===b||(a.length>=4&&b.length>=4&&(a.includes(b)||b.includes(a))));}
+// ── SCORES ON EVERY GAME CARD, LIVE OR FINAL (owner 2026-10-23) ───────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// The NBA / NHL (ESPN-event) cards already print the live score. The European hockey cards (SHL / Liiga / NLA / Extraliga), the NHL upcoming card and the soccer cards showed only a start time while the game
+// was on (the schedule files behind them refresh far less often than the live layer) and no score at all on soccer. This one painter fills any card whose header lacks a score from the SAME live data the ticker
+// uses (_LV.games + the European relay games). A card is matched on BOTH team labels (away first, as every card prints them); a card that already shows the score is left alone.
+function _cvLabelTeam(s){return String(s||'').replace(/^\s*[#(]?\d+[)]?\s*/,'').trim();}
+function _cvPaintCardScores(){
+  try{
+    const games=((typeof _LV!=='undefined'&&_LV.games)||[]).concat(typeof _tkEuroGames==='function'?_tkEuroGames():[])
+      .filter(g=>g&&(g.state==='in'||g.state==='post')&&g.homeScore!=null&&g.awayScore!=null&&!isNaN(g.homeScore)&&!isNaN(g.awayScore));
+    document.querySelectorAll('.gc .gch').forEach(h=>{
+      const np=h.querySelector('.np'),tm=h.querySelectorAll('.gtm');
+      let box=h.querySelector('.cvscore');
+      if(!np||tm.length<2){if(box)box.remove();return;}
+      const a=_cvLabelTeam(tm[0].textContent),hm=_cvLabelTeam(tm[1].textContent);
+      const g=games.find(x=>_tkMatch(x.away,a)&&_tkMatch(x.home,hm));
+      if(!g){if(box)box.remove();return;}
+      const own=np.textContent||'',has=n=>new RegExp('(^|[^0-9])'+n+'([^0-9]|$)').test(own);
+      if(has(g.awayScore)&&has(g.homeScore)){if(box)box.remove();return;}          // the card already prints this score
+      const inPlay=g.state==='in';
+      const st=inPlay?(typeof _tkLiveStatus==='function'?_tkLiveStatus({g}):(g.note||'LIVE')):(/final/i.test(g.note||'')?g.note:'FINAL');
+      const sig=[inPlay?1:0,st,g.awayScore,g.homeScore].join('|');
+      if(!box){box=document.createElement('div');np.insertAdjacentElement('afterend',box);}
+      if(box.getAttribute('data-sig')===sig)return;
+      box.className='cvscore '+(inPlay?'lv':'fin');box.setAttribute('data-sig',sig);
+      box.innerHTML='<span class="cvs-st">'+(inPlay?'● ':'')+_escHtml(st)+'</span><span class="cvs-sc">'+_escHtml(a)+' <b>'+_escHtml(g.awayScore)+'</b> – <b>'+_escHtml(g.homeScore)+'</b> '+_escHtml(hm)+'</span>';
+    });
+  }catch(e){}
+}
+(function(){try{                                                              // cards render asynchronously (tab switches, re-renders): paint once the DOM settles
+  let t=0;const mo=new MutationObserver(()=>{clearTimeout(t);t=setTimeout(_cvPaintCardScores,350);});
+  const go=()=>{if(document.body)mo.observe(document.body,{childList:true,subtree:true});};
+  if(document.body)go();else document.addEventListener('DOMContentLoaded',go);
+}catch(e){}})();
 const _TKM={order:[],sig:'',html:{},score:{},track:null,x:0,half:0,raf:0,last:0,hover:false,run:false,speed:46,anim:null,animHalf:0,animDur:0,px:0};
 // live status text: NHL -> "P2 12:34" (period + game clock; OT / SO labelled; intermissions keep ESPN's own text), everything else keeps ESPN's / the relay's note
 function _tkLiveStatus(it){
