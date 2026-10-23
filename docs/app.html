@@ -5523,13 +5523,17 @@ function _altRowFor(sport,home,away,dateRaw,nm,off){
     if(!nm||!nm.mkts)return'';
     const best=(a,b)=>{const x=nm.mkts.find(m=>m.side===a),y=nm.mkts.find(m=>m.side===b);return x&&y?(x.prob>=y.prob?x:y):(x||y);};
     const d=new Date(dateRaw);const dateKey=isNaN(d)?String(dateRaw||'').slice(0,10):d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
-    const chips=[['OU',best('over','under')],['SPREAD',best('sprdFav','sprdDog')]].map(([mkt,m])=>{
+    // NBA totals show the adjusted line for BOTH sides (owner 2026-10-23): the cushion table is side-neutral, so an OVER moved down is as safe as an UNDER moved up. The model's lean side comes first;
+    // the other side is flagged 'OTHER SIDE' (its posted-line grade is not the lean's). Automatic locks still only take the model's lean side.
+    const rowDefs=[['OU',best('over','under'),false],['SPREAD',best('sprdFav','sprdDog'),false]];
+    if(sport==='NBA'){const lean=rowDefs[0][1],opp=nm.mkts.find(x=>(x.side==='over'||x.side==='under')&&x!==lean);if(lean&&opp)rowDefs.splice(1,0,['OU',opp,true]);}
+    const chips=rowDefs.map(([mkt,m,isOpp])=>{
       if(!m)return'';const alt=_altShift(sport,mkt,m.label,m.prob);if(!alt)return'';
       alt.postedDec=m.dec!=null?m.dec:null;alt.postedMl=m.ml!=null?String(m.ml):null;alt.postedProb=m.rawProb!=null?m.rawProb:(m.prob!=null?m.prob:null);   // the ORIGINAL posted price, kept with the pick (postedProb = the model's own number, pre-ceiling -- see MARKET_P_CEILING)
-      const key=sport+'|'+dateKey+'|'+home+'|'+away+'|'+mkt;
+      const key=sport+'|'+dateKey+'|'+home+'|'+away+'|'+mkt+(isOpp?'|opp':'');
       window._altReg[key]={sport,hA:home,awA:away,date:dateKey,alt};
-      const cls=m.tierN===3?'pg':m.tierN===2?'pp':m.tierN===1?'pn':'';
-      const lb=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN]||'';
+      const cls=isOpp?'':(m.tierN===3?'pg':m.tierN===2?'pp':m.tierN===1?'pn':'');
+      const lb=isOpp?'OTHER SIDE':(['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN]||'');
       const sh=alt.shift%1===0?alt.shift:alt.shift.toFixed(1);
       return`<div class="altc"${off?'':` onclick="event.stopPropagation();_lockAltKey('${key.replace(/'/g,"\\'")}')"`}><div class="alt1"><span class="altp">${_escHtml(alt.label)}</span>${lb?`<span class="pill ${cls}">${lb}</span>`:''}</div><div class="alts">${Math.round(alt.prob*100)}% · est ${alt.ml} · ${_ALT_HK.has(sport)?(alt.flip?'FLIPS SIDE · ':'')+sh+(+sh===1?' goal':' goals'):'+'+sh+' pts'}</div><div class="altw">posted ${_escHtml(alt.postedLabel)} · ${Math.round(m.prob*100)}%</div></div>`;
     }).join('');
