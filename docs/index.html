@@ -575,6 +575,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 /* CHIPS */
 .chip{--cpx:6px;--cpy:9px;position:relative;display:flex;flex-direction:column;overflow:hidden;border-radius:3px;padding:var(--cpy) var(--cpx);text-align:center;cursor:pointer;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));-webkit-user-select:none;user-select:none;transition:filter .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(240,0,255,.15)}
 .chip:active{filter:brightness(1.4)}
+.tpsub{display:flex;gap:6px;margin-bottom:12px}
+.tpsb{flex:1 1 0;min-height:44px;font-family:var(--mono);font-size:13px;letter-spacing:1.5px;padding:8px 6px;background:rgba(0,0,0,.6);border:1px solid rgba(204,0,255,.3);color:var(--t2);border-radius:3px;cursor:pointer}
+.tpsb.act{border-color:var(--pc);color:var(--pc);background:rgba(204,0,255,.14)}
 /* Every lock chip is a plain div (see _a11yTagChips JS retrofit below, near
    the mobile font-cap observer) -- browsers don't draw a default focus ring
    on a non-native-interactive element even once it's made keyboard-focusable,
@@ -1303,11 +1306,16 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
 <!-- TOP PICKS -->
 <div id="sp-toppicks" class="spane">
   <div class="sa" style="padding:16px">
+    <!-- sub-tabs (owner 2026-10-23): TOP PICKS (the day's best picks) | TOP ADJUSTED LINES (spreads / totals moved to a safer line, ranked) -->
+    <div id="tp-subtabs" class="tpsub" role="tablist"><button type="button" class="tpsb act" data-v="picks" role="tab" aria-pressed="true" onclick="tpSub('picks')">TOP PICKS</button><button type="button" class="tpsb" data-v="adj" role="tab" aria-pressed="false" onclick="tpSub('adj')">TOP ADJUSTED LINES</button></div>
+    <div id="tp-view-picks">
     <div id="toppicks-date-row" style="margin-bottom:12px;display:flex;justify-content:flex-end"></div>
     <div id="toppicks-content"></div>
     <div id="toppicks-week" style="margin-top:14px"></div>
     <!-- Historical Top Picks calendar heatmap, additive -- see renderTopPicksHeatmap -->
     <div id="toppicks-heatmap" style="margin-top:16px"></div>
+    </div>
+    <div id="tp-view-adj" style="display:none"><div id="toppicks-adj"></div></div>
   </div>
 </div>
 
@@ -20137,6 +20145,7 @@ function _tpLiveResult(e){
 }
 // repaint today's list from the cached legs whenever the live layer refreshes (no re-simulation)
 function _tpRefreshResults(){
+  try{_tpAdjRefresh();}catch(e){}
   const pane=document.getElementById('sp-toppicks');
   if(!pane||!pane.classList.contains('act')||!window._topPicksLegs)return;
   const el=document.getElementById('toppicks-content');if(!el||el.querySelector('.empty'))return;
@@ -20534,6 +20543,133 @@ async function renderTopPicksToday(force,dateStr){
   }
 }
 window.renderTopPicksToday=renderTopPicksToday;
+// ══ TOP PICKS > TOP ADJUSTED LINES (owner request 2026-10-23: "create a tab or sub tab under top picks and then have top adjusted lines") ══════════════════════════════════════════
+// Every spread / total the engine can move to a safer line (_altShift) -- the same lines the game cards offer under "ADJ. LINE" and the auto-locker takes -- ranked by the estimated win probability AT THE
+// ADJUSTED LINE, best first.  The cards register each adjusted line in window._altReg as they render, and computeTopPicksToday() renders every card of the day, so this view reads that registry (no second
+// model run, no new numbers).  Per game and market only the better side is listed (an over and an under of the same total are never both shown).  Ranked like the Top Picks tab: probability first, a KIND of
+// pick (league x bet type, adjusted) whose last-21-day record is under 65% sinks, at most 3 per league in the top 10.  Prices are estimates (fair price + vig), never bookmaker quotes.
+window._tpSubS=window._tpSubS||'picks';
+function tpSub(v){
+  window._tpSubS=v==='adj'?'adj':'picks';
+  document.querySelectorAll('#tp-subtabs .tpsb').forEach(b=>{const on=b.dataset.v===window._tpSubS;b.classList.toggle('act',on);b.setAttribute('aria-pressed',on?'true':'false');});
+  const a=document.getElementById('tp-view-adj'),pk=document.getElementById('tp-view-picks');
+  if(a)a.style.display=window._tpSubS==='adj'?'':'none';
+  if(pk)pk.style.display=window._tpSubS==='adj'?'none':'';
+  if(window._tpSubS==='adj')renderTopAdjLines();
+}
+window.tpSub=tpSub;
+function _topAdjEntries(){
+  const td=today(),reg=window._altReg||{},byMkt={};
+  Object.keys(reg).forEach(key=>{
+    const r=reg[key];if(!r||!r.alt||r.date!==td)return;
+    const gk=r.sport+'|'+r.hA+'|'+r.awA+'|'+r.alt.mkt;
+    if(!byMkt[gk]||r.alt.prob>byMkt[gk].alt.prob)byMkt[gk]=Object.assign({key},r);
+  });
+  let tr=null;try{tr=_tpTrackRecords();}catch(e){}
+  const locks=(()=>{try{return getP().filter(p=>p&&p.date===td&&p.altLine&&p.outcome!=='_removed');}catch(e){return[];}})();
+  return Object.values(byMkt).map(r=>{
+    const a=r.alt,ap=a.prob,lbl=ap>=.6695?'PREMIUM':ap>=.62?'OPTIMAL':ap>=.55?'LEAN':'SKIP';
+    let kindRec=null;
+    if(tr&&tr.nAll>=30){try{kindRec=tr.rate(_tpKindOf(r.sport,a.mkt==='OU'?'over':'sprdFav',true));}catch(e){}}
+    const lk=locks.find(p=>p.hA===r.hA&&p.awA===r.awA&&String(p.betOn).trim()===String(a.label).trim()&&(String(p.betType||'').toUpperCase()===a.mkt||(a.mkt==='SPREAD'&&/^(RL|PL)$/i.test(p.betType||''))));
+    let live=null;try{live=_tpLiveResult({sport:r.sport,hA:r.hA,awA:r.awA});}catch(e){}
+    return Object.assign({},r,{lbl,leagueLabel:_topPicksLeagueLabel(r.sport),kindRec,weakKind:!!(kindRec&&kindRec.rate<TOP_PICKS_WEAK),lock:lk||null,live});
+  });
+}
+function _topAdjRank(e){return e.alt.prob*100-(e.weakKind?100:0);}
+function _topAdjRowHTML(e){
+  const a=e.alt,col=_gradeColVar(e.lbl),unit=_ALT_HK.has(e.sport)?'goal':'pt',sh=a.shift%1===0?a.shift:(+a.shift).toFixed(1);
+  const lk=e.lock,lv=e.live,lkOut=lk&&(lk.outcome==='win'||lk.outcome==='loss')?lk.outcome:null;
+  const bad=lkOut?(lkOut==='win'?'#00e644':'#ff1a1a'):null;
+  const started=lv&&(lv.state==='in'||lv.state==='post');
+  const liveLine=lv?`<div style="font-family:var(--mono);font-size:12px;color:${lv.col};letter-spacing:.5px;margin-top:1px">${lv.state==='in'?'● ':''}${_escHtml(lv.text)}</div>`:'';
+  const action=lk?`<span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${bad||'var(--pc)'};color:${bad||'var(--pc)'};border-radius:2px;margin-left:3px">${lkOut?lkOut.toUpperCase():'LOCKED'}</span>`
+    :started?`<span style="font-family:var(--mono);font-size:11px;color:var(--t3)">${lv.state==='in'?'STARTED':'FINAL'}</span>`
+    :`<button type="button" class="btn tp-adj-lock" data-k="${_escHtml(e.key)}" onclick="_tpAdjLock(this)" style="margin-top:3px;font-size:12px;padding:5px 10px;min-height:32px">LOCK</button>`;
+  const rec=e.kindRec&&e.kindRec.n>=10?`<div class="tp-kind" title="How this KIND of pick (league, bet type, adjusted line) has actually done over the last ${TOP_PICKS_RECENT_DAYS} days" style="font-family:var(--mono);font-size:11px;color:${e.weakKind?'#ffb300':'var(--t3)'}">${Math.round(100*e.kindRec.w/e.kindRec.n)}% LAST ${e.kindRec.n} SAME KIND${e.weakKind?' · DEMOTED':''}</div>`:'';
+  return`<div class="tp-adj-row" style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,0,24,.7);border-left:2px solid ${bad||col};border-radius:2px;margin-bottom:5px">
+    <div style="flex:1;min-width:0">
+      <div style="font-family:var(--mono);font-size:12px;color:var(--pc);letter-spacing:1px">${_escHtml(e.leagueLabel)} · ${_escHtml(e.awA)} @ ${_escHtml(e.hA)}</div>
+      ${liveLine}
+      <div style="font-family:var(--orb);font-size:15px;font-weight:700;color:var(--nc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escHtml(a.label)}</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--t3)">ADJ. LINE · moved ${sh} ${unit}${+a.shift===1?'':'s'} from posted ${_escHtml(a.postedLabel)} · est. ${_escHtml(String(a.ml))}</div>
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <span style="font-family:var(--mono);font-size:12px;padding:1px 5px;border:1px solid ${col};color:${col};border-radius:2px">${e.lbl}</span>
+      <div style="font-family:var(--mono);font-size:13px;color:var(--t2);margin-top:2px">${(a.prob*100).toFixed(1)}%</div>
+      ${rec}
+      <div>${action}</div>
+    </div>
+  </div>`;
+}
+function _topAdjHTML(){
+  const td=today();
+  const header=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP ADJUSTED LINES TODAY — ${_topPicksDateLabel(td)}</div>`;
+  const entries=_topAdjEntries();
+  // the adjusted-line picks' own recent record, so the list carries its proof
+  let rec='';
+  try{
+    const cut=Date.now()-TOP_PICKS_RECENT_DAYS*864e5;let w=0,l=0;
+    getP().forEach(p=>{if(!p||!p.altLine||(p.outcome!=='win'&&p.outcome!=='loss'))return;const t=p.settledAt||Date.parse((p.date||'')+'T12:00:00Z');if(!(t>=cut))return;if(p.outcome==='win')w++;else l++;});
+    if(w+l>=5)rec=` · LOCKED ADJUSTED LINES, LAST ${TOP_PICKS_RECENT_DAYS} DAYS: <span style="color:#00e644">${w}W</span>-<span style="color:#ff1a1a">${l}L</span> (${Math.round(100*w/(w+l))}%)`;
+  }catch(e){}
+  const note=`<div style="font-family:var(--mono);font-size:12px;color:var(--t3);margin-bottom:10px;line-height:1.5">Spreads and totals moved to a safer line, ranked by estimated win probability at the adjusted line. Prices are estimates (fair price + vig), not bookmaker quotes.${rec}</div>`;
+  if(!entries.length)return header+note+`<div class="empty">NO ADJUSTED LINES TODAY YET<br><span style="font-size:13px;opacity:.6">They appear once today's games have lines and the model has a lean</span></div>`;
+  // The top 10 is for lines you can still act on: games not finished (upcoming or in progress); finished games sink to the bottom of their league list.  Only when everything is finished does it rank them.
+  const fin=e=>!!(e.live&&e.live.state==='post');
+  const sorted=entries.slice().sort((a,b)=>(fin(a)-fin(b))||(_topAdjRank(b)-_topAdjRank(a)));
+  const open=sorted.filter(e=>!fin(e)),pool=open.length?open:sorted;
+  const top10=[],held=[],per={};
+  for(const e of pool){
+    if(top10.length>=10)break;
+    if((per[e.leagueLabel]||0)>=TOP_PICKS_LEAGUE_CAP){held.push(e);continue;}
+    per[e.leagueLabel]=(per[e.leagueLabel]||0)+1;top10.push(e);
+  }
+  for(const e of held){if(top10.length>=10)break;top10.push(e);}
+  top10.sort((a,b)=>_topAdjRank(b)-_topAdjRank(a));
+  const rec2=list=>{const w=list.filter(e=>e.lock&&e.lock.outcome==='win').length,l=list.filter(e=>e.lock&&e.lock.outcome==='loss').length;return(w||l)?` <span style="font-family:var(--mono);font-size:12px;font-weight:700"><span style="color:#00e644">${w}W</span>-<span style="color:#ff1a1a">${l}L</span></span>`:'';};
+  const byLeague={};sorted.forEach(e=>{(byLeague[e.leagueLabel]=byLeague[e.leagueLabel]||[]).push(e);});
+  const sections=Object.keys(byLeague).sort().map(label=>`<div style="margin-bottom:10px">
+      <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--nc);margin-bottom:5px">${_escHtml(label.toUpperCase())} — ${byLeague[label].length} ADJUSTED LINE${byLeague[label].length===1?'':'S'}</div>
+      ${byLeague[label].map(_topAdjRowHTML).join('')}
+    </div>`).join('');
+  return`${header}${note}
+    <div style="font-family:var(--mono);font-size:12px;color:var(--nc);margin-bottom:10px">${entries.length} adjusted line${entries.length===1?'':'s'} across ${Object.keys(byLeague).length} league${Object.keys(byLeague).length===1?'':'s'}</div>
+    <div style="margin-bottom:14px">
+      <div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--pc);margin-bottom:6px">★ TOP ${top10.length} ADJUSTED LINES — ALL SPORTS${rec2(top10)}</div>
+      ${top10.map(_topAdjRowHTML).join('')}
+    </div>
+    <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc);margin:2px 0 6px">BY LEAGUE</div>
+    ${sections}`;
+}
+async function renderTopAdjLines(){
+  const el=document.getElementById('toppicks-adj');if(!el)return;
+  const td=today(),now=Date.now();
+  // the cards that register the lines are rendered by computeTopPicksToday(); run it only if nothing fresh has (10 min cache, same as the Top Picks tab) and wait if it is already running
+  const cacheTs=(window._topPicksCache&&window._topPicksCache.dateKey===td)?window._topPicksCache.ts:0;
+  const fresh=Math.max(window._tpAdjAt||0,cacheTs);
+  if(now-fresh>TOP_PICKS_TTL_MS||window._topPicksInFlight){
+    el.innerHTML=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// TOP ADJUSTED LINES TODAY — ${_topPicksDateLabel(td)}</div><div class="loading"><span class="spi"></span>FINDING TODAY'S ADJUSTED LINES…</div>`;
+    if(window._topPicksInFlight){for(let i=0;i<150&&window._topPicksInFlight;i++)await new Promise(r=>setTimeout(r,400));}
+    else if(!window._tpAdjBusy){window._tpAdjBusy=true;try{await computeTopPicksToday();window._tpAdjAt=Date.now();}catch(e){}finally{window._tpAdjBusy=false;}}
+    else{for(let i=0;i<150&&window._tpAdjBusy;i++)await new Promise(r=>setTimeout(r,400));}
+  }
+  const el2=document.getElementById('toppicks-adj');if(el2)el2.innerHTML=_topAdjHTML();
+}
+window.renderTopAdjLines=renderTopAdjLines;
+function _tpAdjRefresh(){   // repaint from the registry whenever the live layer refreshes (scores, started / final status): no model run
+  const pane=document.getElementById('sp-toppicks');
+  if(!pane||!pane.classList.contains('act')||window._tpSubS!=='adj'||window._topPicksInFlight||window._tpAdjBusy)return;
+  const el=document.getElementById('toppicks-adj');if(!el||el.querySelector('.loading'))return;
+  el.innerHTML=_topAdjHTML();
+}
+async function _tpAdjLock(btn){
+  const k=btn&&btn.dataset?btn.dataset.k:null;if(!k)return;
+  btn.disabled=true;
+  try{await _lockAltKey(k);}catch(e){}
+  setTimeout(()=>{try{_tpAdjRefresh();}catch(e){}},400);
+}
+window._tpAdjLock=_tpAdjLock;
 // ══ HOME > MOMENTUM (interactive, 2026-10-09 owner request) ═══════════════════════════════════════════════════════════════════════════════════════
 // "// MOMENTUM — LAST 7D VS ALL-TIME" (windows: rolling 7D / 14D, THIS MONTH, LAST MONTH): is the recent window running hot or cold against the all-time baseline.  The headline numbers keep the ORIGINAL rules so the widget can never disagree with the
 // cards beside it: the window stats use lockedAt >= now - N days (7D = exactly the ROLLING 7D card), the baseline is the all-time win% of the same in-scope picks (_cvScoped), hot/cold = +/-5 points
@@ -21487,7 +21623,7 @@ function SS(s){
   const _t=(fn)=>{try{fn();}catch(e){console.warn('SS render',e);}};
   if(s==='home'){_t(renderHomePage);}
   if(s==='scores'){_t(()=>renderScores());}
-  if(s==='toppicks'){_t(renderTopPicksToday);_t(renderTopPicksWeek);_t(renderTopPicksHeatmap);}
+  if(s==='toppicks'){_t(renderTopPicksToday);_t(renderTopPicksWeek);_t(renderTopPicksHeatmap);_t(()=>{if(window._tpSubS==='adj')renderTopAdjLines();});}
   if(s==='hk'){_t(()=>setSub('hk','nhl'));_t(()=>T('nhl','games'));_t(renderNHLGames);_t(renderNHLTonight);_t(renderGoalies);_t(renderMoneyPuck);}
   if(s==='nba'){_t(()=>{setSub('nba','nba');});_t(()=>{T('nba','games');renderNBATonightGames();renderNBAGames();renderNBABracket();});}
   if(s==='live'){_t(()=>T('live','games'));_t(startNHLLive);_t(startNBALive);}
@@ -23526,17 +23662,18 @@ function _tkItemHTML(it){
     const ml=p.ml!=null&&p.ml!==''?' '+_mlFmt(p.ml):'';
     return`<span class="tkl${cls}" title="Locked ${_escHtml(p.betOn)}${p.altLine?' (adjusted from '+_escHtml(p.altLine.postedLabel)+')':''}">LOCKED ${_escHtml(p.betOn)}${ml}${p.altLine?' · ADJ':''}${p.outcome==='win'?' ✓':p.outcome==='loss'?' ✗':''}</span>`;
   }).join('');
-  const g=it.g,sc=v=>v==null||isNaN(v)?'':v;
-  return`<span class="tks">${_escHtml(it.tag)}</span><span class="tkn">${_escHtml(g.away)} ${sc(g.awayScore)} @ ${_escHtml(g.home)} ${sc(g.homeScore)}</span><span class="tkc${it.state==='in'?' lv':''}">${it.state==='in'?'● ':''}${_escHtml(it.state==='post'?(g.pending?'RESULT PENDING':'FINAL'):_tkLiveStatus(it))}</span>${lk}`;
+  const g=it.g,sc=v=>it.state==='pre'||v==null||isNaN(v)?'':v;
+  return`<span class="tks">${_escHtml(it.tag)}</span><span class="tkn">${_escHtml(g.away)} ${sc(g.awayScore)} @ ${_escHtml(g.home)} ${sc(g.homeScore)}</span><span class="tkc${it.state==='in'?' lv':''}">${it.state==='in'?'● ':''}${_escHtml(it.state==='post'?(g.pending?'RESULT PENDING':'FINAL'):it.state==='pre'?_tkStartLabel(g.startMs):_tkLiveStatus(it))}</span>${lk}`;
 }
-function _tkEuroGames(){
+function _tkEuroGames(withPre){
   const out=[],now=Date.now();
   const relay=(_LV.relay&&_LV.relay.ok&&now-_LV.relay.ts<600000)?_LV.relay.games:[];
   const used=new Set();
   [['LIIGA',typeof _LIIGA_DATA!=='undefined'?_LIIGA_DATA:null],['SHL',typeof _SHL_DATA!=='undefined'?_SHL_DATA:null],['NLA',typeof _NLA_DATA!=='undefined'?_NLA_DATA:null],['EXTRALIGA',typeof _EXTRALIGA_DATA!=='undefined'?_EXTRALIGA_DATA:null]].forEach(([tag,lgData])=>{
     ((lgData&&lgData.games)||[]).forEach(g=>{
-      const t=_startMsOf(g.date);if(t==null||t>now||now-t>8*3600000)return;
+      const t=_startMsOf(g.date);if(t==null||now-t>8*3600000)return;
       const home=g.homeName||g.home,away=g.awayName||g.away;
+      if(t>now){if(withPre&&t-now<36*3600000&&g.state!=='post')out.push({k:tag.toLowerCase(),tag,id:g.id,home,away,homeScore:null,awayScore:null,state:'pre',note:'',startMs:t,pending:false});return;}
       const rg=relay.find(r=>r.tag===tag&&_tkMatch(r.home,home)&&_tkMatch(r.away,away));
       if(rg){used.add(rg.id);if(rg.state==='pre')return;
         out.push({k:tag.toLowerCase(),tag,id:g.id||rg.id,home,away,homeScore:rg.homeScore,awayScore:rg.awayScore,state:rg.state==='post'?'post':'in',note:_lvRelayPeriodNote(rg),startMs:t,pending:false,live:true});return;}
@@ -23552,35 +23689,63 @@ function _tkEuroGames(){
     out.push({k:r.tag.toLowerCase(),tag:r.tag,id:r.id,home:r.home,away:r.away,homeScore:r.homeScore,awayScore:r.awayScore,state:r.state==='post'?'post':'in',note:_lvRelayPeriodNote(r),startMs:r.startMs,pending:false,live:true});});
   return out;
 }
+// Owner request 2026-10-23: the ticker shows (1) games in progress, locked ones first, (2) games you have locked that have not started yet, with the start time, (3) games you locked that finished
+// in the last 30 minutes. A finished game's end time is the moment it was first seen final (kept on this device); a game first seen already final is dated from its start plus a typical length.
+const _TK_KEEP_FINAL_MS=30*60000;
+const _TK_GAME_HRS={nba:2.7,nhl:2.8,mlb:3.4,nfl:3.5,cfb:3.7,shl:3.2,liiga:3.2,nla:3.2,extraliga:3.2};
+function _tkFinRec(){
+  if(!_TKM.fin){try{_TKM.fin=JSON.parse(localStorage.getItem('cv_tk_fin')||'{}')||{};}catch(e){_TKM.fin={};}}
+  return _TKM.fin;
+}
+function _tkEndMs(it,now){
+  const rec=_tkFinRec();
+  if(rec[it.key]==null){
+    const g=it.g;
+    rec[it.key]=g.startMs?Math.min(now,g.startMs+(_TK_GAME_HRS[g.k]||3)*3600000):now;
+    Object.keys(rec).forEach(k=>{if(now-rec[k]>12*3600000)delete rec[k];});
+    try{localStorage.setItem('cv_tk_fin',JSON.stringify(rec));}catch(e){}
+  }
+  return rec[it.key];
+}
+function _tkStartLabel(ms){
+  if(!ms)return 'UPCOMING';
+  const d=new Date(ms),t=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'});
+  return (d.toDateString()===new Date().toDateString()?'':d.toLocaleDateString('en-US',{weekday:'short'})+' ')+t;
+}
 function renderTicker(){
   const el=document.getElementById('cv-ticker');if(!el)return;
   try{
-    const euro=_tkEuroGames(),all=_LV.games.concat(euro);
+    const euro=_tkEuroGames(true),all=_LV.games.concat(euro),now=Date.now();
     if(!all.length){_tkHide(el);return;}
     const td=today();let picks=[];
     try{const yd=yesterday();picks=getP().filter(p=>p&&p.id&&p.hA&&p.outcome!=='_removed'&&(p.date===td||p.date===yd));}catch(e){}
-    const items=[];
+    const items=[],midnight=new Date().setHours(0,0,0,0);
     all.forEach(g=>{
-      if(g.state==='pre')return;
-      const al=_LV_ALIAS[g.tag]||[g.tag];
-      const locks=picks.filter(p=>{
-        // today's locks only (owner decision 2026-10-04) -- yesterday's picks only still count for a game that is STILL IN PROGRESS (a late game running past midnight keeps its chips)
-        if(p.date!==td&&g.state!=='in')return false;
+      const al=_LV_ALIAS[g.tag]||[g.tag],key=g.k+'|'+g.id;
+      const match=picks.filter(p=>{
         const sp=String(window._normSport?window._normSport(p):(p.league||p.sport||'')).toUpperCase();
         return al.includes(sp)&&_tkMatch(p.hA,g.home)&&_tkMatch(p.awA,g.away);
       });
-      items.push({key:g.k+'|'+g.id,tag:g.tag,g,state:g.state,locks,rank:(locks.length?0:2)+(g.state==='in'?0:1)});
+      if(!match.length&&g.state!=='in')return;      // an unlocked game only shows while it is in progress
+      const it={key,tag:g.tag,g,state:g.state,locks:match,endMs:null};
+      // today's locks only (owner decision 2026-10-04); yesterday's picks still count for a game in progress (a late game running past midnight keeps its chips) and for a game that STARTED yesterday and ended within the last 30 minutes
+      if(g.state==='pre')it.locks=match.filter(p=>p.date===td);
+      else if(g.state==='post'){
+        it.endMs=_tkEndMs(it,now);
+        if(now-it.endMs>_TK_KEEP_FINAL_MS)return;
+        const early=g.startMs&&g.startMs<midnight;
+        it.locks=match.filter(p=>p.date===td||(early&&p.date!==td));
+      }else it.locks=match.filter(p=>p.date===td||g.state==='in');
+      if(g.state!=='in'&&!it.locks.length)return;
+      items.push(it);
     });
     if(!items.length){_tkHide(el);return;}
-    // Owner decision 2026-10-04: the ticker shows ONLY games with one of your locks (any state) plus games in progress -- it used to also add up to 12 other finals, which on a busy night made it ~88
-    // items / ~16 minutes per loop. With nothing live and nothing locked it hides.
-    const keep=items.filter(x=>x.locks.length||x.state==='in');
-    if(!keep.length){_tkHide(el);return;}
+    // order: games in progress first (your locked ones ahead of the rest), then your locked games not started yet (soonest first), then your locked games that just finished (latest first)
+    const rk=x=>x.state==='in'?(x.locks.length?0:1):x.state==='pre'?2:3;
+    const keep=items.sort((a,b)=>rk(a)-rk(b)||(a.state==='pre'?(a.g.startMs||0)-(b.g.startMs||0):a.state==='post'?b.endMs-a.endMs:0)||(a.key<b.key?-1:1));
     const liveN=keep.filter(x=>x.state==='in').length;
-    // keep the existing order for games that stay; only new games are slotted in by rank
     const byKey={};keep.forEach(x=>{byKey[x.key]=x;});
-    const order=_TKM.order.filter(k=>byKey[k]);
-    keep.slice().sort((a,b)=>a.rank-b.rank).forEach(x=>{if(order.indexOf(x.key)<0)order.push(x.key);});
+    const order=keep.map(x=>x.key);
     // data age = the oldest fetch among leagues that currently have a game in progress (idle leagues are deliberately not polled, so their age means nothing)
     const liveTs=Object.keys(_LV.lg).filter(k=>k!=='__relay'&&_LV.games.some(g=>g.k===k&&g.state==='in')).map(k=>_LV.lg[k].ts);
     const ageMin=liveTs.length?(Date.now()-Math.min(...liveTs))/60000:0;
