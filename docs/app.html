@@ -19775,7 +19775,7 @@ async function autoSettlePropsESPN(targetDate){
         continue;
       }
 
-      const outcome=(parsed.direction==='OVER'?foundStat>parsed.line:foundStat<parsed.line)?'win':'loss';
+      const outcome=foundStat===parsed.line?'push':(parsed.direction==='OVER'?foundStat>parsed.line:foundStat<parsed.line)?'win':'loss';   // a whole-number line the player lands on is a push
       p.outcome=outcome;p.settledAt=Date.now();p.playerResult=foundStat;
       changed=true;
       toast(`PROP SETTLED: ${parsed.player} ${parsed.stat} ${foundStat} vs ${parsed.line} → ${outcome.toUpperCase()}`);try{notifySettlement(`${parsed.player} ${parsed.stat} ${parsed.direction} ${parsed.line}`,outcome);}catch(e){};

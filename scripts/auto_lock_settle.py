@@ -1011,7 +1011,7 @@ _JS_FULL_PULL = """
 async () => {
   const rows = []; let offset = 0; const page_size = 1000;
   while (true) {
-    const r = await fetch(SUPABASE_URL + '/rest/v1/bets?select=raw&order=date.desc&outcome=neq._removed', {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/bets?select=raw&order=date.desc,id.asc&outcome=neq._removed', {
       headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, Range: offset + '-' + (offset + page_size - 1) } });
     if (!r.ok) return -1;
     const batch = await r.json(); rows.push(...batch);

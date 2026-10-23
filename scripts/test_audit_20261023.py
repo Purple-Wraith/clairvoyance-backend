@@ -110,6 +110,10 @@ class Audit(unittest.TestCase):
         self.assertEqual(ids.get("p5"), "win")
         self.assertIn("late_lock", ids)
 
+    def test_a_prop_that_lands_exactly_on_a_whole_number_line_is_a_push(self):
+        r = self.settle([prop("p6", "Nikola Jokic OVER PTS 28", "DEN", "OKC", "2026-10-22")], "2026-10-22")
+        self.assertEqual((r["p6"]["outcome"], r["p6"]["playerResult"]), ("push", 28))
+
     def test_lock_prop_does_not_relock_a_prop_the_ledger_already_has(self):
         pid = "prop_2026-10-23_NBA_LeBronJames_PTS_25.5_O"
         self.pg.evaluate("""(pid)=>{LOCKED_PROPS.length=0;saveP([{id:pid,betType:'PROP',sport:'NBA',league:'NBA',player:'LeBron James',over:true,betOn:'LeBron James OVER PTS 25.5',team:'LAL',hA:'LAL',awA:'DEN',date:'2026-10-23',outcome:'win',lockedAt:1,settledAt:5,playerResult:30,winProb:.6,decOdds:1.7,wager:0}]);
