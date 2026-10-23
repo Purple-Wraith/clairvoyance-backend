@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-10-23T17:04:23.234Z",
+ "updated_at": "2026-10-23T19:06:41.859Z",
  "picks": [
   {
    "id": "2026-10-03_Hameenlinna_Karpat_LIIGA_Karpat-1.5",
@@ -5331,14 +5331,14 @@
    "betOn": "Pardubice",
    "sport": "EXTRALIGA",
    "wager": 0,
-   "aScore": null,
-   "hScore": null,
+   "aScore": 3,
+   "hScore": 4,
    "league": "EXTRALIGA",
    "source": "manual",
    "betType": "ML",
    "decOdds": 1.6,
    "leadMin": 0,
-   "outcome": "pending",
+   "outcome": "loss",
    "startMs": 1792771200000,
    "winProb": 0.602,
    "lockedAt": 1792771212537,
@@ -5348,7 +5348,8 @@
    "lockOrigin": "manual",
    "lockTiming": "late-manual",
    "marketProb": 0.5817,
-   "priceSource": "market"
+   "priceSource": "market",
+   "settledAt": 1792781539579
   },
   {
    "hA": "Zug",
@@ -5786,6 +5787,39 @@
    "startMs": 1792777500000,
    "leadMin": 41,
    "lockTiming": "pre"
+  },
+  {
+   "hA": "TOR",
+   "id": "prop_2026-10-23_NBA_RJBarrett_PTS_14.5_O",
+   "ml": "-246",
+   "awA": "WSH",
+   "conf": 0.68,
+   "date": "2026-10-23",
+   "line": 14.5,
+   "over": true,
+   "team": "TOR",
+   "betOn": "RJ Barrett OVER PTS 14.5",
+   "sport": "NBA",
+   "wager": 0,
+   "league": "NBA",
+   "player": "RJ Barrett",
+   "altLine": {
+    "line": 14.5,
+    "shift": 5,
+    "posted": 19.5,
+    "postedMl": "-168",
+    "postedDec": null,
+    "postedProb": 0.627,
+    "postedLabel": "RJ Barrett OVER PTS 19.5",
+    "estimatedPrice": true
+   },
+   "betType": "PROP",
+   "decOdds": 1.4065040650406504,
+   "outcome": "pending",
+   "winProb": 0.68,
+   "lockedAt": 1792778030545,
+   "reasoning": "PICK: RJ Barrett OVER PTS 19.5 — OPTIMAL (63% model hit rate)\nMODEL: projection 21.16 PTS (season average 19.3, last-5 form 20.8, opponent adjustment +1.9) vs the 19.5 line, spread σ 5.59, from a 5k-sim Monte Carlo.\nWHY: RJ Barrett averages 19.3 ppg across 57 games this season. Opp WSH DRtg 122.5 vs a 115.7 league average computed from every currently-loaded team, a 6% boost folded into the projection. Game pace 99.8 (+1.6%), TOR offense 116.1 vs a 115.7 league average. No head-to-head history vs WSH this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+   "priceSource": "estimated"
   }
  ]
 }
