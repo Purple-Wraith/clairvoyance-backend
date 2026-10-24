@@ -5097,10 +5097,11 @@ function _cmpFormBlockHTML(name,col,last,all,opt){
   const rec=(arr)=>o.draws?`${cnt(arr,'W')}-${cnt(arr,'D')}-${cnt(arr,'L')}`:`${cnt(arr,'W')}-${arr.length-cnt(arr,'W')}`;
   const gf=last.reduce((a,r)=>a+r.gf,0)/last.length,ga=last.reduce((a,r)=>a+r.ga,0)/last.length;
   const hm=all.filter(r=>r.home),rd=all.filter(r=>!r.home);
-  const sg=(v)=>(v>=0?'+':'')+v.toFixed(dec);
+  // Betting sign convention (owner 2026-10-24, every sport and league): a team that scores MORE than it allows is MINUS (22 for, 18 against = -4.0, like -4 on the spread), one that allows more is PLUS (18 for, 22 against = +4.0).
+  const sg=(v)=>{const r=Math.round(v*Math.pow(10,dec))/Math.pow(10,dec);return r===0?(0).toFixed(dec):(r>0?'+':'')+r.toFixed(dec);};
   return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="color:${col};font-weight:700">${esc(name)}</span><span style="color:var(--t3);font-size:11px">last ${last.length}: ${rec(last)} · ${sc}${streak} streak</span></div>`
     +`<div style="margin:4px 0 3px">${pips}</div>`
-    +`<div style="display:flex;gap:12px;flex-wrap:wrap;color:var(--t2);font-size:12px"><span>${gfL} ${gf.toFixed(dec)}/g</span><span>${gaL} ${ga.toFixed(dec)}/g</span><span>diff ${sg(gf-ga)}</span><span style="color:var(--t3)">home ${rec(hm)} · road ${rec(rd)}</span></div></div>`;
+    +`<div style="display:flex;gap:12px;flex-wrap:wrap;color:var(--t2);font-size:12px"><span>${gfL} ${gf.toFixed(dec)}/g</span><span>${gaL} ${ga.toFixed(dec)}/g</span><span title="Points / goals allowed minus scored, per game. Minus = outscoring opponents (winning by), plus = being outscored (losing by) -- the same signs as a spread.">diff ${sg(ga-gf)}</span><span style="color:var(--t3)">home ${rec(hm)} · road ${rec(rd)}</span></div></div>`;
 }
 function _cmpFormHTML(aName,hName,aGames,hGames,aAll,hAll,note,opt){
   return`<div style="font-family:var(--mono);font-size:13px">${_cmpFormBlockHTML(aName,_CMP_A,aGames,aAll,opt)}${_cmpFormBlockHTML(hName,_CMP_H,hGames,hAll,opt)}`
