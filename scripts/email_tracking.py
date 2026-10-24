@@ -73,6 +73,8 @@ def product_of_pick(p: dict) -> str | None:
         return None
     if str(p.get("betType") or "").upper() == "PROP" or p.get("player"):
         return None
+    if (p.get("altLine") or {}).get("bestOfGame"):          # the owner's own "best adjusted line of every game" locks (auto_lock_settle.LOCK_BEST_ADJUSTED): never part of a paid product
+        return None
     return PRODUCT_OF_CODE.get(lock_timing.norm_sport(p))
 
 

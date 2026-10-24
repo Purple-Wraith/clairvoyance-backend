@@ -228,10 +228,12 @@ def public_filter(page) -> dict:
     late = [p for p in rows if lt.is_known_late(p, idx)]
     if any(not p.get("id") for p in late):
         raise RuntimeError("known-late pick without an id -- cannot exclude it from public figures")
-    ids = sorted(p["id"] for p in late)
-    log(f"Public-figure basis: {len(ids)} known-late pick(s) excluded of {len(rows)} ({lt.BASIS}); "
+    # the owner's internal "best adjusted line of every game" locks (altLine.bestOfGame) are not part of what is sold or published: dropped from every public figure, the landing page included
+    internal = sorted(p["id"] for p in rows if (p.get("altLine") or {}).get("bestOfGame") and p.get("id"))
+    ids = sorted(set(p["id"] for p in late) | set(internal))
+    log(f"Public-figure basis: {len(late)} known-late pick(s) + {len(internal)} internal best-adjusted pick(s) excluded of {len(rows)} ({lt.BASIS}); "
         f"{lt.summarize(rows, idx)['settled_unknown_timing_included']} settled unknown-timing pick(s) included")
-    return {"ids": ids, "rows": rows, "idx": idx}
+    return {"ids": ids, "rows": rows, "idx": idx, "internal": internal}
 
 
 def inject_public_exclusions(page, pf: dict) -> None:
@@ -706,7 +708,7 @@ def write_landing_json(page, now_mt: datetime, pf: dict | None = None, out_dir: 
     pf = pf or public_filter(page)
     # Owner decision 2026-10-03: the LANDING page figures include picks locked after the game started (the exported Social-tab cards stay pre-start-only; `pf` is
     # left untouched for them). Dropping the known-late ids here is the whole change; the basis fields below say so honestly.
-    land_pf = dict(pf, ids=[]) if LANDING_INCLUDES_LATE else pf
+    land_pf = dict(pf, ids=list(pf.get("internal") or [])) if LANDING_INCLUDES_LATE else pf     # the landing page keeps known-late picks but never the internal best-adjusted ones
     for name, fn, basis_fn, wrap in (
         ("engine_performance.json", get_engine_performance, basis_for_engine, lambda r: {"periods": r}),
         ("engine_performance_subscriber.json", get_engine_performance_subscriber, basis_for_subscriber, lambda r: {"periods": r}),

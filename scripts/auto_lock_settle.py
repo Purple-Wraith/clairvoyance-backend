@@ -1978,7 +1978,7 @@ def gather_legs(page) -> dict:
           // into this automated pipeline anymore.
           propDiag.nfl = { skipped: 'NFL player props removed from auto-lock 2026-09-23, explicit request' };
 
-          return { gameLegs, propLegs, propDiag };
+          return { gameLegs: (typeof _altAttachBest === 'function' ? _altAttachBest(gameLegs) : gameLegs), propLegs, propDiag };
         }
         """
     )
@@ -2047,7 +2047,7 @@ def gather_soccer_legs_for_dates(page, target_dates: list[str]) -> dict:
             } catch (e) { console.warn('[CV evening-lock] snapshot load error (' + file + '):', e.message); }
           }
           await new Promise(r => setTimeout(r, 300));
-          return { gameLegs: window._autoLockLegs || [], propLegs: [] };
+          return { gameLegs: (typeof _altAttachBest === 'function' ? _altAttachBest(window._autoLockLegs || []) : (window._autoLockLegs || [])), propLegs: [] };
         }
         """,
         {"targetEspn": target_espn, "leagueKeys": list(EURO_LEAGUE_KEY_TO_SPORT.keys())},
@@ -2100,7 +2100,7 @@ def gather_cfb_legs_for_dates(page, target_dates: list[str]) -> dict:
             }
           } catch (e) { console.warn('[CV evening-lock CFB] error:', e.message); }
           await new Promise(r => setTimeout(r, 300));
-          return { gameLegs: window._autoLockLegs || [], propLegs: [] };
+          return { gameLegs: (typeof _altAttachBest === 'function' ? _altAttachBest(window._autoLockLegs || []) : (window._autoLockLegs || [])), propLegs: [] };
         }
         """,
         list(target_dates),
@@ -2165,7 +2165,7 @@ def gather_hockey_legs_for_dates(page, target_dates: list[str]) -> dict:
             } catch (e) { console.warn('[CV evening-lock ' + lg.label + '] error:', e.message); }
           }
           await new Promise(r => setTimeout(r, 300));
-          return { gameLegs: window._autoLockLegs || [], propLegs: [] };
+          return { gameLegs: (typeof _altAttachBest === 'function' ? _altAttachBest(window._autoLockLegs || []) : (window._autoLockLegs || [])), propLegs: [] };
         }
         """,
         list(target_dates),
@@ -2624,6 +2624,81 @@ def _apply_prop_alt(p: dict) -> dict:
     return leg
 
 
+# ── BEST ADJUSTED LINE OF EVERY GAME (owner 2026-10-24) ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+# Every game whose card shows adjusted lines (NBA, CFB, NFL, NHL, the four European hockey leagues, club soccer) also gets its BEST adjusted line locked -- the option with the highest estimated win probability among
+# the total / spread options of BOTH sides, the one the card marks with the neon magenta border (docs/app.html _altRowFor keeps it in window._altBest; gather_legs attaches it to the captured game leg as `adjBest`).
+# They are extra picks, tagged altLine.bestOfGame=True: never part of the paid products (kept out of the subscriber emails and the email catch-up -- email_tracking.product_of_pick -- and out of the public / landing
+# figures -- generate_social_cards.public_filter), counted in the owner's own app.  A game whose lean pass already locks the same market (spread or total) keeps that lock: lockPick allows one lock per market per game.
+LOCK_BEST_ADJUSTED = True
+ADJ_BEST_PENDING: list[dict] = []        # legs built by build_qualifying, locked (and cleared) by _lock_qualifying_legs
+
+
+def _best_adjusted_leg(gl: dict, game_qualifying: list[dict]) -> dict | None:
+    ab = gl.get("adjBest")
+    if not isinstance(ab, dict):
+        return None
+    alt = ab.get("alt") or {}
+    label, prob, mkt, side = alt.get("label"), alt.get("prob"), alt.get("mkt"), ab.get("side")
+    if not label or isinstance(prob, bool) or not isinstance(prob, (int, float)) or mkt not in ("OU", "SPREAD") or not side:
+        return None
+    if _market_type(side) != mkt or not (0.5 <= float(prob) <= 0.99):
+        return None
+    # one lock per market per game: a lean leg already qualifying in this market (it is locked at its own alternate line) keeps it
+    if any(_market_type(q.get("side")) == mkt for q in game_qualifying):
+        return None
+    sport = gl.get("sport")
+    dec = alt.get("dec") if isinstance(alt.get("dec"), (int, float)) and alt.get("dec") > 1 else 1.0 / (float(prob) + ALT_VIG)
+    unit = "goal" if (sport in HOCKEY_SPORTS or str(sport).startswith("SOC")) else "pt"
+    shift = float(alt.get("shift") or 0)
+    posted_p = alt.get("postedProb")
+    reasoning = _alt_reasoning(label, float(prob), alt.get("postedLabel") or "", posted_p if isinstance(posted_p, (int, float)) else None, shift, unit, None)
+    reasoning += "\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card)."
+    posted = alt.get("posted")
+    return {
+        "kind": "GAME", "sport": sport, "hA": gl.get("hA"), "awA": gl.get("awA"), "side": side, "label": label, "prob": round(float(prob), 4),
+        "ml": alt.get("ml") or _ml_from_dec(dec), "dec": round(float(dec), 3), "tierN": 3 if prob >= 0.6695 else 2 if prob >= 0.62 else 1,
+        "evVal": round(float(prob) * float(dec) - 1, 4), "lane": False, "nflLane": False, "legacyTierN": None, "priceSource": "estimated",
+        "modelProb": None, "marketProb": None, "blendAlpha": None, "rawProb": None, "capCeil": None, "reasoning": reasoning,
+        "mcSummary": gl.get("mcSummary"), "best": gl.get("best"), "socFactors": gl.get("socFactors"), "startMs": gl.get("startMs"),
+        "lockDate": mt_date_of_ms(gl.get("startMs")), "adjBest": True,
+        "altLine": {"posted": posted, "line": alt.get("line"), "shift": shift, "postedLabel": alt.get("postedLabel"), "postedProb": posted_p,
+                    "postedDec": alt.get("postedDec"), "postedMl": alt.get("postedMl"), "bestOfGame": True},
+    }
+
+
+def _stash_best_adjusted(legs: list[dict]) -> None:
+    seen = {(q["sport"], q["hA"], q["awA"], q.get("lockDate"), q["side"]) for q in ADJ_BEST_PENDING}
+    for q in legs:
+        k = (q["sport"], q["hA"], q["awA"], q.get("lockDate"), q["side"])
+        if k not in seen:
+            ADJ_BEST_PENDING.append(q)
+            seen.add(k)
+
+
+def _lock_best_adjusted(page) -> tuple[int, int, int]:
+    """Locks (and clears) the pending best-adjusted legs, each stamped with its OWN game's Mountain date. -> (locked, already, failed). Never raises; the lean pass's counts and emails are untouched."""
+    pend = list(ADJ_BEST_PENDING)
+    ADJ_BEST_PENDING.clear()
+    new = dup = bad = 0
+    for q in pend:
+        try:
+            out = lock_game_leg(page, q, q.get("lockDate"))
+        except Exception as exc:  # noqa: BLE001
+            bad += 1
+            log(f"  best adjusted line: FAILED to lock {q.get('label')}: {exc}")
+            continue
+        if out == "locked":
+            new += 1
+        elif out == "already-locked" or (isinstance(out, str) and out.startswith("skip")):
+            dup += 1
+        else:
+            bad += 1
+            log(f"  best adjusted line: FAILED ({out}): [{q['sport']}] {q.get('awA')} @ {q.get('hA')} {q.get('label')}")
+    if pend:
+        log(f"  best adjusted line of each game: {new} locked, {dup} already locked / skipped, {bad} failed (of {len(pend)})")
+    return new, dup, bad
+
+
 def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, now=None,
                      guard_stats: dict | None = None) -> list[dict]:
     """only_sports: if given, restricts to exactly these sport tags (e.g.
@@ -2639,6 +2714,8 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
     def _wanted(sport: str) -> bool:
         return only_sports is None or (sport or "") in only_sports
     qualifying: list[dict] = []
+    adj_best: list[dict] = []
+    _observe_only = now is not None and not isinstance(now, datetime) and float(now) == 0      # the watchdog's look-only call never stages locks
     _pre_nba = _nba_preseason_pairs()
     skipped_legs = 0
     skipped_games: list[str] = []
@@ -2831,6 +2908,10 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
             # An NFL lane leg exists only as an alternate-line pick: when no alternate line could be priced it is dropped, never locked at the posted line.
             game_qualifying = [q for q in shifted if not (q.get("nflLane") and not q.get("altLine"))]
         qualifying.extend(game_qualifying)
+        if LOCK_BEST_ADJUSTED and guard_ok and not _observe_only:
+            _ab = _best_adjusted_leg(gl, game_qualifying)
+            if _ab:
+                adj_best.append(_ab)
     # Props only exist for NBA/NHL now -- NFL player props removed from
     # generation entirely 2026-09-23 (see gather_legs()'s own comment),
     # so propLegs can never contain an NFL-tagged row here; the per-game
@@ -2841,6 +2922,7 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
     # only on the unscoped (full) run.
     START_GUARD_TOTALS["skipped"] += skipped_legs
     START_GUARD_TOTALS["unguarded"] += unguarded_legs
+    _stash_best_adjusted(adj_best)
     if guard_stats is not None:
         guard_stats.update({"skipped": skipped_legs, "games": skipped_games, "unguarded": unguarded_legs,
                             "detail": skipped_detail})
@@ -3785,6 +3867,10 @@ def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | Non
             log(f"  FAILED to lock: {exc}")
     if skipped:
         log(f"  {skipped} leg(s) skipped at lock time: game already started")
+    try:
+        _lock_best_adjusted(page)
+    except Exception as exc:  # noqa: BLE001 -- extra picks must never break the product locks
+        log(f"  best adjusted line pass failed: {exc}")
     return LockResult(new, already_locked, failed, skipped, tuple(failed_labels))
 
 
