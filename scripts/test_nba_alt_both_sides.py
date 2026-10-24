@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """NBA games show the ADJUSTED line for both sides of the total AND of the spread (owner 2026-10-23): UNDER moved up / OVER moved down, and the favourite's and the underdog's spread each moved toward
-safety, any of them lockable.  The model's lean comes first; the other side carries its OWN posted-line grade plus an OTHER SIDE tag.  Other sports are unchanged (one total chip, one spread chip).
+safety, any of them lockable.  The model's lean comes first; the other side carries its OWN posted-line grade plus an OTHER SIDE tag.  College football and the NFL do the same since 2026-10-24
+(the OVER at an adjusted line was rarely on offer because the model usually leans UNDER); the other side uses the SAME sigma with the lean side's ledger offset removed, so it needs the larger cushion
+it really needs.  Hockey keeps its single total chip.
 
     python3 scripts/test_nba_alt_both_sides.py
 """
@@ -87,11 +89,51 @@ class BothSides(unittest.TestCase):
         self.assertIn(c["grade"], ("LEAN", "OPTIMAL", "PREMIUM"))                  # ... but the adjusted line (about 60-65% to win) is graded for what it is
         self.assertEqual(r["other"], 0)                                           # hockey still shows one chip, no other side
 
-    def test_other_sports_are_unchanged(self):
-        r = self.row("NFL", [dict(m, label=m["label"].replace("236.5", "50.5")) for m in MKTS])
-        self.assertEqual(len([c for c in r["chips"] if re.match(r"(OVER|UNDER) ", c["label"])]), 1)
-        self.assertEqual(len([c for c in r["chips"] if re.match(r"(CLE|PHI) [+-]", c["label"])]), 1)
-        self.assertEqual(r["other"], 0)
+    def football(self, sport):
+        return [dict(m, label=m["label"].replace("236.5", "45.5")) for m in MKTS] if sport == "CFB" else [dict(m, label=m["label"].replace("236.5", "47.5")) for m in MKTS]
+
+    def test_cfb_and_nfl_show_both_sides_of_the_total_and_of_the_spread(self):
+        for sport in ("CFB", "NFL"):
+            r = self.row(sport, self.football(sport))
+            totals = [c for c in r["chips"] if re.match(r"(OVER|UNDER) ", c["label"])]
+            spreads = [c for c in r["chips"] if re.match(r"(CLE|PHI) [+-]", c["label"])]
+            self.assertEqual((len(totals), len(spreads)), (2, 2), sport)
+            self.assertTrue(totals[0]["label"].startswith("UNDER") and spreads[0]["label"].startswith("CLE"), sport)        # the model's lean first
+            self.assertEqual([c["other"] for c in r["chips"]], [False, True, False, True], sport)
+            self.assertEqual(len(set(r["keys"])), 4, sport)
+
+    def test_every_football_option_carries_a_pick_grade(self):
+        for sport in ("CFB", "NFL"):
+            r = self.row(sport, self.football(sport))
+            self.assertEqual(len(r["chips"]), 4, sport)
+            for c in r["chips"]:
+                self.assertIn(c["grade"], ("PREMIUM", "OPTIMAL", "LEAN", "SKIP"), (sport, c))                 # the other side's and the spreads' included, never blank
+
+    def test_the_football_other_side_needs_at_least_the_lean_sides_cushion(self):
+        under = lambda r: next(c for c in r["chips"] if c["label"].startswith("UNDER"))
+        over = lambda r: next(c for c in r["chips"] if c["label"].startswith("OVER"))
+        for sport, base in (("CFB", 45.5), ("NFL", 47.5)):
+            r = self.row(sport, self.football(sport))
+            cu, co = float(under(r)["label"].split()[1]) - base, base - float(over(r)["label"].split()[1])
+            self.assertGreater(cu, 0); self.assertGreater(co, 0)                                               # UNDER up, OVER down
+            if sport == "CFB":
+                self.assertGreater(co, cu)                                                                      # CFB's lean curve has a +1.9 offset the other side does not get
+            else:
+                self.assertAlmostEqual(co, cu, places=6)                                                        # NFL's curve has no offset: both sides alike
+
+    def test_hockey_still_shows_one_total_chip(self):
+        mk = [{"side": "under", "label": "UNDER 6.5", "prob": .52, "tierN": 0, "dec": 1.91, "ml": "-110"}, {"side": "over", "label": "OVER 6.5", "prob": .48, "tierN": 0, "dec": 1.91, "ml": "-110"}]
+        r = self.pg.evaluate(CHIP_JS.replace("'PHI','CLE'", "'BOS','NSH'"), ["NHL", mk])
+        self.assertEqual(len([c for c in r["chips"] if re.match(r"(OVER|UNDER) ", c["label"])]), 1); self.assertEqual(r["other"], 0)
+
+    def test_the_football_other_side_is_lockable_and_listed_in_top_adjusted_lines(self):
+        self.row("CFB", self.football("CFB"))
+        keys = self.pg.evaluate("Object.keys(window._altReg)")
+        opp = [k for k in keys if k.endswith("|opp")]
+        self.assertEqual(len(opp), 2)
+        over = next(self.pg.evaluate("(k)=>window._altReg[k].alt", k) for k in opp if self.pg.evaluate("(k)=>window._altReg[k].alt.label", k).startswith("OVER"))
+        self.assertGreaterEqual(over["prob"], 0.62); self.assertEqual(over["posted"], 45.5)
+        self.assertTrue(self.pg.evaluate("(k)=>typeof _lockAltKey==='function'&&!!window._altReg[k]", opp[0]))
 
     def test_locking_the_other_side_records_an_adjusted_line(self):
         self.row("NBA", MKTS)

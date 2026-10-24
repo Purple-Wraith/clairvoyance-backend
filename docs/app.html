@@ -5555,7 +5555,9 @@ function _altFinish(label,nl,p,posted,line,k,mkt){
   const dec=1/(p+_ALT_VIG);
   return{label:nl,prob:+p.toFixed(4),dec:+dec.toFixed(3),ml:dec<2?'-'+Math.round(100/(dec-1)):'+'+Math.round((dec-1)*100),posted,line,shift:k,postedLabel:label,mkt};
 }
-function _altShift(sport,mkt,label,modelP){
+// neutral (CFB / NFL OTHER-SIDE rows, owner 2026-10-24): the ledger-fitted CFB curves carry a positive offset that belongs to the model's LEAN side (its picks win ~55% at the posted line); the side the model does
+// NOT lean to gets the same sigma with that offset removed (a market-neutral 50% at the posted line, the same assumption the NBA closing-line tables make), so it needs the larger cushion it really needs.
+function _altShift(sport,mkt,label,modelP,neutral){
   if(_ALT_HK.has(sport)){
     // Hockey totals keep the pick's OWN side (never flip) and move only the line 0-3 goals, per game: each candidate gets the league's neutral hit rate plus half of the game's own edge
     // (model probability at the posted line minus the neutral baseline, clamped); closest to 60-65% wins, nothing under 58%; a pick that already clears 58% keeps its posted line (null).
@@ -5598,7 +5600,8 @@ function _altShift(sport,mkt,label,modelP){
     r.flip=false;r.edgeAdj=adj;r.modelP=modelP==null?null:modelP;return r;
   }
   const cfg=_ALT_CFG[sport]&&_ALT_CFG[sport][mkt];if(!cfg)return null;
-  const curve=cfg[0],kmin=cfg[1],kmax=cfg[2];
+  let curve=cfg[0];const kmin=cfg[1],kmax=cfg[2];
+  if(neutral&&curve[0]==='normal')curve=['normal',curve[1],0];
   let direction,team,posted,sign;
   if(mkt==='OU'){const m=String(label).trim().match(/^(OVER|UNDER)\s+(\d+(?:\.\d+)?)$/i);if(!m)return null;direction=m[1].toUpperCase();posted=parseFloat(m[2]);sign=direction==='OVER'?-1:1;}
   else{const m=String(label).trim().match(/^(.+?)\s+([+-]\d+(?:\.\d+)?)$/);if(!m)return null;team=m[1];posted=parseFloat(m[2]);sign=1;}
@@ -5615,10 +5618,10 @@ function _altRowFor(sport,home,away,dateRaw,nm,off){
     if(!nm||!nm.mkts)return'';
     const best=(a,b)=>{const x=nm.mkts.find(m=>m.side===a),y=nm.mkts.find(m=>m.side===b);return x&&y?(x.prob>=y.prob?x:y):(x||y);};
     const d=new Date(dateRaw);const dateKey=isNaN(d)?String(dateRaw||'').slice(0,10):d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
-    // NBA totals AND spreads show the adjusted line for BOTH sides (owner 2026-10-23): the cushion table is side-neutral, so an OVER moved down (or the other team's spread moved up) is as safe as the lean.
+    // NBA (2026-10-23) and CFB / NFL (2026-10-24) totals AND spreads show the adjusted line for BOTH sides: the cushion table is side-neutral, so an OVER moved down (or the other team's spread moved up) is as safe as the lean.
     // The model's lean side comes first; the other side carries its OWN posted-line grade plus an 'OTHER SIDE' tag. Automatic locks still only take the model's lean side.
     const rowDefs=[['OU',best('over','under'),false],['SPREAD',best('sprdFav','sprdDog'),false]];
-    if(sport==='NBA'){
+    if(sport==='NBA'||sport==='CFB'||sport==='NFL'){        // CFB + NFL show both sides too (owner 2026-10-24): the OVER at an adjusted line was rarely on offer because the model usually leans UNDER
       const oppOf=(sides,lean)=>lean&&nm.mkts.find(x=>sides.includes(x.side)&&x!==lean);
       const oOU=oppOf(['over','under'],rowDefs[0][1]),oSP=oppOf(['sprdFav','sprdDog'],rowDefs[1][1]);
       if(oOU)rowDefs.splice(1,0,['OU',oOU,true]);                    // lean total, other total, lean spread, other spread
@@ -5627,14 +5630,14 @@ function _altRowFor(sport,home,away,dateRaw,nm,off){
     // drop every line this game registered on an earlier render: a line the model no longer adjusts (probability moved past the threshold) must not stay listed / lockable in TOP ADJUSTED LINES
     {const pre=sport+'|'+dateKey+'|'+home+'|'+away+'|';Object.keys(window._altReg).forEach(k=>{if(k.indexOf(pre)===0)delete window._altReg[k];});}
     const chips=rowDefs.map(([mkt,m,isOpp])=>{
-      if(!m)return'';const alt=_altShift(sport,mkt,m.label,m.prob);if(!alt)return'';
+      if(!m)return'';const alt=_altShift(sport,mkt,m.label,m.prob,!!isOpp&&(sport==='CFB'||sport==='NFL'));if(!alt)return'';
       alt.postedDec=m.dec!=null?m.dec:null;alt.postedMl=m.ml!=null?String(m.ml):null;alt.postedProb=m.rawProb!=null?m.rawProb:(m.prob!=null?m.prob:null);   // the ORIGINAL posted price, kept with the pick (postedProb = the model's own number, pre-ceiling -- see MARKET_P_CEILING)
       const key=sport+'|'+dateKey+'|'+home+'|'+away+'|'+mkt+(isOpp?'|opp':'');
       window._altReg[key]={sport,hA:home,awA:away,date:dateKey,alt};
       // The badge grades the ADJUSTED line by its own win probability (PREMIUM 67%+, OPTIMAL 62%+, LEAN 55%+ -- the prop bands), because an adjusted line only exists for a pick the posted line did not grade
       // well (hockey totals are adjusted precisely when the posted line is under the 56% lane floor, so they always read SKIP there). The posted line's grade is kept, small, beside it.
       const ap=alt.prob;
-      const lb=ap>=.6695?'PREMIUM':ap>=.62?'OPTIMAL':ap>=.55?'LEAN':'';
+      const lb=ap>=.6695?'PREMIUM':ap>=.62?'OPTIMAL':ap>=.55?'LEAN':'SKIP';       // every option carries its pick grade, the other side's and the spreads' included
       const cls=lb==='PREMIUM'?'pg':lb==='OPTIMAL'?'pp':lb==='LEAN'?'pn':'';
       const postedLb=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN]||'';
       const sh=alt.shift%1===0?alt.shift:alt.shift.toFixed(1);

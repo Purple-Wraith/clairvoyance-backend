@@ -19,7 +19,7 @@ PAIRS = {
     "nhl": (("COL", "EDM"), ("BOS", "CHI"), 5.5),
     "nfl": (("Kansas City Chiefs", "Buffalo Bills"), ("Indianapolis Colts", "Tennessee Titans"), 47.5),
     "cfb": (("Ohio State Buckeyes", "Michigan Wolverines"), ("Alabama Crimson Tide", "Georgia Bulldogs"), 45.5),
-    "pl": (("Arsenal", "Liverpool"), ("Brentford", "Everton"), 2.5),
+    "pl": (("Arsenal", "Ipswich Town"), ("Brentford", "Everton"), 2.5),    # a top side at home to a promoted one vs two mid-table sides: a real strength gap whatever this week's ratings are (Arsenal v Liverpool vs Brentford v Everton landed 0.0002 apart after a data refresh)
     "liga": (("Real Madrid", "Barcelona"), ("Girona", "Getafe"), 2.5),
     "seriea": (("Inter Milan", "Napoli"), ("Genoa", "Cagliari"), 2.5),
 }
