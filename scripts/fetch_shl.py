@@ -43,6 +43,7 @@ from playwright.sync_api import sync_playwright
 
 from _flashscore_logos import attach_logos, carry_over_logos
 from _flashscore_odds import carry_over_odds, fetch_match_odds
+from _flashscore_ou import fetch_ou_pair
 from _schedule_carry import carry_over_missing, load_previous, shootout_fields
 from _scraper_health import commit_and_push as commit_and_push_health
 from _scraper_health import log_scrape
@@ -365,6 +366,8 @@ def run() -> dict:
         prior_teams = fetch_standings(page, PRIOR_STANDINGS_URL)
         current_gm = fetch_gm_rates(page, CURRENT_OU_URL)
         prior_gm = fetch_gm_rates(page, PRIOR_OU_URL)
+        # Over/Under records at 4.5 / 5.5 / 6.5 / 7.5 (overall + home + away), this season and last: _flashscore_ou.py.  Fail-open -- never raises, falls back to the previous file's records.
+        ou_cur, ou_prior = fetch_ou_pair(context, CURRENT_OU_URL, PRIOR_OU_URL, load_previous(OUT), log)
 
         now = datetime.now(timezone.utc)
         season_start_year = now.year if now.month >= 7 else now.year - 1
@@ -380,7 +383,11 @@ def run() -> dict:
         prev = prior_teams.get(team_id)
         if prev is not None and team_id in prior_gm:
             prev = {**prev, "gm": prior_gm[team_id]}
+        if prev is not None and ou_prior.get(team_id):
+            prev = {**prev, "ou": ou_prior[team_id]}
         teams[team_id] = {**cur, "gm": current_gm.get(team_id), "prevSeason": prev}
+        if ou_cur.get(team_id):
+            teams[team_id]["ou"] = ou_cur[team_id]
     # A team whose logo URL was missed this run keeps the previous file's (fail-open, additive).
     log(f"  logo URLs carried over from previous file for {carry_over_logos(teams, OUT)} teams")
 

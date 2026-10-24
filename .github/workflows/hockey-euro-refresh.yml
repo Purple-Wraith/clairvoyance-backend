@@ -78,6 +78,13 @@ jobs:
         continue-on-error: true
         run: python3 scripts/fetch_extraliga.py --push
 
+      # NHL team Over/Under records (Flashscore standings tab, 4.5 / 5.5 / 6.5 / 7.5, overall + home + away): the NHL has no Flashscore schedule scraper of its own, so it rides
+      # this job (same Playwright install).  Display only -- see scripts/_flashscore_ou.py.
+      - name: Refresh NHL over/under records
+        id: nhlou
+        continue-on-error: true
+        run: python3 scripts/fetch_nhl_ou.py --push
+
       # The fetch_*.py scripts --push themselves; this shared step then dispatches pages-deploy.yml if docs/ changed (and pushes anything a script could not).
       - name: Publish (deploy Pages)
         if: ${{ !cancelled() }}
@@ -91,5 +98,6 @@ jobs:
           [ "${{ steps.shl.outcome }}" = "failure" ] && bad="$bad SHL"
           [ "${{ steps.nla.outcome }}" = "failure" ] && bad="$bad NLA"
           [ "${{ steps.extraliga.outcome }}" = "failure" ] && bad="$bad Extraliga"
+          [ "${{ steps.nhlou.outcome }}" = "failure" ] && bad="$bad NHL-over-under"
           if [ -n "$bad" ]; then echo "::error::refresh failed for:$bad"; exit 1; fi
-          echo "all four leagues refreshed"
+          echo "all four leagues and the NHL over/under records refreshed"

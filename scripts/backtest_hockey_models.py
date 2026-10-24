@@ -4,6 +4,7 @@
   python3 scripts/backtest_hockey_models.py form        # NHL recent-form term  -> NHL_FORM_* constants
   python3 scripts/backtest_hockey_models.py blend       # model-vs-market blend -> HOCKEY_MKT_BLEND_* constants
   python3 scripts/backtest_hockey_models.py dispersion  # Poisson dispersion / margin / empty-net shape
+  python3 scripts/backtest_hockey_models.py ou-teams    # team OVER/UNDER records at 4.5/5.5/6.5/7.5 (Flashscore's Over/Under standings) as a 3rd totals signal
   python3 scripts/backtest_hockey_models.py tiers       # qualification cutoffs (tier floors + high-probability lane)
                                                         #   -> HOCKEY_TIER_* constants in docs/app.html / scripts/auto_lock_settle.py
 
@@ -277,6 +278,179 @@ def cmd_blend(results, odds):
     _study("ML (lesser team <10 GP)", [r["y"] for r in early], [r["pm"] for r in early], [r["mk"] for r in early])
     eo = [r for r in early if r["ou"]]
     _study("O/U over (lesser team <10 GP)", [r["ou"][2] for r in eo], [r["ou"][0] for r in eo], [r["ou"][1] for r in eo])
+
+
+# ───────────────────────── team over/under records (Flashscore standings tab) ─────────────────────────
+# Flashscore's NHL "Over/Under" standings count REGULATION goals only (verified 2026-10-24: all 128 team x line cells of 2025-26 match results with the OT and shootout goals removed).
+# Sportsbooks settle NHL totals on regulation + overtime (shootout goal excluded).  A game tied after 60 minutes has an EVEN regulation total R and ends R+1 (decided in OT) or R (shootout),
+# so the two bases only differ at the line R+0.5 -- i.e. at 4.5 (2-2) and 6.5 (3-3) -- and 5.5 / 7.5 carry over exactly.  OU_LINES are the four lines the app uses.
+OU_LINES = (4.5, 5.5, 6.5, 7.5)
+
+
+def reg_total(g):
+    """regulation-only goals (Flashscore's basis)"""
+    return g["hs"] + g["as_"] - (1 if g.get("ot") in ("OT", "SO") else 0)
+
+
+def book_total(g):
+    """regulation + overtime, shootout goal excluded (sportsbook basis)"""
+    return g["hs"] + g["as_"] - (1 if g.get("ot") == "SO" else 0)
+
+
+def over_counts(totals):
+    return {L: sum(1 for t in totals if t > L) for L in OU_LINES}
+
+
+def ot_tie_shift(results_all):
+    """{line: share of ALL games that were tied after regulation at total line-0.5 AND decided in overtime} -- what must be added to a regulation-only OVER rate to get the book-basis rate.
+    Non-zero at 4.5 (2-2) and 6.5 (3-3) only."""
+    n = len(results_all)
+    out = {L: 0.0 for L in OU_LINES}
+    for g in results_all:
+        if g.get("ot") == "OT":
+            r = g["hs"] + g["as_"] - 1                       # regulation total (even)
+            for L in OU_LINES:
+                if abs(r + 0.5 - L) < 1e-9:
+                    out[L] += 1.0 / n
+    return out
+
+
+def team_ou_rows(results, odds, season, prior, min_gp, m=20, shift=None):
+    """One row per game with a posted closing total (5.5 / 6 / 6.5): model prob, no-vig market prob, TEAM-RECORD prob and the outcome.  Point-in-time: a game's team records use
+    only games before it plus the prior season (as m pseudo-games), exactly what Flashscore's tab would have shown that morning."""
+    games = {(g["home"], g["away"], g["date"][:10]): g for g in odds[season]}
+    lg_n = len(results[prior])
+    lg = {L: sum(1 for g in results[prior] if reg_total(g) > L) / lg_n for L in OU_LINES}
+    pri = defaultdict(lambda: [0, {L: 0 for L in OU_LINES}])
+    for g in results[prior]:
+        rt = reg_total(g)
+        for t in (g["home"], g["away"]):
+            pri[t][0] += 1
+            for L in OU_LINES:
+                pri[t][1][L] += 1 if rt > L else 0
+    cur = defaultdict(lambda: [0, {L: 0 for L in OU_LINES}])
+
+    def rate(t, L):
+        n, c = cur[t]
+        pn, pc = pri[t][0], pri[t][1][L]
+        pr = (pc / pn) if pn else lg[L]
+        return (c[L] + m * pr) / (n + m)
+
+    rows = []
+    for r in pointintime(results, season, prior, min_gp):
+        g = r["g"]
+        h, a = g["home"], g["away"]
+        og = None
+        for dd in (0, 1, -1):
+            d = (date.fromisoformat(g["date"]) + timedelta(days=dd)).isoformat()
+            og = games.get((g["home"], g["away"], d))
+            if og:
+                break
+        o = og and og.get("odds")
+        line = o and o.get("ou")
+        if line in (5.5, 6.0, 6.5) and o.get("overOdds") is not None and o.get("underOdds") is not None:
+            tot = book_total(g)
+            if tot != line:
+                preg = {}
+                for L in OU_LINES:
+                    z = _logit(min(.98, max(.02, rate(h, L)))) + _logit(min(.98, max(.02, rate(a, L)))) - _logit(lg[L])
+                    preg[L] = _sig(z)
+                pb = {L: min(.98, max(.02, preg[L] + (shift or {}).get(L, 0.0))) for L in OU_LINES}      # regulation basis -> book basis
+                if line == 6.0:
+                    hi, lo = pb[6.5], 1 - pb[5.5]
+                    pt = hi / (hi + lo)
+                else:
+                    pt = pb[line]
+                tl = r["lam_h"] + r["lam_a"]
+                cdf = sum(math.exp(-tl) * tl ** k / math.factorial(k) for k in range(int(math.floor(line)) + 1))
+                rows.append(dict(n=min(r["bh"][2], r["ba"][2]), pm=min(.98, max(.02, 1 - cdf)), mk=_novig(_am2dec(o["overOdds"]), _am2dec(o["underOdds"])),
+                                 pt=min(.98, max(.02, pt)), y=1.0 if tot > line else 0.0, line=line))
+        for t, gf in ((h, g["hs"]), (a, g["as_"])):                       # update AFTER the game is evaluated
+            cur[t][0] += 1
+            rt = reg_total(g)
+            for L in OU_LINES:
+                cur[t][1][L] += 1 if rt > L else 0
+    return rows
+
+
+def _solve(A, b):
+    n = len(b)
+    M = [row[:] + [b[i]] for i, row in enumerate(A)]
+    for i in range(n):
+        piv = max(range(i, n), key=lambda r: abs(M[r][i]))
+        M[i], M[piv] = M[piv], M[i]
+        d = M[i][i] or 1e-12
+        for j in range(i, n + 1):
+            M[i][j] /= d
+        for r in range(n):
+            if r != i:
+                f = M[r][i]
+                for j in range(i, n + 1):
+                    M[r][j] -= f * M[i][j]
+    return [M[i][n] for i in range(n)]
+
+
+def fit_logit(X, y, iters=25, ridge=1e-6):
+    """Newton / IRLS logistic regression; X rows already include any intercept column."""
+    k = len(X[0])
+    w = [0.0] * k
+    for _ in range(iters):
+        g = [0.0] * k
+        H = [[ridge if i == j else 0.0 for j in range(k)] for i in range(k)]
+        for x, t in zip(X, y):
+            z = sum(wi * xi for wi, xi in zip(w, x))
+            p = _sig(z)
+            for i in range(k):
+                g[i] += (t - p) * x[i]
+                for j in range(k):
+                    H[i][j] += p * (1 - p) * x[i] * x[j]
+        step = _solve(H, g)
+        w = [wi + si for wi, si in zip(w, step)]
+        if max(abs(s_) for s_ in step) < 1e-7:
+            break
+    return w
+
+
+def _ll_w(X, y, w):
+    return _ll(y, [_sig(sum(wi * xi for wi, xi in zip(w, x))) for x in X])
+
+
+def cmd_ou_teams(results, odds):
+    import random
+    all_games = [g for s in SEASONS for g in results.get(s, [])]
+    shift = ot_tie_shift(all_games)
+    print(f"regulation -> book-basis shift (share of games tied after 60 at total line-0.5 and decided in OT): " + ", ".join(f"{L}: +{shift[L]:.3f}" for L in OU_LINES))
+    seasons = [("20252026", "20242025"), ("20242025", "20232024")]
+    for label, mg in (("lesser team >=10 GP", 10), ("lesser team <10 GP", 1)):
+        rows = []
+        for s_, p_ in seasons:
+            rows += team_ou_rows(results, odds, s_, p_, mg if mg == 10 else 1, shift=shift)
+        rows = [r for r in rows if (r["n"] >= 10) == (mg == 10)]
+        if len(rows) < 100:
+            continue
+        y = [r["y"] for r in rows]
+        lm, lk, lt = ([_logit(r[k]) for r in rows] for k in ("pm", "mk", "pt"))
+        print(f"\n== O/U over, closing total 5.5/6/6.5, {label}: n={len(rows)} ==")
+        print(f"  log loss  model {_ll(y, [r['pm'] for r in rows]):.4f} | market {_ll(y, [r['mk'] for r in rows]):.4f} | team records {_ll(y, [r['pt'] for r in rows]):.4f}")
+        X2 = [[a, b] for a, b in zip(lm, lk)]
+        X3 = [[a, b, c] for a, b, c in zip(lm, lk, lt)]
+        w2, w3 = fit_logit(X2, y), fit_logit(X3, y)
+        print(f"  market+model        coef (model {w2[0]:+.2f}, market {w2[1]:+.2f})  log loss {_ll_w(X2, y, w2):.4f}")
+        print(f"  +team records       coef (model {w3[0]:+.2f}, market {w3[1]:+.2f}, TEAM {w3[2]:+.2f})  log loss {_ll_w(X3, y, w3):.4f}")
+        rnd = random.Random(7)
+        boots = []
+        idx = list(range(len(rows)))
+        for _ in range(200):
+            bi = [rnd.choice(idx) for _ in idx]
+            boots.append(fit_logit([X3[i] for i in bi], [y[i] for i in bi], iters=12)[2])
+        boots.sort()
+        print(f"  team-records coefficient 95% CI [{boots[5]:+.2f}, {boots[194]:+.2f}]")
+        # simple out-of-sample check: fit on one season, score the other
+        half = [i for i, r in enumerate(rows) if r["n"] % 2 == 0]
+        other = [i for i in idx if i not in set(half)]
+        if half and other:
+            wa = fit_logit([X3[i] for i in half], [y[i] for i in half]); wb2 = fit_logit([X2[i] for i in half], [y[i] for i in half])
+            print(f"  out-of-sample (fit on half, score the rest): market+model {_ll_w([X2[i] for i in other], [y[i] for i in other], wb2):.4f} vs +team {_ll_w([X3[i] for i in other], [y[i] for i in other], wa):.4f} vs market only {_ll([y[i] for i in other], [rows[i]['mk'] for i in other]):.4f}")
 
 
 # ───────────────────────── dispersion ─────────────────────────
@@ -569,7 +743,7 @@ def cmd_tiers(results, odds):
 # ───────────────────────── main ─────────────────────────
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["form", "blend", "dispersion", "tiers"])
+    ap.add_argument("cmd", choices=["form", "blend", "dispersion", "tiers", "ou-teams"])
     ap.add_argument("--cache", default="/tmp/cv_hockey_bt")
     a = ap.parse_args()
     cache = Path(a.cache)
@@ -580,5 +754,7 @@ if __name__ == "__main__":
         cmd_blend(res, load_odds(cache))
     elif a.cmd == "tiers":
         cmd_tiers(res, load_odds(cache))
+    elif a.cmd == "ou-teams":
+        cmd_ou_teams(res, load_odds(cache))
     else:
         cmd_dispersion(res)

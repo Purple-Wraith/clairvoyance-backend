@@ -9283,6 +9283,50 @@ function _cardInfoRowHTML(label,items,note){
   }catch(e){return'';}
 }
 function _compass(deg){if(deg==null||!isFinite(deg))return'';return['N','NE','E','SE','S','SW','W','NW'][Math.round(((deg%360)+360)%360/45)%8];}
+// ── OVER / UNDER RECORD ROW on NHL + European hockey cards (owner 2026-10-24) ───────────────────────────────────────────────────────────────────────────────────────────────
+// Source: Flashscore's standings "OVER/UNDER" tab (scripts/_flashscore_ou.py -> docs/nhl_ou.json for the NHL, `ou` on each team of docs/{liiga,shl,nla,extraliga}_schedule.json):
+// how many of a team's games finished OVER 4.5 / 5.5 / 6.5 / 7.5 goals, for all games and split home / away.  The row shows the home team's HOME record and the road team's ROAD
+// record (all games when a split has fewer than 5), or last season's when this season has fewer than 5 games.  REGULATION goals only (Flashscore does not count overtime or
+// shootout goals), which is why it is labelled 60 MIN.  DISPLAY ONLY: backtested on 2,284 NHL games it adds nothing to the model or the closing line (scripts/backtest_hockey_models.py
+// ou-teams: team-record coefficient -0.07, 95% CI [-0.31, +0.18], log loss unchanged), so it never feeds a probability, price or lock.
+let _NHL_OU=null;
+function loadNhlOuData(){
+  if(_NHL_OU)return Promise.resolve(_NHL_OU);
+  return fetch('nhl_ou.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{_NHL_OU=d||{teams:{},prev:{teams:{}}};return _NHL_OU;});
+}
+const _OU_LINES=['4.5','5.5','6.5','7.5'];
+function _ouRecPick(cur,prev,venue){
+  const take=(o,label)=>(o&&o.ou&&o.gp>0)?{gp:o.gp,ou:o.ou,label:label}:null;
+  let v=(cur&&cur[venue]&&cur[venue].gp>=5)?take(cur[venue],venue==='home'?'at home':'on the road'):null;
+  if(!v&&cur&&cur.overall&&cur.overall.gp>=5)v=take(cur.overall,'all games');
+  if(!v&&prev)v=take(prev,'last season');
+  return v;
+}
+function _ouRecItem(name,side,v){
+  if(!v)return null;
+  const txt=_OU_LINES.map(l=>{const c=v.ou[l];return(c&&c[0]+c[1]>0)?'O'+l+' '+Math.round(c[0]/(c[0]+c[1])*100)+'%':null;}).filter(Boolean).join(' · ');
+  return txt?{team:_escHtml(name),side:side,text:txt,sub:v.gp+' GP '+v.label}:null;
+}
+function _hkOuRecordRowHTML(lg,g){
+  try{
+    let hT,aT,hP,aP,hN,aN;
+    if(lg==='nhl'){
+      const d=_NHL_OU;if(!d||!d.teams)return'';
+      hT=d.teams[g.home];aT=d.teams[g.away];hP=d.prev&&d.prev.teams&&d.prev.teams[g.home];aP=d.prev&&d.prev.teams&&d.prev.teams[g.away];hN=g.home;aN=g.away;
+    }else{
+      const D={liiga:typeof _LIIGA_DATA!=='undefined'?_LIIGA_DATA:null,shl:typeof _SHL_DATA!=='undefined'?_SHL_DATA:null,nla:typeof _NLA_DATA!=='undefined'?_NLA_DATA:null,extraliga:typeof _EXTRALIGA_DATA!=='undefined'?_EXTRALIGA_DATA:null}[lg];
+      if(!D||!D.teams)return'';
+      const h=D.teams[g.home],a=D.teams[g.away];if(!h||!a)return'';
+      hT=h.ou;aT=a.ou;hP=h.prevSeason&&h.prevSeason.ou;aP=a.prevSeason&&a.prevSeason.ou;hN=h.name||g.homeName||g.home;aN=a.name||g.awayName||g.away;
+      return _ouRecRow(_ouRecItem(aN,'a',_ouRecPick(aT,aP,'away')),_ouRecItem(hN,'h',_ouRecPick(hT,hP,'home')));
+    }
+    return _ouRecRow(_ouRecItem(aN,'a',_ouRecPick(aT&&aT,aP,'away')),_ouRecItem(hN,'h',_ouRecPick(hT,hP,'home')));
+  }catch(e){return'';}
+}
+function _ouRecRow(a,h){
+  if(!a&&!h)return'';
+  return _cardInfoRowHTML('OVER RATE · 60 MIN',[a,h],'Share of each team\u2019s games that finished over the line in regulation (overtime and shootout goals not counted): the home team at home, the road team on the road. Information only \u2014 it does not change any pick.');
+}
 // Football weather row. Reads the same _CFB_WX_CACHE the model already uses (kickoff-hour Open-Meteo forecast); indoor games say so and a game with no
 // forecast (venue unknown, or more than 16 days out) says that instead of showing a guess.
 function _wxRowHTML(g){
@@ -12044,6 +12088,7 @@ function _nhlUpcomingCardRaw(g,dayIdx){
       <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('nhlu_${uid}')">COMPARE</button></div>
     </div>
     ${_nhlGoalieRowHTML(g.home,g.away,g.date)}
+    ${_hkOuRecordRowHTML('nhl',g)}
     <div id="radar_nhlu_${uid}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
         <span style="color:#00f0ff">${_teamLogoHTML('nhl',g.away,'a',22,{ring:'cyan',name:g.awayName})}■ ${g.away}</span><span style="color:#f000ff">${_teamLogoHTML('nhl',g.home,'h',22,{ring:'magenta',name:g.homeName})}■ ${g.home}</span>
@@ -12158,6 +12203,7 @@ async function renderNHLUpcoming(){
   const el=document.getElementById('nhl-upcoming');if(!el)return;
   el.innerHTML='<div class="loading"><span class="spi"></span></div>';
   const data=await loadNHLScheduleData();
+  try{await loadNhlOuData();}catch(e){}                                  // over/under records for the OVER RATE row (display only)
   const games=data?.games||[];
   if(!games.length){el.innerHTML='<div class="empty">SCHEDULE NOT LOADED YET</div>';return;}
   _nhlPopulateScheduleDayFilter(games);
@@ -13517,6 +13563,7 @@ function _liigaMatchCardRaw(g){
       <div><div style="display:flex;align-items:center;gap:6px">${_teamLogoHTML('liiga',g.away,'a',44,{url:aw.logo,name:g.awayName})}<span class="gtm" style="color:var(--t)">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span>${_teamLogoHTML('liiga',g.home,'h',44,{url:h.logo,name:g.homeName})}<span class="gtm" style="color:var(--t)">${g.homeName}</span></div><div class="gsp">LIIGA</div></div>
       <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('liiga_${g.id}')">COMPARE</button></div>
     </div>
+    ${_hkOuRecordRowHTML('liiga',g)}
     <div id="radar_liiga_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
         <span style="color:#00f0ff">${_teamLogoHTML('liiga',g.away,'a',22,{ring:'cyan',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span><span style="color:#f000ff">${_teamLogoHTML('liiga',g.home,'h',22,{ring:'magenta',url:h.logo,name:g.homeName})}■ ${g.homeName}</span>
@@ -13660,6 +13707,7 @@ function _nlaMatchCardRaw(g){
       <div><div style="display:flex;align-items:center;gap:6px">${_teamLogoHTML('nla',g.away,'a',44,{url:aw.logo,name:g.awayName})}<span class="gtm" style="color:var(--t)">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span>${_teamLogoHTML('nla',g.home,'h',44,{url:h.logo,name:g.homeName})}<span class="gtm" style="color:var(--t)">${g.homeName}</span></div><div class="gsp">NLA</div></div>
       <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('nla_${g.id}')">COMPARE</button></div>
     </div>
+    ${_hkOuRecordRowHTML('nla',g)}
     <div id="radar_nla_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
         <span style="color:#00f0ff">${_teamLogoHTML('nla',g.away,'a',22,{ring:'cyan',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span><span style="color:#f000ff">${_teamLogoHTML('nla',g.home,'h',22,{ring:'magenta',url:h.logo,name:g.homeName})}■ ${g.homeName}</span>
@@ -13799,6 +13847,7 @@ function _extraligaMatchCardRaw(g){
       <div><div style="display:flex;align-items:center;gap:6px">${_teamLogoHTML('extraliga',g.away,'a',44,{url:aw.logo,name:g.awayName})}<span class="gtm" style="color:var(--t)">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span>${_teamLogoHTML('extraliga',g.home,'h',44,{url:h.logo,name:g.homeName})}<span class="gtm" style="color:var(--t)">${g.homeName}</span></div><div class="gsp">EXTRALIGA</div></div>
       <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('extraliga_${g.id}')">COMPARE</button></div>
     </div>
+    ${_hkOuRecordRowHTML('extraliga',g)}
     <div id="radar_extraliga_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
         <span style="color:#00f0ff">${_teamLogoHTML('extraliga',g.away,'a',22,{ring:'cyan',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span><span style="color:#f000ff">${_teamLogoHTML('extraliga',g.home,'h',22,{ring:'magenta',url:h.logo,name:g.homeName})}■ ${g.homeName}</span>
@@ -14119,6 +14168,7 @@ function _shlMatchCardRaw(g){
       <div><div style="display:flex;align-items:center;gap:6px">${_teamLogoHTML('shl',g.away,'a',44,{url:aw.logo,name:g.awayName})}<span class="gtm" style="color:var(--t)">${g.awayName}</span><span style="color:var(--t3);font-size:14px;font-family:var(--mono)">at</span>${_teamLogoHTML('shl',g.home,'h',44,{url:h.logo,name:g.homeName})}<span class="gtm" style="color:var(--t)">${g.homeName}</span></div><div class="gsp">SHL</div></div>
       <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('shl_${g.id}')">COMPARE</button></div>
     </div>
+    ${_hkOuRecordRowHTML('shl',g)}
     <div id="radar_shl_${g.id}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
         <span style="color:#00f0ff">${_teamLogoHTML('shl',g.away,'a',22,{ring:'cyan',url:aw.logo,name:g.awayName})}■ ${g.awayName}</span><span style="color:#f000ff">${_teamLogoHTML('shl',g.home,'h',22,{ring:'magenta',url:h.logo,name:g.homeName})}■ ${g.homeName}</span>
