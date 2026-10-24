@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """TOP PICKS > TOP ADJUSTED LINES sub-tab (docs/app.html tpSub / _topAdjEntries / _topAdjHTML), owner request 2026-10-23.
 
-The cards register every adjusted line in window._altReg; the sub-tab ranks today's by estimated win probability at the adjusted line (best side per game + market only, 3 per league in the top 10,
-a kind with a weak recent record demoted).  Synthetic registry entries (no network, no model run).
+The cards register every adjusted line in window._altReg; the sub-tab ranks today's by estimated win probability at the adjusted line (best side per game + market only; each league lists its best
+10 (college football) / 7 (NFL) / 5 (every other league), a kind with a weak recent record demoted, finished games sinking to the bottom of their league; records and the daily square grid cover EVERY line).  Synthetic registry entries (no network, no model run).
 
     python3 scripts/test_top_adj_lines.py
 """
@@ -59,9 +59,12 @@ class AdjTab(unittest.TestCase):
         return self.pg.evaluate("""[...document.querySelectorAll('#toppicks-adj .tp-adj-row')].map(r=>r.innerText.replace(/\\n/g,' | '))""")
 
     def top_rows(self):
-        """rows inside the TOP 10 block (before BY LEAGUE)"""
-        return self.pg.evaluate("""()=>{const el=document.getElementById('toppicks-adj');const html=el.innerHTML;const cut=html.indexOf('BY LEAGUE');
-          const d=document.createElement('div');d.innerHTML=cut>0?html.slice(0,cut):html;return [...d.querySelectorAll('.tp-adj-row')].map(r=>r.innerText.replace(/\\n/g,' | '))}""")
+        """every listed row, in display order (league sections, best first inside each)"""
+        return self.rows()
+
+    def sections(self):
+        """{league header text: [row texts]}"""
+        return self.pg.evaluate("""()=>{const out={};document.querySelectorAll('#toppicks-adj .tp-adj-row').forEach(r=>{let h=r.parentElement.firstElementChild.innerText.replace(/\\n/g,' ');(out[h]=out[h]||[]).push(r.innerText.replace(/\\n/g,' | '))});return out}""")
 
     def test_the_two_sub_tabs_switch_views(self):
         self.pg.evaluate("tpSub('picks')")
@@ -85,13 +88,13 @@ class AdjTab(unittest.TestCase):
         self.pg.evaluate("document.getElementById('sp-toppicks').classList.remove('act')")
 
     def test_ranked_by_probability_at_the_adjusted_line(self):
-        self.seed([e("NBA", "Zephyrs", "Quokkas", "OVER 214.5", .64), e("CFB", "Walruses", "Narwhals", "Walruses +10.5", .78, "SPREAD", postedLabel="Walruses +3.5"),
-                   e("NHL", "Pelicans", "Marmots", "UNDER 6.5", .66, line=6.5, shift=1, postedLabel="UNDER 5.5")])
-        r = self.top_rows()
-        self.assertEqual(len(r), 3)
-        self.assertIn("Walruses +10.5", r[0]); self.assertIn("78.0%", r[0]); self.assertIn("PREMIUM", r[0])
-        self.assertIn("UNDER 6.5", r[1]); self.assertIn("66.0%", r[1]); self.assertIn("OPTIMAL", r[1])
-        self.assertIn("OVER 214.5", r[2]); self.assertIn("64.0%", r[2]); self.assertIn("OPTIMAL", r[2])
+        self.seed([e("NBA", "Zephyrs", "Quokkas", "OVER 214.5", .64), e("NBA", "Lynxes", "Otters", "Lynxes +9.5", .71, "SPREAD"), e("NBA", "Herons", "Skunks", "UNDER 226.5", .66),
+                   e("CFB", "Walruses", "Narwhals", "Walruses +10.5", .78, "SPREAD", postedLabel="Walruses +3.5")])
+        secs = self.sections()
+        nba = next(v for k, v in secs.items() if k.startswith("NBA"))
+        self.assertEqual([("Lynxes +9.5" in x, "UNDER 226.5" in x, "OVER 214.5" in x) for x in nba], [(True, False, False), (False, True, False), (False, False, True)])   # best first
+        self.assertIn("71.0%", nba[0]); self.assertIn("PREMIUM", next(v for k, v in secs.items() if k.startswith("CFB"))[0])
+        self.assertEqual(sorted(k.split(" —")[0] for k in secs), ["CFB", "NBA"])                                  # one section per league, none for the all-sports block that used to sit above
 
     def test_each_row_shows_how_far_the_line_moved_and_from_what(self):
         self.seed([e("NBA", "Zephyrs", "Quokkas", "OVER 214.5", .70, shift=6, postedLabel="OVER 220.5"), e("NHL", "Pelicans", "Marmots", "UNDER 6.5", .66, shift=1, postedLabel="UNDER 5.5")])
@@ -107,16 +110,31 @@ class AdjTab(unittest.TestCase):
         self.assertEqual(len(r), 2)                                              # one total + one spread
         self.assertTrue(any("OVER 214.5" in x for x in r)); self.assertFalse(any("UNDER 224.5" in x for x in r))
 
-    def test_three_per_league_in_the_top_ten(self):
-        self.seed([e("NBA", f"Home{i}", f"Away{i}", f"OVER {200+i}.5", .80 - i * .01) for i in range(5)] + [e("NHL", "Pelicans", "Marmots", "UNDER 6.5", .62)])
-        r = self.top_rows()
-        self.assertEqual(len(r), 6)                                              # fewer than 10 picks: nothing is left out
-        self.assertEqual(sum("NBA ·" in x for x in r), 5)
-        self.seed([e("NBA", f"Home{i}", f"Away{i}", f"OVER {200+i}.5", .90 - i * .01) for i in range(9)] + [e("NHL", f"P{i}", f"M{i}", "UNDER 6.5", .62) for i in range(3)])
-        r = self.top_rows()
-        self.assertEqual(len(r), 10)
-        self.assertEqual(sum("NHL ·" in x for x in r), 3)            # the cap holds NBA to 3 until the other leagues are in, then the best of what is left fills the list
-        self.assertEqual(sum("NBA ·" in x for x in r), 7)
+    def test_each_league_lists_its_best_10_cfb_7_nfl_5_other(self):
+        sp = lambda lg, n, hi=.9: [e(lg, f"{lg}H{i}", f"{lg}A{i}", f"OVER {40+i}.5", hi - i * .01) for i in range(n)]
+        self.seed(sp("CFB", 12) + sp("NFL", 9) + sp("NBA", 8) + sp("NHL", 6))
+        secs = self.sections()
+        n = lambda lg: len(next(v for k, v in secs.items() if k.startswith(lg)))
+        self.assertEqual((n("CFB"), n("NFL"), n("NBA"), n("NHL")), (10, 7, 5, 5))
+        head = lambda lg: next(k for k in secs if k.startswith(lg))
+        self.assertIn("TOP 10 OF 12", head("CFB")); self.assertIn("TOP 7 OF 9", head("NFL")); self.assertIn("TOP 5 OF 8", head("NBA")); self.assertIn("TOP 5 OF 6", head("NHL"))
+        best = next(v for k, v in secs.items() if k.startswith("CFB"))
+        self.assertIn("OVER 40.5", best[0])                                                                         # the CFB list is its 10 BEST of 12: the weakest two are not shown
+        self.assertFalse(any("OVER 50.5" in x or "OVER 51.5" in x for x in best))
+
+    def test_a_league_with_fewer_lines_than_its_cap_shows_them_all_and_no_of_clause(self):
+        self.seed([e("CFB", f"H{i}", f"A{i}", f"OVER {40+i}.5", .8) for i in range(3)])
+        k, v = next(iter(self.sections().items()))
+        self.assertEqual(len(v), 3); self.assertIn("TOP 3 ", k); self.assertNotIn(" OF ", k)
+
+    def test_the_record_beside_a_league_and_the_day_covers_every_line_not_just_the_shown_ones(self):
+        gm = lambda i, w: {"k": "nba", "tag": "NBA", "id": f"g{i}", "home": f"NBAH{i}", "away": f"NBAA{i}", "homeScore": 110, "awayScore": 100, "state": "post", "note": "Final"}
+        entries = [e("NBA", f"NBAH{i}", f"NBAA{i}", "OVER 200.5", .9 - i * .01, line=200.5) for i in range(8)]
+        live = [gm(i, True) for i in range(8)]                                                                     # every game final 110-100 (total 210): all 8 OVER 200.5 lines won
+        self.seed(entries, live=live)
+        k, v = next((k, v) for k, v in self.sections().items() if k.startswith("NBA"))
+        self.assertEqual(len(v), 5); self.assertIn("8W-0L", k); self.assertIn("record covers all 8", k)
+        self.assertIn("TODAY, ALL LINES: 8W-0L", self.pg.evaluate("document.getElementById('toppicks-adj').innerText.replace(/\\s+/g,' ')"))
 
     def test_a_locked_line_shows_its_result_and_no_button(self):
         td = self.pg.evaluate("today()")
@@ -145,16 +163,14 @@ class AdjTab(unittest.TestCase):
         self.seed([e("NBA", "Walruses", "Narwhals", "OVER 221.5", .66)], live=live)
         self.assertIn("FINAL", " ".join(self.rows()))
 
-    def test_finished_games_do_not_take_top_ten_places_from_lines_you_can_still_lock(self):
+    def test_finished_games_sink_below_lines_you_can_still_lock_inside_their_league(self):
         live = [{"k": "nhl", "tag": "NHL", "id": "x", "home": "Pelicans", "away": "Marmots", "homeScore": 4, "awayScore": 1, "state": "post", "note": "Final"}]
-        self.seed([e("NHL", "Pelicans", "Marmots", "UNDER 6.5", .80), e("NBA", "Zephyrs", "Quokkas", "OVER 214.5", .64)], live=live)
-        top = self.top_rows()
-        self.assertEqual(len(top), 1)
-        self.assertIn("OVER 214.5", top[0])                                      # the open line leads the top block
-        allr = self.rows()
-        self.assertTrue(any("UNDER 6.5" in x and "FINAL" in x for x in allr))     # the finished one is still listed under its league
+        self.seed([e("NHL", "Pelicans", "Marmots", "UNDER 6.5", .80), e("NHL", "Herons", "Skunks", "OVER 5.5", .64)], live=live)
+        r = self.top_rows()
+        self.assertIn("OVER 5.5", r[0])                                          # the open line leads its league
+        self.assertTrue("UNDER 6.5" in r[1] and "FINAL" in r[1])                  # the finished one is still listed, at the bottom
         self.seed([e("NHL", "Pelicans", "Marmots", "UNDER 6.5", .80)], live=live)
-        self.assertEqual(len(self.top_rows()), 1)                                # nothing open at all: the finished lines are ranked rather than leaving the block empty
+        self.assertEqual(len(self.top_rows()), 1)                                # nothing open at all: the finished lines are still listed
 
     def final(self, home, away, hs, as_, note="Final", tag="NBA", k="nba", **kw):
         g = {"k": k, "tag": tag, "id": "x" + home, "home": home, "away": away, "homeScore": hs, "awayScore": as_, "state": "post", "note": note}
@@ -232,9 +248,11 @@ class AdjTab(unittest.TestCase):
         rows = self.pg.evaluate("[...document.querySelectorAll('.tp-adj-day')].map(r=>r.innerText.replace(/\\n+/g,' '))")
         self.assertIn("LAST 3 DAYS", rows[0]); self.assertIn("3W-2L", rows[0]); self.assertIn("60%", rows[0])      # y1: 2W-1L (+1 push), y2: 1W-1L, today: pending only
         self.assertIn("ALL TIME", rows[1]); self.assertIn("3W-2L", rows[1])
-        day1 = next(r for r in rows if "2W-1L" in r)
-        self.assertIn("1P", day1); self.assertIn("67%", day1)                                                   # a push is left out of the percentage
-        self.assertTrue(any("0W-0L" in r and "1 PENDING" in r for r in rows))                                   # today: nothing settled yet
+        tips = self.pg.evaluate("[...document.querySelectorAll('.tp-adj-daily .tp-heat-cell')].map(c=>c.dataset.tip)")             # the SQUARE GRID: one cell per day
+        self.assertTrue(any("2W-1L" in x and "67% win" in x for x in tips))                                      # y1; the push is left out of the percentage
+        self.assertTrue(any("1W-1L" in x and "50% win" in x for x in tips))                                      # y2
+        self.assertTrue(any("1 adjusted lines, not settled yet" in x for x in tips))                              # today: nothing settled yet
+        self.assertGreaterEqual(len(tips), 7)
 
     def test_daily_win_rate_shows_even_with_no_lines_today_and_says_so_when_empty(self):
         self.seed([], [])
@@ -260,12 +278,12 @@ class AdjTab(unittest.TestCase):
         led = []
         for i in range(40):                                                       # NBA adjusted totals have won only 45% recently; NHL adjusted totals 85%
             led.append({"id": f"a{i}", "hA": "A", "awA": "B", "sport": "NBA", "league": "NBA", "betType": "OU", "betOn": "OVER 200.5", "date": "2026-10-15", "outcome": "win" if i % 20 < 9 else "loss", "altLine": {"posted": 1, "line": 2, "shift": 1, "postedLabel": "x"}, "decOdds": 1.7, "winProb": .65, "lockedAt": now - 5 * 86400000, "settledAt": now - 4 * 86400000})
-            led.append({"id": f"b{i}", "hA": "A", "awA": "B", "sport": "NHL", "league": "NHL", "betType": "OU", "betOn": "UNDER 6.5", "date": "2026-10-15", "outcome": "win" if i % 20 < 17 else "loss", "altLine": {"posted": 1, "line": 2, "shift": 1, "postedLabel": "x"}, "decOdds": 1.7, "winProb": .65, "lockedAt": now - 5 * 86400000, "settledAt": now - 4 * 86400000})
+            led.append({"id": f"b{i}", "hA": "A", "awA": "B", "sport": "NBA", "league": "NBA", "betType": "SPREAD", "betOn": "Zephyrs +9.5", "date": "2026-10-15", "outcome": "win" if i % 20 < 17 else "loss", "altLine": {"posted": 1, "line": 2, "shift": 1, "postedLabel": "x"}, "decOdds": 1.7, "winProb": .65, "lockedAt": now - 5 * 86400000, "settledAt": now - 4 * 86400000})
         for i in range(30):
             led.append({"id": f"c{i}", "hA": "A", "awA": "B", "sport": "NFL", "league": "NFL", "betType": "ML", "betOn": "A", "date": "2026-10-15", "outcome": "win" if i % 10 < 7 else "loss", "decOdds": 1.7, "winProb": .65, "lockedAt": now - 5 * 86400000, "settledAt": now - 4 * 86400000})
-        self.seed([e("NBA", "Zephyrs", "Quokkas", "OVER 214.5", .72), e("NHL", "Pelicans", "Marmots", "UNDER 6.5", .64, line=6.5, shift=1)], led)
+        self.seed([e("NBA", "Zephyrs", "Quokkas", "OVER 214.5", .72), e("NBA", "Lynxes", "Otters", "Lynxes +9.5", .64, "SPREAD")], led)
         r = self.top_rows()
-        self.assertIn("UNDER 6.5", r[0])                                          # the strong kind leads even though its probability is lower
+        self.assertIn("Lynxes +9.5", r[0])                                        # the strong kind (NBA adjusted spreads) leads its league even though its probability is lower
         self.assertIn("DEMOTED", r[1])
         self.assertIn("85% LAST 40 SAME KIND", r[0])
 
