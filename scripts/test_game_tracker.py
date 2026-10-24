@@ -261,6 +261,20 @@ class Overlay(unittest.TestCase):
         self.assertEqual(self.pg.evaluate("_GT.ref.id"), "E1")
         self.pg.evaluate("_gtClose();document.getElementById('tst').remove();_LV.games=[]")
 
+    def test_scores_tab_cards_open_the_tracker_and_finals_stay_at_the_bottom(self):
+        self.pg.evaluate("""()=>{const n=Date.now();_LV.ts=n;_LV.games=[
+          {k:'nba',tag:'NBA',id:'F1',home:'PHI',away:'CLE',homeScore:114,awayScore:106,state:'post',completed:true,note:'Final',startMs:n-4*3600e3},
+          {k:'nba',tag:'NBA',id:'E1',home:'LAL',away:'DEN',homeScore:40,awayScore:44,state:'in',completed:false,note:'Q2',period:2,displayClock:'3:00',startMs:n-3600e3},
+          {k:'nhl',tag:'NHL',id:'U1',home:'BOS',away:'TOR',homeScore:0,awayScore:0,state:'pre',completed:false,note:'',startMs:n+3600e3}];_scPaint()}""")
+        mine = "[...document.querySelectorAll('#sc-root .sc-card')].filter(c=>/CLE|DEN|TOR/.test(c.getAttribute('aria-label')))"
+        self.assertEqual(self.pg.evaluate(mine + ".map(c=>c.dataset.b)"), ["in", "pre", "post"])                  # live, upcoming, then finals last
+        self.assertEqual(self.pg.evaluate(mine + ".map(c=>!!c.querySelector('.gt-btn'))"), [True, False, True])
+        self.assertEqual(self.pg.evaluate("document.querySelectorAll('#sc-root .sc-card[data-b=post]:not([data-gid])').length>=0"), True)
+        self.pg.evaluate("window.__sum=%s;window.__f0=window.__f0||window.fetch;window.fetch=async(u,o)=>String(u).includes('/summary?event=')?new Response(JSON.stringify(window.__sum),{status:200}):window.__f0(String(u),o)" % json.dumps(self.fx["nba"]))
+        self.pg.evaluate("document.querySelector('#sc-root .sc-card[data-gid=F1]').click()"); self.pg.wait_for_selector("#gt-ov .gt-hd", timeout=8000)
+        self.assertEqual(self.pg.evaluate("_GT.ref.id"), "F1")
+        self.pg.evaluate("_gtClose();_LV.games=[];_scPaint()")
+
     def test_no_script_errors(self):
         self.assertEqual(self.errs, [])
 

@@ -758,7 +758,7 @@ rect.mom-pin{fill:rgba(255,221,0,.09)}line.mom-pin{stroke:var(--gc);stroke-width
 .sc-day{font-family:var(--orb);font-size:15px;font-weight:700;letter-spacing:1.5px;color:var(--t);padding:0 4px}
 .sc-meta{font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--t3);margin:2px 0 10px}
 .sc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:8px}
-.sc-card{min-width:0;padding:8px 10px;background:rgba(34,36,46,.55);border:1px solid var(--w2);border-left:3px solid var(--w3);border-radius:3px;font-family:var(--mono)}
+.sc-card.sc-trk{cursor:pointer}.sc-card.sc-trk:hover{border-color:rgba(0,240,255,.5)}.sc-card .gt-btn{margin-top:8px}.sc-card{min-width:0;padding:8px 10px;background:rgba(34,36,46,.55);border:1px solid var(--w2);border-left:3px solid var(--w3);border-radius:3px;font-family:var(--mono)}
 .sc-card.st-in{border-left-color:var(--hc)}.sc-card.st-pre{border-left-color:var(--nc)}.sc-card.st-post{border-left-color:rgba(255,255,255,.28)}
 .sc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:6px;font-size:11px;letter-spacing:.08em}
 .sc-lg{color:var(--nc);border:1px solid currentColor;border-radius:2px;padding:0 5px;white-space:nowrap}
@@ -9940,6 +9940,7 @@ function renderCFBGames(){
   const el=document.getElementById('cfb-games-list');if(!el)return;
   const D=_CFB_DATA;
   if(!D){el.innerHTML='<div class="loading"><span class="spi"></span> LOADING…</div>';loadCFBData().then(renderCFBGames);return;}
+  try{_cfbPopulateWeekFilter();}catch(e){}                              // fills the week dropdown if it is still empty (the live-score repaint can get here first); a no-op once filled, so the chosen week is kept
   const week=document.getElementById('cfb-filter-week')?.value;
   const conf=document.getElementById('cfb-filter-conf')?.value||'all';
   const top25Only=!!window._cfbTop25Only;
@@ -10976,6 +10977,7 @@ function renderNFLGames2(){
   const el=document.getElementById('nfl2-games-list');if(!el)return;
   const D=_NFL_DATA;
   if(!D){el.innerHTML='<div class="loading"><span class="spi"></span> LOADING…</div>';loadNFLData().then(renderNFLGames2);return;}
+  {const ws=document.getElementById('nfl2-filter-week');if(ws&&!ws.options.length){try{_nflPopulateWeekFilter();}catch(e){}}}   // same cold-start guard as College
   const week=document.getElementById('nfl2-filter-week')?.value;
   let games=(D.weeks[week]||[]).slice();
   if(!games.length){el.innerHTML='<div class="empty">NO GAMES MATCH THESE FILTERS</div>';return;}
@@ -21798,6 +21800,7 @@ function SS(s){
   if(s==='home'){_t(renderHomePage);}
   if(s==='scores'){_t(()=>renderScores());}
   if(s==='toppicks'){_t(renderTopPicksToday);_t(renderTopPicksWeek);_t(renderTopPicksHeatmap);_t(()=>{if(window._tpSubS==='adj')renderTopAdjLines();});}
+  if(s==='fb'){_t(()=>setSub('fb',document.getElementById('fb-nfl')?.classList.contains('act')?'nfl':'cfb'));}   // opens the pane you were on (College by default) AND renders it -- nothing did before, so the first visit showed an empty / "no games" list
   if(s==='hk'){_t(()=>setSub('hk','nhl'));_t(()=>T('nhl','games'));_t(renderNHLGames);_t(renderNHLTonight);_t(renderGoalies);_t(renderMoneyPuck);}
   if(s==='nba'){_t(()=>{setSub('nba','nba');});_t(()=>{T('nba','games');renderNBATonightGames();renderNBAGames();renderNBABracket();});}
   if(s==='live'){_t(()=>T('live','games'));_t(startNHLLive);_t(startNBALive);}
@@ -24384,10 +24387,11 @@ function _scCardHTML(x){
   const win=b==='post'&&show&&g.homeScore!==g.awayScore?(g.homeScore>g.awayScore?'h':'a'):'';
   const row=(side,name,sc,logo)=>`<div class="sc-row${win&&win!==side?' lose':''}"><span class="sc-tm">${_teamLogoHTML(sport,name,side,22,{url:logo,name})}<span>${_escHtml(name)}</span></span><span class="sc-sc">${show?sc:'–'}</span></div>`;
   const st=_scStatus(g,b),lk=x.locks.map(p=>`<div class="sc-pick${p.outcome==='win'?' w':p.outcome==='loss'?' l':''}" title="Engine pick locked on this game: ${_escHtml(p.betOn)}">LOCKED ${_escHtml(p.betOn)}${p.outcome==='win'?' ✓':p.outcome==='loss'?' ✗':''}</div>`).join('');
-  return`<div class="sc-card st-${b}" role="listitem" data-b="${b}" data-lg="${_escHtml(g.tag)}" aria-label="${_escHtml(g.tag+': '+g.away+(show?' '+g.awayScore:'')+' at '+g.home+(show?' '+g.homeScore:'')+', '+(b==='in'?'live, ':'')+st)}">`
+  const tr=b!=='pre'&&_gtCovered(g);                                    // live or finished ESPN game: the whole card opens the game tracker
+  return`<div class="sc-card st-${b}${tr?' sc-trk':''}" role="listitem" data-b="${b}" data-lg="${_escHtml(g.tag)}"${tr?` data-gk="${_escHtml(g.k)}" data-gid="${_escHtml(g.id)}"`:''} aria-label="${_escHtml(g.tag+': '+g.away+(show?' '+g.awayScore:'')+' at '+g.home+(show?' '+g.homeScore:'')+', '+(b==='in'?'live, ':'')+st)}">`
     +`<div class="sc-top"><span class="sc-lg">${_escHtml(g.tag)}</span><span class="sc-st">${b==='in'?'<span class="sc-pulse" aria-hidden="true"></span>':''}${_escHtml(st)}</span></div>`
     +row('a',g.away,g.awayScore,g.awayLogo)+row('h',g.home,g.homeScore,g.homeLogo)
-    +(lk?`<div class="sc-lk">${lk}</div>`:'')+`</div>`;
+    +(lk?`<div class="sc-lk">${lk}</div>`:'')+(tr?`<button type="button" class="gt-btn" data-gt="1">TRACK ▸</button>`:'')+`</div>`;
 }
 function _scPaint(quiet){
   const root=document.getElementById('sc-root');if(!root)return;
@@ -24444,6 +24448,7 @@ function _scOnLive(){if(_scVisible()&&_scDay()===today())_scPaint(true);}
 (function(){
   const root=document.getElementById('sc-root');if(!root)return;
   root.addEventListener('click',e=>{
+    const tc=e.target.closest('.sc-card[data-gid]');if(tc&&root.contains(tc)&&!e.target.closest('[data-sc]'))return _gtOpen(tc.getAttribute('data-gk'),tc.getAttribute('data-gid'));
     const b=e.target.closest('[data-sc]');if(!b||!root.contains(b))return;
     const a=b.getAttribute('data-sc'),v=b.getAttribute('data-v');
     if(a==='lg')_SC.lg=v;else if(a==='st')_SC.st=v;else if(a==='reset'){_SC.lg='ALL';_SC.st='ALL';}
