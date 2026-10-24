@@ -9158,7 +9158,8 @@ async function _cfbPrefetchWeather(games){
     }
     function apply(){
       var cs=list();cs.forEach(function(c,i){if(c.dataset.i0==null)c.dataset.i0=i;});
-      cs.sort(function(a,b){if(st.sort==='grade')return (rankOf(b)-rankOf(a))||(a.dataset.i0-b.dataset.i0);return a.dataset.i0-b.dataset.i0;});
+      cs.sort(function(a,b){var fa=a.hasAttribute('data-cv-final')?1:0,fb=b.hasAttribute('data-cv-final')?1:0;if(fa!==fb)return fa-fb;   // finished games stay at the bottom
+        if(st.sort==='grade')return (rankOf(b)-rankOf(a))||(a.dataset.i0-b.dataset.i0);return a.dataset.i0-b.dataset.i0;});
       // the cards keep the slots they already occupy (headings between them stay put); only which card sits in which slot changes
       var cur=list(),ph=cur.map(function(c){var m=document.createComment('');parent.insertBefore(m,c);return m;});
       cs.forEach(function(c,i){parent.insertBefore(c,ph[i]);});
@@ -23706,11 +23707,12 @@ function _cvPaintCardScores(){
     const games=((typeof _LV!=='undefined'&&_LV.games)||[]).concat(typeof _tkEuroGames==='function'?_tkEuroGames():[])
       .filter(g=>g&&(g.state==='in'||g.state==='post')&&!_lvIsVoid(g)&&g.homeScore!=null&&g.awayScore!=null&&!isNaN(g.homeScore)&&!isNaN(g.awayScore));
     document.querySelectorAll('.gc .gch').forEach(h=>{
-      const np=h.querySelector('.np'),tm=h.querySelectorAll('.gtm');
+      const np=h.querySelector('.np'),tm=h.querySelectorAll('.gtm'),gc=h.closest('.gc');
       let box=h.querySelector('.cvscore');
-      if(!np||tm.length<2){if(box)box.remove();return;}
+      if(!np||tm.length<2){if(box)box.remove();_cvMarkFinal(gc,false);return;}
       const a=_cvLabelTeam(tm[0].textContent),hm=_cvLabelTeam(tm[1].textContent);
       const g=games.find(x=>_tkMatch(x.away,a)&&_tkMatch(x.home,hm));
+      _cvMarkFinal(gc,!!g&&g.state==='post');
       if(!g){if(box)box.remove();return;}
       const own=np.textContent||'',has=n=>new RegExp('(^|[^0-9])'+n+'([^0-9]|$)').test(own);
       if(has(g.awayScore)&&has(g.homeScore)){if(box)box.remove();return;}          // the card already prints this score
@@ -23721,6 +23723,29 @@ function _cvPaintCardScores(){
       if(box.getAttribute('data-sig')===sig)return;
       box.className='cvscore '+(inPlay?'lv':'fin');box.setAttribute('data-sig',sig);
       box.innerHTML='<span class="cvs-st">'+(inPlay?'● ':'')+_escHtml(st)+'</span><span class="cvs-sc">'+_escHtml(a)+' <b>'+_escHtml(g.awayScore)+'</b> – <b>'+_escHtml(g.homeScore)+'</b> '+_escHtml(hm)+'</span>';
+    });
+    _cvSinkFinals();
+  }catch(e){}
+}
+// ── FINISHED GAMES SINK TO THE BOTTOM OF THEIR CARD LIST (owner 2026-10-23, any sport or league) ───────────────────────────────────────────────────────────────────────────────────────────
+// A card whose game is final (state 'post', not postponed / abandoned) is flagged data-cv-final by the painter above and moved after the live and upcoming cards in its run of consecutive game cards. Only the
+// order inside a run changes, so a heading or toolbar between runs stays where it is; both groups keep their original relative order. The slate Sort buttons honour the flag too.
+function _cvMarkFinal(gc,on){if(!gc)return;if(on)gc.setAttribute('data-cv-final','1');else gc.removeAttribute('data-cv-final');}
+function _cvSinkFinals(){
+  try{
+    const seen=new Set();
+    document.querySelectorAll('.gc[data-cv-final]').forEach(f=>{
+      const p=f.parentElement;if(!p||seen.has(p))return;seen.add(p);
+      let run=[];
+      const flush=()=>{
+        if(run.length>1){
+          const want=run.filter(c=>!c.hasAttribute('data-cv-final')).concat(run.filter(c=>c.hasAttribute('data-cv-final')));
+          if(want.some((c,i)=>c!==run[i])){const end=run[run.length-1].nextSibling;want.forEach(c=>p.insertBefore(c,end));}
+        }
+        run=[];
+      };
+      Array.from(p.children).forEach(c=>{if(c.classList.contains('gc')&&c.querySelector('.gch'))run.push(c);else flush();});
+      flush();
     });
   }catch(e){}
 }
