@@ -786,24 +786,25 @@ rect.mom-pin{fill:rgba(255,221,0,.09)}line.mom-pin{stroke:var(--gc);stroke-width
 /* game tracker (overlay) */
 .gt-btn{display:block;margin:6px 0 0 auto;padding:4px 9px;font-family:var(--mono);font-size:12px;letter-spacing:1px;color:var(--nc);background:rgba(0,240,255,.07);border:1px solid rgba(0,240,255,.45);border-radius:3px;cursor:pointer}.gt-btn:hover{background:rgba(0,240,255,.16)}
 body.gt-open{overflow:hidden}#cv-ticker .tk[data-gid]{cursor:pointer}
-#gt-ov{position:fixed;inset:0;z-index:100000;display:none;flex-direction:column;background:var(--void);color:var(--t);font-family:var(--mono)}
-#gt-ov .gt-bar{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid rgba(0,240,255,.2);background:var(--b2)}#gt-ov .gt-upd{flex:1;text-align:center;font-size:12px;letter-spacing:1px;color:var(--t3)}
+#gt-ov{position:fixed;inset:0;z-index:100000;display:none;flex-direction:column;background:var(--void);color:var(--t);font-family:var(--mono);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#gt-ov .gt-bar{position:sticky;top:0;z-index:4;flex:0 0 auto;box-sizing:border-box;height:calc(48px + env(safe-area-inset-top,0px));display:flex;align-items:center;gap:10px;padding:env(safe-area-inset-top,0px) max(12px,env(safe-area-inset-right,0px)) 0 max(12px,env(safe-area-inset-left,0px));border-bottom:1px solid rgba(0,240,255,.2);background:var(--b2)}
+#gt-ov .gt-upd{flex:1;min-width:0;text-align:center;font-size:12px;letter-spacing:.5px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#gt-ov .gt-upd.lv{color:var(--t)}
 #gt-ov .gt-x,#gt-ov .gt-rf{font-family:var(--mono);font-size:13px;letter-spacing:1px;color:var(--nc);background:transparent;border:1px solid rgba(0,240,255,.45);border-radius:3px;padding:5px 10px;cursor:pointer}
-#gt-ov .gt-top{padding:10px 12px 0;background:linear-gradient(180deg,var(--b3),var(--b1));border-bottom:1px solid rgba(255,255,255,.08)}
+#gt-ov .gt-head{flex:0 0 auto;padding:10px 12px 8px;background:linear-gradient(180deg,var(--b3),var(--b1))}
 #gt-ov .gt-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;max-width:760px;margin:0 auto}#gt-ov .gt-tm{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;text-align:center}
 #gt-ov .gt-tm img{width:54px;height:54px;object-fit:contain}#gt-ov .gt-tn{font-family:var(--orb);font-size:15px;line-height:1.1;overflow-wrap:anywhere}#gt-ov .gt-tr2{font-size:12px;color:var(--t3)}
 #gt-ov .gt-mid{text-align:center;flex:0 0 auto}#gt-ov .gt-sc{display:flex;align-items:center;justify-content:center;gap:10px;font-family:var(--orb);font-size:38px}#gt-ov .gt-sc span{color:var(--t3);font-size:24px}
 #gt-ov .gt-stt{font-size:13px;letter-spacing:1px;color:var(--t2);margin-top:2px}#gt-ov .gt-stt.lv{color:var(--hc);font-weight:700}
 #gt-ov .gt-ls{margin:8px auto 0;border-collapse:collapse;font-size:13px}#gt-ov .gt-ls td,#gt-ov .gt-ls th{padding:2px 8px;text-align:center;color:var(--t2)}#gt-ov .gt-ls th{text-align:left;color:var(--t)}
-#gt-ov .gt-tabs{display:flex;gap:4px;max-width:760px;margin:10px auto 0;overflow-x:auto}#gt-ov .gt-tabs button{flex:1 0 auto;font-family:var(--mono);font-size:13px;letter-spacing:1px;color:var(--t3);background:transparent;border:0;border-bottom:2px solid transparent;padding:8px 10px;cursor:pointer;white-space:nowrap}#gt-ov .gt-tabs button.act{color:var(--nc);border-bottom-color:var(--nc)}
-#gt-ov .gt-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px;max-width:760px;width:100%;margin:0 auto;box-sizing:border-box}
+#gt-ov .gt-tabs{position:sticky;top:calc(48px + env(safe-area-inset-top,0px));z-index:3;flex:0 0 auto;display:flex;gap:4px;width:100%;box-sizing:border-box;padding:0 max(12px,env(safe-area-inset-left,0px));background:var(--b1);border-bottom:1px solid rgba(255,255,255,.1);overflow-x:auto;scrollbar-width:none}#gt-ov .gt-tabs::-webkit-scrollbar{display:none}#gt-ov .gt-tabs button{flex:1 0 auto;font-family:var(--mono);font-size:13px;letter-spacing:1px;color:var(--t3);background:transparent;border:0;border-bottom:2px solid transparent;padding:8px 10px;cursor:pointer;white-space:nowrap}#gt-ov .gt-tabs button.act{color:var(--nc);border-bottom-color:var(--nc)}
+#gt-ov .gt-body{flex:1 0 auto;padding:12px max(12px,env(safe-area-inset-left,0px)) calc(24px + env(safe-area-inset-bottom,0px));max-width:760px;width:100%;margin:0 auto;box-sizing:border-box}
 #gt-ov .gt-empty{text-align:center;color:var(--t3);padding:30px 10px;font-size:14px;letter-spacing:1px}
 #gt-ov .gt-seg{display:flex;gap:4px;margin-bottom:10px}#gt-ov .gt-seg button{font-family:var(--mono);font-size:12px;letter-spacing:1px;color:var(--t3);background:transparent;border:1px solid rgba(255,255,255,.18);border-radius:3px;padding:5px 10px;cursor:pointer}#gt-ov .gt-seg button.act{color:var(--nc);border-color:var(--nc)}
 #gt-ov .gt-pl{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:14px;line-height:1.35}#gt-ov .gt-pc{flex:0 0 52px;font-size:12px;color:var(--t3);text-align:right}#gt-ov .gt-pt{flex:1;border-left:3px solid transparent;padding-left:8px;color:var(--t2)}#gt-ov .gt-pt em{font-style:normal;color:var(--t3)}
 #gt-ov .gt-pl.sc .gt-pt{color:var(--t)}#gt-ov .gt-ps{display:block;margin-top:2px;font-size:13px;color:var(--vc);letter-spacing:.5px}#gt-ov .gt-more{display:block;margin:10px auto;font-family:var(--mono);font-size:13px;letter-spacing:1px;color:var(--nc);background:transparent;border:1px solid rgba(0,240,255,.45);border-radius:3px;padding:7px 14px;cursor:pointer}
 #gt-ov .gt-wp{margin-bottom:12px}#gt-ov .gt-wp-h{display:flex;justify-content:space-between;font-size:12px;letter-spacing:1px;color:var(--t2)}#gt-ov .gt-wp-h b{color:var(--t3);font-weight:400}#gt-ov .gt-wp svg{display:block;width:100%;height:70px;background:rgba(255,255,255,.03);border-radius:3px}
 #gt-ov .gt-wp .mid{stroke:rgba(255,255,255,.2);stroke-dasharray:3 3;stroke-width:1}#gt-ov .gt-wp .fill{fill:rgba(0,240,255,.12)}#gt-ov .gt-wp .ln{fill:none;stroke:var(--nc);stroke-width:1.6;vector-effect:non-scaling-stroke}
-#gt-ov .gt-tw{overflow-x:auto;margin-bottom:10px}#gt-ov .gt-tb{border-collapse:collapse;width:100%;font-size:13px}#gt-ov .gt-tb th,#gt-ov .gt-tb td{padding:4px 7px;text-align:right;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.06)}#gt-ov .gt-tb th{text-align:left;font-weight:400;color:var(--t)}#gt-ov .gt-tb thead th,#gt-ov .gt-tb thead td{color:var(--t3);font-size:12px}#gt-ov .gt-tb tbody td{color:var(--t2)}
+#gt-ov .gt-tw{overflow-x:auto;margin-bottom:10px}#gt-ov .gt-tb{border-collapse:collapse;width:100%;font-size:13px}#gt-ov .gt-tb th,#gt-ov .gt-tb td{padding:4px 7px;text-align:right;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.06)}#gt-ov .gt-tb th{text-align:left;font-weight:400;color:var(--t)}#gt-ov .gt-tb thead th,#gt-ov .gt-tb thead td{color:var(--t3);font-size:12px}#gt-ov .gt-tb tbody th,#gt-ov .gt-tb thead th:first-child{position:sticky;left:0;z-index:1;background:var(--void);padding-right:10px}#gt-ov .gt-tb tbody td{color:var(--t2)}
 #gt-ov .gt-bth{display:flex;align-items:center;gap:8px;font-family:var(--orb);font-size:14px;margin:8px 0 4px;color:var(--nc)}#gt-ov .gt-bth img{width:22px;height:22px;object-fit:contain}
 #gt-ov .gt-ts-h{display:flex;justify-content:space-between;font-family:var(--orb);font-size:15px;margin-bottom:6px}#gt-ov .gt-tr{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:14px}#gt-ov .gt-tr>span{flex:0 0 56px;text-align:center}#gt-ov .gt-tc{flex:1;text-align:center}#gt-ov .gt-tc em{font-style:normal;font-size:12px;color:var(--t3);letter-spacing:.5px}
 #gt-ov .gt-tbar{height:5px;margin-top:3px;background:var(--hc);border-radius:3px;overflow:hidden}#gt-ov .gt-tbar i{display:block;height:100%;background:var(--nc)}
@@ -818,6 +819,7 @@ body.gt-open{overflow:hidden}#cv-ticker .tk[data-gid]{cursor:pointer}
 #gt-ov .gt-lb{position:relative;height:10px;margin-top:5px;background:rgba(255,255,255,.08);border-radius:5px}#gt-ov .gt-lb i{display:block;height:100%;border-radius:5px;transition:width .6s ease}#gt-ov .gt-lb i.hi{background:linear-gradient(90deg,#14a838,#00e644)}#gt-ov .gt-lb i.mid{background:linear-gradient(90deg,#d98a00,#ffb020)}#gt-ov .gt-lb i.lo{background:linear-gradient(90deg,#b0125f,var(--hc))}
 #gt-ov .gt-lb u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--t);opacity:.7;text-decoration:none}#gt-ov .gt-lk-sub{margin-top:3px;font-size:12px;color:var(--t3)}
 @media (prefers-reduced-motion:reduce){#gt-ov .gt-lb i{transition:none}}
+@media (pointer:coarse),(max-width:640px){#gt-ov button{min-height:44px}#gt-ov .gt-x,#gt-ov .gt-rf{min-height:40px}#gt-ov .gt-rf{min-width:44px}#gt-ov .gt-seg button{min-height:40px;padding:6px 14px}.gt-btn{min-height:40px;padding:8px 14px;font-size:13px}.sc-card .gt-btn{width:100%;margin-top:10px}}
 @media (max-width:480px){#gt-ov .gt-sc{font-size:30px}#gt-ov .gt-tm img{width:42px;height:42px}#gt-ov .gt-tn{font-size:13px}}
 .altrow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin-bottom:8px;font-family:var(--mono)}.altrow .altk{flex:1 0 100%;font-size:13px;letter-spacing:1px;color:var(--t3)}.altrow .altc{flex:1 1 150px;display:flex;flex-direction:column;gap:2px;padding:6px 9px;border-radius:3px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);cursor:pointer;min-width:0}.altrow .altc .alt1{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.altrow .altc .altp{font-family:var(--orb);font-size:16px;font-weight:700;color:var(--t)}.altrow .altc .alts{font-size:13px;color:var(--t2)}.altrow .altc .altw{font-size:12px;color:var(--t3)}.altrow .altc .pill{font-size:12px}
 .bmk2 .bmk2t{font-size:14px;padding:1px 6px;background:#0b0612;color:#fff;border-radius:2px;flex-shrink:0;font-weight:700}.bmk2 .bmk2k{font-size:13px;letter-spacing:1px;font-weight:700}.bmk2 .bmk2p{font-family:var(--orb);font-size:16px;font-weight:700}.bmk2 .bmk2s{font-size:14px;font-weight:700}
@@ -24071,10 +24073,12 @@ function _gtRender(){
   }else if(_GT.tab==='plays')body=_gtSpark(m.wp,m.home,m.away)+_gtPlaysHTML(m);
   else if(_GT.tab==='box')body=_gtBoxHTML(m);
   else body=_gtStatsHTML(m);
-  const keep=ov.querySelector('.gt-body')?ov.querySelector('.gt-body').scrollTop:0;
-  ov.querySelector('.gt-top').innerHTML=_gtHeadHTML(m)+`<div class="gt-tabs">${tabs.map(t=>`<button class="${t[0]===_GT.tab?'act':''}" onclick="_gtSet('tab','${t[0]}')">${_escHtml(t[1])}</button>`).join('')}</div>`;
-  const b=ov.querySelector('.gt-body');b.innerHTML=body;b.scrollTop=keep;
-  const upd=ov.querySelector('.gt-upd');if(upd)upd.textContent=m.st.state==='in'?'LIVE · UPDATED '+new Date(_GT.at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'}):(m.st.state==='post'?'FINAL':'SCHEDULED');
+  const keep=ov.scrollTop;
+  ov.querySelector('.gt-head').innerHTML=_gtHeadHTML(m);
+  ov.querySelector('.gt-tabs').innerHTML=tabs.map(t=>`<button class="${t[0]===_GT.tab?'act':''}" onclick="_gtSet('tab','${t[0]}')">${_escHtml(t[1])}</button>`).join('');
+  ov.querySelector('.gt-body').innerHTML=body;ov.scrollTop=keep;
+  const upd=ov.querySelector('.gt-upd');if(upd){const live=m.st.state==='in',sc=t=>t.score==null||isNaN(t.score)?'–':t.score;   // the pinned bar keeps the score in view once the big header has scrolled away
+    upd.textContent=(m.away.abbr||m.away.short)+' '+sc(m.away)+' – '+sc(m.home)+' '+(m.home.abbr||m.home.short)+' · '+(live?'● '+(m.st.detail||'LIVE'):m.st.state==='post'?'FINAL':'SCHEDULED');upd.title=live?'Updated '+new Date(_GT.at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'}):'';upd.classList.toggle('lv',live);}
 }
 function _gtSet(key,val){_GT[key]=val;_GT.more=0;_gtRender();}
 async function _gtLoad(){
@@ -24097,7 +24101,7 @@ function _gtOpen(k,id){
   _GT.m=null;_GT.err='';_GT.tab='';_GT.more=0;_GT.scoringOnly=true;_GT.socMode='key';
   let ov=document.getElementById('gt-ov');
   if(!ov){ov=document.createElement('div');ov.id='gt-ov';ov.setAttribute('role','dialog');ov.setAttribute('aria-label','Game tracker');
-    ov.innerHTML='<div class="gt-bar"><button class="gt-x" onclick="_gtClose()" aria-label="Close">✕ CLOSE</button><span class="gt-upd"></span><button class="gt-rf" onclick="_gtLoad()">↻</button></div><div class="gt-top"></div><div class="gt-body"></div>';
+    ov.innerHTML='<div class="gt-bar"><button class="gt-x" onclick="_gtClose()" aria-label="Close">✕ CLOSE</button><span class="gt-upd"></span><button class="gt-rf" onclick="_gtLoad()" aria-label="Refresh">↻</button></div><div class="gt-head"></div><div class="gt-tabs"></div><div class="gt-body"></div>';
     document.body.appendChild(ov);}
   ov.style.display='flex';document.body.classList.add('gt-open');_gtRender();_gtLoad();
 }

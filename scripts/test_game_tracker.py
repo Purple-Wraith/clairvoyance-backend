@@ -197,7 +197,7 @@ class Overlay(unittest.TestCase):
 
     def test_live_picks_get_a_likelihood_bar_and_progress(self):
         self.serve(live(self.fx["nba"], 3, "6:00", 52, 58), picks=self.live_picks())
-        self.assertIn("●", self.text("#gt-ov .gt-hd")); self.assertIn("58", self.text("#gt-ov .gt-hd")); self.assertIn("LIVE", self.text("#gt-ov .gt-upd"))
+        self.assertIn("●", self.text("#gt-ov .gt-hd")); self.assertIn("58", self.text("#gt-ov .gt-hd")); self.assertIn("● ", self.text("#gt-ov .gt-upd")); self.assertIn("CLE 52 – 58 PHI", self.text("#gt-ov .gt-upd"))
         n = self.pg.evaluate("document.querySelectorAll('#gt-ov .gt-pk').length"); self.assertEqual(n, 6)
         self.assertEqual(self.pg.evaluate("document.querySelectorAll('#gt-ov .gt-pk .gt-lb').length"), 6)
         t = self.text("#gt-ov .gt-body")
@@ -274,6 +274,22 @@ class Overlay(unittest.TestCase):
         self.pg.evaluate("document.querySelector('#sc-root .sc-card[data-gid=F1]').click()"); self.pg.wait_for_selector("#gt-ov .gt-hd", timeout=8000)
         self.assertEqual(self.pg.evaluate("_GT.ref.id"), "F1")
         self.pg.evaluate("_gtClose();_LV.games=[];_scPaint()")
+
+    def test_phone_layout_fits_has_big_tap_targets_and_keeps_the_bar_pinned(self):
+        for w in (390, 320):
+            self.pg.set_viewport_size({"width": w, "height": 740})
+            self.serve(live(self.fx["nba"], 3, "6:00", 52, 58), picks=self.live_picks())
+            for tab in ("picks", "plays", "box", "stats"):
+                self.pg.evaluate("(t)=>_gtSet('tab',t)", tab)
+                r = self.pg.evaluate("""()=>{const vw=document.documentElement.clientWidth,ov=document.getElementById('gt-ov'),bad=[];
+                  ov.querySelectorAll('*').forEach(e=>{const r=e.getBoundingClientRect();if(!r.width||r.right<=vw+1)return;let p=e.parentElement;while(p&&p!==ov){const o=getComputedStyle(p).overflowX;if(o==='auto'||o==='scroll'||o==='hidden')return;p=p.parentElement}bad.push(e.className||e.tagName)});
+                  const small=[...ov.querySelectorAll('button')].filter(b=>b.getBoundingClientRect().height<39).map(b=>b.textContent.trim());
+                  return{docW:document.documentElement.scrollWidth,vw,bad:bad.slice(0,5),small}}""")
+                self.assertEqual((r["docW"], r["bad"], r["small"]), (w, [], []), f"{w}px {tab}: {r}")
+            self.pg.evaluate("document.getElementById('gt-ov').scrollTop=400")
+            self.assertEqual(self.pg.evaluate("Math.round(document.querySelector('#gt-ov .gt-bar').getBoundingClientRect().top)"), 0)      # close / score bar stays in reach
+            self.assertLessEqual(self.pg.evaluate("Math.round(document.querySelector('#gt-ov .gt-tabs').getBoundingClientRect().top)"), 52)  # and so do the tabs
+        self.pg.set_viewport_size({"width": 420, "height": 900})
 
     def test_no_script_errors(self):
         self.assertEqual(self.errs, [])
