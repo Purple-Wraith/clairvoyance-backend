@@ -279,6 +279,14 @@ class AdjTab(unittest.TestCase):
         t = self.pg.evaluate("document.getElementById('toppicks-adj').innerText")
         self.assertIn("NO ADJUSTED LINES TODAY YET", t); self.assertIn("1W-0L", t)
 
+    def test_lock_buttons_are_a_thumb_sized_target_on_a_phone(self):
+        self.pg.set_viewport_size({"width": 390, "height": 844})
+        self.seed([e("NBA", "Zephyrs", "Quokkas", "OVER 214.5", .70)])
+        self.pg.evaluate("SS('toppicks');tpSub('adj')"); self.pg.wait_for_timeout(200)
+        h = self.pg.evaluate("Math.round(document.querySelector('#toppicks-adj .tp-adj-lock').getBoundingClientRect().height)")
+        self.pg.set_viewport_size({"width": 1280, "height": 900})
+        self.assertGreaterEqual(h, 38)
+
     def test_the_lock_button_locks_that_exact_line(self):
         self.seed([e("NBA", "Walruses", "Narwhals", "OVER 221.5", .66)])
         self.pg.evaluate("window.__locked=[];window._lockAltKey=function(k){window.__locked.push(k)};document.getElementById('sp-toppicks').classList.add('act')")
