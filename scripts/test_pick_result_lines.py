@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Settled rows in ALL BETS (docs/app.html _pickRowHTML) show where the result finished against the line, win / loss / push alike:
-a player prop -> "ACTUAL: 31 PTS (line 25.5)", an over/under -> "FINAL TOTAL: 5 (over 4.5)", a spread -> "FINAL MARGIN: +9 (Los Angeles Lakers -3.5)".
+a player prop -> "ACTUAL: 31 PTS (line 25.5)", an over/under -> "FINAL TOTAL: 5 (over 4.5)", a spread -> "FINAL SPREAD: Los Angeles Lakers -9 / Denver Nuggets +9 (pick Los Angeles Lakers -3.5)".
 
     python3 scripts/test_pick_result_lines.py
 """
@@ -73,18 +73,45 @@ class Lines(unittest.TestCase):
         self.assertIn("FINAL TOTAL: 4 (over 4.5)", self.side(pick("OVER 4.5", "loss", sport="LIIGA", hScore=3, aScore=2, ouTotal=4)))
 
     def test_spread_shows_the_final_margin_for_the_picked_team(self):
-        self.assertIn("FINAL MARGIN: +9 (Los Angeles Lakers -3.5)", self.side(pick("LAL -3.5", "win", hScore=118, aScore=109)))
-        self.assertIn("FINAL MARGIN: -9 (Denver Nuggets +3.5)", self.side(pick("DEN +3.5", "loss", hScore=118, aScore=109)))
-        self.assertIn("FINAL MARGIN: +3 (Los Angeles Lakers -3)", self.side(pick("LAL -3", "push", hScore=118, aScore=115)))
+        self.assertIn("FINAL SPREAD: Los Angeles Lakers -9 / Denver Nuggets +9 (pick Los Angeles Lakers -3.5)", self.side(pick("LAL -3.5", "win", hScore=118, aScore=109)))
+        self.assertIn("FINAL SPREAD: Los Angeles Lakers -9 / Denver Nuggets +9 (pick Denver Nuggets +3.5)", self.side(pick("DEN +3.5", "loss", hScore=118, aScore=109)))
+        self.assertIn("FINAL SPREAD: Los Angeles Lakers -3 / Denver Nuggets +3 (pick Los Angeles Lakers -3)", self.side(pick("LAL -3", "push", hScore=118, aScore=115)))
 
-    def test_moneylines_and_unscored_rows_are_unchanged(self):
-        self.assertNotIn("FINAL MARGIN", self.side(pick("LAL ML", "win", hScore=118, aScore=109)))
+    def test_moneylines_show_the_winning_or_losing_margin(self):
+        self.assertIn("FINAL SPREAD: Los Angeles Lakers -9 / Denver Nuggets +9 (pick Los Angeles Lakers ML)", self.side(pick("LAL ML", "win", hScore=118, aScore=109)))
+        self.assertIn("FINAL SPREAD: Los Angeles Lakers -9 / Denver Nuggets +9 (pick Denver Nuggets ML)", self.side(pick("DEN", "loss", hScore=118, aScore=109)))      # a bare team label is a moneyline too
         self.assertNotIn("FINAL TOTAL", self.side(pick("LAL ML", "win", hScore=118, aScore=109)))
+
+    def test_the_loser_of_the_game_carries_the_plus_and_a_tie_reads_even(self):
+        self.assertIn("FINAL SPREAD: Denver Nuggets -4 / Los Angeles Lakers +4 (pick Los Angeles Lakers +6.5)", self.side(pick("LAL +6.5", "win", hScore=100, aScore=104)))
+        self.assertIn("FINAL SPREAD: LAL / DEN even (pick LAL ML)", self.side(pick("LAL ML", "push", sport="PL", hScore=1, aScore=1)))
+
+    def test_a_prop_whose_player_did_not_play_says_so(self):
+        t = self.side(pick("A B OVER PTS 10.5", "push", betType="PROP", playerResult=None, voidReason="DNP"))
+        self.assertIn("ACTUAL: DID NOT PLAY (void)", t)
+
+    def test_unscored_rows_are_unchanged(self):
         t = self.side(pick("OVER 224.5", "win"))
         self.assertIn("FINAL: —", t); self.assertNotIn("FINAL TOTAL", t)
 
     def test_the_team_score_line_is_still_there(self):
         self.assertIn("FINAL: DEN 109 – 118 LAL", re.sub(r"\s+", " ", self.side(pick("OVER 224.5", "win", hScore=118, aScore=109))).replace("Denver Nuggets", "DEN").replace("Los Angeles Lakers", "LAL"))
+
+
+class GoingForward(unittest.TestCase):
+    """Every automatic settler stores what the result lines above are built from, so new settlements always show them."""
+
+    def test_every_settler_stores_the_final_score_or_the_players_stat(self):
+        src = (ROOT / "docs" / "app.html").read_text()
+        hits = [m.start() for m in re.finditer(r"\w+\.outcome=outcome;\w+\.settledAt=Date\.now\(\);", src)]
+        self.assertGreaterEqual(len(hits), 10)                                           # the ESPN / schedule-file settlers
+        for i in hits:
+            self.assertTrue(re.search(r"hScore=|playerResult=", src[i:i + 140]), "a settler records an outcome without the final score: " + src[i:i + 140])
+
+    def test_the_prop_settler_saves_the_players_stat_with_the_outcome(self):
+        src = (ROOT / "docs" / "app.html").read_text()
+        i = src.index("const upd={};pending.forEach")
+        self.assertIn("playerResult:p.playerResult", src[i:i + 300])
 
 
 if __name__ == "__main__":

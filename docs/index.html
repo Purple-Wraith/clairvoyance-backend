@@ -4588,6 +4588,7 @@ function _altMore(){window._altShown=(window._altShown||40)+40;_altRerenderAll()
 function _propActual(p){
   try{
     if(!p||p.betType!=='PROP'||!/^(win|loss|push)$/.test(p.outcome||''))return null;
+    if(p.voidReason==='DNP')return{dnp:true,n:null,stat:'',line:''};                        // did not play: the bet is void
     let n=p.playerResult;
     if(typeof n==='string'){const m=/^\s*had\s+(\d+(?:\.\d+)?)/i.exec(n);n=m?parseFloat(m[1]):null;}
     if(typeof n!=='number'||!isFinite(n))return null;
@@ -4604,11 +4605,18 @@ function _lineActual(p){
     const fmt=n=>Number.isInteger(n)?String(n):n.toFixed(1),sg=n=>(n>0?'+':'')+fmt(n);
     const c=_classifyBetOn(p.betOn);
     if(c.type==='OU'){const t=(p.ouTotal!=null&&isFinite(+p.ouTotal))?+p.ouTotal:h+a;return{k:'FINAL TOTAL',v:fmt(t),note:(c.over?'over ':'under ')+fmt(c.line)};}
+    const nm=x=>String(x||'').toLowerCase().trim();
+    // the game's final spread as books quote it: the winner carries the minus ("Timberwolves -22 / Magic +22"), the loser the plus; a tie reads EVEN
+    const fs=()=>{const hn=_teamName(p.hA,p.sport),an=_teamName(p.awA,p.sport),d=h-a;return d===0?hn+' / '+an+' even':d>0?hn+' '+sg(-d)+' / '+an+' '+sg(d):an+' '+sg(d)+' / '+hn+' '+sg(-d);};
     if(c.type==='SPREAD'){
-      const nm=x=>String(x||'').toLowerCase(),isH=nm(c.team)===nm(p.hA),isA=nm(c.team)===nm(p.awA);
+      const isH=nm(c.team)===nm(p.hA),isA=nm(c.team)===nm(p.awA);
       if(isH===isA)return null;
-      const m=isH?h-a:a-h;
-      return{k:'FINAL MARGIN',v:sg(m),note:_teamName(c.team,p.sport)+' '+sg(c.line)};
+      return{k:'FINAL SPREAD',v:fs(),note:'pick '+_teamName(c.team,p.sport)+' '+sg(c.line)};
+    }
+    if(c.type==='ML'){                                                   // "LAL ML" / a bare team label
+      const t=String(p.betOn||'').replace(/\s+ML$/i,'').trim(),isH=nm(t)===nm(p.hA),isA=nm(t)===nm(p.awA);
+      if(isH===isA)return null;
+      return{k:'FINAL SPREAD',v:fs(),note:'pick '+_teamName(t,p.sport)+' ML'};
     }
     return null;
   }catch(e){return null;}
@@ -4630,7 +4638,8 @@ function _pickRowHTML(p,o){
     ?`<div class="prow2-fin">FINAL: ${_escHtml(_teamName(p.awA,p.sport))} ${_escHtml(p.aScore)} – ${_escHtml(p.hScore)} ${_escHtml(_teamName(p.hA,p.sport))}</div>`
     :pa?'':`<div class="prow2-fin dim">${settled?'FINAL: —':'AWAITING FINAL'}</div>`;
   const la=settled&&!pa?_lineActual(p):null;
-  const paHtml=pa?`<div class="prow2-fin prow2-pa">ACTUAL: <b>${_escHtml(pa.n)}${pa.stat?' '+_escHtml(pa.stat):''}</b>${pa.line?` <span>(line ${_escHtml(pa.line)})</span>`:''}</div>`
+  const paHtml=pa&&pa.dnp?`<div class="prow2-fin prow2-pa">ACTUAL: <b>DID NOT PLAY</b> <span>(void)</span></div>`
+    :pa?`<div class="prow2-fin prow2-pa">ACTUAL: <b>${_escHtml(pa.n)}${pa.stat?' '+_escHtml(pa.stat):''}</b>${pa.line?` <span>(line ${_escHtml(pa.line)})</span>`:''}</div>`
     :la?`<div class="prow2-fin prow2-pa">${la.k}: <b>${_escHtml(la.v)}</b> <span>(${_escHtml(la.note)})</span></div>`:'';
   const act=settled
     ?`<div class="prow2-act two"><span class="prow2-st" style="color:${oc};border-color:${oc}">${st}</span>${o.removeHtml||''}</div>`
@@ -19458,6 +19467,236 @@ async function autoSettleTextFormat(){
 }
 
 // Settle PROP bets using ESPN box score player stats
+// Parse "Victor Wembanyama OVER PTS 26.5" (NBA/MLB: stat AFTER
+// direction) OR "Josh Allen OVER 0.5 Passing TDs" (NFL model/Linemate
+// props: line before stat, multi-word stat label) OR "Connor McDavid
+// POINTS OVER 1.5" (lockNHLProp's own real betOn format: stat BEFORE
+// direction) → {player, direction, stat, line}. Tries the original
+// NBA/MLB order first so that parsing is completely unchanged, then the
+// NHL stat-before-direction order, then falls through to the NFL order
+// last. A trailing " (-120)"/" (+105)" moneyline parenthetical --
+// lockNHLProp always appends one to its own betOn -- is stripped first;
+// left in place it broke the end-anchor ($) on the NBA/MLB pattern
+// outright and made the OLD NFL-fallback pattern below mis-fire on NHL
+// strings instead (capturing the stat word into the PLAYER name and the
+// odds label itself as the "stat" -- confirmed live: "Connor McDavid
+// POINTS OVER 1.5 (-120)" parsed to player "Connor McDavid POINTS",
+// stat "(-120)", which can never nameMatch() a real box score entry).
+// Real bug, found auditing settlement: lockNHLProp's live LOCK buttons
+// (_adjLockNHLO/_adjLockNHLU in docs/app.html) are the ONLY way an NHL
+// prop ever gets locked, so every single NHL prop ever locked this way
+// silently sat 'pending' forever, regardless of how many settlement
+// passes ran -- same observable shape ("0 settled PROP-type bets") as
+// the NBA betOn-missing-stat bug fixed alongside this one, just a
+// different root cause.
+function parsePropBetOn(bon){
+  bon=(bon||'').replace(/\s*\([^)]*\)\s*$/,'');
+  let m=bon.match(/^(.+?)\s+(OVER|UNDER)\s+([A-Z+%]+)\s+([\d.]+)$/i);
+  if(m)return{player:m[1].trim(),direction:m[2].toUpperCase(),stat:m[3].toUpperCase(),line:parseFloat(m[4])};
+  m=bon.match(/^(.+?)\s+([A-Za-z]+)\s+(OVER|UNDER)\s+([\d.]+)$/i);
+  if(m)return{player:m[1].trim(),direction:m[3].toUpperCase(),stat:m[2].toUpperCase(),line:parseFloat(m[4])};
+  m=bon.match(/^(.+?)\s+(OVER|UNDER)\s+([\d.]+)\s+(.+)$/i);
+  if(m)return{player:m[1].trim(),direction:m[2].toUpperCase(),stat:m[4].trim().toUpperCase(),line:parseFloat(m[3])};
+  return null;
+}
+// NFL stat label (from _NFL_PROP_CATS' cat.label, or a Linemate raw
+// label) → {category, statLabel} in ESPN's NFL boxscore shape, which
+// (unlike NBA/NHL/MLB) splits a team's stats into several category
+// blocks (passing/rushing/receiving) rather than one flat block.
+const NFL_STAT_MAP=[
+  {kw:['passing yards','pass yds','passyds'],category:'passing',statLabel:'YDS'},
+  {kw:['passing tds','passing touchdowns','pass td'],category:'passing',statLabel:'TD'},
+  {kw:['rushing yards','rush yds','rushyds'],category:'rushing',statLabel:'YDS'},
+  {kw:['rushing tds','rushing touchdowns','rush td'],category:'rushing',statLabel:'TD'},
+  {kw:['receiving yards','rec yds','recyds'],category:'receiving',statLabel:'YDS'},
+  {kw:['receiving tds','receiving touchdowns','rec td'],category:'receiving',statLabel:'TD'},
+  {kw:['receptions','rec'],category:'receiving',statLabel:'REC'},
+];
+// Searches one team's box score for propPlayer within the ONE category
+// block that matches the requested stat (e.g. a rushing-yards prop
+// only looks in the "rushing" block) -- a player who appears in
+// multiple category blocks (a scrambling QB in both passing and
+// rushing) is matched against the right one, not whichever block
+// happens to list them first.
+function extractNFLStat(teamData,propPlayer,statWordsUpper){
+  const sw=statWordsUpper.toLowerCase();
+  // Real gap, found via audit: Anytime TD (added same session as the
+  // MC-sim work) was never wired into settlement -- NFL_STAT_MAP only
+  // knows the original 7 categories, so an Anytime TD prop would hit
+  // the "unrecognized stat -> don't guess" bail-out below and sit
+  // pending forever. Combines real rushing + receiving TDs into one
+  // total, matching _nflBuildAnytimeTDRow's own definition exactly
+  // (passing TDs excluded -- thrown, not scored, by the QB) -- can't
+  // reuse the single-category-block lookup below since this one
+  // genuinely spans two blocks and needs their sum, not either alone.
+  if(sw.includes('anytime')){
+    let total=null,dName=null;
+    for(const cat of['rushing','receiving']){
+      for(const statBlock of teamData.statistics||[]){
+        const blockName=(statBlock.name||statBlock.displayName||'').toLowerCase();
+        if(!blockName.includes(cat))continue;
+        // Real bug, found via audit: NFL's ESPN boxscore category blocks
+        // have no `names` field at all (unlike NBA/NHL/MLB, which really
+        // do) -- the stat abbreviations live under `labels` instead.
+        // Reading `.names` here was always [] for every NFL prop, so
+        // idx was always -1 and every NFL prop sat pending forever
+        // regardless of how many times the settle date got revisited.
+        const names=statBlock.labels||[];
+        const idx=names.findIndex(n=>(n||'').toUpperCase()==='TD');
+        if(idx<0)continue;
+        for(const ath of statBlock.athletes||[]){
+          const dn=ath.athlete?.displayName||'';
+          if(!nameMatch(dn,propPlayer))continue;
+          const raw=(ath.stats||[])[idx];
+          const val=parseFloat(raw);
+          if(!isNaN(val)){total=(total||0)+val;dName=dn;}
+        }
+      }
+    }
+    return total===null?null:{dName,val:total};
+  }
+  const match=NFL_STAT_MAP.find(m=>m.kw.some(k=>sw===k||sw.includes(k)));
+  if(!match)return null; // unrecognized stat label -> don't guess
+  for(const statBlock of teamData.statistics||[]){
+    const blockName=(statBlock.name||statBlock.displayName||'').toLowerCase();
+    if(!blockName.includes(match.category))continue;
+    // Same `labels` vs `names` gap as the Anytime TD lookup above.
+    const names=statBlock.labels||[];
+    const idx=names.findIndex(n=>(n||'').toUpperCase()===match.statLabel);
+    if(idx<0)continue;
+    for(const ath of statBlock.athletes||[]){
+      const dName=ath.athlete?.displayName||'';
+      if(!nameMatch(dName,propPlayer))continue;
+      const raw=(ath.stats||[])[idx];
+      if(raw==null)return null;
+      const val=parseFloat(raw);
+      return isNaN(val)?null:{dName,val};
+    }
+  }
+  return null; // player not found in the matching category block -- didn't play it, or box score incomplete
+}
+
+// Stat type → box score label mapping
+function extractStat(statNames,statVals,stat){
+  const idx=n=>statNames.findIndex(s=>s.toUpperCase()===n.toUpperCase());
+  const v=n=>{const i=idx(n);return i>=0?parseFloat(statVals[i])||0:0;};
+  if(stat==='PTS')return v('PTS');
+  if(stat==='REB')return v('REB');
+  if(stat==='AST')return v('AST');
+  if(stat==='BLK')return v('BLK');
+  if(stat==='STL')return v('STL');
+  if(stat==='TO')return v('TO');
+  if(stat==='3PM'){const i=idx('3PT');if(i<0)return 0;return parseInt((statVals[i]||'0').split('-')[0])||0;}
+  if(stat==='PTS+REB+AST'||stat==='PRA')return v('PTS')+v('REB')+v('AST');
+  if(stat==='PTS+AST')return v('PTS')+v('AST');
+  if(stat==='PTS+REB')return v('PTS')+v('REB');
+  if(stat==='REB+AST')return v('REB')+v('AST');
+  if(stat==='BLK+STL')return v('BLK')+v('STL');
+  return null;
+}
+
+// Real bug, found auditing settlement (same audit that found the
+// betOn-parsing issue fixed in parsePropBetOn above): even with a
+// correctly-parsed stat label, NHL props could still never settle.
+// ESPN's NHL summary boxscore (confirmed live, 2026-10-01) splits each
+// team's players across SEVERAL statistics blocks per game --
+// "forwards"/"defenses"/"skaters"/"goalies" -- not the single flat
+// block NBA/MLB use, so the generic extractStat() path below (which
+// only ever reads teamData.statistics?.[0]) would miss any defenseman
+// or goalie outright, and never even reaches extractStat for them. On
+// top of that, extractStat()'s whole vocabulary (PTS/REB/AST/BLK/STL/
+// TO/3PM) is NBA/MLB-shaped -- real NHL skater columns are compact
+// abbreviations (G/A/S/SOG), so even a forward prop would fail every
+// `if` branch and return null. POINTS has no single ESPN field at all;
+// it's derived here as goals+assists, the same definition this app's
+// own lockNHLProp()/_generateNHLPropsLive() ppg label already uses.
+const NHL_STAT_MAP={GOALS:'G',GOAL:'G',ASSISTS:'A',ASSIST:'A',SHOTS:'SOG',SOG:'SOG',SAVES:'SV'};
+function extractNHLStat(teamData,propPlayer,statWordUpper){
+  const isPoints=statWordUpper==='POINTS'||statWordUpper==='POINT';
+  const key=NHL_STAT_MAP[statWordUpper];
+  if(!isPoints&&!key)return null; // unrecognized stat label -> don't guess
+  for(const statBlock of teamData.statistics||[]){
+    const names=statBlock.names||statBlock.labels||[];
+    const idx=n=>names.findIndex(s=>(s||'').toUpperCase()===n);
+    for(const ath of statBlock.athletes||[]){
+      const dName=ath.athlete?.displayName||'';
+      if(!nameMatch(dName,propPlayer))continue;
+      const stats=ath.stats||[];
+      const get=n=>{const i=idx(n);const raw=i>=0?stats[i]:null;const val=raw==null?NaN:parseFloat(raw);return val;};
+      if(isPoints){
+        const g=get('G'),a=get('A');
+        if(isNaN(g)||isNaN(a))continue; // matched by name but this block lacks G/A -- try other blocks
+        return{dName,val:g+a};
+      }
+      const v=get(key);
+      if(isNaN(v))continue;
+      return{dName,val:v};
+    }
+  }
+  return null; // player not found in any statistics block -- didn't play, or box score incomplete
+}
+
+// Fuzzy player name match: "Victor Wembanyama" vs "V. Wembanyama" or "Wembanyama"
+// ACCURACY FIXES (2026-10-23, owner: make sure NBA props settle from the box score correctly), found with a stubbed-box-score test:
+//  * ESPN spells "Nikola Joki\u0107" with an accent, props say "Nikola Jokic": names are now compared without diacritics / suffixes (Jr., III) so those props settle instead of sitting pending forever;
+//  * a surname fallback ("Williams") used to take the FIRST Williams in either team's box score -- a prop on OKC's Jalen Williams was graded on Denver's Jalen Williams. The player is now looked up in HIS
+//    OWN team's block, an exact full name wins, and an ambiguous surname is left pending rather than guessed;
+//  * a player who did not play (didNotPlay / no stats / 0 minutes) used to read as zeros -- an UNDER "won" and an OVER "lost" on a bet sportsbooks void. It now settles as a push (void), voidReason 'DNP'.
+const _normName=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/['.\u2019]/g,'').replace(/\b(jr|sr|ii|iii|iv)\b/g,' ').replace(/\s+/g,' ').trim();
+const _TEAM_ALIAS={NYK:'NY',GSW:'GS',SAS:'SA',NOP:'NO',UTA:'UTAH',WAS:'WSH',PHO:'PHX',BRK:'BKN',CHO:'CHA'};
+const canonTeam=a=>{a=String(a||'').toUpperCase().trim();return _TEAM_ALIAS[a]||a;};
+function findAthlete(list,propPlayer){
+  const pp=_normName(propPlayer);
+  const exact=list.filter(a=>_normName(a.athlete?.displayName)===pp);
+  if(exact.length)return exact[0];
+  const loose=list.filter(a=>nameMatch(a.athlete?.displayName||'',propPlayer));
+  return loose.length===1?loose[0]:null;
+}
+function nameMatch(displayName,propPlayer){
+  const dn=_normName(displayName);
+  const pp=_normName(propPlayer);
+  if(dn===pp)return true;
+  const ppParts=pp.split(' ');
+  const lastName=ppParts[ppParts.length-1];
+  if(lastName.length>3&&dn.includes(lastName))return true;
+  // "OG Anunoby" special case — initials
+  if(pp.length<=3&&dn.startsWith(pp))return true;
+  return false;
+}
+
+// One prop's current figure out of a box score's `players` blocks -- the settler's own lookup, lifted out so the live game tracker reads the SAME numbers.  A bet's `team` is the player's team (searched first).
+// -> {val, dnp, name}, or null when the player is not in the box score.  `dnp` = ESPN lists him with no minutes / no stats (void once the game is final; merely 'not in yet' while it is live).
+function _propBoxStat(sport,players,p,parsed){
+  parsed=parsed||parsePropBetOn(p.betOn||'');if(!parsed||!players)return null;
+  let foundStat=null,foundPlayer=null,dnp=false;
+  let blocks=players;                                    // search only the player's OWN team when we know it (a bet's `team` is his team, `awA` the opponent)
+  if(p.team){const mine=blocks.filter(t=>canonTeam(t.team?.abbreviation)===canonTeam(p.team));if(mine.length)blocks=mine;}
+  if(sport==='NFL'){
+    outer:for(const teamData of blocks){
+      const hit=extractNFLStat(teamData,parsed.player,parsed.stat);
+      if(hit){foundPlayer=hit.dName;foundStat=hit.val;break outer;}
+    }
+  }else if(sport==='NHL'){
+    outer:for(const teamData of blocks){
+      const hit=extractNHLStat(teamData,parsed.player,parsed.stat);
+      if(hit){foundPlayer=hit.dName;foundStat=hit.val;break outer;}
+    }
+  }else{
+    outer:for(const teamData of blocks){
+      const statBlock=teamData.statistics?.[0];if(!statBlock)continue;
+      const names=statBlock.names||[];
+      const ath=findAthlete(statBlock.athletes||[],parsed.player);
+      if(!ath)continue;
+      foundPlayer=ath.athlete?.displayName||'';
+      const sv=ath.stats||[],mi=names.findIndex(n=>String(n).toUpperCase()==='MIN'),mn=mi>=0?String(sv[mi]==null?'':sv[mi]).trim():'';
+      if(ath.didNotPlay===true||sv.length===0||(mi>=0&&/^(0|--?)?$/.test(mn))){dnp=true;foundStat=0;break outer;}   // did not play: the bet is void, never a zero-stat win/loss
+      foundStat=extractStat(names,sv,parsed.stat);
+      break outer;
+    }
+  }
+  return foundStat===null?null:{val:foundStat,dnp:dnp,name:foundPlayer};
+}
+
 async function autoSettlePropsESPN(targetDate){
   // Same fix as the other auto-settle functions -- scoreboards below had
   // no date param before now, so this could only ever see today's props.
@@ -19498,202 +19737,6 @@ async function autoSettlePropsESPN(targetDate){
     WNBA:'https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/summary?event='
   };
 
-  // Parse "Victor Wembanyama OVER PTS 26.5" (NBA/MLB: stat AFTER
-  // direction) OR "Josh Allen OVER 0.5 Passing TDs" (NFL model/Linemate
-  // props: line before stat, multi-word stat label) OR "Connor McDavid
-  // POINTS OVER 1.5" (lockNHLProp's own real betOn format: stat BEFORE
-  // direction) → {player, direction, stat, line}. Tries the original
-  // NBA/MLB order first so that parsing is completely unchanged, then the
-  // NHL stat-before-direction order, then falls through to the NFL order
-  // last. A trailing " (-120)"/" (+105)" moneyline parenthetical --
-  // lockNHLProp always appends one to its own betOn -- is stripped first;
-  // left in place it broke the end-anchor ($) on the NBA/MLB pattern
-  // outright and made the OLD NFL-fallback pattern below mis-fire on NHL
-  // strings instead (capturing the stat word into the PLAYER name and the
-  // odds label itself as the "stat" -- confirmed live: "Connor McDavid
-  // POINTS OVER 1.5 (-120)" parsed to player "Connor McDavid POINTS",
-  // stat "(-120)", which can never nameMatch() a real box score entry).
-  // Real bug, found auditing settlement: lockNHLProp's live LOCK buttons
-  // (_adjLockNHLO/_adjLockNHLU in docs/app.html) are the ONLY way an NHL
-  // prop ever gets locked, so every single NHL prop ever locked this way
-  // silently sat 'pending' forever, regardless of how many settlement
-  // passes ran -- same observable shape ("0 settled PROP-type bets") as
-  // the NBA betOn-missing-stat bug fixed alongside this one, just a
-  // different root cause.
-  function parsePropBetOn(bon){
-    bon=(bon||'').replace(/\s*\([^)]*\)\s*$/,'');
-    let m=bon.match(/^(.+?)\s+(OVER|UNDER)\s+([A-Z+%]+)\s+([\d.]+)$/i);
-    if(m)return{player:m[1].trim(),direction:m[2].toUpperCase(),stat:m[3].toUpperCase(),line:parseFloat(m[4])};
-    m=bon.match(/^(.+?)\s+([A-Za-z]+)\s+(OVER|UNDER)\s+([\d.]+)$/i);
-    if(m)return{player:m[1].trim(),direction:m[3].toUpperCase(),stat:m[2].toUpperCase(),line:parseFloat(m[4])};
-    m=bon.match(/^(.+?)\s+(OVER|UNDER)\s+([\d.]+)\s+(.+)$/i);
-    if(m)return{player:m[1].trim(),direction:m[2].toUpperCase(),stat:m[4].trim().toUpperCase(),line:parseFloat(m[3])};
-    return null;
-  }
-  // NFL stat label (from _NFL_PROP_CATS' cat.label, or a Linemate raw
-  // label) → {category, statLabel} in ESPN's NFL boxscore shape, which
-  // (unlike NBA/NHL/MLB) splits a team's stats into several category
-  // blocks (passing/rushing/receiving) rather than one flat block.
-  const NFL_STAT_MAP=[
-    {kw:['passing yards','pass yds','passyds'],category:'passing',statLabel:'YDS'},
-    {kw:['passing tds','passing touchdowns','pass td'],category:'passing',statLabel:'TD'},
-    {kw:['rushing yards','rush yds','rushyds'],category:'rushing',statLabel:'YDS'},
-    {kw:['rushing tds','rushing touchdowns','rush td'],category:'rushing',statLabel:'TD'},
-    {kw:['receiving yards','rec yds','recyds'],category:'receiving',statLabel:'YDS'},
-    {kw:['receiving tds','receiving touchdowns','rec td'],category:'receiving',statLabel:'TD'},
-    {kw:['receptions','rec'],category:'receiving',statLabel:'REC'},
-  ];
-  // Searches one team's box score for propPlayer within the ONE category
-  // block that matches the requested stat (e.g. a rushing-yards prop
-  // only looks in the "rushing" block) -- a player who appears in
-  // multiple category blocks (a scrambling QB in both passing and
-  // rushing) is matched against the right one, not whichever block
-  // happens to list them first.
-  function extractNFLStat(teamData,propPlayer,statWordsUpper){
-    const sw=statWordsUpper.toLowerCase();
-    // Real gap, found via audit: Anytime TD (added same session as the
-    // MC-sim work) was never wired into settlement -- NFL_STAT_MAP only
-    // knows the original 7 categories, so an Anytime TD prop would hit
-    // the "unrecognized stat -> don't guess" bail-out below and sit
-    // pending forever. Combines real rushing + receiving TDs into one
-    // total, matching _nflBuildAnytimeTDRow's own definition exactly
-    // (passing TDs excluded -- thrown, not scored, by the QB) -- can't
-    // reuse the single-category-block lookup below since this one
-    // genuinely spans two blocks and needs their sum, not either alone.
-    if(sw.includes('anytime')){
-      let total=null,dName=null;
-      for(const cat of['rushing','receiving']){
-        for(const statBlock of teamData.statistics||[]){
-          const blockName=(statBlock.name||statBlock.displayName||'').toLowerCase();
-          if(!blockName.includes(cat))continue;
-          // Real bug, found via audit: NFL's ESPN boxscore category blocks
-          // have no `names` field at all (unlike NBA/NHL/MLB, which really
-          // do) -- the stat abbreviations live under `labels` instead.
-          // Reading `.names` here was always [] for every NFL prop, so
-          // idx was always -1 and every NFL prop sat pending forever
-          // regardless of how many times the settle date got revisited.
-          const names=statBlock.labels||[];
-          const idx=names.findIndex(n=>(n||'').toUpperCase()==='TD');
-          if(idx<0)continue;
-          for(const ath of statBlock.athletes||[]){
-            const dn=ath.athlete?.displayName||'';
-            if(!nameMatch(dn,propPlayer))continue;
-            const raw=(ath.stats||[])[idx];
-            const val=parseFloat(raw);
-            if(!isNaN(val)){total=(total||0)+val;dName=dn;}
-          }
-        }
-      }
-      return total===null?null:{dName,val:total};
-    }
-    const match=NFL_STAT_MAP.find(m=>m.kw.some(k=>sw===k||sw.includes(k)));
-    if(!match)return null; // unrecognized stat label -> don't guess
-    for(const statBlock of teamData.statistics||[]){
-      const blockName=(statBlock.name||statBlock.displayName||'').toLowerCase();
-      if(!blockName.includes(match.category))continue;
-      // Same `labels` vs `names` gap as the Anytime TD lookup above.
-      const names=statBlock.labels||[];
-      const idx=names.findIndex(n=>(n||'').toUpperCase()===match.statLabel);
-      if(idx<0)continue;
-      for(const ath of statBlock.athletes||[]){
-        const dName=ath.athlete?.displayName||'';
-        if(!nameMatch(dName,propPlayer))continue;
-        const raw=(ath.stats||[])[idx];
-        if(raw==null)return null;
-        const val=parseFloat(raw);
-        return isNaN(val)?null:{dName,val};
-      }
-    }
-    return null; // player not found in the matching category block -- didn't play it, or box score incomplete
-  }
-
-  // Stat type → box score label mapping
-  function extractStat(statNames,statVals,stat){
-    const idx=n=>statNames.findIndex(s=>s.toUpperCase()===n.toUpperCase());
-    const v=n=>{const i=idx(n);return i>=0?parseFloat(statVals[i])||0:0;};
-    if(stat==='PTS')return v('PTS');
-    if(stat==='REB')return v('REB');
-    if(stat==='AST')return v('AST');
-    if(stat==='BLK')return v('BLK');
-    if(stat==='STL')return v('STL');
-    if(stat==='TO')return v('TO');
-    if(stat==='3PM'){const i=idx('3PT');if(i<0)return 0;return parseInt((statVals[i]||'0').split('-')[0])||0;}
-    if(stat==='PTS+REB+AST'||stat==='PRA')return v('PTS')+v('REB')+v('AST');
-    if(stat==='PTS+AST')return v('PTS')+v('AST');
-    if(stat==='PTS+REB')return v('PTS')+v('REB');
-    if(stat==='REB+AST')return v('REB')+v('AST');
-    if(stat==='BLK+STL')return v('BLK')+v('STL');
-    return null;
-  }
-
-  // Real bug, found auditing settlement (same audit that found the
-  // betOn-parsing issue fixed in parsePropBetOn above): even with a
-  // correctly-parsed stat label, NHL props could still never settle.
-  // ESPN's NHL summary boxscore (confirmed live, 2026-10-01) splits each
-  // team's players across SEVERAL statistics blocks per game --
-  // "forwards"/"defenses"/"skaters"/"goalies" -- not the single flat
-  // block NBA/MLB use, so the generic extractStat() path below (which
-  // only ever reads teamData.statistics?.[0]) would miss any defenseman
-  // or goalie outright, and never even reaches extractStat for them. On
-  // top of that, extractStat()'s whole vocabulary (PTS/REB/AST/BLK/STL/
-  // TO/3PM) is NBA/MLB-shaped -- real NHL skater columns are compact
-  // abbreviations (G/A/S/SOG), so even a forward prop would fail every
-  // `if` branch and return null. POINTS has no single ESPN field at all;
-  // it's derived here as goals+assists, the same definition this app's
-  // own lockNHLProp()/_generateNHLPropsLive() ppg label already uses.
-  const NHL_STAT_MAP={GOALS:'G',GOAL:'G',ASSISTS:'A',ASSIST:'A',SHOTS:'SOG',SOG:'SOG',SAVES:'SV'};
-  function extractNHLStat(teamData,propPlayer,statWordUpper){
-    const isPoints=statWordUpper==='POINTS'||statWordUpper==='POINT';
-    const key=NHL_STAT_MAP[statWordUpper];
-    if(!isPoints&&!key)return null; // unrecognized stat label -> don't guess
-    for(const statBlock of teamData.statistics||[]){
-      const names=statBlock.names||statBlock.labels||[];
-      const idx=n=>names.findIndex(s=>(s||'').toUpperCase()===n);
-      for(const ath of statBlock.athletes||[]){
-        const dName=ath.athlete?.displayName||'';
-        if(!nameMatch(dName,propPlayer))continue;
-        const stats=ath.stats||[];
-        const get=n=>{const i=idx(n);const raw=i>=0?stats[i]:null;const val=raw==null?NaN:parseFloat(raw);return val;};
-        if(isPoints){
-          const g=get('G'),a=get('A');
-          if(isNaN(g)||isNaN(a))continue; // matched by name but this block lacks G/A -- try other blocks
-          return{dName,val:g+a};
-        }
-        const v=get(key);
-        if(isNaN(v))continue;
-        return{dName,val:v};
-      }
-    }
-    return null; // player not found in any statistics block -- didn't play, or box score incomplete
-  }
-
-  // Fuzzy player name match: "Victor Wembanyama" vs "V. Wembanyama" or "Wembanyama"
-  // ACCURACY FIXES (2026-10-23, owner: make sure NBA props settle from the box score correctly), found with a stubbed-box-score test:
-  //  * ESPN spells "Nikola Joki\u0107" with an accent, props say "Nikola Jokic": names are now compared without diacritics / suffixes (Jr., III) so those props settle instead of sitting pending forever;
-  //  * a surname fallback ("Williams") used to take the FIRST Williams in either team's box score -- a prop on OKC's Jalen Williams was graded on Denver's Jalen Williams. The player is now looked up in HIS
-  //    OWN team's block, an exact full name wins, and an ambiguous surname is left pending rather than guessed;
-  //  * a player who did not play (didNotPlay / no stats / 0 minutes) used to read as zeros -- an UNDER "won" and an OVER "lost" on a bet sportsbooks void. It now settles as a push (void), voidReason 'DNP'.
-  const _normName=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/['.\u2019]/g,'').replace(/\b(jr|sr|ii|iii|iv)\b/g,' ').replace(/\s+/g,' ').trim();
-  const _TEAM_ALIAS={NYK:'NY',GSW:'GS',SAS:'SA',NOP:'NO',UTA:'UTAH',WAS:'WSH',PHO:'PHX',BRK:'BKN',CHO:'CHA'};
-  const canonTeam=a=>{a=String(a||'').toUpperCase().trim();return _TEAM_ALIAS[a]||a;};
-  function findAthlete(list,propPlayer){
-    const pp=_normName(propPlayer);
-    const exact=list.filter(a=>_normName(a.athlete?.displayName)===pp);
-    if(exact.length)return exact[0];
-    const loose=list.filter(a=>nameMatch(a.athlete?.displayName||'',propPlayer));
-    return loose.length===1?loose[0]:null;
-  }
-  function nameMatch(displayName,propPlayer){
-    const dn=_normName(displayName);
-    const pp=_normName(propPlayer);
-    if(dn===pp)return true;
-    const ppParts=pp.split(' ');
-    const lastName=ppParts[ppParts.length-1];
-    if(lastName.length>3&&dn.includes(lastName))return true;
-    // "OG Anunoby" special case — initials
-    if(pp.length<=3&&dn.startsWith(pp))return true;
-    return false;
-  }
 
   // Group props by sport -- via _normSport(), not the raw p.sport field.
   // NFL/CFB props are correctly tagged sport:'FOOTBALL'/league:'NFL' (the
@@ -19778,32 +19821,8 @@ async function autoSettlePropsESPN(targetDate){
       // (G/A/SOG/SV) instead of PTS/REB/AST, so it also needs its own
       // lookup (extractNHLStat) rather than the single-statBlock
       // PTS/REB/AST logic NBA/MLB share below.
-      let foundStat=null,foundPlayer=null,dnp=false;
-      let blocks=bs.boxscore.players;                                    // search only the player's OWN team when we know it (a bet's `team` is his team, `awA` the opponent)
-      if(p.team){const mine=blocks.filter(t=>canonTeam(t.team?.abbreviation)===canonTeam(p.team));if(mine.length)blocks=mine;}
-      if(sport==='NFL'){
-        outer:for(const teamData of blocks){
-          const hit=extractNFLStat(teamData,parsed.player,parsed.stat);
-          if(hit){foundPlayer=hit.dName;foundStat=hit.val;break outer;}
-        }
-      }else if(sport==='NHL'){
-        outer:for(const teamData of blocks){
-          const hit=extractNHLStat(teamData,parsed.player,parsed.stat);
-          if(hit){foundPlayer=hit.dName;foundStat=hit.val;break outer;}
-        }
-      }else{
-        outer:for(const teamData of blocks){
-          const statBlock=teamData.statistics?.[0];if(!statBlock)continue;
-          const names=statBlock.names||[];
-          const ath=findAthlete(statBlock.athletes||[],parsed.player);
-          if(!ath)continue;
-          foundPlayer=ath.athlete?.displayName||'';
-          const sv=ath.stats||[],mi=names.findIndex(n=>String(n).toUpperCase()==='MIN'),mn=mi>=0?String(sv[mi]==null?'':sv[mi]).trim():'';
-          if(ath.didNotPlay===true||sv.length===0||(mi>=0&&/^(0|--?)?$/.test(mn))){dnp=true;foundStat=0;break outer;}   // did not play: the bet is void, never a zero-stat win/loss
-          foundStat=extractStat(names,sv,parsed.stat);
-          break outer;
-        }
-      }
+      const hit=_propBoxStat(sport,bs.boxscore.players,p,parsed);
+      const foundStat=hit?hit.val:null,dnp=!!(hit&&hit.dnp);
       if(foundStat===null)continue;
       if(dnp){
         p.outcome='push';p.settledAt=Date.now();p.playerResult=null;p.voidReason='DNP';changed=true;
