@@ -815,7 +815,7 @@ rect.mom-pin{fill:rgba(255,221,0,.09)}line.mom-pin{stroke:var(--gc);stroke-width
 .prow2-adj{font-family:var(--mono);font-size:13px;margin-top:4px;letter-spacing:.4px;color:#ffe600;display:flex;flex-wrap:wrap;gap:6px;align-items:center;line-height:1.35}.prow2-adj b{font-weight:700;color:var(--t)}
 .adjt td{padding:3px 14px 3px 0;white-space:nowrap}.adjt th{padding-right:14px!important;white-space:nowrap}
 .adjr{padding:0 6px;border:1px solid currentColor;border-radius:2px;font-family:var(--mono);font-size:11px;letter-spacing:.5px;white-space:nowrap}
-.prow2-fin{font-family:var(--mono);font-size:15px;color:var(--t2);text-align:right;margin-top:auto;align-self:flex-end}.prow2-fin.dim{color:var(--t3)}
+.prow2-fin{font-family:var(--mono);font-size:15px;color:var(--t2);text-align:right;margin-top:auto;align-self:flex-end}.prow2-fin.dim{color:var(--t3)}.prow2-pa{margin-top:2px}.prow2-pa b{color:var(--t1,#fff)}.prow2-pa span{color:var(--t3)}
 .prow2.card{margin-bottom:7px}
 .prow2-act .btn-sm:not(.btn-win):not(.btn-o){background:transparent;box-shadow:inset 0 0 0 1px currentColor}
 .prow2-act{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
@@ -4582,6 +4582,37 @@ function _altRerenderAll(){
 function _altSetPeriod(k){window._altPeriod=k;window._altShown=40;_altRerenderAll();}
 function _altSetSport(l){window._altSport=l;window._altShown=40;_altRerenderAll();}
 function _altMore(){window._altShown=(window._altShown||40)+40;_altRerenderAll();}
+// What the player actually finished with, for a settled prop -- win, loss or push alike (owner 2026-10-23: "Anthony Edwards over 25.5 ... shows how many points he got").
+// Settlers store it in p.playerResult: a number, or on hand-entered rows text like "had 30 pts" / "under 14.5" (only the "had N" form carries a number). The stat label comes from the pick itself
+// ("... OVER PTS 25.5" -> PTS). Returns null when no final figure is stored, so those rows simply show nothing extra.
+function _propActual(p){
+  try{
+    if(!p||p.betType!=='PROP'||!/^(win|loss|push)$/.test(p.outcome||''))return null;
+    let n=p.playerResult;
+    if(typeof n==='string'){const m=/^\s*had\s+(\d+(?:\.\d+)?)/i.exec(n);n=m?parseFloat(m[1]):null;}
+    if(typeof n!=='number'||!isFinite(n))return null;
+    const m=/\b(?:over|under)\s+(.+?)\s+(\d+(?:\.\d+)?)\s*$/i.exec(p.betOn||'');
+    return{n:n,stat:m?m[1].trim().toUpperCase():'',line:m?m[2]:''};
+  }catch(e){return null;}
+}
+// Game lines, win / loss / push alike: where the OVER/UNDER total or the spread margin actually finished against the line the pick was graded on. Built from the final score the settler stored
+// (hScore/aScore); a European-hockey shootout game keeps its regulation + overtime total in p.ouTotal (the listed score includes the shootout-winning goal, books do not count it).
+function _lineActual(p){
+  try{
+    if(!p||p.betType==='PROP'||!/^(win|loss|push)$/.test(p.outcome||'')||p.hScore==null||p.aScore==null||(typeof _isParlay==='function'&&_isParlay(p)))return null;
+    const h=+p.hScore,a=+p.aScore;if(!isFinite(h)||!isFinite(a))return null;
+    const fmt=n=>Number.isInteger(n)?String(n):n.toFixed(1),sg=n=>(n>0?'+':'')+fmt(n);
+    const c=_classifyBetOn(p.betOn);
+    if(c.type==='OU'){const t=(p.ouTotal!=null&&isFinite(+p.ouTotal))?+p.ouTotal:h+a;return{k:'FINAL TOTAL',v:fmt(t),note:(c.over?'over ':'under ')+fmt(c.line)};}
+    if(c.type==='SPREAD'){
+      const nm=x=>String(x||'').toLowerCase(),isH=nm(c.team)===nm(p.hA),isA=nm(c.team)===nm(p.awA);
+      if(isH===isA)return null;
+      const m=isH?h-a:a-h;
+      return{k:'FINAL MARGIN',v:sg(m),note:_teamName(c.team,p.sport)+' '+sg(c.line)};
+    }
+    return null;
+  }catch(e){return null;}
+}
 function _pickRowHTML(p,o){
   o=o||{};
   const settled=o.mode==='settled';
@@ -4594,9 +4625,13 @@ function _pickRowHTML(p,o){
     ?`${lgOn?_pickLogo(p,'a'):''}<span>${_escHtml(_teamName(p.awA,p.sport))}</span><em>at</em>${lgOn?_pickLogo(p,'h'):''}<span>${_escHtml(_teamName(p.hA,p.sport))}</span>`
     :`<span>${_escHtml(o.title||_gameTitle(p.hA,p.awA,p.sport)||'')}</span>`;
   const conf=p.winProb?` · ${(p.winProb*100).toFixed(0)}%`:'';
+  const pa=settled?_propActual(p):null;
   const fin=p.hScore!=null
     ?`<div class="prow2-fin">FINAL: ${_escHtml(_teamName(p.awA,p.sport))} ${_escHtml(p.aScore)} – ${_escHtml(p.hScore)} ${_escHtml(_teamName(p.hA,p.sport))}</div>`
-    :`<div class="prow2-fin dim">${settled?'FINAL: —':'AWAITING FINAL'}</div>`;
+    :pa?'':`<div class="prow2-fin dim">${settled?'FINAL: —':'AWAITING FINAL'}</div>`;
+  const la=settled&&!pa?_lineActual(p):null;
+  const paHtml=pa?`<div class="prow2-fin prow2-pa">ACTUAL: <b>${_escHtml(pa.n)}${pa.stat?' '+_escHtml(pa.stat):''}</b>${pa.line?` <span>(line ${_escHtml(pa.line)})</span>`:''}</div>`
+    :la?`<div class="prow2-fin prow2-pa">${la.k}: <b>${_escHtml(la.v)}</b> <span>(${_escHtml(la.note)})</span></div>`:'';
   const act=settled
     ?`<div class="prow2-act two"><span class="prow2-st" style="color:${oc};border-color:${oc}">${st}</span>${o.removeHtml||''}</div>`
     :`<div class="prow2-act">${o.actions||''}</div>`;
@@ -4609,7 +4644,7 @@ function _pickRowHTML(p,o){
       ${p.altLine?_altNoteHTML(p):''}
       ${o.why?_whyThisPickHTML(p):''}
     </div>
-    <div class="prow2-side">${act}${fin}</div>
+    <div class="prow2-side">${act}${fin}${paHtml}</div>
   </div>`;
 }
 // Universal league-label + sport-sub-label pair for every pick, across
@@ -10112,7 +10147,7 @@ async function _autoSettleFlashscoreHockey(targetDate,loadFn,sportTag){
           if(p.betOn===hn||p.betOn===hn+' ML')outcome=hs>as?'win':'loss';
           else if(p.betOn===an||p.betOn===an+' ML')outcome=as>hs?'win':'loss';
         }
-        if(outcome){p.outcome=outcome;p.settledAt=Date.now();p.hScore=hs;p.aScore=as;changed=true;
+        if(outcome){p.outcome=outcome;p.settledAt=Date.now();p.hScore=hs;p.aScore=as;if(g.ouTotal!=null)p.ouTotal=g.ouTotal;changed=true;
           toast(`✓ AUTO-SETTLED: ${p.betOn} ${outcome.toUpperCase()}`,outcome==='win'?'#00e644':outcome==='loss'?'#ff1a1a':'#ff9000');
           try{notifySettlement(p.betOn,outcome);}catch(e){}
           try{window.showBetPopup({type:'settle',betOn:p.betOn,sport:'HOCKEY',league:sportTag,outcome,score:`${an} ${as} – ${hn} ${hs}`});}catch(ex){}
