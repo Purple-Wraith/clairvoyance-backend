@@ -427,7 +427,8 @@ def cmd_nhl(cache: Path) -> None:
 def cmd_soccer(cache: Path) -> None:
     """Side-neutral cushion tables for soccer totals and Asian handicaps from closing lines: win rate of the side moved k goals toward safety vs the posted half-point line."""
     games = [g for g in load_soccer(cache) if g.get("odds") and g["odds"].get("ou") is not None]
-    print(f"soccer games with a closing total: {len(games)}  ({', '.join(f'{lg} {sum(1 for g in games if g['lg'] == lg)}' for lg in SOC_LEAGUES)})")
+    per_league = ", ".join(lg + " " + str(sum(1 for g in games if g["lg"] == lg)) for lg in SOC_LEAGUES)
+    print(f"soccer games with a closing total: {len(games)}  ({per_league})")
     half = lambda x: x is not None and abs(x * 2 - round(x * 2)) < 1e-9 and abs(x - round(x)) > 1e-9
     # ── totals ──
     tot = [(float(g["odds"]["ou"]), g["hs"] + g["as_"]) for g in games if half(float(g["odds"]["ou"]))]
