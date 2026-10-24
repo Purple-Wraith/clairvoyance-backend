@@ -9964,35 +9964,6 @@ function _cfbGameCard(g){
     </div>
     <div style="padding:8px 10px;background:rgba(255,110,20,.04);border-top:1px solid rgba(255,110,20,.1)">
       ${_mcProjBarHTML({avgH:mc.avgH,avgA:mc.avgA,avgT:mc.avgTotal,overP:overU},ouL.toFixed(1),g.home,g.away,{n:mc.n,dec:1})}
-      ${(()=>{
-        // Model's own recommended lines, independent of whatever the
-        // sportsbook posted — some books shade their spread/O-U off the
-        // model number (juice, liability management), so the number
-        // worth betting isn't always the number on the board. Forced to
-        // .5 via _forceHalfLine, same push-avoidance convention as every
-        // other generated line in this app.
-        const recSpreadNum=_forceHalfLine(Math.abs(mc.avgMargin));
-        const recSpreadFav=mc.avgMargin>=0?g.home:g.away;
-        const recOU=_forceHalfLine(mc.avgTotal);
-        const mktSpreadNum=g.spread!=null?Math.abs(g.spread).toFixed(1):null;
-        const mktSpreadFav=g.spread!=null?(g.spread<0?g.home:g.away):null;
-        const mktOU=g.overUnder!=null?parseFloat(g.overUnder).toFixed(1):null;
-        const spreadGap=mktSpreadNum!=null?Math.abs(parseFloat(recSpreadNum)-parseFloat(mktSpreadNum)):null;
-        const ouGap=mktOU!=null?Math.abs(parseFloat(recOU)-parseFloat(mktOU)):null;
-        const spreadNote=mktSpreadNum==null?'No market spread posted yet — this is the only number available.'
-          :spreadGap>=1.5?`Model disagrees with the market by ${spreadGap.toFixed(1)} pts — worth a look at whatever number the book is actually offering, since real books sometimes shade off the model consensus for liability/juice reasons.`
-          :'Close to the market — no meaningful edge in taking a different number.';
-        const ouNote=mktOU==null?'No market total posted yet — this is the only number available.'
-          :ouGap>=1.5?`Model disagrees with the market by ${ouGap.toFixed(1)} pts — the market's ${mktOU} may be shaded off the model's own ${recOU} projection.`
-          :'Close to the market — no meaningful edge in taking a different number.';
-        return `<div style="margin-bottom:8px;padding:6px 9px;background:rgba(0,0,0,.25);border-radius:3px;border:1px solid rgba(255,200,0,.15)">
-          <div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:5px">MODEL RECOMMENDED LINE (vs market)</div>
-          <div style="font-family:var(--mono);font-size:14px;color:var(--t2);margin-bottom:3px"><strong style="color:var(--gc)">SPREAD</strong> — model: ${recSpreadFav} -${recSpreadNum}${mktSpreadNum!=null?` &nbsp;·&nbsp; market: ${mktSpreadFav} -${mktSpreadNum}`:''}</div>
-          <div style="font-family:var(--mono);font-size:13px;color:var(--t3);margin-bottom:6px">${spreadNote}</div>
-          <div style="font-family:var(--mono);font-size:14px;color:var(--t2);margin-bottom:3px"><strong style="color:var(--nc)">O/U</strong> — model: ${recOU}${mktOU!=null?` &nbsp;·&nbsp; market: ${mktOU}`:''}</div>
-          <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${ouNote}</div>
-        </div>`;
-      })()}
       ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}${_altLineRowHTML('CFB',g,nm,!!(liveStatus&&!liveStatus.isLive))}
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+_gradeName(m)).join(' · ')}</div>
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">ENSEMBLE: MC ${(ens.mc*100).toFixed(0)}% / BAY ${(ens.bay*100).toFixed(0)}% / ELO ${(ens.elo*100).toFixed(0)}% win prob (weighted MC/BAY/ELO ${(100-ens.eloWeight*100).toFixed(0)}%/ELO ${(ens.eloWeight*100).toFixed(0)}% blend applied — see MODEL tab to adjust)</div>
@@ -11781,15 +11752,6 @@ function _nhlGameCard(espnEv){
       <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
     </div>
     ${(()=>{try{return _mcProjBarHTML(_nhlMcD,nhlOuL,hn,an,{dec:2});}catch(e){return'';}})()}
-    ${(()=>{try{
-      if(!_nhlMcD)return'';
-      return _recommendedLineHTML({
-        recSpreadFav:null,recSpreadNum:null, // NHL puck line is fixed at 1.5 by convention, not a variable market number
-        recOU:_forceHalfLine(_nhlMcD.avgT??((_nhlMcD.avgH??0)+(_nhlMcD.avgA??0))),
-        mktSpreadFav:null,mktSpreadNum:null,
-        mktOU:_liveNHL?.ou!=null?parseFloat(_liveNHL.ou).toFixed(1):(_espnOdds?.overUnder!=null?parseFloat(_espnOdds.overUnder).toFixed(1):null),
-      });
-    }catch(e){return'';}})()}
     ${_bestMarketBoxHTML(_nm3.tierN,_nm3.col,_nm3.lbl,_nm3.best.label,_nm3.best.prob,_nm3.best.evVal)}${_mvmBarHTML(_nm3.best)}${_altRowFor('NHL',hn,an,espnEv.date,_nm3,!(pre||live))}
     <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
     <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nm3.mkts.map(_hkScanTxt).join(' · ')}</div>

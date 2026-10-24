@@ -51,8 +51,10 @@ class Source(unittest.TestCase):
         self.assertIn("_altRowFor('SOC_'", f); self.assertIn("lockSport:_lockType", f)
 
 
-class Quiet2(Quiet):
-    pass
+class NoRecommendation(unittest.TestCase):
+    def test_no_card_builds_a_model_recommended_line(self):
+        self.assertEqual(SRC.count("_recommendedLineHTML("), 1)           # only the (now unused) definition is left
+        self.assertEqual(SRC.count("MODEL RECOMMENDED LINE"), 1)
 
 
 class Rendered(unittest.TestCase):
@@ -96,7 +98,7 @@ class Rendered(unittest.TestCase):
         self.pg.evaluate("SS('fb');setSub('fb','cfb')"); self.settle("#cfb-games-list", 20)
         t = self.text("#cfb-games-list")
         self.assertGreater(self.pg.evaluate("document.querySelectorAll('#cfb-games-list .gc').length"), 0)
-        self.assertNotIn("REASONING", t); self.assertNotIn("BEST MARKET", t)
+        self.assertNotIn("REASONING", t); self.assertNotIn("BEST MARKET", t); self.assertNotIn("MODEL RECOMMENDED", t)
         s = self.check_adjusted_rows("#cfb-games-list")
         self.assertTrue(all(r["chips"] >= 1 for r in s["perRow"]))
         if "BEST UNADJUSTED MARKET" not in t:
@@ -112,7 +114,7 @@ class Rendered(unittest.TestCase):
         for sub, sel in (("nhl", "#nhl-upcoming"), ("liiga", "#liiga-matches-list"), ("shl", "#shl-matches-list"), ("nla", "#nla-matches-list"), ("extraliga", "#extraliga-matches-list")):
             self.pg.evaluate(f"SS('hk');setSub('hk','{sub}')"); self.settle(sel, 15)
             t = self.text(sel)
-            self.assertNotIn("BEST MARKET", t, sub)
+            self.assertNotIn("BEST MARKET", t, sub); self.assertNotIn("MODEL RECOMMENDED", t, sub)
             self.check_adjusted_rows(sel)
 
     def test_a_soccer_card(self):
