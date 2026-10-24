@@ -10098,7 +10098,7 @@ async function _autoSettleFlashscoreHockey(targetDate,loadFn,sportTag){
         let outcome=null;
         const cls=_classifyBetOn(p.betOn);
         if(cls.type==='OU'){
-          const total=g.ouTotal!=null?g.ouTotal:hs+as;   // ouTotal = regulation + OT total when the game went to a shootout (relay only; the schedule files carry no shootout flag)
+          const total=g.ouTotal!=null?g.ouTotal:hs+as;   // ouTotal = regulation + OT total when the game went to a shootout (the Flashscore scrapers write it for "Pen" games; books never count the shootout-winning goal)
           outcome=total===cls.line?'push':(cls.over?total>cls.line:total<cls.line)?'win':'loss';
         }else if(cls.type==='SPREAD'&&(cls.team===hn||cls.team===an)){
           const favIsHome=cls.team===hn;

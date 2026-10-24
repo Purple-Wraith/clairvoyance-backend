@@ -60,6 +60,19 @@ def parse_generated_at(s):
         return None
 
 
+def shootout_fields(stage, home_score, away_score) -> dict:
+    """Flashscore marks a game decided in a shootout with the stage tag "Pen" (an overtime finish is "AOT") and its final score
+    INCLUDES the shootout-winning goal (a 1-1 game won in the shootout is listed 2-1).  Sportsbooks settle hockey totals on
+    regulation + overtime and never count that goal, so the schedule row carries the total as books grade it:
+        {"ouTotal": home + away - 1}      (only for a shootout game; every other row gets {} and keeps home + away)
+    docs/app.html's _autoSettleFlashscoreHockey grades an OVER/UNDER against `ouTotal` when it is present."""
+    if str(stage or "").strip().lower() != "pen":
+        return {}
+    if not all(isinstance(v, int) and not isinstance(v, bool) for v in (home_score, away_score)) or abs(home_score - away_score) != 1:
+        return {}
+    return {"ouTotal": home_score + away_score - 1}
+
+
 def _has_scores(g) -> bool:
     return all(isinstance(g.get(k), (int, float)) and not isinstance(g.get(k), bool) for k in ("homeScore", "awayScore"))
 

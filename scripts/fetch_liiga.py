@@ -52,7 +52,7 @@ from playwright.sync_api import sync_playwright
 
 from _flashscore_logos import attach_logos, carry_over_logos
 from _flashscore_odds import carry_over_odds, fetch_match_odds
-from _schedule_carry import carry_over_missing, load_previous
+from _schedule_carry import carry_over_missing, load_previous, shootout_fields
 from _scraper_health import commit_and_push as commit_and_push_health
 from _scraper_health import log_scrape
 
@@ -265,6 +265,8 @@ def _extract_match_row(row) -> dict | None:
     date_txt = date_el.inner_text().strip() if date_el else ""
     home_score_el = row.query_selector(".event__score--home")
     away_score_el = row.query_selector(".event__score--away")
+    stage_el = row.query_selector("[class*='wcl-stageContent']")
+    stage_txt = stage_el.inner_text().strip() if stage_el else ""   # "Pen" = shootout, "AOT" = overtime (results rows only)
     scores: list[str] = []
     if home_score_el and away_score_el:
         hs, as_ = home_score_el.inner_text().strip(), away_score_el.inner_text().strip()
@@ -274,6 +276,7 @@ def _extract_match_row(row) -> dict | None:
         "id": match_id, "home": home_id, "home_slug": home_slug,
         "away": away_id, "away_slug": away_slug, "dateTxt": date_txt,
         "scores": scores,
+        "stage": stage_txt,
     }
 
 
@@ -383,6 +386,7 @@ def fetch_results(page, season_start_year: int, team_names: dict) -> list[dict]:
             "away": parsed["away"], "awayName": team_names.get(parsed["away"], _slug_to_name(parsed["away_slug"])),
             "state": "post",
             "homeScore": int(parsed["scores"][0]), "awayScore": int(parsed["scores"][1]),
+            **shootout_fields(parsed.get("stage"), int(parsed["scores"][0]), int(parsed["scores"][1])),
         })
     log(f"  {len(games)} final results parsed")
     return games
