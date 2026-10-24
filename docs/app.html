@@ -20525,7 +20525,7 @@ function _topPicksBodyHTML(legs,header,emptyMsg){
     </div>`;
   }).join('');
   const top10Html=`<div style="margin-bottom:14px">
-    <div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--pc);margin-bottom:6px">★ TOP ${top10.length} OF THE DAY — ALL SPORTS${_recordHTML(top10)}</div>
+    <div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--pc);margin-bottom:6px">★ TOP ${top10.length} OF THE DAY — ALL SPORTS${_recordHTML(qualifying)}${qualifying.length>top10.length&&_recordHTML(qualifying)?'<span style="font-size:11px;color:var(--t3);letter-spacing:0"> (record covers all '+qualifying.length+')</span>':''}</div>
     ${top10.map(e=>_topPickRowHTML(e)).join('')}
   </div>`;
   return`${header}
@@ -20865,9 +20865,24 @@ function _topAdjHTML(){
       ${show.map(_topAdjRowHTML).join('')}
     </div>`;}).join('');
   const nLg=Object.keys(byLeague).length;
+  // ★ TOP 10 OVERALL: the day's best 10 lines from ALL sports and leagues together (lines you can still act on first; a league holds at most TOP_PICKS_LEAGUE_CAP places until the list cannot be filled otherwise)
+  const pool=sorted.filter(e=>!fin(e)).length?sorted.filter(e=>!fin(e)):sorted;
+  const top10=[],held=[],per={};
+  for(const e of pool){
+    if(top10.length>=10)break;
+    if((per[e.leagueLabel]||0)>=TOP_PICKS_LEAGUE_CAP){held.push(e);continue;}
+    per[e.leagueLabel]=(per[e.leagueLabel]||0)+1;top10.push(e);
+  }
+  for(const e of held){if(top10.length>=10)break;top10.push(e);}
+  top10.sort((a,b)=>_topAdjRank(b)-_topAdjRank(a));
   return`${header}${note}${_topAdjDailyHTML()}
-    <div style="font-family:var(--mono);font-size:12px;color:var(--nc);margin-bottom:10px">${entries.length} adjusted line${entries.length===1?'':'s'} across ${nLg} league${nLg===1?'':'s'}${rec2(entries)?' · TODAY, ALL LINES:'+rec2(entries):''} · showing the top ${TOP_ADJ_LEAGUE_N.CFB} for college football, ${TOP_ADJ_LEAGUE_N.NFL} for the NFL, ${TOP_ADJ_DEFAULT_N} for every other league</div>
-    ${sections}`;
+    <div style="font-family:var(--mono);font-size:12px;color:var(--nc);margin-bottom:10px">${entries.length} adjusted line${entries.length===1?'':'s'} across ${nLg} league${nLg===1?'':'s'}${rec2(entries)?' · TODAY, ALL LINES:'+rec2(entries):''}</div>
+    <div class="tp-adj-top" style="margin-bottom:14px">
+      <div style="font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--pc);margin-bottom:6px">★ TOP ${top10.length} ADJUSTED LINES — ALL SPORTS${rec2(entries)?' <span style="font-size:11px;color:var(--t3);letter-spacing:0">(record covers all '+entries.length+')</span>'+rec2(entries):''}</div>
+      ${top10.map(_topAdjRowHTML).join('')}
+    </div>
+    <div style="font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--pc);margin:2px 0 6px">BY LEAGUE — TOP ${TOP_ADJ_LEAGUE_N.CFB} COLLEGE FOOTBALL · TOP ${TOP_ADJ_LEAGUE_N.NFL} NFL · TOP ${TOP_ADJ_DEFAULT_N} EVERY OTHER LEAGUE</div>
+    <div class="tp-adj-leagues">${sections}</div>`;
 }
 async function renderTopAdjLines(){
   const el=document.getElementById('toppicks-adj');if(!el)return;

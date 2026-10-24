@@ -59,12 +59,16 @@ class AdjTab(unittest.TestCase):
         return self.pg.evaluate("""[...document.querySelectorAll('#toppicks-adj .tp-adj-row')].map(r=>r.innerText.replace(/\\n/g,' | '))""")
 
     def top_rows(self):
-        """every listed row, in display order (league sections, best first inside each)"""
-        return self.rows()
+        """rows inside the ★ TOP 10 OVERALL block (all sports together)"""
+        return self.pg.evaluate("""[...document.querySelectorAll('#toppicks-adj .tp-adj-top .tp-adj-row')].map(r=>r.innerText.replace(/\\n/g,' | '))""")
+
+    def league_rows(self):
+        """rows inside the BY LEAGUE sections"""
+        return self.pg.evaluate("""[...document.querySelectorAll('#toppicks-adj .tp-adj-leagues .tp-adj-row')].map(r=>r.innerText.replace(/\\n/g,' | '))""")
 
     def sections(self):
         """{league header text: [row texts]}"""
-        return self.pg.evaluate("""()=>{const out={};document.querySelectorAll('#toppicks-adj .tp-adj-row').forEach(r=>{let h=r.parentElement.firstElementChild.innerText.replace(/\\n/g,' ');(out[h]=out[h]||[]).push(r.innerText.replace(/\\n/g,' | '))});return out}""")
+        return self.pg.evaluate("""()=>{const out={};document.querySelectorAll('#toppicks-adj .tp-adj-leagues .tp-adj-row').forEach(r=>{let h=r.parentElement.firstElementChild.innerText.replace(/\\n/g,' ');(out[h]=out[h]||[]).push(r.innerText.replace(/\\n/g,' | '))});return out}""")
 
     def test_the_two_sub_tabs_switch_views(self):
         self.pg.evaluate("tpSub('picks')")
@@ -122,6 +126,17 @@ class AdjTab(unittest.TestCase):
         self.assertIn("OVER 40.5", best[0])                                                                         # the CFB list is its 10 BEST of 12: the weakest two are not shown
         self.assertFalse(any("OVER 50.5" in x or "OVER 51.5" in x for x in best))
 
+    def test_the_overall_top_ten_takes_the_best_from_all_sports_and_leagues(self):
+        sp = lambda lg, n, hi: [e(lg, f"{lg}H{i}", f"{lg}A{i}", f"OVER {40+i}.5", hi - i * .01) for i in range(n)]
+        self.seed(sp("CFB", 12, .90) + sp("NFL", 9, .85) + sp("NBA", 8, .80) + sp("NHL", 6, .75))
+        top = self.top_rows()
+        self.assertEqual(len(top), 10)
+        self.assertIn("★ TOP 10 ADJUSTED LINES — ALL SPORTS", self.pg.evaluate("document.querySelector('#toppicks-adj .tp-adj-top').innerText"))
+        import re
+        leagues = {m for x in top for m in re.findall(r"\b(CFB|NFL|NBA|NHL) ·", x)}
+        self.assertGreaterEqual(len(leagues), 3)                                                          # spread across leagues (cap of 3 per league until the list cannot be filled otherwise)
+        self.assertEqual(len(self.league_rows()), 10 + 7 + 5 + 5)                                         # and the per-league lists are still there: 10 / 7 / 5 / 5
+
     def test_a_league_with_fewer_lines_than_its_cap_shows_them_all_and_no_of_clause(self):
         self.seed([e("CFB", f"H{i}", f"A{i}", f"OVER {40+i}.5", .8) for i in range(3)])
         k, v = next(iter(self.sections().items()))
@@ -166,11 +181,12 @@ class AdjTab(unittest.TestCase):
     def test_finished_games_sink_below_lines_you_can_still_lock_inside_their_league(self):
         live = [{"k": "nhl", "tag": "NHL", "id": "x", "home": "Pelicans", "away": "Marmots", "homeScore": 4, "awayScore": 1, "state": "post", "note": "Final"}]
         self.seed([e("NHL", "Pelicans", "Marmots", "UNDER 6.5", .80), e("NHL", "Herons", "Skunks", "OVER 5.5", .64)], live=live)
-        r = self.top_rows()
+        r = self.league_rows()
         self.assertIn("OVER 5.5", r[0])                                          # the open line leads its league
         self.assertTrue("UNDER 6.5" in r[1] and "FINAL" in r[1])                  # the finished one is still listed, at the bottom
         self.seed([e("NHL", "Pelicans", "Marmots", "UNDER 6.5", .80)], live=live)
-        self.assertEqual(len(self.top_rows()), 1)                                # nothing open at all: the finished lines are still listed
+        self.assertEqual(len(self.league_rows()), 1)                             # nothing open at all: the finished lines are still listed
+        self.assertEqual(len(self.top_rows()), 1)
 
     def final(self, home, away, hs, as_, note="Final", tag="NBA", k="nba", **kw):
         g = {"k": k, "tag": tag, "id": "x" + home, "home": home, "away": away, "homeScore": hs, "awayScore": as_, "state": "post", "note": note}
