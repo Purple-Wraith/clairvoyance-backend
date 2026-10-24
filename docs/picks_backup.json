@@ -91818,10 +91818,10 @@
     "winProb": 0.682,
     "lockedAt": 1792750738904,
     "reasoning": "PICK: GS +3.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted GS -2.5 to GS +3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 69.5%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected 111.3\u2013119.5 (total 230.8), from a 25k-sim Monte Carlo.",
+    "settledAt": 1792819271293,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1792819271293
+    "priceSource": "estimated"
   },
   {
     "hA": "GS",
@@ -91853,10 +91853,10 @@
     "winProb": 0.67,
     "lockedAt": 1792778028943,
     "reasoning": "PICK: UNDER 245.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted UNDER 237.5 to UNDER 245.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.1%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected 111.4\u2013119.5 (total 230.9), from a 25k-sim Monte Carlo.",
+    "settledAt": 1792819271294,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1792819271294
+    "priceSource": "estimated"
   },
   {
     "hA": "IND",
@@ -94417,6 +94417,34 @@
     "lockTiming": "pre",
     "marketProb": 0.6171,
     "priceSource": "market"
+  },
+  {
+    "id": "2026-10-24_Lausanne_Fribourg_NLA_Fribourg+1.5",
+    "date": "2026-10-24",
+    "hA": "Lausanne",
+    "awA": "Fribourg",
+    "sport": "NLA",
+    "league": "NLA",
+    "betType": "SPREAD",
+    "betOn": "Fribourg +1.5",
+    "winProb": 0.7021669745166493,
+    "ml": "-294",
+    "decOdds": 1.34,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1792822171773,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: Fribourg +1.5 \u2014 HIGH PROB (70.2% win prob, EV -5.9% \u00b7 MARKET PRICE -294 (EV at market -5.9%) \u00b7 MARKET-BLENDED: model 72.7% \u00b7 no-vig market 69.1% \u2192 70.2% (alpha 0.70))\nMODEL: Projected 3.4\u20133.0 (total 6.5) (OT/SO in 16% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Lausanne 3.15/3.26 (16GP this season, 52GP prior) vs Fribourg 3.62/2.54 (14GP, 52GP prior). Market line: 5.5 (Lausanne 6.24, Fribourg 5.86). Record: Lausanne 6-8-1OTW-1OTL vs Fribourg 6-4-2OTW-2OTL. Exact-Poisson proj: Fribourg 3.4 \u2013 Lausanne 3.0 (6.5 total vs 5.5 line). Fribourg +1.5 covers in 70.2% of the model's blended scoring+margin projection (fav covers 29.8%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 44.1% \u00b7 no-vig market 52.2% \u2192 50.1%; Puck line market blend (alpha 0.70): model 27.3% \u00b7 no-vig market 30.9% \u2192 29.8%; O/U market blend (alpha 0.65): model 62.6% \u00b7 no-vig market 50.9% \u2192 55.1%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.7268,
+    "marketProb": 0.6912,
+    "blendAlpha": 0.7,
+    "startMs": 1792863900000,
+    "leadMin": 695,
+    "lockTiming": "pre"
   },
   {
     "hA": "Lazio",
@@ -103582,8 +103610,8 @@
     "winProb": 0.68,
     "lockedAt": 1792750739870,
     "reasoning": "PICK: Brandin Podziemski OVER PTS 13.5 \u2014 OPTIMAL (63% model hit rate)\nMODEL: projection 15.73 PTS (season average 13.8, last-5 form 19.4, opponent adjustment +1.9) vs the 13.5 line, spread \u03c3 6.29, from a 5k-sim Monte Carlo.\nWHY: Brandin Podziemski averages 13.8 ppg across 82 games this season. Opp MEM DRtg 118.5 vs a 115.7 league average computed from every currently-loaded team, a 2% boost folded into the projection. Game pace 100.3 (+1.0%), GS offense 114.9 vs a 115.7 league average. No head-to-head history vs MEM this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
-    "priceSource": "estimated",
     "settledAt": 1792819274833,
+    "priceSource": "estimated",
     "playerResult": 18
   },
   {
@@ -103617,8 +103645,8 @@
     "winProb": 0.68,
     "lockedAt": 1792750740166,
     "reasoning": "PICK: Brandon Williams OVER PTS 12.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 14.18 PTS (season average 13, last-5 form 15.8, opponent adjustment +1.2) vs the 12.5 line, spread \u03c3 5.95, from a 5k-sim Monte Carlo.\nWHY: Brandon Williams averages 13.0 ppg across 66 games this season. Opp MEM DRtg 118.5 vs a 115.7 league average computed from every currently-loaded team, a 2% boost folded into the projection. Game pace 100.3 (+1.0%), GS offense 114.9 vs a 115.7 league average. No head-to-head history vs MEM this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
-    "priceSource": "estimated",
     "settledAt": 1792819274833,
+    "priceSource": "estimated",
     "playerResult": 4
   },
   {
