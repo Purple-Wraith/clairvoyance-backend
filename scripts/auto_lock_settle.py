@@ -2304,6 +2304,9 @@ HOCKEY_ALT_FLIP = False           # OFF 2026-10-06 (owner, after review): side f
 HOCKEY_FLIP_CEIL_MARGIN = 0.06     # a flip candidate may sit at most this far above the top of the band (HOCKEY_ALT_BAND)
 HOCKEY_FLIP_OVERSHOOT = 0.08       # a flip is only considered when the best SAME-side line would overshoot the band by more than this (an impractically short price)
 HOCKEY_FLIP_MAX_DROP = 0.02        # ... and the flip may not be more than this below the pick's OWN model probability at the posted line
+# BASIS (2026-10-24): the European tables are on the BOOK basis -- regulation + overtime, shootout goal excluded, which is how sportsbooks and this app's settler grade a total.  Flashscore's Over/Under tabs
+# count REGULATION goals only, so the counts are converted (scripts/backtest_alt_lines.py to_book_basis: the overtime-decided share of level games, from 5,248 NHL games, moves one goal at the even totals).  Effect vs the old
+# tables: OVER 4.5 +4 to +6 points, UNDER 6.5 -4 to -5, OVER 2.5 +3, UNDER 8.5 -2.  Rebuilt from fresh pages 2026-10-24 (this season ~20% of the weight).
 # {j goals from the anchor line: P(OVER anchor+j) for j<0, P(UNDER anchor+j) for j>0}
 HOCKEY_OU_NHL = {
     5.5: {-3: 0.961, -2: 0.848, -1: 0.731, 1: 0.611, 2: 0.769, 3: 0.851},
@@ -2312,10 +2315,10 @@ HOCKEY_OU_NHL = {
 # neutral probability of the POSTED line itself (j = 0): NHL from the same closing-line data, European leagues 50% by construction (the posted line is assumed to be the median)
 HOCKEY_BASE0_NHL = {5.5: {"over": 0.517, "under": 0.483}, 6.5: {"over": 0.474, "under": 0.526}}
 HOCKEY_OU_EURO = {
-    "LIIGA": {-3: 0.915, -2: 0.805, -1: 0.609, 1: 0.707, 2: 0.833, 3: 0.915},
-    "SHL": {-3: 0.911, -2: 0.770, -1: 0.590, 1: 0.714, 2: 0.840, 3: 0.916},
-    "NLA": {-3: 0.911, -2: 0.805, -1: 0.632, 1: 0.714, 2: 0.853, 3: 0.928},
-    "EXTRALIGA": {-3: 0.866, -2: 0.765, -1: 0.600, 1: 0.755, 2: 0.835, 3: 0.908},
+    "LIIGA": {-3: 0.942, -2: 0.798, -1: 0.665, 1: 0.667, 2: 0.835, 3: 0.901},
+    "SHL": {-3: 0.943, -2: 0.768, -1: 0.647, 1: 0.688, 2: 0.842, 3: 0.904},
+    "NLA": {-3: 0.948, -2: 0.810, -1: 0.697, 1: 0.652, 2: 0.848, 3: 0.906},
+    "EXTRALIGA": {-3: 0.914, -2: 0.765, -1: 0.650, 1: 0.714, 2: 0.838, 3: 0.895},
 }
 ALT_SPORTS = frozenset(ALT_LINE_CFG) | HOCKEY_SPORTS
 _ND = None

@@ -821,7 +821,7 @@ body.gt-open{overflow:hidden}#cv-ticker .tk[data-gid]{cursor:pointer}
 @media (prefers-reduced-motion:reduce){#gt-ov .gt-lb i{transition:none}}
 @media (pointer:coarse),(max-width:640px){#gt-ov button{min-height:44px}#gt-ov .gt-x,#gt-ov .gt-rf{min-height:40px}#gt-ov .gt-rf{min-width:44px}#gt-ov .gt-seg button{min-height:40px;padding:6px 14px}.gt-btn{min-height:40px;padding:8px 14px;font-size:13px}.sc-card .gt-btn{width:100%;margin-top:10px}}
 @media (max-width:480px){#gt-ov .gt-sc{font-size:30px}#gt-ov .gt-tm img{width:42px;height:42px}#gt-ov .gt-tn{font-size:13px}}
-.altrow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin-bottom:8px;font-family:var(--mono)}.altrow .altk{flex:1 0 100%;font-size:13px;letter-spacing:1px;color:var(--t3)}.altrow .altc{flex:1 1 150px;display:flex;flex-direction:column;gap:2px;padding:6px 9px;border-radius:3px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);cursor:pointer;min-width:0}.altrow .altc .alt1{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.altrow .altc .altp{font-family:var(--orb);font-size:16px;font-weight:700;color:var(--t)}.altrow .altc .alts{font-size:13px;color:var(--t2)}.altrow .altc .altw{font-size:12px;color:var(--t3)}.altrow .altc .pill{font-size:12px}
+.altrow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin-bottom:8px;font-family:var(--mono)}.altrow .altk{flex:1 0 100%;font-size:13px;letter-spacing:1px;color:var(--t3)}.altrow .altc{flex:1 1 150px;display:flex;flex-direction:column;gap:2px;padding:6px 9px;border-radius:3px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);cursor:pointer;min-width:0}.bmk2.bmk-adj{flex:1 0 100%;box-sizing:border-box;border:1px solid #f000ff;box-shadow:0 0 9px rgba(240,0,255,.6),inset 0 0 7px rgba(240,0,255,.2);cursor:pointer;margin-top:2px}.bmk2.bmk-adj.lockoff{cursor:default}.altrow .altc[role=button]{cursor:pointer}.altrow .altc.alt-top{border:1px solid #f000ff;box-shadow:0 0 9px rgba(240,0,255,.6),inset 0 0 7px rgba(240,0,255,.2)}.altrow .altc .alt1{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.altrow .altc .altp{font-family:var(--orb);font-size:16px;font-weight:700;color:var(--t)}.altrow .altc .alts{font-size:13px;color:var(--t2)}.altrow .altc .altw{font-size:12px;color:var(--t3)}.altrow .altc .pill{font-size:12px}
 .bmk2 .bmk2t{font-size:14px;padding:1px 6px;background:#0b0612;color:#fff;border-radius:2px;flex-shrink:0;font-weight:700}.bmk2 .bmk2k{font-size:13px;letter-spacing:1px;font-weight:700}.bmk2 .bmk2p{font-family:var(--orb);font-size:16px;font-weight:700}.bmk2 .bmk2s{font-size:14px;font-weight:700}
 /* GAME CARD */
 .gc{background:repeating-linear-gradient(45deg,rgba(255,255,255,.03) 0,rgba(255,255,255,.03) 1px,transparent 1px,transparent 5px),repeating-linear-gradient(-45deg,rgba(0,0,0,.2) 0,rgba(0,0,0,.2) 1px,transparent 1px,transparent 5px),rgba(34,36,46,.55);border:1px solid var(--w2);border-radius:3px;padding:12px;margin-bottom:7px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));backdrop-filter:blur(4px)}
@@ -5535,15 +5535,20 @@ function _mvmBarHTML(m){
 const _ALT_CFG={CFB:{OU:[['normal',14.7,1.9],3,9],SPREAD:[['normal',15.7,.8],3,10]},NFL:{OU:[['normal',13,0],3,8],SPREAD:[['normal',13.4,0],3,8]},
   NBA:{OU:[['table',[[0,.5],[2,.543],[3,.564],[4,.59],[5,.612],[6,.631],[7,.651],[8,.67],[10,.711]]],3,10],
       SPREAD:[['table',[[0,.5],[2,.566],[3,.598],[4,.631],[5,.659],[6,.682],[7,.707],[8,.735],[10,.781]]],3,10]}};
+// SOC = club soccer, totals AND Asian handicaps, side-neutral: table = [k goals of cushion, win probability] (scripts/backtest_alt_lines.py soccer).  Shown on the cards and lockable by tap; automatic locks do not use soccer adjusted lines.
+_ALT_CFG.SOC={OU:[['table',[[0,.5],[1,.736],[2,.899],[3,.977]]],1,3],SPREAD:[['table',[[0,.5],[1,.758],[2,.908],[3,.968]]],1,3]};   // 2,633 closing lines + 90-minute results (PL / La Liga / Serie A / UCL, 2024-25 + 2025-26): pooled side-neutral win rate at k goals of cushion; k=1 already clears the 67% target, so a soccer adjusted line is always ONE goal from the posted half-point line
 const _ALT_HK=new Set(['NHL','SHL','LIIGA','NLA','EXTRALIGA']);
+const _altUnit=sp=>(_ALT_HK.has(sp)||String(sp).indexOf('SOC')===0)?'goal':'pt';
 const _ALT_HK_BAND=[.60,.65],_ALT_HK_FLOOR=.58,_ALT_HK_TIE=.02,_ALT_HK_EDGE_W=.5,_ALT_HK_EDGE_CLAMP=[-.05,.08];
 const _ALT_HK_FLIP=false,_ALT_HK_FLIP_CEIL=.06,_ALT_HK_FLIP_OVERSHOOT=.08,_ALT_HK_FLIP_MAX_DROP=.02;   // OFF 2026-10-06 (owner, after review): side flips stay built but unused until real alt-line quotes/results exist (mirror of HOCKEY_ALT_FLIP in auto_lock_settle.py)
 function _altPoisCdf(k,mu){if(k<0)return 0;let term=Math.exp(-mu),tot=term;for(let i=1;i<=k;i++){term*=mu/i;tot+=term;}return Math.min(1,tot);}
 function _altPoisMu(own,anchor,p){const k=Math.floor(anchor);const f=mu=>own==='OVER'?1-_altPoisCdf(k,mu):_altPoisCdf(k,mu);let lo=.5,hi=15;for(let i=0;i<60;i++){const mid=(lo+hi)/2;if((f(mid)<p)===(own==='OVER'))lo=mid;else hi=mid;}return(lo+hi)/2;}
 const _ALT_HK_BASE0={'5.5':{OVER:.517,UNDER:.483},'6.5':{OVER:.474,UNDER:.526}};
 const _ALT_HK_NHL={'5.5':{'-3':.961,'-2':.848,'-1':.731,'1':.611,'2':.769,'3':.851},'6.5':{'-3':.879,'-2':.787,'-1':.589,'1':.736,'2':.831,'3':.915}};
-const _ALT_HK_EURO={LIIGA:{'-3':.915,'-2':.805,'-1':.609,'1':.707,'2':.833,'3':.915},SHL:{'-3':.911,'-2':.770,'-1':.590,'1':.714,'2':.840,'3':.916},
-  NLA:{'-3':.911,'-2':.805,'-1':.632,'1':.714,'2':.853,'3':.928},EXTRALIGA:{'-3':.866,'-2':.765,'-1':.600,'1':.755,'2':.835,'3':.908}};
+const _ALT_HK_EURO={LIIGA:{'-3':0.942,'-2':0.798,'-1':0.665,'1':0.667,'2':0.835,'3':0.901},
+  SHL:{'-3':0.943,'-2':0.768,'-1':0.647,'1':0.688,'2':0.842,'3':0.904},
+  NLA:{'-3':0.948,'-2':0.810,'-1':0.697,'1':0.652,'2':0.848,'3':0.906},
+  EXTRALIGA:{'-3':0.914,'-2':0.765,'-1':0.650,'1':0.714,'2':0.838,'3':0.895}};   // book basis (regulation + OT, no shootout goal) -- mirror of HOCKEY_OU_EURO in scripts/auto_lock_settle.py
 const _ALT_TARGET=.67,_ALT_FLOOR=.62,_ALT_VIG=.045;
 function _altProb(c,k){
   if(c[0]==='normal')return normalCDF((k+c[2])/c[1]);
@@ -5555,7 +5560,7 @@ function _altFinish(label,nl,p,posted,line,k,mkt){
   const dec=1/(p+_ALT_VIG);
   return{label:nl,prob:+p.toFixed(4),dec:+dec.toFixed(3),ml:dec<2?'-'+Math.round(100/(dec-1)):'+'+Math.round((dec-1)*100),posted,line,shift:k,postedLabel:label,mkt};
 }
-// neutral (CFB / NFL OTHER-SIDE rows, owner 2026-10-24): the ledger-fitted CFB curves carry a positive offset that belongs to the model's LEAN side (its picks win ~55% at the posted line); the side the model does
+// neutral (the OTHER-SIDE rows of CFB / NFL / hockey, owner 2026-10-24; for hockey it also means 'only when a line lands in or just above the band'): the ledger-fitted CFB curves carry a positive offset that belongs to the model's LEAN side (its picks win ~55% at the posted line); the side the model does
 // NOT lean to gets the same sigma with that offset removed (a market-neutral 50% at the posted line, the same assumption the NBA closing-line tables make), so it needs the larger cushion it really needs.
 function _altShift(sport,mkt,label,modelP,neutral){
   if(_ALT_HK.has(sport)){
@@ -5594,12 +5599,15 @@ function _altShift(sport,mkt,label,modelP,neutral){
         rf.flip=true;rf.edgeAdj=adj;rf.modelP=modelP;return rf;
       }
     }
+    // OTHER-SIDE total (neutral=true): shown only when a line really lands in or just above the 60-65% band -- no 3-goal 'fallback' to a very short price (a lean must be listed, the other side need not be)
+    if(neutral&&(!best||best.p>_ALT_HK_BAND[1]+_ALT_HK_FLIP_CEIL))return null;
     const pick=best||{mv:cands[3][0],line:cands[3][1],p:cands[3][2]};
     if(pick.mv===0)return null;
     const r=_altFinish(label,own+' '+pick.line.toFixed(1),pick.p,posted,pick.line,pick.mv,mkt);
     r.flip=false;r.edgeAdj=adj;r.modelP=modelP==null?null:modelP;return r;
   }
   const cfg=_ALT_CFG[sport]&&_ALT_CFG[sport][mkt];if(!cfg)return null;
+  if(sport==='SOC'){const m0=String(label).match(/([+-]?\d+(?:\.\d+)?)\s*$/);if(m0&&Math.abs(parseFloat(m0[1]))*2%1!==0)return null;}   // soccer quarter lines (2.25 / 2.75) are split stakes: no adjusted line
   let curve=cfg[0];const kmin=cfg[1],kmax=cfg[2];
   if(neutral&&curve[0]==='normal')curve=['normal',curve[1],0];
   let direction,team,posted,sign;
@@ -5613,27 +5621,33 @@ function _altShift(sport,mkt,label,modelP,neutral){
   return _altFinish(label,nl,p,posted,line,k,mkt);
 }
 window._altReg=window._altReg||{};
-function _altRowFor(sport,home,away,dateRaw,nm,off){
+function _altRowFor(sport,home,away,dateRaw,nm,off,opts){
   try{
+    const reg0=sport,calib=String(sport).indexOf('SOC_')===0?'SOC':sport;     // soccer: registry/labels keep the league tag (SOC_PL ...), the cushion table is the shared SOC one
+    const lockSport=opts&&opts.lockSport;
     if(!nm||!nm.mkts)return'';
     const best=(a,b)=>{const x=nm.mkts.find(m=>m.side===a),y=nm.mkts.find(m=>m.side===b);return x&&y?(x.prob>=y.prob?x:y):(x||y);};
     const d=new Date(dateRaw);const dateKey=isNaN(d)?String(dateRaw||'').slice(0,10):d.toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
     // NBA (2026-10-23) and CFB / NFL (2026-10-24) totals AND spreads show the adjusted line for BOTH sides: the cushion table is side-neutral, so an OVER moved down (or the other team's spread moved up) is as safe as the lean.
     // The model's lean side comes first; the other side carries its OWN posted-line grade plus an 'OTHER SIDE' tag. Automatic locks still only take the model's lean side.
-    const rowDefs=[['OU',best('over','under'),false],['SPREAD',best('sprdFav','sprdDog'),false]];
-    if(sport==='NBA'||sport==='CFB'||sport==='NFL'){        // CFB + NFL show both sides too (owner 2026-10-24): the OVER at an adjusted line was rarely on offer because the model usually leans UNDER
+    const SPR=calib==='SOC'?['ahFav','ahDog']:['sprdFav','sprdDog'];
+    const rowDefs=[['OU',best('over','under'),false],['SPREAD',best(SPR[0],SPR[1]),false]];
+    if(calib==='NBA'||calib==='CFB'||calib==='NFL'||calib==='SOC'||_ALT_HK.has(calib)){        // hockey totals too (NHL + the four European leagues, 2026-10-24: spreads have no hockey table, so only the OTHER TOTAL is added there); CFB + NFL show both sides too (owner 2026-10-24): the OVER at an adjusted line was rarely on offer because the model usually leans UNDER
       const oppOf=(sides,lean)=>lean&&nm.mkts.find(x=>sides.includes(x.side)&&x!==lean);
-      const oOU=oppOf(['over','under'],rowDefs[0][1]),oSP=oppOf(['sprdFav','sprdDog'],rowDefs[1][1]);
+      const oOU=oppOf(['over','under'],rowDefs[0][1]),oSP=oppOf(SPR,rowDefs[1][1]);
       if(oOU)rowDefs.splice(1,0,['OU',oOU,true]);                    // lean total, other total, lean spread, other spread
       if(oSP)rowDefs.push(['SPREAD',oSP,true]);
     }
     // drop every line this game registered on an earlier render: a line the model no longer adjusts (probability moved past the threshold) must not stay listed / lockable in TOP ADJUSTED LINES
     {const pre=sport+'|'+dateKey+'|'+home+'|'+away+'|';Object.keys(window._altReg).forEach(k=>{if(k.indexOf(pre)===0)delete window._altReg[k];});}
-    const chips=rowDefs.map(([mkt,m,isOpp])=>{
-      if(!m)return'';const alt=_altShift(sport,mkt,m.label,m.prob,!!isOpp&&(sport==='CFB'||sport==='NFL'));if(!alt)return'';
+    // the TOP adjusted line of this game (highest estimated probability among the options shown, lean first on a tie) gets the neon magenta border (owner 2026-10-24)
+    let topI=-1,topP=-1,topInfo=null;
+    rowDefs.forEach(([mkt,m,isOpp],i)=>{if(!m)return;const a=_altShift(calib,mkt,m.label,m.prob,!!isOpp&&(calib==='CFB'||calib==='NFL'||calib==='SOC'||_ALT_HK.has(calib)));if(a&&a.prob>topP+1e-9){topP=a.prob;topI=i;}});
+    const chips=rowDefs.map(([mkt,m,isOpp],ci)=>{
+      if(!m)return'';const alt=_altShift(calib,mkt,m.label,m.prob,!!isOpp&&(calib==='CFB'||calib==='NFL'||calib==='SOC'||_ALT_HK.has(calib)));if(!alt)return'';
       alt.postedDec=m.dec!=null?m.dec:null;alt.postedMl=m.ml!=null?String(m.ml):null;alt.postedProb=m.rawProb!=null?m.rawProb:(m.prob!=null?m.prob:null);   // the ORIGINAL posted price, kept with the pick (postedProb = the model's own number, pre-ceiling -- see MARKET_P_CEILING)
       const key=sport+'|'+dateKey+'|'+home+'|'+away+'|'+mkt+(isOpp?'|opp':'');
-      window._altReg[key]={sport,hA:home,awA:away,date:dateKey,alt};
+      window._altReg[key]={sport,hA:home,awA:away,date:dateKey,alt,lockSport:lockSport||null};
       // The badge grades the ADJUSTED line by its own win probability (PREMIUM 67%+, OPTIMAL 62%+, LEAN 55%+ -- the prop bands), because an adjusted line only exists for a pick the posted line did not grade
       // well (hockey totals are adjusted precisely when the posted line is under the 56% lane floor, so they always read SKIP there). The posted line's grade is kept, small, beside it.
       const ap=alt.prob;
@@ -5641,9 +5655,13 @@ function _altRowFor(sport,home,away,dateRaw,nm,off){
       const cls=lb==='PREMIUM'?'pg':lb==='OPTIMAL'?'pp':lb==='LEAN'?'pn':'';
       const postedLb=['SKIP','LEAN','OPTIMAL','PREMIUM'][m.tierN]||'';
       const sh=alt.shift%1===0?alt.shift:alt.shift.toFixed(1);
-      return`<div class="altc"${off?'':` onclick="event.stopPropagation();_lockAltKey('${key.replace(/'/g,"\\'")}')"`}><div class="alt1"><span class="altp">${_escHtml(alt.label)}</span>${lb?`<span class="pill ${cls}">${lb}</span>`:''}${postedLb?`<span class="altpg" style="font-size:11px;letter-spacing:1px;color:var(--t3);margin-left:6px">POSTED ${postedLb}</span>`:''}${isOpp?'<span class="altos" style="font-size:11px;letter-spacing:1px;color:var(--t3);margin-left:6px">OTHER SIDE</span>':''}</div><div class="alts">${Math.round(alt.prob*100)}% · est ${alt.ml} · ${_ALT_HK.has(sport)?(alt.flip?'FLIPS SIDE · ':'')+sh+(+sh===1?' goal':' goals'):'+'+sh+' pts'}</div><div class="altw">posted ${_escHtml(alt.postedLabel)} · ${Math.round(m.prob*100)}%</div></div>`;
+      const lockAttr=off?'':` role="button" tabindex="0" onclick="event.stopPropagation();_lockAltKey('${key.replace(/'/g,"\\'")}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();_lockAltKey('${key.replace(/'/g,"\\'")}')}"`;
+      if(ci===topI)topInfo={key,alt,lb,cls:cls||'pn',lockAttr};
+      return`<div class="altc${ci===topI?' alt-top':''}"${ci===topI?' title="Top adjusted line for this game"':''}${lockAttr}><div class="alt1"><span class="altp">${_escHtml(alt.label)}</span>${lb?`<span class="pill ${cls}">${lb}</span>`:''}${postedLb?`<span class="altpg" style="font-size:11px;letter-spacing:1px;color:var(--t3);margin-left:6px">POSTED ${postedLb}</span>`:''}${isOpp?'<span class="altos" style="font-size:11px;letter-spacing:1px;color:var(--t3);margin-left:6px">OTHER SIDE</span>':''}</div><div class="alts">${Math.round(alt.prob*100)}% · est ${alt.ml} · ${_altUnit(sport)==='goal'?(alt.flip?'FLIPS SIDE · ':'')+sh+(+sh===1?' goal':' goals'):'+'+sh+' pts'}</div><div class="altw">posted ${_escHtml(alt.postedLabel)} · ${Math.round(m.prob*100)}%</div></div>`;
     }).join('');
-    return chips?`<div class="altrow${off?' lockoff':''}"${off?' inert aria-disabled="true"':''}><div class="altk">${off?'ADJ. LINE · LOCKS CLOSED · EST. PRICE':'ADJ. LINE · LOCKS HERE · TAP TO LOCK · EST. PRICE'}</div>${chips}</div>`:'';
+    // BEST ADJUSTED LINE: the same option the magenta border marks, restated under the boxes as a strip (tap it to lock that line too)
+    const bestStrip=topInfo?`<div class="bmk2 ${topInfo.cls} bmk-adj${off?' lockoff':''}"${off?' inert aria-disabled="true"':topInfo.lockAttr} title="Best adjusted line for this game"><span class="bmk2t">${topInfo.lb}</span><span class="bmk2k">BEST ADJUSTED LINE</span><span class="bmk2p">${_escHtml(topInfo.alt.label)}</span><span class="bmk2s">${Math.round(topInfo.alt.prob*100)}%</span></div>`:'';
+    return chips?`<div class="altrow${off?' lockoff':''}"${off?' inert aria-disabled="true"':''}><div class="altk">${off?'ADJ. LINE · LOCKS CLOSED · EST. PRICE':'ADJ. LINE · LOCKS HERE · TAP TO LOCK · EST. PRICE'}</div>${chips}${bestStrip}</div>`:'';
   }catch(e){return'';}
 }
 function _altLineRowHTML(sport,g,nm,off){return _altRowFor(sport,g.home,g.away,g.date,nm,off);}
@@ -5675,15 +5693,15 @@ function _altReasoning(label,p,postedLabel,postedProb,shift,unit,modelLine){
 }
 async function _lockAltKey(key){
   const r=window._altReg[key];if(!r)return;const a=r.alt;
-  await lockPick(r.hA,r.awA,r.sport,a.label,a.prob,a.ml,a.dec,r.date,undefined,a.mkt,{priceSource:'estimated',reasoning:_altReasoning(a.label,a.prob,a.postedLabel,a.postedProb!=null?a.postedProb:null,a.shift,_ALT_HK.has(r.sport)?'goal':'pt',_altModelLine(r.hA,r.awA,a.mkt,a.postedLabel)),altLine:{posted:a.posted,line:a.line,shift:a.shift,postedLabel:a.postedLabel,postedDec:a.postedDec,postedMl:a.postedMl,...(a.flip!=null?{flip:a.flip}:{})}});
+  await lockPick(r.hA,r.awA,r.lockSport||r.sport,a.label,a.prob,a.ml,a.dec,r.date,undefined,a.mkt,{priceSource:'estimated',reasoning:_altReasoning(a.label,a.prob,a.postedLabel,a.postedProb!=null?a.postedProb:null,a.shift,_altUnit(r.sport),_altModelLine(r.hA,r.awA,a.mkt,a.postedLabel)),altLine:{posted:a.posted,line:a.line,shift:a.shift,postedLabel:a.postedLabel,postedDec:a.postedDec,postedMl:a.postedMl,...(a.flip!=null?{flip:a.flip}:{})}});
 }
-function _bestMarketBoxHTML(tierN,tierCol,tierLabel,bestLabel,bestProb,bestEvVal){
+function _bestMarketBoxHTML(tierN,tierCol,tierLabel,bestLabel,bestProb,bestEvVal,kicker){
   if(!(tierN>0))return'';
   // Filled with the full colour of the grade (same colours as the .pill tag), pick in dark type; the grade itself sits in a dark chip.
   const cls=tierLabel==='PREMIUM'?'pg':tierLabel==='OPTIMAL'?'pp':tierLabel===HOCKEY_LANE_LABEL?'pq':'pn';
   return`<div class="bmk2 ${cls}">`
     +`<span class="bmk2t">${tierLabel}</span>`
-    +`<span class="bmk2k">BEST MARKET</span>`
+    +`<span class="bmk2k">${kicker||'BEST UNADJUSTED MARKET'}</span>`
     +`<span class="bmk2p">${bestLabel}</span>`
     +`<span class="bmk2s">${Math.round(bestProb*100)}%</span>`
     +`</div>`;
@@ -9978,11 +9996,6 @@ function _cfbGameCard(g){
       ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}${_altLineRowHTML('CFB',g,nm,!!(liveStatus&&!liveStatus.isLive))}
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+_gradeName(m)).join(' · ')}</div>
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">ENSEMBLE: MC ${(ens.mc*100).toFixed(0)}% / BAY ${(ens.bay*100).toFixed(0)}% / ELO ${(ens.elo*100).toFixed(0)}% win prob (weighted MC/BAY/ELO ${(100-ens.eloWeight*100).toFixed(0)}%/ELO ${(ens.eloWeight*100).toFixed(0)}% blend applied — see MODEL tab to adjust)</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">MONEYLINE REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${mlReasoning}</div></div>
-        <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">SPREAD REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${sprdReasoning}</div></div>
-        <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">O/U REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${ouReasoning}</div></div>
-      </div>
     </div>
   </div>`;
 }
@@ -10991,11 +11004,6 @@ function _nflGameCard2(g){
       ${_mcProjBarHTML({avgH:mc.avgH,avgA:mc.avgA,avgT:mc.avgTotal,overP:overU},ouL.toFixed(1),g.home,g.away,{n:mc.n,dec:1})}
       ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}${_altLineRowHTML('NFL',g,nm,!!(liveStatus&&!liveStatus.isLive))}
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+_gradeName(m)).join(' · ')}</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">MONEYLINE REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${mlReasoning}</div></div>
-        <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">SPREAD REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${sprdReasoning}</div></div>
-        <div><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1.5px;margin-bottom:4px">O/U REASONING</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${ouReasoning}</div></div>
-      </div>
     </div>
   </div>`;
 }
@@ -15337,12 +15345,6 @@ const espnSprdNum=-_sprdL;const sprdFav=_mktFav;const sprdLbl=sprdFav+' '+espnSp
       <span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>
     </div>
     ${_mcProjBarHTML(nbaEnsD?.mcD,ouL||220,hn,an,{dec:1})}
-    ${nbaEnsD?.mcD?_recommendedLineHTML({
-      recSpreadFav:(nbaEnsD.mcD.spread||0)>=0?hn:an,recSpreadNum:_forceHalfLine(Math.abs(nbaEnsD.mcD.spread||0)),
-      recOU:_forceHalfLine(nbaEnsD.mcD.avgT),
-      mktSpreadFav:_sprdMkt?_mktFav:null,mktSpreadNum:_sprdMkt?_sprdL.toFixed(1):null,
-      mktOU:ouL!=null?parseFloat(ouL).toFixed(1):null,
-    }):''}
     ${pre?_bestMarketBoxHTML(topTier,topTierCol,topTierLabel,_bmNBA.label,_bmNBA.prob,_bmNBA.evVal)+_mvmBarHTML(_bmNBA):''}${_altRowFor('NBA',hn,an,espnEv.date,_nmNBA,!(pre||live))}
     <div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">${explanation}</div>
     <div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: ${_nmNBA.mkts.map(m=>m.label+':'+_gradeName(m)).join(' · ')}</div>
@@ -20780,7 +20782,7 @@ function _topAdjEntries(){
 const TOP_ADJ_LEAGUE_N={CFB:10,NFL:7},TOP_ADJ_DEFAULT_N=5;
 function _topAdjRank(e){return e.alt.prob*100-(e.weakKind?100:0);}
 function _topAdjRowHTML(e){
-  const a=e.alt,col=_gradeColVar(e.lbl),unit=_ALT_HK.has(e.sport)?'goal':'pt',sh=a.shift%1===0?a.shift:(+a.shift).toFixed(1);
+  const a=e.alt,col=_gradeColVar(e.lbl),unit=_altUnit(e.sport),sh=a.shift%1===0?a.shift:(+a.shift).toFixed(1);
   const lk=e.lock,lv=e.live,lkOut=lk&&(lk.outcome==='win'||lk.outcome==='loss')?lk.outcome:null;
   const bad=e.outcome==='win'?'#00e644':e.outcome==='loss'?'#ff1a1a':null;      // row stripe: green / red once the line has a result (locked or graded from the final score)
   const started=lv&&(lv.state==='in'||lv.state==='post'||lv.state==='void');
@@ -29879,17 +29881,12 @@ function _renderSocMatchCardRaw(g,leagueKey){
     +'<span style="font-family:var(--mono);font-size:14px;color:var(--t3)">ENGINE REASONING</span>'
     +'</div>'
     +_mcProjBarHTML(mc,ouL,g.home,g.away,{dec:2})
-    +_recommendedLineHTML({
-      recSpreadFav:null,recSpreadNum:null, // soccer's 3-way ML/draw market has no point-spread equivalent
-      recOU:_forceHalfLine(mc.avgT),
-      mktSpreadFav:null,mktSpreadNum:null,
-      mktOU:g.ou!=null?parseFloat(g.ou).toFixed(1):null,
-    })
     // Standalone BEST MARKET callout -- same glowing tier-colored box CFB/
     // NFL game cards use, added here 2026-09-16 alongside the goal-spread
     // reasoning sentence above so the actual pick pops instead of only
     // showing up as inline text buried inside the paragraph below.
     +_bestMarketBoxHTML(topT,topCol,topLabel,_bm.label,_bm.prob,_bm.evVal)
+    +_altRowFor('SOC_'+String(leagueKey).toUpperCase(),g.home,g.away,g.date,_mkts,false,{lockSport:_lockType})
     +'<div style="font-family:var(--mono);font-size:16px;color:var(--t2);line-height:1.7">'+explanation+'</div>'
     +'<div style="margin-top:6px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.05);padding-top:5px">MARKET SCAN: '+_mkts.mkts.map(function(m){return m.label+':'+_gradeName(m);}).join(' · ')+'</div>'
     +'</div>'

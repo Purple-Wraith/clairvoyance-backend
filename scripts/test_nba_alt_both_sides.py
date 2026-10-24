@@ -87,7 +87,6 @@ class BothSides(unittest.TestCase):
         c = [x for x in r["chips"] if x["label"].startswith("UNDER")][0]
         self.assertEqual(c["posted"], "SKIP")                                     # the posted line really is SKIP ...
         self.assertIn(c["grade"], ("LEAN", "OPTIMAL", "PREMIUM"))                  # ... but the adjusted line (about 60-65% to win) is graded for what it is
-        self.assertEqual(r["other"], 0)                                           # hockey still shows one chip, no other side
 
     def football(self, sport):
         return [dict(m, label=m["label"].replace("236.5", "45.5")) for m in MKTS] if sport == "CFB" else [dict(m, label=m["label"].replace("236.5", "47.5")) for m in MKTS]
@@ -121,10 +120,42 @@ class BothSides(unittest.TestCase):
             else:
                 self.assertAlmostEqual(co, cu, places=6)                                                        # NFL's curve has no offset: both sides alike
 
-    def test_hockey_still_shows_one_total_chip(self):
-        mk = [{"side": "under", "label": "UNDER 6.5", "prob": .52, "tierN": 0, "dec": 1.91, "ml": "-110"}, {"side": "over", "label": "OVER 6.5", "prob": .48, "tierN": 0, "dec": 1.91, "ml": "-110"}]
-        r = self.pg.evaluate(CHIP_JS.replace("'PHI','CLE'", "'BOS','NSH'"), ["NHL", mk])
-        self.assertEqual(len([c for c in r["chips"] if re.match(r"(OVER|UNDER) ", c["label"])]), 1); self.assertEqual(r["other"], 0)
+    def test_hockey_shows_the_other_total_when_a_line_lands_in_the_band_and_only_then(self):
+        both = [{"side": "under", "label": "UNDER 6.5", "prob": .52, "tierN": 0, "dec": 1.91, "ml": "-110"}, {"side": "over", "label": "OVER 6.5", "prob": .48, "tierN": 0, "dec": 1.91, "ml": "-110"}]
+        r = self.pg.evaluate(CHIP_JS.replace("'PHI','CLE'", "'BOS','NSH'"), ["NHL", both])
+        totals = [c for c in r["chips"] if re.match(r"(OVER|UNDER) ", c["label"])]
+        self.assertEqual(len(totals), 2); self.assertEqual(r["other"], 1)         # lean UNDER and the OVER, each moved by its own table
+        for lg in ("LIIGA", "SHL", "NLA", "EXTRALIGA"):
+            mk = [dict(m, label=m["label"].replace("6.5", "5.5")) for m in both]
+            rr = self.pg.evaluate(CHIP_JS.replace("'PHI','CLE'", "'AAA','BBB'"), [lg, mk])
+            self.assertEqual(rr["other"], 1, lg)
+        # the model strongly likes the UNDER (lane: the lean keeps its posted line, no chip) and the OVER is a long shot: nothing lands near the band, so no OVER chip either
+        lean = [dict(both[0], prob=.70), dict(both[1], prob=.30)]
+        r2 = self.pg.evaluate(CHIP_JS.replace("'PHI','CLE'", "'BOS','NSH'"), ["NHL", lean])
+        self.assertEqual([c["label"] for c in r2["chips"]], [])
+
+    SOC = [{"side": "under", "label": "UNDER 2.5", "prob": .56, "tierN": 1, "dec": 1.91, "ml": "-110"}, {"side": "over", "label": "OVER 2.5", "prob": .44, "tierN": 0, "dec": 1.91, "ml": "-110"},
+           {"side": "ahDog", "label": "Chelsea +0.5", "prob": .55, "tierN": 1, "dec": 1.91, "ml": "-110"}, {"side": "ahFav", "label": "Arsenal -0.5", "prob": .45, "tierN": 0, "dec": 1.91, "ml": "-110"}]
+
+    def test_soccer_cards_show_both_sides_of_the_total_and_the_handicap_one_goal_from_the_line(self):
+        r = self.pg.evaluate(CHIP_JS.replace("'PHI','CLE'", "'Arsenal','Chelsea'"), ["SOC_PL", self.SOC])
+        chips = {c["label"]: c for c in r["chips"]}
+        self.assertIn("UNDER 3.5", chips); self.assertIn("OVER 1.5", chips)                                  # total moved ONE goal toward safety on each side
+        self.assertIn("Chelsea +1.5", chips); self.assertIn("Arsenal +0.5", chips)                           # the handicap too: the dog's +0.5 -> +1.5, the favourite's -0.5 -> +0.5
+        self.assertEqual(len(r["chips"]), 4); self.assertEqual(r["other"], 2)
+        for c in r["chips"]:
+            self.assertIn(c["grade"], ("PREMIUM", "OPTIMAL", "LEAN", "SKIP"))
+        self.assertEqual([c["other"] for c in r["chips"]], [False, True, False, True])                       # lean first
+
+    def test_soccer_quarter_lines_get_no_adjusted_line(self):
+        mk = [dict(m, label=m["label"].replace("2.5", "2.75")) for m in self.SOC[:2]]
+        r = self.pg.evaluate(CHIP_JS.replace("'PHI','CLE'", "'Arsenal','Chelsea'"), ["SOC_PL", mk])
+        self.assertEqual(r["chips"], [])
+
+    def test_the_soccer_lock_goes_through_the_leagues_own_sport_tag(self):
+        self.pg.evaluate("""([m])=>{saveP([]);window._altReg={};_altRowFor('SOC_PL','Arsenal','Chelsea','2026-12-30T01:00Z',{mkts:m},false,{lockSport:'PL_SOC'})}""", [self.SOC])
+        ent = self.pg.evaluate("Object.values(window._altReg)")
+        self.assertTrue(all(e["sport"] == "SOC_PL" and e["lockSport"] == "PL_SOC" for e in ent))            # listed under Premier League, locked as a PL_SOC pick
 
     def test_the_football_other_side_is_lockable_and_listed_in_top_adjusted_lines(self):
         self.row("CFB", self.football("CFB"))

@@ -130,7 +130,7 @@ def scrape_teams(context, base: str, scopes=SCOPES, lines=LINES, log: Callable =
                 rows = _read(page, base, scope, line)
                 sig = tuple(sorted((k, v["over"], v["under"]) for k, v in rows.items()))
                 for (sc2, ln2), other in sigs.items():
-                    if sc2 == scope and sig and sig == other:
+                    if sc2 == scope and sig and sig == other and min(line, ln2) >= 3.5:      # (below 3.5 a small sample can legitimately repeat: no game with exactly 1 or 2 goals)
                         raise RuntimeError(f"{scope} {line} shows the same table as {scope} {ln2} (stale page) -- refusing to use it")
                 sigs[(scope, line)] = sig
                 for fsid, r in rows.items():

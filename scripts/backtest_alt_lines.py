@@ -90,6 +90,65 @@ def _pois(k: int, mu: float) -> float:
     return math.exp(-mu + k * math.log(mu) - math.lgamma(k + 1))
 
 
+# ───────────────────────── soccer (PL / La Liga / Serie A / Champions League) ─────────────────────────
+# Closing DraftKings totals + handicaps and 90-minute results from ESPN's public APIs, two seasons (2024-25, 2025-26).  Answers the question the cushion curves need, market-neutral:
+# given a posted line, how often does the side win at the line moved k goals toward safety.
+SOC_LEAGUES = {"PL": "eng.1", "LIGA": "esp.1", "SERIEA": "ita.1", "CL": "uefa.champions"}
+SOC_SEASONS = {"2024-25": (date(2024, 8, 10), date(2025, 6, 1)), "2025-26": (date(2025, 8, 10), date(2026, 5, 31))}
+
+
+def load_soccer(cache: Path) -> list[dict]:
+    f = cache / "soccer_odds_hist.json"
+    if f.exists():
+        return json.loads(f.read_text())
+    cache.mkdir(parents=True, exist_ok=True)
+    out: list[dict] = []
+    for lg, code in SOC_LEAGUES.items():
+        for season, (a, b) in SOC_SEASONS.items():
+            days, d = [], a
+            while d <= b:
+                days.append(d)
+                d += timedelta(days=1)
+
+            def day(d, code=code, lg=lg, season=season):
+                j = H._get(f"https://site.api.espn.com/apis/site/v2/sports/soccer/{code}/scoreboard", {"dates": d.strftime("%Y%m%d"), "limit": 100})
+                res = []
+                for e in (j or {}).get("events", []):
+                    c = e["competitions"][0]
+                    st = c["status"]["type"]
+                    if st.get("name") != "STATUS_FULL_TIME":          # 90-minute results only (no extra time / penalties, no postponed)
+                        continue
+                    hm = [x for x in c["competitors"] if x["homeAway"] == "home"][0]
+                    aw = [x for x in c["competitors"] if x["homeAway"] == "away"][0]
+                    res.append(dict(lg=lg, season=season, eid=e["id"], code=code, date=e["date"], home=hm["team"]["displayName"], away=aw["team"]["displayName"], hs=int(hm["score"]), as_=int(aw["score"])))
+                return res
+
+            with ThreadPoolExecutor(6) as ex:
+                games = [g for l in ex.map(day, days) for g in l]
+            print(f"  {lg} {season}: {len(games)} finished games", file=sys.stderr)
+
+            def odds(g):
+                j = H._get(f"https://sports.core.api.espn.com/v2/sports/soccer/leagues/{g['code']}/events/{g['eid']}/competitions/{g['eid']}/odds")
+                items = (j or {}).get("items") or []
+                pre = [i for i in items if "live" not in (i.get("provider") or {}).get("name", "").lower() and i.get("overUnder") is not None]
+                if not pre:
+                    return None
+                it = pre[0]
+                for i in pre:
+                    if (i.get("provider") or {}).get("name", "").lower().startswith("draft"):
+                        it = i
+                return dict(ou=it.get("overUnder"), overOdds=it.get("overOdds"), underOdds=it.get("underOdds"), spread=it.get("spread"),
+                            homeFav=(it.get("homeTeamOdds") or {}).get("favorite"), awayFav=(it.get("awayTeamOdds") or {}).get("favorite"),
+                            hML=(it.get("homeTeamOdds") or {}).get("moneyLine"), aML=(it.get("awayTeamOdds") or {}).get("moneyLine"), dML=(it.get("drawOdds") or {}).get("moneyLine"))
+
+            with ThreadPoolExecutor(6) as ex:
+                for g, o in zip(games, ex.map(odds, games)):
+                    g["odds"] = o
+            out += games
+    f.write_text(json.dumps(out))
+    return out
+
+
 def over_under(p: dict, x: float) -> tuple[float, float]:
     return sum(v for t, v in p.items() if t > x), sum(v for t, v in p.items() if t < x)
 
@@ -247,6 +306,23 @@ def table_at(p: dict, l0: float) -> dict:
     return {j: (over_under(p, l0 + j)[0] if j < 0 else over_under(p, l0 + j)[1]) for j in (-3, -2, -1, 1, 2, 3)}
 
 
+# REGULATION -> BOOK BASIS (2026-10-24).  Flashscore's Over/Under standings count REGULATION goals only (verified: 128/128 NHL 2025-26 team x line cells; NLA and Extraliga 56/56 each), but sportsbooks settle
+# totals on regulation + OVERTIME (the shootout goal excluded), and so does this app's settler.  A game level after 60 minutes has an EVEN regulation total R; if overtime decides it the book total is R+1,
+# if the shootout decides it, R.  So moving the OT-decided mass from R to R+1 turns a regulation pmf into the book-basis pmf.  OT_TIED[R] = share of games with regulation total R that finished level AND were
+# decided in overtime: NHL 2022-23..2025-26, 5,248 games (scripts/backtest_hockey_models.py results cache); stable by season (R=4: .343 .297 .311 .348).  The same share is used for the four European leagues: their
+# measured overtime / shootout split of level games (54-74% in OT, NHL 63%) is close, and the tie probability depends on the total, not the league.
+OT_TIED = {0: 0.647, 2: 0.460, 4: 0.323, 6: 0.267, 8: 0.202, 10: 0.196}
+
+
+def to_book_basis(pm: dict) -> dict:
+    out = dict(pm)
+    for r, f in OT_TIED.items():
+        m = pm.get(r, 0.0) * f
+        out[r] = out.get(r, 0.0) - m
+        out[r + 1] = out.get(r + 1, 0.0) + m
+    return out
+
+
 def _fmt_tab(l0: float, tab: dict) -> str:
     return f"anchor {l0}: " + "  ".join(f"{j:+d}:{tab[j]:.3f}" for j in tab)
 
@@ -284,9 +360,14 @@ def cmd_euro_archive(cache: Path, refresh: bool = False) -> None:
         pm, notes = pmf_from_survival(Sc)
         mean = sum(t * q for t, q in pm.items())
         l0, tab = table_from(pm)
-        print(f"[combined, n={n1 + n2:.0f} games, weights {n1 / (n1 + n2):.0%}/{n2 / (n1 + n2):.0%}] mean total {mean:.3f}")
+        print(f"[combined, n={n1 + n2:.0f} games, weights {n1 / (n1 + n2):.0%}/{n2 / (n1 + n2):.0%}] mean total {mean:.3f}   (regulation basis, as Flashscore counts)")
         print(f"   {_fmt_tab(l0, tab)}")
-        print(f"   table = {json.dumps({str(j): round(v, 3) for j, v in tab.items()})}\n")
+        print(f"   table = {json.dumps({str(j): round(v, 3) for j, v in tab.items()})}")
+        pb = to_book_basis(pm)
+        l0b, tabb = table_from(pb)
+        fixed = table_at(pb, 5.5)
+        print(f"   BOOK BASIS (regulation + OT, shootout goal excluded): mean total {sum(t * q for t, q in pb.items()):.3f}; {_fmt_tab(l0b, tabb)}")
+        print(f"   book table anchored at 5.5 = {json.dumps({str(j): round(v, 3) for j, v in fixed.items()})}   <- HOCKEY_OU_EURO[{lg.upper()!r}]\n")
 
 
 def cmd_nhl_check(cache: Path) -> None:
@@ -343,6 +424,61 @@ def cmd_nhl(cache: Path) -> None:
             print(f"     k={k}: OVER {L-k} wins {ov:.1%} (push {ps_o:.1%})   UNDER {L+k} wins {un:.1%} (push {ps_u:.1%})")
 
 
+def cmd_soccer(cache: Path) -> None:
+    """Side-neutral cushion tables for soccer totals and Asian handicaps from closing lines: win rate of the side moved k goals toward safety vs the posted half-point line."""
+    games = [g for g in load_soccer(cache) if g.get("odds") and g["odds"].get("ou") is not None]
+    print(f"soccer games with a closing total: {len(games)}  ({', '.join(f'{lg} {sum(1 for g in games if g['lg'] == lg)}' for lg in SOC_LEAGUES)})")
+    half = lambda x: x is not None and abs(x * 2 - round(x * 2)) < 1e-9 and abs(x - round(x)) > 1e-9
+    # ── totals ──
+    tot = [(float(g["odds"]["ou"]), g["hs"] + g["as_"]) for g in games if half(float(g["odds"]["ou"]))]
+    by = defaultdict(list)
+    for L, t in tot:
+        by[L].append(t)
+    print("\nposted total -> n, mean goals, P(over L):")
+    for L in sorted(by):
+        if len(by[L]) >= 30:
+            print(f"  {L}: n={len(by[L])} mean {statistics.mean(by[L]):.2f} P(over) {sum(1 for t in by[L] if t > L) / len(by[L]):.3f}")
+    print("\nTOTALS: win rate at the line moved k goals toward safety (OVER L-k / UNDER L+k), by posted line:")
+    pooled = defaultdict(list)
+    for L in sorted(by):
+        ts = by[L]
+        if len(ts) < 30:
+            continue
+        row = []
+        for k in (0, 1, 2, 3):
+            ov = sum(1 for t in ts if t > L - k) / len(ts)
+            un = sum(1 for t in ts if t < L + k) / len(ts)
+            row.append(f"k={k}: over {ov:.3f} under {un:.3f} avg {(ov + un) / 2:.3f}")
+            pooled[k] += [((1 if t > L - k else 0) + (1 if t < L + k else 0)) / 2 for t in ts]
+        print(f"  L={L} n={len(ts)}  " + " | ".join(row))
+    print("  POOLED side-neutral:", "  ".join(f"{k}:{statistics.mean(v):.3f}" for k, v in sorted(pooled.items())), f"(n={len(pooled[0])})")
+    # ── handicaps ──
+    sp = []
+    for g in games:
+        o = g["odds"]
+        if o.get("spread") is None or not half(float(o["spread"])):
+            continue
+        sp.append((float(o["spread"]), g["hs"] - g["as_"]))
+    if sp:
+        neg = [m for s_, m in sp if s_ < 0]; pos = [m for s_, m in sp if s_ > 0]
+        print(f"\nHANDICAP orientation check: spread<0 n={len(neg)} home win rate {sum(1 for m in neg if m > 0) / max(1, len(neg)):.3f};  spread>0 n={len(pos)} home win rate {sum(1 for m in pos if m > 0) / max(1, len(pos)):.3f}")
+        print("HANDICAPS (home-perspective spread, half-lines): win rate of the side moved k goals toward safety, by |spread|:")
+        pooled = defaultdict(list)
+        for ab in sorted({abs(s_) for s_, _ in sp}):
+            rows = [(s_, m) for s_, m in sp if abs(s_) == ab]
+            if len(rows) < 30:
+                continue
+            out = []
+            for k in (0, 1, 2, 3):
+                # home covers (home spread s): margin + s > 0 ; moved toward safety for the HOME side: margin + s + k > 0 ; for the AWAY side: -(margin + s) + k > 0
+                hw = [1 if m + s_ + k > 0 else 0 for s_, m in rows]
+                aw = [1 if -(m + s_) + k > 0 else 0 for s_, m in rows]
+                out.append(f"k={k}: home {statistics.mean(hw):.3f} away {statistics.mean(aw):.3f} avg {(statistics.mean(hw) + statistics.mean(aw)) / 2:.3f}")
+                pooled[k] += [(h + a) / 2 for h, a in zip(hw, aw)]
+            print(f"  |spread|={ab} n={len(rows)}  " + " | ".join(out))
+        print("  POOLED side-neutral:", "  ".join(f"{k}:{statistics.mean(v):.3f}" for k, v in sorted(pooled.items())), f"(n={len(pooled[0])})")
+
+
 def cmd_nba(cache: Path) -> None:
     games = load_nba(cache)
     tot = [(float(g["odds"]["ou"]), g["hs"] + g["as_"]) for g in games if (g.get("odds") or {}).get("ou")]
@@ -369,7 +505,7 @@ def cmd_nba(cache: Path) -> None:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["nhl", "nba", "euro", "euro-archive"])
+    ap.add_argument("cmd", choices=["nhl", "nba", "euro", "euro-archive", "soccer"])
     ap.add_argument("--cache", default="/tmp/cv_alt_bt")
     ap.add_argument("--refresh", action="store_true", help="euro-archive: re-scrape Flashscore instead of using the cached JSON")
     a = ap.parse_args()
@@ -377,5 +513,7 @@ if __name__ == "__main__":
     if a.cmd == "euro-archive":
         cmd_euro_archive(cache, a.refresh)
         cmd_nhl_check(cache)
+    elif a.cmd == "soccer":
+        cmd_soccer(cache)
     else:
         {"nhl": cmd_nhl, "nba": cmd_nba, "euro": cmd_euro}[a.cmd](cache)

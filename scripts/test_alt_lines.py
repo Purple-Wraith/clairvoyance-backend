@@ -197,8 +197,15 @@ class AltLine(unittest.TestCase):
         for sport, table in A.HOCKEY_OU_EURO.items():
             self.assertNotEqual(table, A.HOCKEY_OU_NHL[5.5])
             self.assertNotEqual(table, A.HOCKEY_OU_NHL[6.5])
-        self.assertAlmostEqual(A._alt_shift_leg(leg("LIIGA", "over", "OVER 5.5", prob=None))["prob"], 0.609, places=3)
-        self.assertAlmostEqual(A._alt_shift_leg(leg("NLA", "over", "OVER 5.5", prob=None))["prob"], 0.632, places=3)
+        self.assertAlmostEqual(A._alt_shift_leg(leg("LIIGA", "over", "OVER 5.5", prob=None))["prob"], 0.665, places=3)     # book basis (was 0.609 on Flashscore's regulation-only counts)
+        self.assertAlmostEqual(A._alt_shift_leg(leg("NLA", "over", "OVER 5.5", prob=None))["prob"], 0.697, places=3)       # (was 0.632)
+
+    def test_european_tables_are_on_the_book_basis_regulation_plus_overtime(self):
+        old = {"LIIGA": {-1: .609, 1: .707}, "SHL": {-1: .590, 1: .714}, "NLA": {-1: .632, 1: .714}, "EXTRALIGA": {-1: .600, 1: .755}}   # the regulation-only tables this replaced
+        for lg, t in A.HOCKEY_OU_EURO.items():
+            self.assertGreater(t[-1] - old[lg][-1], 0.03, lg)           # OVER 4.5 was understated by the overtime goal of games level after 60 minutes
+            self.assertLess(t[1] - old[lg][1], -0.02, lg)               # UNDER 6.5 was overstated by the same games
+            self.assertTrue(0.55 < t[-1] < 0.75 and 0.6 < t[1] < 0.75, lg)
 
     def test_hockey_never_picks_below_the_floor(self):
         saved = A.HOCKEY_ALT_FLOOR
