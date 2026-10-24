@@ -78,6 +78,16 @@ class FirstLoad(unittest.TestCase):
         self.assertGreater(self.state(pg, "#nfl2-games-list")["cards"], 0)
         pg.close()
 
+    def test_the_live_score_repaint_only_renders_football_while_the_football_pane_is_open(self):
+        pg = self.page()
+        self.assertFalse(pg.evaluate("_fbPaneOpen('cfb')"))                                      # on the home page: the repaint must not build the College slate (a Monte Carlo run per card)
+        pg.evaluate("SS('fb')"); pg.wait_for_timeout(300)
+        self.assertTrue(pg.evaluate("_fbPaneOpen('cfb')")); self.assertFalse(pg.evaluate("_fbPaneOpen('nfl')"))
+        pg.evaluate("setSub('fb','nfl')"); self.assertTrue(pg.evaluate("_fbPaneOpen('nfl')"))
+        src = (ROOT / "docs" / "app.html").read_text()
+        self.assertIn("window._cfbActiveTab==='games'&&_fbPaneOpen('cfb')", src); self.assertIn("window._nflActiveTab==='games'&&_fbPaneOpen('nfl')", src)
+        pg.close()
+
     def test_the_week_you_picked_survives_a_repaint(self):
         pg = self.page()
         pg.evaluate("SS('fb')"); self.wait_cards(pg, "#cfb-games-list")

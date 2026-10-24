@@ -9936,6 +9936,8 @@ function _cfbGameCard(g){
     </div>
   </div>`;
 }
+// is the Football tab on screen AND showing this league?  The live-score repaint only re-renders a football slate (a full MC simulation per card) when it is -- not while you are on any other tab
+function _fbPaneOpen(sub){return !!(document.getElementById('sp-fb')?.classList.contains('act')&&document.getElementById('fb-'+sub)?.classList.contains('act'));}
 function renderCFBGames(){
   const el=document.getElementById('cfb-games-list');if(!el)return;
   const D=_CFB_DATA;
@@ -24556,8 +24558,8 @@ function _cvLiveApply(d){
     // _footballLiveStatus), so a full re-render is enough to pick up new
     // scores. Cheap at this list size (~100 games max) and this only fires
     // if the user is actually sitting on that tab already.
-    if(d.cfb&&window._cfbActiveTab==='games')try{renderCFBGames();}catch(e){}
-    if(d.nfl&&window._nflActiveTab==='games')try{renderNFLGames2();}catch(e){}
+    if(d.cfb&&window._cfbActiveTab==='games'&&_fbPaneOpen('cfb'))try{renderCFBGames();}catch(e){}
+    if(d.nfl&&window._nflActiveTab==='games'&&_fbPaneOpen('nfl'))try{renderNFLGames2();}catch(e){}
     if(d.liveBets?.length)renderLiveBetMeters(d.liveBets);
     // Auto-settle newly finished games
     const fNBA=(d.nba||[]).filter(g=>g.state==='post');
