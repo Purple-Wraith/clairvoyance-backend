@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-10-25 11:05 MT",
+  "generated_at": "2026-10-25 11:32 MT",
   "basis": "all locks (including picks locked after the game started)",
   "basis_note": "Figures count every settled pick in scope, including picks locked after the game had started. basis_detail shows how many of those there are.",
   "classifier": "scripts/lock_timing.py",
   "basis_detail": {
-    "settled_pre_start": 1718,
+    "settled_pre_start": 1721,
     "settled_locked_after_start_included": 211,
     "settled_unknown_timing_included": 297,
     "unknown_timing_by_league": {
@@ -36,11 +36,19 @@
       },
       {
         "lbl": "La Liga",
+        "w": 2,
+        "l": 2,
+        "n": 4,
+        "pct": 0.5,
+        "units": -0.18000000000000016
+      },
+      {
+        "lbl": "EXTRALIGA",
         "w": 1,
         "l": 1,
         "n": 2,
         "pct": 0.5,
-        "units": -0.09000000000000008
+        "units": -0.56
       },
       {
         "lbl": "NFL",
@@ -57,14 +65,6 @@
         "n": 1,
         "pct": 1,
         "units": 0.41999999999999993
-      },
-      {
-        "lbl": "EXTRALIGA",
-        "w": 1,
-        "l": 0,
-        "n": 1,
-        "pct": 1,
-        "units": 0.43999999999999995
       }
     ],
     "excluded_late": 9
@@ -233,10 +233,18 @@
       {
         "lbl": "EXTRALIGA",
         "w": 37,
-        "l": 15,
-        "n": 52,
-        "pct": 0.7115384615384616,
-        "units": 3.1255144225762788
+        "l": 16,
+        "n": 53,
+        "pct": 0.6981132075471698,
+        "units": 2.1255144225762788
+      },
+      {
+        "lbl": "La Liga",
+        "w": 28,
+        "l": 10,
+        "n": 38,
+        "pct": 0.7368421052631579,
+        "units": 15.369000000000003
       },
       {
         "lbl": "Serie A",
@@ -253,14 +261,6 @@
         "n": 37,
         "pct": 0.5945945945945946,
         "units": 5.020000000000001
-      },
-      {
-        "lbl": "La Liga",
-        "w": 27,
-        "l": 9,
-        "n": 36,
-        "pct": 0.75,
-        "units": 15.459000000000003
       }
     ],
     "excluded_late": 17
@@ -326,11 +326,11 @@
       },
       {
         "lbl": "La Liga",
-        "w": 7,
-        "l": 5,
-        "n": 12,
-        "pct": 0.5833333333333334,
-        "units": 1.37
+        "w": 8,
+        "l": 6,
+        "n": 14,
+        "pct": 0.5714285714285714,
+        "units": 1.2800000000000002
       },
       {
         "lbl": "Serie A",
@@ -341,20 +341,20 @@
         "units": 5.19
       },
       {
+        "lbl": "EXTRALIGA",
+        "w": 6,
+        "l": 5,
+        "n": 11,
+        "pct": 0.5454545454545454,
+        "units": -2.7800000000000002
+      },
+      {
         "lbl": "Premier League",
         "w": 5,
         "l": 6,
         "n": 11,
         "pct": 0.45454545454545453,
         "units": -1.4500000000000004
-      },
-      {
-        "lbl": "EXTRALIGA",
-        "w": 6,
-        "l": 4,
-        "n": 10,
-        "pct": 0.6,
-        "units": -1.7800000000000002
       },
       {
         "lbl": "NFL",
@@ -412,11 +412,11 @@
       },
       {
         "lbl": "La Liga",
-        "w": 96,
-        "l": 39,
-        "n": 135,
-        "pct": 0.7111111111111111,
-        "units": 46.61199999999991
+        "w": 97,
+        "l": 40,
+        "n": 137,
+        "pct": 0.708029197080292,
+        "units": 46.521999999999906
       },
       {
         "lbl": "SHL",
@@ -461,10 +461,10 @@
       {
         "lbl": "EXTRALIGA",
         "w": 55,
-        "l": 20,
-        "n": 75,
-        "pct": 0.7333333333333333,
-        "units": 14.126514422576278
+        "l": 21,
+        "n": 76,
+        "pct": 0.7236842105263158,
+        "units": 13.126514422576278
       }
     ],
     "excluded_late": 17
@@ -1926,9 +1926,19 @@
         -1
       ],
       [
+        1792823154462,
+        1,
+        0.91
+      ],
+      [
         1792910891654,
         1,
         0.91
+      ],
+      [
+        1792910891972,
+        0,
+        -1
       ]
     ],
     "NFL": [
@@ -2133,6 +2143,11 @@
         1792909784459,
         1,
         0.44
+      ],
+      [
+        1792909784665,
+        0,
+        -1
       ]
     ],
     "Champions League": [
