@@ -819,7 +819,7 @@ body.gt-open{overflow:hidden}#cv-ticker .tk[data-gid]{cursor:pointer}
 #gt-ov .gt-lb{position:relative;height:10px;margin-top:5px;background:rgba(255,255,255,.08);border-radius:5px}#gt-ov .gt-lb i{display:block;height:100%;border-radius:5px;transition:width .6s ease}#gt-ov .gt-lb i.hi{background:linear-gradient(90deg,#14a838,#00e644)}#gt-ov .gt-lb i.mid{background:linear-gradient(90deg,#d98a00,#ffb020)}#gt-ov .gt-lb i.lo{background:linear-gradient(90deg,#b0125f,var(--hc))}
 #gt-ov .gt-lb u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--t);opacity:.7;text-decoration:none}#gt-ov .gt-lk-sub{margin-top:3px;font-size:12px;color:var(--t3)}
 @media (prefers-reduced-motion:reduce){#gt-ov .gt-lb i{transition:none}}
-@media (pointer:coarse),(max-width:640px){.btn.tp-adj-lock{min-height:40px!important;min-width:68px!important}#gt-ov button{min-height:44px}#gt-ov .gt-x,#gt-ov .gt-rf{min-height:40px}#gt-ov .gt-rf{min-width:44px}#gt-ov .gt-seg button{min-height:40px;padding:6px 14px}.gt-btn{min-height:40px;padding:8px 14px;font-size:13px}.sc-card .gt-btn{width:100%;margin-top:10px}}
+@media (pointer:coarse),(max-width:640px){.btn.tp-adj-lock{min-height:40px!important;min-width:68px!important}.btn.pend-lg{min-height:40px!important}#gt-ov button{min-height:44px}#gt-ov .gt-x,#gt-ov .gt-rf{min-height:40px}#gt-ov .gt-rf{min-width:44px}#gt-ov .gt-seg button{min-height:40px;padding:6px 14px}.gt-btn{min-height:40px;padding:8px 14px;font-size:13px}.sc-card .gt-btn{width:100%;margin-top:10px}}
 @media (max-width:480px){#gt-ov .gt-sc{font-size:30px}#gt-ov .gt-tm img{width:42px;height:42px}#gt-ov .gt-tn{font-size:13px}}
 .altrow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin-bottom:8px;font-family:var(--mono)}.altrow .altk{flex:1 0 100%;font-size:13px;letter-spacing:1px;color:var(--t3)}.altrow .altc{flex:1 1 150px;display:flex;flex-direction:column;gap:2px;padding:6px 9px;border-radius:3px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);cursor:pointer;min-width:0}.bmk2.bmk-adj{flex:1 0 100%;box-sizing:border-box;min-height:44px;border:1px solid #f000ff;box-shadow:0 0 9px rgba(240,0,255,.6),inset 0 0 7px rgba(240,0,255,.2);cursor:pointer;margin-top:2px}.bmk2.bmk-adj.lockoff{cursor:default}.altrow .altc[role=button]{cursor:pointer}.altrow .altc.alt-top{border:1px solid #f000ff;box-shadow:0 0 9px rgba(240,0,255,.6),inset 0 0 7px rgba(240,0,255,.2)}.altrow .altc .alt1{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.altrow .altc .altp{font-family:var(--orb);font-size:16px;font-weight:700;color:var(--t)}.altrow .altc .alts{font-size:13px;color:var(--t2)}.altrow .altc .altw{font-size:12px;color:var(--t3)}.altrow .altc .pill{font-size:12px}
 .bmk2 .bmk2t{font-size:14px;padding:1px 6px;background:#0b0612;color:#fff;border-radius:2px;flex-shrink:0;font-weight:700}.bmk2 .bmk2k{font-size:13px;letter-spacing:1px;font-weight:700}.bmk2 .bmk2p{font-family:var(--orb);font-size:16px;font-weight:700}.bmk2 .bmk2s{font-size:14px;font-weight:700}
@@ -17733,6 +17733,23 @@ function _ovrReopen(){
     const a=c.previousElementSibling&&c.previousElementSibling.querySelector('.yfa,.mfa');if(a)a.textContent='▼';
   });});}catch(e){}
 }
+// League filter for the two PENDING lists (home page + History tab), 2026-10-25. Each list keeps its own selection in window._pendLg[scope]; the chips are built from
+// the leagues that actually have a pending pick (with counts), and a selection whose last pending pick settles falls back to ALL instead of leaving an empty list.
+window._pendLg=window._pendLg||{};
+function _pendLgFilter(list,scope){
+  let cur=window._pendLg[scope]||'ALL';
+  if(cur!=='ALL'&&!list.some(p=>window._normSport(p)===cur))cur=window._pendLg[scope]='ALL';
+  return cur==='ALL'?list:list.filter(p=>window._normSport(p)===cur);
+}
+function _pendLgBar(list,scope,fn){
+  const counts={};list.forEach(p=>{const l=window._normSport(p);counts[l]=(counts[l]||0)+1;});
+  const keys=Object.keys(counts).sort();
+  if(keys.length<2)return'';
+  const cur=window._pendLg[scope]||'ALL';
+  const chip=(k,label,n)=>{const on=cur===k;return`<button class="btn btn-sm pend-lg" aria-pressed="${on}" style="border:1px solid ${on?'var(--nc)':'rgba(255,255,255,.18)'};color:${on?'var(--nc)':'rgba(255,255,255,.6)'};background:${on?'rgba(0,0,0,.35)':'transparent'};font-size:15px;padding:3px 9px" onclick="window._pendLg['${scope}']='${k}';${fn}()">${label} ${n}</button>`;};
+  return`<div class="pend-lg-bar" style="display:flex;gap:4px;flex-wrap:wrap;padding:7px 10px;border-bottom:1px solid rgba(0,240,255,.15)">${chip('ALL','ALL',list.length)}${keys.map(k=>chip(k,k,counts[k])).join('')}</div>`;
+}
+window._pendLgFilter=_pendLgFilter;window._pendLgBar=_pendLgBar;
 function renderOverallHistory(sportFilter,dateFrom,dateTo){
   const el=document.getElementById('ovr-history-list');if(!el)return;
   window._ovrLazy={};
@@ -17744,9 +17761,10 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
   // no sort at all, so pending bets just inherited whatever order `all`
   // happened to be in (ledger sync order), which could put tomorrow's
   // picks above today's.
-  const pendingAll=all.filter(p=>p.outcome==='pending').sort((a,b)=>(a.date||'').localeCompare(b.date||'')||((a.lockedAt||0)-(b.lockedAt||0)));
+  const pendingFull=all.filter(p=>p.outcome==='pending').sort((a,b)=>(a.date||'').localeCompare(b.date||'')||((a.lockedAt||0)-(b.lockedAt||0)));
+  const pendingAll=_pendLgFilter(pendingFull,'hist');
   window._ovrPendingCollapsed=window._ovrPendingCollapsed||false;
-  if(pendingAll.length){
+  if(pendingFull.length){
     const sportColor2={NHL:'var(--ic)',NBA:'var(--pc)',NFL:'var(--hc)',CFB:'var(--hc)',default:'var(--t3)'};
     // Date/confidence display unified with the home page's own Pending
     // Picks row (renderHomePage) -- explicit "uniform layout" request,
@@ -17769,7 +17787,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
       <div style="padding:9px 12px;background:rgba(0,240,255,.08);border-bottom:1px solid rgba(0,240,255,.2);display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
         <span style="display:flex;align-items:center;gap:8px;cursor:pointer;padding-top:2px" onclick="window._ovrPendingCollapsed=!window._ovrPendingCollapsed;renderOverallHistory()">
           <span style="font-family:var(--mono);font-size:16px;color:var(--pc);transition:transform .15s;display:inline-block;transform:rotate(${window._ovrPendingCollapsed?'-90':'0'}deg)">▾</span>
-          <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:var(--pc);letter-spacing:2px">PENDING BETS — ${pendingAll.length}</span>
+          <span style="font-family:var(--orb);font-size:16px;font-weight:700;color:var(--pc);letter-spacing:2px">PENDING BETS — ${pendingAll.length}${pendingAll.length!==pendingFull.length?` OF ${pendingFull.length}`:''}</span>
         </span>
         <!-- Explicit layout request, 2026-09-30: AUTO SETTLE ALL on its
              own row, WIPE DATE + the date input stacked directly below it
@@ -17785,7 +17803,7 @@ function renderOverallHistory(sportFilter,dateFrom,dateTo){
           </div>
         </div>
       </div>
-      <div style="display:${window._ovrPendingCollapsed?'none':'block'}">${pHtml}</div>
+      <div style="display:${window._ovrPendingCollapsed?'none':'block'}">${_pendLgBar(pendingFull,'hist','renderOverallHistory')}${pHtml}</div>
     </div>`;
     // Remove old pending section if exists, then prepend fresh
     const old=document.getElementById('ovr-pending-section');if(old)old.remove();
@@ -21460,8 +21478,9 @@ function renderHomePage(){
   const pendEl=document.getElementById('home-pending-bets');
   window._homePendingCollapsed=window._homePendingCollapsed||false;
   if(pendEl){
-    const allPending=pending.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||((a.lockedAt||0)-(b.lockedAt||0)));
-    if(!allPending.length){
+    const pendingFull=pending.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||((a.lockedAt||0)-(b.lockedAt||0)));
+    const allPending=_pendLgFilter(pendingFull,'home');
+    if(!pendingFull.length){
       pendEl.innerHTML=`<div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px">// PENDING PICKS</div>
       <div class="empty" style="font-size:17px">NO PENDING PICKS</div>`;
     } else {
@@ -21477,10 +21496,10 @@ function renderHomePage(){
       pendEl.innerHTML=`
       <div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--pc);margin-bottom:8px;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="window._homePendingCollapsed=!window._homePendingCollapsed;renderHomePage()">
         <span style="font-family:var(--mono);font-size:16px;color:var(--pc);transition:transform .15s;display:inline-block;transform:rotate(${window._homePendingCollapsed?'-90':'0'}deg)">▾</span>
-        <span>// PENDING PICKS — ${allPending.length} PENDING</span>
+        <span>// PENDING PICKS — ${allPending.length}${allPending.length!==pendingFull.length?` OF ${pendingFull.length}`:''} PENDING</span>
       </div>
       <div style="display:${window._homePendingCollapsed?'none':'block'};border:1px solid rgba(0,240,255,.2);border-radius:3px;overflow:hidden;background:rgba(4,0,12,.6)">
-        ${rows}
+        ${_pendLgBar(pendingFull,'home','renderHomePage')}${rows}
       </div>`;
     }
   }
