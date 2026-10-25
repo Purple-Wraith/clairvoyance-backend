@@ -346,11 +346,10 @@ HOCKEY_SPORTS = frozenset({"NHL", "LIIGA", "SHL", "NLA", "EXTRALIGA"})
 
 # COLLEGE FOOTBALL CONFERENCE GATE (owner 2026-10-25): CFB picks are only locked for games whose teams are in these conferences -- American (AAC), ACC, Big 12, Big Ten, Mountain West,
 # Pac-12, SEC, and Independents = Notre Dame ONLY.  Keys are the conference names in docs/cfb_teams.json (ESPN's); MAC, Conference USA, Sun Belt, UConn and FCS teams are out.
-# CFB_LOCK_REQUIRE: "both" = BOTH teams must be in an allowed conference (a total or a spread has no single "team", and a game against an out-of-scope side is not modelled well);
-# "either" = at least one.  The gate applies to every automatic lock (main pass, CFB evening pass, watchdog, best-adjusted line) -- manual locks in the app are untouched.
+# CFB_LOCK_REQUIRE: "either" (owner 2026-10-25) = at least ONE team must be in an allowed conference, so SEC vs Sun Belt still locks; "both" = both teams must be.  The gate applies to every automatic lock (main pass, CFB evening pass, watchdog, best-adjusted line) -- manual locks in the app are untouched.
 CFB_LOCK_CONFERENCES = ("American", "ACC", "Big 12", "Big Ten", "Mountain West", "Pac-12", "SEC")
 CFB_LOCK_INDEPENDENTS = frozenset({"ND"})
-CFB_LOCK_REQUIRE = "both"
+CFB_LOCK_REQUIRE = "either"
 _CFB_LOCK_TEAMS: frozenset | None = None
 
 
@@ -2759,7 +2758,7 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
         if not _wanted(sport):
             continue
         if sport == "CFB" and not cfb_lock_eligible(gl.get("hA"), gl.get("awA")):
-            log(f"  skip CFB game {gl.get('awA')} @ {gl.get('hA')}: not in the lock conferences (AAC / ACC / Big 12 / Big Ten / Mountain West / Pac-12 / SEC / Notre Dame)")
+            log(f"  skip CFB game {gl.get('awA')} @ {gl.get('hA')}: neither team is in the lock conferences (AAC / ACC / Big 12 / Big Ten / Mountain West / Pac-12 / SEC / Notre Dame)")
             continue
         if sport == "NBA" and frozenset({gl.get("hA"), gl.get("awA")}) in _pre_nba:
             log(f"  skip NBA PRESEASON game {gl.get('awA')} @ {gl.get('hA')} (never locked or emailed)")
