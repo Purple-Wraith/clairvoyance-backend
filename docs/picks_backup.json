@@ -94770,8 +94770,8 @@
     "betOn": "DEN -5.5",
     "sport": "NBA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 135,
+    "hScore": 141,
     "league": "NBA",
     "source": "manual",
     "altLine": {
@@ -94787,14 +94787,15 @@
     "betType": "SPREAD",
     "decOdds": 1.376,
     "leadMin": 205,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792890000000,
     "winProb": 0.682,
     "lockedAt": 1792877728118,
     "reasoning": "PICK: DEN -5.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted DEN -11.5 to DEN -5.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 54.8%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1792902073878
   },
   {
     "hA": "DEN",
@@ -94805,20 +94806,21 @@
     "betOn": "DEN ML",
     "sport": "NBA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 135,
+    "hScore": 141,
     "league": "NBA",
     "source": "manual",
     "betType": "ML",
     "decOdds": 1.2061855670103092,
     "leadMin": 918,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792890000000,
     "winProb": 0.8114457839067057,
     "lockedAt": 1792834924375,
     "reasoning": "PICK: DEN ML \u2014 SKIP (81.1% win prob, EV -2.1%)\nMODEL: Projected 114.3\u2013126.9 (total 241.2), from a 25k-sim Monte Carlo.",
     "lockOrigin": "auto",
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1792902073878
   },
   {
     "hA": "EDM",
@@ -96548,7 +96550,7 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "priceSource": "estimated",
-    "settledAt": 1792900290253
+    "settledAt": 1792902077993
   },
   {
     "hA": "TOL",
@@ -96675,7 +96677,7 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "priceSource": "estimated",
-    "settledAt": 1792900290260
+    "settledAt": 1792902078003
   },
   {
     "hA": "TXST",
@@ -97024,14 +97026,14 @@
     "betOn": "OVER 6.5",
     "sport": "NHL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 4,
+    "hScore": 5,
     "league": "NHL",
     "source": "manual",
     "betType": "OU",
     "decOdds": 1.86,
     "leadMin": 503,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792890000000,
     "winProb": 0.5609255364481374,
     "lockedAt": 1792859812287,
@@ -97041,7 +97043,8 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.5118,
-    "priceSource": "market"
+    "priceSource": "market",
+    "settledAt": 1792902077670
   },
   {
     "hA": "Vaasan Sport",
@@ -99203,7 +99206,7 @@
     "winProb": 0.412,
     "lockedAt": 1792866208709,
     "lockOrigin": "manual",
-    "settledAt": 1792900290254,
+    "settledAt": 1792902077994,
     "hScore": 34,
     "aScore": 27
   },
@@ -106762,10 +106765,12 @@
     "player": "Jeremiah Fears",
     "betType": "PROP",
     "decOdds": 1.4694835680751175,
-    "outcome": "pending",
+    "outcome": "loss",
     "winProb": 0.68,
     "lockedAt": 1792834925165,
-    "reasoning": "PICK: Jeremiah Fears OVER PTS 14.5 \u2014 PREMIUM (68% model hit rate)\nMODEL: projection 18.83 PTS (season average 14.3, last-5 form 31.8, opponent adjustment +4.5) vs the 14.5 line, spread \u03c3 7.37, from a 5k-sim Monte Carlo.\nWHY: Jeremiah Fears averages 14.3 ppg across 82 games this season. Opp DEN DRtg 117.3 vs a 115.7 league average computed from every currently-loaded team, a 1% boost folded into the projection. Game pace 99.8 (-0.6%), NO offense 114.4 vs a 115.7 league average. No head-to-head history vs DEN this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
+    "reasoning": "PICK: Jeremiah Fears OVER PTS 14.5 \u2014 PREMIUM (68% model hit rate)\nMODEL: projection 18.83 PTS (season average 14.3, last-5 form 31.8, opponent adjustment +4.5) vs the 14.5 line, spread \u03c3 7.37, from a 5k-sim Monte Carlo.\nWHY: Jeremiah Fears averages 14.3 ppg across 82 games this season. Opp DEN DRtg 117.3 vs a 115.7 league average computed from every currently-loaded team, a 1% boost folded into the projection. Game pace 99.8 (-0.6%), NO offense 114.4 vs a 115.7 league average. No head-to-head history vs DEN this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+    "settledAt": 1792902078980,
+    "playerResult": 10
   },
   {
     "hA": "CHI",

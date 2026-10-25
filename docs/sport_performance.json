@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-10-24 21:51 MT",
+  "generated_at": "2026-10-24 22:21 MT",
   "basis": "all locks (including picks locked after the game started)",
   "basis_note": "Figures count every settled pick in scope, including picks locked after the game had started. basis_detail shows how many of those there are.",
   "classifier": "scripts/lock_timing.py",
   "basis_detail": {
-    "settled_pre_start": 1687,
+    "settled_pre_start": 1693,
     "settled_locked_after_start_included": 211,
-    "settled_unknown_timing_included": 296,
+    "settled_unknown_timing_included": 297,
     "unknown_timing_by_league": {
-      "NBA": 157,
+      "NBA": 158,
       "NHL": 113,
       "SERIEA": 11,
       "LIGA": 8,
@@ -28,19 +28,19 @@
       },
       {
         "lbl": "NBA",
-        "w": 9,
-        "l": 2,
-        "n": 11,
-        "pct": 0.8181818181818182,
-        "units": 1.3094280829724179
+        "w": 10,
+        "l": 3,
+        "n": 13,
+        "pct": 0.7692307692307693,
+        "units": 0.5156136499827266
       },
       {
         "lbl": "NHL",
-        "w": 6,
+        "w": 7,
         "l": 3,
-        "n": 9,
-        "pct": 0.6666666666666666,
-        "units": 1.005
+        "n": 10,
+        "pct": 0.7,
+        "units": 1.8649999999999998
       },
       {
         "lbl": "NLA",
@@ -99,7 +99,7 @@
         "units": 0.18999999999999995
       }
     ],
-    "excluded_late": 6
+    "excluded_late": 7
   },
   "lastMonth": {
     "label": "SEP 2026",
@@ -208,11 +208,19 @@
       },
       {
         "lbl": "NHL",
-        "w": 148,
+        "w": 149,
         "l": 54,
-        "n": 202,
-        "pct": 0.7326732673267327,
-        "units": 35.491
+        "n": 203,
+        "pct": 0.7339901477832512,
+        "units": 36.351
+      },
+      {
+        "lbl": "NBA",
+        "w": 63,
+        "l": 19,
+        "n": 82,
+        "pct": 0.7682926829268293,
+        "units": 8.715770343970313
       },
       {
         "lbl": "NFL",
@@ -221,14 +229,6 @@
         "n": 80,
         "pct": 0.725,
         "units": 3.5101622554383196
-      },
-      {
-        "lbl": "NBA",
-        "w": 62,
-        "l": 18,
-        "n": 80,
-        "pct": 0.775,
-        "units": 9.509584776960004
       },
       {
         "lbl": "LIIGA",
@@ -295,18 +295,18 @@
         "units": 4.290000000000001
       }
     ],
-    "excluded_late": 6
+    "excluded_late": 7
   },
   "rolling7": {
     "label": "ROLLING 7D",
     "leagues": [
       {
         "lbl": "NBA",
-        "w": 62,
-        "l": 18,
-        "n": 80,
-        "pct": 0.775,
-        "units": 9.509584776960004
+        "w": 63,
+        "l": 19,
+        "n": 82,
+        "pct": 0.7682926829268293,
+        "units": 8.715770343970313
       },
       {
         "lbl": "CFB",
@@ -318,11 +318,11 @@
       },
       {
         "lbl": "NHL",
-        "w": 26,
+        "w": 27,
         "l": 13,
-        "n": 39,
-        "pct": 0.6666666666666666,
-        "units": 2.200000000000001
+        "n": 40,
+        "pct": 0.675,
+        "units": 3.0600000000000014
       },
       {
         "lbl": "Champions League",
@@ -397,7 +397,7 @@
         "units": -3.18
       }
     ],
-    "excluded_late": 6
+    "excluded_late": 7
   },
   "allTime": {
     "label": "ALL TIME",
@@ -412,19 +412,19 @@
       },
       {
         "lbl": "NHL",
-        "w": 252,
+        "w": 253,
         "l": 78,
-        "n": 330,
-        "pct": 0.7636363636363637,
-        "units": 95.82553700662888
+        "n": 331,
+        "pct": 0.7643504531722054,
+        "units": 96.68553700662888
       },
       {
         "lbl": "NBA",
-        "w": 164,
-        "l": 46,
-        "n": 210,
-        "pct": 0.780952380952381,
-        "units": 64.76444191981709
+        "w": 165,
+        "l": 47,
+        "n": 212,
+        "pct": 0.7783018867924528,
+        "units": 63.970627486827425
       },
       {
         "lbl": "LIIGA",
@@ -499,7 +499,7 @@
         "units": 13.686514422576279
       }
     ],
-    "excluded_late": 6
+    "excluded_late": 7
   },
   "rolling7_series": {
     "NHL": [
@@ -847,6 +847,11 @@
         1792859812141,
         0,
         -1
+      ],
+      [
+        1792859812287,
+        1,
+        0.86
       ],
       [
         1792864042989,
@@ -2961,7 +2966,17 @@
         0.1869
       ],
       [
+        1792834924375,
+        1,
+        0.2062
+      ],
+      [
         1792834924964,
+        0,
+        -1
+      ],
+      [
+        1792834925165,
         0,
         -1
       ],
