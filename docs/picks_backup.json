@@ -96523,8 +96523,8 @@
     "betOn": "MISS +10.5",
     "sport": "CFB",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 27,
+    "hScore": 34,
     "league": "CFB",
     "source": "manual",
     "altLine": {
@@ -96540,14 +96540,15 @@
     "betType": "SPREAD",
     "decOdds": 1.373,
     "leadMin": 115,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792884600000,
     "winProb": 0.6836,
     "lockedAt": 1792877726882,
     "reasoning": "PICK: MISS +10.5 \u2014 ADJUSTED LINE (68.4% estimated win prob at this line)\nADJUSTED LINE: moved 7.5 pts from the posted MISS +3.0 to MISS +10.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 42.1%; the 7.5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1792900290253
   },
   {
     "hA": "TOL",
@@ -96650,8 +96651,8 @@
     "betOn": "UTSA +3.5",
     "sport": "CFB",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 42,
+    "hScore": 19,
     "league": "CFB",
     "source": "manual",
     "altLine": {
@@ -96666,14 +96667,15 @@
     "betType": "SPREAD",
     "decOdds": 1.381,
     "leadMin": 2487,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1792886400000,
     "winProb": 0.679,
     "lockedAt": 1792737206502,
     "reasoning": "PICK: UTSA +3.5 \u2014 ADJUSTED LINE (67.9% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted UTSA -3.0 to UTSA +3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 63.4%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +7.8 (UTSA), total 48.8, from a 25k-sim Monte Carlo.",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1792900290260
   },
   {
     "hA": "TXST",
@@ -96940,10 +96942,10 @@
     "winProb": 0.6903,
     "lockedAt": 1792737205621,
     "reasoning": "PICK: SYR +16.5 \u2014 ADJUSTED LINE (69.0% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted SYR +9.5 to SYR +16.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 71.6%; the 7-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin +0.1 (UNC), total 45.0, from a 25k-sim Monte Carlo.",
+    "settledAt": 1792898475857,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1792898475857
+    "priceSource": "estimated"
   },
   {
     "hA": "UNM",
@@ -99197,10 +99199,13 @@
     "league": "CFB",
     "betType": "ML",
     "decOdds": 2.4299999999999997,
-    "outcome": "pending",
+    "outcome": "loss",
     "winProb": 0.412,
     "lockedAt": 1792866208709,
-    "lockOrigin": "manual"
+    "lockOrigin": "manual",
+    "settledAt": 1792900290254,
+    "hScore": 34,
+    "aScore": 27
   },
   {
     "hA": "UCF",
