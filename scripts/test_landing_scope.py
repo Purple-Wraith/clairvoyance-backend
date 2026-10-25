@@ -55,8 +55,9 @@ class LandingScope(unittest.TestCase):
     def test_landing_includes_post_start_picks(self):
         self.assertEqual(self.subfile["basis"], g.LANDING_BASIS)
         self.assertGreater(self.subfile["basis_detail"]["settled_locked_after_start_included"], 0)
-        # every period reports nothing dropped as late
-        self.assertTrue(all(p["excluded_late"] == 0 for p in self.sub.values()))
+        # nothing is dropped as LATE; the only picks a period drops are the owner's internal best-adjusted-line locks (altLine.bestOfGame, 2026-10-24), which are never public
+        internal_settled = sum(1 for p in self.backup if (p.get("altLine") or {}).get("bestOfGame") and p.get("outcome") not in (None, "pending"))
+        self.assertTrue(all(p["excluded_late"] <= internal_settled for p in self.sub.values()), (internal_settled, {k: p["excluded_late"] for k, p in self.sub.items()}))
         # and it is a superset of the pre-start view of the same ledger
         self.assertGreater(self.sub["ALL_TIME"]["n"], 0)
 
