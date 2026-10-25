@@ -343,6 +343,39 @@ TIER_LABEL = {0: "SKIP", 1: "LEAN", 2: "OPTIMAL", 3: "PREMIUM"}
 # The constants here only DESCRIBE the rules in the subscriber email legend; scripts/verify_hockey_rules.py checks they equal
 # the app.html block so the legend can never drift from what actually qualifies. Backtest: scripts/backtest_hockey_models.py tiers.
 HOCKEY_SPORTS = frozenset({"NHL", "LIIGA", "SHL", "NLA", "EXTRALIGA"})
+
+# COLLEGE FOOTBALL CONFERENCE GATE (owner 2026-10-25): CFB picks are only locked for games whose teams are in these conferences -- American (AAC), ACC, Big 12, Big Ten, Mountain West,
+# Pac-12, SEC, and Independents = Notre Dame ONLY.  Keys are the conference names in docs/cfb_teams.json (ESPN's); MAC, Conference USA, Sun Belt, UConn and FCS teams are out.
+# CFB_LOCK_REQUIRE: "both" = BOTH teams must be in an allowed conference (a total or a spread has no single "team", and a game against an out-of-scope side is not modelled well);
+# "either" = at least one.  The gate applies to every automatic lock (main pass, CFB evening pass, watchdog, best-adjusted line) -- manual locks in the app are untouched.
+CFB_LOCK_CONFERENCES = ("American", "ACC", "Big 12", "Big Ten", "Mountain West", "Pac-12", "SEC")
+CFB_LOCK_INDEPENDENTS = frozenset({"ND"})
+CFB_LOCK_REQUIRE = "both"
+_CFB_LOCK_TEAMS: frozenset | None = None
+
+
+def cfb_lock_teams() -> frozenset:
+    """Abbreviations of the teams CFB picks may be locked for (see CFB_LOCK_CONFERENCES).  Read once from docs/cfb_teams.json; an unreadable roster allows NO team (fail closed, loudly)."""
+    global _CFB_LOCK_TEAMS
+    if _CFB_LOCK_TEAMS is None:
+        teams: set = set(CFB_LOCK_INDEPENDENTS)
+        try:
+            confs = json.loads((ROOT / "docs" / "cfb_teams.json").read_text()).get("conferences") or {}
+            for name in CFB_LOCK_CONFERENCES:
+                teams.update(str(t.get("abbr")).upper() for t in confs.get(name) or [] if t.get("abbr"))
+        except Exception as exc:  # noqa: BLE001
+            log(f"WARNING: cfb_teams.json unreadable ({exc}) -- NO college football game is eligible to lock until it is fixed")
+            teams = set()
+        _CFB_LOCK_TEAMS = frozenset(teams)
+    return _CFB_LOCK_TEAMS
+
+
+def cfb_lock_eligible(home, away) -> bool:
+    ok = cfb_lock_teams()
+    ins = [str(t or "").strip().upper() in ok for t in (home, away)]
+    return any(ins) if CFB_LOCK_REQUIRE == "either" else all(ins)
+
+
 HOCKEY_REQUIRE_REAL_PRICE = True
 HOCKEY_TIER_EV = {"LEAN": 0.01, "OPTIMAL": 0.03, "PREMIUM": 0.05}      # EV floors on the REAL price (tier probability floors stay .55/.62/.67)
 HOCKEY_TIER_PROB = {"LEAN": 0.55, "OPTIMAL": 0.62, "PREMIUM": 0.67}
@@ -2725,6 +2758,9 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
         sport = gl.get("sport")
         if not _wanted(sport):
             continue
+        if sport == "CFB" and not cfb_lock_eligible(gl.get("hA"), gl.get("awA")):
+            log(f"  skip CFB game {gl.get('awA')} @ {gl.get('hA')}: not in the lock conferences (AAC / ACC / Big 12 / Big Ten / Mountain West / Pac-12 / SEC / Notre Dame)")
+            continue
         if sport == "NBA" and frozenset({gl.get("hA"), gl.get("awA")}) in _pre_nba:
             log(f"  skip NBA PRESEASON game {gl.get('awA')} @ {gl.get('hA')} (never locked or emailed)")
             continue
@@ -2956,6 +2992,8 @@ def lock_game_leg(page, q: dict, date_override: str | None = None, now=None) -> 
     lock_type = SPORT_TO_LOCKPICK_TYPE.get(q["sport"])
     if not lock_type:
         return f"skip: no lockPick type mapping for sport {q['sport']}"
+    if q["sport"] == "CFB" and not cfb_lock_eligible(q.get("hA"), q.get("awA")):          # defence in depth for the conference gate in build_qualifying
+        return f"skip: conference -- CFB {q.get('awA')} @ {q.get('hA')} is outside the lock conferences"
     # Defence in depth for the pre-start guard (build_qualifying already filtered): never touch lockPick for a game that
     # has started / starts within LOCK_START_MARGIN_MIN, or (hockey) whose start is unknown. `now` injectable for tests.
     _ok, _why, _mins = start_guard(q["sport"], q.get("startMs"), now)
@@ -3853,6 +3891,9 @@ def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | Non
             elif outcome == "already-locked":
                 already_locked += 1
                 log(f"  already locked (earlier pass today): {label}")
+            elif isinstance(outcome, str) and outcome.startswith("skip: conference"):
+                skipped += 1
+                log(f"  {outcome[6:]} -- {label}")
             elif isinstance(outcome, str) and outcome.startswith(("skip: game", "skip: no usable start")):
                 skipped += 1
                 START_GUARD_TOTALS["skipped"] += 1
@@ -3866,7 +3907,7 @@ def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | Non
             failed_labels.append(str(q.get("label") or q.get("leg", {}).get("player")))
             log(f"  FAILED to lock: {exc}")
     if skipped:
-        log(f"  {skipped} leg(s) skipped at lock time: game already started")
+        log(f"  {skipped} leg(s) skipped at lock time (game already started, or a CFB game outside the lock conferences)")
     try:
         _lock_best_adjusted(page)
     except Exception as exc:  # noqa: BLE001 -- extra picks must never break the product locks

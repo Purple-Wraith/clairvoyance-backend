@@ -148,8 +148,8 @@ class InPage(unittest.TestCase):
             {"side": "sprdDog", "label": "CLE +2.5", "prob": .63, "tierN": 3, "dec": 1.91, "ml": "-110"}, {"side": "sprdFav", "label": "PHI -2.5", "prob": .37, "tierN": 0, "dec": 1.91, "ml": "-110"}]
 
     def attach(self):
-        self.pg.evaluate("""([m])=>{saveP([]);window._altReg={};window._altBest={};_altRowFor('CFB','PHI','CLE','2026-12-30T20:00Z',{mkts:m},false)}""", [self.MKTS])
-        return self.pg.evaluate("_altAttachBest([{sport:'CFB',hA:'PHI',awA:'CLE',startMs:%d},{sport:'CFB',hA:'X',awA:'Y'}])" % int(now_ms() + 6 * 3600e3))
+        self.pg.evaluate("""([m])=>{saveP([]);window._altReg={};window._altBest={};_altRowFor('CFB','ALA','MSST','2026-12-30T20:00Z',{mkts:m},false)}""", [self.MKTS])
+        return self.pg.evaluate("_altAttachBest([{sport:'CFB',hA:'ALA',awA:'MSST',startMs:%d},{sport:'CFB',hA:'X',awA:'Y'}])" % int(now_ms() + 6 * 3600e3))
 
     def test_the_card_keeps_its_best_option_and_gather_attaches_it(self):
         legs = self.attach()

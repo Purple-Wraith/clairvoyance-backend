@@ -276,7 +276,7 @@ class Python(unittest.TestCase):
         return d
 
     def qual(self, markets, sport="CFB"):
-        res = {"gameLegs": [{"sport": sport, "hA": "HOME", "awA": "AWAY", "markets": markets, "mcSummary": None, "best": None, "socFactors": None, "startMs": None}], "propLegs": []}
+        res = {"gameLegs": [{"sport": sport, "hA": "ALA", "awA": "MSST", "markets": markets, "mcSummary": None, "best": None, "socFactors": None, "startMs": None}], "propLegs": []}
         return A.build_qualifying(res, now=0)
 
     def test_build_qualifying_carries_the_raw_probability_and_ceiling(self):
@@ -327,7 +327,7 @@ class Python(unittest.TestCase):
             def evaluate(self, js, arg=None):
                 self.args = arg
                 return "locked"
-        leg = dict(self.leg("over", "OVER 50.5", .62, raw=.88, ceil=.62), kind="GAME", sport="CFB", hA="H", awA="A", startMs=None)
+        leg = dict(self.leg("over", "OVER 50.5", .62, raw=.88, ceil=.62), kind="GAME", sport="CFB", hA="ALA", awA="MSST", startMs=None)
         pg = Page()
         old = A.start_guard
         A.start_guard = lambda *a, **k: (True, "", 999)
@@ -338,7 +338,7 @@ class Python(unittest.TestCase):
             self.assertIsNone(pg.args["pCap"])
             A.lock_game_leg(pg, dict(leg, altLine={"posted": 50.5}))
             self.assertIsNone(pg.args["pCap"])
-            A.lock_game_leg(pg, dict(self.leg("mlFav", "H ML", .9, tier=3), kind="GAME", sport="CFB", hA="H", awA="A", startMs=None))
+            A.lock_game_leg(pg, dict(self.leg("mlFav", "H ML", .9, tier=3), kind="GAME", sport="CFB", hA="ALA", awA="MSST", startMs=None))
             self.assertIsNone(pg.args["pCap"])
         finally:
             A.start_guard = old
