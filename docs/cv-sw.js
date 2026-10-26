@@ -26,6 +26,9 @@ const norm = (url) => {
 const shellKey = () => new URL('app.html', self.registration.scope).toString();   // app.html, index.html and the bare folder URL are the same page
 const sig = (res) => res && (res.headers.get('etag') || res.headers.get('last-modified') || res.headers.get('content-length'));
 const tell = (msg) => self.clients.matchAll({ type: 'window' }).then((cs) => cs.forEach((c) => c.postMessage({ type: 'cv-sw', msg })));
+// A deploy gives app.html a new ETag / Last-Modified even when its bytes did not change (GitHub Pages redeploys on every data-refresh commit, ~every 30 min), and the "update" bar used to follow the headers alone,
+// so the desktop kept showing "NEW VERSION READY · TAP TO UPDATE" for a page that was identical. The headers now only say "look closer": the update is announced only when the CONTENT differs.
+const digest = async (res) => { try { const h = await crypto.subtle.digest('SHA-256', await res.clone().arrayBuffer()); return Array.from(new Uint8Array(h), (b) => b.toString(16).padStart(2, '0')).join(''); } catch (x) { return null; } };
 const trim = async (cache, max) => { const ks = await cache.keys(); for (let i = 0; i < ks.length - max; i++) await cache.delete(ks[i]); };
 
 self.addEventListener('install', (e) => {
@@ -59,7 +62,12 @@ async function shell(e) {
     try {
       const res = await fetch(new Request(key, { cache: 'no-cache' }));
       if (res && res.ok && !res.redirected) {
-        const changed = sig(hit) && sig(res) && sig(hit) !== sig(res);
+        let changed = false;
+        if (sig(hit) && sig(res) && sig(hit) !== sig(res)) {          // headers differ: compare the actual bytes (cheap: only runs when the headers moved)
+          const old = await cache.match(key);                         // a fresh copy: `hit` itself is already being read by the page (a body that is in use cannot be cloned)
+          const [a, b] = await Promise.all([old ? digest(old) : null, digest(res)]);
+          changed = a && b ? a !== b : true;                          // cannot hash (very old browser): trust the headers, as before
+        }
         await cache.put(key, res.clone());
         if (changed) await tell('update');
       }

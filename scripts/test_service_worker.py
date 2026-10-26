@@ -17,6 +17,7 @@ DOCS = ROOT / "docs"
 class Handler(http.server.SimpleHTTPRequestHandler):
     delay = {}            # path -> seconds to stall before answering
     etag = '"shell-v1"'   # ETag served for app.html / index.html
+    suffix = b""          # appended to app.html / index.html: a real content change (an ETag change alone is only a redeploy of identical bytes)
     hits = {}
 
     def log_message(self, *a, **k):
@@ -31,6 +32,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         for h in ("If-Modified-Since", "If-None-Match"):          # always a full 200: a "deploy" here only changes the ETag, so a 304 would hide it
             if h in self.headers:
                 del self.headers[h]
+        if Handler.suffix and path.endswith(("/app.html", "/index.html")):
+            body = (DOCS / "app.html").read_bytes() + Handler.suffix
+            self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.end_headers()
+            self.wfile.write(body)
+            return
         super().do_GET()
 
     def end_headers(self):
@@ -56,7 +62,7 @@ class SW(unittest.TestCase):
         cls.browser.close(); cls.pw.stop(); cls.srv.shutdown()
 
     def setUp(self):
-        Handler.delay = {}; Handler.etag = '"shell-v1"'; Handler.hits = {}
+        Handler.delay = {}; Handler.etag = '"shell-v1"'; Handler.hits = {}; Handler.suffix = b""
         self.ctx = self.browser.new_context(viewport={"width": 1300, "height": 900})
 
     def tearDown(self):
@@ -165,13 +171,25 @@ class SW(unittest.TestCase):
         pg = self.open()
         self.wait_for(lambda: self.cache_keys(pg, "shell"))
         pg.reload(); pg.wait_for_function("typeof getP==='function'")
-        Handler.etag = '"shell-v2"'                                           # a new deploy
+        Handler.etag = '"shell-v2"'; Handler.suffix = b"\n<!-- a real change -->\n"       # a deploy that really changed the page
         pg.reload(); pg.wait_for_function("typeof getP==='function'")
         pg.evaluate("window.__marker=12345")
         self.assertTrue(self.wait_for(lambda: pg.evaluate("!!document.getElementById('cv-sw-bar')"), 10))
         pg.wait_for_timeout(1500)
         self.assertEqual(pg.evaluate("window.__marker"), 12345)                # the page was NOT reloaded under the user
         self.assertIn("TAP TO UPDATE", pg.inner_text("#cv-sw-bar"))
+        pg.close()
+
+    def test_a_redeploy_of_identical_bytes_does_not_show_the_update_bar(self):
+        """GitHub Pages gives app.html a new ETag / Last-Modified on every deploy (data-refresh commits redeploy ~every 30 min) even when the page is byte-identical: that must not raise 'TAP TO UPDATE'."""
+        pg = self.open()
+        self.wait_for(lambda: self.cache_keys(pg, "shell"))
+        pg.reload(); pg.wait_for_function("typeof getP==='function'")
+        for v in (2, 3, 4):
+            Handler.etag = f'"shell-v{v}"'                                    # three more deploys, same bytes
+            pg.reload(); pg.wait_for_function("typeof getP==='function'"); pg.wait_for_timeout(1500)
+        self.assertFalse(pg.evaluate("!!document.getElementById('cv-sw-bar')"))
+        self.assertGreaterEqual(Handler.hits.get("/app.html", 0), 4)           # (the worker really did re-check the shell each time)
         pg.close()
 
     def test_no_update_bar_when_the_shell_is_unchanged(self):
@@ -188,6 +206,7 @@ class SW(unittest.TestCase):
         self.assertNotRegex(src, r"location\.reload|\.navigate\(|clients\.openWindow")       # never reloads or navigates a page itself
         self.assertIn("u.origin !== self.location.origin", src)                               # other origins are never intercepted
         self.assertIn("r.method !== 'GET'", src)
+        self.assertIn("crypto.subtle.digest", src)                                             # the update bar follows the content, not just the headers
         legacy = (DOCS / "sw.js").read_text()
         self.assertIn("unregister", legacy)                                                   # the old self-destruct worker stays to clean up stragglers
 
