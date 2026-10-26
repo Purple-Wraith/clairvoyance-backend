@@ -368,7 +368,7 @@ async function loadAnalytics() {
 
   const trackEl = document.getElementById('trackingNote');
   trackEl.textContent = a.events_since
-    ? 'Activity tracked since ' + a.events_since.slice(0, 10) + ' · estimated revenue is not a real payment ledger'
+    ? 'Activity tracked since ' + new Date(a.events_since).toLocaleDateString('sv-SE', {timeZone: 'America/Denver'}) + ' · estimated revenue is not a real payment ledger'
     : 'No activity tracked yet -- signup/renewal/removal trends start accumulating from today · estimated revenue is not a real payment ledger';
 
   const lt = a.avg_customer_lifetime, ttr = a.time_to_renewal, adopt = a.multi_product_adoption;

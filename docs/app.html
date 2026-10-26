@@ -37184,6 +37184,7 @@ function _mlStatCards(a,subs){
     <div class="ml-stat"><div class="ml-sv" style="color:${exp?'#ffd500':'var(--t)'}">${exp}</div><div class="ml-sl">Expiring in 5 days or less</div></div>
   </div>`;
 }
+function _mlMtDate(iso){try{return new Date(iso).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});}catch(e){return String(iso).slice(0,10);}}   // YYYY-MM-DD in Mountain time (the log stores UTC: an evening MT event is already tomorrow in UTC)
 function _mlFmtDay(iso){try{return new Date(iso).toLocaleDateString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric'});}catch(e){return String(iso).slice(0,10);}}
 function _mlFmtTime(iso){try{return new Date(iso).toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT';}catch(e){return String(iso);}}
 function _mlRenderSubs(){
@@ -37245,7 +37246,7 @@ function _mlRenderAna(){
   const coh=(a.cohort_retention||[]).map(c=>`<tr><td>${_escHtml(c.cohort_week)}</td><td>${c.signups}</td><td>${c.retained}</td><td>${c.retention_pct==null?'—':c.retention_pct+'%'}</td></tr>`).join('');
   const w=(x)=>`${x.add} new · ${x.renew} renewed · ${x.remove} removed`;
   const soon=(a.expiring_soon||[]).map(r=>`<tr><td>${_escHtml(r.email)}</td><td>${_escHtml(r.product)}</td><td>${r.days_left}</td></tr>`).join('');
-  el.innerHTML=`<div class="ml-top"><div><div class="ml-h">ANALYTICS</div><div class="ml-hs">${a.events_since?'ACTIVITY TRACKED SINCE '+_escHtml(a.events_since.slice(0,10)):'NO ACTIVITY TRACKED YET'} · REVENUE IS AN ESTIMATE FROM STANDARD PRICING</div></div></div>
+  el.innerHTML=`<div class="ml-top"><div><div class="ml-h">ANALYTICS</div><div class="ml-hs">${a.events_since?'ACTIVITY TRACKED SINCE '+_escHtml(_mlMtDate(a.events_since)):'NO ACTIVITY TRACKED YET'} · REVENUE IS AN ESTIMATE FROM STANDARD PRICING</div></div></div>
   <div class="ml-stats">${stat(a.active_emails,'Active subscribers')}${stat(a.active_subscriptions,'List memberships')}${stat('$'+a.estimated_mrr,'Est. 30-day revenue')}
     ${stat(a.renewal_rate_30d==null?'—':a.renewal_rate_30d+'%','Renewal rate (30d)','renewals ÷ (renewals + removals)')}${stat(ad.pct_multi==null?'—':ad.pct_multi+'%','On 2+ lists',ad.multi_product_emails+' of '+ad.active_emails)}
     ${stat(lt.avg_cycles==null?'—':lt.avg_cycles,'Avg lifetime (30-day cycles)',lt.sample_size?lt.sample_size+' ended':'none ended yet')}${stat(ttr.avg_days_before_expiry==null?'—':(ttr.avg_days_before_expiry>=0?ttr.avg_days_before_expiry+'d early':Math.abs(ttr.avg_days_before_expiry)+'d late'),'Renews vs expiry',ttr.sample_size?ttr.on_time_count+' on time · '+ttr.late_count+' late':'no renewals yet')}</div>

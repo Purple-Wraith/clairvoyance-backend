@@ -297,6 +297,14 @@ class TabTests(unittest.TestCase):
             self.assertEqual([c.args[0] for c in rc.call_args_list], ["kim@example.com", "sam@example.com"])   # one receipt for the whole renew-all
         pg.context.close()
 
+    def test_tracked_since_is_a_mountain_time_date(self):
+        # an event at 02:22 UTC on Oct 26 is the evening of Oct 25 in Mountain time
+        self.s.events.write_text(json.dumps([{"ts": "2026-10-26T02:22:45+00:00", "action": "add", "product": "nfl", "email": "ste@x.com"}]))
+        pg = self.page(); self.open_tab(pg)
+        pg.click("#sp-mail .sb2:has-text('ANALYTICS')"); pg.wait_for_selector("#ml-ana .ml-stat")
+        self.assertIn("TRACKED SINCE 2026-10-25", pg.inner_text("#ml-ana"))
+        pg.context.close()
+
     def test_analytics_and_activity_tabs_render(self):
         pg = self.page(); self.open_tab(pg)
         pg.click("#sp-mail .sb2:has-text('ANALYTICS')"); pg.wait_for_selector("#ml-ana .ml-stat")
