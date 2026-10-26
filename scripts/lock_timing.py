@@ -87,6 +87,15 @@ def is_parlay(p: dict) -> bool:
     """Parlays are out of the engine (owner decision 2026-10-04): they never count toward a published figure. Mirrors _isParlay() in docs/app.html."""
     bt = str(p.get("betType") or "").upper()
     return bt in ("PARLAY", "PL_PARLAY") or p.get("hA") in ("PARLAY", "NBA-PARLAY")
+
+
+def is_internal_best_adjusted(p: dict) -> bool:
+    """The owner's "best adjusted line of every game" locks made BEFORE they became part of the subscriber emails (2026-10-24/25): tagged altLine.bestOfGame but without altLine.product.
+    They were never emailed, so they are not a product pick and not part of any published figure. Picks locked since carry altLine.product=True and count like any other pick."""
+    a = p.get("altLine") if isinstance(p, dict) else None
+    return bool(isinstance(a, dict) and a.get("bestOfGame") and not a.get("product"))
+
+
 LEAGUE_MAP_CODES = frozenset({"NFL", "CFB", "NHL", "NCAAH", "SHL", "LIIGA", "NLA", "EXTRALIGA", "KHL", "NBA", "CL", "PL",
                               "LIGA", "SERIEA"})
 

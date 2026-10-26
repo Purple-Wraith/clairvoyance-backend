@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""The BEST adjusted line of every game is locked automatically (owner 2026-10-24): the option the card marks with the magenta border, over both markets and both sides.
+"""The BEST adjusted line of every game is a qualifying pick of the game's product (owner 2026-10-24 locks; 2026-10-25 "include in email best adjusted line for each game and include indicator"): the option the card
+marks with the magenta border, over both markets and both sides.
 
   * the card keeps it (window._altBest) and gather_legs attaches it to the captured game leg as `adjBest`;
-  * build_qualifying stages one extra leg per game (never in the returned qualifying list, so never in a subscriber email), skipping a market the lean pass already locks, a started game and the
-    watchdog's look-only call; _lock_qualifying_legs locks and clears them, each stamped with its OWN game date, tagged altLine.bestOfGame;
-  * the tagged picks are NOT a paid product: email_tracking.product_of_pick is None for them and generate_social_cards.public_filter drops them from every public figure.
+  * build_qualifying returns one extra leg per game (altLine.bestOfGame + altLine.product), skipping a market the lean pass already covers, a started game and bad data; the product's pass locks it and its email lists it
+    under BEST ADJUSTED LINE + ADJUSTED LINE badges;
+  * the ones locked BEFORE they were emailed (no altLine.product) stay internal: no product, no public figure.
 
     python3 scripts/test_best_adjusted_lock.py
 """
@@ -31,92 +32,84 @@ def adj(label="UNDER 3.5", prob=.736, mkt="OU", side="under", posted="UNDER 2.5"
             "alt": {"label": label, "prob": prob, "mkt": mkt, "ml": "-357", "dec": 1.28, "posted": 2.5, "line": 3.5, "shift": shift, "postedLabel": posted, "postedProb": .56, "postedDec": 1.91, "postedMl": "-110"}}
 
 
-def game(sport="NBA", start_in_h=5, ab=None, markets=()):
-    return {"sport": sport, "hA": "Arsenal", "awA": "Chelsea", "startMs": now_ms() + start_in_h * 3600e3, "markets": list(markets), "adjBest": ab, "mcSummary": "x", "best": None, "socFactors": None}
-
-
-def with_pending_cleared(f):
-    @functools.wraps(f)
-    def w(self):
-        A.ADJ_BEST_PENDING.clear()
-        try:
-            return f(self)
-        finally:
-            A.ADJ_BEST_PENDING.clear()
-    return w
+def game(sport="CFB", start_in_h=5, ab=None, markets=()):
+    return {"sport": sport, "hA": "ALA", "awA": "MSST", "startMs": now_ms() + start_in_h * 3600e3, "markets": list(markets), "adjBest": ab, "mcSummary": "x", "best": None, "socFactors": None}
 
 
 class Build(unittest.TestCase):
-    @with_pending_cleared
-    def test_a_game_with_a_best_adjusted_line_stages_exactly_one_extra_leg(self):
-        q = A.build_qualifying({"gameLegs": [game("NBA", ab=adj())], "propLegs": []}, only_sports=None)
-        self.assertEqual(q, [])                                                  # never in the qualifying list (so never emailed)
-        self.assertEqual(len(A.ADJ_BEST_PENDING), 1)
-        leg = A.ADJ_BEST_PENDING[0]
+    def best(self, gl):
+        return [q for q in A.build_qualifying({"gameLegs": [gl], "propLegs": []}, only_sports=None) if (q.get("altLine") or {}).get("bestOfGame")]
+
+    def test_a_game_with_a_best_adjusted_line_returns_exactly_one_extra_leg(self):
+        q = A.build_qualifying({"gameLegs": [game("CFB", ab=adj())], "propLegs": []}, only_sports=None)
+        self.assertEqual(len(q), 1)                                              # in the qualifying list: locked AND emailed
+        leg = q[0]
         self.assertEqual((leg["label"], leg["side"], leg["kind"], leg["adjBest"]), ("UNDER 3.5", "under", "GAME", True))
-        self.assertTrue(leg["altLine"]["bestOfGame"]); self.assertEqual(leg["altLine"]["postedLabel"], "UNDER 2.5")
+        self.assertTrue(leg["altLine"]["bestOfGame"]); self.assertTrue(leg["altLine"]["product"]); self.assertEqual(leg["altLine"]["postedLabel"], "UNDER 2.5")
         self.assertEqual(leg["priceSource"], "estimated"); self.assertEqual(A._market_type(leg["side"]), "OU")
-        self.assertIn("BEST ADJUSTED LINE OF THE GAME", leg["reasoning"]); self.assertIn("goal", leg["reasoning"] if False else "goal")
+        self.assertIn("BEST ADJUSTED LINE OF THE GAME", leg["reasoning"])
         self.assertRegex(leg["lockDate"], r"^\d{4}-\d\d-\d\d$")
 
-    @with_pending_cleared
     def test_both_markets_and_both_sides_are_accepted(self):
         for mkt, side, label in (("OU", "over", "OVER 1.5"), ("OU", "under", "UNDER 3.5"), ("SPREAD", "sprdFav", "Arsenal +0.5"), ("SPREAD", "ahDog", "Chelsea +1.5"), ("SPREAD", "sprdDog", "Chelsea +9.5")):
-            A.ADJ_BEST_PENDING.clear()
-            A.build_qualifying({"gameLegs": [game("NBA", ab=adj(label, .7, mkt, side))], "propLegs": []})
-            self.assertEqual([x["label"] for x in A.ADJ_BEST_PENDING], [label], (mkt, side))
+            self.assertEqual([x["label"] for x in self.best(game("CFB", ab=adj(label, .7, mkt, side)))], [label], (mkt, side))
 
-    @with_pending_cleared
-    def test_a_market_the_lean_pass_already_locks_keeps_its_lock(self):
+    def test_a_market_the_lean_pass_already_covers_keeps_its_pick(self):
         lean = {"label": "OVER 2.5", "side": "over", "prob": .66, "tierN": 2, "evVal": .08, "dec": 1.91, "ml": "-110"}
-        gl = game("NBA", ab=adj("UNDER 3.5", .74, "OU", "under"), markets=[lean])
-        q = A.build_qualifying({"gameLegs": [gl], "propLegs": []})
-        self.assertEqual(len(q), 1); self.assertEqual(A.ADJ_BEST_PENDING, [])          # the lean total is locked; the other total would be a second lock on the same market
-        A.ADJ_BEST_PENDING.clear()
-        gl2 = game("NBA", ab=adj("Chelsea +1.5", .76, "SPREAD", "ahDog"), markets=[lean])
-        A.build_qualifying({"gameLegs": [gl2], "propLegs": []})
-        self.assertEqual(len(A.ADJ_BEST_PENDING), 1)                                 # a different market is free
+        self.assertEqual(self.best(game("CFB", ab=adj("UNDER 3.5", .74, "OU", "under"), markets=[lean])), [])      # a second total would be a second lock on the same market
+        self.assertEqual(len(self.best(game("CFB", ab=adj("Chelsea +1.5", .76, "SPREAD", "ahDog"), markets=[lean]))), 1)    # a different market is free
 
-    @with_pending_cleared
-    def test_started_games_the_watchdog_and_bad_data_stage_nothing(self):
-        A.build_qualifying({"gameLegs": [game("NBA", start_in_h=-1, ab=adj())], "propLegs": []})
-        self.assertEqual(A.ADJ_BEST_PENDING, [])                                     # already started: the start guard
-        A.build_qualifying({"gameLegs": [game("NBA", ab=adj())], "propLegs": []}, now=0)
-        self.assertEqual(A.ADJ_BEST_PENDING, [])                                     # the watchdog's look-only call never stages locks
+    def test_started_games_and_bad_data_return_nothing(self):
+        self.assertEqual(self.best(game("CFB", start_in_h=-1, ab=adj())), [])        # already started: the start guard
         for bad in (None, {}, {"alt": {}}, adj(prob=.2), adj(prob=1.4), adj(mkt="ML"), adj(side="mlFav")):
-            A.build_qualifying({"gameLegs": [game("NBA", ab=bad)], "propLegs": []})
-        self.assertEqual(A.ADJ_BEST_PENDING, [])
+            self.assertEqual(self.best(game("CFB", ab=bad)), [])
         with mock.patch.object(A, "LOCK_BEST_ADJUSTED", False):
-            A.build_qualifying({"gameLegs": [game("NBA", ab=adj())], "propLegs": []})
-        self.assertEqual(A.ADJ_BEST_PENDING, [])                                     # the master switch
+            self.assertEqual(self.best(game("CFB", ab=adj())), [])                   # the master switch
 
-    @with_pending_cleared
-    def test_the_same_game_is_not_staged_twice_across_passes(self):
-        for _ in range(3):
-            A.build_qualifying({"gameLegs": [game("NBA", ab=adj())], "propLegs": []})
-        self.assertEqual(len(A.ADJ_BEST_PENDING), 1)
+    def test_the_watchdog_look_only_call_sees_them_too(self):
+        q = A.build_qualifying({"gameLegs": [game("CFB", ab=adj())], "propLegs": []}, now=0)
+        self.assertEqual(len(q), 1)                                                  # so a missing one is noticed and re-locked like any other pick
 
-    @with_pending_cleared
     def test_the_sport_scope_of_the_pass_is_respected(self):
-        A.build_qualifying({"gameLegs": [game("NBA", ab=adj())], "propLegs": []}, only_sports=frozenset({"NHL"}))
-        self.assertEqual(A.ADJ_BEST_PENDING, [])
+        self.assertEqual(A.build_qualifying({"gameLegs": [game("CFB", ab=adj())], "propLegs": []}, only_sports=frozenset({"NHL"})), [])
+
+
+class EmailRendering(unittest.TestCase):
+    def leg(self, **kw):
+        q = A.build_qualifying({"gameLegs": [game("CFB", ab=adj())], "propLegs": []}, only_sports=None)[0]
+        q.update(kw); return q
+
+    def test_the_email_marks_it_as_the_best_adjusted_line_and_as_an_adjusted_line(self):
+        html = A._leg_html(self.leg())
+        self.assertIn("BEST ADJUSTED LINE", html); self.assertIn("ADJUSTED LINE</span>", html)
+        self.assertIn("UNDER 3.5", html); self.assertIn("posted UNDER 2.5", html); self.assertIn("estimate", html)
+
+    def test_an_ordinary_adjusted_line_has_only_the_adjusted_badge(self):
+        q = self.leg(); q["altLine"] = dict(q["altLine"], bestOfGame=False)
+        html = A._leg_html(q)
+        self.assertNotIn("BEST ADJUSTED LINE", html); self.assertIn("ADJUSTED LINE</span>", html)
+
+    def test_the_full_email_lists_it_and_explains_the_badge(self):
+        body = A.build_locks_email_html([self.leg()], True, 1)
+        self.assertIn("BEST ADJUSTED LINE", body); self.assertIn("in addition to the game", body)
 
 
 class Gates(unittest.TestCase):
     PICK = {"id": "p", "sport": "NBA", "league": "NBA", "betType": "OU", "betOn": "OVER 200.5", "hA": "A", "awA": "B", "date": "2026-12-30", "outcome": "pending", "lockedAt": 1e12}
 
-    def test_best_of_game_picks_belong_to_no_paid_product_but_the_same_pick_without_the_tag_does(self):
+    def test_emailed_best_of_game_picks_are_product_picks_the_earlier_internal_ones_are_not(self):
         self.assertIsNotNone(ET.product_of_pick(self.PICK))
-        self.assertIsNone(ET.product_of_pick(dict(self.PICK, altLine={"bestOfGame": True, "posted": 1})))
-        self.assertIsNotNone(ET.product_of_pick(dict(self.PICK, altLine={"posted": 1})))          # an ordinary adjusted line is still a product pick
+        self.assertIsNotNone(ET.product_of_pick(dict(self.PICK, altLine={"bestOfGame": True, "product": True, "posted": 1})))
+        self.assertIsNone(ET.product_of_pick(dict(self.PICK, altLine={"bestOfGame": True, "posted": 1})))      # locked 2026-10-24/25, before they were emailed: never sent, never owed
+        self.assertIsNotNone(ET.product_of_pick(dict(self.PICK, altLine={"posted": 1})))                        # an ordinary adjusted line is a product pick
 
-    def test_public_figures_drop_them(self):
+    def test_public_figures_drop_only_the_pre_email_internal_ones(self):
         import generate_social_cards as G
-        rows = [dict(self.PICK, id="keep"), dict(self.PICK, id="internal", altLine={"bestOfGame": True})]
+        rows = [dict(self.PICK, id="keep"), dict(self.PICK, id="internal", altLine={"bestOfGame": True}), dict(self.PICK, id="emailed", altLine={"bestOfGame": True, "product": True})]
         page = mock.Mock(); page.evaluate.return_value = rows
         with mock.patch.object(G.lt, "load_index", return_value={}), mock.patch.object(G.lt, "summarize", return_value={"settled_unknown_timing_included": 0}):
             pf = G.public_filter(page)
-        self.assertIn("internal", pf["ids"]); self.assertNotIn("keep", pf["ids"]); self.assertEqual(pf["internal"], ["internal"])
+        self.assertEqual(pf["internal"], ["internal"]); self.assertIn("internal", pf["ids"]); self.assertNotIn("keep", pf["ids"]); self.assertNotIn("emailed", pf["ids"])
         src = (HERE / "generate_social_cards.py").read_text()
         self.assertIn('land_pf = dict(pf, ids=list(pf.get("internal") or [])) if LANDING_INCLUDES_LATE else pf', src)      # the landing page too
 
@@ -171,19 +164,19 @@ class InPage(unittest.TestCase):
         p = picks[0]
         self.assertEqual(p["betOn"], leg["label"]); self.assertEqual(p["betType"], leg["side"] in ("over", "under") and "OU" or "SPREAD")
         self.assertTrue(p["altLine"]["bestOfGame"]); self.assertEqual(p["lockOrigin"] if "lockOrigin" in p else "auto", "auto")
-        self.assertIsNone(ET.product_of_pick(p))                                        # and it is not a product pick
+        self.assertEqual(ET.product_of_pick(p), "cfb")                                  # it is a product pick: emailed, tracked, counted
         self.assertEqual(A.lock_game_leg(self.pg, leg, leg["lockDate"]), "already-locked")   # a repeat pass is a normal duplicate
         self.assertEqual(len(self.pg.evaluate("getP().filter(p=>p.outcome==='pending')")), 1)
 
-    def test_lock_qualifying_legs_locks_the_staged_extras_and_clears_them(self):
+    def test_a_pass_locks_the_returned_best_adjusted_leg_with_the_product_flag(self):
         legs = self.attach()
-        A.ADJ_BEST_PENDING.clear()
-        A.build_qualifying({"gameLegs": [dict(legs[0], sport="CFB", markets=[], mcSummary=None, best=None, socFactors=None)], "propLegs": []})
-        self.assertEqual(len(A.ADJ_BEST_PENDING), 1)
-        res = A._lock_qualifying_legs(self.pg, [])
-        self.assertEqual((res.new, res.failed), (0, 0))                                 # the lean pass's own counts are untouched
-        self.assertEqual(A.ADJ_BEST_PENDING, [])
-        self.assertEqual(len(self.pg.evaluate("getP().filter(p=>p.outcome==='pending'&&p.altLine&&p.altLine.bestOfGame)")), 1)
+        q = A.build_qualifying({"gameLegs": [dict(legs[0], sport="CFB", markets=[], mcSummary=None, best=None, socFactors=None)], "propLegs": []})
+        self.assertEqual(len(q), 1)
+        res = A._lock_qualifying_legs(self.pg, q)
+        self.assertEqual((res.new, res.failed), (1, 0))
+        got = self.pg.evaluate("getP().filter(p=>p.outcome==='pending'&&p.altLine&&p.altLine.bestOfGame)")
+        self.assertEqual(len(got), 1); self.assertTrue(got[0]["altLine"]["product"])
+        self.assertEqual(ET.product_of_pick(got[0]), "cfb")
 
 
 if __name__ == "__main__":

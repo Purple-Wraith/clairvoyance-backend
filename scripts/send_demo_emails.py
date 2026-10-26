@@ -93,6 +93,10 @@ DEMO_LEGS = {
              "MC PROJ: LAL 114.0 – DEN 118.5 (Total 232.5, 25k sims)"),
         _leg("NBA", "PHX", "OKC", "sprdDog", "PHX +5.5", 0.57, "-105", 1.95, 0.018,
              "MC PROJ: PHX 109.0 – OKC 114.0 (Total 223.0, 25k sims)"),
+        # BEST ADJUSTED LINE of the game (new 2026-10-25)
+        _leg("NBA", "NYK", "BOS", "sprdDog", "BOS +9.5", 0.735, "-285", 1.31, 0.0,
+             "MC PROJ: BOS 112.4 – NYK 109.8 (Total 222.2, 25k sims)",
+             alt={"posted": 3.5, "line": 9.5, "shift": 6.0, "postedLabel": "BOS +3.5", "postedProb": 0.55, "bestOfGame": True, "product": True}),
     ],
     "hockey": [
         _leg("NHL", "TOR", "MTL", "mlFav", "TOR ML", 0.62, "-135", 1.74, 0.048,
@@ -105,6 +109,14 @@ DEMO_LEGS = {
              "xG PROJ: Arsenal 1.85 – Chelsea 1.10"),
         _leg("SOC_LIGA", "Real Madrid", "Barcelona", "mlFav", "Real Madrid ML", 0.68, "-120", 1.83, 0.060,
              "xG PROJ: Real Madrid 2.05 – Barcelona 1.40"),
+        # club-soccer SPREAD moved to a safer line (new 2026-10-25): posted -1.5 -> -0.5, priced from the card cover table
+        _leg("SOC_PL", "Man City", "Brighton", "ahFav", "Man City -0.5", 0.758, "-408", 1.28, 0.0,
+             "xG PROJ: Man City 2.30 – Brighton 0.95",
+             alt={"posted": -1.5, "line": -0.5, "shift": 1.0, "postedLabel": "Man City -1.5", "postedProb": 0.58}),
+        # BEST ADJUSTED LINE of the game (new 2026-10-25): listed in addition to the game's regular pick
+        _leg("SOC_ITA", "Inter", "Torino", "under", "UNDER 3.5", 0.736, "-330", 1.29, 0.0,
+             "xG PROJ: Inter 1.80 – Torino 0.80",
+             alt={"posted": 2.5, "line": 3.5, "shift": 1.0, "postedLabel": "UNDER 2.5", "postedProb": 0.56, "bestOfGame": True, "product": True}),
     ],
 }
 

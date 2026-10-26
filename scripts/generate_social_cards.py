@@ -228,8 +228,9 @@ def public_filter(page) -> dict:
     late = [p for p in rows if lt.is_known_late(p, idx)]
     if any(not p.get("id") for p in late):
         raise RuntimeError("known-late pick without an id -- cannot exclude it from public figures")
-    # the owner's internal "best adjusted line of every game" locks (altLine.bestOfGame) are not part of what is sold or published: dropped from every public figure, the landing page included
-    internal = sorted(p["id"] for p in rows if (p.get("altLine") or {}).get("bestOfGame") and p.get("id"))
+    # the owner's internal "best adjusted line of every game" locks made BEFORE they were added to the subscriber emails (2026-10-24/25, altLine.bestOfGame without altLine.product) were never sent: dropped from
+    # every public figure, the landing page included. Those locked since (altLine.product=True) are emailed picks and count like any other.
+    internal = sorted(p["id"] for p in rows if lt.is_internal_best_adjusted(p) and p.get("id"))
     ids = sorted(set(p["id"] for p in late) | set(internal))
     log(f"Public-figure basis: {len(late)} known-late pick(s) + {len(internal)} internal best-adjusted pick(s) excluded of {len(rows)} ({lt.BASIS}); "
         f"{lt.summarize(rows, idx)['settled_unknown_timing_included']} settled unknown-timing pick(s) included")

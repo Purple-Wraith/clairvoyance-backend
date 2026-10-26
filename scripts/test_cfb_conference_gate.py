@@ -52,7 +52,7 @@ class Roster(unittest.TestCase):
 
 class Gate(unittest.TestCase):
     def setUp(self):
-        A.ADJ_BEST_PENDING.clear()
+        pass
 
     def test_build_qualifying_drops_cfb_games_with_no_team_in_scope(self):
         q = A.build_qualifying({"gameLegs": [leg(hA="ALA", awA="MSST"), leg(hA="APP", awA="ALA"), leg(hA="AKR", awA="BGSU")], "propLegs": []}, only_sports=None)
@@ -71,11 +71,10 @@ class Gate(unittest.TestCase):
     def test_best_adjusted_line_is_not_staged_for_an_out_of_scope_game(self):
         g = leg(hA="APP", awA="AKR"); g["adjBest"] = {"key": "k", "sport": "CFB", "hA": "APP", "awA": "AKR", "date": "2026-12-30", "side": "under",
                                                       "alt": {"label": "UNDER 60.5", "prob": .75, "mkt": "OU", "ml": "-300", "dec": 1.33, "posted": 54.5, "line": 60.5, "shift": 6, "postedLabel": "UNDER 54.5", "postedProb": .55, "postedDec": 1.91, "postedMl": "-110"}}
-        A.build_qualifying({"gameLegs": [g], "propLegs": []}, only_sports=None)
-        self.assertEqual(A.ADJ_BEST_PENDING, [])
+        self.assertEqual([x for x in A.build_qualifying({"gameLegs": [g], "propLegs": []}, only_sports=None)], [])
 
     def test_lock_pass_counts_the_refusal_as_a_skip_not_a_failure(self):
-        with mock.patch.object(A, "lock_game_leg", return_value="skip: conference -- CFB ALA @ APP is outside the lock conferences"), mock.patch.object(A, "_lock_best_adjusted", return_value=(0, 0, 0)):
+        with mock.patch.object(A, "lock_game_leg", return_value="skip: conference -- CFB ALA @ APP is outside the lock conferences"):
             r = A._lock_qualifying_legs(mock.Mock(), [{"kind": "GAME", "sport": "CFB", "label": "x", "hA": "APP", "awA": "AKR"}])
         self.assertEqual((r.new, r.failed, r.skipped), (0, 0, 1))
 

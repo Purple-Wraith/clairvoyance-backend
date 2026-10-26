@@ -2310,6 +2310,13 @@ ALT_LINE_CFG = {
     "NFL": {"OU": (("normal", 13.0, 0.0), 3.0, 8.0), "SPREAD": (("normal", 13.4, 0.0), 3.0, 8.0)},
     "NBA": {"OU": (("table", ((0, .500), (2, .543), (3, .564), (4, .590), (5, .612), (6, .631), (7, .651), (8, .670), (10, .711))), 3.0, 10.0),
             "SPREAD": (("table", ((0, .500), (2, .566), (3, .598), (4, .631), (5, .659), (6, .682), (7, .707), (8, .735), (10, .781))), 3.0, 10.0)},
+    # Club soccer SPREADS (owner 2026-10-25: "add adjusted lines to emails for soccer spreads"): the same side-neutral cover table the game cards use (app.html _ALT_CFG.SOC.SPREAD, backtest
+    # scripts/backtest_alt_lines.py soccer): cushion k goals -> cover rate 0:50.0 1:75.8 2:90.8 3:96.8.  Quarter lines (-0.25 / -0.75 ...) are split stakes and never move (see _alt_shift_leg).
+    # Totals stay as posted for now (the cards show soccer totals, the emails do not move them).
+    "SOC_PL": {"SPREAD": (("table", ((0, .500), (1, .758), (2, .908), (3, .968))), 1.0, 3.0)},
+    "SOC_LIGA": {"SPREAD": (("table", ((0, .500), (1, .758), (2, .908), (3, .968))), 1.0, 3.0)},
+    "SOC_ITA": {"SPREAD": (("table", ((0, .500), (1, .758), (2, .908), (3, .968))), 1.0, 3.0)},
+    "SOC_CL": {"SPREAD": (("table", ((0, .500), (1, .758), (2, .908), (3, .968))), 1.0, 3.0)},
 }
 # Hockey (NHL + SHL/LIIGA/NLA/EXTRALIGA), totals only, 60-65% band. 2026-10-03 (owner's call): NEVER flip a side just because the table likes the other one -- a pick keeps its OWN side
 # (OVER stays OVER, UNDER stays UNDER) and only the LINE moves, 0-3 goals toward safety, chosen per game:
@@ -2415,7 +2422,7 @@ def _alt_finish(leg: dict, new_label: str, p_alt: float, posted: float, new_line
     model_line = next((re.sub(r" — .*?(?=, from )", "", ln) for ln in old_r.split("\n") if ln.startswith("MODEL: ")), None)
     # The model's own number at the posted line is the pre-clamp one (rawProb, see MARKET_P_CEILING) when the stated probability was clamped.
     posted_model_p = leg.get("rawProb") if leg.get("rawProb") is not None else leg.get("prob")
-    out["reasoning"] = _alt_reasoning(new_label, p_alt, label, posted_model_p, k, "goal" if leg.get("sport") in HOCKEY_SPORTS else "pt", model_line)
+    out["reasoning"] = _alt_reasoning(new_label, p_alt, label, posted_model_p, k, "goal" if (leg.get("sport") in HOCKEY_SPORTS or leg.get("sport") in EURO_SOCCER_SPORTS) else "pt", model_line)
     out.update({"label": new_label, "prob": round(p_alt, 4), "dec": round(dec, 3), "ml": _ml_from_dec(dec),
                 "evVal": round(p_alt * dec - 1, 4), "priceSource": "estimated",
                 "altLine": {"posted": posted, "line": new_line, "shift": k, "postedLabel": label, "postedProb": posted_model_p,
@@ -2564,6 +2571,8 @@ def _alt_shift_leg(leg: dict) -> dict | None:
         if not m:
             return None
         team, posted = m.group(1), float(m.group(2))
+        if sport in EURO_SOCCER_SPORTS and (abs(posted) * 2) % 1 != 0:
+            return None                                     # soccer quarter lines (-0.25 / -0.75 ...) are split stakes: no adjusted line
         sign = 1.0                                          # a spread is safer as the number goes up (-5.5 -> -1.5, +5.5 -> +9.5)
     # Whole-point steps keep a half-point line on a half-point (no push); a whole-number posted line is moved onto a half-point instead.
     k = kmin + (0.5 if posted == int(posted) else 0.0)
@@ -2659,10 +2668,10 @@ def _apply_prop_alt(p: dict) -> dict:
 # ── BEST ADJUSTED LINE OF EVERY GAME (owner 2026-10-24) ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 # Every game whose card shows adjusted lines (NBA, CFB, NFL, NHL, the four European hockey leagues, club soccer) also gets its BEST adjusted line locked -- the option with the highest estimated win probability among
 # the total / spread options of BOTH sides, the one the card marks with the neon magenta border (docs/app.html _altRowFor keeps it in window._altBest; gather_legs attaches it to the captured game leg as `adjBest`).
-# They are extra picks, tagged altLine.bestOfGame=True: never part of the paid products (kept out of the subscriber emails and the email catch-up -- email_tracking.product_of_pick -- and out of the public / landing
-# figures -- generate_social_cards.public_filter), counted in the owner's own app.  A game whose lean pass already locks the same market (spread or total) keeps that lock: lockPick allows one lock per market per game.
+# Since 2026-10-25 (owner: "include in email best adjusted line for each game and include indicator that its adjusted line") they are ordinary qualifying legs of the game's product: build_qualifying returns them,
+# the product's pass locks them, and the product's locks email lists them under a BEST ADJUSTED LINE + ADJUSTED LINE badge (see _leg_html); they are tagged altLine.bestOfGame=True and count in the product (email
+# catch-up, public / landing figures) like any other pick.  A game whose lean pass already qualifies in the same market (spread or total) keeps that pick: lockPick allows one lock per market per game.
 LOCK_BEST_ADJUSTED = True
-ADJ_BEST_PENDING: list[dict] = []        # legs built by build_qualifying, locked (and cleared) by _lock_qualifying_legs
 
 
 def _best_adjusted_leg(gl: dict, game_qualifying: list[dict]) -> dict | None:
@@ -2694,41 +2703,8 @@ def _best_adjusted_leg(gl: dict, game_qualifying: list[dict]) -> dict | None:
         "mcSummary": gl.get("mcSummary"), "best": gl.get("best"), "socFactors": gl.get("socFactors"), "startMs": gl.get("startMs"),
         "lockDate": mt_date_of_ms(gl.get("startMs")), "adjBest": True,
         "altLine": {"posted": posted, "line": alt.get("line"), "shift": shift, "postedLabel": alt.get("postedLabel"), "postedProb": posted_p,
-                    "postedDec": alt.get("postedDec"), "postedMl": alt.get("postedMl"), "bestOfGame": True},
+                    "postedDec": alt.get("postedDec"), "postedMl": alt.get("postedMl"), "bestOfGame": True, "product": True},
     }
-
-
-def _stash_best_adjusted(legs: list[dict]) -> None:
-    seen = {(q["sport"], q["hA"], q["awA"], q.get("lockDate"), q["side"]) for q in ADJ_BEST_PENDING}
-    for q in legs:
-        k = (q["sport"], q["hA"], q["awA"], q.get("lockDate"), q["side"])
-        if k not in seen:
-            ADJ_BEST_PENDING.append(q)
-            seen.add(k)
-
-
-def _lock_best_adjusted(page) -> tuple[int, int, int]:
-    """Locks (and clears) the pending best-adjusted legs, each stamped with its OWN game's Mountain date. -> (locked, already, failed). Never raises; the lean pass's counts and emails are untouched."""
-    pend = list(ADJ_BEST_PENDING)
-    ADJ_BEST_PENDING.clear()
-    new = dup = bad = 0
-    for q in pend:
-        try:
-            out = lock_game_leg(page, q, q.get("lockDate"))
-        except Exception as exc:  # noqa: BLE001
-            bad += 1
-            log(f"  best adjusted line: FAILED to lock {q.get('label')}: {exc}")
-            continue
-        if out == "locked":
-            new += 1
-        elif out == "already-locked" or (isinstance(out, str) and out.startswith("skip")):
-            dup += 1
-        else:
-            bad += 1
-            log(f"  best adjusted line: FAILED ({out}): [{q['sport']}] {q.get('awA')} @ {q.get('hA')} {q.get('label')}")
-    if pend:
-        log(f"  best adjusted line of each game: {new} locked, {dup} already locked / skipped, {bad} failed (of {len(pend)})")
-    return new, dup, bad
 
 
 def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, now=None,
@@ -2746,8 +2722,6 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
     def _wanted(sport: str) -> bool:
         return only_sports is None or (sport or "") in only_sports
     qualifying: list[dict] = []
-    adj_best: list[dict] = []
-    _observe_only = now is not None and not isinstance(now, datetime) and float(now) == 0      # the watchdog's look-only call never stages locks
     _pre_nba = _nba_preseason_pairs()
     skipped_legs = 0
     skipped_games: list[str] = []
@@ -2943,10 +2917,10 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
             # An NFL lane leg exists only as an alternate-line pick: when no alternate line could be priced it is dropped, never locked at the posted line.
             game_qualifying = [q for q in shifted if not (q.get("nflLane") and not q.get("altLine"))]
         qualifying.extend(game_qualifying)
-        if LOCK_BEST_ADJUSTED and guard_ok and not _observe_only:
+        if LOCK_BEST_ADJUSTED and guard_ok:
             _ab = _best_adjusted_leg(gl, game_qualifying)
             if _ab:
-                adj_best.append(_ab)
+                qualifying.append(_ab)       # a normal qualifying leg: locked by the product's pass AND listed in the product's email (flagged BEST ADJUSTED LINE)
     # Props only exist for NBA/NHL now -- NFL player props removed from
     # generation entirely 2026-09-23 (see gather_legs()'s own comment),
     # so propLegs can never contain an NFL-tagged row here; the per-game
@@ -2957,7 +2931,6 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
     # only on the unscoped (full) run.
     START_GUARD_TOTALS["skipped"] += skipped_legs
     START_GUARD_TOTALS["unguarded"] += unguarded_legs
-    _stash_best_adjusted(adj_best)
     if guard_stats is not None:
         guard_stats.update({"skipped": skipped_legs, "games": skipped_games, "unguarded": unguarded_legs,
                             "detail": skipped_detail})
@@ -3224,8 +3197,13 @@ def _leg_html(q: dict) -> str:
                 moved_txt = "Switched to the opposite side from the posted " + _esc(alt.get("postedLabel") or alt.get("posted")) + " (the model's own scoring distribution backs this side)."
             else:
                 moved_txt = "Moved from the posted " + _esc(alt.get("postedLabel") or alt.get("posted")) + " to a safer line."
+            best_badge = ('<span style="background:#f000ff;color:#fff;font-weight:700;font-size:11px;padding:1px 7px;border-radius:3px;display:inline-block;margin:0 4px 3px 0">'
+                          'BEST ADJUSTED LINE</span>') if alt.get("bestOfGame") else ''
+            if alt.get("bestOfGame"):
+                moved_txt = ("The model's best adjusted line for this game (highest estimated win probability among the adjusted totals and spreads), moved from the posted "
+                             + _esc(alt.get("postedLabel") or alt.get("posted")) + ".")
             return (f'<div style="padding:5px 0">'
-                    f'<span style="background:#ffe600;color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
+                    f'{best_badge}<span style="background:#ffe600;color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
                     f'border-radius:3px;display:inline-block;margin-bottom:3px">ADJUSTED LINE</span>'
                     f'<div style="font-size:14px;color:#eee">{_esc(q["label"])} — {ptxt}</div>'
                     f'<div style="font-size:12px;color:#bbb;margin-top:2px">{moved_txt} '
@@ -3401,7 +3379,9 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
         '<div style="font-size:13px;color:#eee;line-height:1.6;margin-top:10px">'
         '<span style="background:#ffe600;color:#000;font-weight:700;font-size:11px;padding:1px 7px;border-radius:3px">ADJUSTED LINE</span> '
         'the engine moved this spread or total to a safer line than the one posted, to raise the chance it hits (the original posted line is shown in the pick). '
-        'The price at the new line is an ESTIMATE, not a bookmaker quote, so no EV is shown, and your book may not offer that exact line -- check before you bet.</div>'
+        'The price at the new line is an ESTIMATE, not a bookmaker quote, so no EV is shown, and your book may not offer that exact line -- check before you bet. '
+        '<span style="background:#f000ff;color:#fff;font-weight:700;font-size:11px;padding:1px 7px;border-radius:3px">BEST ADJUSTED LINE</span> '
+        'marks the adjusted line the model rates highest for that game (over its adjusted totals and spreads, either side); it is listed in addition to the game\'s regular pick.</div>'
         + _ceiling_note_html(qualifying) +
         '</div>'
     )
@@ -3757,6 +3737,18 @@ def zero_pick_gate(product: str, *, qualifying: list[dict], guard: dict, complet
     return True, f"complete pass, games on {left}, nothing qualified", left
 
 
+# NBA PLAYER PROPS ARE OFF THE SUBSCRIBER EMAILS (owner 2026-10-25): they keep being generated, locked, settled and tracked by the backend exactly as before, but no locks email lists them
+# (and the per-pick email tracking never records them as sent).  Props resume once the season has ~20 games of data: flip this to True.  Only NBA props are affected.
+EMAIL_NBA_PROPS = False
+
+
+def _emailable(qualifying: list[dict]) -> list[dict]:
+    """The legs a locks email may list: everything except NBA player props while EMAIL_NBA_PROPS is off.  Locking always uses the full list."""
+    if EMAIL_NBA_PROPS:
+        return list(qualifying)
+    return [q for q in qualifying if not (q.get("kind") == "PROP" and q.get("sport") == "NBA")]
+
+
 def send_locks_email(qualifying: list[dict], live: bool, locked_count: int | None = None,
                       label: str = "", to: list[str] | None = None, date_str: str | None = None, key: str | None = None,
                       product: str | None = None, zero: dict | None = None) -> bool:
@@ -3781,6 +3773,16 @@ def send_locks_email(qualifying: list[dict], live: bool, locked_count: int | Non
     if not recipients:
         log("No recipients (LOCKS_EMAIL_TO unset and none passed) — skipping locked-picks email")
         return False
+    if qualifying:
+        _all = qualifying
+        qualifying = _emailable(_all)
+        if not qualifying:
+            log(f"Locks email ({label or 'ALL'}) skipped -- only NBA player props qualified, and props are not emailed (EMAIL_NBA_PROPS is off); they are locked and tracked as usual")
+            return False
+        if len(qualifying) != len(_all):
+            log(f"  {len(_all) - len(qualifying)} NBA player prop(s) left out of the email (EMAIL_NBA_PROPS is off); they stay locked")
+            if locked_count is not None:
+                locked_count = max(0, locked_count - (len(_all) - len(qualifying)))
     # date_str override: the evening-prior soccer lock passes the actual
     # game date (tomorrow) here -- otherwise this'd default to UTC "now",
     # which reads as tonight's date on a subject line about tomorrow's
@@ -3907,10 +3909,6 @@ def _lock_qualifying_legs(page, qualifying: list[dict], date_override: str | Non
             log(f"  FAILED to lock: {exc}")
     if skipped:
         log(f"  {skipped} leg(s) skipped at lock time (game already started, or a CFB game outside the lock conferences)")
-    try:
-        _lock_best_adjusted(page)
-    except Exception as exc:  # noqa: BLE001 -- extra picks must never break the product locks
-        log(f"  best adjusted line pass failed: {exc}")
     return LockResult(new, already_locked, failed, skipped, tuple(failed_labels))
 
 
@@ -4472,7 +4470,8 @@ def run_lock_segmented(page, live: bool, send_email: bool = True, only_new: bool
         # specifically, not the whole product's qualifying -- SHL/Liiga
         # being in-season shouldn't mask a real NHL off-season gap in
         # THIS run's own (NHL-only) email.
-        season_inactive = product in ("nba", "hockey") and not email_qualifying
+        email_view = _emailable(email_qualifying)        # what the subscriber email may list (NBA player props are locked but not emailed -- EMAIL_NBA_PROPS)
+        season_inactive = product in ("nba", "hockey") and not email_view
         if not live:
             # Same redundancy-skip as the live branch below (soccer/cfb
             # both have their own dedicated early/evening pass with a
@@ -4526,12 +4525,12 @@ def run_lock_segmented(page, live: bool, send_email: bool = True, only_new: bool
         if product in ("soccer", "cfb"):
             log(f"Locks email ({label}) skipped -- {product} has its own dedicated early/evening pass with a better-timed email; this run locked {result.new} as a safety net "
                 f"(any pick still owed to subscribers is emailed by the catch-up at the end of this run)")
-        elif email_qualifying:
+        elif email_view:
             # `send_email` is the main run's once-a-day final slot; a non-final slot (and the watchdog, only_new) emails the whole slate only to retry a failed send or,
             # watchdog, when it locked something new. Anything else locked outside the final email reaches subscribers through the catch-up.
             if send_email or main_key in pend:
                 legacy = ((result.new > 0 or main_key in pend) if only_new else True) if send_email else True
-                due, why_due = _pick_email_due(email_qualifying, main_key, pend, legacy)
+                due, why_due = _pick_email_due(email_view, main_key, pend, legacy)
             else:
                 due, why_due = False, "not the final slot: nothing is emailed here (the catch-up at the end of this run emails any pick locked and not yet emailed)"
             if due:
@@ -4551,7 +4550,7 @@ def run_lock_segmented(page, live: bool, send_email: bool = True, only_new: bool
             pguard = {"skipped": sum(1 for d in seg_guard.get("detail", []) if d.get("sport") in scope),
                       "lineupHolds": [h for h in seg_guard.get("lineupHolds", []) if h.get("sport") in scope]}
             pcomplete = not any(str(n).split(" ")[0] in scope for n in seg_analysis.get("noPrice", []))
-            ok_z, why_z, zdates = zero_pick_gate(product, qualifying=email_qualifying, guard=pguard, complete=pcomplete,
+            ok_z, why_z, zdates = zero_pick_gate(product, qualifying=email_view, guard=pguard, complete=pcomplete,
                                                  game_dates=slate_game_dates(gathered, scope, today_mt), eval_dates=[today_mt], page=page)
             if ok_z:
                 send_locks_email([], live=True, locked_count=0, label=label, to=recipients, key=main_key, product=product,
