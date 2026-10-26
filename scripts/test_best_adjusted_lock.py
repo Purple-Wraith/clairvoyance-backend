@@ -103,15 +103,14 @@ class Gates(unittest.TestCase):
         self.assertIsNone(ET.product_of_pick(dict(self.PICK, altLine={"bestOfGame": True, "posted": 1})))      # locked 2026-10-24/25, before they were emailed: never sent, never owed
         self.assertIsNotNone(ET.product_of_pick(dict(self.PICK, altLine={"posted": 1})))                        # an ordinary adjusted line is a product pick
 
-    def test_public_figures_drop_only_the_pre_email_internal_ones(self):
+    def test_public_figures_count_every_adjusted_line_pick(self):
         import generate_social_cards as G
-        rows = [dict(self.PICK, id="keep"), dict(self.PICK, id="internal", altLine={"bestOfGame": True}), dict(self.PICK, id="emailed", altLine={"bestOfGame": True, "product": True})]
+        rows = [dict(self.PICK, id="keep"), dict(self.PICK, id="older", altLine={"bestOfGame": True}), dict(self.PICK, id="emailed", altLine={"bestOfGame": True, "product": True}),
+                dict(self.PICK, id="lean", altLine={"posted": 1, "line": 2})]
         page = mock.Mock(); page.evaluate.return_value = rows
         with mock.patch.object(G.lt, "load_index", return_value={}), mock.patch.object(G.lt, "summarize", return_value={"settled_unknown_timing_included": 0}):
             pf = G.public_filter(page)
-        self.assertEqual(pf["internal"], ["internal"]); self.assertIn("internal", pf["ids"]); self.assertNotIn("keep", pf["ids"]); self.assertNotIn("emailed", pf["ids"])
-        src = (HERE / "generate_social_cards.py").read_text()
-        self.assertIn('land_pf = dict(pf, ids=list(pf.get("internal") or [])) if LANDING_INCLUDES_LATE else pf', src)      # the landing page too
+        self.assertEqual(pf["internal"], []); self.assertEqual(pf["ids"], [])             # nothing adjusted is dropped from a public figure
 
 
 class Quiet(http.server.SimpleHTTPRequestHandler):
