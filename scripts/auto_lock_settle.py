@@ -3167,6 +3167,12 @@ def _skip_note_html(tier_lbl: str, prob: float, known: bool, ev_val=None) -> str
     return f'<div style="font-size:12px;color:#bbb;margin-top:2px">{txt}</div>'
 
 
+# The ADJUSTED LINE tags are neon magenta with a glow (owner 2026-10-25), the same look as the magenta-bordered top adjusted line on the app's game cards. Inline styles only (email clients ignore <style>);
+# box-shadow is the glow (clients that drop it still show the solid magenta tag).
+_ADJ_TAG_STYLE = ("background:#f000ff;color:#fff;font-weight:700;font-size:11px;letter-spacing:.6px;padding:2px 8px;border-radius:3px;"
+                  "box-shadow:0 0 5px #f000ff,0 0 12px rgba(240,0,255,.7);text-shadow:0 0 4px rgba(255,255,255,.75)")
+
+
 def _leg_html(q: dict) -> str:
     """One block per qualifying leg: the tier/grade badge on its own line
     ABOVE the pick (not inline before it) -- applies identically to every
@@ -3197,14 +3203,12 @@ def _leg_html(q: dict) -> str:
                 moved_txt = "Switched to the opposite side from the posted " + _esc(alt.get("postedLabel") or alt.get("posted")) + " (the model's own scoring distribution backs this side)."
             else:
                 moved_txt = "Moved from the posted " + _esc(alt.get("postedLabel") or alt.get("posted")) + " to a safer line."
-            best_badge = ('<span style="background:#f000ff;color:#fff;font-weight:700;font-size:11px;padding:1px 7px;border-radius:3px;display:inline-block;margin:0 4px 3px 0">'
-                          'BEST ADJUSTED LINE</span>') if alt.get("bestOfGame") else ''
+            best_badge = (f'<span style="{_ADJ_TAG_STYLE};display:inline-block;margin:0 6px 4px 0">BEST ADJUSTED LINE</span>') if alt.get("bestOfGame") else ''
             if alt.get("bestOfGame"):
                 moved_txt = ("The model's best adjusted line for this game (highest estimated win probability among the adjusted totals and spreads), moved from the posted "
                              + _esc(alt.get("postedLabel") or alt.get("posted")) + ".")
             return (f'<div style="padding:5px 0">'
-                    f'{best_badge}<span style="background:#ffe600;color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
-                    f'border-radius:3px;display:inline-block;margin-bottom:3px">ADJUSTED LINE</span>'
+                    f'{best_badge}<span style="{_ADJ_TAG_STYLE};display:inline-block;margin-bottom:4px">ADJUSTED LINE</span>'
                     f'<div style="font-size:14px;color:#eee">{_esc(q["label"])} — {ptxt}</div>'
                     f'<div style="font-size:12px;color:#bbb;margin-top:2px">{moved_txt} '
                     f'The price at this line is an estimate, not a bookmaker quote — your book may not offer it, so check before you bet.</div>'
@@ -3377,10 +3381,10 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
         'favorite\'s price is too short to be good EV, but the model still thinks it wins very often -- '
         'worth knowing about even though it\'s not a normal pick.</div>'
         '<div style="font-size:13px;color:#eee;line-height:1.6;margin-top:10px">'
-        '<span style="background:#ffe600;color:#000;font-weight:700;font-size:11px;padding:1px 7px;border-radius:3px">ADJUSTED LINE</span> '
+        f'<span style="{_ADJ_TAG_STYLE}">ADJUSTED LINE</span> '
         'the engine moved this spread or total to a safer line than the one posted, to raise the chance it hits (the original posted line is shown in the pick). '
         'The price at the new line is an ESTIMATE, not a bookmaker quote, so no EV is shown, and your book may not offer that exact line -- check before you bet. '
-        '<span style="background:#f000ff;color:#fff;font-weight:700;font-size:11px;padding:1px 7px;border-radius:3px">BEST ADJUSTED LINE</span> '
+        f'<span style="{_ADJ_TAG_STYLE}">BEST ADJUSTED LINE</span> '
         'marks the adjusted line the model rates highest for that game (over its adjusted totals and spreads, either side); it is listed in addition to the game\'s regular pick.</div>'
         + _ceiling_note_html(qualifying) +
         '</div>'

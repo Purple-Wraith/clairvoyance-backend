@@ -83,6 +83,7 @@ class EmailRendering(unittest.TestCase):
         html = A._leg_html(self.leg())
         self.assertIn("BEST ADJUSTED LINE", html); self.assertIn("ADJUSTED LINE</span>", html)
         self.assertIn("UNDER 3.5", html); self.assertIn("posted UNDER 2.5", html); self.assertIn("estimate", html)
+        self.assertIn("background:#f000ff", html); self.assertIn("box-shadow:0 0 5px #f000ff", html)         # neon magenta, glowing
 
     def test_an_ordinary_adjusted_line_has_only_the_adjusted_badge(self):
         q = self.leg(); q["altLine"] = dict(q["altLine"], bestOfGame=False)
