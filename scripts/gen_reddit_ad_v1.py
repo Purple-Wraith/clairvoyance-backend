@@ -26,6 +26,7 @@ import json
 from pathlib import Path
 
 import ad_coverage as ac
+import ad_perf
 from design_system import (
     W, H, CX, BG, CARD, MAG, CYN, GOLD, RED, WHT, DIM, T2, T3,
     orb, mono, glow, make_background, make_background_covers, draw_footer, hline,
@@ -92,13 +93,18 @@ def build_card(background_fn):
     draw = ImageDraw.Draw(base)
     base = hline(base, 188, color=MAG, alpha=90)
 
-    # ── Hero stat (the actual hook) ──────────────────────────────
-    # Win rate only, per explicit request (record/units/all-time label
-    # dropped from this card).
-    base = glow(base, f'{hero_win_rate_pct()} WIN RATE', (CX, 300), orb(74), MAG, TITLE_GLOW)
-
+    # ── Hero stats (the actual hook) ──────────────────────────────
+    # 2026-10-26 (owner): this month's AND the all-time record + win %, read live from the same files the landing page uses
+    # (ad_perf).  Earlier (2026-09) the card was win-rate only; records are back on explicit request.
+    perf = ad_perf.load()
+    for xc, key, lbl in ((CX - 255, 'month', perf['month_name']), (CX + 255, 'all', 'ALL TIME')):
+        rec = perf['overall'][key]
+        base = glow(base, lbl, (xc, 232), orb(20), GOLD, SOCIAL_GLOW)
+        base = glow(base, ad_perf.fmt_pct(rec), (xc, 300), orb(70), MAG, TITLE_GLOW)
+        base = glow(base, f"{rec['w']:,}W - {rec['l']:,}L", (xc, 358), orb(24), CYN, SOCIAL_GLOW)
     draw = ImageDraw.Draw(base)
-    base = hline(base, 360, color=MAG, alpha=90)
+    draw.line([(CX, 214), (CX, 380)], fill=(*MAG, 120), width=2)
+    base = hline(base, 410, color=MAG, alpha=90)
 
     # ── Value proposition ─────────────────────────────────────────
     draw = ImageDraw.Draw(base)
@@ -108,7 +114,7 @@ def build_card(background_fn):
         'Published live and graded on outcome — no cherry-picking, no deleted losses.',
     ]
     bf = mono(19)
-    vy = 440
+    vy = 470
     for ln in vp_lines:
         x = cx_text(draw, ln, bf)
         draw.text((x, vy), ln, font=bf, fill=(*WHT, 255))
@@ -141,6 +147,11 @@ def build_card(background_fn):
     base = glow(base, 'VIEW THE FULL TRACK RECORD AND MORE INFO', (CX, by0 + 42), orb(21), GOLD, HDR_GLOW)
     draw = ImageDraw.Draw(base)
     base = glow(base, 'clairvoyanceengine.info', (CX, by0 + 84), orb(22), CYN, HDR_GLOW)
+
+    # ── Basis footnote ──────────────────────────────────────────────
+    draw = ImageDraw.Draw(base)
+    foot = f"All graded picks, incl. some locked after kickoff. Updated {perf['generated_at']}."
+    draw.text((CX, by1 + 34), foot, font=mono(13), fill=(172, 168, 200, 255), anchor='mm')
 
     # ── Footer ────────────────────────────────────────────────────
     draw = ImageDraw.Draw(base)
