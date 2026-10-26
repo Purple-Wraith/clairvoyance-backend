@@ -64,6 +64,23 @@ class T(unittest.TestCase):
         for s in t:
             self.assertIn("under-bias", s)
 
+    def test_the_model_mc_itself_leans_under(self):
+        """liigaMC / nlaMC / extraliga / shl: the exact-Poisson over probability is the plain Poisson tail minus the league shift (5.5-6.5 only)."""
+        out = self.pg.evaluate("""()=>{
+          const team={gp:12,gf:36,ga:36,gm:6.2},res={};
+          const set={LIIGA:()=>{_LIIGA_DATA={teams:{a:team,b:team},games:[]}},NLA:()=>{_NLA_DATA={teams:{a:team,b:team},games:[]}},EXTRALIGA:()=>{_EXTRALIGA_DATA={teams:{a:team,b:team},games:[]}},SHL:()=>{_SHL_DATA={teams:{a:team,b:team},games:[]}}};
+          const fn={LIIGA:liigaMC,NLA:nlaMC,EXTRALIGA:extraligaMC,SHL:shlMC};
+          for(const lg of Object.keys(fn)){set[lg]();res[lg]={};
+            for(const L of [4.5,5.5,6.5,7.5]){const mc=fn[lg]('a','b',L);let cdf=0;for(let k=0;k<=Math.floor(L);k++)cdf+=_socPoissonPmf(mc.avgT,k);
+              res[lg][L]={got:mc.overP,plain:1-cdf};}}
+          return res}""")
+        shifts = {"SHL": .5, "EXTRALIGA": .4, "NLA": .3, "LIIGA": .25}
+        for lg, rows in out.items():
+            for line, r in rows.items():
+                sh = shifts[lg] if 5.5 <= float(line) <= 6.5 else 0
+                want = 1 / (1 + math.exp(-(math.log(r["plain"] / (1 - r["plain"])) - sh)))
+                self.assertAlmostEqual(r["got"], want, places=6, msg=f"{lg} {line}")
+
     def test_league_list_is_ordered_by_win_pct(self):
         now = self.pg.evaluate("Date.now()")
         day = dt.datetime.fromtimestamp(now / 1000).strftime("%Y-%m-%d")

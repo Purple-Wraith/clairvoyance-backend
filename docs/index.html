@@ -3938,10 +3938,15 @@ function _hkBlendML(pModel,g,minGp){
 // UNDER BIAS on the European totals (2026-10-26, owner request). The books price overs too high at the common lines: across 427 finished SHL/Liiga/NLA/Extraliga game-lines (5.5 and 6.5, 2026-10-02..10-25) the under hit
 // ~8 points more often than its no-vig price (63% vs 54% at 5.5, 72% vs 64% at 6.5; pooled logit gap +0.35, same sign in both halves of the sample: +0.26 / +0.43). Per league the gap is noisy (about 50 games per line each), so
 // each is shrunk toward the pooled figure (weight n/(n+100)) and rounded: SHL +0.50, Extraliga +0.40, NLA +0.30, Liiga +0.25 (observed 0.82 / 0.51 / 0.22 / 0.07). It moves the MARKET share of the blend toward the under, so the blended
-// probability shifts by alpha x the figure (alpha 0.65-0.95). Only a card line of 5.5-6.5 with a real market (a model-only total has no market price to be biased against); lower and higher rungs showed no gap. 0 disables a league.
+// probability shifts by alpha x the figure (alpha 0.65-0.95) from that side, and by (1-alpha) x the figure from the model side (the same shift is applied to the model's own over probability in the four *MC functions via
+// _hkUnderBiasP, owner request 2026-10-26: the MC / model picks must lean under too), so a market-blended total moves by the full figure and a model-only total (no market price) also by the full figure. Only card lines of 5.5-6.5
+// (lower and higher rungs showed no gap). 0 disables a league.
 // Python has no copy: the lock engine reads the probability this produces. Revisit at ~100 games per league.
 const HOCKEY_OU_UNDER_SHIFT={SHL:0.50,EXTRALIGA:0.40,NLA:0.30,LIIGA:0.25};
 function _hkUnderBias(line,lg){const s=HOCKEY_OU_UNDER_SHIFT[String(lg||'').toUpperCase()];return(s&&line>=5.5&&line<=6.5)?s:0;}
+// The same shift applied to the model's OWN over probability (the exact-Poisson total in liigaMC / nlaMC / extraligaMC / shlMC), so model-only totals (no market price) and the model share of the market blend lean under as well.
+// With this plus the market-share shift in _hkBlendOU the blended probability moves by the full figure; the projected goal total (avgT) is left as the Poisson mean.
+function _hkUnderBiasP(p,line,lg){const sh=_hkUnderBias(line,lg);if(!sh||!(p>0&&p<1))return p;return Math.min(.95,Math.max(.05,1/(1+Math.exp(-(Math.log(p/(1-p))-sh)))));}
 function _hkBlendOU(pOverModel,g,line,minGp,lg){
   const o=_hkOdds(g),ov=_hkOuLegAt(o,line,'OVER'),un=_hkOuLegAt(o,line,'UNDER');
   if(!ov||!un)return null;
@@ -12848,7 +12853,7 @@ function liigaMC(homeId,awayId,marketOU){
   const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
-  const overP=1-cdf;
+  const overP=_hkUnderBiasP(1-cdf,ouLine,'LIIGA');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
   const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5)); // P(home covers -1.5), incl. empty-net margin calibration
   const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
@@ -13005,7 +13010,7 @@ function nlaMC(homeId,awayId,marketOU){
   const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
-  const overP=1-cdf;
+  const overP=_hkUnderBiasP(1-cdf,ouLine,'NLA');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
   const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5));
   const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
@@ -13121,7 +13126,7 @@ function extraligaMC(homeId,awayId,marketOU){
   const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
-  const overP=1-cdf;
+  const overP=_hkUnderBiasP(1-cdf,ouLine,'EXTRALIGA');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
   const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5));
   const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
@@ -14035,7 +14040,7 @@ function shlMC(homeId,awayId,marketOU){
   const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
-  const overP=1-cdf;
+  const overP=_hkUnderBiasP(1-cdf,ouLine,'SHL');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
   const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5)); // P(home covers -1.5), incl. empty-net margin calibration
   const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
