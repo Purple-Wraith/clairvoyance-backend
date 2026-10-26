@@ -397,7 +397,10 @@ class Audit(unittest.TestCase):
     def test_a_week_range_in_the_locked_list_is_honoured_and_basketball_excludes_retired(self):
         pg = self.page(rows=self.synth())
         t = self.ask("what did we lock this week?", pg)["text"]
-        self.assertNotIn("1 pick locked", t)
+        if mt_today().weekday() == 0:                                   # Monday: the calendar week holds only today's one fixture pick
+            self.assertIn("1 pick locked this week", t)
+        else:
+            self.assertNotIn("1 pick locked", t)
         t = self.ask("basketball record", pg)["text"]
         self.assertNotIn("retired", t)
         self.assertNotIn("BBB ML", self.ask("basketball picks", pg)["text"])

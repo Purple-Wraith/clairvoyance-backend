@@ -92,6 +92,41 @@ class NbaPropsForm(unittest.TestCase):
         self.assertIn("POSTED", r["note"])
         self.pg.evaluate("()=>{LOCKED_PROPS.length=0;localStorage.removeItem('locked_props');saveP(getP().filter(p=>p.betType!=='PROP'))}")
 
+    def featured(self, roster):
+        """roster: [(name, ppg, rpg, apg, mpg, status)] all on team AAA -> {name: set(stat abbreviations)} that got a prop."""
+        out = self.pg.evaluate("""(rows)=>{
+          const st={};rows.forEach(r=>{st[r[0].toLowerCase()]={name:r[0],team:'AAA',gp:70,mpg:r[4],ppg:r[1],rpg:r[2],apg:r[3],stdev:{pts:6,reb:2,ast:2},status:r[5]||'active'}});
+          const by={};_generateNBAProps([{h:'AAA',a:'BBB'}],st).forEach(p=>{(by[p.player]=by[p.player]||[]).push(p.statAbbr)});return by}""", roster)
+        return {k: set(v) for k, v in out.items()}
+
+    def test_only_featured_players_get_props(self):
+        f = self.featured([("Star", 28, 5, 6, 35, None), ("Second", 22, 4, 3, 33, None), ("Third", 17, 9, 2, 30, None),
+                           ("Fourth", 15, 3, 2, 28, None), ("Bench", 13, 3, 2, 18, None)])
+        self.assertIn("PTS", f["Star"])
+        self.assertIn("PTS", f["Third"])                  # third scorer is still featured
+        self.assertNotIn("Fourth", f)                     # fourth scorer, no rebounds/assists role -> no prop
+        self.assertNotIn("Bench", f)                      # 18 mpg: never featured
+
+    def test_rebound_and_assist_props_only_for_the_teams_top_two(self):
+        f = self.featured([("Big", 20, 11, 2, 33, None), ("Wing", 19, 8, 3, 32, None), ("Forward", 18, 7, 2, 31, None),
+                           ("Guard", 17, 3, 8, 32, None), ("Guard2", 16, 3, 6, 30, None), ("Guard3", 12, 3, 5.5, 29, None)])
+        self.assertIn("REB", f["Big"])
+        self.assertIn("REB", f["Wing"])
+        self.assertNotIn("REB", f.get("Forward", set()))  # 3rd rebounder
+        self.assertIn("AST", f["Guard"])
+        self.assertIn("AST", f["Guard2"])
+        self.assertNotIn("AST", f.get("Guard3", set()))   # 3rd passer
+
+    def test_an_injured_star_does_not_promote_a_role_player(self):
+        f = self.featured([("Star", 30, 5, 6, 35, "Out"), ("Second", 22, 4, 3, 33, None), ("Third", 18, 4, 3, 31, None),
+                           ("Fourth", 14, 4, 3, 29, None)])
+        self.assertNotIn("Star", f)                       # out: no prop
+        self.assertNotIn("Fourth", f)                     # still the 4th scorer on the roster, not the 3rd of the healthy ones
+
+    def test_missing_minutes_figure_is_not_a_reason_to_exclude(self):
+        f = self.featured([("Star", 28, 5, 6, None, None)])
+        self.assertIn("PTS", f["Star"])
+
     def test_opponent_cap_is_7_for_nba_12_for_nhl(self):
         src = (ROOT / "docs" / "app.html").read_text()
         self.assertIn("const cap=sport==='NBA'?.07:.12;", src)

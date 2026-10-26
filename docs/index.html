@@ -15877,7 +15877,7 @@ function _mergeNBAPlayerProps(byName){
       var k=p.name.toLowerCase();   // _basketballStatsFromLeaders keys by lower-cased name: using the original case created a second row for every player
       var e=byName[k];
       if(!e){e=byName[k]={name:p.name,team:p.team,gp:p.gp,ppg:p.ppg,rpg:p.rpg,apg:p.apg,tpg:p.tpm,mpg:p.mpg};}
-      e.pos=e.pos||p.pos;e.last5=p.last5||null;e.lastGame=p.lastGame||null;e.stdev=p.stdev||null;e.status=p.status||'';e.espnId=p.id;
+      e.pos=e.pos||p.pos;if(e.mpg==null)e.mpg=p.mpg;e.last5=p.last5||null;e.lastGame=p.lastGame||null;e.stdev=p.stdev||null;e.status=p.status||'';e.espnId=p.id;
     });
   }catch(x){}
   return byName;
@@ -16060,6 +16060,18 @@ function _propAltLine(statKey,line,over,mu,sigma,postedProb){
   best.mlStr=best.ml>0?'+'+best.ml:''+best.ml;
   return best;
 }
+// Who may carry an NBA prop. Rank = position among his team's players in that stat (everyone with >= 10 games counts, injured or not). 'any' = featured in at least one stat.
+var NBA_PROP_RANK={ppg:3,rpg:2,apg:2},NBA_PROP_MIN_MPG=26;
+function _nbaPropFeatured(pl,players,stat){
+  if(pl.mpg!=null&&pl.mpg<NBA_PROP_MIN_MPG)return false;     // bench / spot-minutes players are never featured (no minutes figure = unknown, not excluded)
+  var stats=stat==='any'?['ppg','rpg','apg']:[stat];
+  return stats.some(function(s){
+    var mine=pl[s];if(mine==null)return false;
+    var ahead=0;
+    players.forEach(function(o){if(o!==pl&&o.team===pl.team&&o.gp>=10&&o[s]!=null&&o[s]>mine)ahead++;});
+    return ahead<NBA_PROP_RANK[s];
+  });
+}
 function _generateNBAProps(games,statsData){
   if(!statsData)return[];
   var props=[];
@@ -16080,10 +16092,13 @@ function _generateNBAProps(games,statsData){
     // NBA PRESEASON (ESPN season type 1) never gets a player prop -- owner decision: nothing is done for the preseason. Found 2026-10-04: the automated lock pass
     // locked "Keyonte George UNDER AST 6.5" for a Utah-Denver PRESEASON game because only the game-line path skipped preseason. Also covers the Props tab (same generator).
     if(g.seasonType===1||g.preseason===true)return;
+    // Featured players only (owner 2026-10-26: props were landing on bench / little-known players -- Cam Spencer AST 3.5, Brandon Williams PTS 7.5). A player is featured for a stat when he is
+    // one of his OWN team's top NBA_PROP_RANK[stat] in it (ranked among everyone on the roster, injured included, so a star being Out never promotes a role player into his slot -- the
+    // averages do not carry that usage bump) and plays real minutes. Scorers: top 3 per team; rebounders and passers: top 2.
     var gamePlayers=players.filter(function(p){
       if(p.status&&/^out/i.test(p.status))return false;   // ESPN injury status from nba.playerProps: an Out player gets no prop
-      return(p.team===hn||p.team===an)&&p.gp>=10;
-    }).sort(function(a,b){return b.ppg-a.ppg;}).slice(0,6);
+      return(p.team===hn||p.team===an)&&p.gp>=10&&_nbaPropFeatured(p,players,'any');
+    });
     var seen=new Set();
     gamePlayers.forEach(function(pl){
       var opp=pl.team===hn?an:hn;
@@ -16133,9 +16148,9 @@ function _generateNBAProps(games,statsData){
           mu:+adjMu.toFixed(2),sigma:+sigma.toFixed(2),base:+baseN.toFixed(1),form:(formV!=null&&pl.last5&&pl.last5.n>=3)?+formV.toFixed(1):null,
           basis:pl.name+' averages '+baseN.toFixed(1)+' '+statKey+' across '+pl.gp+' games this season. '+oppNote+(env.have?'Game pace '+env.paceGame.toFixed(1)+' ('+(env.paceP>=0?'+':'')+(env.paceP*100).toFixed(1)+'%), '+pl.team+' offense '+env.ortg.toFixed(1)+' vs a '+env.lgR.toFixed(1)+' league average. ':'')+'No head-to-head history vs '+opp+' this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.'}));
       }
-      push('ppg','PPG',12,0.38);
-      push('rpg','RPG',6,0.45);
-      push('apg','APG',5,0.50);
+      if(_nbaPropFeatured(pl,players,'ppg'))push('ppg','PPG',12,0.38);
+      if(_nbaPropFeatured(pl,players,'rpg'))push('rpg','RPG',6,0.45);
+      if(_nbaPropFeatured(pl,players,'apg'))push('apg','APG',5,0.50);
     });
   });
   return props.sort(function(a,b){return b.prob-a.prob;});
