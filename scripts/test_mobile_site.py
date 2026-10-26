@@ -108,6 +108,22 @@ class Mobile(unittest.TestCase):
             self.assertGreaterEqual(pg.evaluate("document.querySelector('#toppicks-adj .tp-adj-lock').getBoundingClientRect().height"), 38)
             pg.context.close()
 
+    def test_pending_league_filter_fits_and_is_thumb_sized(self):
+        import json, test_pending_league_filter as TP
+        for w in (390, 320):
+            pg = self.page(w)
+            pg.evaluate("(p)=>{saveP(p);window._pendLg={};renderHomePage()}", TP.PICKS); pg.wait_for_timeout(300)
+            chips = pg.evaluate("[...document.querySelectorAll('#home-pending-bets .pend-lg')].map(b=>b.innerText.trim())")
+            self.assertEqual(chips, ["ALL 4", "CFB 1", "NBA 2", "NHL 1"], (w, chips))
+            o = pg.evaluate(OVERFLOW, "#home-pending-bets")
+            self.assertEqual((o["docW"], o["bad"]), (w, []), (w, o))
+            self.assertGreaterEqual(pg.evaluate("Math.min(...[...document.querySelectorAll('#home-pending-bets .pend-lg')].map(b=>b.getBoundingClientRect().height))"), 38)
+            pg.tap("#home-pending-bets .pend-lg:has-text('NBA')"); pg.wait_for_timeout(250)
+            head = pg.evaluate("(document.getElementById('home-pending-bets').innerText.match(/PENDING PICKS[^\\n]*/)||[''])[0]")
+            self.assertIn("2 OF 4", head, (w, head))
+            self.assertEqual(pg.evaluate("document.querySelector('#home-pending-bets .pend-lg[aria-pressed=true]').innerText.trim()"), "NBA 2")
+            pg.context.close()
+
     def test_no_script_errors(self):
         self.assertEqual(self.errs, [])
 
