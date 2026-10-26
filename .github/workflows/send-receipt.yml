@@ -1,0 +1,46 @@
+name: Send Subscriber Receipt
+
+# One subscriber's access receipt (scripts/send_receipt.py), emailed from GitHub because the Gmail App Password is a GitHub secret and is not on the owner's Mac.
+# Dispatched by the MAILING LIST admin server (scripts/subscribers_admin.py) right after it syncs the list to the private repo -- or by hand:
+#   gh workflow run send-receipt.yml -f email=someone@example.com
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: 'Subscriber email to send the receipt to'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  send-receipt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Private data (subscriber list)
+        uses: ./.github/actions/private-data
+        with:
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -q requests
+
+      - name: Send receipt
+        env:
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          LOCKS_EMAIL_TO: ${{ secrets.LOCKS_EMAIL_TO }}
+          SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
+          # through the environment, never interpolated into the shell line
+          RECEIPT_TO: ${{ inputs.email }}
+        run: python3 scripts/send_receipt.py --email "$RECEIPT_TO"

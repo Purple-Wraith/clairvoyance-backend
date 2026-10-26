@@ -24,6 +24,8 @@ import json
 import math
 import os
 import re
+import shutil
+import subprocess
 import sys
 import webbrowser
 from datetime import datetime, timedelta, timezone
@@ -47,6 +49,44 @@ from _subscribers import (
 # Extra origins: CV_ADMIN_ORIGINS="https://a.example,https://b.example".
 APP_ORIGINS = {"https://purple-wraith.github.io"} | {o.strip() for o in os.environ.get("CV_ADMIN_ORIGINS", "").split(",") if o.strip()}
 _LOCAL_ORIGIN = re.compile(r"^http://(127\.0\.0\.1|localhost)(:\d+)?$")
+BACKEND_REPO = "Purple-Wraith/clairvoyance-backend"
+_RECEIPT_EMAIL = re.compile(r"^[^\s@<>\"',;]+@[^\s@<>\"',;]+\.[^\s@<>\"',;]+$")
+
+
+def _gmail_ready() -> bool:
+    try:
+        import _gmail_email
+        return bool(_gmail_email.GMAIL_APP_PASSWORD)
+    except Exception:
+        return False
+
+
+def _run_gh(args: list[str]) -> tuple[bool, str]:
+    exe = shutil.which("gh") or next((p for p in ("/opt/homebrew/bin/gh", "/usr/local/bin/gh") if Path(p).exists()), None)
+    if not exe:
+        return False, "the GitHub CLI (gh) was not found on this Mac"
+    try:
+        r = subprocess.run([exe, *args], capture_output=True, text=True, timeout=45)
+    except Exception as exc:  # noqa: BLE001
+        return False, f"gh failed: {exc}"
+    return r.returncode == 0, (r.stderr.strip() or r.stdout.strip())[:200]
+
+
+def deliver_receipt(email: str) -> tuple[bool, str]:
+    """Emails one subscriber their access receipt.  With a Gmail password on this machine it sends directly; otherwise (the normal case: the password is a GitHub secret) it syncs the list to the private repo
+    and dispatches .github/workflows/send-receipt.yml, which sends it from GitHub within a minute or two."""
+    email = (email or "").strip().lower()
+    if not _RECEIPT_EMAIL.match(email):
+        return False, "that is not a valid email address"
+    if _gmail_ready():
+        return send_receipt_email(email)
+    ok, msg = sync_subscribers_to_git(f"Sync before receipt for {email}")       # the workflow reads the list from the private repo, so it must be current
+    if not ok:
+        return False, f"could not sync the list to GitHub first ({msg})"
+    ok, msg = _run_gh(["workflow", "run", "send-receipt.yml", "-R", BACKEND_REPO, "-f", f"email={email}"])
+    return (True, "receipt queued -- GitHub emails it within a minute or two") if ok else (False, f"could not start the receipt email on GitHub ({msg})")
+
+
 PRODUCT_LABEL = {"nfl": "NFL", "cfb": "College Football", "nba": "NBA", "hockey": "Hockey (NHL + European)", "soccer": "European Soccer"}
 
 
@@ -691,7 +731,7 @@ class Handler(BaseHTTPRequestHandler):
             if not email:
                 self._json({"error": "invalid email"}, 400)
                 return
-            ok, msg = send_receipt_email(email)
+            ok, msg = deliver_receipt(email)
             self._json({"ok": ok, "message": msg})
         elif parsed.path == "/api/sync":
             # Called once at the end of an add/remove batch so the change

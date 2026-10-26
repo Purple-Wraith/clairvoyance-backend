@@ -35,7 +35,7 @@ class Server:
         self.subs.write_text(json.dumps({p: [] for p in S.PRODUCTS}))
         self.events.write_text("[]")
         self.patches = [mock.patch.object(S, "SUBSCRIBERS_FILE", self.subs), mock.patch.object(S, "EVENTS_FILE", self.events),
-                        mock.patch.object(A, "send_receipt_email", side_effect=lambda e: (True, "sent")), mock.patch.object(A, "sync_subscribers_to_git", side_effect=lambda m: (True, "synced"))]
+                        mock.patch.object(A, "deliver_receipt", side_effect=lambda e: (True, "receipt queued")), mock.patch.object(A, "sync_subscribers_to_git", side_effect=lambda m: (True, "synced"))]
         for p in self.patches:
             p.start()
         socketserver.TCPServer.allow_reuse_address = True
@@ -135,6 +135,47 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.s.req("/api/overview")[1].get("Cache-Control"), "no-store")
 
 
+class ReceiptDelivery(unittest.TestCase):
+    """the Mac has no Gmail password, so a receipt is sent from GitHub: sync the list first, then dispatch send-receipt.yml"""
+
+    def test_without_a_local_gmail_password_it_syncs_then_dispatches_the_workflow(self):
+        calls = []
+        with mock.patch.object(A, "_gmail_ready", return_value=False), \
+             mock.patch.object(A, "sync_subscribers_to_git", side_effect=lambda m: calls.append("sync") or (True, "synced")), \
+             mock.patch.object(A, "_run_gh", side_effect=lambda a: calls.append(("gh", a)) or (True, "")):
+            ok, msg = A.deliver_receipt("  New@Client.com ")
+        self.assertTrue(ok); self.assertIn("queued", msg)
+        self.assertEqual(calls[0], "sync")                                                  # the workflow reads the private repo: it must be current first
+        self.assertEqual(calls[1][1][:3], ["workflow", "run", "send-receipt.yml"]); self.assertIn("email=new@client.com", calls[1][1])
+        self.assertIn(A.BACKEND_REPO, calls[1][1])
+
+    def test_a_failed_sync_or_dispatch_is_reported_not_hidden(self):
+        with mock.patch.object(A, "_gmail_ready", return_value=False), mock.patch.object(A, "sync_subscribers_to_git", return_value=(False, "push failed")), mock.patch.object(A, "_run_gh") as gh:
+            ok, msg = A.deliver_receipt("a@b.com")
+        self.assertFalse(ok); self.assertIn("could not sync", msg); gh.assert_not_called()
+        with mock.patch.object(A, "_gmail_ready", return_value=False), mock.patch.object(A, "sync_subscribers_to_git", return_value=(True, "ok")), mock.patch.object(A, "_run_gh", return_value=(False, "HTTP 404")):
+            ok, msg = A.deliver_receipt("a@b.com")
+        self.assertFalse(ok); self.assertIn("could not start", msg)
+
+    def test_with_a_local_gmail_password_it_sends_directly(self):
+        with mock.patch.object(A, "_gmail_ready", return_value=True), mock.patch.object(A, "send_receipt_email", return_value=(True, "sent")) as send, mock.patch.object(A, "_run_gh") as gh:
+            self.assertEqual(A.deliver_receipt("a@b.com"), (True, "sent"))
+        send.assert_called_once_with("a@b.com"); gh.assert_not_called()
+
+    def test_junk_addresses_never_reach_a_command(self):
+        for bad in ("", "nope", "a b@c.com", "a@b.com;rm -rf /", "x@y", "<a@b.com>"):
+            with mock.patch.object(A, "_run_gh") as gh:
+                self.assertFalse(A.deliver_receipt(bad)[0], bad); gh.assert_not_called()
+
+    def test_the_workflow_and_script_exist_and_pass_the_email_through_the_environment(self):
+        wf = (ROOT / ".github" / "workflows" / "send-receipt.yml").read_text()
+        self.assertIn("workflow_dispatch", wf); self.assertIn('RECEIPT_TO: ${{ inputs.email }}', wf); self.assertIn('--email "$RECEIPT_TO"', wf)
+        self.assertNotIn('--email "${{', wf)                                             # never interpolated into the shell line
+        self.assertIn("private-data", wf)
+        import send_receipt as R
+        self.assertFalse(R.EMAIL_RE.match("a@b.com;x")); self.assertTrue(R.EMAIL_RE.match("a@b.com"))
+
+
 class TabTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -203,10 +244,10 @@ class TabTests(unittest.TestCase):
         pg.fill("#ml-email", "first@client.com")
         pg.click("#ml-add .ml-chip:has-text('NBA')"); pg.click("#ml-add .ml-chip:has-text('HOCKEY')")
         self.assertIn("$30", pg.inner_text("#ml-add"))                                                   # two lists -> standard $30
-        with mock.patch.object(A, "send_receipt_email", side_effect=lambda e: (True, "sent")) as rc, mock.patch.object(A, "sync_subscribers_to_git", side_effect=lambda m: (True, "synced")) as sy:
+        with mock.patch.object(A, "deliver_receipt", side_effect=lambda e: (True, "receipt queued")) as rc, mock.patch.object(A, "sync_subscribers_to_git", side_effect=lambda m: (True, "synced")) as sy:
             pg.click("#ml-addbtn"); pg.wait_for_selector("#ml-msg")
             self.assertTrue(rc.called and sy.called)
-        self.assertIn("synced to GitHub", pg.inner_text("#ml-msg")); self.assertIn("receipt sent", pg.inner_text("#ml-msg"))
+        self.assertIn("synced to GitHub", pg.inner_text("#ml-msg")); self.assertIn("receipt queued", pg.inner_text("#ml-msg"))
         pg.click("#sp-mail .sb2:has-text('SUBSCRIBERS')"); pg.wait_for_selector("#ml-subs .ml-sub[data-email='first@client.com']")
         got = pg.evaluate("[...document.querySelectorAll('#ml-subs .ml-sub[data-email=\"first@client.com\"] .ml-dl')].map(e=>e.innerText).join('|')")
         self.assertIn("30 days left", got)

@@ -37222,7 +37222,7 @@ function _mlRenderAdd(){
     <label class="ml-dl" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="ml-receipt" ${_ml.receipt===false?'':'checked'} onchange="_ml.receipt=this.checked"> Email them a receipt of what is now active</label>
     <div style="margin-top:12px"><button class="ml-btn go" id="ml-addbtn" onclick="mlAddSubmit()" ${_ml.busy?'disabled':''}>ADD / RENEW — START 30 DAYS FROM TODAY</button></div>
     ${msg}</div>
-  <div class="ml-card"><div class="ml-ct">HOW IT WORKS</div><div class="ml-msg">Adding starts a 30-day window today on each list; adding someone already on a list renews it (resets to 30 days). The change is saved to the private list and synced to GitHub so the next lock email includes them.
+  <div class="ml-card"><div class="ml-ct">HOW IT WORKS</div><div class="ml-msg">Adding starts a 30-day window today on each list; adding someone already on a list renews it (resets to 30 days). The change is saved to the private list and synced to GitHub so the next lock email includes them. The receipt is emailed from GitHub (it queues, then arrives within a minute or two).
   Nothing here is automatic: the website sign-up is a pre-written email and the payment is a Venmo, so the engine only learns about a new subscriber when you add them here.</div></div>`;
 }
 function _mlRenderAna(){
@@ -37255,11 +37255,11 @@ async function _mlSync(message){
   try{const j=await mlFetch('/api/sync',{method:'POST',body:JSON.stringify({message})});return j.ok?{ok:true,text:'synced to GitHub'}:{ok:false,text:'NOT synced to GitHub: '+(j.message||'unknown error')+' — they will not get emails until it is'};}
   catch(e){return {ok:false,text:'NOT synced to GitHub: '+(e.message||e)};}
 }
-async function _mlDo(label,work,syncMsg){
+async function _mlDo(label,work,syncMsg,after){
   if(_ml.busy)return;
   _ml.busy=true;_ml.msg=null;
   const out=[];
-  try{await work(out);const s=await _mlSync(syncMsg);out.push(s.text);_ml.msg={ok:s.ok,text:label+': '+out.join(' · ')};}
+  try{await work(out);const s=await _mlSync(syncMsg);out.push(s.text);if(after&&s.ok)await after(out);_ml.msg={ok:s.ok,text:label+': '+out.join(' · ')};}
   catch(e){_ml.msg={ok:false,text:label+' failed: '+(e.message||e)};}
   _ml.busy=false;
   await mlLoad();
@@ -37270,8 +37270,9 @@ async function mlAddSubmit(){
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!picks.length){_ml.msg={ok:false,text:'Enter a valid email and pick at least one list.'};_mlRenderAdd();return;}
   await _mlDo('Added '+email,async out=>{
     for(const p of picks){const j=await mlFetch('/api/add',{method:'POST',body:JSON.stringify({product:p,email})});out.push(j.message);}
-    if(receipt){const r=await mlFetch('/api/receipt',{method:'POST',body:JSON.stringify({email})});out.push(r.ok?'receipt sent':'receipt not sent ('+r.message+')');}
-  },`Add ${email} to ${picks.join(', ')}`);
+  },`Add ${email} to ${picks.join(', ')}`,async out=>{
+    if(receipt){const r=await mlFetch('/api/receipt',{method:'POST',body:JSON.stringify({email})});out.push(r.ok?r.message:'receipt not sent ('+r.message+')');}     // after the sync: the receipt is sent from GitHub, which reads the synced list
+  });
   if(_ml.msg&&_ml.msg.ok){_ml.sel={};_ml.email='';}
 }
 async function mlRenew(email,product){await _mlDo('Renewed '+email,async out=>{const j=await mlFetch('/api/add',{method:'POST',body:JSON.stringify({product,email})});out.push(j.message);},`Renew ${email} on ${product}`);}
