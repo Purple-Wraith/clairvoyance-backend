@@ -144,6 +144,14 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 #sbar::-webkit-scrollbar{display:none}
 .sp{font-family:var(--orb);font-size:17px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--pc);padding:5px 14px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;flex:0 1 auto}
 .sp.act{color:var(--pc);border-bottom-color:var(--pc);text-shadow:0 0 8px rgba(240,0,255,.7)}
+/* Desktop: the 13 top tabs sit on TWO rows (they needed ~1830px on one row at 17px, so everything under 1920 scrolled sideways and clipped the first / last tab).  Row 1 = HOME ... PROFIT, row 2 = the sports + tools
+   (an empty .sbr between them forces the break).  Phones / touch keep the single horizontally-scrolling row. */
+.sbr{display:none}
+@media(min-width:769px) and (hover:hover){
+  #sbar{flex:0 0 auto;flex-wrap:wrap;overflow:visible;justify-content:center;padding:4px 10px;row-gap:0}
+  .sbr{display:block;flex-basis:100%;height:0}
+  .sp{font-size:clamp(11px,1.05vw,15px);letter-spacing:.13em;padding:.47em 1.07em}
+}
 .spane{display:none;flex:1;flex-direction:column;overflow:hidden}.spane.act{display:flex}
 /* SUB/INNER NAV */
 .snav{flex:0 0 31px;background:rgba(2,0,8,.95);border-bottom:1px solid rgba(77,121,255,.15);display:flex;overflow-x:auto;overflow-y:hidden;padding:0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;gap:2px}
@@ -1303,6 +1311,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
   <button class="sp" onclick="navTap(this,'ovr')" onmouseenter="showND(this,'ovr')" onmouseleave="startHideND()">OVERALL</button>
   <button class="sp" onclick="navTap(this,'analytics')" onmouseenter="showND(this,'analytics')" onmouseleave="startHideND()">ANALYTICS</button>
   <button class="sp" onclick="navTap(this,'profit')" onmouseenter="showND(this,'profit')" onmouseleave="startHideND()">PROFIT</button>
+  <span class="sbr" aria-hidden="true"></span>
   <button class="sp" onclick="navTap(this,'nba')" onmouseenter="showND(this,'nba')" onmouseleave="startHideND()">BASKETBALL</button>
   <button class="sp" onclick="navTap(this,'fb')" onmouseenter="showND(this,'fb')" onmouseleave="startHideND()">FOOTBALL</button>
   <button class="sp" onclick="navTap(this,'hk')" onmouseenter="showND(this,'hk')" onmouseleave="startHideND()">HOCKEY</button>
