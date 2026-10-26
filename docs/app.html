@@ -1383,7 +1383,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
           <option value="all">ALL CONFERENCES</option>
           <option value="ACC">ACC</option><option value="American">American</option>
           <option value="Big 12">Big 12</option><option value="Big Ten">Big Ten</option>
-          <option value="FBS Independents">FBS Independents</option><option value="MAC">MAC</option>
+          <option value="FBS Independents">Notre Dame</option>
           <option value="Mountain West">Mountain West</option><option value="Pac-12">Pac-12</option>
           <option value="SEC">SEC</option>
         </select>
@@ -6087,7 +6087,9 @@ function _ouAdj(hA,awA,date,baseOverP,ouL,delta){
 // Shared by _adjV and a new oninput handler on the input itself so both
 // paths (step buttons AND direct typing) always keep the sign current.
 function _syncSprdLabels(id){var el=document.getElementById(id);if(!el)return;var nv=Math.round((parseFloat(el.value)||0)*2)/2;var fl=document.getElementById('fav_'+id);var dl=document.getElementById('dog_'+id);if(fl)fl.textContent=(nv<0?'':'+')+(nv).toFixed(1);if(dl){var dv=-nv;dl.textContent=(dv<0?'':'+')+(dv).toFixed(1);}}
-function _adjV(id,d){var el=document.getElementById(id);if(!el)return;var v=parseFloat(el.value)||0;var nv=Math.round((v+d)*2)/2;el.value=nv.toFixed(1);if(id.indexOf('ah_wc_')===0)_syncAHLabels(id);else _syncSprdLabels(id);_hkPxRefresh(id);}
+// Soccer league goal-spread card: its input holds the MAGNITUDE (the favourite is always shown as -X and the underdog as +X), so both team buttons follow it -- they used to keep the original line when the stepper moved.
+function _syncSocAHLabels(id){var el=document.getElementById(id);if(!el)return;var nv=Math.abs(Math.round((parseFloat(el.value)||0)*2)/2);var fl=document.getElementById('fav_'+id);var dl=document.getElementById('dog_'+id);if(fl)fl.textContent='-'+nv.toFixed(1);if(dl)dl.textContent='+'+nv.toFixed(1);}
+function _adjV(id,d){var el=document.getElementById(id);if(!el)return;var v=parseFloat(el.value)||0;var nv=Math.round((v+d)*2)/2;el.value=nv.toFixed(1);if(id.indexOf('ah_wc_')===0)_syncAHLabels(id);else if(id.indexOf('ahinp_lg_')===0)_syncSocAHLabels(id);else _syncSprdLabels(id);_hkPxRefresh(id);}
 // Reasoning for a MANUAL lock whose line the user edited: the cached card reasoning is keyed by the card's own label, so an edited line used to find nothing and store null. This says plainly
 // what was changed and how the probability was re-estimated (a flat per-point adjustment, NOT the engine's model), and keeps the card's own model-projection line when there is one.
 function _editedLineReasoning(label,p,baseLabel,baseP,perPt,mktName,modelLine){
@@ -9837,8 +9839,13 @@ function _closeLocksHTML(html,off){
 // FCS opponent) is exactly the case this needs to catch. Scoped to the
 // automated capture only -- a manual lock from the game card itself is
 // a deliberate human choice and stays unaffected.
-const _CFB_MAJOR_CONFS=new Set(['ACC','American','Big 12','Big Ten','FBS Independents','MAC','Mountain West','Pac-12','SEC']);
-function _cfbBothMajorConf(cfbData,hA,awA){return!!(cfbData&&cfbData.teamConf&&_CFB_MAJOR_CONFS.has(cfbData.teamConf[hA])&&_CFB_MAJOR_CONFS.has(cfbData.teamConf[awA]));}
+// SAME rule as the lock engine (scripts/auto_lock_settle.py CFB_LOCK_CONFERENCES / CFB_LOCK_INDEPENDENTS / CFB_LOCK_REQUIRE='either'): a college football game is shown, captured and locked only when AT LEAST ONE
+// team is in the AAC / ACC / Big 12 / Big Ten / Mountain West / Pac-12 / SEC, or is Notre Dame (the only independent). MAC / Conference USA / Sun Belt / UConn / FCS vs each other are out everywhere (owner 2026-10-26;
+// this file used to carry its own looser list -- MAC and every independent, BOTH teams required -- so the two disagreed). Checked against _CFB_DATA.teamConf (team -> conference, from cfb_teams.json).
+const _CFB_LOCK_CONFS=new Set(['ACC','American','Big 12','Big Ten','Mountain West','Pac-12','SEC']);
+const _CFB_LOCK_INDEPENDENTS=new Set(['ND']);
+function _cfbTeamLockable(cfbData,abbr){return!!(cfbData&&cfbData.teamConf&&(_CFB_LOCK_CONFS.has(cfbData.teamConf[abbr])||_CFB_LOCK_INDEPENDENTS.has(String(abbr||'').toUpperCase())));}
+function _cfbLockEligible(cfbData,hA,awA){return _cfbTeamLockable(cfbData,hA)||_cfbTeamLockable(cfbData,awA);}
 function _cfbGameCard(g){
   const D=_CFB_DATA;
   const ens=cfbEns(g.home,g.away,g.overUnder,g);
@@ -9951,10 +9958,10 @@ function _cfbGameCard(g){
   // sprdReasoning/ouReasoning exist (was right after _evalMkts above) so
   // _attachReasoning can use CFB's own already-written per-market
   // paragraphs as the rich WHY text instead of a generic fallback. No
-  // behavior change to the guard itself (_cfbBothMajorConf), just later.
+  // behavior change to the guard itself (_cfbLockEligible), just later.
   _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverU,overU,ouL,favMarginMean),
     {mlFav:mlReasoning,mlDog:mlReasoning,sprdFav:sprdReasoning,sprdDog:sprdReasoning,over:ouReasoning,under:ouReasoning});
-  if(_cfbBothMajorConf(D,g.home,g.away))_autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`,undefined,g.date);
+  if(_cfbLockEligible(D,g.home,g.away))_autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`,undefined,g.date);
   const gidSafe=(g.home+'_'+g.away).replace(/[^A-Za-z0-9_]/g,'');
   return`<div class="gc" style="border-left:2px solid rgba(255,110,20,.4)">
     <div class="gch">
@@ -10010,7 +10017,9 @@ function renderCFBGames(){
   const conf=document.getElementById('cfb-filter-conf')?.value||'all';
   const top25Only=!!window._cfbTop25Only;
   let games=(D.weeks[week]||[]).slice();
-  if(conf!=='all')games=games.filter(g=>g.conferences?.includes(conf));
+  games=games.filter(g=>_cfbLockEligible(D,g.home,g.away));              // games outside the lock conferences are not listed at all
+  if(conf==='FBS Independents')games=games.filter(g=>g.home==='ND'||g.away==='ND');     // the independents option is Notre Dame only (UConn is not a lock team)
+  else if(conf!=='all')games=games.filter(g=>g.conferences?.includes(conf));
   if(top25Only)games=games.filter(g=>D.rankByAbbr[g.home]||D.rankByAbbr[g.away]);
   if(!games.length){el.innerHTML='<div class="empty">NO GAMES MATCH THESE FILTERS</div>';return;}
   games.sort((a,b)=>{const ka=_footballSortKey(a,'cfb'),kb=_footballSortKey(b,'cfb');return ka[0]-kb[0]||ka[1]-kb[1];});
@@ -16167,8 +16176,8 @@ async function renderNBADailyProps(){
   _nbaDPData=_generateNBAProps(games,statsData);
   if(!_nbaDPData.length){el.innerHTML='<div class="empty">NO NBA PROPS GENERATED — NO GAMES OR STATS</div>';return;}
   var gradeC={PREMIUM:'var(--gc)',OPTIMAL:'var(--pc)',LEAN:'var(--nc)',SKIP:'var(--hc)'};
-  el.innerHTML='<div style="margin-bottom:8px;font-family:var(--mono);font-size:14px;color:var(--t3)">'+_nbaDPData.length+' PROPS · MC-simulated vs season avg</div>'
-    +_nbaDPData.map(function(p,i){
+  var q=function(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");};   // names like De'Aaron sit inside a single-quoted onclick string
+  var cardHTML=function(p){
     var c=gradeC[p.grade]||'var(--t3)';
     var mlStr=p.ml;
     var isOver=p.over!==false;
@@ -16185,13 +16194,49 @@ async function renderNBADailyProps(){
       +'<div style="font-family:var(--mono);font-size:22px;color:'+dirC+';margin-bottom:3px">'+(isOver?'▲ OVER':'▼ UNDER')+' '+p.line+' '+p.stat+' <span style="color:var(--t2);font-size:18px">· '+mlStr+' · '+(p.prob*100).toFixed(0)+'% MODEL'+adjStr+'</span></div>'
       +_recPropLineHTML(p.line,_findMarketProp('nba',p.player,p.stat),p.stat)
       +'<div style="font-family:var(--mono);font-size:17px;color:var(--t2);margin-bottom:4px">'+p.basis+'</div>'
-      +(p.alt?'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:2px 0 6px;padding:4px 6px;border:1px dashed var(--t3);border-radius:2px"><span style="font-family:var(--mono);font-size:17px;color:var(--t2)">ADJ. LINE · '+(isOver?'▲ OVER ':'▼ UNDER ')+p.alt.line+' '+p.stat+' · '+p.alt.mlStr+' est. · '+Math.round(p.alt.prob*100)+'% · '+p.alt.shift+' from '+p.line+'</span><button class="btn btn-o btn-sm" onclick="lockProp(\''+p.team+'\',\''+p.player+'\',\''+p.alt.line+'\','+isOver+','+p.alt.prob.toFixed(2)+',\''+p.alt.mlStr+'\',\'NBA\',\''+p.opp+'\',\''+(p.statAbbr||'')+'\',null,'+p.line+')">LOCK ADJ.</button></div>':'')
+      +(p.alt?'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:2px 0 6px;padding:4px 6px;border:1px dashed var(--t3);border-radius:2px"><span style="font-family:var(--mono);font-size:17px;color:var(--t2)">ADJ. LINE · '+(isOver?'▲ OVER ':'▼ UNDER ')+p.alt.line+' '+p.stat+' · '+p.alt.mlStr+' est. · '+Math.round(p.alt.prob*100)+'% · '+p.alt.shift+' from '+p.line+'</span><button class="btn btn-o btn-sm" onclick="lockProp(\''+q(p.team)+'\',\''+q(p.player)+'\',\''+p.alt.line+'\','+isOver+','+p.alt.prob.toFixed(2)+',\''+p.alt.mlStr+'\',\'NBA\',\''+q(p.opp)+'\',\''+(p.statAbbr||'')+'\',null,'+p.line+')">LOCK ADJ.</button></div>':'')
       +'<div style="display:flex;justify-content:space-between;align-items:center">'
       +'<span style="font-family:var(--mono);font-size:16px;color:var(--t3)">SRC: ESPN Stats + MC Sim (5k)</span>'
-      +'<button class="btn btn-o btn-sm" onclick="lockProp(\''+p.team+'\',\''+p.player+'\',\''+p.line+'\','+isOver+','+p.prob.toFixed(2)+',\''+p.ml+'\',\'NBA\',\''+p.opp+'\',\''+(p.statAbbr||'')+'\')">LOCK</button>'
+      +'<button class="btn btn-o btn-sm" onclick="lockProp(\''+q(p.team)+'\',\''+q(p.player)+'\',\''+p.line+'\','+isOver+','+p.prob.toFixed(2)+',\''+p.ml+'\',\'NBA\',\''+q(p.opp)+'\',\''+(p.statAbbr||'')+'\')">LOCK</button>'
       +'</div>'
     +'</div>';
+  };
+  // Game header for each group: the live slate entry (state / score) plus the kickoff time from the remote feed.
+  var slate=(NBA_TONIGHT||[]);
+  var gameOf=function(p){return slate.find(function(g){return g.h===p.hA&&g.a===p.awA;})||{};};
+  var kick=function(g){
+    try{var rg=(window._remoteNBAGames||[]).find(function(x){return String(x.id)===String(g.id);});
+      if(!rg||!rg.date)return'';
+      return new Date(rg.date).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Denver'})+' MT';}catch(e){return'';}
+  };
+  var gradeLbl=function(p){return'<span style="font-family:var(--mono);font-size:14px;padding:1px 5px;border:1px solid '+(gradeC[p.grade]||'var(--t3)')+';color:'+(gradeC[p.grade]||'var(--t3)')+';border-radius:2px">'+p.grade+'</span>';};
+  // TOP 10 of the day: highest model probability among the graded props (SKIP is never listed) of games that have not started; if every game has started, the whole slate is considered.
+  var graded=_nbaDPData.filter(function(p){return p.grade!=='SKIP';});
+  var upcoming=graded.filter(function(p){var st=gameOf(p).state;return!st||st==='pre';});
+  var top=(upcoming.length?upcoming:graded).slice().sort(function(a,b){return b.prob-a.prob;}).slice(0,10);
+  var topHTML=top.length?'<div class="card" style="margin-bottom:12px;border:1px solid var(--gc)"><div style="font-family:var(--orb);font-size:20px;font-weight:700;color:var(--gc);margin-bottom:6px">TOP '+top.length+' PROPS TODAY</div>'
+    +top.map(function(p,i){
+      var isOver=p.over!==false,dirC=isOver?'var(--nc)':'var(--hc)';
+      return'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.08)">'
+        +'<div style="min-width:0"><div style="font-family:var(--mono);font-size:18px"><span style="color:var(--t3)">'+(i+1)+'.</span> <b>'+p.player+'</b> <span style="color:var(--t3);font-size:15px">'+p.team+' vs '+p.opp+'</span></div>'
+        +'<div style="font-family:var(--mono);font-size:17px;color:'+dirC+'">'+(isOver?'▲ OVER ':'▼ UNDER ')+p.line+' '+(p.statAbbr||p.stat)+' <span style="color:var(--t2)">· '+p.ml+' · '+Math.round(p.prob*100)+'%</span> '+gradeLbl(p)+'</div></div>'
+        +'<button class="btn btn-o btn-sm" onclick="lockProp(\''+q(p.team)+'\',\''+q(p.player)+'\',\''+p.line+'\','+isOver+','+p.prob.toFixed(2)+',\''+p.ml+'\',\'NBA\',\''+q(p.opp)+'\',\''+(p.statAbbr||'')+'\')">LOCK</button></div>';
+    }).join('')+'</div>':'';
+  // Every prop grouped under its game (slate order), best model probability first inside a game.
+  var order=[],byGame={};
+  _nbaDPData.forEach(function(p){var k=p.awA+'@'+p.hA;if(!byGame[k]){byGame[k]=[];order.push(k);}byGame[k].push(p);});
+  var slateIdx=function(k){var i=slate.findIndex(function(g){return g.a+'@'+g.h===k;});return i<0?999:i;};
+  order.sort(function(a,b){return slateIdx(a)-slateIdx(b);});
+  var gamesHTML=order.map(function(k){
+    var ps=byGame[k].slice().sort(function(a,b){return b.prob-a.prob;});
+    var g=gameOf(ps[0]),st=g.state==='in'?'LIVE':g.state==='post'?'FINAL':kick(g);
+    var score=(g.state==='in'||g.state==='post')&&g.hScore!=null?' · '+ps[0].awA+' '+g.aScore+' – '+ps[0].hA+' '+g.hScore:'';
+    return'<div style="display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.14)">'
+      +'<span style="font-family:var(--orb);font-size:22px;font-weight:700">'+ps[0].awA+' @ '+ps[0].hA+'</span>'
+      +'<span style="font-family:var(--mono);font-size:15px;color:var(--t3)">'+[st,ps.length+' PROPS'].filter(Boolean).join(' · ')+score+'</span></div>'
+      +ps.map(cardHTML).join('');
   }).join('');
+  el.innerHTML=topHTML+'<div style="margin-bottom:2px;font-family:var(--mono);font-size:14px;color:var(--t3)">'+_nbaDPData.length+' PROPS · '+order.length+' GAME'+(order.length===1?'':'S')+' · MC-simulated vs season avg</div>'+gamesHTML;
 }
 // ═══ NRFI (NO RUN FIRST INNING) ══════════════════════════════
 // Calculates probability that NEITHER team scores in the 1st inning
@@ -29880,10 +29925,10 @@ function _renderSocMatchCardRaw(g,leagueKey){
     // already uses for every other sport's spread box.
     +'<div class="gbox gbox2" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px">'
     +'<div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">GOAL SPREAD</div>'
-    +'<div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV(\''+ahId+'\',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>'+'<input type="number" step="0.5" value="'+ahAbsLine.toFixed(1)+'" id="'+ahId+'" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center">'+'<button onclick="event.stopPropagation();_adjV(\''+ahId+'\',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div>'
+    +'<div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV(\''+ahId+'\',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button>'+'<input type="number" step="0.5" value="'+ahAbsLine.toFixed(1)+'" id="'+ahId+'" oninput="_syncSocAHLabels(this.id)" style="width:44px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center">'+'<button onclick="event.stopPropagation();_adjV(\''+ahId+'\',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div>'
     +'<div style="display:flex;gap:2px;width:100%">'
-    +'<button onclick="event.stopPropagation();_ahLockDir(\''+hc+'\',\''+ac+'\',\''+dateStr+'\',\''+ahFavName+'\',\''+ahDogName+'\','+ahFavP.toFixed(3)+',\''+ahAbsLine.toFixed(1)+'\',\''+ahId+'\',\'FAV\',\''+_lockType+'\')" style="flex:1;font-size:12px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center">'+ahFavName+' -'+ahAbsLine.toFixed(1)+'</button>'
-    +'<button onclick="event.stopPropagation();_ahLockDir(\''+hc+'\',\''+ac+'\',\''+dateStr+'\',\''+ahFavName+'\',\''+ahDogName+'\','+ahFavP.toFixed(3)+',\''+ahAbsLine.toFixed(1)+'\',\''+ahId+'\',\'DOG\',\''+_lockType+'\')" style="flex:1;font-size:12px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center">'+ahDogName+' +'+ahAbsLine.toFixed(1)+'</button>'
+    +'<button onclick="event.stopPropagation();_ahLockDir(\''+hc+'\',\''+ac+'\',\''+dateStr+'\',\''+ahFavName+'\',\''+ahDogName+'\','+ahFavP.toFixed(3)+',\''+ahAbsLine.toFixed(1)+'\',\''+ahId+'\',\'FAV\',\''+_lockType+'\')" style="flex:1;font-size:12px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center">'+ahFavName+' <span id="fav_'+ahId+'">-'+ahAbsLine.toFixed(1)+'</span></button>'
+    +'<button onclick="event.stopPropagation();_ahLockDir(\''+hc+'\',\''+ac+'\',\''+dateStr+'\',\''+ahFavName+'\',\''+ahDogName+'\','+ahFavP.toFixed(3)+',\''+ahAbsLine.toFixed(1)+'\',\''+ahId+'\',\'DOG\',\''+_lockType+'\')" style="flex:1;font-size:12px;padding:2px 3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer;text-align:center">'+ahDogName+' <span id="dog_'+ahId+'">+'+ahAbsLine.toFixed(1)+'</span></button>'
     +'</div>'+_boxGradeHTML(_mkts,['ahFav'],['ahDog'])+'</div>'
     +'</div>'
     +'<div style="padding:8px 10px;background:rgba(255,200,0,.04);border-top:1px solid rgba(255,200,0,.1)">'

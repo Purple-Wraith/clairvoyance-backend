@@ -182,7 +182,7 @@ class LandingAgrees(unittest.TestCase):
             self.assertRegex(html, rf'(?i)sport-abbr[^>]*>{re.escape(token)}<', f"{name} not on landing")
         for price in ac.PRICING_BY_COUNT.values():
             self.assertIn(f'price-amount">${price}<', html)
-        self.assertIn("NBA player props", html)
+        self.assertNotIn("NBA player props", html)       # owner 2026-10-25: player props are off the landing page until ~20 NBA games are settled
 
 
 class CommittedImagesAreCurrent(unittest.TestCase):
