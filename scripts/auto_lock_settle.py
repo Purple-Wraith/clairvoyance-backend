@@ -2773,6 +2773,9 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                 qualifies = tier_n in QUALIFYING_TIERS or bool(m.get("hkLane"))
             else:
                 qualifies = tier_n in QUALIFYING_TIERS or is_high_hit
+                if qualifies and sport in SOCCER_ML_FLOOR_SPORTS and _market_type(m.get("side")) == "ML" and prob < SOCCER_ML_FLOOR:
+                    log(f"  skip {sport} {gl.get('awA')} @ {gl.get('hA')} {m.get('label')}: moneyline {prob:.1%} is below the soccer floor ({SOCCER_ML_FLOOR:.0%})")
+                    qualifies = False
             # NFL alt-line LANE (2026-10-11, scripts/nfl_engine.py): the NFL spread / O-U probability is now anchored to the posted line, so it almost never reaches OPTIMAL on its own
             # (the model's disagreement with the line carried no information: 47.8% of 46 sides covered, slope -0.10). What survives is the alternate-line cushion, whichever side is taken,
             # so a spread / O-U leg the OLD raw-model funnel graded OPTIMAL+ (card field legacyTierN -- the selector is deliberately unchanged) qualifies ONLY to be moved to its alternate line
@@ -3131,6 +3134,11 @@ def lock_prop_leg(page, sport: str, leg: dict) -> str:
 # on the game cards, so "HIGH HIT %" in this email means the same thing
 # it means on screen.
 _HIGH_HIT_P = 0.75
+# Soccer moneyline floor (2026-10-26): a PL / La Liga / Serie A moneyline below this STATED win probability is never auto-locked or emailed (the app grades it SKIP too).
+# Ledger 2026-08-17..10-25 (PL+LIGA+SERIEA+CL ML): >= 65% went 79-21 (79%), below it 50-38 (57%); the 3-way "win" market loses every draw. Champions League is exempt (9-3 below the floor, n too small to tell).
+# Mirrors SOC_ML_FLOOR / SOC_ML_FLOOR_LEAGUES in docs/app.html (scripts/test_soccer_ml_floor.py keeps them equal).
+SOCCER_ML_FLOOR = 0.65
+SOCCER_ML_FLOOR_SPORTS = frozenset({"SOC_PL", "SOC_LIGA", "SOC_ITA"})
 _OU_SIDES = {"over", "under", "setsOver", "setsUnder"}
 _SPREAD_SIDES = {"rlFav", "rlDog", "plFav", "plDog", "sprdFav", "sprdDog", "ahFav", "ahDog"}
 

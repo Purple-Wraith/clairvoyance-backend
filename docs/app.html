@@ -4312,6 +4312,12 @@ const MARKET_P_CEILING={
   default:{SPREAD:.68,OU:.68,PROP:.68},
   byLeague:{CFB:{SPREAD:.72,OU:.62},NFL:{SPREAD:.62,OU:.62,PROP:.62}}
 };
+// SOCCER MONEYLINE FLOOR (2026-10-26, owner: Serie A / Premier League falling behind). Domestic-league soccer moneylines graded below this STATED win probability are SKIP: they are not auto-locked
+// or emailed (a manual lock still works). Ledger 2026-08-17..10-25, PL + La Liga + Serie A + CL ML (n=188): stated >= 65% went 79-21 (79%, predicted 75%), below it 50-38 (57%, predicted 59%); the soft spot
+// was 60-62% (8-16) -- the calibration-band lift in tier() pushes those over the 62% OPTIMAL bar and the 3-way "win" market loses every draw. Champions League is exempt (below 65%: 9-3, n too small to tell).
+// Mirrors SOCCER_ML_FLOOR in scripts/auto_lock_settle.py (checked by scripts/test_soccer_ml_floor.py).
+var SOC_ML_FLOOR=0.65,SOC_ML_FLOOR_LEAGUES={pl:1,liga:1,ita:1};
+function _socMlBelowFloor(leagueKey,p){return !!SOC_ML_FLOOR_LEAGUES[String(leagueKey||'').toLowerCase().replace(/^soc_/,'')]&&p<SOC_ML_FLOOR;}
 function _mktCeiling(league,mktT){
   const L=String(league||'').toUpperCase().replace(/^SOC_/,'');
   const k=(mktT==='PL'||mktT==='RL')?'SPREAD':mktT;
@@ -5397,7 +5403,7 @@ function _evalMkts(mkts,league){
     // everything else keeps tier()'s app-wide floors. Market-blended legs skip tier()'s model-bias re-pricing (see tier()).
     // capC: the non-moneyline ceiling for this row (null for ML, market-anchored rows and alt-line rows): tier() clamps AFTER its own band re-pricing, see tier().
     const capC=(mktT!=='ML'&&m.marketProb==null&&!m.altLine)?_mktCeiling(league,mktT):null;
-    const tN=m.hk?_hkTierRow(m,mktT,capC):tier(m.prob,m.evVal,mktT,m.marketProb!=null,undefined,capC);
+    const tN=m.hk?_hkTierRow(m,mktT,capC):(mktT==='ML'&&_socMlBelowFloor(league,m.prob))?0:tier(m.prob,m.evVal,mktT,m.marketProb!=null,undefined,capC);   // soccer ML floor: see SOC_ML_FLOOR
     const lane=m.hk?_hkLaneRow(m):false;
     const edg=m.dec?_edge(m.prob,m.dec):_edge(m.prob,1.91);
     const kF=m.dec?_kelly(m.prob,m.dec):0;
@@ -29635,7 +29641,7 @@ function loadSoccerScheduleSnapshot(){
 }
 
 
-function _socGC(p){var e=ev(p,1.909);var t=tier(p,e);if(t===3)return{c:'chip-g',pl:'pg',lb:'PREMIUM'};if(t===2)return{c:'chip-p',pl:'pp',lb:'OPTIMAL'};if(t===1)return{c:'chip-n',pl:'pn',lb:'LEAN'};return{c:'chip-h',pl:'ph',lb:'SKIP'};}
+function _socGC(p,leagueKey){var e=ev(p,1.909);var t=_socMlBelowFloor(leagueKey,p)?0:tier(p,e);if(t===3)return{c:'chip-g',pl:'pg',lb:'PREMIUM'};if(t===2)return{c:'chip-p',pl:'pp',lb:'OPTIMAL'};if(t===1)return{c:'chip-n',pl:'pn',lb:'LEAN'};return{c:'chip-h',pl:'ph',lb:'SKIP'};}
 function _renderSocMatchCard(g,leagueKey){return _closeLocksHTML(_renderSocMatchCardRaw(g,leagueKey),_gameLocksOff(g));}
 function _renderSocMatchCardRaw(g,leagueKey){
   // Same "gc" card system MLB (mlbCard) and World Cup (_renderWCMatchCard)
@@ -29672,7 +29678,7 @@ function _renderSocMatchCardRaw(g,leagueKey){
   // every soccer EV/edge/Kelly number below compare the model against
   // itself instead of the real market.
   var hML=g.hML!=null?g.hML:p2ml(hP),dML=g.dML!=null?g.dML:p2ml(dP),aML=g.aML!=null?g.aML:p2ml(aP);
-  var hCS=_socGC(hP),dCS=_socGC(dP),aCS=_socGC(aP);
+  var hCS=_socGC(hP,leagueKey),dCS=_socGC(dP,leagueKey),aCS=_socGC(aP,leagueKey);
   // Without a real market line, comparing every match against a flat 2.5
   // systematically favors OVER — the model's own average combined total
   // across the league tables is closer to 2.9 than 2.5 (modern top-flight
@@ -29756,7 +29762,7 @@ function _renderSocMatchCardRaw(g,leagueKey){
     {label:'UNDER '+ouL,prob:unP,evVal:ev(unP,1.909),side:'under'},
     {label:ahFavName+' -'+ahAbsLine.toFixed(1),prob:ahFavP,evVal:ev(ahFavP,1.909),side:'ahFav'},
     {label:ahDogName+' +'+ahAbsLine.toFixed(1),prob:ahDogP,evVal:ev(ahDogP,1.909),side:'ahDog'},
-  ]);
+  ],'SOC_'+leagueKey.toUpperCase());
   var topT=_mkts.tierN,topLabel=_mkts.lbl,topCol=_mkts.col;
   var _bm=_mkts.best,_bp=Math.round(_bm.prob*100),_be=(_bm.evVal*100).toFixed(1);
   var _implied=1/ml2d(_bm.side==='home'?hML:_bm.side==='draw'?dML:_bm.side==='away'?aML:1.909);
