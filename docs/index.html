@@ -3927,7 +3927,7 @@ function _hkMarginCal(p){
   return 1/(1+Math.exp(-z));
 }
 // Complement view of a blend record (the other side of a two-way market).
-function _hkBlComp(bl){return bl?{p:1-bl.p,model:1-bl.model,market:1-bl.market,alpha:bl.alpha,kind:bl.kind}:null;}
+function _hkBlComp(bl){return bl?{p:1-bl.p,model:1-bl.model,market:1-bl.market,alpha:bl.alpha,kind:bl.kind,underBias:bl.underBias}:null;}
 // Fields every _evalMkts row carries so _autoLockCapture -> build_qualifying -> lock_game_leg can persist them.
 function _hkBlFields(bl){return{modelProb:bl?+bl.model.toFixed(4):null,marketProb:bl?+bl.market.toFixed(4):null,blendAlpha:bl?+bl.alpha.toFixed(3):null};}
 // Euro-league adapters (the game's `odds` object, same consensus-median prices + 36h staleness rule the card shows).
@@ -3935,10 +3935,20 @@ function _hkBlendML(pModel,g,minGp){
   const o=_hkOdds(g);if(!o||!o.ml)return null;
   const pk=_hkMktNoVig(o.ml.home,o.ml.away);return pk==null?null:_hkBlendCore(pModel,pk,'ML',minGp);
 }
-function _hkBlendOU(pOverModel,g,line,minGp){
+// UNDER BIAS on the European totals (2026-10-26, owner request). The books price overs too high at the common lines: across 427 finished SHL/Liiga/NLA/Extraliga game-lines (5.5 and 6.5, 2026-10-02..10-25) the under hit
+// ~8 points more often than its no-vig price (63% vs 54% at 5.5, 72% vs 64% at 6.5; pooled logit gap +0.35, same sign in both halves of the sample: +0.26 / +0.43). Per league the gap is noisy (about 50 games per line each), so
+// each is shrunk toward the pooled figure (weight n/(n+100)) and rounded: SHL +0.50, Extraliga +0.40, NLA +0.30, Liiga +0.25 (observed 0.82 / 0.51 / 0.22 / 0.07). It moves the MARKET share of the blend toward the under, so the blended
+// probability shifts by alpha x the figure (alpha 0.65-0.95). Only a card line of 5.5-6.5 with a real market (a model-only total has no market price to be biased against); lower and higher rungs showed no gap. 0 disables a league.
+// Python has no copy: the lock engine reads the probability this produces. Revisit at ~100 games per league.
+const HOCKEY_OU_UNDER_SHIFT={SHL:0.50,EXTRALIGA:0.40,NLA:0.30,LIIGA:0.25};
+function _hkUnderBias(line,lg){const s=HOCKEY_OU_UNDER_SHIFT[String(lg||'').toUpperCase()];return(s&&line>=5.5&&line<=6.5)?s:0;}
+function _hkBlendOU(pOverModel,g,line,minGp,lg){
   const o=_hkOdds(g),ov=_hkOuLegAt(o,line,'OVER'),un=_hkOuLegAt(o,line,'UNDER');
   if(!ov||!un)return null;
-  const pk=_hkMktNoVig(ov.dec,un.dec);return pk==null?null:_hkBlendCore(pOverModel,pk,'OU',minGp);
+  const pk=_hkMktNoVig(ov.dec,un.dec);if(pk==null)return null;
+  const bl=_hkBlendCore(pOverModel,pk,'OU',minGp),sh=_hkUnderBias(line,lg);
+  if(bl&&sh){const z=Math.log(bl.p/(1-bl.p))-bl.alpha*sh;bl.p=Math.min(.95,Math.max(.05,1/(1+Math.exp(-z))));bl.underBias=sh;}
+  return bl;
 }
 function _hkBlendPL(favCoverModel,g,favIsHome,minGp){
   const legs=_hkPlLegsAt(_hkOdds(g),favIsHome,1.5);if(!legs)return null;
@@ -3959,11 +3969,11 @@ function _hkBlendNhl(kind,pModel,mkt,minGp){
 function _hkBlendTag(bl){
   if(!bl)return'';
   const f=x=>(x*100).toFixed(0);
-  return`<div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px;line-height:1.25" title="MARKET-BLENDED: model ${(bl.model*100).toFixed(1)}% · no-vig market ${(bl.market*100).toFixed(1)}% · blended ${(bl.p*100).toFixed(1)}% (alpha ${bl.alpha.toFixed(2)})"><span style="color:var(--gc)">MARKET-BLENDED</span><br><span style="color:var(--t3)">MODEL ${f(bl.model)} · MKT ${f(bl.market)}</span> <span style="color:var(--t2)">&rarr; ${f(bl.p)}%</span></div>`;
+  return`<div style="font-family:var(--mono);font-size:10px;letter-spacing:.3px;line-height:1.25" title="MARKET-BLENDED: model ${(bl.model*100).toFixed(1)}% · no-vig market ${(bl.market*100).toFixed(1)}% · blended ${(bl.p*100).toFixed(1)}% (alpha ${bl.alpha.toFixed(2)})${bl.underBias?` · euro under-bias adj (books overprice overs, logit ${bl.underBias.toFixed(2)})`:''}"><span style="color:var(--gc)">MARKET-BLENDED</span><br><span style="color:var(--t3)">MODEL ${f(bl.model)} · MKT ${f(bl.market)}</span> <span style="color:var(--t2)">&rarr; ${f(bl.p)}%</span></div>`;
 }
 // Plain-text one-liner for explanation/reasoning strings.
 function _hkBlendText(bl,lbl){
-  return bl?`${lbl} market blend (alpha ${bl.alpha.toFixed(2)}): model ${(bl.model*100).toFixed(1)}% · no-vig market ${(bl.market*100).toFixed(1)}% → ${(bl.p*100).toFixed(1)}%`:'';
+  return bl?`${lbl} market blend (alpha ${bl.alpha.toFixed(2)}): model ${(bl.model*100).toFixed(1)}% · no-vig market ${(bl.market*100).toFixed(1)}%${bl.underBias?` · euro under-bias adj (books overprice overs)`:''} → ${(bl.p*100).toFixed(1)}%`:'';
 }
 function _hkBlendSummary(mk){
   if(!mk)return'';
@@ -12923,7 +12933,7 @@ function liigaEns(homeId,awayId,marketOU,mktGame){
   // Puck-line + O/U market blend (favorite side defined by the blended ML p, same as the card's favTeam).
   const _mbPL=_hkBlendPL(favCoverP,mktGame,p>=.5,_mbGp);
   if(_mbPL)favCoverP=_mbPL.p;
-  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp);
+  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp,'LIIGA');
   return{p,pModel,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP,ouP:_mbOU?_mbOU.p:mc.overP,mkt:{ml:_mbML,pl:_mbPL,ou:_mbOU}};
 }
 function _liigaPopulateDayFilter(games){
@@ -13047,7 +13057,7 @@ function nlaEns(homeId,awayId,marketOU,mktGame){
   // Puck-line + O/U market blend (favorite side defined by the blended ML p, same as the card's favTeam).
   const _mbPL=_hkBlendPL(favCoverP,mktGame,p>=.5,_mbGp);
   if(_mbPL)favCoverP=_mbPL.p;
-  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp);
+  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp,'NLA');
   return{p,pModel,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP,ouP:_mbOU?_mbOU.p:mc.overP,mkt:{ml:_mbML,pl:_mbPL,ou:_mbOU}};
 }
 function _nlaPopulateDayFilter(games){
@@ -13164,7 +13174,7 @@ function extraligaEns(homeId,awayId,marketOU,mktGame){
   // Puck-line + O/U market blend (favorite side defined by the blended ML p, same as the card's favTeam).
   const _mbPL=_hkBlendPL(favCoverP,mktGame,p>=.5,_mbGp);
   if(_mbPL)favCoverP=_mbPL.p;
-  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp);
+  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp,'EXTRALIGA');
   return{p,pModel,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP,ouP:_mbOU?_mbOU.p:mc.overP,mkt:{ml:_mbML,pl:_mbPL,ou:_mbOU}};
 }
 function _extraligaPopulateDayFilter(games){
@@ -14086,7 +14096,7 @@ function shlEns(homeId,awayId,marketOU,mktGame){
   // Puck-line + O/U market blend (favorite side defined by the blended ML p, same as the card's favTeam).
   const _mbPL=_hkBlendPL(favCoverP,mktGame,p>=.5,_mbGp);
   if(_mbPL)favCoverP=_mbPL.p;
-  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp);
+  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp,'SHL');
   return{p,pModel,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP,ouP:_mbOU?_mbOU.p:mc.overP,mkt:{ml:_mbML,pl:_mbPL,ou:_mbOU}};
 }
 function _shlPopulateDayFilter(games){
@@ -21477,7 +21487,7 @@ function renderHomePage(){
       // be closer to noise than a signal.
       const last10=keptSettledByDate.filter(p=>lm.codes.some(c=>p._spUC===c)).slice(-10);
       return{lbl:lm.lbl,w,l,n:lb.length,acc:lb.length?w/lb.length:null,units:u,last10};
-    }).filter(Boolean).sort((a,b)=>b.n-a.n);
+    }).filter(Boolean).sort((a,b)=>b.acc-a.acc||b.n-a.n||b.units-a.units);   // highest win % first (owner 2026-10-26); more picks, then units, break ties
     const leagueRow=d=>{
       // Real bug, found 2026-09-16: an inline-block span defaults to
       // vertical-align:baseline, which puts the BOTTOM of each 6px dot on

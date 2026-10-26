@@ -73,7 +73,8 @@ class TopPicks(unittest.TestCase):
         self.assertIn("WHOLE Top Picks record", self.pg.evaluate("document.getElementById('toppicks-heatmap').innerText"))
 
     def test_the_two_grids_share_one_square_layout(self):
-        self.ledger([pick(i, "NBA", "win", self.day) for i in range(3)] + [{**pick(9, "NBA", "win", self.day), "id": "adj1", "betType": "OU", "betOn": "OVER 200.5", "altLine": {"posted": 205.5, "line": 200.5, "shift": 5, "postedLabel": "OVER 205.5"}}])
+        old = self.pg.evaluate("_scShift(today(),-12)")      # the grid starts on the Sunday before the oldest pick: without this it has only 2 cells on a Monday
+        self.ledger([pick(i, "NBA", "win", self.day) for i in range(3)] + [pick(20, "NBA", "win", old)] + [{**pick(9, "NBA", "win", self.day), "id": "adj1", "betType": "OU", "betOn": "OVER 200.5", "altLine": {"posted": 205.5, "line": 200.5, "shift": 5, "postedLabel": "OVER 205.5"}}])
         self.pg.evaluate("renderTopPicksHeatmap()")
         a = self.pg.evaluate("document.querySelectorAll('#toppicks-heatmap .tp-heat-cell').length")
         b = self.pg.evaluate("(()=>{const d=document.createElement('div');d.innerHTML=_topAdjDailyHTML();return d.querySelectorAll('.tp-heat-cell').length})()")
