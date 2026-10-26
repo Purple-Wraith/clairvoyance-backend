@@ -655,34 +655,22 @@ def products_for_email(email: str) -> list[dict]:
     return out
 
 
-def send_receipt_email(email: str) -> tuple[bool, str]:
-    """Confirmation-of-access receipt, sent after add_subscriber() adds or
-    renews a product for this email. Reflects the email's CURRENT full
-    active bundle (via products_for_email()), not just the product(s)
-    touched by whatever call triggered it -- Venmo is the actual payment
-    rail and this system has zero visibility into what was charged, so
-    this is deliberately a receipt of ACCESS (what's live right now, the
-    standard PRICING_BY_COUNT reference price for that bundle size, and
-    each product's expiry date), not a claimed record of a specific
-    payment amount.
+def recently_renewed(email: str, minutes: int = 30) -> bool:
+    """True when the event log shows a 'renew' for this address in the last `minutes` -- i.e. the receipt being sent now confirms a RENEWAL, not a first sign-up."""
+    email = email.strip().lower()
+    cutoff = _now() - timedelta(minutes=minutes)
+    for e in reversed(_load_events()):
+        ts = _parse(e.get("ts", ""))
+        if ts is None or ts < cutoff:
+            break
+        if e.get("action") == "renew" and str(e.get("email", "")).strip().lower() == email:
+            return True
+    return False
 
-    Safe to call after every single add/renew, including mid-batch: each
-    send is independently accurate for the state at that moment, so a
-    multi-product signup done one call at a time (e.g. the web admin
-    tool, which only adds one product per request) still produces a
-    correct, if incremental, trail of receipts -- callers doing a known
-    single-email multi-product batch in one go (manage_subscribers.py's
-    CLI `add`) should instead call this once after the whole batch
-    completes, so the subscriber gets one receipt showing the final
-    bundle instead of N ballooning ones.
 
-    Returns (False, ...) without sending if the email has no active
-    products at all (e.g. add_subscriber() was never actually called,
-    or every entry already lapsed) -- there's nothing true to receipt."""
-    rows = sorted((r for r in products_for_email(email) if r["active"]), key=lambda r: r["product"])
-    if not rows:
-        return False, f"{email} has no active products -- nothing to receipt"
-
+def build_receipt_email(rows: list[dict], renewal: bool = False) -> tuple[str, str]:
+    """(subject, html) of the access receipt for these ACTIVE product rows ({product, added, ...} as products_for_email() returns them).  Split out of send_receipt_email so a sample receipt can be
+    rendered and sent to the owner without a real subscriber (scripts/send_demo_emails.py --only receipt)."""
     n = len(rows)
     price = PRICING_BY_COUNT.get(min(n, len(PRODUCTS)), 0)
     now = _now()
@@ -697,7 +685,7 @@ def send_receipt_email(email: str) -> tuple[bool, str]:
         f'</div>'
         for i, r in enumerate(rows)
     )
-    subject = f"Clairvoyance — Access confirmation: {n} product{'s' if n != 1 else ''} active"
+    subject = f"Clairvoyance — {'Renewal' if renewal else 'Access'} confirmation: {n} product{'s' if n != 1 else ''} active"
     # Custom open (not the shared EMAIL_WRAP_OPEN) so the receipt can carry
     # its own bordered card instead of going flat-white right under a neon
     # header. Kept deliberately restrained (no background texture, no glow
@@ -743,9 +731,9 @@ def send_receipt_email(email: str) -> tuple[bool, str]:
         f'font-family:-apple-system,sans-serif;color:#999" /></div>' +
         receipt_wrap_open +
         f'<div style="font-size:11px;letter-spacing:2.5px;color:{BLACK};text-transform:uppercase;'
-        'font-weight:700;margin-bottom:14px">Access Confirmation</div>'
+        f'font-weight:700;margin-bottom:14px">{"Renewal" if renewal else "Access"} Confirmation</div>'
         f'<div style="font-size:19px;font-weight:700;color:{BLACK};margin-bottom:6px;line-height:1.3">'
-        'Thanks for subscribing to Clairvoyance Engine.</div>'
+        f'{"Thanks for renewing Clairvoyance Engine." if renewal else "Thanks for subscribing to Clairvoyance Engine."}</div>'
         f'<div style="font-size:13px;color:{BLACK};margin-bottom:26px">Confirmed {fmt_mt_date(now)}</div>'
         f'<div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:6px;'
         f'padding:4px 20px;margin-bottom:20px">{expiry_rows}</div>'
@@ -760,4 +748,36 @@ def send_receipt_email(email: str) -> tuple[bool, str]:
         'questions.</div>' +
         receipt_close
     )
+    return subject, body
+
+
+def send_receipt_email(email: str) -> tuple[bool, str]:
+    """Confirmation-of-access receipt, sent after add_subscriber() adds or
+    renews a product for this email. Reflects the email's CURRENT full
+    active bundle (via products_for_email()), not just the product(s)
+    touched by whatever call triggered it -- Venmo is the actual payment
+    rail and this system has zero visibility into what was charged, so
+    this is deliberately a receipt of ACCESS (what's live right now, the
+    standard PRICING_BY_COUNT reference price for that bundle size, and
+    each product's expiry date), not a claimed record of a specific
+    payment amount.
+
+    Safe to call after every single add/renew, including mid-batch: each
+    send is independently accurate for the state at that moment, so a
+    multi-product signup done one call at a time (e.g. the web admin
+    tool, which only adds one product per request) still produces a
+    correct, if incremental, trail of receipts -- callers doing a known
+    single-email multi-product batch in one go (manage_subscribers.py's
+    CLI `add`) should instead call this once after the whole batch
+    completes, so the subscriber gets one receipt showing the final
+    bundle instead of N ballooning ones.
+
+    Returns (False, ...) without sending if the email has no active
+    products at all (e.g. add_subscriber() was never actually called,
+    or every entry already lapsed) -- there's nothing true to receipt."""
+    rows = sorted((r for r in products_for_email(email) if r["active"]), key=lambda r: r["product"])
+    if not rows:
+        return False, f"{email} has no active products -- nothing to receipt"
+
+    subject, body = build_receipt_email(rows, renewal=recently_renewed(email))     # a renewal just recorded (add_subscriber logged a 'renew') reads as one
     return _send_gmail(subject, email, body)

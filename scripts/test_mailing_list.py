@@ -167,6 +167,21 @@ class ReceiptDelivery(unittest.TestCase):
             with mock.patch.object(A, "_run_gh") as gh:
                 self.assertFalse(A.deliver_receipt(bad)[0], bad); gh.assert_not_called()
 
+    def test_a_recent_renewal_makes_the_receipt_a_renewal_receipt(self):
+        srv = Server()
+        try:
+            S.add_subscriber("nba", "ren@x.com"); S.add_subscriber("nba", "ren@x.com")          # first add, then a renewal (event log: add, renew)
+            self.assertTrue(S.recently_renewed("REN@x.com")); self.assertFalse(S.recently_renewed("other@x.com"))
+            old = json.loads(srv.events.read_text()); old[-1]["ts"] = iso(2)                       # the renewal was two days ago: this is no longer 'a renewal just recorded'
+            srv.events.write_text(json.dumps(old)); self.assertFalse(S.recently_renewed("ren@x.com"))
+            rows = [{"product": "nba", "added": iso(0)}]
+            sub, body = S.build_receipt_email(rows, renewal=True)
+            self.assertIn("Renewal confirmation", sub); self.assertIn("Thanks for renewing", body); self.assertIn("Renewal Confirmation", body)
+            sub, body = S.build_receipt_email(rows)
+            self.assertIn("Access confirmation", sub); self.assertIn("Thanks for subscribing", body)
+        finally:
+            srv.close()
+
     def test_the_workflow_and_script_exist_and_pass_the_email_through_the_environment(self):
         wf = (ROOT / ".github" / "workflows" / "send-receipt.yml").read_text()
         self.assertIn("workflow_dispatch", wf); self.assertIn('RECEIPT_TO: ${{ inputs.email }}', wf); self.assertIn('--email "$RECEIPT_TO"', wf)
@@ -266,6 +281,20 @@ class TabTests(unittest.TestCase):
         prods = pg.evaluate("[...document.querySelectorAll('#ml-subs .ml-sub[data-email=\"sam@example.com\"] .ml-prod')].map(p=>p.dataset.product)")
         self.assertEqual(prods, ["nba"])
         pg.click("#ml-subs .ml-sub[data-email='sam@example.com'] .ml-btn.go:has-text('RENEW ALL')"); pg.wait_for_selector("#ml-subs .ml-sub[data-email='sam@example.com']:has-text('30 days left')")
+        pg.context.close()
+
+    def test_renewing_emails_a_renewal_receipt_unless_the_box_is_off(self):
+        pg = self.page(); self.open_tab(pg)
+        with mock.patch.object(A, "deliver_receipt", side_effect=lambda e: (True, "receipt queued")) as rc:
+            pg.evaluate("mlRenew('kim@example.com','soccer')"); pg.wait_for_selector("#ml-msg")
+            self.assertEqual([c.args[0] for c in rc.call_args_list], ["kim@example.com"])
+            self.assertIn("receipt queued", pg.inner_text("#ml-msg"))
+            pg.uncheck("#ml-subs input[type=checkbox]"); pg.wait_for_timeout(100)
+            pg.evaluate("mlRenew('kim@example.com','cfb')"); pg.wait_for_timeout(1500)
+            self.assertEqual(rc.call_count, 1)                                               # box off: no second receipt
+            pg.check("#ml-subs input[type=checkbox]")
+            pg.evaluate("mlRenewAll('sam@example.com')"); pg.wait_for_timeout(2000)
+            self.assertEqual([c.args[0] for c in rc.call_args_list], ["kim@example.com", "sam@example.com"])   # one receipt for the whole renew-all
         pg.context.close()
 
     def test_analytics_and_activity_tabs_render(self):

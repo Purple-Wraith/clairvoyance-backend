@@ -27,6 +27,12 @@ on:
         description: 'Recipient email (blank = LOCKS_EMAIL_TO/SOCIAL_CARD_EMAIL_TO secret)'
         required: false
         type: string
+      only:
+        description: 'What to send: all, receipt (the subscriber access receipt only) or locks (the five locks emails only)'
+        required: false
+        type: choice
+        options: [all, receipt, locks]
+        default: all
 
 permissions:
   contents: read
@@ -55,9 +61,10 @@ jobs:
           # Passed through the environment, never interpolated into the shell line: a dispatch input like
           # `x; curl ...` would otherwise run as a command on a runner that holds the Gmail secret.
           DEMO_TO: ${{ inputs.to }}
+          DEMO_ONLY: ${{ inputs.only }}
         run: |
           if [ -n "$DEMO_TO" ]; then
-            python3 scripts/send_demo_emails.py --to "$DEMO_TO"
+            python3 scripts/send_demo_emails.py --to "$DEMO_TO" --only "${DEMO_ONLY:-all}"
           else
-            python3 scripts/send_demo_emails.py
+            python3 scripts/send_demo_emails.py --only "${DEMO_ONLY:-all}"
           fi

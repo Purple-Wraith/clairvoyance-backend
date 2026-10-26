@@ -124,13 +124,29 @@ DEMO_LEGS = {
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--to", default=None, help="Override recipient (defaults to OWNER_EMAIL)")
+    ap.add_argument("--only", choices=("all", "receipt", "locks"), default="all", help="receipt = just the sample subscriber access receipt; locks = just the five locks emails")
     args = ap.parse_args()
     recipient = args.to or OWNER_EMAIL
     if not recipient:
         raise SystemExit("No recipient -- pass --to or set LOCKS_EMAIL_TO/SOCIAL_CARD_EMAIL_TO")
 
     failed = []
-    for product, legs in DEMO_LEGS.items():
+    if args.only in ("all", "receipt"):
+        # the real subscriber receipt (same builder as send_receipt_email), rendered for a made-up two-list subscriber
+        from datetime import datetime, timezone
+        from _subscribers import build_receipt_email
+        now = datetime.now(timezone.utc).isoformat()
+        subject, body = build_receipt_email([{"product": "nba", "added": now}, {"product": "hockey", "added": now}])
+        ok, msg = send_email("DEMO (sample data) " + subject, recipient, DEMO_BANNER + body)
+        print(f"{'sent' if ok else 'FAILED'} demo receipt -> {recipient}" + ("" if ok else f": {msg}"))
+        if not ok:
+            failed.append("receipt")
+        subject, body = build_receipt_email([{"product": "nba", "added": now}, {"product": "hockey", "added": now}], renewal=True)       # the same receipt for someone who RENEWED
+        ok, msg = send_email("DEMO (sample data) " + subject, recipient, DEMO_BANNER + body)
+        print(f"{'sent' if ok else 'FAILED'} demo renewal receipt -> {recipient}" + ("" if ok else f": {msg}"))
+        if not ok:
+            failed.append("renewal receipt")
+    for product, legs in (DEMO_LEGS.items() if args.only in ("all", "locks") else []):
         label = PRODUCT_LABEL[product]
         body = DEMO_BANNER + build_locks_email_html(legs, True, len(legs))
         subject = f"Clairvoyance — DEMO (sample data) {label} locks email"

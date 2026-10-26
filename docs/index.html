@@ -37204,6 +37204,7 @@ function _mlRenderSubs(){
     <div class="ml-conn"><span class="ml-dot"></span>CONNECTED · <button class="ml-btn" onclick="mlLoad()">REFRESH</button></div></div>
     ${_mlStatCards(d.analytics,all)}
     <div class="ml-bar">${stats}</div><div class="ml-bar">${chip(_ml.list==='ALL',`ALL LISTS`,`_ml.list='ALL';mlRender()`)}${prods}</div>
+    <label class="ml-dl" style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input type="checkbox" ${_ml.renewReceipt===false?'':'checked'} onchange="_ml.renewReceipt=this.checked"> Email a renewal receipt when I renew someone</label>
     <div class="ml-bar"><input class="ml-in" id="ml-q" type="search" placeholder="Search email" value="${_escHtml(_ml.q)}" oninput="_ml.q=this.value;mlRender();const i=document.getElementById('ml-q');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}"></div>
     ${syncMsg}
     ${cards||`<div class="empty">${all.length?'NO SUBSCRIBERS MATCH THESE FILTERS':'NO SUBSCRIBERS YET — USE ADD / RENEW WHEN SOMEONE PAYS'}</div>`}
@@ -37275,10 +37276,15 @@ async function mlAddSubmit(){
   });
   if(_ml.msg&&_ml.msg.ok){_ml.sel={};_ml.email='';}
 }
-async function mlRenew(email,product){await _mlDo('Renewed '+email,async out=>{const j=await mlFetch('/api/add',{method:'POST',body:JSON.stringify({product,email})});out.push(j.message);},`Renew ${email} on ${product}`);}
+// A renewal emails the subscriber a RENEWAL receipt (after the sync: it is sent from GitHub, which reads the synced list) unless the "email a receipt when I renew" box on the SUBSCRIBERS tab is off.
+async function _mlRenewReceipt(email,out){
+  if(_ml.renewReceipt===false)return;
+  const r=await mlFetch('/api/receipt',{method:'POST',body:JSON.stringify({email})});out.push(r.ok?r.message:'receipt not sent ('+r.message+')');
+}
+async function mlRenew(email,product){await _mlDo('Renewed '+email,async out=>{const j=await mlFetch('/api/add',{method:'POST',body:JSON.stringify({product,email})});out.push(j.message);},`Renew ${email} on ${product}`,out=>_mlRenewReceipt(email,out));}
 async function mlRenewAll(email){
   const s=(_ml.data.subscribers.find(x=>x.email===email)||{products:[]});
-  await _mlDo('Renewed '+email,async out=>{for(const p of s.products){const j=await mlFetch('/api/add',{method:'POST',body:JSON.stringify({product:p.product,email})});out.push(j.message);}},`Renew ${email} on all lists`);
+  await _mlDo('Renewed '+email,async out=>{for(const p of s.products){const j=await mlFetch('/api/add',{method:'POST',body:JSON.stringify({product:p.product,email})});out.push(j.message);}},`Renew ${email} on all lists`,out=>_mlRenewReceipt(email,out));
 }
 async function mlRemove(email,product){
   if(!window.confirm('Remove '+email+' from '+product.toUpperCase()+'? They stop receiving that list right away.'))return;

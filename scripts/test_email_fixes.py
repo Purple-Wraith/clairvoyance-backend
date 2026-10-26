@@ -332,7 +332,7 @@ class Lifecycle(unittest.TestCase):
     def test_demo_goes_to_requested_recipient_labelled_as_sample(self):
         code, calls = self._run_demo(True)
         self.assertEqual(code, 0)
-        self.assertEqual(len(calls), 5)
+        self.assertEqual(len(calls), 7)                      # subscriber receipt + renewal receipt + the five locks emails
         for subj, to, body in calls:
             self.assertEqual(to, "me@x.com")
             self.assertIn("DEMO (sample data)", subj)
