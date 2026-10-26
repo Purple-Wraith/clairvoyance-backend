@@ -1309,6 +1309,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
   <button class="sp" onclick="navTap(this,'soc')" onmouseenter="showND(this,'soc')" onmouseleave="startHideND()">SOCCER</button>
   <button class="sp" onclick="navTap(this,'sim')" onmouseenter="showND(this,'sim')" onmouseleave="startHideND()">SIMULATOR</button>
   <button class="sp" onclick="navTap(this,'news')" onmouseenter="showND(this,'news')" onmouseleave="startHideND()">NEWS</button>
+  <button class="sp" onclick="navTap(this,'mail')">MAILING LIST</button>
 </nav>
 
 <!-- HOME -->
@@ -2367,6 +2368,19 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
 </div>
 
 <!-- SIMULATOR -->
+<!-- MAILING LIST (owner-only: talks to the local subscribers admin server, scripts/subscribers_admin.py; subscriber data is never stored in this page) -->
+<div id="sp-mail" class="spane">
+  <nav class="snav">
+    <button class="sb2 act" onclick="setSub('mail','subs');mlRender()">SUBSCRIBERS</button>
+    <button class="sb2" onclick="setSub('mail','add');mlRender()">ADD / RENEW</button>
+    <button class="sb2" onclick="setSub('mail','ana');mlRender()">ANALYTICS</button>
+    <button class="sb2" onclick="setSub('mail','act');mlRender()">ACTIVITY</button>
+  </nav>
+  <div id="mail-subs" class="subp act"><div class="sa"><div class="tab act" style="padding:12px 12px 82px"><div id="ml-subs"></div></div></div></div>
+  <div id="mail-add" class="subp"><div class="sa"><div class="tab act" style="padding:12px 12px 82px"><div id="ml-add"></div></div></div></div>
+  <div id="mail-ana" class="subp"><div class="sa"><div class="tab act" style="padding:12px 12px 82px"><div id="ml-ana"></div></div></div></div>
+  <div id="mail-act" class="subp"><div class="sa"><div class="tab act" style="padding:12px 12px 82px"><div id="ml-act"></div></div></div></div>
+</div>
 <div id="sp-sim" class="spane">
   <div class="sa" style="padding:14px">
     <div class="sh" style="margin-bottom:12px"><span class="p"></span> MONTE CARLO SIMULATOR <span style="font-family:var(--mono);font-size:16px;color:var(--t3);font-weight:400;margin-left:8px">ENGINE-GRADE PROBABILITY ENGINE</span></div>
@@ -21865,6 +21879,7 @@ function SS(s){
   if(s==='ovr'){_t(()=>T('ovr','dash'));_t(renderOverall);_t(renderOverallHistory);_t(renderAdaptiveLearning);}
   if(s==='analytics'){_t(()=>renderBySportAnalytics('all'));}
   if(s==='profit'){_t(renderProfit);}
+  if(s==='mail'){_t(mlLoad);}
   if(s==='fut'){_t(()=>{renderFuturesPanes('nba');});}
   if(s==='news'){_t(()=>T('news','all'));_t(renderNewsAll);}
   if(s==='soc'){_t(()=>T('bl','matches'));_t(()=>renderLeagueMatches('bl'));}
@@ -37062,6 +37077,219 @@ function _chatInit(){
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_chatInit);else _chatInit();
 </script>
 <!-- CHAT:END -->
+<style id="ml-css">
+/* ── MAILING LIST tab ───────────────────────────────────────────────────────────────── */
+.ml-h{font-family:var(--orb);font-size:22px;font-weight:900;letter-spacing:3px;color:var(--pc);text-shadow:0 0 10px rgba(240,0,255,.55)}
+.ml-hs{font-family:var(--mono);font-size:13px;letter-spacing:1.5px;color:var(--t3);margin:4px 0 12px}
+.ml-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.ml-conn{font-family:var(--mono);font-size:13px;letter-spacing:1px;display:inline-flex;align-items:center;gap:6px}
+.ml-dot{width:8px;height:8px;border-radius:50%;background:#00e644;box-shadow:0 0 6px #00e644}
+.ml-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:12px}
+.ml-stat{background:rgba(10,4,22,.92);border:1px solid rgba(77,40,120,.55);border-radius:3px;padding:10px 12px;min-width:0}
+.ml-sv{font-family:var(--orb);font-size:24px;font-weight:900;color:var(--t);line-height:1.1}
+.ml-sl{font-family:var(--mono);font-size:12px;letter-spacing:1.5px;color:var(--t3);margin-top:4px;text-transform:uppercase}
+.ml-sn{font-family:var(--mono);font-size:11px;color:var(--t3);margin-top:3px}
+.ml-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.ml-chip{font-family:var(--mono);font-size:13px;letter-spacing:1px;padding:4px 10px;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.65);background:transparent;border-radius:2px;cursor:pointer;min-height:30px}
+.ml-chip.on{border-color:var(--pc);color:var(--pc);background:rgba(240,0,255,.08);box-shadow:0 0 8px rgba(240,0,255,.25)}
+.ml-in{font-family:var(--mono);font-size:15px;color:var(--t);background:rgba(0,0,0,.45);border:1px solid rgba(77,40,120,.7);border-radius:2px;padding:7px 10px;min-width:0;flex:1 1 200px}
+.ml-sub{background:rgba(10,4,22,.92);border:1px solid rgba(77,40,120,.55);border-left:3px solid #00e644;border-radius:3px;padding:10px 12px;margin-bottom:8px;min-width:0}
+.ml-sub.expiring{border-left-color:#ffd500}.ml-sub.expired{border-left-color:#ff2050;opacity:.82}
+.ml-eh{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.ml-em{font-family:var(--mono);font-size:16px;color:var(--t);word-break:break-all}
+.ml-pill{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;padding:2px 8px;border-radius:2px;font-weight:700;color:#000;background:#00e644}
+.ml-pill.expiring{background:#ffd500}.ml-pill.expired{background:#ff2050;color:#fff}
+.ml-prod{display:grid;grid-template-columns:150px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid rgba(255,255,255,.06)}
+.ml-pn{font-family:var(--mono);font-size:14px;color:var(--t2)}
+.ml-track{height:8px;background:rgba(255,255,255,.08);border-radius:1px;overflow:hidden;position:relative}
+.ml-fill{height:100%;background:#00e644}.ml-fill.expiring{background:#ffd500}.ml-fill.expired{background:#ff2050}
+.ml-dl{font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:3px}
+.ml-act{display:flex;gap:6px;flex-wrap:wrap}
+.ml-btn{font-family:var(--mono);font-size:12px;letter-spacing:1.5px;padding:4px 10px;border:1px solid rgba(255,255,255,.25);color:var(--t2);background:transparent;border-radius:2px;cursor:pointer;min-height:28px}
+.ml-btn.go{border-color:var(--pc);color:var(--pc)}.ml-btn.rm{border-color:#ff2050;color:#ff2050}
+.ml-btn:disabled{opacity:.45;cursor:default}
+.ml-card{background:rgba(10,4,22,.92);border:1px solid rgba(77,40,120,.55);border-radius:3px;padding:12px;margin-bottom:12px;min-width:0}
+.ml-ct{font-family:var(--orb);font-size:14px;font-weight:700;letter-spacing:2px;color:var(--t);margin-bottom:8px}
+.ml-msg{font-family:var(--mono);font-size:13px;line-height:1.6;margin-top:8px;color:var(--t2)}
+.ml-msg.err{color:#ff2050}.ml-msg.ok{color:#00e644}
+.ml-tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ml-t{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px}
+.ml-t th{text-align:left;color:var(--t3);letter-spacing:1.2px;font-weight:400;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.12);white-space:nowrap}
+.ml-t td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--t2);white-space:nowrap}
+.ml-rev{display:flex;align-items:flex-end;gap:8px;height:130px;padding-top:6px}
+.ml-rc{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+.ml-rb{width:100%;max-width:38px;background:linear-gradient(180deg,var(--pc),rgba(240,0,255,.25));min-height:2px}
+.ml-rl{font-family:var(--mono);font-size:10px;color:var(--t3);margin-top:3px}.ml-rv{font-family:var(--mono);font-size:11px;color:var(--t2);margin-bottom:2px}
+@media(max-width:640px){.ml-prod{grid-template-columns:1fr;gap:4px}.ml-h{font-size:16px;letter-spacing:2px}.ml-sv{font-size:20px}}
+@media(pointer:coarse),(max-width:640px){.ml-chip,.ml-btn{min-height:40px}.ml-in{min-height:40px;font-size:16px}}
+</style>
+<script>
+// ── MAILING LIST tab (owner-only) ───────────────────────────────────────────────────────────────────────────────────────
+// The list lives in the PRIVATE repo and is served only by the local admin server on this Mac (scripts/subscribers_admin.py, a LaunchAgent). This tab fetches it live into the open page: nothing is put in
+// localStorage, Supabase or any public file. If the server is not reachable the tab says so and shows nothing.
+window.ML_BASE=window.ML_BASE||'http://127.0.0.1:8899';
+window._ml=window._ml||{data:null,err:null,loading:false,list:'ALL',status:'ALL',q:'',sel:{},msg:null,sync:null,busy:false,loadedAt:0};
+async function mlFetch(path,opts){
+  const o=Object.assign({},opts||{});o.headers=Object.assign({'X-CV-Admin':'1'},o.headers||{});
+  if(o.body&&!o.headers['Content-Type'])o.headers['Content-Type']='application/json';
+  const r=await fetch(window.ML_BASE+path,o);
+  let j={};try{j=await r.json();}catch(e){}
+  if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+  return j;
+}
+async function mlLoad(){
+  if(_ml.loading)return;
+  _ml.loading=true;
+  try{_ml.data=await mlFetch('/api/overview');_ml.err=null;_ml.loadedAt=Date.now();}
+  catch(e){_ml.err=e;_ml.data=null;}
+  _ml.loading=false;
+  mlRender();
+}
+function _mlSub(){const a=document.querySelector('#sp-mail .subp.act');return a?a.id.replace('mail-',''):'subs';}
+function mlRender(){
+  const sub=_mlSub();
+  if(_ml.err||!_ml.data){
+    ['subs','add','ana','act'].forEach(k=>{const el=document.getElementById('ml-'+k);if(el)el.innerHTML=k===sub?_mlOffline():'';});
+    return;
+  }
+  if(sub==='subs')_mlRenderSubs();
+  else if(sub==='add')_mlRenderAdd();
+  else if(sub==='ana')_mlRenderAna();
+  else _mlRenderAct();
+}
+function _mlOffline(){
+  const msg=_ml.loading?'CONNECTING…':'MAILING LIST SERVER NOT REACHABLE';
+  return `<div class="ml-top"><div><div class="ml-h">MAILING LIST</div><div class="ml-hs">PAID SUBSCRIBERS · LISTS · TIME LEFT · ANALYTICS</div></div></div>
+  <div class="ml-card"><div class="ml-ct" style="color:#ff2050">${msg}</div>
+  <div class="ml-msg">This tab reads the subscriber list from the small server that runs on your Mac (${_escHtml(window.ML_BASE)}). It is private on purpose: the list is never stored in this public app.
+  ${_ml.err?'<br>('+_escHtml(_ml.err.message||String(_ml.err))+')':''}</div>
+  <div class="ml-msg">Open this page in a browser on the Mac where it runs. To start it by hand: <span class="np">python3 scripts/subscribers_admin.py</span>. Safari blocks a secure page from talking to a local server: use Chrome or Edge.</div>
+  <div style="margin-top:10px"><button class="ml-btn go" onclick="mlLoad()">TRY AGAIN</button></div></div>`;
+}
+function _mlStatCards(a,subs){
+  const exp=subs.filter(s=>s.status==='expiring').length;
+  return `<div class="ml-stats">
+    <div class="ml-stat"><div class="ml-sv">${a.active_emails}</div><div class="ml-sl">Active subscribers</div></div>
+    <div class="ml-stat"><div class="ml-sv">${a.active_subscriptions}</div><div class="ml-sl">Active list memberships</div></div>
+    <div class="ml-stat"><div class="ml-sv" style="color:#00e644">$${a.estimated_mrr}</div><div class="ml-sl">Est. 30-day revenue</div><div class="ml-sn">standard pricing, not a payment ledger</div></div>
+    <div class="ml-stat"><div class="ml-sv" style="color:${exp?'#ffd500':'var(--t)'}">${exp}</div><div class="ml-sl">Expiring in 5 days or less</div></div>
+  </div>`;
+}
+function _mlFmtDay(iso){try{return new Date(iso).toLocaleDateString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric'});}catch(e){return String(iso).slice(0,10);}}
+function _mlFmtTime(iso){try{return new Date(iso).toLocaleString('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' MT';}catch(e){return String(iso);}}
+function _mlRenderSubs(){
+  const d=_ml.data,el=document.getElementById('ml-subs');if(!el)return;
+  const all=d.subscribers;
+  const listCount=k=>all.filter(s=>s.products.some(p=>p.active&&p.product===k)).length;
+  let rows=all.filter(s=>(_ml.status==='ALL'||s.status===_ml.status.toLowerCase())&&(_ml.list==='ALL'||s.products.some(p=>p.product===_ml.list&&p.active))&&(!_ml.q||s.email.includes(_ml.q.toLowerCase())));
+  const chip=(on,label,fn)=>`<button class="ml-chip${on?' on':''}" aria-pressed="${on}" onclick="${fn}">${label}</button>`;
+  const prods=d.products.map(p=>chip(_ml.list===p.key,`${_escHtml(p.label.toUpperCase())} ${listCount(p.key)}`,`_ml.list='${p.key}';mlRender()`)).join('');
+  const stats=['ALL','ACTIVE','EXPIRING','EXPIRED'].map(s=>chip(_ml.status===s,s,`_ml.status='${s}';mlRender()`)).join('');
+  const cards=rows.map(s=>{
+    const prow=s.products.map(p=>{
+      const cls=!p.active?'expired':p.days_left<=5?'expiring':'';
+      const pct=p.active?Math.max(3,Math.min(100,Math.round(100*p.days_left/d.expiry_days))):100;
+      const dl=p.active?`${p.days_left} day${p.days_left===1?'':'s'} left · ends ${_mlFmtDay(p.expires)}`:`expired ${_mlFmtDay(p.expires)}`;
+      return `<div class="ml-prod" data-product="${_escHtml(p.product)}"><div class="ml-pn">${_escHtml(p.label)}</div>
+        <div><div class="ml-track"><div class="ml-fill ${cls}" style="width:${pct}%"></div></div><div class="ml-dl">${dl}</div></div>
+        <div class="ml-act"><button class="ml-btn go" onclick="mlRenew('${_escHtml(s.email)}','${p.product}')">RENEW</button><button class="ml-btn rm" onclick="mlRemove('${_escHtml(s.email)}','${p.product}')">REMOVE</button></div></div>`;
+    }).join('');
+    const price=s.active_count?`$${s.price} / 30 days · ${s.active_count} list${s.active_count===1?'':'s'}`:'no active lists';
+    return `<div class="ml-sub ${s.status}" data-email="${_escHtml(s.email)}"><div class="ml-eh"><div><div class="ml-em">${_escHtml(s.email)}</div><div class="ml-dl">${price}</div></div>
+      <div class="ml-act"><span class="ml-pill ${s.status}">${s.status.toUpperCase()}</span>
+      <button class="ml-btn go" onclick="mlRenewAll('${_escHtml(s.email)}')">RENEW ALL</button><button class="ml-btn" onclick="mlReceipt('${_escHtml(s.email)}')">SEND RECEIPT</button></div></div>${prow}</div>`;
+  }).join('');
+  const syncMsg=_ml.msg?`<div class="ml-msg ${_ml.msg.ok?'ok':'err'}" id="ml-msg">${_escHtml(_ml.msg.text)}</div>`:'';
+  el.innerHTML=`<div class="ml-top"><div><div class="ml-h">MAILING LIST</div><div class="ml-hs">PAID SUBSCRIBERS · LISTS · TIME LEFT · 30-DAY ACCESS PER PURCHASE</div></div>
+    <div class="ml-conn"><span class="ml-dot"></span>CONNECTED · <button class="ml-btn" onclick="mlLoad()">REFRESH</button></div></div>
+    ${_mlStatCards(d.analytics,all)}
+    <div class="ml-bar">${stats}</div><div class="ml-bar">${chip(_ml.list==='ALL',`ALL LISTS`,`_ml.list='ALL';mlRender()`)}${prods}</div>
+    <div class="ml-bar"><input class="ml-in" id="ml-q" type="search" placeholder="Search email" value="${_escHtml(_ml.q)}" oninput="_ml.q=this.value;mlRender();const i=document.getElementById('ml-q');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}"></div>
+    ${syncMsg}
+    ${cards||`<div class="empty">${all.length?'NO SUBSCRIBERS MATCH THESE FILTERS':'NO SUBSCRIBERS YET — USE ADD / RENEW WHEN SOMEONE PAYS'}</div>`}
+    <div class="ml-dl" style="margin-top:8px">${d.owner?'Your own address ('+_escHtml(d.owner.replace(/(.).*(@.*)/,'$1***$2'))+') always receives every list.':'Your own address always receives every list.'} A subscriber is emailed only while a list shows days left; an entry with 0 days stops receiving on its end date.</div>`;
+}
+function _mlRenderAdd(){
+  const d=_ml.data,el=document.getElementById('ml-add');if(!el)return;
+  const chips=d.products.map(p=>`<button class="ml-chip${_ml.sel[p.key]?' on':''}" aria-pressed="${!!_ml.sel[p.key]}" onclick="_ml.sel['${p.key}']=!_ml.sel['${p.key}'];_mlRenderAdd()">${_escHtml(p.label.toUpperCase())}</button>`).join('');
+  const n=Object.values(_ml.sel).filter(Boolean).length;
+  const price=n?`$${d.pricing[Math.min(n,5)]||'?'} for ${n} list${n===1?'':'s'} (standard pricing)`:'pick the lists they paid for';
+  const msg=_ml.msg?`<div class="ml-msg ${_ml.msg.ok?'ok':'err'}" id="ml-msg">${_escHtml(_ml.msg.text)}</div>`:'';
+  el.innerHTML=`<div class="ml-top"><div><div class="ml-h">ADD / RENEW</div><div class="ml-hs">WHEN SOMEONE PAYS (VENMO): ADD THEM HERE</div></div></div>
+  <div class="ml-card"><div class="ml-ct">SUBSCRIBER</div>
+    <div class="ml-bar"><input class="ml-in" id="ml-email" type="email" autocomplete="off" placeholder="their@email.com" value="${_escHtml(_ml.email||'')}" oninput="_ml.email=this.value"></div>
+    <div class="ml-ct" style="margin-top:12px">LISTS THEY PAID FOR</div><div class="ml-bar">${chips}</div><div class="ml-dl">${price}</div>
+    <label class="ml-dl" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="ml-receipt" ${_ml.receipt===false?'':'checked'} onchange="_ml.receipt=this.checked"> Email them a receipt of what is now active</label>
+    <div style="margin-top:12px"><button class="ml-btn go" id="ml-addbtn" onclick="mlAddSubmit()" ${_ml.busy?'disabled':''}>ADD / RENEW — START 30 DAYS FROM TODAY</button></div>
+    ${msg}</div>
+  <div class="ml-card"><div class="ml-ct">HOW IT WORKS</div><div class="ml-msg">Adding starts a 30-day window today on each list; adding someone already on a list renews it (resets to 30 days). The change is saved to the private list and synced to GitHub so the next lock email includes them.
+  Nothing here is automatic: the website sign-up is a pre-written email and the payment is a Venmo, so the engine only learns about a new subscriber when you add them here.</div></div>`;
+}
+function _mlRenderAna(){
+  const d=_ml.data,a=d.analytics,el=document.getElementById('ml-ana');if(!el)return;
+  const lt=a.avg_customer_lifetime,ttr=a.time_to_renewal,ad=a.multi_product_adoption;
+  const stat=(v,l,n)=>`<div class="ml-stat"><div class="ml-sv">${v}</div><div class="ml-sl">${l}</div>${n?`<div class="ml-sn">${n}</div>`:''}</div>`;
+  const rt=a.revenue_timeline||[],maxRev=Math.max(1,...rt.map(w=>w.estimated_revenue));
+  const rev=rt.length?`<div class="ml-rev">${rt.map(w=>`<div class="ml-rc"><div class="ml-rv">$${w.estimated_revenue}</div><div class="ml-rb" style="height:${Math.max(2,Math.round(100*w.estimated_revenue/maxRev))}%"></div><div class="ml-rl">${_escHtml(w.week_of.slice(5))}</div></div>`).join('')}</div>`:'<div class="empty">NOT ENOUGH HISTORY YET</div>';
+  const per=d.products.map(p=>`<tr><td>${_escHtml(p.label)}</td><td>${a.per_product_counts[p.key]||0}</td><td>$${(a.per_product_revenue||{})[p.key]||0}</td></tr>`).join('');
+  const coh=(a.cohort_retention||[]).map(c=>`<tr><td>${_escHtml(c.cohort_week)}</td><td>${c.signups}</td><td>${c.retained}</td><td>${c.retention_pct==null?'—':c.retention_pct+'%'}</td></tr>`).join('');
+  const w=(x)=>`${x.add} new · ${x.renew} renewed · ${x.remove} removed`;
+  const soon=(a.expiring_soon||[]).map(r=>`<tr><td>${_escHtml(r.email)}</td><td>${_escHtml(r.product)}</td><td>${r.days_left}</td></tr>`).join('');
+  el.innerHTML=`<div class="ml-top"><div><div class="ml-h">ANALYTICS</div><div class="ml-hs">${a.events_since?'ACTIVITY TRACKED SINCE '+_escHtml(a.events_since.slice(0,10)):'NO ACTIVITY TRACKED YET'} · REVENUE IS AN ESTIMATE FROM STANDARD PRICING</div></div></div>
+  <div class="ml-stats">${stat(a.active_emails,'Active subscribers')}${stat(a.active_subscriptions,'List memberships')}${stat('$'+a.estimated_mrr,'Est. 30-day revenue')}
+    ${stat(a.renewal_rate_30d==null?'—':a.renewal_rate_30d+'%','Renewal rate (30d)','renewals ÷ (renewals + removals)')}${stat(ad.pct_multi==null?'—':ad.pct_multi+'%','On 2+ lists',ad.multi_product_emails+' of '+ad.active_emails)}
+    ${stat(lt.avg_cycles==null?'—':lt.avg_cycles,'Avg lifetime (30-day cycles)',lt.sample_size?lt.sample_size+' ended':'none ended yet')}${stat(ttr.avg_days_before_expiry==null?'—':(ttr.avg_days_before_expiry>=0?ttr.avg_days_before_expiry+'d early':Math.abs(ttr.avg_days_before_expiry)+'d late'),'Renews vs expiry',ttr.sample_size?ttr.on_time_count+' on time · '+ttr.late_count+' late':'no renewals yet')}</div>
+  <div class="ml-card"><div class="ml-ct">LAST 7 / 30 DAYS</div><div class="ml-msg">7 days: ${w(a.window_7d)}<br>30 days: ${w(a.window_30d)}</div></div>
+  <div class="ml-card"><div class="ml-ct">ESTIMATED REVENUE BY WEEK</div>${rev}</div>
+  <div class="ml-card"><div class="ml-ct">BY LIST</div><div class="ml-tw"><table class="ml-t"><tr><th>LIST</th><th>ACTIVE</th><th>EST. REVENUE</th></tr>${per}</table></div></div>
+  <div class="ml-card"><div class="ml-ct">EXPIRING SOON</div>${soon?`<div class="ml-tw"><table class="ml-t"><tr><th>EMAIL</th><th>LIST</th><th>DAYS LEFT</th></tr>${soon}</table></div>`:'<div class="ml-msg">Nobody expires in the next 5 days.</div>'}</div>
+  <div class="ml-card"><div class="ml-ct">WEEKLY SIGN-UP COHORTS</div>${coh?`<div class="ml-tw"><table class="ml-t"><tr><th>WEEK</th><th>SIGNED UP</th><th>RETAINED</th><th>RETENTION</th></tr>${coh}</table></div>`:'<div class="ml-msg">A cohort shows up once it is old enough to have had a full 30 days to renew.</div>'}</div>`;
+}
+function _mlRenderAct(){
+  const d=_ml.data,el=document.getElementById('ml-act');if(!el)return;
+  const rows=d.events.map(e=>`<tr><td>${_escHtml(_mlFmtTime(e.ts))}</td><td>${_escHtml(String(e.action||'').toUpperCase())}</td><td>${_escHtml((d.products.find(p=>p.key===e.product)||{}).label||e.product)}</td><td>${_escHtml(e.email)}</td></tr>`).join('');
+  el.innerHTML=`<div class="ml-top"><div><div class="ml-h">ACTIVITY</div><div class="ml-hs">EVERY ADD, RENEWAL AND REMOVAL · NEWEST FIRST</div></div></div>
+  <div class="ml-card">${rows?`<div class="ml-tw"><table class="ml-t"><tr><th>WHEN</th><th>ACTION</th><th>LIST</th><th>EMAIL</th></tr>${rows}</table></div>`:'<div class="empty">NO ACTIVITY YET</div>'}</div>`;
+}
+async function _mlSync(message){
+  try{const j=await mlFetch('/api/sync',{method:'POST',body:JSON.stringify({message})});return j.ok?{ok:true,text:'synced to GitHub'}:{ok:false,text:'NOT synced to GitHub: '+(j.message||'unknown error')+' — they will not get emails until it is'};}
+  catch(e){return {ok:false,text:'NOT synced to GitHub: '+(e.message||e)};}
+}
+async function _mlDo(label,work,syncMsg){
+  if(_ml.busy)return;
+  _ml.busy=true;_ml.msg=null;
+  const out=[];
+  try{await work(out);const s=await _mlSync(syncMsg);out.push(s.text);_ml.msg={ok:s.ok,text:label+': '+out.join(' · ')};}
+  catch(e){_ml.msg={ok:false,text:label+' failed: '+(e.message||e)};}
+  _ml.busy=false;
+  await mlLoad();
+}
+async function mlAddSubmit(){
+  const email=(document.getElementById('ml-email')?.value||'').trim(),receipt=!!document.getElementById('ml-receipt')?.checked;
+  const picks=Object.keys(_ml.sel).filter(k=>_ml.sel[k]);
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!picks.length){_ml.msg={ok:false,text:'Enter a valid email and pick at least one list.'};_mlRenderAdd();return;}
+  await _mlDo('Added '+email,async out=>{
+    for(const p of picks){const j=await mlFetch('/api/add',{method:'POST',body:JSON.stringify({product:p,email})});out.push(j.message);}
+    if(receipt){const r=await mlFetch('/api/receipt',{method:'POST',body:JSON.stringify({email})});out.push(r.ok?'receipt sent':'receipt not sent ('+r.message+')');}
+  },`Add ${email} to ${picks.join(', ')}`);
+  if(_ml.msg&&_ml.msg.ok){_ml.sel={};_ml.email='';}
+}
+async function mlRenew(email,product){await _mlDo('Renewed '+email,async out=>{const j=await mlFetch('/api/add',{method:'POST',body:JSON.stringify({product,email})});out.push(j.message);},`Renew ${email} on ${product}`);}
+async function mlRenewAll(email){
+  const s=(_ml.data.subscribers.find(x=>x.email===email)||{products:[]});
+  await _mlDo('Renewed '+email,async out=>{for(const p of s.products){const j=await mlFetch('/api/add',{method:'POST',body:JSON.stringify({product:p.product,email})});out.push(j.message);}},`Renew ${email} on all lists`);
+}
+async function mlRemove(email,product){
+  if(!window.confirm('Remove '+email+' from '+product.toUpperCase()+'? They stop receiving that list right away.'))return;
+  await _mlDo('Removed '+email,async out=>{const j=await mlFetch('/api/remove',{method:'POST',body:JSON.stringify({product,email})});out.push(j.message);},`Remove ${email} from ${product}`);
+}
+async function mlReceipt(email){
+  if(_ml.busy)return;_ml.busy=true;
+  try{const r=await mlFetch('/api/receipt',{method:'POST',body:JSON.stringify({email})});_ml.msg={ok:!!r.ok,text:r.ok?'Receipt sent to '+email:'Receipt not sent: '+r.message};}
+  catch(e){_ml.msg={ok:false,text:'Receipt failed: '+(e.message||e)};}
+  _ml.busy=false;mlRender();
+}
+</script>
 
 
 

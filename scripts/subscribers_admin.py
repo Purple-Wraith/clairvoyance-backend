@@ -21,8 +21,12 @@ same as manage_subscribers.py does.
 """
 from __future__ import annotations
 import json
+import math
+import os
+import re
 import sys
 import webbrowser
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
@@ -31,8 +35,58 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _subscribers import (
     PRODUCTS, add_subscriber, remove_subscriber, active_subscribers,
     products_for_email, analytics_summary, send_receipt_email, EXPIRY_DAYS,
-    sync_subscribers_to_git,
+    sync_subscribers_to_git, load_subscribers, _load_events, _parse, _now, PRICING_BY_COUNT, OWNER_EMAIL,
 )
+
+# ── ENGINE APP "MAILING LIST" TAB (2026-10-25) ────────────────────────────────────────────────────────────────────────────────
+# docs/app.html has a MAILING LIST tab that manages the list through THIS server (the subscriber data stays on this Mac / the private repo -- the public app only ever holds what it fetched into the open page,
+# never in localStorage or Supabase). That means a web page is now allowed to call this API, so:
+#   * CORS answers only for the engine app's own origins (APP_ORIGINS) and local pages (127.0.0.1 / localhost); every other origin gets no CORS headers and its POSTs are refused outright;
+#   * a POST from a browser (it always carries an Origin header) is refused unless that origin is allowed or is this server's own page -- this also closes the old hole where any web page could blind-POST /api/add or /api/remove;
+#   * the app sends the custom header X-CV-Admin so the browser makes a CORS preflight first, and the preflight answers Access-Control-Allow-Private-Network (Chrome's local-network rule).
+# Extra origins: CV_ADMIN_ORIGINS="https://a.example,https://b.example".
+APP_ORIGINS = {"https://purple-wraith.github.io"} | {o.strip() for o in os.environ.get("CV_ADMIN_ORIGINS", "").split(",") if o.strip()}
+_LOCAL_ORIGIN = re.compile(r"^http://(127\.0\.0\.1|localhost)(:\d+)?$")
+PRODUCT_LABEL = {"nfl": "NFL", "cfb": "College Football", "nba": "NBA", "hockey": "Hockey (NHL + European)", "soccer": "European Soccer"}
+
+
+def origin_allowed(origin: str | None) -> bool:
+    return bool(origin) and (origin in APP_ORIGINS or bool(_LOCAL_ORIGIN.match(origin)))
+
+
+def build_overview() -> dict:
+    """Everything the app's MAILING LIST tab shows, in one call: every subscriber (grouped by email, expired entries included and flagged), the lists they are on with days left, plus the analytics and the latest activity."""
+    now = _now()
+    by_email: dict[str, dict] = {}
+    for product, entries in load_subscribers().items():
+        if product not in PRODUCTS or not isinstance(entries, list):
+            continue
+        for e in entries:
+            email = (e.get("email") if isinstance(e, dict) else None) or ""
+            email = email.strip().lower()
+            added = _parse(e.get("added", "")) if isinstance(e, dict) else None
+            if "@" not in email or added is None:
+                continue
+            exp = added + timedelta(days=EXPIRY_DAYS)
+            days_left = (exp - now).total_seconds() / 86400
+            row = by_email.setdefault(email, {"email": email, "products": []})
+            row["products"].append({"product": product, "label": PRODUCT_LABEL.get(product, product), "added": added.isoformat(), "expires": exp.isoformat(),
+                                    "days_left": math.ceil(days_left),
+                                    "active": days_left > 0, "reminder_sent": bool(e.get("reminder_sent"))})
+    subs = []
+    for row in by_email.values():
+        row["products"].sort(key=lambda p: p["product"])
+        act = [p for p in row["products"] if p["active"]]
+        row["active_count"] = len(act)
+        row["price"] = PRICING_BY_COUNT.get(min(len(act), len(PRODUCTS)), 0) if act else 0
+        row["soonest_days_left"] = min((p["days_left"] for p in act), default=None)
+        row["status"] = "expired" if not act else ("expiring" if row["soonest_days_left"] <= 5 else "active")
+        subs.append(row)
+    order = {"expiring": 0, "active": 1, "expired": 2}
+    subs.sort(key=lambda r: (order[r["status"]], r["soonest_days_left"] if r["soonest_days_left"] is not None else 9999, r["email"]))
+    events = list(reversed(_load_events()))[:60]
+    return {"now": now.isoformat(), "expiry_days": EXPIRY_DAYS, "products": [{"key": p, "label": PRODUCT_LABEL.get(p, p)} for p in PRODUCTS],
+            "pricing": {str(k): v for k, v in PRICING_BY_COUNT.items()}, "owner": OWNER_EMAIL or None, "subscribers": subs, "events": events, "analytics": analytics_summary()}
 
 PORT = 8899
 # TextLogo.png (the "CLAIRVOYANCE" wordmark on the diamond-grid brand
@@ -531,13 +585,39 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
+    def _cors(self):
+        origin = self.headers.get("Origin")
+        if origin_allowed(origin):
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-CV-Admin")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Private-Network", "true")
+            self.send_header("Access-Control-Max-Age", "600")
+
+    def _same_origin(self, origin: str) -> bool:
+        host = self.headers.get("Host") or ""
+        return bool(host) and origin in (f"http://{host}", f"https://{host}")
+
     def _json(self, obj, status=200):
         body = json.dumps(obj).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self._cors()
         self.end_headers()
         self.wfile.write(body)
+
+    def do_OPTIONS(self):
+        origin = self.headers.get("Origin")
+        if not origin_allowed(origin):
+            self._json({"error": "origin not allowed"}, 403)
+            return
+        self.send_response(204)
+        self._cors()
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def _html(self, html: str):
         body = html.encode("utf-8")
@@ -574,10 +654,16 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"email": email, "rows": products_for_email(email)})
         elif parsed.path == "/api/analytics":
             self._json(analytics_summary())
+        elif parsed.path == "/api/overview":
+            self._json(build_overview())
         else:
             self._json({"error": "not found"}, 404)
 
     def do_POST(self):
+        origin = self.headers.get("Origin")
+        if origin and not (origin_allowed(origin) or self._same_origin(origin)):
+            self._json({"error": "origin not allowed"}, 403)
+            return
         length = int(self.headers.get("Content-Length", 0) or 0)
         try:
             body = json.loads(self.rfile.read(length) or b"{}")
