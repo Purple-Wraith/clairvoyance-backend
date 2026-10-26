@@ -25,7 +25,7 @@ from design_system import (
 
 LIME = (187, 255, 0)
 PINK = (255, 32, 144)
-LBL = (172, 168, 200)          # column headers / footnotes: brighter than DIM so they read over the crosshatch
+LABEL_GLOW = [(1, 255), (3, 110)]   # light halo: SOCIAL_GLOW smears small magenta caps over the crosshatch
 # Column centres / anchors
 X_NAME = 64
 X_M_REC, X_M_PCT = 452, 590
@@ -46,13 +46,13 @@ def build_card(background_fn, data: dict | None = None):
     base = hline(base, 142, color=MAG, alpha=90)
 
     # column headers
-    base = glow(base, data["month_name"], ((X_M_REC + X_M_PCT) // 2, 172), orb(19), GOLD, SOCIAL_GLOW)
-    base = glow(base, "ALL TIME", ((X_A_REC + X_A_PCT) // 2, 172), orb(19), GOLD, SOCIAL_GLOW)
+    base = glow(base, data["month_name"], ((X_M_REC + X_M_PCT) // 2, 172), orb(19), MAG, LABEL_GLOW)
+    base = glow(base, "ALL TIME", ((X_A_REC + X_A_PCT) // 2, 172), orb(19), MAG, LABEL_GLOW)
     draw = ImageDraw.Draw(base)
     hf = mono(14)
-    draw.text((X_NAME, 204), "SPORT / LEAGUE", font=hf, fill=(*LBL, 255), anchor="lm")
+    draw.text((X_NAME, 204), "SPORT / LEAGUE", font=hf, fill=(*CYN, 255), anchor="lm")
     for x, t in ((X_M_REC, "W-L"), (X_M_PCT, "WIN %"), (X_A_REC, "W-L"), (X_A_PCT, "WIN %")):
-        draw.text((x, 204), t, font=hf, fill=(*LBL, 255), anchor="mm")
+        draw.text((x, 204), t, font=hf, fill=(*CYN, 255), anchor="mm")
     draw.line([(X_NAME, 222), (W - X_NAME, 222)], fill=(255, 255, 255, 40), width=1)
 
     y, row_h = 246, 46
@@ -62,12 +62,12 @@ def build_card(background_fn, data: dict | None = None):
         if bundle:
             draw.line([(X_NAME, y - row_h // 2 + 2), (W - X_NAME, y - row_h // 2 + 2)], fill=(*MAG, 70), width=1)
         name_font = nf_l if league else nf_b
-        draw.text((X_NAME + (26 if league else 0), y), r["name"], font=name_font, fill=(*(WHT if league else MAG), 255), anchor="lm")
+        draw.text((X_NAME + (26 if league else 0), y), r["name"], font=name_font, fill=(*CYN, 255), anchor="lm")
         rec_font = orb(17) if league else orb(19)
         for key, xr, xp in (("month", X_M_REC, X_M_PCT), ("all", X_A_REC, X_A_PCT)):
             rec = r[key]
-            draw.text((xr, y), ad_perf.fmt_rec(rec), font=rec_font, fill=(*WHT, 255), anchor="mm")
-            draw.text((xp, y), ad_perf.fmt_pct(rec), font=rec_font, fill=(*pct_color(rec["pct"]), 255), anchor="mm")
+            draw.text((xr, y), ad_perf.fmt_rec(rec), font=rec_font, fill=(*CYN, 255), anchor="mm")
+            draw.text((xp, y), ad_perf.fmt_pct(rec), font=rec_font, fill=(*CYN, 255), anchor="mm")
         y += row_h
 
     # overall row
@@ -76,14 +76,14 @@ def build_card(background_fn, data: dict | None = None):
     o = data["overall"]
     draw.text((X_NAME, y + 4), "ALL SPORTS", font=orb(22), fill=(*CYN, 255), anchor="lm")
     for key, xr, xp in (("month", X_M_REC, X_M_PCT), ("all", X_A_REC, X_A_PCT)):
-        draw.text((xr, y + 4), ad_perf.fmt_rec(o[key]), font=orb(21), fill=(*WHT, 255), anchor="mm")
-        draw.text((xp, y + 4), ad_perf.fmt_pct(o[key]), font=orb(21), fill=(*pct_color(o[key]["pct"]), 255), anchor="mm")
+        draw.text((xr, y + 4), ad_perf.fmt_rec(o[key]), font=orb(21), fill=(*CYN, 255), anchor="mm")
+        draw.text((xp, y + 4), ad_perf.fmt_pct(o[key]), font=orb(21), fill=(*CYN, 255), anchor="mm")
     y += row_h + 8
 
     note = f"Every graded pick, published live, losses included. Sorted by {data['month_name'].title()} win %. Updated {data['generated_at']}."
-    note2 = "Win % = wins / all graded picks (a third number is pushes). Includes some picks locked after kickoff."
-    draw.text((CX, min(y, H - 118)), note, font=mono(14), fill=(*LBL, 255), anchor="mm")
-    draw.text((CX, min(y, H - 118) + 20), note2, font=mono(14), fill=(*LBL, 255), anchor="mm")
+    note2 = "Win % = wins / all graded picks (a third number is pushes)."
+    draw.text((CX, min(y, H - 118)), note, font=mono(14), fill=(*WHT, 255), anchor="mm")
+    draw.text((CX, min(y, H - 118) + 20), note2, font=mono(14), fill=(*WHT, 255), anchor="mm")
     base = draw_footer(base)
     return base
 

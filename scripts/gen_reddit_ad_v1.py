@@ -99,7 +99,7 @@ def build_card(background_fn):
     perf = ad_perf.load()
     for xc, key, lbl in ((CX - 255, 'month', perf['month_name']), (CX + 255, 'all', 'ALL TIME')):
         rec = perf['overall'][key]
-        base = glow(base, lbl, (xc, 232), orb(20), GOLD, SOCIAL_GLOW)
+        base = glow(base, lbl, (xc, 232), orb(20), MAG, [(1, 255), (3, 110)])
         base = glow(base, ad_perf.fmt_pct(rec), (xc, 300), orb(70), MAG, TITLE_GLOW)
         base = glow(base, f"{rec['w']:,}W - {rec['l']:,}L", (xc, 358), orb(24), CYN, SOCIAL_GLOW)
     draw = ImageDraw.Draw(base)
@@ -147,11 +147,6 @@ def build_card(background_fn):
     base = glow(base, 'VIEW THE FULL TRACK RECORD AND MORE INFO', (CX, by0 + 42), orb(21), GOLD, HDR_GLOW)
     draw = ImageDraw.Draw(base)
     base = glow(base, 'clairvoyanceengine.info', (CX, by0 + 84), orb(22), CYN, HDR_GLOW)
-
-    # ── Basis footnote ──────────────────────────────────────────────
-    draw = ImageDraw.Draw(base)
-    foot = f"All graded picks, incl. some locked after kickoff. Updated {perf['generated_at']}."
-    draw.text((CX, by1 + 34), foot, font=mono(13), fill=(172, 168, 200, 255), anchor='mm')
 
     # ── Footer ────────────────────────────────────────────────────
     draw = ImageDraw.Draw(base)
