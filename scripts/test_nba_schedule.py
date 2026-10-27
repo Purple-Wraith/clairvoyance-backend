@@ -169,11 +169,88 @@ class Windows(unittest.TestCase):
 
     def test_window_is_yesterday_through_n_days(self):
         espn = FakeESPN()
-        F.build_schedule({}, days=10, now=NOW, get=espn, sleep=NOSLEEP)
+        F.build_schedule({"historyFrom": "20200101"}, days=10, now=NOW, get=espn, sleep=NOSLEEP)     # history already collected: only the window is fetched
         days = [p["dates"] for u, p in espn.calls if "/scoreboard" in u]
         self.assertEqual(days[0], "20261002")
         self.assertEqual(days[-1], "20261013")
         self.assertEqual(len(days), 12)
+
+
+class History(unittest.TestCase):
+    """2026-10-27: the schedule file only reached back one day, so the COMPARE tab's FORM had just yesterday's games. Completed regular-season games are now kept and backfilled once."""
+
+    def setUp(self):
+        self.orig = F.fetch_day
+        self.fetched = []
+        G = lambda i, state, day, **k: {"id": i, "state": state, "day": day[:4] + "-" + day[4:6] + "-" + day[6:], "date": day[:4] + "-" + day[4:6] + "-" + day[6:] + "T23:00Z", "home": "AAA", "away": "BBB", "preseason": False, "seasonType": 2, **k}
+        self.G = G
+        self.board = {"20261020": [G("h1", "post", "20261020"), G("p1", "pre", "20261020"), G("x1", "post", "20261020", preseason=True), G("x2", "post", "20261020", seasonType=1)],
+                      "20261021": [G("h2", "post", "20261021")]}
+
+        def fake(day, get=None, now=None):
+            self.fetched.append(day)
+            if day in self.fail:
+                raise RuntimeError("HTTP 500")
+            return list(self.board.get(day, [])), {}
+        self.fail = set()
+        F.fetch_day = fake
+        self.today = datetime(2026, 10, 24).date()
+        self.wanted = ["20261023", "20261024", "20261025"]
+
+    def tearDown(self):
+        F.fetch_day = self.orig
+
+    def test_first_run_backfills_from_the_season_start_with_only_completed_regular_season_games(self):
+        games = []
+        added, frm = F.collect_history(games, {"regularSeason": {"start": "2026-10-20"}}, self.wanted, self.today, None, sleep=NOSLEEP)
+        self.assertEqual(self.fetched, ["20261020", "20261021", "20261022"])
+        self.assertEqual(sorted(added), ["h1", "h2"])                 # not the pre game, not preseason (flag or seasonType 1)
+        self.assertEqual(frm, "20261020")
+
+    def test_once_collected_nothing_is_refetched_and_old_finals_are_kept_from_the_previous_file(self):
+        prev = {"regularSeason": {"start": "2026-10-20"}, "historyFrom": "20261020",
+                "games": [self.G("h1", "post", "20261020"), self.G("keep", "post", "20261022"), self.G("fresh", "post", "20261023"), self.G("up", "pre", "20261021")]}
+        games = []
+        added, frm = F.collect_history(games, prev, self.wanted, self.today, None, sleep=NOSLEEP)
+        self.assertEqual(self.fetched, [])
+        self.assertEqual(sorted(added), ["h1", "keep"])               # inside the window ("fresh") is the fetch's job; an old 'pre' game is not a result
+        self.assertEqual(frm, "20261020")
+
+    def test_a_failed_backfill_day_is_retried_next_run(self):
+        self.fail = {"20261021"}
+        added, frm = F.collect_history([], {"regularSeason": {"start": "2026-10-20"}}, self.wanted, self.today, None, sleep=NOSLEEP)
+        self.assertEqual(added, ["h1"])
+        self.assertIsNone(frm)                                         # not marked collected
+        self.fail = set()
+        self.fetched.clear()
+        added, frm = F.collect_history([], {"regularSeason": {"start": "2026-10-20"}}, self.wanted, self.today, None, sleep=NOSLEEP)
+        self.assertEqual(frm, "20261020")
+
+    def test_backfill_is_bounded(self):
+        F.collect_history([], {"regularSeason": {"start": "2025-01-01"}}, self.wanted, self.today, None, sleep=NOSLEEP)
+        self.assertLessEqual(len(self.fetched), F.HISTORY_MAX_BACKFILL_DAYS)
+
+    def test_build_schedule_includes_history_and_survives_a_history_crash(self):
+        espn = FakeESPN()
+        pay = F.build_schedule({"regularSeason": {"start": "2026-10-01"}}, days=1, now=NOW, get=espn, sleep=NOSLEEP)
+        self.assertIsNotNone(pay)
+        self.assertIn("historyFrom", pay)
+        self.assertIn("history", pay["meta"])
+        F.collect_history = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+        try:
+            self.assertIsNotNone(F.build_schedule({}, days=1, now=NOW, get=espn, sleep=NOSLEEP))
+        finally:
+            del F.collect_history
+            import importlib; importlib.reload(F)
+
+
+class LiveFileHistory(unittest.TestCase):
+    def test_committed_file_keeps_completed_games_from_before_yesterday(self):
+        """The COMPARE tab's FORM reads these: with only yesterday's finals it showed one game per team (owner report 2026-10-27)."""
+        doc = json.loads((Path(__file__).resolve().parent.parent / "docs" / "nba_schedule.json").read_text())
+        self.assertTrue(doc.get("historyFrom"), "historyFrom missing: the schedule fetch did not collect the season's earlier finals")
+        days = {g["day"] for g in doc["games"] if g.get("state") == "post" and not g.get("preseason")}
+        self.assertGreaterEqual(len(days), 3, f"completed regular-season games cover only {sorted(days)}")
 
 
 class CarryForward(unittest.TestCase):

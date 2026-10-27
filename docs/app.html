@@ -7471,6 +7471,51 @@ function skipPick(hA,awA,lb,p){
   const rec=log[d].recs.find(r=>r.ha===hA&&r.awa===awA&&r.lb===lb);if(rec)rec.skipped=true;
   saveDailyLog(log);toast(`⊘ SKIPPED: ${hA} ${awA} ${lb}`);
 }
+// AUTO-REFRESH SCROLL GUARD (owner report 2026-10-27: "I am reading something in a certain spot, a refresh sends me to the top, on mobile and desktop"). Many renderers refresh a list by first
+// swapping in a short placeholder ("FETCHING ESPN...") and filling the real cards a moment later (async fetch). The placeholder collapses the pane, the browser clamps its scrollTop to 0, and the
+// filled list stays at the top (reproduced: NBA tab, loadRemoteData -> patchNBATonight -> renderNBAUpcoming). Instead of patching ~30 renderers one by one, every innerHTML write inside a scrolled
+// `.sa` pane remembers the scroll position and puts it back after the write and again for the next 15 s while the fill arrives. It only acts on writes that nobody asked for: a tap / click / key press
+// in the last 6 s, or a wheel / touch-drag in the last 1.2 s, means the user caused the change, and any such input also drops every hold (it never fights the user).
+(function(){
+  if(window._cvScrollGuard)return;
+  const D=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
+  if(!D||!D.set||!D.get)return;
+  window._cvScrollGuard=1;
+  let tClick=0,tMove=0;
+  const holds=new Map();                                      // scroller -> {top, until, timers}
+  const drop=()=>{holds.forEach(h=>h.timers.forEach(clearTimeout));holds.clear();};
+  // only TRUSTED events count: the app itself dispatches synthetic input / change / click events (slider init, programmatic taps) and those are not the user
+  ['click','keydown','change','input'].forEach(t=>window.addEventListener(t,e=>{if(!e.isTrusted)return;tClick=Date.now();drop();},{capture:true,passive:true}));
+  ['wheel','touchmove','touchstart','pointerdown','mousedown'].forEach(t=>window.addEventListener(t,e=>{if(!e.isTrusted)return;tMove=Date.now();drop();},{capture:true,passive:true}));
+  const put=(sc,h)=>{
+    if(holds.get(sc)!==h||Date.now()>h.until)return;
+    const tall=()=>sc.scrollHeight-sc.clientHeight>=h.top;               // the content is long enough to hold that position (not a placeholder)
+    if(!tall())h.collapsed=1;                                              // a placeholder is showing: the browser clamps scrollTop to 0 and the fill is still to come
+    if(Math.abs(sc.scrollTop-h.top)<=1){if(tall()){h.ok=1;h.collapsed=0;}return;}
+    if(sc.scrollTop<h.top-1){
+      if(h.ok&&!h.collapsed&&tall()){holds.delete(sc);h.timers.forEach(clearTimeout);return;}   // restored earlier, never collapsed since, content is tall, yet the pane was scrolled up: code did that on purpose, not ours to undo
+      try{sc.scrollTo({top:h.top,behavior:'instant'});}catch(e){sc.scrollTop=h.top;}
+      if(tall()&&Math.abs(sc.scrollTop-h.top)<=1){h.ok=1;h.collapsed=0;}
+    }
+  };
+  Object.defineProperty(Element.prototype,'innerHTML',{configurable:true,enumerable:D.enumerable,get:D.get,set:function(v){
+    let sc=null;
+    try{sc=this.isConnected&&this.closest?this.closest('.sa'):null;}catch(e){}
+    if(!sc)return D.set.call(this,v);
+    const now=Date.now();
+    let h=holds.get(sc);
+    if(!h){
+      if(now-tClick<6000||now-tMove<1200||sc.scrollTop<=0)return D.set.call(this,v);        // user-caused change, or nothing to keep
+      h={top:sc.scrollTop,until:0,timers:[]};holds.set(sc,h);
+    }
+    D.set.call(this,v);
+    h.until=now+15000;
+    put(sc,h);
+    h.timers.forEach(clearTimeout);
+    h.timers=[0,50,150,400,900,1800,3500,7000,12000].map(ms=>setTimeout(()=>put(sc,h),ms));
+    h.timers.push(setTimeout(()=>{if(holds.get(sc)===h)holds.delete(sc);},15100));
+  }});
+})();
 // Scroll hold (owner report 2026-10-10: in All Bets, marking a bet WIN/LOSS or removing it made the screen jump). Every render*() after a bet change rebuilds its list from scratch (some also
 // add/remove the PENDING section above it, and a few fire 120-300 ms later), so one scrollTop restore right after the click is not enough. This snapshots every scroller that is scrolled
 // (window, each .sa pane, and any scrolled ancestor of the clicked control) and re-applies it immediately, next frame and at 60/160/320/640/1000 ms; the moment the user scrolls on their own

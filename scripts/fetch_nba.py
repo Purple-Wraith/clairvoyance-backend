@@ -72,6 +72,7 @@ HEADERS: dict = {}
 
 DEFAULT_DAYS = 10            # days AFTER today (ET) to fetch; yesterday is always fetched too (finals / late settle)
 PAUSE_S = 0.25               # polite pacing between ESPN calls
+HISTORY_MAX_BACKFILL_DAYS = 30   # the COMPARE tab's FORM needs the season's COMPLETED games, not just yesterday's: finals older than the fetch window are kept (and backfilled once, up to this many days)
 HTTP_TIMEOUT_S = 15
 HTTP_RETRIES = 3
 ODDS_CARRY_MAX_H = 36        # a vanished pre-game line is carried at most this long (its real age stays in oddsAt)
@@ -429,6 +430,47 @@ def regular_season_days(season_info: dict, season_year: int, get=None, prev_doc:
         return (prev_rng if isinstance(prev_rng, dict) else None), (prev_days if isinstance(prev_days, list) else None)
 
 
+# ── history: completed regular-season games from before the fetch window ─────────────────────────────────────────────────────
+def collect_history(games: list[dict], prev_doc: dict, wanted: list[str], today_et, get, sleep=time.sleep) -> tuple[list[str], str | None]:
+    """Add the season's completed (state 'post') REGULAR-season games dated before the fetch window to `games` (it only reaches back one day, so the COMPARE tab's FORM had nothing
+    but yesterday).  Games the previous file already holds are kept as they are; days from the season start (previous file's regularSeason.start, else 14 days back; at most
+    HISTORY_MAX_BACKFILL_DAYS) that were never collected are fetched once.  -> (ids added, historyFrom day to store: the earliest day now fully collected)."""
+    first = wanted[0]
+    present = {g["id"] for g in games}
+    added: list[str] = []
+    for pg in (prev_doc or {}).get("games") or []:
+        if (isinstance(pg, dict) and pg.get("id") and pg["id"] not in present and pg.get("state") == "post" and not pg.get("preseason")
+                and pg.get("seasonType") != 1 and not pg.get("carried") and not pg.get("postponed") and (_prev_day(pg) or "99999999") < first):
+            games.append(dict(pg))
+            present.add(pg["id"])
+            added.append(pg["id"])
+    rs_start = str(((prev_doc or {}).get("regularSeason") or {}).get("start") or "").replace("-", "")
+    start = rs_start if len(rs_start) == 8 else (today_et - timedelta(days=14)).strftime("%Y%m%d")
+    floor = (today_et - timedelta(days=HISTORY_MAX_BACKFILL_DAYS)).strftime("%Y%m%d")
+    start = max(start, floor)
+    done_from = str((prev_doc or {}).get("historyFrom") or "")
+    if done_from and done_from <= start:
+        return added, done_from
+    ok = True
+    d = datetime.strptime(start, "%Y%m%d").date()
+    end = datetime.strptime(first, "%Y%m%d").date()
+    while d < end:
+        day = d.strftime("%Y%m%d")
+        try:
+            day_games, _ = fetch_day(day, get=get)
+            for g in day_games:
+                if g["id"] not in present and g.get("state") == "post" and not g.get("preseason") and g.get("seasonType") != 1:
+                    games.append(g)
+                    present.add(g["id"])
+                    added.append(g["id"])
+        except Exception as exc:
+            ok = False
+            _log(f"  history {day}: FAILED ({exc}) -- will retry next run")
+        sleep(PAUSE_S)
+        d += timedelta(days=1)
+    return added, (start if ok else (done_from or None))
+
+
 # ── build ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 def build_schedule(prev_doc: dict, days: int = DEFAULT_DAYS, now: datetime | None = None, get=None, sleep=time.sleep,
                    core_odds: bool = True) -> dict | None:
@@ -478,6 +520,11 @@ def build_schedule(prev_doc: dict, days: int = DEFAULT_DAYS, now: datetime | Non
         except ValueError:
             prev_seen_iso = None
     carried = carry_failed_days(games, prev_doc, failed, prev_seen_iso)
+    try:
+        history_ids, history_from = collect_history(games, prev_doc, wanted, today_et, get, sleep=sleep)
+    except Exception as exc:                               # history is a bonus: never lose the real schedule over it
+        _log(f"  history: skipped ({exc})")
+        history_ids, history_from = [], (prev_doc or {}).get("historyFrom")
     odds_carried = carry_odds(games, prev_doc, now)
     core_gained = core_odds_fallback(games, now, get=get, sleep=sleep) if core_odds else 0
     games.sort(key=lambda g: (g.get("date") or "", g.get("id")))
@@ -493,6 +540,8 @@ def build_schedule(prev_doc: dict, days: int = DEFAULT_DAYS, now: datetime | Non
     out_extra = {}
     if reg_days:
         out_extra = {"regularSeason": reg_range, "regularSeasonDays": reg_days}
+    if history_from:
+        out_extra["historyFrom"] = history_from
     return {
         "season": label,
         "seasonYear": sy,
@@ -500,7 +549,7 @@ def build_schedule(prev_doc: dict, days: int = DEFAULT_DAYS, now: datetime | Non
         "window": {"from": wanted[0], "to": wanted[-1], "tz": "America/New_York"},
         **out_extra,
         "meta": {"days_ok": len(wanted) - len(failed), "days_failed": sorted(failed), "events": n_events, "games": len(games),
-                 "with_line": with_line, "carried": carried, "odds_carried": odds_carried, "core_odds_fills": core_gained},
+                 "with_line": with_line, "history": len(history_ids), "carried": carried, "odds_carried": odds_carried, "core_odds_fills": core_gained},
         "games": games,
     }
 
