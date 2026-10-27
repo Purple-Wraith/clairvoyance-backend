@@ -170,7 +170,7 @@ def scorecard_body(data: dict) -> str:
     out = [_logo(62, 54), '<div class="sub c mm" style="top:112px;font-size:20px;letter-spacing:3px">LEAGUE SCORECARD</div>',
            '<div class="hr" style="top:142px"></div>']
 
-    def cell(x, y, txt, size, t, anchor="ctr", cls="C"):
+    def cell(x, y, txt, size, t, anchor="ctr", cls="W"):
         return f'<div class="a orb {cls} {anchor}" style="left:{x}px;top:{y}px;font-size:{size}px;--t:{t:.2f}s">{_e(txt)}</div>'
 
     out.append(cell((X_M_REC + X_M_PCT) // 2, 172, data["month_name"], 19, 2.6, cls="M neon-m"))
@@ -185,7 +185,7 @@ def scorecard_body(data: dict) -> str:
         league, bundle = r["kind"] == "league", r["kind"] == "bundle"
         if bundle:
             out.append(f'<div class="rule m" style="top:{y - row_h // 2 + 2}px;--t:{t:.2f}s"></div>')
-        out.append(cell(X_NAME + (26 if league else 0), y, r["name"], 18 if league else 20, t, anchor="lft"))
+        out.append(cell(X_NAME + (26 if league else 0), y, r["name"], 18 if league else 20, t, anchor="lft", cls="W"))
         for key, xr, xp in (("month", X_M_REC, X_M_PCT), ("all", X_A_REC, X_A_PCT)):
             sz = 17 if league else 19
             out.append(cell(xr, y, ad_perf.fmt_rec(r[key]), sz, t))
@@ -195,7 +195,7 @@ def scorecard_body(data: dict) -> str:
     y += 6
     out.append(f'<div class="rule m" style="top:{y - row_h // 2 + 2}px;height:2px;--t:{t:.2f}s"></div>')
     o = data["overall"]
-    out.append(cell(X_NAME, y + 4, "ALL SPORTS", 22, t + .2, anchor="lft"))
+    out.append(cell(X_NAME, y + 4, "ALL SPORTS", 22, t + .2, anchor="lft", cls="W"))
     for key, xr, xp in (("month", X_M_REC, X_M_PCT), ("all", X_A_REC, X_A_PCT)):
         out.append(cell(xr, y + 4, ad_perf.fmt_rec(o[key]), 21, t + .2))
         out.append(cell(xp, y + 4, ad_perf.fmt_pct(o[key]), 21, t + .2))

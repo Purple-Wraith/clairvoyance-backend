@@ -62,22 +62,22 @@ def build_card(background_fn, data: dict | None = None):
         if bundle:
             draw.line([(X_NAME, y - row_h // 2 + 2), (W - X_NAME, y - row_h // 2 + 2)], fill=(*MAG, 70), width=1)
         name_font = nf_l if league else nf_b
-        draw.text((X_NAME + (26 if league else 0), y), r["name"], font=name_font, fill=(*CYN, 255), anchor="lm")
+        draw.text((X_NAME + (26 if league else 0), y), r["name"], font=name_font, fill=(*WHT, 255), anchor="lm")
         rec_font = orb(17) if league else orb(19)
         for key, xr, xp in (("month", X_M_REC, X_M_PCT), ("all", X_A_REC, X_A_PCT)):
             rec = r[key]
-            draw.text((xr, y), ad_perf.fmt_rec(rec), font=rec_font, fill=(*CYN, 255), anchor="mm")
-            draw.text((xp, y), ad_perf.fmt_pct(rec), font=rec_font, fill=(*CYN, 255), anchor="mm")
+            draw.text((xr, y), ad_perf.fmt_rec(rec), font=rec_font, fill=(*WHT, 255), anchor="mm")
+            draw.text((xp, y), ad_perf.fmt_pct(rec), font=rec_font, fill=(*WHT, 255), anchor="mm")
         y += row_h
 
     # overall row
     y += 6
     draw.line([(X_NAME, y - row_h // 2 + 2), (W - X_NAME, y - row_h // 2 + 2)], fill=(*MAG, 150), width=2)
     o = data["overall"]
-    draw.text((X_NAME, y + 4), "ALL SPORTS", font=orb(22), fill=(*CYN, 255), anchor="lm")
+    draw.text((X_NAME, y + 4), "ALL SPORTS", font=orb(22), fill=(*WHT, 255), anchor="lm")
     for key, xr, xp in (("month", X_M_REC, X_M_PCT), ("all", X_A_REC, X_A_PCT)):
-        draw.text((xr, y + 4), ad_perf.fmt_rec(o[key]), font=orb(21), fill=(*CYN, 255), anchor="mm")
-        draw.text((xp, y + 4), ad_perf.fmt_pct(o[key]), font=orb(21), fill=(*CYN, 255), anchor="mm")
+        draw.text((xr, y + 4), ad_perf.fmt_rec(o[key]), font=orb(21), fill=(*WHT, 255), anchor="mm")
+        draw.text((xp, y + 4), ad_perf.fmt_pct(o[key]), font=orb(21), fill=(*WHT, 255), anchor="mm")
     y += row_h + 8
 
     note = f"Every graded pick, published live, losses included. Sorted by {data['month_name'].title()} win %. Updated {data['generated_at']}."
