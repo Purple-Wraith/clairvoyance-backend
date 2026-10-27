@@ -108,16 +108,16 @@ class Sending(unittest.TestCase):
 
 
 class Wiring(unittest.TestCase):
-    def test_worker_dispatches_it_twice_on_mondays_utc_with_auto(self):
-        js = (ROOT / "scheduler" / "worker.js").read_text()
-        m = re.search(r'\{ wf: "profit-checkin-reminder\.yml", at: \[([^\]]*)\], dow: \[1\], inputs: \{ kind: "auto" \} \}', js)
-        self.assertIsNotNone(m, "Worker SCHEDULE entry missing")
-        self.assertEqual(re.findall(r'"(\d\d:\d\d)"', m.group(1)), ["01:00", "14:00"])
+    """2026-10-27: the reminders were merged into the Monday Weekly Health Digest (owner: too many emails)."""
 
-    def test_workflow_has_a_cron_fallback_and_never_emails_subscribers(self):
+    def test_worker_no_longer_dispatches_it(self):
+        js = (ROOT / "scheduler" / "worker.js").read_text()
+        self.assertNotRegex(js, r'\{ wf: "profit-checkin-reminder\.yml"')
+
+    def test_workflow_has_no_schedule_and_never_emails_subscribers(self):
         wf = (ROOT / ".github" / "workflows" / "profit-checkin-reminder.yml").read_text()
-        self.assertIn("cron: '0 1 * * 1'", wf)
-        self.assertIn("cron: '0 14 * * 1'", wf)
+        self.assertNotIn("cron:", wf)
+        self.assertIn("workflow_dispatch", wf)
         self.assertIn("profit_checkin_reminder.py", wf)
         self.assertNotIn("subscribers", wf.lower().replace("never emails subscribers", ""))
         self.assertIn("./.github/actions/publish", wf)
@@ -127,6 +127,23 @@ class Wiring(unittest.TestCase):
         src = (ROOT / "scripts" / "profit_checkin_reminder.py").read_text()
         self.assertNotIn("recipients_for", src)
         self.assertNotIn("subscribers.json", src)
+
+    def test_stale_worker_dispatch_of_kind_auto_sends_nothing(self):
+        self.assertEqual(r.main(["--kind", "auto"]), 0)         # not forced: skipped before any send / state write
+
+    def test_weekly_section_covers_last_weeks_ending_and_this_weeks_starting(self):
+        html = r.weekly_section_html(at(2026, 10, 26, 9))        # Monday Oct 26
+        self.assertIn("Profit tracker check-in", html)
+        self.assertIn("Oct 19", html)                           # last week
+        self.assertIn("Oct 26", html)                           # this week
+        self.assertIn("ENDING AMOUNT", html)
+        self.assertIn("STARTING AMOUNT", html)
+
+    def test_weekly_digest_includes_the_section_and_the_subject_says_so(self):
+        import weekly_health_digest as W
+        body = W.build_email_html(None, [], [], [], 0, [])
+        self.assertIn("5. Profit tracker check-in", body)
+        self.assertIn("Profit Check-in", (ROOT / "scripts" / "weekly_health_digest.py").read_text())
 
 
 if __name__ == "__main__":

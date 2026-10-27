@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""profit_checkin_reminder.py -- OWNER-ONLY email reminding the owner to do the PROFIT tab check-in at the END and at the START of every week (owner request 2026-10-10).
+"""MERGED INTO THE WEEKLY EMAIL 2026-10-27 (owner: too many emails): the Monday check-in is now section 5 of the Weekly Health Digest (scripts/weekly_health_digest.py calls
+weekly_section_html below); the Sunday-evening reminder was dropped and the scheduled workflow / Worker entry removed. The standalone sender below is kept only for a manual workflow_dispatch test.
+
+profit_checkin_reminder.py -- OWNER-ONLY email reminding the owner to do the PROFIT tab check-in at the END and at the START of every week (owner request 2026-10-10).
 
   END   (Sunday evening Mountain time): "enter each book's ENDING balance for the week that just finished"
   START (Monday morning Mountain time): "confirm each book's STARTING balance for the new week (it should equal last week's ending)"
@@ -81,6 +84,20 @@ def build_email(kind: str, monday):
     return subject, html
 
 
+def weekly_section_html(now_mt: datetime | None = None) -> str:
+    """The single Monday check-in block (inside the Weekly Health Digest): close out last week's ENDING balances and confirm this week's STARTING ones in one pass."""
+    now_mt = now_mt or datetime.now(MT)
+    this_week = week_monday(now_mt.date())
+    last_rng, this_rng = _rng(this_week - timedelta(days=7)), _rng(this_week)
+    steps = (f"Open the PROFIT tab → <b>PERIOD CHECK-IN</b> → WEEK.",
+             f"Last week ({last_rng}): enter the <b>ENDING AMOUNT</b> your sportsbook app shows for each book. Log any deposit or withdrawal first so profit is not distorted.",
+             f"This week ({this_rng}): confirm the <b>STARTING AMOUNT</b> — it should equal last week's ending. Leave ENDING blank.")
+    lis = "".join(f"<li style='margin:4px 0'>{x}</li>" for x in steps)
+    return (f"<h3>5. Profit tracker check-in</h3><p style='margin:0 0 8px'>Books: <b>{', '.join(BOOKS)}</b>.</p>"
+            f"<ol style='padding-left:20px;margin:0 0 10px'>{lis}</ol>"
+            f"<p style='margin:0'><a href='{APP_URL}' style='color:#7a00c8'>Open the app → PROFIT tab</a></p>")
+
+
 def load_state(path: Path = ROOT / STATE_REL) -> dict:
     try:
         d = json.loads(path.read_text())
@@ -139,6 +156,9 @@ def main(argv=None) -> int:
     ap.add_argument("--now", help="override the Mountain-time clock, e.g. 2026-10-11T20:00")
     a = ap.parse_args(argv)
     now = datetime.fromisoformat(a.now) if a.now else None
+    if a.kind == "auto" and not a.force:        # retired schedule: a stale Worker (not yet redeployed) still dispatches kind=auto -- never send the standalone email
+        print("[profit_checkin_reminder] skipped: merged into the Weekly Health Digest (2026-10-27); use --kind end|start --force for a manual test")
+        return 0
     outcome, detail = run(a.kind, now, dry=a.dry_run, force=a.force)
     print(f"[profit_checkin_reminder] {outcome}: {detail}")
     return 1 if outcome == "failed" else 0

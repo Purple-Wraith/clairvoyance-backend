@@ -1,13 +1,9 @@
 name: Profit Check-In Reminder
 
-# Owner-only email reminding the owner to do the PROFIT tab check-in at the END (Sunday evening) and START (Monday morning) of every week, Mountain time
-# (scripts/profit_checkin_reminder.py). The Worker (scheduler/worker.js SCHEDULE) dispatches it on time; the cron below is only the fallback when the Worker is down -- GitHub's own crons
-# land hours late, so the script decides from the Mountain-time clock which reminder is due and skips when neither is, and each (week, kind) is sent once.
+# RETIRED as a schedule 2026-10-27 (owner: too many emails): the Monday profit check-in is now section 5 of weekly-health-digest.yml's email and the Sunday reminder is gone. This workflow
+# stays only as a manual workflow_dispatch test of the old standalone email (scripts/profit_checkin_reminder.py).
 
 on:
-  schedule:
-    - cron: '0 1 * * 1'     # Sunday 7 PM MDT / 6 PM MST
-    - cron: '0 14 * * 1'    # Monday 8 AM MDT / 7 AM MST
   workflow_dispatch:
     inputs:
       kind:

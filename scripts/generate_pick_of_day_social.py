@@ -270,6 +270,9 @@ def build_pick_caption(c: dict, date_str: str) -> str:
 _SLOT_LABEL = {"am": "Morning Slate", "pm": "Afternoon & Evening Slate"}
 
 
+BUNDLE_DIR: Path | None = None      # set by --bundle-dir: queue this as the first section of the single daily "Social content" email (social_bundle.py)
+
+
 def send_pick_posts(picks_with_captions: list[dict], out_dir: Path, date_str: str, slot: str | None = None) -> None:
     """One email, three clearly-labeled sections (not three separate
     emails) -- easier to review and post from in one pass. Each section's
@@ -298,13 +301,14 @@ def send_pick_posts(picks_with_captions: list[dict], out_dir: Path, date_str: st
         )
     slot_label = _SLOT_LABEL.get(slot or "", "")
     slot_suffix = f" — {slot_label}" if slot_label else ""
-    body_html = (
-        _EMAIL_WRAP_OPEN +
-        f"<p>Top {len(picks_with_captions)} picks for {date_str}{slot_suffix} — one post each, ranked "
-        "PREMIUM before OPTIMAL, then by EV.</p>" +
-        "".join(sections) +
-        _EMAIL_WRAP_CLOSE
-    )
+    section_html = (f"<p>Top {len(picks_with_captions)} picks for {date_str}{slot_suffix} — one post each, ranked "
+                    "PREMIUM before OPTIMAL, then by EV.</p>" + "".join(sections))
+    if BUNDLE_DIR is not None:
+        import social_bundle
+        social_bundle.add_section(BUNDLE_DIR, f"Top {len(picks_with_captions)} Picks Social Posts", section_html, all_attachments, order=social_bundle.PICKS_ORDER)
+        log(f"Queued for the Social content email: top {len(picks_with_captions)} picks ({len(all_attachments)} attachment(s))")
+        return
+    body_html = _EMAIL_WRAP_OPEN + section_html + _EMAIL_WRAP_CLOSE
     subject = f"Clairvoyance — Top {len(picks_with_captions)} Picks Social Posts for {date_str}{slot_suffix}"
     ok, msg = _send_gmail(subject, SOCIAL_CARD_EMAIL_TO, body_html, attachments=all_attachments)
     if not ok:
@@ -331,7 +335,10 @@ def main() -> None:
                           "labels the email subject and gates dedup against the OTHER slate's "
                           "already-featured picks today. Omit for a one-off/manual run with no dedup.")
     ap.add_argument("--top-n", type=int, default=3)
+    ap.add_argument("--bundle-dir", default="", help="queue the post as a section in this directory instead of emailing it (one combined email via send_social_bundle.py)")
     args = ap.parse_args()
+    global BUNDLE_DIR
+    BUNDLE_DIR = Path(args.bundle_dir) if args.bundle_dir else None
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

@@ -25,7 +25,8 @@ import ad_perf
 
 W = H = 1080
 DURATION_S = 9.0
-SCORECARD_DURATION_S = 11.0   # slower fade-in needs the longer hold
+SCORECARD_HOLD_S = 5.0   # fully-loaded scorecard stays on screen this long before the video ends
+RECORD_LEAD_S = 0.7      # measured: recording starts ~0.7 s before the page animations do
 
 BG_COVERS = """
       ctx.fillStyle='#222233';ctx.fillRect(0,0,W,H);
@@ -166,6 +167,11 @@ def ad_body(perf: dict) -> str:
     return "\n    ".join(out)
 
 
+def scorecard_duration(data: dict) -> float:
+    """Last element (the notes) finishes fading in at 3.0 + STEP*rows + 1.0 + FADE; then hold."""
+    return 3.0 + STEP * len(ad_perf.sport_rows(data)) + 1.0 + FADE + RECORD_LEAD_S + SCORECARD_HOLD_S
+
+
 FADE, STEP = 1.0, 0.3   # scorecard rows ease in over 1 s, one every 0.3 s (the old instant pop-in read as aggressive)
 
 
@@ -256,4 +262,4 @@ if __name__ == "__main__":
             if args.html_only:
                 print(f"Wrote {hp}")
                 continue
-            print(f"Saved -> {record(hp, out_dir / (name + '.mp4'), SCORECARD_DURATION_S if 'Scorecard' in name else DURATION_S)}")
+            print(f"Saved -> {record(hp, out_dir / (name + '.mp4'), scorecard_duration(data) if 'Scorecard' in name else DURATION_S)}")

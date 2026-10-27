@@ -31,9 +31,7 @@ export const SCHEDULE = [
   { wf: "daily-health-check.yml", at: ["20:33"], inputs: { pass: "full" } },
   { wf: "daily-health-check.yml", at: ["23:15"], inputs: { pass: "late" } },
   { wf: "send-expiry-reminders.yml", at: ["14:45"] },
-  // Owner-only PROFIT tab check-in reminders (2026-10-10): END of the week = Sunday 7 PM MDT (01:00 UTC Monday), START of the week = Monday 8 AM MDT (14:00 UTC Monday). The script itself decides from the
-  // Mountain-time clock which reminder is due and sends each (week, kind) once, so the workflow's own cron fallback can never double-send.
-  { wf: "profit-checkin-reminder.yml", at: ["01:00", "14:00"], dow: [1], inputs: { kind: "auto" } },
+  // (2026-10-27: the owner PROFIT tab check-in reminders were merged into the Monday Weekly Health Digest email, so the Worker no longer dispatches profit-checkin-reminder.yml.)
   // Evening lock coverage (2026-10-07): the pre-kickoff watchdog auto-locks any qualifying leg 10-150 min before kickoff. gated=true makes the dispatched run behave exactly
   // like a scheduled slot (LIVE_MODE variable + kickoff gate); without it a dispatch is the manual dry-run path. 15:30 / 17:30 / 19:30 MT.
   { wf: "lock-watchdog.yml", at: ["21:30", "23:30", "01:30"], inputs: { gated: "true" } },

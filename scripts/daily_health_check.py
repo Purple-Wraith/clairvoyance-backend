@@ -72,8 +72,7 @@ MONITORED = [
     ("european-lock-early.yml", "European Early Lock (Soccer + SHL/Liiga)", 26),
     ("cfb-lock-early.yml", "CFB Early Lock", 26),
     ("send-expiry-reminders.yml", "Expiry Reminders", 26),
-    ("social-cards-daily.yml", "Social Cards Daily", 26),
-    ("pick-of-day-social-daily.yml", "Pick-of-Day Social", 26),
+    ("social-cards-daily.yml", "Social Content Daily (cards + top picks)", 26),      # pick-of-day AM/PM emails merged into it 2026-10-27
     # Real gap found in a 2026-09-09 audit: the evening ("tomorrow's
     # slate") locks are the same subscriber-facing/paid-product locking
     # logic as their early-lock counterparts above, writing their own
@@ -153,8 +152,7 @@ MONITORED = [
 LOCK_MARKERS = [
     (ROOT / "data" / "last_soccer_lock_date.txt", "European Early Lock (Soccer + SHL/Liiga)", 8),
     (ROOT / "data" / "last_cfb_lock_date.txt", "CFB Early Lock", 11),
-    (ROOT / "data" / "last_pick_of_day_am_checked.txt", "Pick-of-Day Social Email (AM slate)", 10),
-    (ROOT / "data" / "last_pick_of_day_pm_checked.txt", "Pick-of-Day Social Email (PM slate)", 16),
+    # 2026-10-27: the pick-of-day AM/PM markers are gone -- the picks ride in the single daily Social content email (social-cards-daily.yml), watched through MONITORED above.
 ]
 
 

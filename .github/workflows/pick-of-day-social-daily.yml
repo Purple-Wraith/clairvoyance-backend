@@ -1,57 +1,9 @@
 name: Daily Pick-of-Day Social Posts
 
+# RETIRED as a schedule 2026-10-27 (owner: too many emails): the top-3 picks now ride in the single daily Social content email built by social-cards-daily.yml
+# (scripts/social_bundle.py). Kept only as a manual workflow_dispatch to email one slate's picks on their own if ever needed.
+
 on:
-  schedule:
-    # TWO separate daily emails, 2026-09-17 (explicit request, after a
-    # single-run design was tried and reconsidered): one AM slate, one
-    # PM slate, each independently selecting its own top 3 from whatever
-    # is currently locked and not yet started (generate_pick_of_day_
-    # social.py's kickoff-time filter -- see its module comment). A
-    # single daily run structurally favored whichever sports lock
-    # earliest (soccer/SHL/Liiga/CFB) and disregarded NFL/NBA/NHL, which
-    # often aren't even locked yet by mid-morning; two runs instead give
-    # both groups a real, timely shot without waiting on each other.
-    # generate_pick_of_day_social.py also tracks which matchups it's
-    # already featured today (data/pick_of_day_featured_today.json) so
-    # the PM run can't re-post the exact same pick the AM run already
-    # sent.
-    #
-    # AM slate moved to 12:50/13:07/13:50 UTC (~6:50/7:07/7:50am MT),
-    # 2026-09-18: the original 10:40am MT timing was already too late for
-    # SHL specifically (real kickoffs as early as 7:15am MT) and often
-    # LIIGA too (~9:30am MT) -- both would already be excluded by
-    # generate_pick_of_day_social.py's own kickoff-time filter as
-    # "already started" by 10:40am, even though real CFB/soccer/SHL/Liiga
-    # locks for the day already exist well before then: CFB/soccer's
-    # evening-prior locks (cfb-lock-evening.yml/soccer-lock-evening.yml,
-    # ~10-10:30pm MT the night before) are already sitting in the data,
-    # CFB/NFL's own schedule/odds refresh completes by 5:55am MT
-    # (daily-schedules-refresh.yml), and european-lock-early.yml's own
-    # 6:00am MT run (+catch-ups through 6:45am) covers soccer/SHL/Liiga
-    # same-morning. 6:50am MT sits right after all of that, comfortably
-    # before SHL's 7:15am kickoff.
-    #
-    # Catch-up 1 (13:07 UTC/~7:07am MT) still lands before that same
-    # 7:15am SHL kickoff -- offset 2 minutes from auto-lock-settle.yml's
-    # own 13:05 UTC main-lock slot so the two Playwright-heavy jobs don't
-    # land on the exact same minute and compete for a runner. Catch-up 2
-    # (13:50 UTC/~7:50am MT) is a true last-resort: by then SHL may
-    # already be excluded as started if both earlier slots were dropped,
-    # but Liiga/CFB/soccer are all still comfortably pre-kickoff, so a
-    # late AM email still beats no AM email that day.
-    - cron: '50 12 * * *'
-    - cron: '7 13 * * *'
-    - cron: '50 13 * * *'
-    # PM slate: shifted 2 hours earlier, 2026-09-18 (explicit request) --
-    # 20:00 UTC (~2:00pm MT) primary + 20:30/21:00 UTC (~2:30/3:00pm MT)
-    # fallbacks. Still safely after the main lock's picks for the day
-    # (including afternoon/evening NFL, NBA, NHL, CFB) are locked -- the
-    # main run's own catch-up window closes by noon MT -- but now catches
-    # more of the early-afternoon slate (CFB/NFL games kicking off
-    # around 11am-1pm MT) before it starts too, not just the evening one.
-    - cron: '0 20 * * *'
-    - cron: '30 20 * * *'
-    - cron: '0 21 * * *'
   workflow_dispatch:
     inputs:
       slot:

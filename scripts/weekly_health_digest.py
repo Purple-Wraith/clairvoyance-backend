@@ -8,7 +8,7 @@ quota lockout: that outage ran ~20 hours before it was even noticed
 it. This digest exists specifically so a repeat gets caught within a
 week instead of needing to ask a session to check.
 
-Four sections, in priority order (headline finding first):
+Four health sections plus a fifth (added 2026-10-27, replaces the two separate profit-tracker reminder emails): the PROFIT tab check-in. In priority order (headline finding first):
   1. Supabase reachability -- a direct probe against the real REST API,
      the exact signal that would have caught the 2026-09-13 outage
      immediately instead of ~20 hours in. If this fails, every other
@@ -69,8 +69,7 @@ MONITORED = [
     ("soccer-lock-evening.yml", "Soccer Evening Lock"),
     ("hockey-lock-evening.yml", "Hockey Evening Lock — SHL/Liiga/NLA/Extraliga"),
     ("send-expiry-reminders.yml", "Expiry Reminders"),
-    ("social-cards-daily.yml", "Social Cards Daily"),
-    ("pick-of-day-social-daily.yml", "Pick-of-Day Social"),
+    ("social-cards-daily.yml", "Social Content Daily (cards + top picks)"),
 ]
 # The data REFRESH workflows (added 2026-10-03: they were unmonitored). Same list the daily check watches, so the weekly success rate
 # shows a refresh job that "mostly" works but keeps dropping runs.
@@ -285,6 +284,12 @@ def build_email_html(supabase_problem, wf_rates, cal_rows, stuck, late_excluded:
             parts.append(f"<li>...and {len(stuck) - 20} more</li>")
         parts.append("</ul>")
 
+    try:
+        import profit_checkin_reminder
+        parts.append(profit_checkin_reminder.weekly_section_html())
+    except Exception as exc:                      # the check-in block must never cost the owner the health digest
+        print(f"WARNING: profit check-in section skipped: {exc}")
+
     parts.append("</div>")
     return "".join(parts)
 
@@ -337,7 +342,7 @@ def main() -> int:
     except Exception:
         watch_lines = []
     body = build_email_html(supabase_problem, wf_rates, cal_rows, stuck, late_excluded, watch_lines)
-    subject = "Clairvoyance — Weekly Health Digest" + (" — SUPABASE ISSUE" if supabase_problem else "")
+    subject = "Clairvoyance — Weekly Health Digest + Profit Check-in" + (" — SUPABASE ISSUE" if supabase_problem else "")
     ok, msg = send_email(subject, ALERT_TO, body)
     print(f"Digest email sent to {ALERT_TO}" if ok else f"::error::Digest email FAILED: {msg}")
     return 0 if ok else 1

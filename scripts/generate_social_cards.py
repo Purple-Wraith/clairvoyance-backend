@@ -1081,20 +1081,27 @@ def _caption_block(title: str, text: str) -> str:
 SEND_FAILURES: list[str] = []
 
 
+BUNDLE_DIR: Path | None = None      # set by --bundle-dir: queue sections for the single daily "Social content" email (social_bundle.py) instead of sending one email each
+
+
 def send_email(subject: str, cards: list[Path], captions: dict[str, str], intro: str = "") -> None:
     if not SOCIAL_CARD_EMAIL_TO:
         log(f"No recipient set (SOCIAL_CARD_EMAIL_TO) — skipping send for: {subject}")
         return
     filename_list_html = "".join(f"<li>{p.name}</li>" for p in cards)
-    body_html = (
-        _EMAIL_WRAP_OPEN +
+    section_html = (
         f"<p>{intro}</p>"
         f"<p>Cards attached:</p><ul>{filename_list_html}</ul>"
         f"<p>Captions below, ready to copy-paste:</p>"
         f"{_caption_block('Instagram caption', captions['instagram'])}"
         f"{_caption_block('X caption', captions['x'])}"
-        + _EMAIL_WRAP_CLOSE
     )
+    if BUNDLE_DIR is not None:
+        import social_bundle
+        social_bundle.add_section(BUNDLE_DIR, subject.replace("Clairvoyance — ", "", 1), section_html, cards)
+        log(f"Queued for the Social content email: {subject} ({len(cards)} attachment(s))")
+        return
+    body_html = _EMAIL_WRAP_OPEN + section_html + _EMAIL_WRAP_CLOSE
     ok, msg = _send_gmail(subject, SOCIAL_CARD_EMAIL_TO, body_html, attachments=cards)
     if not ok:
         # Recorded, not raised: a Gmail hiccup on the daily email must not abort the weekly / monthly / rotation emails queued behind it. main() ends the run RED if any send failed.
@@ -1111,12 +1118,15 @@ def main() -> None:
     parser.add_argument("--force", default="", help="comma-separated periods to force past today's date "
                          "gate for review (weekly,monthly,yearly,alltime) — does not affect the real "
                          "cadence for anything not explicitly listed")
+    parser.add_argument("--bundle-dir", default="", help="queue every email as a section in this directory instead of sending (one combined email via send_social_bundle.py)")
     parser.add_argument("--json-only", action="store_true",
                          help="refresh docs/engine_performance.json + docs/sport_performance.json only -- "
                               "skips card/video generation and email entirely. For a lightweight, frequent "
                               "intraday refresh separate from the once-daily full run (see "
                               "landing-performance-refresh.yml).")
     args = parser.parse_args()
+    global BUNDLE_DIR
+    BUNDLE_DIR = Path(args.bundle_dir) if args.bundle_dir else None
 
     out_dir = Path(args.out_dir)
     now_mt = _mt_now()

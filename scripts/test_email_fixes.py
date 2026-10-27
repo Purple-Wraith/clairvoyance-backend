@@ -367,12 +367,12 @@ class HealthAlerts(unittest.TestCase):
         finally:
             self.dh.LOCK_MARKERS = orig
 
-    def test_pick_of_day_health_markers_are_the_checked_files(self):
+    def test_pick_of_day_markers_retired_with_the_merged_social_email(self):
+        """2026-10-27: the AM/PM pick-of-day emails were merged into the single daily Social content email, so their health markers are gone."""
         names = [p.name for p, _l, _h in self.dh.LOCK_MARKERS]
-        self.assertIn("last_pick_of_day_am_checked.txt", names)
-        self.assertIn("last_pick_of_day_pm_checked.txt", names)
-        wf = (ROOT / ".github" / "workflows" / "pick-of-day-social-daily.yml").read_text()
-        self.assertIn("_checked.txt", wf)
+        self.assertNotIn("last_pick_of_day_am_checked.txt", names)
+        self.assertNotIn("last_pick_of_day_pm_checked.txt", names)
+        self.assertNotIn("pick-of-day-social-daily.yml", [w for w, *_ in self.dh.MONITORED])
 
     def test_undeliverable_alert_is_a_nonzero_exit(self):
         orig_to, orig_send = self.dh.ALERT_TO, self.dh.send_email
