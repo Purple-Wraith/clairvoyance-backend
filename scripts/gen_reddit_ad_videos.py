@@ -67,18 +67,18 @@ CSS = """
   .ctr { transform:translate(-50%,-50%); } .lft { transform:translate(0,-50%); }
 
   .logo, .logo-r, .logo-c { font-family:'Orbitron',sans-serif; font-weight:900; letter-spacing:6px; white-space:nowrap; }
-  .logo { color:#f000ff; text-shadow:0 0 13px #f000ff,0 0 28px rgba(240,0,255,.55); opacity:0; animation: settle .01s linear 1.5s forwards; }
+  .logo { color:#f000ff; text-shadow:0 0 11px #f000ff,0 0 22px rgba(240,0,255,.42); opacity:0; animation: settle .01s linear 1.5s forwards; }
   .logo-r { color:#ff2090; opacity:.8; animation: glitchR 1.2s steps(2) forwards, hide .01s linear 1.5s forwards; }
   .logo-c { color:#00f0ff; opacity:.8; animation: glitchC 1.2s steps(2) forwards, hide .01s linear 1.5s forwards; }
   .sub { white-space:nowrap; font-family:'Orbitron',sans-serif; font-weight:700; letter-spacing:4px; color:#00f0ff; text-shadow:0 0 12px #00f0ff; opacity:0; animation: reveal .01s linear 2.4s forwards; }
   .hr { position:absolute; left:50%; width:936px; height:1px; background:linear-gradient(90deg, transparent, rgba(240,0,255,.7), transparent); opacity:0; animation: reveal .01s linear var(--t,2.5s) forwards; transform:translateX(-50%); }
   .glitch { animation: reveal .01s linear var(--t) forwards, statGlitch .45s steps(4) var(--t) forwards; }
-  .neon-m { text-shadow:0 0 11px #f000ff,0 0 26px rgba(240,0,255,.5); }
+  .neon-m { text-shadow:0 0 9px #f000ff,0 0 20px rgba(240,0,255,.38); }
   .neon-c { text-shadow:0 0 10px rgba(0,240,255,.7); }
   .neon-g { text-shadow:0 0 10px rgba(255,213,0,.6); }
   .vline { position:absolute; left:540px; top:214px; width:2px; height:166px; background:rgba(240,0,255,.55); opacity:0; animation: reveal .01s linear 2.8s forwards; }
   .cta-box { top:736px; width:700px; height:118px; transform:translateX(-50%); background:rgba(15,5,28,.9); border:2px solid rgba(240,0,255,.9); border-radius:14px;
-    box-shadow:0 0 22px rgba(240,0,255,.35), 0 0 4px rgba(240,0,255,.6); opacity:0; animation: reveal .01s linear 5.7s forwards; }
+    box-shadow:0 0 17px rgba(240,0,255,.26), 0 0 4px rgba(240,0,255,.5); opacity:0; animation: reveal .01s linear 5.7s forwards; }
   .fbar { position:absolute; left:0; right:0; bottom:0; height:70px; background:#08080a; opacity:0; animation: reveal .01s linear 6.6s forwards; }
   .fbar::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:rgba(240,0,255,.9); box-shadow:0 0 8px rgba(240,0,255,.7); }
   .fline1 { position:absolute; left:50%; top:24px; transform:translateX(-50%); white-space:nowrap; font-family:'Orbitron',sans-serif; font-weight:700; font-size:12px; letter-spacing:1px; color:#f000ff; text-shadow:0 0 8px rgba(240,0,255,.5); }
@@ -180,8 +180,8 @@ def scorecard_body(data: dict) -> str:
         out.append(f'<div class="a mono C ctr" style="left:{x}px;top:204px;font-size:14px;--t:3s">{t}</div>')
     out.append('<div class="rule" style="top:222px;--t:3s"></div>')
 
-    y, row_h, t = 246, 46, 3.3
-    for r in ad_perf.block_rows(data):
+    y, row_h, t = 240, 42, 3.3
+    for r in ad_perf.sport_rows(data):
         league, bundle = r["kind"] == "league", r["kind"] == "bundle"
         if bundle:
             out.append(f'<div class="rule m" style="top:{y - row_h // 2 + 2}px;--t:{t:.2f}s"></div>')

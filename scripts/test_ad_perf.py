@@ -33,6 +33,20 @@ class Data(unittest.TestCase):
         for name, v in self.d["leagues"].items():
             self.assertIn("month", v, name); self.assertIn("all", v, name)
 
+    def test_scorecard_groups_leagues_under_their_sport(self):
+        rows = ap.sport_rows(self.d)
+        groups, cur = {}, None
+        for r in rows:
+            if r["kind"] == "bundle":
+                cur = groups.setdefault(r["name"], [])
+            else:
+                cur.append(r["name"])
+        self.assertEqual({k: sorted(v) for k, v in groups.items()},
+                         {"FOOTBALL": ["CFB", "NFL"], "BASKETBALL": ["NBA"], "HOCKEY": sorted(ac.LEAGUES_BY_PRODUCT["hockey"]), "SOCCER": sorted(ac.LEAGUES_BY_PRODUCT["soccer"])})
+        heads = [r for r in rows if r["kind"] == "bundle"]
+        self.assertEqual(sum(h["month"]["w"] for h in heads), self.d["overall"]["month"]["w"])
+        self.assertEqual(sum(h["all"]["n"] for h in heads), self.d["overall"]["all"]["n"])
+
     def test_leagues_add_up_to_the_overall_tiles(self):
         for key in ("month", "all"):
             tot = ap._sum([v[key] for v in self.d["leagues"].values()])

@@ -19,7 +19,7 @@ def _r(rec):
 def render(d: dict) -> str:
     m, a = d["overall"]["month"], d["overall"]["all"]
     mn = d["month_name"].title()
-    rows = ad_perf.block_rows(d)
+    rows = ad_perf.sport_rows(d)
     lg = sorted(d["leagues"].items(), key=lambda kv: -(kv[1]["month"]["pct"] or 0))
     top3 = ", ".join(f"{n} {ad_perf.fmt_pct(v['month'])}" for n, v in lg[:3])
     ranked = [(n, v) for n, v in lg if v["month"]["n"] >= 20]

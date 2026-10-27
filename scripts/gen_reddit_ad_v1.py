@@ -27,6 +27,7 @@ from pathlib import Path
 
 import ad_coverage as ac
 import ad_perf
+from ad_glow import MAG_TITLE_GLOW, MAG_SOCIAL_GLOW, MAG_LABEL_GLOW
 from design_system import (
     W, H, CX, BG, CARD, MAG, CYN, GOLD, RED, WHT, DIM, T2, T3,
     orb, mono, glow, make_background, make_background_covers, draw_footer, hline,
@@ -87,7 +88,7 @@ def build_card(background_fn):
     draw = ImageDraw.Draw(base)
 
     # ── Brand header ─────────────────────────────────────────────
-    base = glow(base, 'CLAIRVOYANCE', (CX, 92), orb(70), MAG, TITLE_GLOW)
+    base = glow(base, 'CLAIRVOYANCE', (CX, 92), orb(70), MAG, MAG_TITLE_GLOW)
     base = glow(base, 'ADVANCED SPORTS INTELLIGENCE ENGINE', (CX, 148), orb(19), CYN, SUB_GLOW)
 
     draw = ImageDraw.Draw(base)
@@ -99,8 +100,8 @@ def build_card(background_fn):
     perf = ad_perf.load()
     for xc, key, lbl in ((CX - 255, 'month', perf['month_name']), (CX + 255, 'all', 'ALL TIME')):
         rec = perf['overall'][key]
-        base = glow(base, lbl, (xc, 232), orb(20), MAG, [(1, 255), (3, 110)])
-        base = glow(base, ad_perf.fmt_pct(rec), (xc, 300), orb(70), MAG, TITLE_GLOW)
+        base = glow(base, lbl, (xc, 232), orb(20), MAG, MAG_LABEL_GLOW)
+        base = glow(base, ad_perf.fmt_pct(rec), (xc, 300), orb(70), MAG, MAG_TITLE_GLOW)
         base = glow(base, f"{rec['w']:,}W - {rec['l']:,}L", (xc, 358), orb(24), CYN, SOCIAL_GLOW)
     draw = ImageDraw.Draw(base)
     draw.line([(CX, 214), (CX, 380)], fill=(*MAG, 120), width=2)
@@ -122,7 +123,7 @@ def build_card(background_fn):
     vy += 24
 
     # ── Coverage ──────────────────────────────────────────────────
-    base = glow_tracked(base, 'WHAT WE COVER', vy + 10, orb(22), MAG, SOCIAL_GLOW)
+    base = glow_tracked(base, 'WHAT WE COVER', vy + 10, orb(22), MAG, MAG_SOCIAL_GLOW)
     vy += 46
     draw = ImageDraw.Draw(base)
     cf = mono(19)
@@ -138,7 +139,7 @@ def build_card(background_fn):
     bx1, by1 = CX + box_w // 2, vy + box_h
     glow_layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow_layer)
-    for pad, alpha in [(10, 40), (5, 80), (2, 140)]:
+    for pad, alpha in [(10, 30), (5, 60), (2, 105)]:
         gd.rounded_rectangle([bx0 - pad, by0 - pad, bx1 + pad, by1 + pad], radius=14, outline=(*MAG, alpha), width=3)
     glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(6))
     base = Image.alpha_composite(base, glow_layer)

@@ -84,6 +84,25 @@ def block_rows(data: dict | None = None) -> list[dict]:
     return [r for _, rows in blocks for r in rows]
 
 
+# Scorecard grouping: by SPORT (not by paid product) -- Football holds NFL and CFB, even though they are sold separately.
+SPORT_GROUPS = (("FOOTBALL", ("NFL", "CFB")), ("BASKETBALL", ("NBA",)), ("HOCKEY", ac.LEAGUES_BY_PRODUCT["hockey"]), ("SOCCER", ac.LEAGUES_BY_PRODUCT["soccer"]))
+
+
+def sport_rows(data: dict | None = None) -> list[dict]:
+    """Display rows grouped by sport: a sport header (the sum of its leagues, kind 'bundle') followed by its leagues (kind 'league'),
+    leagues best month win % first within a sport and sports best month win % first."""
+    data = data or load()
+    L = data["leagues"]
+    blocks = []
+    for title, leagues in SPORT_GROUPS:
+        members = [{"name": n, "kind": "league", "month": L[n]["month"], "all": L[n]["all"]} for n in leagues]
+        members.sort(key=lambda r: (-(r["month"]["pct"] or 0), -r["month"]["n"]))
+        head = {"name": title, "kind": "bundle", "month": _sum([m["month"] for m in members]), "all": _sum([m["all"] for m in members])}
+        blocks.append((head["month"], [head] + members))
+    blocks.sort(key=lambda b: -(b[0]["pct"] or 0))
+    return [r for _, rows in blocks for r in rows]
+
+
 def fmt_pct(rec: dict) -> str:
     return "--" if rec["pct"] is None else f"{rec['pct'] * 100:.1f}%"
 

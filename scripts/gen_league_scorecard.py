@@ -18,6 +18,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 import ad_perf
+from ad_glow import MAG_TITLE_GLOW, MAG_LABEL_GLOW
 from design_system import (
     W, H, CX, MAG, CYN, GOLD, WHT, DIM, orb, mono, glow, make_background, make_background_covers, draw_footer, hline,
     TITLE_GLOW, SUB_GLOW, SOCIAL_GLOW,
@@ -25,7 +26,6 @@ from design_system import (
 
 LIME = (187, 255, 0)
 PINK = (255, 32, 144)
-LABEL_GLOW = [(1, 255), (3, 110)]   # light halo: SOCIAL_GLOW smears small magenta caps over the crosshatch
 # Column centres / anchors
 X_NAME = 64
 X_M_REC, X_M_PCT = 452, 590
@@ -39,15 +39,15 @@ def pct_color(p):
 
 def build_card(background_fn, data: dict | None = None):
     data = data or ad_perf.load()
-    rows = ad_perf.block_rows(data)
+    rows = ad_perf.sport_rows(data)
     base = background_fn()
-    base = glow(base, "CLAIRVOYANCE", (CX, 62), orb(54), MAG, TITLE_GLOW)
+    base = glow(base, "CLAIRVOYANCE", (CX, 62), orb(54), MAG, MAG_TITLE_GLOW)
     base = glow(base, "LEAGUE SCORECARD", (CX, 112), orb(20), CYN, SUB_GLOW)
     base = hline(base, 142, color=MAG, alpha=90)
 
     # column headers
-    base = glow(base, data["month_name"], ((X_M_REC + X_M_PCT) // 2, 172), orb(19), MAG, LABEL_GLOW)
-    base = glow(base, "ALL TIME", ((X_A_REC + X_A_PCT) // 2, 172), orb(19), MAG, LABEL_GLOW)
+    base = glow(base, data["month_name"], ((X_M_REC + X_M_PCT) // 2, 172), orb(19), MAG, MAG_LABEL_GLOW)
+    base = glow(base, "ALL TIME", ((X_A_REC + X_A_PCT) // 2, 172), orb(19), MAG, MAG_LABEL_GLOW)
     draw = ImageDraw.Draw(base)
     hf = mono(14)
     draw.text((X_NAME, 204), "SPORT / LEAGUE", font=hf, fill=(*CYN, 255), anchor="lm")
@@ -55,7 +55,7 @@ def build_card(background_fn, data: dict | None = None):
         draw.text((x, 204), t, font=hf, fill=(*CYN, 255), anchor="mm")
     draw.line([(X_NAME, 222), (W - X_NAME, 222)], fill=(255, 255, 255, 40), width=1)
 
-    y, row_h = 246, 46
+    y, row_h = 240, 42
     nf_b, nf_l = orb(20), orb(18)
     for r in rows:
         bundle, league = r["kind"] == "bundle", r["kind"] == "league"
