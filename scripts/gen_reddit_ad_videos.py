@@ -160,7 +160,7 @@ def ad_body(perf: dict) -> str:
         txt = " &nbsp;·&nbsp; ".join(_e(n) for n in row)
         out.append(f'<div class="a mono W ctr c" style="top:{632 + 28 * i}px;font-size:19px;--t:{4.6 + .3 * i}s">{txt}</div>')
     out.append('<div class="cta-box c"></div>')
-    out.append('<div class="a orb G neon-g ctr c glitch" style="top:778px;font-size:21px;letter-spacing:1px;--t:6.0s">VIEW THE FULL TRACK RECORD AND MORE INFO</div>')
+    out.append('<div class="a orb M neon-m ctr c glitch" style="top:778px;font-size:21px;letter-spacing:1px;--t:6.0s">VIEW THE FULL TRACK RECORD AND MORE INFO</div>')
     out.append('<div class="a orb C neon-c ctr c" style="top:820px;font-size:22px;letter-spacing:1px;--t:6.3s">clairvoyanceengine.info</div>')
     return "\n    ".join(out)
 
@@ -185,7 +185,7 @@ def scorecard_body(data: dict) -> str:
         league, bundle = r["kind"] == "league", r["kind"] == "bundle"
         if bundle:
             out.append(f'<div class="rule m" style="top:{y - row_h // 2 + 2}px;--t:{t:.2f}s"></div>')
-        out.append(cell(X_NAME + (26 if league else 0), y, r["name"], 18 if league else 20, t, anchor="lft", cls="W"))
+        out.append(cell(X_NAME + (26 if league else 0), y, r["name"], 18 if league else 20, t, anchor="lft", cls="M" if league else "W"))
         for key, xr, xp in (("month", X_M_REC, X_M_PCT), ("all", X_A_REC, X_A_PCT)):
             sz = 17 if league else 19
             out.append(cell(xr, y, ad_perf.fmt_rec(r[key]), sz, t))

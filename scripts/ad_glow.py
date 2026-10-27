@@ -12,3 +12,4 @@ def soft(layers, k: float = K):
 MAG_TITLE_GLOW = soft(TITLE_GLOW)
 MAG_SOCIAL_GLOW = soft(SOCIAL_GLOW)
 MAG_LABEL_GLOW = soft([(1, 255), (3, 110)])
+MAG_HDR_GLOW = soft(HDR_GLOW)

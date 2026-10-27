@@ -27,7 +27,7 @@ from pathlib import Path
 
 import ad_coverage as ac
 import ad_perf
-from ad_glow import MAG_TITLE_GLOW, MAG_SOCIAL_GLOW, MAG_LABEL_GLOW
+from ad_glow import MAG_TITLE_GLOW, MAG_SOCIAL_GLOW, MAG_LABEL_GLOW, MAG_HDR_GLOW
 from design_system import (
     W, H, CX, BG, CARD, MAG, CYN, GOLD, RED, WHT, DIM, T2, T3,
     orb, mono, glow, make_background, make_background_covers, draw_footer, hline,
@@ -145,7 +145,7 @@ def build_card(background_fn):
     base = Image.alpha_composite(base, glow_layer)
     draw = ImageDraw.Draw(base)
     draw.rounded_rectangle([bx0, by0, bx1, by1], radius=14, fill=(*CARD, 235), outline=(*MAG, 255), width=2)
-    base = glow(base, 'VIEW THE FULL TRACK RECORD AND MORE INFO', (CX, by0 + 42), orb(21), GOLD, HDR_GLOW)
+    base = glow(base, 'VIEW THE FULL TRACK RECORD AND MORE INFO', (CX, by0 + 42), orb(21), MAG, MAG_HDR_GLOW)
     draw = ImageDraw.Draw(base)
     base = glow(base, 'clairvoyanceengine.info', (CX, by0 + 84), orb(22), CYN, HDR_GLOW)
 
