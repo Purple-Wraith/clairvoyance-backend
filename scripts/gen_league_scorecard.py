@@ -1,4 +1,5 @@
 """
+DESIGN LOCKED 2026-10-27 by the owner (colors, layout, glow) -- change only on explicit request; spec in memory project_reddit_cards_locked_design.
 gen_league_scorecard.py -- Clairvoyance league scorecard (1080x1080): this month's and the all-time record + win % for every
 sport and league the paid products cover.  Built for Reddit (concrete numbers beat claims with an ad-skeptical audience).
 

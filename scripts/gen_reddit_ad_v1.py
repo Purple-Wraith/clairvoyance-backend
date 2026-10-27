@@ -1,4 +1,5 @@
 """
+DESIGN LOCKED 2026-10-27 by the owner (colors, layout, glow) -- change only on explicit request; spec in memory project_reddit_cards_locked_design.
 gen_reddit_ad_v1.py — Clairvoyance Reddit advertising card.
 
 New card, distinct from CorrectPinnedCard2.0.png (that one is an "about /
