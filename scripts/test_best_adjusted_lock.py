@@ -171,9 +171,10 @@ class InPage(unittest.TestCase):
     def test_a_pass_locks_the_returned_best_adjusted_leg_with_the_product_flag(self):
         legs = self.attach()
         q = A.build_qualifying({"gameLegs": [dict(legs[0], sport="CFB", markets=[], mcSummary=None, best=None, socFactors=None)], "propLegs": []})
-        self.assertEqual(len(q), 1)
+        # this card's best line is a spread, so since 2026-10-27 the game's best adjusted TOTAL comes with it (scripts/test_best_adjusted_total.py)
+        self.assertEqual(sorted("total" if x["altLine"].get("bestTotal") else "line" for x in q), ["line", "total"])
         res = A._lock_qualifying_legs(self.pg, q)
-        self.assertEqual((res.new, res.failed), (1, 0))
+        self.assertEqual((res.new, res.failed), (2, 0))
         got = self.pg.evaluate("getP().filter(p=>p.outcome==='pending'&&p.altLine&&p.altLine.bestOfGame)")
         self.assertEqual(len(got), 1); self.assertTrue(got[0]["altLine"]["product"])
         self.assertEqual(ET.product_of_pick(got[0]), "cfb")

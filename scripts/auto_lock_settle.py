@@ -2676,12 +2676,31 @@ LOCK_BEST_ADJUSTED = True
 
 
 def _best_adjusted_leg(gl: dict, game_qualifying: list[dict]) -> dict | None:
+    return _adjusted_option_leg(gl, game_qualifying, gl.get("adjBest"), ("OU", "SPREAD"), "bestOfGame",
+                                "\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).")
+
+
+# ── BEST ADJUSTED TOTAL (owner 2026-10-27: "lock the best total when the best of game is a spread ... to give more option and to run analysis to see how they both perform") ──────────────────────────────
+# When a game's best adjusted line (above) is a SPREAD, the card also keeps the game's highest-probability adjusted TOTAL (docs/app.html window._altBestOU; gather_legs attaches it as `adjBestOU`). It is locked as its
+# own product pick next to the spread, tagged altLine.bestTotal=True (never bestOfGame), so the two can be graded separately (scripts/alt_line_scorecard.py --best). Same rules as the best line: a lean leg that
+# already qualifies in the total keeps it (one lock per market per game), and it is emailed under a BEST ADJUSTED TOTAL badge.
+LOCK_BEST_ADJUSTED_TOTAL = True
+
+
+def _best_adjusted_total_leg(gl: dict, game_qualifying: list[dict]) -> dict | None:
     ab = gl.get("adjBest")
+    if not (isinstance(ab, dict) and (ab.get("alt") or {}).get("mkt") == "SPREAD"):
+        return None
+    return _adjusted_option_leg(gl, game_qualifying, gl.get("adjBestOU"), ("OU",), "bestTotal",
+                                "\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).")
+
+
+def _adjusted_option_leg(gl: dict, game_qualifying: list[dict], ab, markets: tuple, tag: str, note: str) -> dict | None:
     if not isinstance(ab, dict):
         return None
     alt = ab.get("alt") or {}
     label, prob, mkt, side = alt.get("label"), alt.get("prob"), alt.get("mkt"), ab.get("side")
-    if not label or isinstance(prob, bool) or not isinstance(prob, (int, float)) or mkt not in ("OU", "SPREAD") or not side:
+    if not label or isinstance(prob, bool) or not isinstance(prob, (int, float)) or mkt not in markets or not side:
         return None
     if _market_type(side) != mkt or not (0.5 <= float(prob) <= 0.99):
         return None
@@ -2694,7 +2713,7 @@ def _best_adjusted_leg(gl: dict, game_qualifying: list[dict]) -> dict | None:
     shift = float(alt.get("shift") or 0)
     posted_p = alt.get("postedProb")
     reasoning = _alt_reasoning(label, float(prob), alt.get("postedLabel") or "", posted_p if isinstance(posted_p, (int, float)) else None, shift, unit, None)
-    reasoning += "\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card)."
+    reasoning += note
     posted = alt.get("posted")
     return {
         "kind": "GAME", "sport": sport, "hA": gl.get("hA"), "awA": gl.get("awA"), "side": side, "label": label, "prob": round(float(prob), 4),
@@ -2704,7 +2723,7 @@ def _best_adjusted_leg(gl: dict, game_qualifying: list[dict]) -> dict | None:
         "mcSummary": gl.get("mcSummary"), "best": gl.get("best"), "socFactors": gl.get("socFactors"), "startMs": gl.get("startMs"),
         "lockDate": mt_date_of_ms(gl.get("startMs")), "adjBest": True,
         "altLine": {"posted": posted, "line": alt.get("line"), "shift": shift, "postedLabel": alt.get("postedLabel"), "postedProb": posted_p,
-                    "postedDec": alt.get("postedDec"), "postedMl": alt.get("postedMl"), "bestOfGame": True, "product": True},
+                    "postedDec": alt.get("postedDec"), "postedMl": alt.get("postedMl"), tag: True, "product": True},
     }
 
 
@@ -2961,6 +2980,10 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
             _ab = _best_adjusted_leg(gl, game_qualifying)
             if _ab:
                 qualifying.append(_ab)       # a normal qualifying leg: locked by the product's pass AND listed in the product's email (flagged BEST ADJUSTED LINE)
+        if LOCK_BEST_ADJUSTED_TOTAL and guard_ok:
+            _bt = _best_adjusted_total_leg(gl, game_qualifying)
+            if _bt:
+                qualifying.append(_bt)       # same treatment, flagged BEST ADJUSTED TOTAL
     # Props only exist for NBA/NHL now -- NFL player props removed from
     # generation entirely 2026-09-23 (see gather_legs()'s own comment),
     # so propLegs can never contain an NFL-tagged row here; the per-game
@@ -3249,6 +3272,10 @@ def _leg_html(q: dict) -> str:
             else:
                 moved_txt = "Moved from the posted " + _esc(alt.get("postedLabel") or alt.get("posted")) + " to a safer line."
             best_badge = (f'<span style="{_ADJ_TAG_STYLE};display:inline-block;margin:0 6px 4px 0">BEST ADJUSTED LINE</span>') if alt.get("bestOfGame") else ''
+            if alt.get("bestTotal"):
+                best_badge = f'<span style="{_ADJ_TAG_STYLE};display:inline-block;margin:0 6px 4px 0">BEST ADJUSTED TOTAL</span>'
+                moved_txt = ("The model's best adjusted total for this game (highest estimated win probability among the adjusted totals), moved from the posted "
+                             + _esc(alt.get("postedLabel") or alt.get("posted")) + ".")
             if alt.get("bestOfGame"):
                 moved_txt = ("The model's best adjusted line for this game (highest estimated win probability among the adjusted totals and spreads), moved from the posted "
                              + _esc(alt.get("postedLabel") or alt.get("posted")) + ".")

@@ -8,6 +8,8 @@ the engine expected, so the cushion is judged on real results, not on the backte
   python3 scripts/alt_line_scorecard.py                # live ledger (Supabase, read-only); falls back to docs/picks_backup.json
   python3 scripts/alt_line_scorecard.py --backup       # committed backup only
   python3 scripts/alt_line_scorecard.py --sport CFB    # one sport
+  python3 scripts/alt_line_scorecard.py --best         # also split each sport/market by how the pick was made: LEAN (model's pick moved to an adjusted line), BEST LINE (the game's
+                                                       # best adjusted line, altLine.bestOfGame) and BEST TOTAL (the game's best adjusted total locked beside a best-line spread, altLine.bestTotal)
   python3 scripts/alt_line_scorecard.py --no-espn      # only picks the automation has already settled (default also grades PENDING picks whose game ESPN
                                                        # shows as final -- marked provisional -- so you do not wait for the next settle pass)
 
@@ -130,6 +132,7 @@ def units(res: str | None, dec: float) -> float:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--backup", action="store_true"); ap.add_argument("--sport"); ap.add_argument("--no-espn", action="store_true")
+    ap.add_argument("--best", action="store_true", help="split groups by lean / best line / best total")
     a = ap.parse_args()
     picks, source = load(a.backup)
     if a.sport:
@@ -156,7 +159,12 @@ def main() -> int:
     groups: dict[str, list] = {"ALL": rows}
     for r in rows:
         groups.setdefault(f"{r[0].get('sport')} {r[0].get('betType')}", []).append(r)
-    print(f"\n  {'group':<14}{'n':>4}  {'LOCKED ADJ. w%':>15}{'POSTED w%':>11}{'saved':>7}{'cost':>6}{'ADJ. u':>8}{'POSTED u':>9}{'expected':>9}")
+    if a.best:
+        kind = lambda al: "BEST TOTAL" if al.get("bestTotal") else "BEST LINE" if al.get("bestOfGame") else "LEAN"
+        for r in rows:
+            groups.setdefault(f"{r[0].get('sport')} {r[0].get('betType')} {kind(r[0]['altLine'])}", []).append(r)
+    w = max(14, max(len(g) for g in groups) + 2)
+    print(f"\n  {'group':<{w}}{'n':>4}  {'LOCKED ADJ. w%':>15}{'POSTED w%':>11}{'saved':>7}{'cost':>6}{'ADJ. u':>8}{'POSTED u':>9}{'expected':>9}")
     for g, rs in groups.items():
         n = len(rs)
         aw = sum(r[1] == "win" for r in rs); al_ = sum(r[1] == "loss" for r in rs)
@@ -166,7 +174,7 @@ def main() -> int:
         au = sum(units(r[1], float(r[0].get("decOdds") or STD_DEC)) for r in rs); pu = sum(units(r[2], float(r[0]["altLine"].get("postedDec") or STD_DEC)) for r in rs)   # original price when the pick stored it
         exp = sum(float(r[0].get("winProb") or 0) for r in rs) / n
         f = lambda w, l: f"{w / (w + l) * 100:5.1f}%" if (w + l) else "   --"
-        print(f"  {g:<14}{n:>4}  {f(aw, al_):>15}{f(pw, pl):>11}{saved:>7}{cost:>6}{au:>+8.1f}{pu:>+9.1f}{exp * 100:>8.1f}%")
+        print(f"  {g:<{w}}{n:>4}  {f(aw, al_):>15}{f(pw, pl):>11}{saved:>7}{cost:>6}{au:>+8.1f}{pu:>+9.1f}{exp * 100:>8.1f}%")
     print("\n  saved = lost at the posted line but won at the locked adj. line;  cost = the reverse.  ADJ. u uses the estimated adjusted-line price, POSTED u uses the original price (or -110 if not stored).")
     print("  Judge the shift on win%; the price is bought with the cushion, so units can be lower even when win% is higher.")
     return 0

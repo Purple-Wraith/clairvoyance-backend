@@ -5685,7 +5685,7 @@ function _altRowFor(sport,home,away,dateRaw,nm,off,opts){
     // drop every line this game registered on an earlier render: a line the model no longer adjusts (probability moved past the threshold) must not stay listed / lockable in TOP ADJUSTED LINES
     {const pre=sport+'|'+dateKey+'|'+home+'|'+away+'|';Object.keys(window._altReg).forEach(k=>{if(k.indexOf(pre)===0)delete window._altReg[k];});}
     // the TOP adjusted line of this game (highest estimated probability among the options shown, lean first on a tie) gets the neon magenta border (owner 2026-10-24)
-    let topI=-1,topP=-1,topInfo=null;
+    let topI=-1,topP=-1,topInfo=null,topOU=null;
     rowDefs.forEach(([mkt,m,isOpp],i)=>{if(!m)return;const a=_altShift(calib,mkt,m.label,m.prob,!!isOpp&&(calib==='CFB'||calib==='NFL'||calib==='SOC'||_ALT_HK.has(calib)));if(a&&a.prob>topP+1e-9){topP=a.prob;topI=i;}});
     const chips=rowDefs.map(([mkt,m,isOpp],ci)=>{
       if(!m)return'';const alt=_altShift(calib,mkt,m.label,m.prob,!!isOpp&&(calib==='CFB'||calib==='NFL'||calib==='SOC'||_ALT_HK.has(calib)));if(!alt)return'';
@@ -5701,6 +5701,7 @@ function _altRowFor(sport,home,away,dateRaw,nm,off,opts){
       const sh=alt.shift%1===0?alt.shift:alt.shift.toFixed(1);
       const lockAttr=off?'':` role="button" tabindex="0" onclick="event.stopPropagation();_lockAltKey('${key.replace(/'/g,"\\'")}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();_lockAltKey('${key.replace(/'/g,"\\'")}')}"`;
       if(ci===topI)topInfo={key,alt,lb,cls:cls||'pn',lockAttr};
+      if(mkt==='OU'&&(!topOU||alt.prob>topOU.alt.prob+1e-9))topOU={key,alt,ci};   // the game's best adjusted TOTAL (owner 2026-10-27, see _altBestOU below)
       return`<div class="altc${ci===topI?' alt-top':''}"${ci===topI?' title="Top adjusted line for this game"':''}${lockAttr}><div class="alt1"><span class="altp">${_escHtml(alt.label)}</span>${lb?`<span class="pill ${cls}">${lb}</span>`:''}${postedLb?`<span class="altpg" style="font-size:11px;letter-spacing:1px;color:var(--t3);margin-left:6px">POSTED ${postedLb}</span>`:''}${isOpp?'<span class="altos" style="font-size:11px;letter-spacing:1px;color:var(--t3);margin-left:6px">OTHER SIDE</span>':''}</div><div class="alts">${Math.round(alt.prob*100)}% · est ${alt.ml} · ${_altUnit(sport)==='goal'?(alt.flip?'FLIPS SIDE · ':'')+sh+(+sh===1?' goal':' goals'):'+'+sh+' pts'}</div><div class="altw">posted ${_escHtml(alt.postedLabel)} · ${Math.round(m.prob*100)}%</div></div>`;
     }).join('');
     // BEST ADJUSTED LINE: the same option the magenta border marks, restated under the boxes as a strip (tap it to lock that line too)
@@ -5708,12 +5709,17 @@ function _altRowFor(sport,home,away,dateRaw,nm,off,opts){
     window._altBest=window._altBest||{};
     {const bk=sport+'|'+home+'|'+away;delete window._altBest[bk];
      if(topInfo&&window._altReg[topInfo.key])window._altBest[bk]=Object.assign({key:topInfo.key},window._altReg[topInfo.key]);}
+    // BEST ADJUSTED TOTAL (owner 2026-10-27: "lock the best total when the best of game is a spread", for more options and to compare how both perform): when the magenta best line is a SPREAD,
+    // the highest-probability adjusted TOTAL of the same game is kept too; the lock pass locks it as its own pick (altLine.bestTotal). Not shown differently on the card.
+    window._altBestOU=window._altBestOU||{};
+    {const bk=sport+'|'+home+'|'+away;delete window._altBestOU[bk];
+     if(topInfo&&topOU&&topOU.ci!==topI&&/\|SPREAD(\|opp)?$/.test(topInfo.key)&&window._altReg[topOU.key])window._altBestOU[bk]=Object.assign({key:topOU.key},window._altReg[topOU.key]);}
     const bestStrip=topInfo?`<div class="bmk2 ${topInfo.cls} bmk-adj${off?' lockoff':''}"${off?' inert aria-disabled="true"':topInfo.lockAttr} title="Best adjusted line for this game"><span class="bmk2t">${topInfo.lb}</span><span class="bmk2k">BEST ADJUSTED LINE</span><span class="bmk2p">${_escHtml(topInfo.alt.label)}</span><span class="bmk2s">${Math.round(topInfo.alt.prob*100)}%</span></div>`:'';
     return chips?`<div class="altrow${off?' lockoff':''}"${off?' inert aria-disabled="true"':''}><div class="altk">${off?'ADJ. LINE · LOCKS CLOSED · EST. PRICE':'ADJ. LINE · LOCKS HERE · TAP TO LOCK · EST. PRICE'}</div>${chips}${bestStrip}</div>`:'';
   }catch(e){return'';}
 }
 // gather_legs (scripts/auto_lock_settle.py) calls this on the captured game legs: each gets the game's best adjusted line as `adjBest` ({alt,side,sport,hA,awA,date,...}) when its card showed adjusted lines.
-function _altAttachBest(legs){(legs||[]).forEach(gl=>{const b=(window._altBest||{})[gl.sport+'|'+gl.hA+'|'+gl.awA];if(b)gl.adjBest=b;});return legs;}
+function _altAttachBest(legs){(legs||[]).forEach(gl=>{const k=gl.sport+'|'+gl.hA+'|'+gl.awA,b=(window._altBest||{})[k],t=(window._altBestOU||{})[k];if(b)gl.adjBest=b;if(t)gl.adjBestOU=t;});return legs;}
 function _altLineRowHTML(sport,g,nm,off){return _altRowFor(sport,g.home,g.away,g.date,nm,off);}
 // Reasoning text for an adjusted-line pick (kept word-for-word in step with _alt_reasoning() in scripts/auto_lock_settle.py -- test_alt_js_parity.py checks it): it describes the
 // SHIFTED line and says the price is an estimate, instead of carrying the posted line's tier / EV / 'covers the 11.5-pt line' text.
