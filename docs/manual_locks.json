@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-10-27T22:47:08.753Z",
+ "updated_at": "2026-10-27T22:53:11.137Z",
  "picks": [
   {
    "id": "2026-10-03_Hameenlinna_Karpat_LIIGA_Karpat-1.5",
@@ -7563,6 +7563,63 @@
    "lockedAt": 1793097999711,
    "reasoning": "PICK: Victor Wembanyama OVER REB 11.5 — OPTIMAL (63% model hit rate)\nMODEL: projection 12.68 REB (season average 11.5, last-5 form 14, opponent adjustment +1.2) vs the 11.5 line, spread σ 3.59, from a 5k-sim Monte Carlo.\nWHY: Victor Wembanyama averages 11.5 rpg across 64 games this season. Opp SAC DRtg 121.3 vs a 115.7 league average computed from every currently-loaded team, a 5% boost folded into the projection. Game pace 99.5 (-0.3%), SA offense 119.6 vs a 115.7 league average. No head-to-head history vs SAC this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
    "priceSource": "estimated"
+  },
+  {
+   "id": "2026-10-27_LAL_POR_NBA_OVER225.5",
+   "date": "2026-10-27",
+   "hA": "LAL",
+   "awA": "POR",
+   "sport": "NBA",
+   "league": "NBA",
+   "betType": "OU",
+   "betOn": "OVER 225.5",
+   "winProb": 0.67,
+   "ml": "-251",
+   "decOdds": 1.399,
+   "wager": 0,
+   "outcome": "pending",
+   "lockedAt": 1793141575613,
+   "hScore": null,
+   "aScore": null,
+   "source": "manual",
+   "lockOrigin": "manual",
+   "priceSource": "estimated",
+   "reasoning": "PICK: OVER 225.5 — ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted OVER 233.5 to OVER 225.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 45.3%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected 112.8–117.8 (total 230.6), from a 25k-sim Monte Carlo.",
+   "altLine": {
+    "posted": 233.5,
+    "line": 225.5,
+    "shift": 8,
+    "postedLabel": "OVER 233.5",
+    "postedDec": null,
+    "postedMl": null
+   },
+   "startMs": 1793156400000,
+   "leadMin": 247,
+   "lockTiming": "pre"
+  },
+  {
+   "id": "2026-10-27_LAL_POR_NBA_LAL",
+   "date": "2026-10-27",
+   "hA": "LAL",
+   "awA": "POR",
+   "sport": "NBA",
+   "league": "NBA",
+   "betType": "ML",
+   "betOn": "LAL",
+   "winProb": 0.597,
+   "ml": "-125",
+   "decOdds": 1.8,
+   "wager": 0,
+   "outcome": "pending",
+   "lockedAt": 1793141582228,
+   "hScore": null,
+   "aScore": null,
+   "source": "manual",
+   "lockOrigin": "manual",
+   "startMs": 1793156400000,
+   "leadMin": 247,
+   "lockTiming": "pre",
+   "reasoning": "PICK: LAL ML — OPTIMAL (59.7% win prob, EV +7.5%)\nMODEL: Projected 112.8–117.7 (total 230.4), from a 25k-sim Monte Carlo."
   }
  ]
 }
