@@ -86,6 +86,7 @@ import lock_timing  # noqa: E402  -- shared known-late classifier (public figure
 import email_tracking as et  # noqa: E402  -- per-pick 'emailed' state + catch-up rules (pure logic; this file owns every file / repo / mail side effect)
 import lineups  # noqa: E402  -- confirmed lineups (NHL goalies, NBA/NFL Out lists) at the lock pass; fail-open, see scripts/lineups.py
 import nfl_engine  # noqa: E402  -- NFL market anchor mirror + the alt-line lane constants (2026-10-11 NFL engine audit)
+import nba_totals_shadow as nts  # noqa: E402  -- record-only log of NBA totals rated 55%+ that did not qualify (owner 2026-10-27; never locks or emails)
 
 # _LOCKS_EMAIL_CLOSE (the disclaimer-bearing close, defined in
 # _gmail_email.py so _subscribers.py's receipt email can share the exact
@@ -2707,6 +2708,42 @@ def _best_adjusted_leg(gl: dict, game_qualifying: list[dict]) -> dict | None:
     }
 
 
+# NBA TOTALS SHADOW LOG (owner 2026-10-27, see scripts/nba_totals_shadow.py): every live pass that covers NBA records the NBA totals the model rates 55%+ at the posted line but that did not
+# qualify (below OPTIMAL), with the adjusted line they would have locked at. Record only -- nothing here locks, emails or changes what qualifies. Fail-open: any error is logged and ignored.
+NBA_TOTALS_SHADOW = True
+
+
+def record_nba_totals_shadow(result: dict, live: bool, only_sports: frozenset[str] | None = None, now=None) -> int:
+    if not (NBA_TOTALS_SHADOW and live) or (only_sports is not None and "NBA" not in only_sports):
+        return 0
+    try:
+        pre, rs = _nba_preseason_pairs(), _nba_regular_season_start()
+        games = []
+        for gl in result.get("gameLegs") or []:
+            if gl.get("sport") != "NBA" or frozenset({gl.get("hA"), gl.get("awA")}) in pre:
+                continue
+            gd = mt_date_of_ms(gl.get("startMs"))
+            if not gd or (rs and gd < rs) or _beyond_horizon(gl.get("startMs"), now, same_day_only=True) or not start_guard("NBA", gl.get("startMs"), now)[0]:
+                continue
+            games.append({**gl, "date": gd})
+        path = ROOT / nts.STATE_REL
+        existing = path.read_text() if path.exists() else ""
+        rows = nts.shadow_rows(games, QUALIFYING_TIERS, _alt_shift_leg, nts.read_ids(existing), _now_utc().strftime("%Y-%m-%dT%H:%M:%SZ"))
+        if not rows:
+            log("  NBA totals shadow: nothing new to record")
+            return 0
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if existing and not existing.endswith("\n"):
+            existing += "\n"
+        path.write_text(existing + nts.render(rows))
+        log(f"  NBA totals shadow: recorded {len(rows)} (" + ", ".join(f"{r['awA']}@{r['hA']} {r['label']} {r['p']:.0%}" for r in rows) + ")")
+        _commit_and_push([nts.STATE_REL], f"chore: NBA totals shadow log (+{len(rows)})")
+        return len(rows)
+    except Exception as exc:
+        log(f"  NBA totals shadow: skipped ({exc})")
+        return 0
+
+
 def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, now=None,
                      guard_stats: dict | None = None) -> list[dict]:
     """only_sports: if given, restricts to exactly these sport tags (e.g.
@@ -4006,6 +4043,7 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
     guard: dict = {}
     qualifying = build_qualifying(result, only_sports=only_sports, guard_stats=guard)
     analysis = analyze_games(result, only_sports)
+    record_nba_totals_shadow(result, live, only_sports)
     rep = {"kind": f"early-{(label or 'all').lower()}", "label": label or "ALL", "dates": [datetime.now(MT).strftime("%Y-%m-%d")],
            "qualifying": len(qualifying), "new": 0, "already": 0, "failed": 0, "skipped": guard.get("skipped", 0),
            "skippedDetail": guard.get("detail", []), "failedLabels": [], "games": analysis["games"],
@@ -4431,6 +4469,7 @@ def run_lock_segmented(page, live: bool, send_email: bool = True, only_new: bool
     covered_sports: set[str] = set().union(*PRODUCT_SPORTS.values())
     seg_guard: dict = {}
     all_qualifying_raw = build_qualifying(result, guard_stats=seg_guard)
+    record_nba_totals_shadow(result, live)
     seg_analysis = analyze_games(result)
     seg_rep = {"kind": "main", "label": "ALL PRODUCTS", "dates": [datetime.now(MT).strftime("%Y-%m-%d")],
                "qualifying": len(all_qualifying_raw), "new": 0, "already": 0, "failed": 0,

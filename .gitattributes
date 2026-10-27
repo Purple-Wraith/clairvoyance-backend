@@ -1,3 +1,6 @@
 # Append-only record of which pick ids went out in a subscriber email (scripts/email_tracking.py). Two workflows may append at the same moment: `union` keeps both sides'
 # lines instead of stopping the rebase on a conflict, so a recorded send is never lost (a lost record would re-send a pick).
 data/emailed_picks.jsonl merge=union
+
+# Record-only NBA totals shadow log (scripts/nba_totals_shadow.py), append-only for the same reason.
+data/nba_totals_shadow.jsonl merge=union
