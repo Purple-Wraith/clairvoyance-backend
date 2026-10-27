@@ -94,12 +94,14 @@ class SourceOfTruthMatchesEngine(unittest.TestCase):
             flat = [n for r in rows for n in r]
             self.assertEqual(sorted(flat), sorted(ac.ALL_LEAGUES))
 
-    def test_props_wording_is_nba_only(self):
-        self.assertEqual(ac.PROPS_COPY, "NBA player props")
+    def test_no_props_wording_while_props_are_paused(self):
+        """Owner 2026-10-27: NBA player props are out of every ad until ~20 NBA games are settled."""
         body = " ".join(ac.BODY_LINES)
-        self.assertIn("NBA player props", body)
+        for text in (body, ac.CORE_COPY, ac.INCLUDES_LINE):
+            self.assertNotRegex(text, r"(?i)props?\b")
         self.assertNotRegex(body, r"(?i)across (every|select) sports?")
-        self.assertNotRegex(body, r"(?i)(nfl|nhl) (player )?props")
+        self.assertIn("graded picks", body)
+        self.assertIn("game lines", body)
 
     def test_ad_coverage_strings_have_no_retired_terms(self):
         for name in dir(ac):
@@ -144,7 +146,7 @@ class GeneratorsCarryNoRetiredCopy(unittest.TestCase):
             self.assertIn(f"${price}<", html)
             self.assertIn(f"{n} SPORT", html)
         self.assertEqual(html.count("/ 30 days"), len(ac.PRICING_BY_COUNT))
-        self.assertIn("NBA player props", html)
+        self.assertNotIn("props", html.lower())
         for stale in ("BASE", "PLUS", "DAY PASS", "WEEKEND PASS", "/MO"):
             self.assertNotIn(stale, html)
         # no leftover references to the removed pass boxes
@@ -161,7 +163,7 @@ class GeneratorsCarryNoRetiredCopy(unittest.TestCase):
         sub = g.build_subscription_caption()
         self.assertIn("$20", sub["instagram"])
         self.assertIn("$75", sub["x"])
-        self.assertIn("NBA player props", sub["instagram"])
+        self.assertNotIn("props", sub["instagram"].lower())
 
     def test_breakdown_demo_rows_are_not_baseball(self):
         src = (HERE / "generate_video_reveal.py").read_text()

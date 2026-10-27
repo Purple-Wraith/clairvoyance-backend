@@ -90,7 +90,7 @@ Destination: clairvoyanceengine.info. Pricing if asked: $20 / $30 / $45 / $60 / 
 
 ## Not updated
 
-- Pinned cards and the subscription card/video (2026-10-10 set) still say "NBA player props", which came off the landing page on 10-25.
+- NBA player props are out of the pinned cards, subscription card and subscription video template (2026-10-27) until ~20 NBA games are settled.
 """
 
 

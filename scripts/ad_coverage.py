@@ -13,7 +13,7 @@ scripts/test_ad_coverage.py pins this module to the real engine:
   * (when ~/clairvoyance-landing exists) the landing page's coverage + pricing agree
 
 HOW TO UPDATE when a league is added / retired: change PRODUCT_SPORTS in auto_lock_settle.py first,
-then edit LEAGUES_BY_PRODUCT / LEAGUE_ROWS / PROPS_COPY below, re-run scripts/test_ad_coverage.py,
+then edit LEAGUES_BY_PRODUCT / LEAGUE_ROWS / CORE_COPY below, re-run scripts/test_ad_coverage.py,
 then regenerate the cards (scripts/gen_pinned_card.py, gen_reddit_ad_v1.py, gen_subscription_card.py).
 """
 from __future__ import annotations
@@ -56,9 +56,10 @@ LEAGUE_ROWS_WIDE: tuple[tuple[str, ...], ...] = (
 # Game lines (ML / Spread / O-U) for every league.  Player props: NBA ONLY (NFL props removed
 # 2026-09-23, NHL props removed 2026-10-09; WNBA retired).  Hockey's European leagues carry the
 # HIGH PROB lane + adjusted lines.
-PROPS_COPY = "NBA player props"
-CORE_COPY = "graded picks, game lines, and " + PROPS_COPY
-INCLUDES_LINE = "Graded picks + game lines on every league · " + PROPS_COPY + " with NBA"
+# NBA player props are PAUSED in all ad copy (owner 2026-10-25 landing / 2026-10-27 cards): off until ~20 NBA games are settled.
+# To bring them back, add the wording to CORE_COPY / INCLUDES_LINE / BODY_LINES below and flip the props assertions in test_ad_coverage.py.
+CORE_COPY = "graded picks and game lines"
+INCLUDES_LINE = "Graded picks + game lines on every league"
 EURO_HOCKEY_NOTE ="European hockey: HIGH PROB lane + adjusted lines"
 
 # ── Pricing (30-day access, 1-5 products) ────────────────────────────────────────────────────────
@@ -71,8 +72,8 @@ TAGLINE = "ADVANCED SPORTS INTELLIGENCE ENGINE"
 BODY_LINES: tuple[str, ...] = (
     "An advanced sports intelligence engine built around",
     "mathematical precision, multi-layered ensemble models,",
-    "and adaptive intelligence — delivering " + "graded picks,",
-    "game lines, and " + PROPS_COPY + ".",
+    "and adaptive intelligence — delivering graded picks",
+    "and game lines.",
 )
 PRICING_LINE_PARTS = (f"Starting at ${PRICE_FROM}", f"Full Access ${PRICE_ALL}", f"{ACCESS_DAYS}-Day Access")
 HANDLES = ("X @ClairvoyanceEng", "clairvoyanceengine.info", "IG @clairvoyanceengine")

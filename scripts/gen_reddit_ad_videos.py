@@ -25,6 +25,7 @@ import ad_perf
 
 W = H = 1080
 DURATION_S = 9.0
+SCORECARD_DURATION_S = 11.0   # slower fade-in needs the longer hold
 
 BG_COVERS = """
       ctx.fillStyle='#222233';ctx.fillRect(0,0,W,H);
@@ -60,7 +61,7 @@ CSS = """
   .stage { width:1080px; height:1080px; position:relative; background:transparent; }
   .c { position:absolute; left:50%; }
   .mm { transform:translate(-50%,-50%); }
-  .a { position:absolute; white-space:nowrap; opacity:0; animation: reveal .01s linear var(--t,0s) forwards; }
+  .a { position:absolute; white-space:nowrap; opacity:0; animation: reveal var(--d,.01s) ease-out var(--t,0s) forwards; }
   .orb { font-family:'Orbitron',sans-serif; font-weight:700; }
   .mono { font-family:'Share Tech Mono',monospace; }
   .W { color:#fff; } .M { color:#f000ff; } .C { color:#00f0ff; } .G { color:#ffd500; }
@@ -83,7 +84,7 @@ CSS = """
   .fbar::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:rgba(240,0,255,.9); box-shadow:0 0 8px rgba(240,0,255,.7); }
   .fline1 { position:absolute; left:50%; top:24px; transform:translateX(-50%); white-space:nowrap; font-family:'Orbitron',sans-serif; font-weight:700; font-size:12px; letter-spacing:1px; color:#f000ff; text-shadow:0 0 8px rgba(240,0,255,.5); }
   .fline2 { position:absolute; left:50%; top:46px; transform:translateX(-50%); white-space:nowrap; font-family:'Share Tech Mono',monospace; font-size:11px; color:#787396; }
-  .rule { position:absolute; left:64px; width:952px; height:1px; background:rgba(255,255,255,.16); opacity:0; animation: reveal .01s linear var(--t) forwards; }
+  .rule { position:absolute; left:64px; width:952px; height:1px; background:rgba(255,255,255,.16); opacity:0; animation: reveal var(--d,.01s) ease-out var(--t) forwards; }
   .rule.m { background:rgba(240,0,255,.45); }
 
   @keyframes glitchR { 0%{transform:translate(calc(-50% - 6px),calc(-50% - 4px))} 25%{transform:translate(calc(-50% + 5px),calc(-50% + 3px))} 50%{transform:translate(calc(-50% - 3px),calc(-50% - 2px))} 75%{transform:translate(calc(-50% + 6px),calc(-50% + 4px))} 100%{transform:translate(calc(-50% - 6px),calc(-50% - 4px))} }
@@ -165,45 +166,48 @@ def ad_body(perf: dict) -> str:
     return "\n    ".join(out)
 
 
+FADE, STEP = 1.0, 0.3   # scorecard rows ease in over 1 s, one every 0.3 s (the old instant pop-in read as aggressive)
+
+
 def scorecard_body(data: dict) -> str:
     X_NAME, X_M_REC, X_M_PCT, X_A_REC, X_A_PCT = 64, 452, 590, 790, 940
     out = [_logo(62, 54), '<div class="sub c mm" style="top:112px;font-size:20px;letter-spacing:3px">LEAGUE SCORECARD</div>',
            '<div class="hr" style="top:142px"></div>']
 
     def cell(x, y, txt, size, t, anchor="ctr", cls="W"):
-        return f'<div class="a orb {cls} {anchor}" style="left:{x}px;top:{y}px;font-size:{size}px;--t:{t:.2f}s">{_e(txt)}</div>'
+        return f'<div class="a orb {cls} {anchor}" style="left:{x}px;top:{y}px;font-size:{size}px;--t:{t:.2f}s;--d:{FADE}s">{_e(txt)}</div>'
 
     out.append(cell((X_M_REC + X_M_PCT) // 2, 172, data["month_name"], 19, 2.6, cls="M neon-m"))
     out.append(cell((X_A_REC + X_A_PCT) // 2, 172, "ALL TIME", 19, 2.8, cls="M neon-m"))
-    out.append(f'<div class="a mono C lft" style="left:{X_NAME}px;top:204px;font-size:14px;--t:3s">SPORT / LEAGUE</div>')
+    out.append(f'<div class="a mono C lft" style="left:{X_NAME}px;top:204px;font-size:14px;--t:2.9s;--d:.8s">SPORT / LEAGUE</div>')
     for x, t in ((X_M_REC, "W-L"), (X_M_PCT, "WIN %"), (X_A_REC, "W-L"), (X_A_PCT, "WIN %")):
-        out.append(f'<div class="a mono C ctr" style="left:{x}px;top:204px;font-size:14px;--t:3s">{t}</div>')
-    out.append('<div class="rule" style="top:222px;--t:3s"></div>')
+        out.append(f'<div class="a mono C ctr" style="left:{x}px;top:204px;font-size:14px;--t:2.9s;--d:.8s">{t}</div>')
+    out.append('<div class="rule" style="top:222px;--t:2.9s;--d:.8s"></div>')
 
-    y, row_h, t = 240, 42, 3.3
+    y, row_h, t = 240, 42, 3.0
     for r in ad_perf.sport_rows(data):
         league, bundle = r["kind"] == "league", r["kind"] == "bundle"
         if bundle:
-            out.append(f'<div class="rule m" style="top:{y - row_h // 2 + 2}px;--t:{t:.2f}s"></div>')
+            out.append(f'<div class="rule m" style="top:{y - row_h // 2 + 2}px;--t:{t:.2f}s;--d:{FADE}s"></div>')
         out.append(cell(X_NAME + (26 if league else 0), y, r["name"], 18 if league else 20, t, anchor="lft", cls="M" if league else "W"))
         for key, xr, xp in (("month", X_M_REC, X_M_PCT), ("all", X_A_REC, X_A_PCT)):
             sz = 17 if league else 19
             out.append(cell(xr, y, ad_perf.fmt_rec(r[key]), sz, t))
             out.append(cell(xp, y, ad_perf.fmt_pct(r[key]), sz, t))
         y += row_h
-        t += 0.2
+        t += STEP
     y += 6
-    out.append(f'<div class="rule m" style="top:{y - row_h // 2 + 2}px;height:2px;--t:{t:.2f}s"></div>')
+    out.append(f'<div class="rule m" style="top:{y - row_h // 2 + 2}px;height:2px;--t:{t:.2f}s;--d:{FADE}s"></div>')
     o = data["overall"]
-    out.append(cell(X_NAME, y + 4, "ALL SPORTS", 22, t + .2, anchor="lft", cls="W"))
+    out.append(cell(X_NAME, y + 4, "ALL SPORTS", 22, t + STEP, anchor="lft", cls="W"))
     for key, xr, xp in (("month", X_M_REC, X_M_PCT), ("all", X_A_REC, X_A_PCT)):
-        out.append(cell(xr, y + 4, ad_perf.fmt_rec(o[key]), 21, t + .2))
-        out.append(cell(xp, y + 4, ad_perf.fmt_pct(o[key]), 21, t + .2))
+        out.append(cell(xr, y + 4, ad_perf.fmt_rec(o[key]), 21, t + STEP))
+        out.append(cell(xp, y + 4, ad_perf.fmt_pct(o[key]), 21, t + STEP))
     y += row_h + 8
     note = f"Every graded pick, published live, losses included. Sorted by {data['month_name'].title()} win %. Updated {data['generated_at']}."
     note2 = "Win % = wins / all graded picks (a third number is pushes)."
     for i, n in enumerate((note, note2)):
-        out.append(f'<div class="a mono W ctr c" style="top:{min(y, H - 118) + 20 * i}px;font-size:14px;--t:{t + .6:.2f}s">{_e(n)}</div>')
+        out.append(f'<div class="a mono W ctr c" style="top:{min(y, H - 118) + 20 * i}px;font-size:14px;--t:{t + 1.0:.2f}s;--d:{FADE}s">{_e(n)}</div>')
     return "\n    ".join(out)
 
 
@@ -252,4 +256,4 @@ if __name__ == "__main__":
             if args.html_only:
                 print(f"Wrote {hp}")
                 continue
-            print(f"Saved -> {record(hp, out_dir / (name + '.mp4'))}")
+            print(f"Saved -> {record(hp, out_dir / (name + '.mp4'), SCORECARD_DURATION_S if 'Scorecard' in name else DURATION_S)}")
