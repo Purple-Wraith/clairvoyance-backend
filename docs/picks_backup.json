@@ -101718,20 +101718,21 @@
     "betOn": "LAL",
     "sport": "NBA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 136,
+    "hScore": 129,
     "league": "NBA",
     "source": "manual",
     "betType": "ML",
     "decOdds": 1.8,
     "leadMin": 247,
-    "outcome": "pending",
+    "outcome": "loss",
     "startMs": 1793156400000,
     "winProb": 0.597,
     "lockedAt": 1793141582228,
     "reasoning": "PICK: LAL ML \u2014 OPTIMAL (59.7% win prob, EV +7.5%)\nMODEL: Projected 112.8\u2013117.7 (total 230.4), from a 25k-sim Monte Carlo.",
     "lockOrigin": "manual",
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1793168483847
   },
   {
     "hA": "LAL",
@@ -101742,8 +101743,8 @@
     "betOn": "LAL +3.5",
     "sport": "NBA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 136,
+    "hScore": 129,
     "league": "NBA",
     "source": "manual",
     "altLine": {
@@ -101758,14 +101759,15 @@
     "betType": "SPREAD",
     "decOdds": 1.376,
     "leadMin": 973,
-    "outcome": "pending",
+    "outcome": "loss",
     "startMs": 1793156400000,
     "winProb": 0.682,
     "lockedAt": 1793097999226,
     "reasoning": "PICK: LAL +3.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted LAL -2.5 to LAL +3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 59.5%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected 112.5\u2013117.6 (total 230.1), from a 25k-sim Monte Carlo.",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1793168483848
   },
   {
     "hA": "LAL",
@@ -101776,8 +101778,8 @@
     "betOn": "OVER 225.5",
     "sport": "NBA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 136,
+    "hScore": 129,
     "league": "NBA",
     "source": "manual",
     "altLine": {
@@ -101791,14 +101793,15 @@
     "betType": "OU",
     "decOdds": 1.399,
     "leadMin": 247,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1793156400000,
     "winProb": 0.67,
     "lockedAt": 1793141575613,
     "reasoning": "PICK: OVER 225.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted OVER 233.5 to OVER 225.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 45.3%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected 112.8\u2013117.8 (total 230.6), from a 25k-sim Monte Carlo.",
     "lockOrigin": "manual",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1793168483848
   },
   {
     "hA": "Lausanne",
@@ -102330,10 +102333,10 @@
     "winProb": 0.6038,
     "lockedAt": 1793098007704,
     "reasoning": "PICK: OVER 5.5 \u2014 ADJUSTED LINE (60.4% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 6.5 to OVER 5.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 60% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "settledAt": 1793166076704,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1793166076704
+    "priceSource": "estimated"
   },
   {
     "hA": "SJS",
@@ -102357,12 +102360,12 @@
     "lockedAt": 1793098007583,
     "modelProb": 0.6984,
     "reasoning": "PICK: SJS +1.5 \u2014 HIGH PROB (66.1% win prob, EV -2.2% \u00b7 MARKET PRICE -208 (EV at market -2.2%) \u00b7 MARKET-BLENDED: model 69.8% \u00b7 no-vig market 64.4% \u2192 66.1% (alpha 0.70))\nMODEL: Projected 3.2\u20133.3 (total 6.5) (OT/SO in 16% of outcomes) \u2014 underdog covers +1.5 in 67.8% of outcomes (incl. late-game empty-net margin calibration), from a 25k-sim Monte Carlo.\nWHY: Best market: SJS +1.5 graded HIGH PROB (66.1%, EV -2.2%). Dog covers +1.5 in 66.1% of sims (proj 3.3\u20133.2). GSAx: -3.6 vs +2.7 (injury adj: SJS: Igor Chernyshov LW OUT, Alexander Wennberg C OUT -> scoring -3.6%) keeps this within a goal. MC 51% / xGF 50% / hv -3.3pp / ST +8.3pp / SQ -2.1pp \u00b7 ML market blend (alpha 0.75): model 59.8% \u00b7 no-vig market 44.4% \u2192 48.3%; Puck line market blend (alpha 0.70): model 30.2% \u00b7 no-vig market 35.6% \u2192 33.9%; O/U market blend (alpha 0.65): model 46.8% \u00b7 no-vig market 52.3% \u2192 50.4%. Half-unit play.",
+    "settledAt": 1793166076706,
     "blendAlpha": 0.7,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6438,
-    "priceSource": "market",
-    "settledAt": 1793166076706
+    "priceSource": "market"
   },
   {
     "hA": "STL",
@@ -112789,11 +112792,13 @@
     },
     "betType": "PROP",
     "decOdds": 1.4065040650406504,
-    "outcome": "pending",
+    "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1793097999868,
     "reasoning": "PICK: Deni Avdija OVER PTS 23.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 25.78 PTS (season average 24.2, last-5 form 31.2, opponent adjustment +1.6) vs the 23.5 line, spread \u03c3 7.43, from a 5k-sim Monte Carlo.\nWHY: Deni Avdija averages 24.2 ppg across 66 games this season. Opp LAL DRtg 116.3 vs a 115.7 league average computed from every currently-loaded team, a 1% boost folded into the projection. Game pace 99.2 (-1.2%), POR offense 114.4 vs a 115.7 league average. No head-to-head history vs LAL this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1793168484682,
+    "playerResult": 23
   },
   {
     "hA": "SA",
