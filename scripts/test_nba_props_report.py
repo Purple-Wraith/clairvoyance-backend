@@ -142,6 +142,17 @@ class Summary(unittest.TestCase):
         self.assertIn("no stored box-score stat", text)
         self.assertIn("disagree", text)
 
+    def test_low_minute_voids_are_listed_and_never_flagged_as_mismatches(self):
+        led = [prop("v1", "A UNDER PTS 10.5", "push", date="2026-10-21", stat=0, playerMin=5, voidReason="LOW_MIN", altLine={"line": 10.5, "posted": 12.5}),
+               prop("v2", "B OVER PTS 10.5", "win", date="2026-10-21", stat=20, playerMin=30)]
+        q = R.summarize(led)
+        self.assertEqual(q["quality"]["low_min"], [("v1", 5)])
+        self.assertEqual(q["quality"]["mismatch"], [])                       # push with a stat of 0 is a void, not a disagreement
+        self.assertEqual(q["quality"]["minutes_unchecked"], [])
+        self.assertEqual(q["adjusted"]["graded"], 0)                         # a void has no posted-line result
+        self.assertIn("under 10 minutes", " ".join(R.verdict(q)))
+        self.assertEqual((q["overall"]["w"], q["overall"]["l"], q["overall"]["push"]), (1, 0, 1))
+
     def test_concentration(self):
         led = [prop(f"c{i}", f"Star OVER PTS {20 + i}.5", "win", date="2026-10-21", stat=40) for i in range(3)]
         c = R.summarize(led)["concentration"]

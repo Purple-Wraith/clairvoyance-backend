@@ -51,7 +51,8 @@ SCORE = {"events": [event("E1", "DEN", "OKC"), event("E2", "BOS", "NY", state="i
 SUMMARY = {
     "E1": {"boxscore": {"players": [
         {"team": {"abbreviation": "DEN"}, "statistics": [blk([ath("Nikola Jokić", ["34", "28", "13", "9", "1-3"]), ath("Jalen Williams", ["30", "10", "4", "3", "1-2"]),
-                                                              ath("Zeke Nnaji", [], True, "COACH'S DECISION"), ath("Bruce Brown", ["0", "0", "0", "0", "0-0"])])]},
+                                                              ath("Zeke Nnaji", [], True, "COACH'S DECISION"), ath("Bruce Brown", ["0", "0", "0", "0", "0-0"]),
+                                                              ath("Reserve Guy", ["5", "0", "1", "1", "0-0"]), ath("Nine Min", ["9", "8", "2", "1", "1-2"]), ath("Ten Min", ["10", "8", "2", "1", "1-2"])])]},
         {"team": {"abbreviation": "OKC"}, "statistics": [blk([ath("Jalen Williams", ["33", "24", "5", "6", "2-5"]), ath("Shai Gilgeous-Alexander", ["35", "31", "4", "7", "1-2"]),
                                                               ath("Isaiah Joe", ["20", "12", "2", "1", "3-6"])])]}]}},
     "E2": {"boxscore": {"players": [{"team": {"abbreviation": "NY"}, "statistics": [blk([ath("Jalen Brunson", ["20", "11", "1", "3", "0-1"])])]}]}},   # game still in progress
@@ -151,6 +152,8 @@ class Settle(unittest.TestCase):
     def test_a_settled_prop_without_its_stat_gets_the_stat_and_nothing_else(self):
         r = self.settle([self.settled("s1", "Shai Gilgeous-Alexander OVER PTS 30.5", "OKC", "DEN", "win")])     # 31 points in the box score
         self.assertEqual((r["s1"]["outcome"], r["s1"]["playerResult"], r["s1"]["settledAt"]), ("win", 31, 1234567))
+        self.assertEqual(r["s1"]["playerMin"], 35)                                                             # minutes are recorded too (the under-10 rule needs them)
+        self.assertNotIn("regradedNote", r["s1"])
 
     def test_a_stored_result_is_never_changed_even_if_the_box_score_disagrees(self):
         r = self.settle([self.settled("s2", "Shai Gilgeous-Alexander OVER PTS 30.5", "OKC", "DEN", "loss")])    # stored LOSS, box score says WIN
@@ -166,6 +169,38 @@ class Settle(unittest.TestCase):
         self.assertIsNone(r["s4"].get("playerResult"))
         self.assertIsNone(r["s5"].get("playerResult"))
         self.assertEqual(r["s5"]["outcome"], "win")
+
+    # ── under-10-minutes void (owner 2026-10-28) ──
+    def test_a_pending_prop_for_a_player_under_ten_minutes_is_void(self):
+        r = self.settle([prop("v1", "Reserve Guy UNDER PTS 4.5", "DEN", "OKC"), prop("v2", "Reserve Guy OVER PTS 4.5", "DEN", "OKC")])      # 5 min, 0 pts
+        for k in ("v1", "v2"):
+            self.assertEqual((r[k]["outcome"], r[k]["voidReason"], r[k]["playerMin"], r[k]["playerResult"]), ("push", "LOW_MIN", 5, 0))   # an UNDER did not "win", an OVER did not "lose"
+
+    def test_nine_minutes_is_void_ten_minutes_is_a_real_result(self):
+        r = self.settle([prop("w1", "Nine Min OVER PTS 7.5", "DEN", "OKC"), prop("w2", "Ten Min OVER PTS 7.5", "DEN", "OKC")])
+        self.assertEqual((r["w1"]["outcome"], r["w1"]["voidReason"]), ("push", "LOW_MIN"))
+        self.assertEqual((r["w2"]["outcome"], r["w2"]["playerResult"], r["w2"]["playerMin"]), ("win", 8, 10))
+        self.assertNotIn("voidReason", r["w2"])
+
+    def test_an_already_settled_win_or_loss_under_ten_minutes_is_voided_and_marked_as_a_correction(self):
+        r = self.settle([self.settled("x1", "Reserve Guy UNDER PTS 4.5", "DEN", "OKC", "win"), self.settled("x2", "Reserve Guy OVER PTS 4.5", "DEN", "OKC", "loss")])
+        for k, was in (("x1", "WIN"), ("x2", "LOSS")):
+            self.assertEqual((r[k]["outcome"], r[k]["voidReason"], r[k]["playerMin"]), ("push", "LOW_MIN", 5))
+            self.assertIn("was " + was, r[k]["regradedNote"])                                                # the marker other devices use to accept a correction
+            self.assertEqual(r[k]["settledAt"], 1234567)
+
+    def test_a_settled_prop_that_already_has_its_minutes_is_not_looked_at_again(self):
+        r = self.settle([self.settled("y1", "Reserve Guy UNDER PTS 4.5", "DEN", "OKC", "win", playerResult=0, playerMin=12)])   # minutes already checked (say 12): box score is not consulted
+        self.assertEqual((r["y1"]["outcome"], r["y1"]["playerMin"]), ("win", 12))
+
+    def test_a_voided_prop_carries_to_a_device_that_still_holds_the_win(self):
+        res = self.pg.evaluate("""()=>{
+          const base={betType:'PROP',sport:'NBA',league:'NBA',date:'2026-10-22',hA:'DEN',awA:'OKC',team:'DEN',lockedAt:5,winProb:.6,decOdds:1.7,betOn:'X UNDER PTS 9.5'};
+          saveP([Object.assign({id:'z1',outcome:'win',playerResult:0},base)]);
+          _mergeRemoteBetRows([{id:'z1',outcome:'push',settled_at:new Date().toISOString(),
+            raw:Object.assign({id:'z1',outcome:'push',playerResult:0,playerMin:5,voidReason:'LOW_MIN',regradedNote:'Voided: played 5 min'},base)}]);
+          const p=getP().find(q=>q.id==='z1');return {o:p.outcome,v:p.voidReason,m:p.playerMin}}""")
+        self.assertEqual(res, {"o": "push", "v": "LOW_MIN", "m": 5})
 
     def test_the_undated_sweep_reaches_settled_props_from_earlier_days(self):
         self.pg.evaluate("""()=>{window.__realToday=today;today=()=>'2026-10-25'}""")                           # 3 days after the props' day
@@ -228,6 +263,14 @@ class CiSweep(unittest.TestCase):
         newly, got = self.run_pass(self.ledger())
         self.assertEqual((got["k1"]["outcome"], got["k1"]["playerResult"], got["k1"]["settledAt"]), ("win", 31, 1234567))
         self.assertEqual(newly, [])                                                         # it was not a new settlement
+
+    def test_the_scheduled_pass_voids_a_low_minute_win_and_counts_it_for_the_supabase_flush(self):
+        import io, contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            _, got = self.run_pass(self.ledger(id="k3", betOn="Reserve Guy UNDER PTS 4.5", team="DEN", hA="DEN", awA="OKC"))
+        self.assertEqual((got["k3"]["outcome"], got["k3"]["voidReason"]), ("push", "LOW_MIN"))
+        self.assertIn("Prop box-score backfill: 1", buf.getvalue())                         # the flush to Supabase is keyed on this
 
     def test_a_prop_older_than_the_sweep_window_is_left_alone(self):
         old = self.ledger(date="2026-10-01", id="k2")

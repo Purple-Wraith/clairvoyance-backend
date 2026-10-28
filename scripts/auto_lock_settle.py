@@ -1375,7 +1375,6 @@ def run_settle(page, live: bool, only_dates: list[str] | None = None) -> list[di
     log("=== AUTO-SETTLE ===" if only_dates is None else f"=== AUTO-SETTLE (targeted: {only_dates}) ===")
     before = page.evaluate("() => getP().filter(p => p.outcome === 'pending').length")
     log(f"Pending bets before settle: {before}")
-    stats_before = page.evaluate("() => getP().filter(p => p.betType === 'PROP' && p.playerResult != null).length")
 
     # Real bug, found and fixed: every autoSettle*() function used to be
     # hardcoded to "today" only -- either an explicit `p.date !== today()`
@@ -1397,6 +1396,7 @@ def run_settle(page, live: bool, only_dates: list[str] | None = None) -> list[di
         """
         async (onlyDates) => {
           const results = {perDate: {}};
+          const backfill0 = window._propBackfillCount || 0;
           const pendingDates = onlyDates || [...new Set(
             getP().filter(p => p.outcome === 'pending').map(p => p.date).filter(Boolean)
           )].sort();
@@ -1437,13 +1437,14 @@ def run_settle(page, live: bool, only_dates: list[str] | None = None) -> list[di
             try { if (typeof autoSettleNCAAH === 'function') await autoSettleNCAAH(targetDate); r.ncaah = 'ok'; } catch (e) { r.ncaah = 'err:' + e.message; }
             results.perDate[targetDate] = r;
           }
-          // STAT BACKFILL (2026-10-28): NBA props settled before the box-score stat was stored (playerResult) get ONLY the stat filled in, from their own day's box score.  The loop above only visits dates
-          // that still hold a PENDING pick, so a date whose props are all settled is never reached; sweep those here (last 12 days = inside the hybrid ledger window).  Outcomes are never touched.
+          // BOX-SCORE BACKFILL (2026-10-28): settled NBA props still missing their stat (playerResult) or never checked for minutes (playerMin) get both filled from their own day's box score; a player who played under 10 minutes voids the prop.  The loop above only visits dates
+          // that still hold a PENDING pick, so a date whose props are all settled is never reached; sweep those here (last 12 days = inside the hybrid ledger window).
           if (!onlyDates && typeof autoSettlePropsESPN === 'function' && typeof _propNeedsStat === 'function') {
             const statDates = [...new Set(getP().filter(p => _propNeedsStat(p) && p.date >= new Date(Date.now() - 12 * 86400000).toISOString().slice(0, 10)).map(p => p.date))].sort();
             results.statDates = statDates;
             for (const d of statDates) { if (!pendingDates.includes(d)) { try { await autoSettlePropsESPN(d); } catch (e) { results.statErr = e.message; } } }
           }
+          results.backfilled = (window._propBackfillCount || 0) - backfill0;   // settled props whose stat / minutes were filled or that were voided (< 10 min) in this pass
           return results;
         }
         """,
@@ -1470,9 +1471,9 @@ def run_settle(page, live: bool, only_dates: list[str] | None = None) -> list[di
         for b in newly:
             log(f"  SETTLED: [{b.get('sport')}] {b.get('betOn')} -> {(b.get('outcome') or '').upper()}")
 
-    stats_filled = page.evaluate("() => getP().filter(p => p.betType === 'PROP' && p.playerResult != null).length") - stats_before - sum(1 for b in newly if b.get("playerResult") is not None)
+    stats_filled = int(result.get("backfilled") or 0)
     if stats_filled > 0:
-        log(f"  Prop stat backfill: {stats_filled} already-settled NBA prop(s) got their box-score stat (outcomes untouched)")
+        log(f"  Prop box-score backfill: {stats_filled} already-settled NBA prop(s) got their stat / minutes (a win or loss is only ever changed by the under-10-minutes void)")
     if (settled_count > 0 or stats_filled > 0) and live:
         flush_to_supabase(page)
         log("Flushed settlement results to Supabase")

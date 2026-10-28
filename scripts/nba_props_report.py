@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 SEASON_START = "2026-10-01"       # NBA picks of this season (last season's playoff props are older)
 GATE_DATE = "2026-10-26"          # featured-player gate (team top-3 PTS / top-2 REB, AST with 26+ mpg) pushed this day
 TARGET_GAMES = 20                 # prop emails resume once the MEDIAN team has played this many games
+MIN_MINUTES = 10                  # a player who plays fewer minutes voids his props (owner 2026-10-28; docs/app.html PROP_MIN_MINUTES)
 MIN_SAMPLE = 50                   # the owner's rule of thumb before judging anything (project_nba_props_rules)
 STATE_REL = "data/nba_props_milestone.json"
 EMAIL_SWITCH = "EMAIL_NBA_PROPS = False  ->  True   (scripts/auto_lock_settle.py)"
@@ -108,6 +109,8 @@ def locked_line(p: dict) -> float | None:
 def posted_result(p: dict) -> str | None:
     """Result at the POSTED line of an adjusted pick, or None when there is no stat / the stat does not reproduce the stored result at the locked line."""
     a = p.get("altLine")
+    if p.get("voidReason"):                                  # a voided prop has no result on any line
+        return None
     if not isinstance(a, dict) or _num(a.get("posted")) is None or p.get("outcome") not in ("win", "loss", "push"):
         return None
     at_locked = grade_at(p, locked_line(p))
@@ -162,7 +165,7 @@ def summarize(ledger: list[dict]) -> dict:
     missing = [p for p in props if p.get("outcome") in ("win", "loss") and _num(p.get("playerResult")) is None and not p.get("voidReason")]
     mismatch = []
     for p in props:
-        if p.get("outcome") in ("win", "loss", "push") and _num(p.get("playerResult")) is not None:
+        if p.get("outcome") in ("win", "loss", "push") and _num(p.get("playerResult")) is not None and not p.get("voidReason"):
             g = grade_at(p, locked_line(p))
             if g is not None and g != p["outcome"]:
                 mismatch.append(p)
@@ -181,7 +184,9 @@ def summarize(ledger: list[dict]) -> dict:
                      "saved": sum(1 for p, r in graded if p["outcome"] == "win" and r == "loss"), "cost": sum(1 for p, r in graded if p["outcome"] == "loss" and r == "win"),
                      "ungraded": len(posted) - len(graded)},
         "quality": {"settled": len(settled), "missing_stat": [p["id"] for p in missing], "mismatch": [p["id"] for p in mismatch],
-                    "void": sum(1 for p in props if p.get("voidReason"))},
+                    "void": sum(1 for p in props if p.get("voidReason")),
+                    "low_min": [(p["id"], p.get("playerMin")) for p in props if p.get("voidReason") == "LOW_MIN"],
+                    "minutes_unchecked": [p["id"] for p in props if p.get("outcome") in ("win", "loss") and _num(p.get("playerMin")) is None]},
         "concentration": {"players_3plus": sorted([(k, v) for k, v in per_player.items() if v >= 3], key=lambda x: -x[1]),
                           "same_player_same_day": sum(1 for v in per_day_player.values() if v > 1),
                           "most_props_one_game": max(per_game.values(), default=0)},
@@ -217,6 +222,10 @@ def verdict(s: dict) -> list[str]:
     q = s["quality"]
     if q["missing_stat"]:
         out.append(f"DATA: {len(q['missing_stat'])} settled prop(s) have no stored box-score stat (the next settle pass fills them): " + ", ".join(i[:40] for i in q["missing_stat"][:5]))
+    if q["low_min"]:
+        out.append(f"Voided for playing under {MIN_MINUTES} minutes: {len(q['low_min'])} (" + ", ".join(f"{i[:38]} {m:g} min" if m is not None else i[:38] for i, m in q["low_min"][:4]) + ") -- not counted in the record.")
+    if q["minutes_unchecked"]:
+        out.append(f"{len(q['minutes_unchecked'])} settled prop(s) have not been checked against the {MIN_MINUTES}-minute rule yet (the next settle pass does it).")
     if q["mismatch"]:
         out.append(f"DATA: {len(q['mismatch'])} stored result(s) disagree with their own stored stat -- look at: " + ", ".join(i[:40] for i in q["mismatch"][:5]))
     c = s["concentration"]

@@ -4671,6 +4671,7 @@ function _propActual(p){
   try{
     if(!p||p.betType!=='PROP'||!/^(win|loss|push)$/.test(p.outcome||''))return null;
     if(p.voidReason==='DNP')return{dnp:true,n:null,stat:'',line:''};                        // did not play: the bet is void
+    if(p.voidReason==='LOW_MIN')return{dnp:true,lowMin:true,min:p.playerMin,n:null,stat:'',line:''};   // played under PROP_MIN_MINUTES: void
     let n=p.playerResult;
     if(typeof n==='string'){const m=/^\s*had\s+(\d+(?:\.\d+)?)/i.exec(n);n=m?parseFloat(m[1]):null;}
     if(typeof n!=='number'||!isFinite(n))return null;
@@ -4720,7 +4721,7 @@ function _pickRowHTML(p,o){
     ?`<div class="prow2-fin">FINAL: ${_escHtml(_teamName(p.awA,p.sport))} ${_escHtml(p.aScore)} – ${_escHtml(p.hScore)} ${_escHtml(_teamName(p.hA,p.sport))}</div>`
     :pa?'':`<div class="prow2-fin dim">${settled?'FINAL: —':'AWAITING FINAL'}</div>`;
   const la=settled&&!pa?_lineActual(p):null;
-  const paHtml=pa&&pa.dnp?`<div class="prow2-fin prow2-pa">ACTUAL: <b>DID NOT PLAY</b> <span>(void)</span></div>`
+  const paHtml=pa&&pa.dnp?`<div class="prow2-fin prow2-pa">ACTUAL: <b>${pa.lowMin?'PLAYED ONLY '+(pa.min!=null?pa.min+' MIN':'UNDER '+PROP_MIN_MINUTES+' MIN'):'DID NOT PLAY'}</b> <span>(void)</span></div>`
     :pa?`<div class="prow2-fin prow2-pa">ACTUAL: <b>${_escHtml(pa.n)}${pa.stat?' '+_escHtml(pa.stat):''}</b>${pa.line?` <span>(line ${_escHtml(pa.line)})</span>`:''}</div>`
     :la?`<div class="prow2-fin prow2-pa">${la.k}: <b>${_escHtml(la.v)}</b> <span>(${_escHtml(la.note)})</span></div>`:'';
   const act=settled
@@ -6859,6 +6860,7 @@ function _mergeRemoteBetRows(rows){
         // A settled PROP's box-score stat and a void marker travel with the settlement. Without these two lines a device that PULLED a prop settlement kept no stat, then pushed its copy on the next sync and
         // overwrote the row on Supabase without it (found 2026-10-23: every prop settled since June had lost its playerResult that way, so adjusted-vs-posted prop grading had nothing to read).
         if(remote.playerResult!==undefined)existing.playerResult=remote.playerResult;
+        if(remote.playerMin!==undefined)existing.playerMin=remote.playerMin;
         if(remote.voidReason)existing.voidReason=remote.voidReason;
         updated++;
       }else if(remote.regradedNote&&existing.regradedNote!==remote.regradedNote&&row.outcome&&row.outcome!=='pending'){
@@ -6873,6 +6875,7 @@ function _mergeRemoteBetRows(rows){
         existing.hScore=remote.hScore??existing.hScore;
         existing.aScore=remote.aScore??existing.aScore;
         if(remote.playerResult!==undefined)existing.playerResult=remote.playerResult;
+        if(remote.playerMin!==undefined)existing.playerMin=remote.playerMin;
         if(remote.voidReason)existing.voidReason=remote.voidReason;
         existing.regradedNote=remote.regradedNote;
         updated++;
@@ -19905,9 +19908,10 @@ function nameMatch(displayName,propPlayer){
 
 // One prop's current figure out of a box score's `players` blocks -- the settler's own lookup, lifted out so the live game tracker reads the SAME numbers.  A bet's `team` is the player's team (searched first).
 // -> {val, dnp, name}, or null when the player is not in the box score.  `dnp` = ESPN lists him with no minutes / no stats (void once the game is final; merely 'not in yet' while it is live).
+const PROP_MIN_MINUTES=10;
 function _propBoxStat(sport,players,p,parsed){
   parsed=parsed||parsePropBetOn(p.betOn||'');if(!parsed||!players)return null;
-  let foundStat=null,foundPlayer=null,dnp=false;
+  let foundStat=null,foundPlayer=null,dnp=false,foundMin=null;
   let blocks=players;                                    // search only the player's OWN team when we know it (a bet's `team` is his team, `awA` the opponent)
   if(p.team){const mine=blocks.filter(t=>canonTeam(t.team?.abbreviation)===canonTeam(p.team));if(mine.length)blocks=mine;}
   if(sport==='NFL'){
@@ -19930,14 +19934,17 @@ function _propBoxStat(sport,players,p,parsed){
       const sv=ath.stats||[],mi=names.findIndex(n=>String(n).toUpperCase()==='MIN'),mn=mi>=0?String(sv[mi]==null?'':sv[mi]).trim():'';
       if(ath.didNotPlay===true||sv.length===0||(mi>=0&&/^(0|--?)?$/.test(mn))){dnp=true;foundStat=0;break outer;}   // did not play: the bet is void, never a zero-stat win/loss
       foundStat=extractStat(names,sv,parsed.stat);
+      const mv=mi>=0?parseFloat(mn):NaN;if(isFinite(mv))foundMin=mv;
       break outer;
     }
   }
-  return foundStat===null?null:{val:foundStat,dnp:dnp,name:foundPlayer};
+  // LOW-MINUTES VOID (owner 2026-10-28): an NBA player who plays under PROP_MIN_MINUTES makes his props void -- the stat is real but says nothing about the line (e.g. 5 minutes, 0 pts: an UNDER "won")
+  const lowMin=sport==='NBA'&&!dnp&&foundMin!==null&&foundMin<PROP_MIN_MINUTES;
+  return foundStat===null?null:{val:foundStat,dnp:dnp,name:foundPlayer,min:foundMin,lowMin:lowMin};
 }
 
-function _propNeedsStat(p){   // a settled NBA win/loss prop of this season whose box-score stat was never stored
-  return !!p&&p.betType==='PROP'&&p.outcome!=='pending'&&(p.outcome==='win'||p.outcome==='loss')&&p.playerResult==null&&!p.voidReason&&(_normSport(p)||p.sport)==='NBA'&&(p.date||'')>='2026-10-01';
+function _propNeedsStat(p){   // a settled NBA win/loss prop of this season that still needs a box-score look: its stat was never stored, or its minutes were never checked against the low-minutes void rule
+  return !!p&&p.betType==='PROP'&&(p.outcome==='win'||p.outcome==='loss')&&(p.playerResult==null||p.playerMin==null)&&!p.voidReason&&(_normSport(p)||p.sport)==='NBA'&&(p.date||'')>='2026-10-01';
 }
 
 async function autoSettlePropsESPN(targetDate){
@@ -20074,8 +20081,13 @@ async function autoSettlePropsESPN(targetDate){
       if(fill){
         if(dnp)continue;                                                  // a settled win/loss whose player did not play: do not touch it, the report flags it
         const would=foundStat===parsed.line?'push':(parsed.direction==='OVER'?foundStat>parsed.line:foundStat<parsed.line)?'win':'loss';
-        if(would!==p.outcome){try{console.warn('[props] stored result differs from the box score',p.id,'stored',p.outcome,'box score',would,foundStat);}catch(e){}}
-        fills[p.id]=foundStat;changed=true;
+        if(would!==p.outcome&&!hit.lowMin){try{console.warn('[props] stored result differs from the box score',p.id,'stored',p.outcome,'box score',would,foundStat);}catch(e){}}
+        fills[p.id]={stat:foundStat,min:hit.min,lowMin:!!hit.lowMin};changed=true;
+        continue;
+      }
+      if(hit.lowMin){                                                     // played under PROP_MIN_MINUTES: void (stake back, not in win %), the stat and minutes are kept for the record
+        p.outcome='push';p.settledAt=Date.now();p.playerResult=foundStat;p.playerMin=hit.min;p.voidReason='LOW_MIN';changed=true;
+        toast(`PROP VOID (${hit.min} MIN): ${parsed.player} ${parsed.stat} ${parsed.direction} ${parsed.line}`);
         continue;
       }
       if(dnp){
@@ -20085,16 +20097,25 @@ async function autoSettlePropsESPN(targetDate){
       }
 
       const outcome=foundStat===parsed.line?'push':(parsed.direction==='OVER'?foundStat>parsed.line:foundStat<parsed.line)?'win':'loss';   // a whole-number line the player lands on is a push
-      p.outcome=outcome;p.settledAt=Date.now();p.playerResult=foundStat;
+      p.outcome=outcome;p.settledAt=Date.now();p.playerResult=foundStat;if(hit.min!=null)p.playerMin=hit.min;
       changed=true;
       toast(`PROP SETTLED: ${parsed.player} ${parsed.stat} ${foundStat} vs ${parsed.line} → ${outcome.toUpperCase()}`);try{notifySettlement(`${parsed.player} ${parsed.stat} ${parsed.direction} ${parsed.line}`,outcome);}catch(e){};
     }
   }
   if(changed){
     // apply the results to a FRESH read of the ledger, by id: this function awaits many ESPN fetches, and saving the snapshot taken at the start would erase a pick locked (or a result written) meanwhile
-    const upd={};pending.forEach(p=>{if(p.outcome!=='pending'&&!(p.id in fills)){const u={outcome:p.outcome,settledAt:p.settledAt,playerResult:p.playerResult};if(p.voidReason)u.voidReason=p.voidReason;upd[p.id]=u;}});
+    const upd={};pending.forEach(p=>{if(p.outcome!=='pending'&&!(p.id in fills)){const u={outcome:p.outcome,settledAt:p.settledAt,playerResult:p.playerResult};if(p.voidReason)u.voidReason=p.voidReason;if(p.playerMin!=null)u.playerMin=p.playerMin;upd[p.id]=u;}});
     const cur=getP();
-    cur.forEach(q=>{const u=upd[q.id];if(u&&q.outcome==='pending')Object.assign(q,u);else if(q.id in fills&&q.playerResult==null&&q.outcome!=='pending'&&!q.voidReason)q.playerResult=fills[q.id];});
+    cur.forEach(q=>{const u=upd[q.id];if(u&&q.outcome==='pending')Object.assign(q,u);else if(q.id in fills&&q.outcome!=='pending'&&!q.voidReason){
+      const f=fills[q.id];let n=0;
+      if(q.playerResult==null){q.playerResult=f.stat;n++;}
+      if(q.playerMin==null&&f.min!=null){q.playerMin=f.min;n++;}
+      if(f.lowMin&&(q.outcome==='win'||q.outcome==='loss')){                // retroactive void of an already-settled win/loss; regradedNote is what carries a correction to other devices (see _mergeRemoteBetRows)
+        q.regradedNote='Voided '+new Date().toISOString().slice(0,10)+': played '+f.min+' min (under '+PROP_MIN_MINUTES+'); was '+q.outcome.toUpperCase();
+        q.outcome='push';q.voidReason='LOW_MIN';n++;
+      }
+      window._propBackfillCount=(window._propBackfillCount||0)+(n?1:0);
+    }});
     saveP(cur);updHdr();
   }
 }
