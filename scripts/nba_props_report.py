@@ -33,6 +33,7 @@ SEASON_START = "2026-10-01"       # NBA picks of this season (last season's play
 GATE_DATE = "2026-10-26"          # featured-player gate (team top-3 PTS / top-2 REB, AST with 26+ mpg) pushed this day
 TARGET_GAMES = 20                 # prop emails resume once the MEDIAN team has played this many games
 MIN_MINUTES = 10                  # a player who plays fewer minutes voids his props (owner 2026-10-28; docs/app.html PROP_MIN_MINUTES)
+CAP_FROM = "2026-10-29"           # one prop per player per game applies to picks dated from here (rule set 2026-10-28; earlier doubles are history)
 MIN_SAMPLE = 50                   # the owner's rule of thumb before judging anything (project_nba_props_rules)
 STATE_REL = "data/nba_props_milestone.json"
 EMAIL_SWITCH = "EMAIL_NBA_PROPS = False  ->  True   (scripts/auto_lock_settle.py)"
@@ -189,6 +190,7 @@ def summarize(ledger: list[dict]) -> dict:
                     "minutes_unchecked": [p["id"] for p in props if p.get("outcome") in ("win", "loss") and _num(p.get("playerMin")) is None]},
         "concentration": {"players_3plus": sorted([(k, v) for k, v in per_player.items() if v >= 3], key=lambda x: -x[1]),
                           "same_player_same_day": sum(1 for v in per_day_player.values() if v > 1),
+                          "cap_violations": sum(1 for (d, _), v in per_day_player.items() if v > 1 and (d or "") >= CAP_FROM),
                           "most_props_one_game": max(per_game.values(), default=0)},
     }
 
@@ -229,6 +231,8 @@ def verdict(s: dict) -> list[str]:
     if q["mismatch"]:
         out.append(f"DATA: {len(q['mismatch'])} stored result(s) disagree with their own stored stat -- look at: " + ", ".join(i[:40] for i in q["mismatch"][:5]))
     c = s["concentration"]
+    if c["cap_violations"]:
+        out.append(f"CAP BROKEN: {c['cap_violations']} player-day(s) since {CAP_FROM} have more than one prop on the same player -- the one-prop-per-player rule is not holding.")
     if c["players_3plus"]:
         out.append("Concentration: " + ", ".join(f"{k} x{v}" for k, v in c["players_3plus"][:5]) + f"; {c['same_player_same_day']} player-day(s) with 2+ props; most props on one game: {c['most_props_one_game']}.")
     return out

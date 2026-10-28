@@ -2678,6 +2678,35 @@ def _apply_prop_alt(p: dict) -> dict:
     return leg
 
 
+# ── ONE PROP PER PLAYER PER GAME (owner 2026-10-28: "cap props to one per player per game") ─────────────────────────────────────────────────────────────────
+# A player could qualify for PTS and REB (and AST) in the same game and every one was locked (Vucevic had 6 props in a week, two of them the same night).  Several props on one player are one bet on
+# one performance, so only his best prop of the game is kept: the highest stated probability, ties (adjusted lines all sit near the 68% ceiling) broken by the model's own probability at the POSTED
+# line, then by the original order.  docs/app.html lockProp() enforces the same rule against the ledger, so a later pass or a manual tap cannot add a second one either.
+ONE_PROP_PER_PLAYER = True
+
+
+def _prop_prob(leg: dict) -> float:
+    return float(leg.get("prob") or (leg.get("conf") or 0) / 100 or 0)
+
+
+def cap_props_per_player(legs: list[dict]) -> tuple[list[dict], list[dict]]:
+    """legs: qualifying entries {"kind": "PROP", "sport", "leg": {...}}.  -> (kept, dropped); `kept` keeps the input order, a leg with no player is always kept."""
+    if not ONE_PROP_PER_PLAYER:
+        return list(legs), []
+    best: dict = {}
+    for i, q in enumerate(legs):
+        leg = q.get("leg") or {}
+        if not leg.get("player"):
+            continue
+        key = (q.get("sport"), str(leg["player"]).strip().lower(), frozenset({leg.get("hA"), leg.get("awA")}))
+        posted = (leg.get("altLine") or {}).get("postedProb")
+        rank = (_prop_prob(leg), float(posted) if posted is not None else _prop_prob(leg), -i)
+        if key not in best or rank > best[key][0]:
+            best[key] = (rank, i)
+    keep = {i for _, i in best.values()} | {i for i, q in enumerate(legs) if not (q.get("leg") or {}).get("player")}
+    return [q for i, q in enumerate(legs) if i in keep], [q for i, q in enumerate(legs) if i not in keep]
+
+
 # ── BEST ADJUSTED LINE OF EVERY GAME (owner 2026-10-24) ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 # Every game whose card shows adjusted lines (NBA, CFB, NFL, NHL, the four European hockey leagues, club soccer) also gets its BEST adjusted line locked -- the option with the highest estimated win probability among
 # the total / spread options of BOTH sides, the one the card marks with the neon magenta border (docs/app.html _altRowFor keeps it in window._altBest; gather_legs attaches it to the captured game leg as `adjBest`).
@@ -3013,12 +3042,18 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
         f"{' (' + str(len(skipped_games)) + ' game(s))' if skipped_games else ''}"
         + (f"; {unguarded_legs} leg(s) had no start time and fail open" if unguarded_legs else ""))
     if only_sports is None:
+        prop_q: list[dict] = []
         for p in result.get("propLegs") or []:
             if p.get("grade") not in ("PREMIUM", "OPTIMAL"):
                 continue
             if p.get("sportTag") == "NBA" and frozenset({p.get("hA"), p.get("awA")}) in _pre_nba:
                 continue                      # NBA preseason prop: never locked or emailed
-            qualifying.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": _apply_prop_alt(p)})
+            prop_q.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": _apply_prop_alt(p)})
+        prop_q, dropped_props = cap_props_per_player(prop_q)
+        for q in dropped_props:
+            lg = q["leg"]
+            log(f"  one prop per player per game: dropped {lg.get('player')} {'OVER' if lg.get('over') is not False else 'UNDER'} {lg.get('statAbbr') or ''} {lg.get('line')} ({_prop_prob(lg)*100:.0f}%) -- a better prop of his is kept")
+        qualifying.extend(prop_q)
     return qualifying
 
 

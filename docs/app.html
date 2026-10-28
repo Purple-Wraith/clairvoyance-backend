@@ -22559,6 +22559,10 @@ function lockProp(team,player,line,over,conf,ml,sport,opp,stat,reasoning,altMeta
   // as new pending rows with the same id and a fresh lockedAt (audit 2026-10-23: lockedAt flip-flopped in the backup history, and a settled prop could be reopened)
   const _pp=LOCKED_PROPS.concat((()=>{try{return getP().filter(p=>p&&p.betType==='PROP'&&p.outcome!=='_removed');}catch(e){return[];}})());
   if(_pp.some(p=>p.id===propId)){toast(`// ALREADY LOCKED: ${player} ${over?'OVER':'UNDER'} ${line}`);return;}
+  // ONE PROP PER PLAYER PER GAME (owner 2026-10-28): a player who already has a prop locked today (not removed) gets no second one -- PTS then REB on the same man is one bet on one performance.
+  // Backstop for the engine's own per-pass selection (auto_lock_settle.cap_props_per_player): a later pass that prefers a different stat, or a manual tap, is refused here.
+  // (reads the ledger only: LOCKED_PROPS is a local list that can still hold a prop the owner has since removed)
+  if((()=>{try{return getP().some(p=>p&&p.betType==='PROP'&&p.date===today()&&p.sport===sport&&p.player===player&&p.outcome!=='_removed');}catch(e){return false;}})()){toast(`// ONE PROP PER PLAYER PER GAME: ${player} already has a prop locked today`);return;}
   // the same prop already locked at the OTHER line (posted vs adjusted) is the same bet: the model's simulated probability moves a little between passes and can flip a pick across the adjusted-line threshold
   if(_pp.some(p=>p.date===today()&&p.sport===sport&&p.player===player&&!!p.over===!!over&&String(p.betOn||'').toUpperCase().includes(' '+statTok+' ')&&(altMeta!=null&&altMeta!==''||p.altLine))){toast(`// ALREADY LOCKED: ${player} ${over?'OVER':'UNDER'} (other line)`);return;}
   const prop={id:propId,team,player,line,over,conf,ml,lockedAt:Date.now(),outcome:'pending',date:today(),
