@@ -142,6 +142,98 @@ class Settle(unittest.TestCase):
         self.assertEqual((got["m1"]["outcome"], got["m1"]["pr"]), ("win", 14))               # the stat arrives with the settlement
         self.assertEqual((got["m2"]["outcome"], got["m2"]["v"]), ("push", "DNP"))
 
+    # ── stat backfill (2026-10-28): props settled before the box-score stat was stored get ONLY the stat ──
+    def settled(self, pid, bet, team, opp, outcome, **extra):
+        d = prop(pid, bet, team, opp)
+        d.update({"outcome": outcome, "settledAt": 1234567, "lockedAt": 5}); d.update(extra)
+        return d
+
+    def test_a_settled_prop_without_its_stat_gets_the_stat_and_nothing_else(self):
+        r = self.settle([self.settled("s1", "Shai Gilgeous-Alexander OVER PTS 30.5", "OKC", "DEN", "win")])     # 31 points in the box score
+        self.assertEqual((r["s1"]["outcome"], r["s1"]["playerResult"], r["s1"]["settledAt"]), ("win", 31, 1234567))
+
+    def test_a_stored_result_is_never_changed_even_if_the_box_score_disagrees(self):
+        r = self.settle([self.settled("s2", "Shai Gilgeous-Alexander OVER PTS 30.5", "OKC", "DEN", "loss")])    # stored LOSS, box score says WIN
+        self.assertEqual((r["s2"]["outcome"], r["s2"]["playerResult"]), ("loss", 31))                          # stat recorded, outcome untouched
+
+    def test_a_stat_already_stored_is_left_alone(self):
+        r = self.settle([self.settled("s3", "Shai Gilgeous-Alexander OVER PTS 30.5", "OKC", "DEN", "win", playerResult=99)])
+        self.assertEqual(r["s3"]["playerResult"], 99)
+
+    def test_a_voided_or_dnp_prop_is_not_backfilled(self):
+        r = self.settle([self.settled("s4", "Zeke Nnaji OVER PTS 4.5", "DEN", "OKC", "push", voidReason="DNP"),
+                         self.settled("s5", "Zeke Nnaji OVER PTS 4.5", "DEN", "OKC", "win")])                    # settled win but the box score says he did not play
+        self.assertIsNone(r["s4"].get("playerResult"))
+        self.assertIsNone(r["s5"].get("playerResult"))
+        self.assertEqual(r["s5"]["outcome"], "win")
+
+    def test_the_undated_sweep_reaches_settled_props_from_earlier_days(self):
+        self.pg.evaluate("""()=>{window.__realToday=today;today=()=>'2026-10-25'}""")                           # 3 days after the props' day
+        try:
+            self.pg.evaluate("(p)=>saveP(p)", [self.settled("s6", "Shai Gilgeous-Alexander OVER PTS 30.5", "OKC", "DEN", "win")])
+            self.pg.evaluate("autoSettlePropsESPN()"); self.pg.wait_for_timeout(1500)
+            got = self.pg.evaluate("getP().find(p=>p.id==='s6')")
+        finally:
+            self.pg.evaluate("()=>{today=window.__realToday}")
+        self.assertEqual(got["playerResult"], 31)
+
+    def test_other_sports_and_old_seasons_are_not_swept(self):
+        r = self.settle([self.settled("s7", "Shai Gilgeous-Alexander OVER PTS 30.5", "OKC", "DEN", "win", date="2026-06-03")])
+        self.assertIsNone(r["s7"].get("playerResult"))
+
+
+class CiSweep(unittest.TestCase):
+    """The scheduled settle pass (auto_lock_settle.run_settle) must reach settled props that are missing their stat even when NO pick is pending on their date."""
+
+    @classmethod
+    def setUpClass(cls):
+        from datetime import date, timedelta
+        from playwright.sync_api import sync_playwright
+        sys_path = str(ROOT / "scripts")
+        import sys
+        if sys_path not in sys.path:
+            sys.path.insert(0, sys_path)
+        socketserver.TCPServer.allow_reuse_address = True
+        cls.srv = socketserver.TCPServer(("127.0.0.1", 0), functools.partial(Quiet, directory=str(ROOT / "docs")))
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+        cls.pw = sync_playwright().start(); cls.b = cls.pw.chromium.launch()
+        cls.pg = cls.b.new_page()
+        cls.pg.goto(f"http://127.0.0.1:{cls.srv.server_address[1]}/app.html?nosb=1&nosw=1")
+        cls.pg.wait_for_function("typeof autoSettlePropsESPN==='function'&&typeof _propNeedsStat==='function'"); cls.pg.wait_for_timeout(1200)
+        cls.day = (date.today() - timedelta(days=3)).isoformat()
+        score = {"events": [event("E1", "DEN", "OKC", date=cls.day + "T19:00Z")]}
+        cls.pg.evaluate("""([sc,sm])=>{const f=window.fetch;window.fetch=async(u,o)=>{u=String(u);
+          if(u.includes('/nba/scoreboard'))return new Response(JSON.stringify(sc),{status:200});
+          const m=u.match(/\\/nba\\/summary\\?event=(\\w+)/);if(m)return new Response(JSON.stringify(sm[m[1]]||{}),{status:200});
+          return f(u,o)}}""", [score, {"E1": SUMMARY["E1"]}])
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.b.close(); cls.pw.stop(); cls.srv.shutdown()
+
+    def ledger(self, **over):
+        base = prop("k1", "Shai Gilgeous-Alexander OVER PTS 30.5", "OKC", "DEN")
+        base.update({"outcome": "win", "settledAt": 1234567, "lockedAt": 5, "date": self.day})
+        base.update(over)
+        return [base]
+
+    def run_pass(self, ledger):
+        import auto_lock_settle as als
+        self.pg.evaluate("(p)=>saveP(p)", ledger)
+        newly = als.run_settle(self.pg, live=False)
+        self.pg.wait_for_timeout(500)
+        return newly, {p["id"]: p for p in self.pg.evaluate("getP()")}
+
+    def test_the_scheduled_pass_fills_the_stat_with_nothing_pending(self):
+        newly, got = self.run_pass(self.ledger())
+        self.assertEqual((got["k1"]["outcome"], got["k1"]["playerResult"], got["k1"]["settledAt"]), ("win", 31, 1234567))
+        self.assertEqual(newly, [])                                                         # it was not a new settlement
+
+    def test_a_prop_older_than_the_sweep_window_is_left_alone(self):
+        old = self.ledger(date="2026-10-01", id="k2")
+        _, got = self.run_pass(old)
+        self.assertIsNone(got["k2"].get("playerResult"))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

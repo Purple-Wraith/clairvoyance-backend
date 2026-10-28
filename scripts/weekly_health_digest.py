@@ -290,6 +290,12 @@ def build_email_html(supabase_problem, wf_rates, cal_rows, stuck, late_excluded:
     except Exception as exc:                      # the check-in block must never cost the owner the health digest
         print(f"WARNING: profit check-in section skipped: {exc}")
 
+    try:
+        import nba_props_report
+        parts.append(nba_props_report.weekly_section_html())
+    except Exception as exc:                      # the props review must never cost the owner the health digest
+        print(f"WARNING: NBA props review section skipped: {exc}")
+
     parts.append("</div>")
     return "".join(parts)
 

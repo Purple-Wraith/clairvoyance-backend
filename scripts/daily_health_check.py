@@ -637,6 +637,17 @@ def main() -> int:
     except Exception as exc:  # fail-open
         notes.append(f"ledger archive check crashed ({exc})")
 
+    # NBA props 20-game mark (owner 2026-10-28): ONE email, ever, when the median team reaches 20 games -- the point where the prop emails were to resume. Fail-open; the state file
+    # (data/nba_props_milestone.json) is committed by the publish step so it can never repeat.
+    try:
+        import nba_props_report
+        out = nba_props_report.check_milestone(ROOT, to=ALERT_TO)
+        print(f"NBA props 20-game milestone: {out}")
+        if out == "failed":
+            notes.append("NBA props 20-game milestone email failed to send (will retry on the next full pass)")
+    except Exception as exc:
+        notes.append(f"NBA props milestone check crashed ({exc})")
+
     # Calibration WATCH (alert-only, never blocks a lock -- see scripts/calibration_watch.py): recompute docs/calibration_watch.json, email the owner ONLY about keys that are NEW in WATCH
     # (through the same once-per-day deduped _report below), list the already-known ones as notes. The workflow's publish step commits the JSON.
     watch_new: list[str] = []

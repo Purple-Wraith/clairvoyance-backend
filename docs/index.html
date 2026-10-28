@@ -19936,6 +19936,10 @@ function _propBoxStat(sport,players,p,parsed){
   return foundStat===null?null:{val:foundStat,dnp:dnp,name:foundPlayer};
 }
 
+function _propNeedsStat(p){   // a settled NBA win/loss prop of this season whose box-score stat was never stored
+  return !!p&&p.betType==='PROP'&&p.outcome!=='pending'&&(p.outcome==='win'||p.outcome==='loss')&&p.playerResult==null&&!p.voidReason&&(_normSport(p)||p.sport)==='NBA'&&(p.date||'')>='2026-10-01';
+}
+
 async function autoSettlePropsESPN(targetDate){
   // Same fix as the other auto-settle functions -- scoreboards below had
   // no date param before now, so this could only ever see today's props.
@@ -19946,14 +19950,18 @@ async function autoSettlePropsESPN(targetDate){
   // AUDIT FIX 2026-10-23: a prop is graded from ITS OWN day's box score.  Called with no date it now settles each pending prop date (the last 5 days) in turn; before, only today's scoreboard
   // was ever read, so a prop from yesterday (same team, back-to-back) could be graded from today's game, and one whose team was not playing today never settled.
   if(!targetDate){
-    const t=today(),floor=_scShift(t,-5);
-    const dates=[...new Set(getP().filter(p=>p.outcome==='pending'&&p.betType==='PROP'&&p.date).map(p=>p.date))].filter(d=>d<=t&&d>=floor).sort();
+    const t=today(),floor=_scShift(t,-5),statFloor=_scShift(t,-12);
+    // pending props of the last 5 days, plus settled NBA props of the last 12 days that are still missing their stat (see _propNeedsStat)
+    const dates=[...new Set(getP().filter(p=>p.betType==='PROP'&&p.date&&(p.outcome==='pending'?p.date>=floor:(_propNeedsStat(p)&&p.date>=statFloor))).map(p=>p.date))].filter(d=>d<=t).sort();
     for(const d of dates){try{await autoSettlePropsESPN(d);}catch(e){}}
     return;
   }
   const preds=getP();
-  const pending=preds.filter(p=>p.outcome==='pending'&&p.betType==='PROP'&&p.date===targetDate);
+  // STAT BACKFILL 2026-10-28: an NBA prop settled before settlement started storing the box-score stat (10-20..10-22) has no playerResult, so it cannot be re-graded on its posted line
+  // or reviewed.  Those are looked up in the same box score and get ONLY the stat -- outcome, settledAt and everything else stay exactly as they were (a disagreement is logged, never applied).
+  const pending=preds.filter(p=>p.betType==='PROP'&&p.date===targetDate&&(p.outcome==='pending'||_propNeedsStat(p)));
   if(!pending.length)return;
+  const fills={};
   let changed=false;
   const bsCache={};// eventId → boxscore data
 
@@ -20020,7 +20028,7 @@ async function autoSettlePropsESPN(targetDate){
     }
 
     for(const p of props){
-      if(p.outcome!=='pending')continue;
+      const fill=p.outcome!=='pending';                                   // settled earlier without its stat: fill the stat only
       const parsed=parsePropBetOn(p.betOn||'');
       if(!parsed)continue;
 
@@ -20063,6 +20071,13 @@ async function autoSettlePropsESPN(targetDate){
       const hit=_propBoxStat(sport,bs.boxscore.players,p,parsed);
       const foundStat=hit?hit.val:null,dnp=!!(hit&&hit.dnp);
       if(foundStat===null)continue;
+      if(fill){
+        if(dnp)continue;                                                  // a settled win/loss whose player did not play: do not touch it, the report flags it
+        const would=foundStat===parsed.line?'push':(parsed.direction==='OVER'?foundStat>parsed.line:foundStat<parsed.line)?'win':'loss';
+        if(would!==p.outcome){try{console.warn('[props] stored result differs from the box score',p.id,'stored',p.outcome,'box score',would,foundStat);}catch(e){}}
+        fills[p.id]=foundStat;changed=true;
+        continue;
+      }
       if(dnp){
         p.outcome='push';p.settledAt=Date.now();p.playerResult=null;p.voidReason='DNP';changed=true;
         toast(`PROP VOID (DID NOT PLAY): ${parsed.player} ${parsed.stat} ${parsed.direction} ${parsed.line}`);
@@ -20077,9 +20092,9 @@ async function autoSettlePropsESPN(targetDate){
   }
   if(changed){
     // apply the results to a FRESH read of the ledger, by id: this function awaits many ESPN fetches, and saving the snapshot taken at the start would erase a pick locked (or a result written) meanwhile
-    const upd={};pending.forEach(p=>{if(p.outcome!=='pending'){const u={outcome:p.outcome,settledAt:p.settledAt,playerResult:p.playerResult};if(p.voidReason)u.voidReason=p.voidReason;upd[p.id]=u;}});
+    const upd={};pending.forEach(p=>{if(p.outcome!=='pending'&&!(p.id in fills)){const u={outcome:p.outcome,settledAt:p.settledAt,playerResult:p.playerResult};if(p.voidReason)u.voidReason=p.voidReason;upd[p.id]=u;}});
     const cur=getP();
-    cur.forEach(q=>{const u=upd[q.id];if(u&&q.outcome==='pending')Object.assign(q,u);});
+    cur.forEach(q=>{const u=upd[q.id];if(u&&q.outcome==='pending')Object.assign(q,u);else if(q.id in fills&&q.playerResult==null&&q.outcome!=='pending'&&!q.voidReason)q.playerResult=fills[q.id];});
     saveP(cur);updHdr();
   }
 }

@@ -35,7 +35,7 @@ on:
         default: 'full'
 
 permissions:
-  contents: write      # the publish step commits data/health_alert_state.json (once-a-day alert dedupe) + docs/calibration_watch.json
+  contents: write      # the publish step commits data/health_alert_state.json (once-a-day alert dedupe) + docs/calibration_watch.json + data/nba_props_milestone.json (the one-time 20-game email)
   actions: write       # ... and dispatches pages-deploy.yml (workflow_dispatch needs it); also covers the read-only Actions API checks
 
 jobs:
@@ -79,5 +79,5 @@ jobs:
         if: ${{ always() }}
         uses: ./.github/actions/publish
         with:
-          paths: data/health_alert_state.json docs/calibration_watch.json
+          paths: data/health_alert_state.json docs/calibration_watch.json data/nba_props_milestone.json
           message: 'chore: health alert state + calibration watch'
