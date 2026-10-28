@@ -100908,14 +100908,14 @@
     "betOn": "ANA ML",
     "sport": "NHL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 6,
+    "hScore": 5,
     "league": "NHL",
     "source": "manual",
     "betType": "ML",
     "decOdds": 1.48,
     "leadMin": 913,
-    "outcome": "pending",
+    "outcome": "loss",
     "startMs": 1793152800000,
     "winProb": 0.6616219770850525,
     "lockedAt": 1793098007198,
@@ -100925,7 +100925,8 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6459,
-    "priceSource": "market"
+    "priceSource": "market",
+    "settledAt": 1793164279465
   },
   {
     "hA": "ANA",
@@ -100936,8 +100937,8 @@
     "betOn": "OVER 5.5",
     "sport": "NHL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 6,
+    "hScore": 5,
     "league": "NHL",
     "source": "manual",
     "altLine": {
@@ -100954,14 +100955,15 @@
     "betType": "OU",
     "decOdds": 1.537,
     "leadMin": 913,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1793152800000,
     "winProb": 0.6056,
     "lockedAt": 1793098007315,
     "reasoning": "PICK: OVER 5.5 \u2014 ADJUSTED LINE (60.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 6.5 to OVER 5.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.7%; the 1-goal cushion is priced from the historical margin curve for this market (about 61% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1793164279465
   },
   {
     "hA": "AS Roma",
@@ -102739,12 +102741,12 @@
     "lockedAt": 1793098006502,
     "modelProb": 0.6682,
     "reasoning": "PICK: MIN +1.5 \u2014 HIGH PROB (66.6% win prob, EV -4.4% \u00b7 MARKET PRICE -230 (EV at market -4.4%) \u00b7 MARKET-BLENDED: model 66.8% \u00b7 no-vig market 66.5% \u2192 66.6% (alpha 0.70))\nMODEL: Projected 3.4\u20133.5 (total 7.0) (OT/SO in 15% of outcomes) \u2014 underdog covers +1.5 in 66.8% of outcomes (incl. late-game empty-net margin calibration), from a 25k-sim Monte Carlo.\nWHY: Best market: MIN +1.5 graded HIGH PROB (66.6%, EV -4.4%). Dog covers +1.5 in 66.6% of sims (proj 3.5\u20133.4). GSAx: -4.6 vs +8.0 (injury adj: UTA: John Marino D OUT, Michael Carcone LW OUT -> scoring -2.5% | MIN: Brock Faber D OUT -> scoring -2.9%) keeps this within a goal. MC 51% / xGF 50% / hv +3.4pp / ST -0.5pp / SQ +0.5pp \u00b7 ML market blend (alpha 0.75): model 69.9% \u00b7 no-vig market 54.4% \u2192 58.5%; Puck line market blend (alpha 0.70): model 33.2% \u00b7 no-vig market 33.5% \u2192 33.4%; O/U market blend (alpha 0.65): model 54.8% \u00b7 no-vig market 48.8% \u2192 50.9%. Half-unit play \u00b7 Also: UTA ML (LEAN).",
+    "settledAt": 1793161892071,
     "blendAlpha": 0.7,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6651,
-    "priceSource": "market",
-    "settledAt": 1793161892071
+    "priceSource": "market"
   },
   {
     "hA": "UTA",
@@ -102778,10 +102780,10 @@
     "winProb": 0.6066,
     "lockedAt": 1793098006771,
     "reasoning": "PICK: OVER 5.5 \u2014 ADJUSTED LINE (60.7% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 6.5 to OVER 5.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.9%; the 1-goal cushion is priced from the historical margin curve for this market (about 61% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "settledAt": 1793161892072,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1793161892072
+    "priceSource": "estimated"
   },
   {
     "hA": "VGK",
@@ -102792,8 +102794,8 @@
     "betOn": "UNDER 7.5",
     "sport": "NHL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 1,
+    "hScore": 4,
     "league": "NHL",
     "source": "manual",
     "altLine": {
@@ -102810,14 +102812,15 @@
     "betType": "OU",
     "decOdds": 1.296,
     "leadMin": 913,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1793152800000,
     "winProb": 0.7269,
     "lockedAt": 1793098006905,
     "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (72.7% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.8%; the 1-goal cushion is priced from the historical margin curve for this market (about 73% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1793164279464
   },
   {
     "hA": "WPG",
