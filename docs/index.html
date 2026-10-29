@@ -448,6 +448,9 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   [style*="font-size:14px"]:not(input):not(select):not(textarea),
   [style*="font-size:13px"]:not(input):not(select):not(textarea),
   [style*="font-size:12px"]:not(input):not(select):not(textarea){font-size:8px!important}
+  /* player averages + form box (class-based, so the inline-size caps above do not reach it): same phone scale as the text around it */
+  html .pfbox{font-size:9px;gap:1px 8px;padding:4px 6px;max-width:none}
+  html .pfbox .h,html .pfbox .n{font-size:8px}
   /* ── Dropdown nav menus (league pickers) — same fix, class-based ── */
   .nav-drop-fixed button,.nav-drop button{font-size:10px!important;padding:6px 10px!important}
   html .pill{font-size:9px!important}
@@ -861,6 +864,8 @@ body.gt-open{overflow:hidden}#cv-ticker .tk[data-gid]{cursor:pointer}
 .prow2-adj{font-family:var(--mono);font-size:13px;margin-top:4px;letter-spacing:.4px;color:#ffe600;display:flex;flex-wrap:wrap;gap:6px;align-items:center;line-height:1.35}.prow2-adj b{font-weight:700;color:var(--t)}
 .adjt td{padding:3px 14px 3px 0;white-space:nowrap}.adjt th{padding-right:14px!important;white-space:nowrap}
 .adjr{padding:0 6px;border:1px solid currentColor;border-radius:2px;font-family:var(--mono);font-size:11px;letter-spacing:.5px;white-space:nowrap}
+.pfbox{display:grid;grid-template-columns:auto repeat(4,minmax(0,1fr));gap:1px 12px;align-items:baseline;margin:4px 0 6px;padding:5px 8px;border:1px solid rgba(255,255,255,.14);border-radius:2px;font-family:var(--mono);font-size:15px;color:var(--t2);max-width:420px}
+.pfbox .h{color:var(--t3);font-size:13px;letter-spacing:1px}.pfbox .r{color:var(--t3);letter-spacing:1px}.pfbox .on{color:var(--t);font-weight:700}.pfbox .up{color:#00e644}.pfbox .dn{color:var(--hc)}.pfbox .n{grid-column:1/-1;color:var(--t3);font-size:13px;margin-top:2px}
 .prow2-fin{font-family:var(--mono);font-size:15px;color:var(--t2);text-align:right;margin-top:auto;align-self:flex-end}.prow2-fin.dim{color:var(--t3)}.prow2-pa{margin-top:2px}.prow2-pa b{color:var(--t1,#fff)}.prow2-pa span{color:var(--t3)}
 .prow2.card{margin-bottom:7px}
 .prow2-act .btn-sm:not(.btn-win):not(.btn-o){background:transparent;box-shadow:inset 0 0 0 1px currentColor}
@@ -4733,6 +4738,7 @@ function _pickRowHTML(p,o){
       <div class="prow2-match">${match}</div>
       <div class="prow2-pick">${o.pickPrefix||''}${o.legHtml||_escHtml(_expandBetOn(p.betOn||p.betType||'',p.sport))}</div>
       <div class="prow2-meta">${_escHtml(p.ml||'')} · ${_escHtml(p.betType||'')}${conf}</div>
+      ${p.betType==='PROP'&&p.pstats?_propFormBoxHTML(p.pstats,(/\b(?:over|under)\s+([A-Za-z]+)\s+\d/i.exec(p.betOn||'')||[])[1]):''}
       ${p.altLine?_altNoteHTML(p):''}
       ${o.why?_whyThisPickHTML(p):''}
     </div>
@@ -16083,6 +16089,41 @@ function _modelLineForProp(sport,player,statLabel,opp){
 // pass only a few fields) and a line-edited lock can find it. The automated pipeline passes p.reasoning straight through lock_prop_leg -> lockProp/lockNHLProp.
 window._propReasonReg=window._propReasonReg||{};
 function _propKey(player,stat,line,dir){return[player,String(stat||'').toUpperCase(),parseFloat(line),dir].join('|');}
+// Player averages + recent form shown inside the prop's own box (owner 2026-10-28).  _propStatsObj is the compact copy stored on the prop (and on the locked ledger row); _propFormBoxHTML draws it.
+function _propStatsObj(pl){
+  try{
+    if(!pl)return null;
+    const r=v=>(v==null||!isFinite(+v))?null:+(+v).toFixed(1),l=pl.last5;
+    return{gp:pl.gp==null?null:+pl.gp,mpg:r(pl.mpg),s:{PTS:r(pl.ppg),REB:r(pl.rpg),AST:r(pl.apg)},
+      l5:(l&&l.n>=1)?{n:l.n,cur:l.thisSeason==null?null:l.thisSeason,PTS:r(l.ppg),REB:r(l.rpg),AST:r(l.apg)}:null};
+  }catch(e){return null;}
+}
+function _propFormBoxHTML(ps,stat){
+  try{
+    if(!ps||!ps.s)return'';
+    const st=String(stat||'').toUpperCase(),f=v=>(v==null||!isFinite(+v))?'\u2014':(+v).toFixed(1);
+    const cols=['PTS','REB','AST'],l5=ps.l5;
+    const sc=cols.map(c=>`<span class="${c===st?'on':''}">${f(ps.s[c])}</span>`).join('');
+    const lc=cols.map(c=>{
+      const v=l5?l5[c]:null,b=ps.s[c];
+      const arrow=(c===st&&v!=null&&b!=null&&Math.abs(v-b)>=0.5)?(v>b?' <i class="up">\u25b2</i>':' <i class="dn">\u25bc</i>'):'';
+      return`<span class="${c===st?'on':''}">${f(v)}${arrow}</span>`;
+    }).join('');
+    const note=[ps.gp!=null?ps.gp+' GP this season':'',(l5&&l5.cur!=null&&l5.cur<l5.n)?'last 5 includes '+(l5.n-l5.cur)+' game'+(l5.n-l5.cur===1?'':'s')+' from last season':''].filter(Boolean).join(' \u00b7 ');
+    return`<div class="pfbox"><span class="h"></span>${cols.map(c=>`<span class="h">${c}</span>`).join('')}<span class="h">MIN</span>`
+      +`<span class="r">SEASON</span>${sc}<span>${f(ps.mpg)}</span>`
+      +`<span class="r">LAST 5</span>${l5?lc:'<span class="n" style="grid-column:2/-1;margin:0">no recent games</span>'}${l5?'<span></span>':''}`
+      +(note?`<span class="n">${note}</span>`:'')+`</div>`;
+  }catch(e){return'';}
+}
+function _propStatsFor(player,stat,line,dir){
+  try{
+    const reg=window._propReasonReg||{},st=String(stat||'').toUpperCase(),ln=parseFloat(String(line).replace(/[^0-9.\-]/g,''));
+    const e=reg[_propKey(player,st,ln,dir)];if(e&&e.pstats)return e.pstats;
+    const pre=player+'|'+st+'|',k=Object.keys(reg).find(x=>x.indexOf(pre)===0&&reg[x].pstats);
+    return k?reg[k].pstats:null;
+  }catch(e){return null;}
+}
 function _withPropReasoning(p){
   try{
     const stat=String(p.statAbbr||p.stat||'').toUpperCase(),dir=p.over?'OVER':'UNDER';
@@ -16095,7 +16136,7 @@ function _withPropReasoning(p){
     if(p.basis)lines.push('WHY: '+p.basis);
     lines.push("PRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.");
     p.reasoning=lines.join('\n');
-    window._propReasonReg[_propKey(p.player,stat,p.line,dir)]={line:p.line,reasoning:p.reasoning};
+    window._propReasonReg[_propKey(p.player,stat,p.line,dir)]={line:p.line,reasoning:p.reasoning,pstats:p.pstats||null};
   }catch(e){}
   return p;
 }
@@ -16229,7 +16270,7 @@ function _generateNBAProps(games,statsData){
         props.push(_withPropReasoning({player:pl.name,team:pl.team,opp:opp,hA:hn,awA:an,
           stat:statKey,statAbbr:statAbbr,line:line,over:pick==='OVER',ml:mlStr(ml),prob:conf/100,
           grade:grade,hitRate:Math.round(conf)+'%',adjustor:+(adjMu-baseN).toFixed(1),envPace:env.have?+env.paceP.toFixed(3):null,envOff:env.have?+env.offScale.toFixed(3):null,alt:_propAltLine(statKey,line,pick==='OVER',adjMu,sigma,conf/100),
-          mu:+adjMu.toFixed(2),sigma:+sigma.toFixed(2),base:+baseN.toFixed(1),form:(formV!=null&&pl.last5&&pl.last5.n>=3)?+formV.toFixed(1):null,
+          pstats:_propStatsObj(pl),mu:+adjMu.toFixed(2),sigma:+sigma.toFixed(2),base:+baseN.toFixed(1),form:(formV!=null&&pl.last5&&pl.last5.n>=3)?+formV.toFixed(1):null,
           basis:pl.name+' averages '+baseN.toFixed(1)+' '+statKey+' across '+pl.gp+' games this season. '+oppNote+(env.have?'Game pace '+env.paceGame.toFixed(1)+' ('+(env.paceP>=0?'+':'')+(env.paceP*100).toFixed(1)+'%), '+pl.team+' offense '+env.ortg.toFixed(1)+' vs a '+env.lgR.toFixed(1)+' league average. ':'')+'No head-to-head history vs '+opp+' this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.'}));
       }
       if(_nbaPropFeatured(pl,players,'ppg'))push('ppg','PPG',12,0.38);
@@ -16268,6 +16309,7 @@ async function renderNBADailyProps(){
       +'</div></div>'
       +'<div style="font-family:var(--mono);font-size:22px;color:'+dirC+';margin-bottom:3px">'+(isOver?'▲ OVER':'▼ UNDER')+' '+p.line+' '+p.stat+' <span style="color:var(--t2);font-size:18px">· '+mlStr+' · '+(p.prob*100).toFixed(0)+'% MODEL'+adjStr+'</span></div>'
       +_recPropLineHTML(p.line,_findMarketProp('nba',p.player,p.stat),p.stat)
+      +_propFormBoxHTML(p.pstats,p.statAbbr)
       +'<div style="font-family:var(--mono);font-size:17px;color:var(--t2);margin-bottom:4px">'+p.basis+'</div>'
       +(p.alt?'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:2px 0 6px;padding:4px 6px;border:1px dashed var(--t3);border-radius:2px"><span style="font-family:var(--mono);font-size:17px;color:var(--t2)">ADJ. LINE · '+(isOver?'▲ OVER ':'▼ UNDER ')+p.alt.line+' '+p.stat+' · '+p.alt.mlStr+' est. · '+Math.round(p.alt.prob*100)+'% · '+p.alt.shift+' from '+p.line+'</span><button class="btn btn-o btn-sm" onclick="lockProp(\''+q(p.team)+'\',\''+q(p.player)+'\',\''+p.alt.line+'\','+isOver+','+p.alt.prob.toFixed(2)+',\''+p.alt.mlStr+'\',\'NBA\',\''+q(p.opp)+'\',\''+(p.statAbbr||'')+'\',null,'+p.line+')">LOCK ADJ.</button></div>':'')
       +'<div style="display:flex;justify-content:space-between;align-items:center">'
@@ -19909,6 +19951,7 @@ function nameMatch(displayName,propPlayer){
 // One prop's current figure out of a box score's `players` blocks -- the settler's own lookup, lifted out so the live game tracker reads the SAME numbers.  A bet's `team` is the player's team (searched first).
 // -> {val, dnp, name}, or null when the player is not in the box score.  `dnp` = ESPN lists him with no minutes / no stats (void once the game is final; merely 'not in yet' while it is live).
 const PROP_MIN_MINUTES=10;
+const PROP_MAX_PER_GAME=5;   // owner 2026-10-28: one game keeps at most 5 player props (scripts/auto_lock_settle.py MAX_PROPS_PER_GAME is the engine-side twin)
 function _propBoxStat(sport,players,p,parsed){
   parsed=parsed||parsePropBetOn(p.betOn||'');if(!parsed||!players)return null;
   let foundStat=null,foundPlayer=null,dnp=false,foundMin=null;
@@ -22563,6 +22606,8 @@ function lockProp(team,player,line,over,conf,ml,sport,opp,stat,reasoning,altMeta
   // Backstop for the engine's own per-pass selection (auto_lock_settle.cap_props_per_player): a later pass that prefers a different stat, or a manual tap, is refused here.
   // (reads the ledger only: LOCKED_PROPS is a local list that can still hold a prop the owner has since removed)
   if((()=>{try{return getP().some(p=>p&&p.betType==='PROP'&&p.date===today()&&p.sport===sport&&p.player===player&&p.outcome!=='_removed');}catch(e){return false;}})()){toast(`// ONE PROP PER PLAYER PER GAME: ${player} already has a prop locked today`);return;}
+  // MAX PROPS PER GAME (owner 2026-10-28): a game holds at most PROP_MAX_PER_GAME player props in the ledger (removed ones do not count); the engine keeps the best 5 per pass, this refuses a 6th from a later pass or a tap.
+  if((()=>{try{return getP().filter(p=>p&&p.betType==='PROP'&&p.date===today()&&p.sport===sport&&p.outcome!=='_removed'&&((p.hA===team&&p.awA===(opp||team))||(p.hA===(opp||team)&&p.awA===team))).length>=PROP_MAX_PER_GAME;}catch(e){return false;}})()){toast(`// MAX ${PROP_MAX_PER_GAME} PROPS PER GAME: ${team} vs ${opp||'opponent'} is full`);return;}
   // the same prop already locked at the OTHER line (posted vs adjusted) is the same bet: the model's simulated probability moves a little between passes and can flip a pick across the adjusted-line threshold
   if(_pp.some(p=>p.date===today()&&p.sport===sport&&p.player===player&&!!p.over===!!over&&String(p.betOn||'').toUpperCase().includes(' '+statTok+' ')&&(altMeta!=null&&altMeta!==''||p.altLine))){toast(`// ALREADY LOCKED: ${player} ${over?'OVER':'UNDER'} (other line)`);return;}
   const prop={id:propId,team,player,line,over,conf,ml,lockedAt:Date.now(),outcome:'pending',date:today(),
@@ -22579,6 +22624,7 @@ function lockProp(team,player,line,over,conf,ml,sport,opp,stat,reasoning,altMeta
       prop.priceSource='estimated';
     }
   }
+  const _ps=_propStatsFor(player,statTok,line,over?'OVER':'UNDER');if(_ps)prop.pstats=_ps;   // averages + last-5 form, drawn in the locked pick's box
   const _pr=reasoning||_propReasonFor(player,statTok,line,over?'OVER':'UNDER',over);if(_pr)prop.reasoning=_pr;   // the prop's own 'why' (see _withPropReasoning)
   LOCKED_PROPS.push(prop);
   localStorage.setItem('locked_props',JSON.stringify(LOCKED_PROPS));

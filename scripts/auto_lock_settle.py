@@ -2707,6 +2707,30 @@ def cap_props_per_player(legs: list[dict]) -> tuple[list[dict], list[dict]]:
     return [q for i, q in enumerate(legs) if i in keep], [q for i, q in enumerate(legs) if i not in keep]
 
 
+# ── MAX 5 PROPS PER GAME (owner 2026-10-28: "one game can have cap of 5 player props picks") ──────────────────────────────────────────────────────────────────────
+# After the one-per-player rule, a game keeps its 5 best props (same ranking: stated probability, then the model's probability at the posted line, then the original order).  docs/app.html lockProp()
+# enforces the same ceiling against the ledger (a later pass or a manual tap past 5 is refused).  The most any game had before the cap was 4, so it only bites on a big slate.
+MAX_PROPS_PER_GAME = 5
+
+
+def cap_props_per_game(legs: list[dict], limit: int | None = None) -> tuple[list[dict], list[dict]]:
+    """legs: qualifying entries (already one-per-player).  -> (kept, dropped); `kept` keeps the input order."""
+    limit = MAX_PROPS_PER_GAME if limit is None else limit
+    if not limit or limit < 1:
+        return list(legs), []
+    groups: dict = {}
+    for i, q in enumerate(legs):
+        leg = q.get("leg") or {}
+        key = (q.get("sport"), frozenset({leg.get("hA"), leg.get("awA")}))
+        posted = (leg.get("altLine") or {}).get("postedProb")
+        rank = (_prop_prob(leg), float(posted) if posted is not None else _prop_prob(leg), -i)
+        groups.setdefault(key, []).append((rank, i))
+    keep = set()
+    for g in groups.values():
+        keep |= {i for _, i in sorted(g, reverse=True)[:limit]}
+    return [q for i, q in enumerate(legs) if i in keep], [q for i, q in enumerate(legs) if i not in keep]
+
+
 # ── BEST ADJUSTED LINE OF EVERY GAME (owner 2026-10-24) ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 # Every game whose card shows adjusted lines (NBA, CFB, NFL, NHL, the four European hockey leagues, club soccer) also gets its BEST adjusted line locked -- the option with the highest estimated win probability among
 # the total / spread options of BOTH sides, the one the card marks with the neon magenta border (docs/app.html _altRowFor keeps it in window._altBest; gather_legs attaches it to the captured game leg as `adjBest`).
@@ -3053,6 +3077,10 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
         for q in dropped_props:
             lg = q["leg"]
             log(f"  one prop per player per game: dropped {lg.get('player')} {'OVER' if lg.get('over') is not False else 'UNDER'} {lg.get('statAbbr') or ''} {lg.get('line')} ({_prop_prob(lg)*100:.0f}%) -- a better prop of his is kept")
+        prop_q, dropped_game = cap_props_per_game(prop_q)
+        for q in dropped_game:
+            lg = q["leg"]
+            log(f"  max {MAX_PROPS_PER_GAME} props per game: dropped {lg.get('player')} {'OVER' if lg.get('over') is not False else 'UNDER'} {lg.get('statAbbr') or ''} {lg.get('line')} ({_prop_prob(lg)*100:.0f}%) -- the game already has {MAX_PROPS_PER_GAME} better props")
         qualifying.extend(prop_q)
     return qualifying
 
