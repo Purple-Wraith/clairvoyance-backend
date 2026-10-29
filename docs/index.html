@@ -5199,7 +5199,7 @@ function _mcProjBarHTML(mc,ouL,hTeam,aTeam,opts){
   const t=mc.avgT!=null?parseFloat(mc.avgT).toFixed(1):(parseFloat(avgH)+parseFloat(avgA)).toFixed(1);
   const margin=parseFloat(avgH)-parseFloat(avgA);
   const favIsH=margin>=0;
-  const marginDisp=(margin>=0?'+':'')+margin.toFixed(1);
+  const marginDisp='+'+Math.abs(margin).toFixed(1);   // the lead of the NAMED team, so always a plus (it read "-0.9 (Farjestad)" when the away side led: a minus next to the team that is ahead)
   const overStr=mc.overP!=null?(mc.overP*100).toFixed(0)+'% O':'';
   const otStr=mc.otP!=null?' · OT '+(mc.otP*100).toFixed(0)+'%':'';
   const nSims=opts&&opts.n?opts.n:25000;
@@ -5210,7 +5210,9 @@ function _mcProjBarHTML(mc,ouL,hTeam,aTeam,opts){
   const unit=opts&&opts.unit?opts.unit:'';
   return'<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px;padding:5px 9px;background:rgba(0,0,0,.35);border-radius:3px;border:1px solid rgba(255,255,255,.07)">'
     +'<span style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">'+((opts&&opts.exact)?'PROJ':'MC PROJ')+' ('+nStr+')</span>'
-    +'<span style="font-family:var(--mono);font-size:16px;color:var(--nc);font-weight:700">'+h+(unit?' '+unit:'')+'  –  '+a+(unit?' '+unit:'')+'</span>'
+    // AWAY first, each score tagged with its team: the card header reads "AWAY at HOME", the reasoning text and the emails list the away team first, but this bar used to print home – away with no names,
+    // so "2.24 – 3.10" read as Farjestad 2.24 – Brynas 3.10 when the model projects Farjestad 3.10 – Brynas 2.24 (found 2026-10-29 auditing the match cards)
+    +'<span style="font-family:var(--mono);font-size:16px;color:var(--nc);font-weight:700">'+(aTeam?_escHtml(aTeam)+' ':'')+a+(unit?' '+unit:'')+'  –  '+(hTeam?_escHtml(hTeam)+' ':'')+h+(unit?' '+unit:'')+'</span>'
     +'<span style="font-family:var(--mono);font-size:14px;color:var(--t3)">Total <span style="color:var(--vc);font-weight:700">'+t+'</span> vs <span style="color:var(--t2)">'+ouL+'</span>'+(overStr?' &middot; '+overStr:'')+(otStr?otStr:'')+'</span>'
     +'<span style="font-family:var(--mono);font-size:14px;color:var(--t3)">Margin <span style="color:'+(favIsH?'var(--nc)':'var(--ic)')+'">'+marginDisp+' ('+(favIsH?hTeam:aTeam)+')</span></span>'
     +'</div>';
