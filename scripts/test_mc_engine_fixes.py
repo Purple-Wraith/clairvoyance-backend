@@ -99,17 +99,18 @@ class Engines(unittest.TestCase):
             const g=(D.games||[]).find(x=>x.state==='pre');if(!g)return;
             [4.5,5.5,6.5].forEach(line=>{const mc=fn(g.home,g.away,line);
               const tot=mc.avgH+mc.avgA;let cdf=0;for(let k=0;k<=Math.floor(line);k++)cdf+=_socPoissonPmf(tot,k);
-              const want=_hkUnderBiasP(Math.min(.999,1-cdf+_hkOtGoalOverAdd(mc.avgH,mc.avgA,line,lg)),line,lg);
-              const plain=_hkUnderBiasP(1-cdf,line,lg);
-              out.push({lg,line,got:mc.overP,want,plain});});});
+              const raw=Math.min(.999,1-cdf+_hkOtGoalOverAdd(mc.avgH,mc.avgA,line,lg));
+              const gated=mc.avgT>=line;                                  // under bias only while the book-basis total is below the line (2026-10-29)
+              out.push({lg,line,got:mc.overP,raw,want:gated?raw:_hkUnderBiasP(raw,line,lg),gated,noOt:1-cdf,rawGot:mc.overPRaw});});});
           return out}""")
         self.assertGreaterEqual(len(r), 9)
         for x in r:
             self.assertAlmostEqual(x["got"], x["want"], places=9, msg=x)
+            self.assertAlmostEqual(x["rawGot"], x["raw"], places=9, msg=x)          # the unshifted probability is exposed for the blend
             if x["line"] == 5.5:
-                self.assertAlmostEqual(x["got"], x["plain"], places=9, msg=x)      # untouched at 5.5
+                self.assertAlmostEqual(x["raw"], x["noOt"], places=9, msg=x)          # no overtime-goal term at 5.5
             else:
-                self.assertGreater(x["got"], x["plain"], msg=x)
+                self.assertGreater(x["raw"], x["noOt"], msg=x)
 
     def test_nhl_sim_counts_it_in_expectation(self):
         r = self.pg.evaluate("""()=>{const g=(_NHL_SCHEDULE_DATA.games||[]).find(x=>x.state==='post');const out={};

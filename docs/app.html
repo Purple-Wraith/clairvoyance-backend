@@ -3962,11 +3962,15 @@ function _hkUnderBias(line,lg){const s=HOCKEY_OU_UNDER_SHIFT[String(lg||'').toUp
 // The same shift applied to the model's OWN over probability (the exact-Poisson total in liigaMC / nlaMC / extraligaMC / shlMC), so model-only totals (no market price) and the model share of the market blend lean under as well.
 // With this plus the market-share shift in _hkBlendOU the blended probability moves by the full figure; the projected goal total (avgT) is left as the Poisson mean.
 function _hkUnderBiasP(p,line,lg){const sh=_hkUnderBias(line,lg);if(!sh||!(p>0&&p<1))return p;return Math.min(.95,Math.max(.05,1/(1+Math.exp(-(Math.log(p/(1-p))-sh)))));}
-function _hkBlendOU(pOverModel,g,line,minGp,lg){
+// GATE (2026-10-29, owner): the under bias is skipped when it has nothing to correct -- the projected total (book basis) is at or above the line, or the market itself leans OVER (no-vig P(over) above 50%; a balanced market keeps the shift).  Where the
+// market leans over, unders hit 48.0% against 47.4% priced (50 finished euro games), so there is no gap to close; the shift stays on everywhere else.  `meanT` / `pOverRaw` are the engine's own projected total and its
+// over probability BEFORE the shift (both optional: without them the blend behaves as before, minus the market-leans-over gate).
+function _hkBlendOU(pOverModel,g,line,minGp,lg,meanT,pOverRaw){
   const o=_hkOdds(g),ov=_hkOuLegAt(o,line,'OVER'),un=_hkOuLegAt(o,line,'UNDER');
   if(!ov||!un)return null;
   const pk=_hkMktNoVig(ov.dec,un.dec);if(pk==null)return null;
-  const bl=_hkBlendCore(pOverModel,pk,'OU',minGp),sh=_hkUnderBias(line,lg);
+  const gateOff=(meanT!=null&&isFinite(meanT)&&meanT>=line)||pk>.5;
+  const bl=_hkBlendCore(gateOff&&pOverRaw!=null?pOverRaw:pOverModel,pk,'OU',minGp),sh=gateOff?0:_hkUnderBias(line,lg);
   if(bl&&sh){const z=Math.log(bl.p/(1-bl.p))-bl.alpha*sh;bl.p=Math.min(.95,Math.max(.05,1/(1+Math.exp(-z))));bl.underBias=sh;}
   return bl;
 }
@@ -8343,7 +8347,7 @@ function nhlMC(hA,awA,n=25000,marketOU){
   const gpConf=Math.min(1,Math.min(h.gp||0,aw.gp||0)/MIN_GP_FOR_FULL_CONFIDENCE);
   const damp=p=>0.5+(p-0.5)*gpConf;
   const hwPD=damp(hw),overPD=damp(ov),rl15D=damp(_hkMarginCal(rl15h)),rl15AD=damp(_hkMarginCal(rl15a)); // puck-line cover incl. empty-net margin calibration (see HOCKEY_PL_MARGIN_LOGIT_SHIFT)
-  return{hwP:hwPD,awP:1-hwPD,avgH:hT,avgA:aT,avgT:rT,overP:overPD,underP:1-overPD,otP:ot,exact:true,dist:'poisson',ouLine,rl15:rl15D,rl15A:rl15AD,rlN:1-rl15D,stEdge,sqEdge,gpConf,formH:hForm,formA:aForm,hA,aA:awA,injAdj:{h:injH,a:injA}};
+  return{hwP:hwPD,awP:1-hwPD,avgH:hT,avgA:aT,avgT:rT+_otShare*ot,avgTReg:rT,overP:overPD,underP:1-overPD,otP:ot,exact:true,dist:'poisson',ouLine,rl15:rl15D,rl15A:rl15AD,rlN:1-rl15D,stEdge,sqEdge,gpConf,formH:hForm,formA:aForm,hA,aA:awA,injAdj:{h:injH,a:injA}};
 }
 function nhlEns(hA,awA,marketOU,mkt){
   const h=NHL[hA],aw=NHL[awA];if(!h||!aw)return{p:.5};
@@ -12919,10 +12923,12 @@ function liigaMC(homeId,awayId,marketOU){
   const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
-  const overP=_hkUnderBiasP(Math.min(.999,1-cdf+_hkOtGoalOverAdd(hLam,aLam,ouLine,'LIIGA')),ouLine,'LIIGA');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
+  const overPRaw=Math.min(.999,1-cdf+_hkOtGoalOverAdd(hLam,aLam,ouLine,'LIIGA'));
+  const totBook=totLam+_hkOtGoalShare('LIIGA')*otP;   // projected total on the BOOK basis (regulation + the overtime goal, 2026-10-29): what the posted line is a line on; avgH + avgA stay the regulation rates
+  const overP=totBook<ouLine?_hkUnderBiasP(overPRaw,ouLine,'LIIGA'):overPRaw;   // under bias only while the projected total is below the line (see _hkBlendOU's gate)   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
   const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5)); // P(home covers -1.5), incl. empty-net margin calibration
   const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
-  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
+  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totBook,avgTReg:totLam,overP,overPRaw,otP,ouLine,rl15,rl15A,rlN:1-rl15};
 }
 function liigaEns(homeId,awayId,marketOU,mktGame){
   const mc=liigaMC(homeId,awayId,marketOU);
@@ -13004,7 +13010,7 @@ function liigaEns(homeId,awayId,marketOU,mktGame){
   // Puck-line + O/U market blend (favorite side defined by the blended ML p, same as the card's favTeam).
   const _mbPL=_hkBlendPL(favCoverP,mktGame,p>=.5,_mbGp);
   if(_mbPL)favCoverP=_mbPL.p;
-  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp,'LIIGA');
+  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp,'LIIGA',mc.avgT,mc.overPRaw);
   return{p,pModel,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP,ouP:_mbOU?_mbOU.p:mc.overP,mkt:{ml:_mbML,pl:_mbPL,ou:_mbOU}};
 }
 function _liigaPopulateDayFilter(games){
@@ -13076,10 +13082,12 @@ function nlaMC(homeId,awayId,marketOU){
   const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
-  const overP=_hkUnderBiasP(Math.min(.999,1-cdf+_hkOtGoalOverAdd(hLam,aLam,ouLine,'NLA')),ouLine,'NLA');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
+  const overPRaw=Math.min(.999,1-cdf+_hkOtGoalOverAdd(hLam,aLam,ouLine,'NLA'));
+  const totBook=totLam+_hkOtGoalShare('NLA')*otP;   // projected total on the BOOK basis (regulation + the overtime goal, 2026-10-29): what the posted line is a line on; avgH + avgA stay the regulation rates
+  const overP=totBook<ouLine?_hkUnderBiasP(overPRaw,ouLine,'NLA'):overPRaw;   // under bias only while the projected total is below the line (see _hkBlendOU's gate)   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
   const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5));
   const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
-  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
+  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totBook,avgTReg:totLam,overP,overPRaw,otP,ouLine,rl15,rl15A,rlN:1-rl15};
 }
 function nlaEns(homeId,awayId,marketOU,mktGame){
   const mc=nlaMC(homeId,awayId,marketOU);
@@ -13128,7 +13136,7 @@ function nlaEns(homeId,awayId,marketOU,mktGame){
   // Puck-line + O/U market blend (favorite side defined by the blended ML p, same as the card's favTeam).
   const _mbPL=_hkBlendPL(favCoverP,mktGame,p>=.5,_mbGp);
   if(_mbPL)favCoverP=_mbPL.p;
-  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp,'NLA');
+  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp,'NLA',mc.avgT,mc.overPRaw);
   return{p,pModel,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP,ouP:_mbOU?_mbOU.p:mc.overP,mkt:{ml:_mbML,pl:_mbPL,ou:_mbOU}};
 }
 function _nlaPopulateDayFilter(games){
@@ -13192,10 +13200,12 @@ function extraligaMC(homeId,awayId,marketOU){
   const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
-  const overP=_hkUnderBiasP(Math.min(.999,1-cdf+_hkOtGoalOverAdd(hLam,aLam,ouLine,'EXTRALIGA')),ouLine,'EXTRALIGA');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
+  const overPRaw=Math.min(.999,1-cdf+_hkOtGoalOverAdd(hLam,aLam,ouLine,'EXTRALIGA'));
+  const totBook=totLam+_hkOtGoalShare('EXTRALIGA')*otP;   // projected total on the BOOK basis (regulation + the overtime goal, 2026-10-29): what the posted line is a line on; avgH + avgA stay the regulation rates
+  const overP=totBook<ouLine?_hkUnderBiasP(overPRaw,ouLine,'EXTRALIGA'):overPRaw;   // under bias only while the projected total is below the line (see _hkBlendOU's gate)   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
   const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5));
   const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
-  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
+  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totBook,avgTReg:totLam,overP,overPRaw,otP,ouLine,rl15,rl15A,rlN:1-rl15};
 }
 function extraligaEns(homeId,awayId,marketOU,mktGame){
   const mc=extraligaMC(homeId,awayId,marketOU);
@@ -13245,7 +13255,7 @@ function extraligaEns(homeId,awayId,marketOU,mktGame){
   // Puck-line + O/U market blend (favorite side defined by the blended ML p, same as the card's favTeam).
   const _mbPL=_hkBlendPL(favCoverP,mktGame,p>=.5,_mbGp);
   if(_mbPL)favCoverP=_mbPL.p;
-  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp,'EXTRALIGA');
+  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp,'EXTRALIGA',mc.avgT,mc.overPRaw);
   return{p,pModel,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP,ouP:_mbOU?_mbOU.p:mc.overP,mkt:{ml:_mbML,pl:_mbPL,ou:_mbOU}};
 }
 function _extraligaPopulateDayFilter(games){
@@ -14106,10 +14116,12 @@ function shlMC(homeId,awayId,marketOU){
   const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
-  const overP=_hkUnderBiasP(Math.min(.999,1-cdf+_hkOtGoalOverAdd(hLam,aLam,ouLine,'SHL')),ouLine,'SHL');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
+  const overPRaw=Math.min(.999,1-cdf+_hkOtGoalOverAdd(hLam,aLam,ouLine,'SHL'));
+  const totBook=totLam+_hkOtGoalShare('SHL')*otP;   // projected total on the BOOK basis (regulation + the overtime goal, 2026-10-29): what the posted line is a line on; avgH + avgA stay the regulation rates
+  const overP=totBook<ouLine?_hkUnderBiasP(overPRaw,ouLine,'SHL'):overPRaw;   // under bias only while the projected total is below the line (see _hkBlendOU's gate)   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
   const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5)); // P(home covers -1.5), incl. empty-net margin calibration
   const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
-  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
+  return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totBook,avgTReg:totLam,overP,overPRaw,otP,ouLine,rl15,rl15A,rlN:1-rl15};
 }
 function shlEns(homeId,awayId,marketOU,mktGame){
   const mc=shlMC(homeId,awayId,marketOU);
@@ -14167,7 +14179,7 @@ function shlEns(homeId,awayId,marketOU,mktGame){
   // Puck-line + O/U market blend (favorite side defined by the blended ML p, same as the card's favTeam).
   const _mbPL=_hkBlendPL(favCoverP,mktGame,p>=.5,_mbGp);
   if(_mbPL)favCoverP=_mbPL.p;
-  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp,'SHL');
+  const _mbOU=_hkBlendOU(mc.overP,mktGame,mc.ouLine,_mbGp,'SHL',mc.avgT,mc.overPRaw);
   return{p,pModel,mcD:mc,mc:w.mc??.7,bay:bayShare,elo:0,favCoverP,dogCoverP:1-favCoverP,ouP:_mbOU?_mbOU.p:mc.overP,mkt:{ml:_mbML,pl:_mbPL,ou:_mbOU}};
 }
 function _shlPopulateDayFilter(games){
