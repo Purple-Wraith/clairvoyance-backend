@@ -147,6 +147,17 @@ class InPage(unittest.TestCase):
         self.assertTrue(self.lock("Player 10"))
 
 
+class GameHeader(unittest.TestCase):
+    def test_props_game_header_is_a_big_neon_magenta_class_with_a_phone_size(self):
+        import re
+        html = (ROOT / "docs" / "app.html").read_text()
+        rule = re.search(r"^\.pgh\{([^}]*)\}", html, re.M).group(1)
+        self.assertIn("color:var(--pc)", rule)                                   # neon magenta
+        self.assertGreaterEqual(int(re.search(r"font-size:(\d+)px", rule).group(1)), 28)
+        self.assertRegex(html, r"html \.pgh\{font-size:1[6-9]px")                 # phone rule: the inline-size caps cannot reach a class
+        self.assertIn("""'<span class="pgh">'+ps[0].awA+' @ '+ps[0].hA""", html)
+
+
 class ReportGameCap(unittest.TestCase):
     def test_flags_a_game_over_five_after_the_cap_date_only(self):
         import nba_props_report as R

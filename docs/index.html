@@ -449,6 +449,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   [style*="font-size:13px"]:not(input):not(select):not(textarea),
   [style*="font-size:12px"]:not(input):not(select):not(textarea){font-size:8px!important}
   /* player averages + form box (class-based, so the inline-size caps above do not reach it): same phone scale as the text around it */
+  html .pgh{font-size:18px;letter-spacing:.5px}
   html .pfbox{font-size:9px;gap:1px 8px;padding:4px 6px;max-width:none}
   html .pfbox .h,html .pfbox .n{font-size:8px}
   /* ── Dropdown nav menus (league pickers) — same fix, class-based ── */
@@ -864,6 +865,8 @@ body.gt-open{overflow:hidden}#cv-ticker .tk[data-gid]{cursor:pointer}
 .prow2-adj{font-family:var(--mono);font-size:13px;margin-top:4px;letter-spacing:.4px;color:#ffe600;display:flex;flex-wrap:wrap;gap:6px;align-items:center;line-height:1.35}.prow2-adj b{font-weight:700;color:var(--t)}
 .adjt td{padding:3px 14px 3px 0;white-space:nowrap}.adjt th{padding-right:14px!important;white-space:nowrap}
 .adjr{padding:0 6px;border:1px solid currentColor;border-radius:2px;font-family:var(--mono);font-size:11px;letter-spacing:.5px;white-space:nowrap}
+/* game header above a game's props (owner 2026-10-28: bigger + neon magenta); a class, not inline, so the phone font caps (inline sizes -> 8-10px) do not shrink it */
+.pgh{font-family:var(--orb);font-size:30px;font-weight:700;letter-spacing:1px;color:var(--pc);text-shadow:0 0 8px rgba(240,0,255,.45)}
 .pfbox{display:grid;grid-template-columns:auto repeat(4,minmax(0,1fr));gap:1px 12px;align-items:baseline;margin:4px 0 6px;padding:5px 8px;border:1px solid rgba(255,255,255,.14);border-radius:2px;font-family:var(--mono);font-size:15px;color:var(--t2);max-width:420px}
 .pfbox .h{color:var(--t3);font-size:13px;letter-spacing:1px}.pfbox .r{color:var(--t3);letter-spacing:1px}.pfbox .on{color:var(--t);font-weight:700}.pfbox .up{color:#00e644}.pfbox .dn{color:var(--hc)}.pfbox .n{grid-column:1/-1;color:var(--t3);font-size:13px;margin-top:2px}
 .prow2-fin{font-family:var(--mono);font-size:15px;color:var(--t2);text-align:right;margin-top:auto;align-self:flex-end}.prow2-fin.dim{color:var(--t3)}.prow2-pa{margin-top:2px}.prow2-pa b{color:var(--t1,#fff)}.prow2-pa span{color:var(--t3)}
@@ -16349,7 +16352,7 @@ async function renderNBADailyProps(){
     var g=gameOf(ps[0]),st=g.state==='in'?'LIVE':g.state==='post'?'FINAL':kick(g);
     var score=(g.state==='in'||g.state==='post')&&g.hScore!=null?' · '+ps[0].awA+' '+g.aScore+' – '+ps[0].hA+' '+g.hScore:'';
     return'<div style="display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.14)">'
-      +'<span style="font-family:var(--orb);font-size:22px;font-weight:700">'+ps[0].awA+' @ '+ps[0].hA+'</span>'
+      +'<span class="pgh">'+ps[0].awA+' @ '+ps[0].hA+'</span>'
       +'<span style="font-family:var(--mono);font-size:15px;color:var(--t3)">'+[st,ps.length+' PROPS'].filter(Boolean).join(' · ')+score+'</span></div>'
       +ps.map(cardHTML).join('');
   }).join('');
