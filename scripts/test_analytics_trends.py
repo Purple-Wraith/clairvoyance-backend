@@ -774,7 +774,9 @@ class Trends(unittest.TestCase):
     def test_first_render_animates_and_settles(self):
         pg = self.open()
         self.assertEqual(pg.locator("#tv-c-sum .tv-line").evaluate("e=>getComputedStyle(e).animationName"), "vz-draw")
-        self.assertLess(float(pg.locator("#tv-c-sum .tv-line").evaluate("e=>getComputedStyle(e).strokeDashoffset").replace("px", "")), 0.5)   # animation finished (a slow runner can sample the last frame, e.g. 0.002px)
+        # the draw animation must FINISH (offset -> 0): wait for it instead of sampling at one fixed instant, which a loaded runner misses (flaked 1 run in 3 on an unchanged commit, 2026-10-29)
+        pg.wait_for_function("()=>{const e=document.querySelector('#tv-c-sum .tv-line');return !!e&&parseFloat(getComputedStyle(e).strokeDashoffset)<0.5}", timeout=10000)
+        self.assertLess(float(pg.locator("#tv-c-sum .tv-line").evaluate("e=>getComputedStyle(e).strokeDashoffset").replace("px", "")), 0.5)
         self.done(pg)
 
     def test_aria_labels_on_charts_and_rows(self):
