@@ -5197,6 +5197,9 @@ function _recommendedLineHTML(o){
     <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${ouNote}</div>`:''}
   </div>`;
 }
+// Betting sign for a projected margin (owner 2026-10-29, same rule as the spreads and the FORM tabs): the team AHEAD gets the minus, the team behind the plus -- 2.5 vs 1.75 reads -0.75 for the first team (+0.75 for the other).
+// `lead` is how far the named team is ahead (negative = behind); 0 reads 0.0 (never -0.0).
+function _leadStr(lead,dec){const d=-(+lead||0),s=d.toFixed(dec==null?1:dec),n=parseFloat(s);return n===0?s.replace('-',''):(n>0?'+':'')+s;}   // sign decided AFTER rounding: a lead of 0.004 reads 0.0, not +0.0 / -0.0
 function _mcProjBarHTML(mc,ouL,hTeam,aTeam,opts){
   if(!mc)return'';
   const avgH=mc.avgH??mc.hExp;const avgA=mc.avgA??mc.aExp;
@@ -5206,7 +5209,7 @@ function _mcProjBarHTML(mc,ouL,hTeam,aTeam,opts){
   const t=mc.avgT!=null?parseFloat(mc.avgT).toFixed(1):(parseFloat(avgH)+parseFloat(avgA)).toFixed(1);
   const margin=parseFloat(avgH)-parseFloat(avgA);
   const favIsH=margin>=0;
-  const marginDisp='+'+Math.abs(margin).toFixed(1);   // the lead of the NAMED team, so always a plus (it read "-0.9 (Farjestad)" when the away side led: a minus next to the team that is ahead)
+  const hLead=margin,aLead=-margin;   // betting sign (see _leadStr): the team ahead is -, the team behind +
   const overStr=mc.overP!=null?(mc.overP*100).toFixed(0)+'% O':'';
   const otStr=mc.otP!=null?' · OT '+(mc.otP*100).toFixed(0)+'%':'';
   const nSims=opts&&opts.n?opts.n:25000;
@@ -5221,7 +5224,7 @@ function _mcProjBarHTML(mc,ouL,hTeam,aTeam,opts){
     // so "2.24 – 3.10" read as Farjestad 2.24 – Brynas 3.10 when the model projects Farjestad 3.10 – Brynas 2.24 (found 2026-10-29 auditing the match cards)
     +'<span style="font-family:var(--mono);font-size:16px;color:var(--nc);font-weight:700">'+(aTeam?_escHtml(aTeam)+' ':'')+a+(unit?' '+unit:'')+'  –  '+(hTeam?_escHtml(hTeam)+' ':'')+h+(unit?' '+unit:'')+'</span>'
     +'<span style="font-family:var(--mono);font-size:14px;color:var(--t3)">Total <span style="color:var(--vc);font-weight:700">'+t+'</span> vs <span style="color:var(--t2)">'+ouL+'</span>'+(overStr?' &middot; '+overStr:'')+(otStr?otStr:'')+'</span>'
-    +'<span style="font-family:var(--mono);font-size:14px;color:var(--t3)">Margin <span style="color:'+(favIsH?'var(--nc)':'var(--ic)')+'">'+marginDisp+' ('+(favIsH?hTeam:aTeam)+')</span></span>'
+    +'<span style="font-family:var(--mono);font-size:14px;color:var(--t3)">Margin <span style="color:'+(favIsH?'var(--nc)':'var(--ic)')+'">'+_escHtml(favIsH?hTeam:aTeam)+' '+_leadStr(favIsH?hLead:aLead)+'</span> <span style="color:var(--t3)">'+_escHtml(favIsH?aTeam:hTeam)+' '+_leadStr(favIsH?aLead:hLead)+'</span></span>'
     +'</div>';
 }
 // ── Universal best-market evaluator — used by all sport reasoning blocks ──────
@@ -5514,7 +5517,7 @@ function _mcLineMargin(mc,side,favName,dogName,baseSpread,favCoverP,overP,ouL,fa
     const ouLTxt=typeof ouL==='number'?ouL.toFixed(1):ouL;
     extra=` — ${side.toUpperCase()} hits ${(p*100).toFixed(1)}% of simulated outcomes vs the ${ouLTxt} line`;
   }
-  return`Projected margin ${_m>=0?'+':''}${_m.toFixed(1)} (${favName}), total ${mc.avgTotal.toFixed(1)}${extra}, from a 25k-sim Monte Carlo.`;
+  return`Projected margin ${_leadStr(_m)} (${favName}), total ${mc.avgTotal.toFixed(1)}${extra}, from a 25k-sim Monte Carlo.`;   // _m = the named favourite's lead: ahead reads minus
 }
 function _mcLineSoccer(mc,side,ouLine){
   if(!mc||mc.avgH==null||mc.avgA==null)return null;
@@ -10716,7 +10719,7 @@ function _nflInjNote(mc,g){
     const a=mc&&mc.inj;if(!a||!(a.h.any||a.a.any))return'';
     const side=(abbr,x)=>x.any?`${abbr}: ${x.players.map(p=>`${p.name} ${p.pos} ${_injSev(p.status)>=1?'OUT':String(p.status).toUpperCase()}`).join(', ')} (-${x.pts.toFixed(1)} pts)`:'';
     const parts=[side(g.home,a.h),side(g.away,a.a)].filter(Boolean).join(' | ');
-    return a.marginApplied?`Injury adjustment: ${parts}; margin ${a.margin>=0?'+':''}${a.margin.toFixed(1)} for ${g.home}, total ${a.total.toFixed(1)}. `
+    return a.marginApplied?`Injury adjustment: ${parts}; margin ${_leadStr(a.margin)} for ${g.home}, total ${a.total.toFixed(1)}. `
       :`Injury note: ${parts} -- margin NOT adjusted (this projection is anchored to the market spread, which already prices it); total ${a.total.toFixed(1)}. `;
   }catch(e){return'';}
 }
@@ -11056,7 +11059,7 @@ function _nflGameCard2(g){
   const diffTxt=`Point differential: ${g.home} ${hS.differential!=null?(hS.differential>=0?'+':'')+hS.differential:'—'} (${hS.wins??'—'}-${hS.losses??'—'}), ${g.away} ${aS.differential!=null?(aS.differential>=0?'+':'')+aS.differential:'—'} (${aS.wins??'—'}-${aS.losses??'—'}). `
     +(g.neutralSite?`Neutral site — no home-field adjustment applied. `:`${g.home} is home, getting the model's ${_nflHFA()}-point default home-field edge. `)
     +(mc.hasDiff?'':'One team has no standings-based differential yet, so this projection falls back to the market spread instead. ');
-  const anchTxtS=_anchS?`Market-anchored: the raw model margin was ${favRawMargin>=0?'+':''}${favRawMargin.toFixed(1)} for ${spreadFav} vs the ${baseSpread.toFixed(1)}-pt line, but on ${mc.anchor.nMin} game(s) played by the lesser team only ${(mc.anchor.wM*100).toFixed(0)}% of that disagreement is kept: early-season team ratings have not beaten the posted line. `:'';
+  const anchTxtS=_anchS?`Market-anchored: the raw model margin was ${_leadStr(favRawMargin)} for ${spreadFav} vs the ${baseSpread.toFixed(1)}-pt line, but on ${mc.anchor.nMin} game(s) played by the lesser team only ${(mc.anchor.wM*100).toFixed(0)}% of that disagreement is kept: early-season team ratings have not beaten the posted line. `:'';
   const anchTxtT=_anchT?`Market-anchored: the raw model total was ${mc.baseTotal.toFixed(1)} vs the ${ouL.toFixed(1)} line, but only ${(mc.anchor.wT*100).toFixed(0)}% of that disagreement is kept: the model's total has not beaten the posted total. `:'';
   const mlReasoning=`<span style="color:${mlGrade.col}">${mlGrade.m.label} · ${mlGrade.lbl} · ${(mlGrade.m.prob*100).toFixed(1)}% · EV ${mlGrade.m.evVal>=0?'+':''}${(mlGrade.m.evVal*100).toFixed(1)}%</span><br>${diffTxt}${injTxt}`;
   const sprdReasoning=`<span style="color:${sprdGrade.col}">${sprdGrade.m.label} · ${sprdGrade.lbl} · ${(sprdGrade.m.prob*100).toFixed(1)}% · EV ${sprdGrade.m.evVal>=0?'+':''}${(sprdGrade.m.evVal*100).toFixed(1)}%</span><br>${anchTxtS}MC-projected margin ${(spreadFav===g.home?mc.avgH-mc.avgA:mc.avgA-mc.avgH)>=0?'+':''}${(spreadFav===g.home?mc.avgH-mc.avgA:mc.avgA-mc.avgH).toFixed(1)} for ${spreadFav} vs the ${baseSpread.toFixed(1)}-pt line. ${diffTxt}${injTxt}`;
@@ -29972,7 +29975,7 @@ function _renderSocMatchCardRaw(g,leagueKey){
     'xG basis: '+g.home+' '+hxg.toFixed(2)+' xG/G vs '+g.away+' '+axg.toFixed(2)+' xG/G. '+
     '3-way: Home '+(hP*100).toFixed(0)+'% / Draw '+(dP*100).toFixed(0)+'% / Away '+(aP*100).toFixed(0)+'%. '+
     'MC proj: '+mc.avgH.toFixed(2)+' – '+mc.avgA.toFixed(2)+' ('+mc.avgT.toFixed(2)+' total vs '+ouL+' line, BTTS '+(mc.btts*100).toFixed(0)+'%). '+
-    'Goal spread: '+ahFavName+' -'+ahAbsLine.toFixed(1)+' covers '+(ahFavP*100).toFixed(0)+'%, '+ahDogName+' +'+ahAbsLine.toFixed(1)+' covers '+(ahDogP*100).toFixed(0)+'% (proj margin '+(ahMargin>=0?'+':'')+ahMargin.toFixed(2)+'). '+
+    'Goal spread: '+ahFavName+' -'+ahAbsLine.toFixed(1)+' covers '+(ahFavP*100).toFixed(0)+'%, '+ahDogName+' +'+ahAbsLine.toFixed(1)+' covers '+(ahDogP*100).toFixed(0)+'% (proj margin '+(ahMargin>=0?g.home:g.away)+' '+_leadStr(Math.abs(ahMargin),2)+'). '+
     (_bm.side==='home'?g.home+' xG edge unpriced by market.':
     _bm.side==='draw'?'Balanced xG gap supports draw value.':
     _bm.side==='away'?g.away+' road xG edge underpriced.':

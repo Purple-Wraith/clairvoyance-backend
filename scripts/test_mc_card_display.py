@@ -43,9 +43,11 @@ class Bar(unittest.TestCase):
         self.assertIn("Farjestad 3.10 – Brynas 2.24", t)
 
     def test_margin_is_a_plus_for_the_leading_team_whichever_side(self):
-        self.assertIn("Margin +0.9 (Farjestad)", self.bar(2.24, 3.10, "Brynas", "Farjestad", dec=2))       # away leads: used to read -0.9
-        self.assertIn("Margin +0.9 (Brynas)", self.bar(3.10, 2.24, "Brynas", "Farjestad", dec=2))          # home leads
-        self.assertNotIn("Margin -", self.bar(2.24, 3.10, "Brynas", "Farjestad", dec=2))
+        # betting sign (owner 2026-10-29): the team AHEAD is minus, the team behind plus -- 2.5 vs 1.75 = -0.75 for the first team
+        self.assertIn("Margin Farjestad -0.9 Brynas +0.9", self.bar(2.24, 3.10, "Brynas", "Farjestad", dec=2))       # away leads
+        self.assertIn("Margin Brynas -0.9 Farjestad +0.9", self.bar(3.10, 2.24, "Brynas", "Farjestad", dec=2))       # home leads
+        self.assertIn("Margin Cuba -0.8 Peru +0.8", self.bar(1.75, 2.5, "Peru", "Cuba", dec=2))                      # the owner's 2.5 vs 1.75 example (away team ahead)
+        self.assertNotIn("Margin Farjestad +", self.bar(2.24, 3.10, "Brynas", "Farjestad", dec=2))
 
     def test_total_overP_and_units_unchanged(self):
         t = self.bar(2.24, 3.10, "Brynas", "Farjestad", dec=2)
@@ -54,6 +56,22 @@ class Bar(unittest.TestCase):
 
     def test_names_are_escaped(self):
         self.assertNotIn("<img", self.pg.evaluate("()=>_mcProjBarHTML({avgH:1,avgA:2,avgT:3},'5.5','<img src=x>','A&B',{})"))
+
+    def test_lead_string_is_the_betting_sign(self):
+        f = lambda *a: self.pg.evaluate("([x,d])=>_leadStr(x,d)", list(a) if len(a) == 2 else [a[0], None])
+        self.assertEqual(f(0.75), "-0.8")            # ahead -> minus (2.5 vs 1.75)
+        self.assertEqual(f(-0.75), "+0.8")           # behind -> plus
+        self.assertEqual(f(0), "0.0")
+        self.assertEqual(f(0.004), "0.0")            # never "-0.0"
+        self.assertEqual(f(-0.004), "0.0")
+        self.assertEqual(f(1.234, 2), "-1.23")
+        self.assertEqual(f(16.6), "-16.6")
+
+    def test_cfb_nfl_reasoning_line_puts_the_minus_on_the_team_ahead(self):
+        line = lambda m: self.pg.evaluate("(m)=>_mcLineMargin({avgMargin:m,avgTotal:44.2},'mlFav','BAL','KC',5.5,.6,.5,44.5,m)", m)
+        self.assertIn("Projected margin -16.6 (BAL)", line(16.6))       # BAL ahead
+        self.assertIn("Projected margin +3.0 (BAL)", line(-3.0))        # BAL projected to trail
+        self.assertNotIn("Projected margin +16", line(16.6))
 
     def test_a_real_card_lists_the_away_team_first_like_its_header_and_text(self):
         r = self.pg.evaluate("""()=>{const g=(_SHL_DATA.games||[]).find(x=>x.state==='pre'&&x.odds);if(!g)return null;
