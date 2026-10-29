@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import auto_lock_settle as A  # noqa: E402
 
 POSTED_REASONING = ("PICK: BAL -11.5 — OPTIMAL (63.5% win prob, EV +21.2%)\n"
-                    "MODEL: Projected margin +14.1 (BAL), total 44.2 — BAL covers the 11.5-pt line in 63.5% of simulated outcomes, from a 25k-sim Monte Carlo.\n"
+                    "MODEL: Projected margin +14.1 (BAL), total 44.2 — BAL covers the 11.5-pt line in 63.5% of simulated outcomes, from a 2exact normal distribution.\n"
                     "WHY: BAL is the stronger side.")
 
 
@@ -35,7 +35,7 @@ class PythonSide(unittest.TestCase):
         for gone in ("OPTIMAL", "EV +21.2", "11.5-pt line in", "63.5% win prob"):
             self.assertNotIn(gone, txt)
         self.assertIn("estimate", txt)
-        self.assertIn("MODEL: Projected margin +14.1 (BAL), total 44.2, from a 25k-sim Monte Carlo.", txt)    # the projection survives, the posted cover claim does not
+        self.assertIn("MODEL: Projected margin +14.1 (BAL), total 44.2, from a 2exact normal distribution.", txt)    # the projection survives, the posted cover claim does not
         self.assertIn("rated this side 63.5%", txt)
 
     def test_hockey_uses_goals_and_a_missing_model_line_is_fine(self):
@@ -67,7 +67,7 @@ class JsSide(unittest.TestCase):
         cls.browser.close(); cls.pw.stop(); cls.srv.shutdown()
 
     def test_alt_reasoning_is_identical_in_js_and_python(self):
-        model = "MODEL: Projected margin +14.1 (BAL), total 44.2, from a 25k-sim Monte Carlo."
+        model = "MODEL: Projected margin +14.1 (BAL), total 44.2, from a 2exact normal distribution."
         for label, p, posted_label, posted_p, k, unit, ml in (("BAL -5.5", .673, "BAL -11.5", .635, 6, "pt", model), ("UNDER 233.5", .67, "UNDER 225.5", .6, 8, "pt", None),
                                                               ("MIA +13.5", .682, "MIA +7.5", None, 6.5, "pt", None), ("OVER 5.5", .61, "OVER 6.5", .58, 1, "goal", None),
                                                               ("OVER 4.5", .64, "OVER 6.5", .5, 2, "goal", None), ("UNDER 6.5", .611, "OVER 5.5", .55, 1, "goal", None), ("UNDER 7.5", .684, "OVER 5.5", .62, 2, "goal", None)):
@@ -78,11 +78,12 @@ class JsSide(unittest.TestCase):
     def test_projected_margin_is_signed_for_the_favorite(self):
         mc = {"avgMargin": 3.0, "avgTotal": 41.0}                                             # HOME-signed: the home team is +3
         away_fav = self.pg.evaluate("(mc)=>_mcLineMargin(mc,'sprdFav','DET','GB',2.5,.55,.5,41.5,-3.0)", mc)   # the favorite is the AWAY team: favorite-signed margin is -3
-        self.assertIn("Projected margin -3.0 (DET)", away_fav)
+        # betting sign (owner 2026-10-29): the team AHEAD is minus, the team behind plus.  DET (the away favourite) projects to TRAIL by 3 -> +3.0; GB leads by 3 -> -3.0.
+        self.assertIn("Projected margin +3.0 (DET)", away_fav)
         home_fav = self.pg.evaluate("(mc)=>_mcLineMargin(mc,'sprdFav','GB','DET',2.5,.55,.5,41.5,3.0)", mc)
-        self.assertIn("Projected margin +3.0 (GB)", home_fav)
-        legacy = self.pg.evaluate("(mc)=>_mcLineMargin(mc,'sprdFav','GB','DET',2.5,.55,.5,41.5)", mc)            # no favorite-signed value passed: old behaviour
-        self.assertIn("Projected margin +3.0 (GB)", legacy)
+        self.assertIn("Projected margin -3.0 (GB)", home_fav)
+        legacy = self.pg.evaluate("(mc)=>_mcLineMargin(mc,'sprdFav','GB','DET',2.5,.55,.5,41.5)", mc)            # no favorite-signed value passed: the home-signed margin is used
+        self.assertIn("Projected margin -3.0 (GB)", legacy)
 
     def test_assumed_price_is_labelled_but_moneylines_and_market_prices_are_not(self):
         nm = self.pg.evaluate("""()=>{
@@ -103,8 +104,8 @@ class JsSide(unittest.TestCase):
 
     def _manual_lock(self, call):
         return self.pg.evaluate("""(call)=>{
-          window._reasoningCache={'BOS|NYK|OU':[{label:'OVER 225.5',reasoning:'PICK: OVER 225.5 — OPTIMAL (62%)\\nMODEL: Projected margin +4.0 (BOS), total 231.0 — OVER hits 62.0% of simulated outcomes vs the 225.5 line, from a 25k-sim Monte Carlo.'}],
-                                  'BOS|NYK|SPREAD':[{label:'BOS -4.5',reasoning:'PICK: BOS -4.5 — OPTIMAL (60%)\\nMODEL: Projected margin +6.0 (BOS), total 231.0, from a 25k-sim Monte Carlo.'}]};
+          window._reasoningCache={'BOS|NYK|OU':[{label:'OVER 225.5',reasoning:'PICK: OVER 225.5 — OPTIMAL (62%)\\nMODEL: Projected margin +4.0 (BOS), total 231.0 — OVER hits 62.0% of simulated outcomes vs the 225.5 line, from a 2exact normal distribution.'}],
+                                  'BOS|NYK|SPREAD':[{label:'BOS -4.5',reasoning:'PICK: BOS -4.5 — OPTIMAL (60%)\\nMODEL: Projected margin +6.0 (BOS), total 231.0, from a 2exact normal distribution.'}]};
           let got=null;const orig=window.lockPick;window.lockPick=function(){got=[...arguments];};
           let inp=document.getElementById('tstInp');if(!inp){inp=document.createElement('input');inp.id='tstInp';document.body.appendChild(inp);}
           try{eval(call.js);}finally{window.lockPick=orig;}
@@ -117,7 +118,7 @@ class JsSide(unittest.TestCase):
         self.assertIn("MANUAL LINE", txt)
         self.assertIn("changed by hand from OVER 225.5 to OVER 222.5", txt)
         self.assertIn("not a market quote", txt)
-        self.assertIn("MODEL: Projected margin +4.0 (BOS), total 231.0, from a 25k-sim Monte Carlo.", txt)      # the card's projection survives, its posted-line cover % does not
+        self.assertIn("MODEL: Projected margin +4.0 (BOS), total 231.0, from a 2exact normal distribution.", txt)      # the card's projection survives, its posted-line cover % does not
         self.assertNotIn("vs the 225.5 line", txt)
         r = self._manual_lock({"js": "document.getElementById('tstInp').value='-7';_spreadLockDir('BOS','NYK','BOS','NYK','2026-10-05',.6,4.5,'tstInp','FAV','NBA')"})
         self.assertEqual(r["label"], "BOS -7.5")
@@ -143,7 +144,7 @@ class JsSide(unittest.TestCase):
         r = out["reasoning"]
         self.assertGreater(out["n"], 0)
         self.assertTrue(r.startswith("PICK: Jalen Brunson "), r)
-        for part in ("MODEL: projection", "season average 27.6", "last-5 form 31", "5k-sim Monte Carlo", "WHY: Jalen Brunson averages", "PRICE:", "no edge or EV is claimed"):
+        for part in ("MODEL: projection", "season average 27.6", "last-5 form 31", "exact normal distribution", "WHY: Jalen Brunson averages", "PRICE:", "no edge or EV is claimed"):
             self.assertIn(part, r)
         self.assertEqual(out["exact"], r)                                      # the LOCK button path finds it through the registry
         self.assertIn("LINE EDITED: the line was changed by hand from", out["edited"])

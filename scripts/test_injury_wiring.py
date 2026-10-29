@@ -209,6 +209,7 @@ def _between(start: str, end: str) -> str:
 NHL_BLOCK = _between("// ═══ INJURY ADJUSTMENTS — shared helpers + NHL", "function nhlMC(hA,awA,n=25000,marketOU){")
 NFL_BLOCK = _between("// ── NFL injury adjustment (added 2026-10-03", "function nflMC(hA,awA,n,ouLine,g){")
 NFL_MC = _between("function nflMC(hA,awA,n,ouLine,g){", "// Beta-binomial posterior on this season's actual W-L record")
+EXACT_MATH = _between("function normalCDF(z){", "function _kelly(p,dec){") + _between("function _leadStr(lead,dec){", "function _mcProjBarHTML(")                  # normalCDF + _normInv + the exact-engine helpers nflMC calls since 2026-10-29
 NFL_ANCHOR = _between("const NFL_MKT_ANCHOR=", "window.NFL_ENS=window.NFL_ENS||")      # the market-anchor constants + weight function nflMC calls (2026-10-11 NFL audit)
 
 JS_HARNESS = r"""
@@ -221,6 +222,7 @@ run('var NHL={}; var _NFL_DATA=null; const _NHL_LG_GF60=3.0;');
 run(%(NHL_BLOCK)s);
 run(%(NFL_BLOCK)s);
 run('const _CFB_WX_CACHE={}; const cfbWeatherImpact=()=>({totalAdj:0,label:""}); const _forceHalfLine=x=>Math.round(x*2)/2; const _boxMullerZ=()=>0; const _NFL_LG_TOTAL=44, _NFL_SIGMA_MARGIN=13.5,_NFL_SIGMA_TOTAL=10.0; function _nflHFA(){return 1.8;}');
+run(%(EXACT_MATH)s);
 run(%(NFL_ANCHOR)s);
 run(%(NFL_MC)s);
 const now=new Date().toISOString();
@@ -305,7 +307,7 @@ console.log(JSON.stringify(R));
 
 
 def run_node() -> dict:
-    code = JS_HARNESS % {"NHL_BLOCK": json.dumps(NHL_BLOCK), "NFL_BLOCK": json.dumps(NFL_BLOCK), "NFL_MC": json.dumps(NFL_MC), "NFL_ANCHOR": json.dumps(NFL_ANCHOR)}
+    code = JS_HARNESS % {"NHL_BLOCK": json.dumps(NHL_BLOCK), "NFL_BLOCK": json.dumps(NFL_BLOCK), "NFL_MC": json.dumps(NFL_MC), "NFL_ANCHOR": json.dumps(NFL_ANCHOR), "EXACT_MATH": json.dumps(EXACT_MATH)}
     with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as f:
         f.write(code)
         path = f.name

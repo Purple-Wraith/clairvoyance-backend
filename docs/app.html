@@ -1402,7 +1402,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
     <div id="cfb-tab-model" class="subp" style="display:none"><div class="sa">
       <div class="sh"><span class="p"></span> MODEL ARCHITECTURE</div>
       <div class="g3" style="margin-bottom:12px">
-        <div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">15K sims/game. FPI margin + capped yards/turnover/weather adjustments. Real per-venue forecast.</div></div>
+        <div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Exact normal model (no sampling noise). FPI margin + capped yards/turnover/weather adjustments. Real per-venue forecast.</div></div>
         <div class="card cp"><div class="ct">BAYESIAN</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Beta-binomial prior on this season's actual W-L record. Posterior updates per result.</div></div>
         <div class="card cn"><div class="ct">ELO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">K=20, MOV-multiplier, built from real final scores (not FPI-derived). Ramps in as games are played.</div></div>
       </div>
@@ -1451,7 +1451,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
     <div id="nfl2-tab-model" class="subp" style="display:none"><div class="sa">
       <div class="sh"><span class="p"></span> MODEL ARCHITECTURE</div>
       <div class="g3" style="margin-bottom:12px">
-        <div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">15K sims/game. Point-differential margin + capped yards/turnover/weather adjustments. Real per-venue forecast.</div></div>
+        <div class="card ci"><div class="ct">MONTE CARLO</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Exact normal model (no sampling noise). Point-differential margin + capped yards/turnover/weather adjustments. Real per-venue forecast.</div></div>
         <div class="card cp"><div class="ct">BAYESIAN</div><div style="font-size:19px;color:var(--t2);line-height:1.7;margin-top:3px;font-family:var(--mono)">Beta-binomial prior on this season's actual W-L record from real standings.</div></div>
       </div>
       <div class="sh"><span class="p"></span> WEIGHTS</div>
@@ -4845,18 +4845,11 @@ function _propOppDefFactor(sport,oppAbbr){
   return{factor,raw,lgAvg,realAvg:haveLeague,note:null};
 }
 function propMC(mu,sigma,line,n){
-  if(!n)n=25000;if(mu<=0)return{overP:0.5,hitRate:50,avgStat:mu};
+  // EXACT (2026-10-29): the prop's normal distribution (floored at 0) in closed form; `n` is kept for callers and ignored.
+  if(mu<=0)return{overP:0.5,hitRate:50,avgStat:mu};
   if(!sigma||sigma<=0)sigma=Math.max(0.5,mu*0.4);
-  var over=0,sumS=0;
-  for(var i=0;i<n;i+=2){
-    var u1=Math.random(),u2=Math.random();
-    var z=Math.sqrt(-2*Math.log(Math.max(1e-10,u1)))*Math.cos(2*Math.PI*u2);
-    var z2=Math.sqrt(-2*Math.log(Math.max(1e-10,u1)))*Math.sin(2*Math.PI*u2);
-    var s1=Math.max(0,mu+z*sigma);var s2=Math.max(0,mu+z2*sigma);
-    if(s1>line)over++;if(s2>line)over++;
-    sumS+=s1+s2;
-  }
-  return{overP:over/n,hitRate:Math.round(over/n*100),avgStat:+(sumS/n).toFixed(2)};
+  var overP=line>=0?1-normalCDF((line-mu)/sigma):1;
+  return{overP:overP,hitRate:Math.round(overP*100),avgStat:+_nClampMean(mu,sigma,0).toFixed(2),exact:true,dist:'normal'};
 }
 
 // _bookLinesHTML (multi-book line comparison row) removed 2026-10-02 --
@@ -5216,10 +5209,10 @@ function _mcProjBarHTML(mc,ouL,hTeam,aTeam,opts){
   // opts.exact: SHL/LIIGA/NLA/EXTRALIGA's liigaMC/shlMC/nlaMC/extraligaMC are NOT simulations -- they are exact
   // independent-Poisson math (_socMarginDist/_socPoissonPmf/_socSpreadProb), so never claim a sim count for them
   // (same wording convention as _mcLineScore's opts.exact).
-  const nStr=(opts&&opts.exact)?'exact Poisson distribution, not sims':(nSims>=1000?Math.round(nSims/1000)+'k sims':nSims+' sims');
+  const _ex=(opts&&opts.exact)||mc.exact,nStr=_ex?('exact '+((opts&&opts.dist)==='normal'||mc.dist==='normal'?'normal':'Poisson')+' distribution, not sims'):(nSims>=1000?Math.round(nSims/1000)+'k sims':nSims+' sims');
   const unit=opts&&opts.unit?opts.unit:'';
   return'<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px;padding:5px 9px;background:rgba(0,0,0,.35);border-radius:3px;border:1px solid rgba(255,255,255,.07)">'
-    +'<span style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">'+((opts&&opts.exact)?'PROJ':'MC PROJ')+' ('+nStr+')</span>'
+    +'<span style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">'+(_ex?'PROJ':'MC PROJ')+' ('+nStr+')</span>'
     // AWAY first, each score tagged with its team: the card header reads "AWAY at HOME", the reasoning text and the emails list the away team first, but this bar used to print home – away with no names,
     // so "2.24 – 3.10" read as Farjestad 2.24 – Brynas 3.10 when the model projects Farjestad 3.10 – Brynas 2.24 (found 2026-10-29 auditing the match cards)
     +'<span style="font-family:var(--mono);font-size:16px;color:var(--nc);font-weight:700">'+(aTeam?_escHtml(aTeam)+' ':'')+a+(unit?' '+unit:'')+'  –  '+(hTeam?_escHtml(hTeam)+' ':'')+h+(unit?' '+unit:'')+'</span>'
@@ -5250,6 +5243,21 @@ function _normInv(p){
   }
   return(lo+hi)/2;
 }
+// ── EXACT ENGINES (2026-10-29, owner: improve the accuracy and performance of the sims) ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Every game model here is Poisson (hockey, soccer) or normal (CFB, NFL, NBA, props), so each probability and projected score is computed in closed form instead of sampled.  A 25k-sample probability moved
+// 0.2-0.5 points from one run to the next -- enough to flip a pick across a grade bar between the three daily lock passes (a leg locks if it clears the bar in ANY pass) -- and cost ~2-3 ms per call; the exact
+// versions are deterministic and ~50x cheaper.  Same fields, same models; only the sampling is gone (validated against 500k-sample runs of the old code, scripts/test_exact_engines.py).
+function _nPdf(z){return .3989422804014327*Math.exp(-z*z/2);}
+function _nClampMean(mu,sd,lo){if(!(sd>0))return Math.max(lo,mu);const d=(mu-lo)/sd;return lo+(mu-lo)*normalCDF(d)+sd*_nPdf(d);}   // E[max(lo,X)], X ~ N(mu,sd)
+let _zGrid=null;
+function _zGridPts(){if(_zGrid)return _zGrid;_zGrid=[];const n=96;for(let i=0;i<n;i++)_zGrid.push(_normInv((i+.5)/n));return _zGrid;}   // 96 equal-probability points of a standard normal
+// Expected team scores of a normal margin (mean mM, sd sM) / total (mean mT, sd sT) game, the total floored at tFloor and each team's score at 0 -- what cfbMC / nflMC averaged over their sims.
+function _nScoreMeans(mM,sM,mT,sT,tFloor){
+  const Z=_zGridPts();let h=0,a=0;
+  for(let i=0;i<Z.length;i++){const t=Math.max(tFloor,mT+sT*Z[i]);h+=_nClampMean((t+mM)/2,sM/2,0);a+=_nClampMean((t-mM)/2,sM/2,0);}
+  return{h:h/Z.length,a:a/Z.length};
+}
+function _poisPmfArr(l,K){const p=new Array(K+1);p[0]=Math.exp(-l);for(let k=1;k<=K;k++)p[k]=p[k-1]*l/k;return p;}
 function _kelly(p,dec){return Math.max(0,Math.min(0.30,(p*dec-1)/Math.max(0.001,dec-1)));}
 function _edge(p,dec){return+(p-1/Math.max(0.001,dec)).toFixed(4);}
 function _sigma(comps){
@@ -5489,7 +5497,7 @@ function _mcLineScore(mc,side,ouLine,opts){
   opts=opts||{};
   const h=mc.avgH,a=mc.avgA;
   const total=mc.avgT!=null?mc.avgT:h+a;
-  const sampleTxt=opts.exact?'an exact Poisson distribution (not a simulation)':'a '+(opts.n&&opts.n>=1000?Math.round(opts.n/1000)+'k':opts.n||'25k')+'-sim Monte Carlo';
+  const sampleTxt=(opts.exact||mc.exact)?'an exact '+(mc.dist==='normal'?'normal':'Poisson')+' distribution (not a simulation)':'a '+(opts.n&&opts.n>=1000?Math.round(opts.n/1000)+'k':opts.n||'25k')+'-sim Monte Carlo';   // every engine is exact since 2026-10-29 (the sim wording stays only for a legacy mc object)
   let extra='';
   if((side==='over'||side==='under')&&mc.overP!=null&&ouLine!=null){
     const p=side==='over'?mc.overP:1-mc.overP;
@@ -5511,20 +5519,20 @@ function _mcLineMargin(mc,side,favName,dogName,baseSpread,favCoverP,overP,ouL,fa
   let extra='';
   if((side==='sprdFav'||side==='sprdDog')&&favCoverP!=null&&baseSpread!=null){
     const p=side==='sprdFav'?favCoverP:1-favCoverP;
-    extra=` — ${side==='sprdFav'?favName:dogName} covers the ${baseSpread.toFixed(1)}-pt line in ${(p*100).toFixed(1)}% of simulated outcomes`;
+    extra=` — ${side==='sprdFav'?favName:dogName} covers the ${baseSpread.toFixed(1)}-pt line in ${(p*100).toFixed(1)}% of outcomes`;
   }else if((side==='over'||side==='under')&&overP!=null&&ouL!=null){
     const p=side==='over'?overP:1-overP;
     const ouLTxt=typeof ouL==='number'?ouL.toFixed(1):ouL;
-    extra=` — ${side.toUpperCase()} hits ${(p*100).toFixed(1)}% of simulated outcomes vs the ${ouLTxt} line`;
+    extra=` — ${side.toUpperCase()} hits ${(p*100).toFixed(1)}% of outcomes vs the ${ouLTxt} line`;
   }
-  return`Projected margin ${_leadStr(_m)} (${favName}), total ${mc.avgTotal.toFixed(1)}${extra}, from a 25k-sim Monte Carlo.`;   // _m = the named favourite's lead: ahead reads minus
+  return`Projected margin ${_leadStr(_m)} (${favName}), total ${mc.avgTotal.toFixed(1)}${extra}, from an exact normal distribution (not a simulation).`;   // _m = the named favourite's lead: ahead reads minus
 }
 function _mcLineSoccer(mc,side,ouLine){
   if(!mc||mc.avgH==null||mc.avgA==null)return null;
   const extra=(side==='over'||side==='under')&&ouLine!=null
     ?(Math.abs(ouLine-2.5)<0.01?` — OVER 2.5 hits ${(mc.over25*100).toFixed(1)}% of outcomes`:Math.abs(ouLine-3.5)<0.01?` — OVER 3.5 hits ${(mc.over35*100).toFixed(1)}% of outcomes`:''):'';
-  const nTxt=mc.n>=1000?Math.round(mc.n/1000)+'k':mc.n;
-  return`Projected ${mc.avgA.toFixed(2)}–${mc.avgH.toFixed(2)} goals (xG ${mc.axg.toFixed(2)}/${mc.hxg.toFixed(2)}), BTTS ${(mc.btts*100).toFixed(0)}%${extra}, from a ${nTxt}-sim Monte Carlo.`;
+  const nTxt='';
+  return`Projected ${mc.avgA.toFixed(2)}–${mc.avgH.toFixed(2)} goals (xG ${mc.axg.toFixed(2)}/${mc.hxg.toFixed(2)}), BTTS ${(mc.btts*100).toFixed(0)}%${extra}, from an exact Poisson distribution (not a simulation).`;
 }
 // Strips HTML for storage in the plain-text `reasoning` field -- several
 // sports' existing per-market explanation strings (CFB/NFL's mlReasoning/
@@ -8296,10 +8304,15 @@ function nhlMC(hA,awA,n=25000,marketOU){
   // the caller has one) is now preferred; TONIGHT lookup stays only as
   // the last-resort fallback for the narrow case of no live data loaded.
   const ouLine=marketOU!=null?parseFloat(marketOU):(TONIGHT.find(g=>(g.h===hA&&g.a===awA)||(g.h===awA&&g.a===hA))?.ou||5.5);
-  let hw=0,aw2=0,ot=0,hT=0,aT=0,rT=0,ov=0,rl15h=0,rl15a=0;
+  // EXACT (2026-10-29): the independent-Poisson goal grid instead of 25k sampled games (same model, no sampling noise, ~50x cheaper).  Ties after 60 minutes split 50/50 for the win; the overtime goal
+  // is counted in the O/U expectation (see HOCKEY_OT_GOAL_SHARE).
   const _otShare=_hkOtGoalShare('NHL');
-  const _hp=_poisSampler(hLam),_ap=_poisSampler(aLam);
-  for(let i=0;i<n;i++){const hg=_hp(),ag=_ap();hT+=hg;aT+=ag;rT+=hg+ag;if(hg+ag>ouLine)ov++;if(hg>ag){hw++;if(hg-ag>=2)rl15h++;}else if(ag>hg){aw2++;if(ag-hg>=2)rl15a++;}else{ot++;hw+=.5;aw2+=.5;if(hg+ag<=ouLine&&hg+ag+1>ouLine)ov+=_otShare;}}   // tied after 60: an overtime goal adds one to the book total (expected value, no extra noise), see HOCKEY_OT_GOAL_SHARE
+  const _K=Math.max(24,Math.ceil(Math.max(hLam,aLam)*4+12)),_ph=_poisPmfArr(hLam,_K),_pa=_poisPmfArr(aLam,_K);
+  let hw=0,aw2=0,ot=0,ov=0,rl15h=0,rl15a=0;
+  for(let hg=0;hg<=_K;hg++){const x=_ph[hg];for(let ag=0;ag<=_K;ag++){const pr=x*_pa[ag],tot=hg+ag;
+    if(tot>ouLine)ov+=pr;
+    if(hg>ag){hw+=pr;if(hg-ag>=2)rl15h+=pr;}else if(ag>hg){aw2+=pr;if(ag-hg>=2)rl15a+=pr;}else{ot+=pr;hw+=pr/2;aw2+=pr/2;if(tot<=ouLine&&tot+1>ouLine)ov+=pr*_otShare;}}}
+  const hT=hLam,aT=aLam,rT=hLam+aLam;
   // Special-teams (hStAdj/aStAdj) and shot-quality (hSqAdj/aSqAdj) multipliers
   // already drive hLam/aLam above but were never surfaced anywhere in the
   // reasoning text -- a real signal the model uses but the reader never sees.
@@ -8329,8 +8342,8 @@ function nhlMC(hA,awA,n=25000,marketOU){
   const MIN_GP_FOR_FULL_CONFIDENCE=5;
   const gpConf=Math.min(1,Math.min(h.gp||0,aw.gp||0)/MIN_GP_FOR_FULL_CONFIDENCE);
   const damp=p=>0.5+(p-0.5)*gpConf;
-  const hwPD=damp(hw/n),overPD=damp(ov/n),rl15D=damp(_hkMarginCal(rl15h/n)),rl15AD=damp(_hkMarginCal(rl15a/n)); // puck-line cover incl. empty-net margin calibration (see HOCKEY_PL_MARGIN_LOGIT_SHIFT)
-  return{hwP:hwPD,awP:1-hwPD,avgH:hT/n,avgA:aT/n,avgT:rT/n,overP:overPD,underP:1-overPD,otP:ot/n,ouLine,rl15:rl15D,rl15A:rl15AD,rlN:1-rl15D,stEdge,sqEdge,gpConf,formH:hForm,formA:aForm,hA,aA:awA,injAdj:{h:injH,a:injA}};
+  const hwPD=damp(hw),overPD=damp(ov),rl15D=damp(_hkMarginCal(rl15h)),rl15AD=damp(_hkMarginCal(rl15a)); // puck-line cover incl. empty-net margin calibration (see HOCKEY_PL_MARGIN_LOGIT_SHIFT)
+  return{hwP:hwPD,awP:1-hwPD,avgH:hT,avgA:aT,avgT:rT,overP:overPD,underP:1-overPD,otP:ot,exact:true,dist:'poisson',ouLine,rl15:rl15D,rl15A:rl15AD,rlN:1-rl15D,stEdge,sqEdge,gpConf,formH:hForm,formA:aForm,hA,aA:awA,injAdj:{h:injH,a:injA}};
 }
 function nhlEns(hA,awA,marketOU,mkt){
   const h=NHL[hA],aw=NHL[awA];if(!h||!aw)return{p:.5};
@@ -9128,35 +9141,17 @@ function cfbMC(hA,awA,n,ouLine,g){
   // computed here, not just at display time, so overP/underP stay
   // consistent with whatever line actually gets shown.
   const finalOU=ouLine!=null?parseFloat(ouLine):parseFloat(_forceHalfLine(baseTotal));
-  n=n||15000;
-  let hw=0,ov=0,marginSum=0,totalSum=0,hScoreSum=0,aScoreSum=0;
-  for(let i=0;i<n;i++){
-    const simMargin=margin0+_boxMullerZ()*_CFB_SIGMA_MARGIN;
-    const simTotal=Math.max(20,baseTotal+_boxMullerZ()*_CFB_SIGMA_TOTAL);
-    marginSum+=simMargin;totalSum+=simTotal;
-    if(simMargin>0)hw++;
-    if(simTotal>finalOU)ov++;
-    // Real bug, found+fixed: avgH/avgA below used to derive straight from
-    // the AGGREGATE avgMargin/avgTotal, which can't itself go negative but
-    // CAN produce a negative per-team score once margin and total are both
-    // large in the same direction (a team literally can't score negative
-    // points, but nothing capped |margin0| relative to baseTotal -- several
-    // individually-capped margin components stacking the same direction
-    // could exceed a low baseTotal). Floor each SIM's own implied score at
-    // 0 before summing, not just the final average, so this can never
-    // surface as a negative projected score regardless of how lopsided any
-    // single sim's margin/total draw is. simMargin/simTotal themselves are
-    // untouched -- win probability and O/U probability above are still
-    // computed from the real, unclamped margin/total distributions.
-    hScoreSum+=Math.max(0,(simTotal+simMargin)/2);
-    aScoreSum+=Math.max(0,(simTotal-simMargin)/2);
-  }
-  const avgMargin=marginSum/n,avgTotal=totalSum/n;
+  // EXACT (2026-10-29): margin ~ N(margin0, sigma) and total ~ N(baseTotal, sigma) in closed form instead of 15k sampled games.  The total is floored at 20 and each team's score at 0 (as the sim did), so the
+  // projected scores are the floored expectations, while the win / over probabilities come from the unfloored distributions.
+  const hw=normalCDF(margin0/_CFB_SIGMA_MARGIN),ov=finalOU<20?1:1-normalCDF((finalOU-baseTotal)/_CFB_SIGMA_TOTAL);
+  const _sc=_nScoreMeans(margin0,_CFB_SIGMA_MARGIN,baseTotal,_CFB_SIGMA_TOTAL,20);
+  const avgMargin=margin0,avgTotal=_nClampMean(baseTotal,_CFB_SIGMA_TOTAL,20);
+  n=0;
   return{
-    hwP:hw/n,avgMargin:+avgMargin.toFixed(1),avgTotal:+avgTotal.toFixed(1),
-    avgH:+(hScoreSum/n).toFixed(1),avgA:+(aScoreSum/n).toFixed(1),
-    overP:ov/n,underP:1-ov/n,ouLine:+finalOU.toFixed(1),
-    n, // exposed so the UI can label "MC SIM (N runs)" from the real value, not a hardcoded string
+    hwP:hw,avgMargin:+avgMargin.toFixed(1),avgTotal:+avgTotal.toFixed(1),
+    avgH:+_sc.h.toFixed(1),avgA:+_sc.a.toFixed(1),
+    overP:ov,underP:1-ov,ouLine:+finalOU.toFixed(1),
+    n,exact:true,dist:'normal', // n = 0: no sampling any more; exact/dist label the model for the UI
     wx,wxImpact,hasFpi,marketMargin,
     rankAdjPts,hist2025Margin,boxScoreMargin,stMargin,primaryMargin,coreMargin,
     passingMargin,rushingMargin,receivingMargin,miscMargin,scoringMargin,defPassMargin,defRushMargin, // exposed for debugging/transparency, same convention as the other adjustment terms above
@@ -9681,7 +9676,7 @@ function _cfbPickReasoning(g,mc,f,focus){
     }else{
       sents.push(`No forecast loaded yet for this matchup's venue (either too far out for a 16-day forecast window, or the game's location hasn't resolved) — total is weather-neutral for now.`);
     }
-    sents.push(`MC sim projects ${mc.avgTotal} combined points across ${mc.n.toLocaleString()} simulations, driven by both teams' actual points-allowed averages plus the capped yardage/turnover/weather adjustments above — independent of the FPI-based margin used for the moneyline/spread side.`);
+    sents.push(`The model projects ${mc.avgTotal} combined points (an exact normal distribution, not a simulation), built from each team's points scored against the other's points allowed plus the capped yardage/turnover/weather adjustments above — independent of the FPI-based margin used for the moneyline/spread side.`);
   }
 
   return sents.filter(Boolean).join(' ');
@@ -10100,7 +10095,7 @@ function _cfbGameCard(g){
       <div class="gbox gbox2" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_cfb_${gidSafe}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${ouL.toFixed(1)}" id="ouinp_cfb_${gidSafe}" style="width:48px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_cfb_${gidSafe}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_cfbOuLockDir('${g.home}','${g.away}',${overP.toFixed(3)},'${ouL.toFixed(1)}','ouinp_cfb_${gidSafe}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_cfbOuLockDir('${g.home}','${g.away}',${overP.toFixed(3)},'${ouL.toFixed(1)}','ouinp_cfb_${gidSafe}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▼ UNDER</button></div>${typeof nm!=='undefined'?_boxGradeHTML(nm,['over'],['under']):''}</div>
     </div>
     <div style="padding:8px 10px;background:rgba(255,110,20,.04);border-top:1px solid rgba(255,110,20,.1)">
-      ${_mcProjBarHTML({avgH:mc.avgH,avgA:mc.avgA,avgT:mc.avgTotal,overP:overU},ouL.toFixed(1),g.home,g.away,{n:mc.n,dec:1})}
+      ${_mcProjBarHTML({avgH:mc.avgH,avgA:mc.avgA,avgT:mc.avgTotal,overP:overU},ouL.toFixed(1),g.home,g.away,{exact:true,dist:'normal',dec:1})}
       ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}${_altLineRowHTML('CFB',g,nm,!!(liveStatus&&!liveStatus.isLive))}
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+_gradeName(m)).join(' · ')}</div>
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">ENSEMBLE: MC ${(ens.mc*100).toFixed(0)}% / BAY ${(ens.bay*100).toFixed(0)}% / ELO ${(ens.elo*100).toFixed(0)}% win prob (weighted MC/BAY/ELO ${(100-ens.eloWeight*100).toFixed(0)}%/ELO ${(ens.eloWeight*100).toFixed(0)}% blend applied — see MODEL tab to adjust)</div>
@@ -10796,31 +10791,15 @@ function nflMC(hA,awA,n,ouLine,g){
   const anchoredM=NFL_MKT_ANCHOR.on&&marketMargin!=null,anchoredT=NFL_MKT_ANCHOR.on&&ouLine!=null;
   const marginA=anchoredM?marketMargin+wM*(margin0-marketMargin):margin0;
   const totalA=anchoredT?finalOU+wT*(baseTotal-finalOU):baseTotal;
-  n=n||15000;
-  let hw=0,ov=0,marginSum=0,totalSum=0,hScoreSum=0,aScoreSum=0;
-  for(let i=0;i<n;i++){
-    const zM=_boxMullerZ(),zT=_boxMullerZ();
-    const simMarginRaw=margin0+zM*_NFL_SIGMA_MARGIN;           // moneyline: unanchored, as before
-    const simMargin=marginA+zM*_NFL_SIGMA_MARGIN;              // spread / projection: anchored
-    const simTotal=Math.max(20,totalA+zT*_NFL_SIGMA_TOTAL);
-    marginSum+=simMargin;totalSum+=simTotal;
-    if(simMarginRaw>0)hw++;
-    if(simTotal>finalOU)ov++;
-    // Same real bug as cfbMC (fixed together): floor each SIM's own
-    // implied per-team score at 0 before summing -- a team can't score
-    // negative points, but nothing capped |margin0| relative to baseTotal,
-    // so a large enough margin draw combined with a small total draw could
-    // otherwise average out to a negative displayed score. simMargin/
-    // simTotal themselves are untouched -- win/O-U probability above still
-    // use the real, unclamped distributions.
-    hScoreSum+=Math.max(0,(simTotal+simMargin)/2);
-    aScoreSum+=Math.max(0,(simTotal-simMargin)/2);
-  }
-  const avgMargin=marginSum/n,avgTotal=totalSum/n;
+  // EXACT (2026-10-29), same model as the sim it replaces: the moneyline keeps the RAW margin0, the spread / O-U / projected score use the market-anchored means; total floored at 20, each score at 0.
+  const hw=normalCDF(margin0/_NFL_SIGMA_MARGIN),ov=finalOU<20?1:1-normalCDF((finalOU-totalA)/_NFL_SIGMA_TOTAL);
+  const _sc=_nScoreMeans(marginA,_NFL_SIGMA_MARGIN,totalA,_NFL_SIGMA_TOTAL,20);
+  const avgMargin=marginA,avgTotal=_nClampMean(totalA,_NFL_SIGMA_TOTAL,20);
+  n=0;
   return{
-    hwP:hw/n,avgMargin:+avgMargin.toFixed(1),avgTotal:+avgTotal.toFixed(1),
-    avgH:+(hScoreSum/n).toFixed(1),avgA:+(aScoreSum/n).toFixed(1),
-    overP:ov/n,underP:1-ov/n,ouLine:+finalOU.toFixed(1),n,wx,wxImpact,hasDiff,marketMargin,
+    hwP:hw,avgMargin:+avgMargin.toFixed(1),avgTotal:+avgTotal.toFixed(1),
+    avgH:+_sc.h.toFixed(1),avgA:+_sc.a.toFixed(1),
+    overP:ov,underP:1-ov,ouLine:+finalOU.toFixed(1),n,exact:true,dist:'normal',wx,wxImpact,hasDiff,marketMargin,
     // Pre-noise baseline (not the post-sim averages above, which are
     // noisy 25k-sample estimates of these same two numbers) -- exposed
     // so _nflSimPlayerStats can run its own independent player-prop
@@ -11065,7 +11044,7 @@ function _nflGameCard2(g){
   const sprdReasoning=`<span style="color:${sprdGrade.col}">${sprdGrade.m.label} · ${sprdGrade.lbl} · ${(sprdGrade.m.prob*100).toFixed(1)}% · EV ${sprdGrade.m.evVal>=0?'+':''}${(sprdGrade.m.evVal*100).toFixed(1)}%</span><br>${anchTxtS}MC-projected margin ${(spreadFav===g.home?mc.avgH-mc.avgA:mc.avgA-mc.avgH)>=0?'+':''}${(spreadFav===g.home?mc.avgH-mc.avgA:mc.avgA-mc.avgH).toFixed(1)} for ${spreadFav} vs the ${baseSpread.toFixed(1)}-pt line. ${diffTxt}${injTxt}`;
   const ouReasoning=`<span style="color:${ouGrade.col}">${ouGrade.m.label} · ${ouGrade.lbl} · ${(ouGrade.m.prob*100).toFixed(1)}% · EV ${ouGrade.m.evVal>=0?'+':''}${(ouGrade.m.evVal*100).toFixed(1)}%</span><br>`
     +(mc.wx?`Real forecast at ${g.venue||g.city||'the venue'}: ${mc.wx.temp}°F, ${mc.wx.wind}mph wind${mc.wx.snow>0?`, ${mc.wx.snow}"/hr snow`:''} — folded into the total as a ${mc.wxImpact.totalAdj>=0?'+':''}${mc.wxImpact.totalAdj}-pt adjustment. `:g.indoor?`${g.venue||'This venue'} is indoors — no weather factor applies. `:'No forecast loaded yet for this venue (too far out, or location unresolved) — total is weather-neutral for now. ')
-    +anchTxtT+`MC sim (${mc.n.toLocaleString()} runs): proj ${g.away} ${mc.avgA} – ${g.home} ${mc.avgH} (${mc.avgTotal} total) vs the ${ouL.toFixed(1)} line.`;
+    +anchTxtT+`Exact normal model: proj ${g.away} ${mc.avgA} – ${g.home} ${mc.avgH} (${mc.avgTotal} total) vs the ${ouL.toFixed(1)} line.`;
   // "Why this pick" capture -- same pattern as CFB's own card just above:
   // _attachReasoning runs after mlReasoning/sprdReasoning/ouReasoning exist
   // so it can use NFL's own real per-market paragraphs as the rich WHY
@@ -11111,7 +11090,7 @@ function _nflGameCard2(g){
       <div class="gbox gbox2" style="flex:2;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);border-radius:3px;padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:1px">O/U LINE</div><div style="display:flex;align-items:center;gap:2px"><button onclick="event.stopPropagation();_adjV('ouinp_nfl2_${gidSafe}',-0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">−</button><input type="number" step="0.5" value="${ouL.toFixed(1)}" id="ouinp_nfl2_${gidSafe}" style="width:48px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:var(--t);font-family:var(--mono);font-size:16px;padding:2px 4px;border-radius:2px;text-align:center"><button onclick="event.stopPropagation();_adjV('ouinp_nfl2_${gidSafe}',0.5)" style="font-family:var(--mono);font-size:16px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(220,190,255,.7);border-radius:2px;cursor:pointer;flex-shrink:0">+</button></div><div style="display:flex;gap:3px"><button onclick="event.stopPropagation();_nflOuLockDir('${g.home}','${g.away}',${overP.toFixed(3)},'${ouL.toFixed(1)}','ouinp_nfl2_${gidSafe}','OVER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▲ OVER</button><button onclick="event.stopPropagation();_nflOuLockDir('${g.home}','${g.away}',${overP.toFixed(3)},'${ouL.toFixed(1)}','ouinp_nfl2_${gidSafe}','UNDER')" style="font-size:13px;padding:2px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--t);border-radius:2px;cursor:pointer">▼ UNDER</button></div>${typeof nm!=='undefined'?_boxGradeHTML(nm,['over'],['under']):''}</div>
     </div>
     <div style="padding:8px 10px;background:rgba(0,120,255,.04);border-top:1px solid rgba(0,120,255,.1)">
-      ${_mcProjBarHTML({avgH:mc.avgH,avgA:mc.avgA,avgT:mc.avgTotal,overP:overU},ouL.toFixed(1),g.home,g.away,{n:mc.n,dec:1})}
+      ${_mcProjBarHTML({avgH:mc.avgH,avgA:mc.avgA,avgT:mc.avgTotal,overP:overU},ouL.toFixed(1),g.home,g.away,{exact:true,dist:'normal',dec:1})}
       ${_bestMarketBoxHTML(nm.tierN,nm.col,nm.lbl,nm.best.label,nm.best.prob,nm.best.evVal)}${_mvmBarHTML(nm.best)}${_altLineRowHTML('NFL',g,nm,!!(liveStatus&&!liveStatus.isLive))}
       <div style="margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--t3);letter-spacing:.5px">MARKET SCAN: ${nm.mkts.map(m=>m.label+':'+_gradeName(m)).join(' · ')}</div>
     </div>
@@ -11801,7 +11780,7 @@ function _nhlGameCard(espnEv){
       const _fav3Home=hP>=aP;
       const _plDog3=Math.max(0.25,1-plP);
       const _ensStr3=`MC ${(ens.mc*100).toFixed(0)}% / xGF ${(ens.xgf*100).toFixed(0)}% / ELO ${(ens.elo*100).toFixed(0)}%`;
-      const _nhlEmailMc=_nhlMcD?`MC PROJ: ${an} ${_nhlMcD.avgA.toFixed(1)} – ${hn} ${_nhlMcD.avgH.toFixed(1)} (Total ${_nhlMcD.avgT.toFixed(1)}, 25k sims)`:null;
+      const _nhlEmailMc=_nhlMcD?`MC PROJ: ${an} ${_nhlMcD.avgA.toFixed(1)} – ${hn} ${_nhlMcD.avgH.toFixed(1)} (Total ${_nhlMcD.avgT.toFixed(1)}, exact)`:null;
       const _nm3=_evalMkts([
         _hkMkt(`${_nhlFav3} ML`,_nhlFavP3,'mlFav',_fav3Home?hAsmD3:aAsmD3,_fav3Home?_px.ml.home:_px.ml.away,_fav3Home?_gcML:_hkBlComp(_gcML)),
         _hkMkt(`${_nhlDog3} ML`,_nhlDogP3,'mlDog',_fav3Home?aAsmD3:hAsmD3,_fav3Home?_px.ml.away:_px.ml.home,_fav3Home?_hkBlComp(_gcML):_gcML),
@@ -14990,19 +14969,10 @@ function nbaMC(hA,awA,n=25000,ouLine=220.5){
   const poss=pace/100,HCA=2.9;
   const hProj=hOrtg*(aDrtg/lgDrtg)*poss+HCA/2;
   const aProj=aOrtg*(hDrtg/lgDrtg)*poss-HCA/2;
+  // EXACT (2026-10-29): margin ~ N(mProj, NBA_SIGMA_MARGIN), total ~ N(tProj, NBA_SIGMA_TOTAL) in closed form instead of n sampled games (rounding to whole points and the 70-point floor moved nothing measurable).
   const mProj=hProj-aProj,tProj=hProj+aProj;
-  let hw=0,aw2=0,hT=0,aT=0,ts=0,ov=0;
-  for(let i=0;i<n;i++){
-    // margin and total drawn directly (normal, Box-Muller), each team's score = (total +/- margin)/2
-    const simM=mProj+_boxMullerZ()*NBA_SIGMA_MARGIN,simT=tProj+_boxMullerZ()*NBA_SIGMA_TOTAL;
-    const hs=Math.max(70,Math.round((simT+simM)/2));
-    const as=Math.max(70,Math.round((simT-simM)/2));
-    hT+=hs;aT+=as;
-    if(hs>as)hw++;else if(as>hs)aw2++;else ts++;
-    if(hs+as>ouLine)ov++;
-  }
-  hw+=Math.round(ts*.503);aw2+=Math.round(ts*.497);
-  return{hwP:hw/n,avgH:+(hT/n).toFixed(1),avgA:+(aT/n).toFixed(1),avgT:+((hT+aT)/n).toFixed(1),spread:+((hT-aT)/n).toFixed(1),overP:ov/n,underP:1-ov/n};
+  const hwP=normalCDF(mProj/NBA_SIGMA_MARGIN),overP=1-normalCDF((ouLine-tProj)/NBA_SIGMA_TOTAL);
+  return{hwP,avgH:+hProj.toFixed(1),avgA:+aProj.toFixed(1),avgT:+tProj.toFixed(1),spread:+mProj.toFixed(1),overP,underP:1-overP,exact:true,dist:'normal'};
 }
 function nbaGetBayes(abbr){
   // Same audit fix as nbaMC(): NBA_TEAMS only has the 4 hardcoded teams, so
@@ -15317,7 +15287,7 @@ const espnSprdNum=-_sprdL;const sprdFav=_mktFav;const sprdLbl=sprdFav+' '+espnSp
       const _nbaEnsStr=`MC ${(ens.mc*100).toFixed(0)}% / BAY ${(ens.bay*100).toFixed(0)}% / ELO ${(ens.elo*100).toFixed(0)}%`;
       // Email-only summary: real MC-simulated score projection, no model-name
       // breakdown (see NHL's _nhlEmailMc for why).
-      const _nbaEmailMc=nbaEnsD?.mcD?`MC PROJ: ${an} ${nbaEnsD.mcD.avgA.toFixed(1)} – ${hn} ${nbaEnsD.mcD.avgH.toFixed(1)} (Total ${nbaEnsD.mcD.avgT.toFixed(1)}, 25k sims)`:null;
+      const _nbaEmailMc=nbaEnsD?.mcD?`MC PROJ: ${an} ${nbaEnsD.mcD.avgA.toFixed(1)} – ${hn} ${nbaEnsD.mcD.avgH.toFixed(1)} (Total ${nbaEnsD.mcD.avgT.toFixed(1)}, exact)`:null;
       const _nbaMkts=[
         // ml/dec = the price this card shows for the side (market line when posted, else the model's own); without them every NBA moneyline locked at a placeholder -110 (MIA ML -190 locked at -110).
         {label:`${_nbaFav} ML`,prob:_nbaFavP,evVal:_nbaFavEV,side:'mlFav',...((hP>=aP?hML:aML)?{ml:_mlFmt(hP>=aP?hML:aML),dec:_nbaFavD}:{})},
@@ -16151,7 +16121,7 @@ function _withPropReasoning(p){
     if(p.base!=null)bits.push('season average '+p.base);
     if(p.form!=null)bits.push('last-5 form '+p.form);
     if(p.adjustor!=null)bits.push('opponent adjustment '+(p.adjustor>=0?'+':'')+p.adjustor);
-    if(p.mu!=null)lines.push(`MODEL: projection ${p.mu} ${stat}${bits.length?' ('+bits.join(', ')+')':''} vs the ${p.line} line, spread \u03c3 ${p.sigma}, from a 5k-sim Monte Carlo.`);
+    if(p.mu!=null)lines.push(`MODEL: projection ${p.mu} ${stat}${bits.length?' ('+bits.join(', ')+')':''} vs the ${p.line} line, spread \u03c3 ${p.sigma}, from an exact normal distribution (not a simulation).`);
     if(p.basis)lines.push('WHY: '+p.basis);
     lines.push("PRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.");
     p.reasoning=lines.join('\n');
@@ -16332,7 +16302,7 @@ async function renderNBADailyProps(){
       +'<div style="font-family:var(--mono);font-size:17px;color:var(--t2);margin-bottom:4px">'+p.basis+'</div>'
       +(p.alt?'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:2px 0 6px;padding:4px 6px;border:1px dashed var(--t3);border-radius:2px"><span style="font-family:var(--mono);font-size:17px;color:var(--t2)">ADJ. LINE · '+(isOver?'▲ OVER ':'▼ UNDER ')+p.alt.line+' '+p.stat+' · '+p.alt.mlStr+' est. · '+Math.round(p.alt.prob*100)+'% · '+p.alt.shift+' from '+p.line+'</span><button class="btn btn-o btn-sm" onclick="lockProp(\''+q(p.team)+'\',\''+q(p.player)+'\',\''+p.alt.line+'\','+isOver+','+p.alt.prob.toFixed(2)+',\''+p.alt.mlStr+'\',\'NBA\',\''+q(p.opp)+'\',\''+(p.statAbbr||'')+'\',null,'+p.line+')">LOCK ADJ.</button></div>':'')
       +'<div style="display:flex;justify-content:space-between;align-items:center">'
-      +'<span style="font-family:var(--mono);font-size:16px;color:var(--t3)">SRC: ESPN Stats + MC Sim (5k)</span>'
+      +'<span style="font-family:var(--mono);font-size:16px;color:var(--t3)">SRC: ESPN Stats + exact normal model</span>'
       +'<button class="btn btn-o btn-sm" onclick="lockProp(\''+q(p.team)+'\',\''+q(p.player)+'\',\''+p.line+'\','+isOver+','+p.prob.toFixed(2)+',\''+p.ml+'\',\'NBA\',\''+q(p.opp)+'\',\''+(p.statAbbr||'')+'\')">LOCK</button>'
       +'</div>'
     +'</div>';
@@ -29542,22 +29512,13 @@ function _soccerMC(hxg,axg,n){
   // its very first iteration every time.
   hxg=(hxg!=null&&!isNaN(hxg)&&hxg>0)?hxg:0.9;
   axg=(axg!=null&&!isNaN(axg)&&axg>0)?axg:0.9;
-  var hW=0,draw=0,aW=0,hG=0,aG=0,over25=0,over35=0,btts=0;
-  var poissonSample=function(lam){
-    var L=Math.exp(-lam),k=0,p=1;
-    do{k++;p*=Math.random();}while(p>L);
-    return k-1;
-  };
-  for(var i=0;i<n;i++){
-    var h=poissonSample(hxg),a=poissonSample(axg);
-    hG+=h;aG+=a;
-    var tot=h+a;
-    if(h>a)hW++;else if(h===a)draw++;else aW++;
-    if(tot>2.5)over25++;
-    if(tot>3.5)over35++;
-    if(h>0&&a>0)btts++;
-  }
-  return{hWin:hW/n,draw:draw/n,aWin:aW/n,avgH:hG/n,avgA:aG/n,avgT:(hG+aG)/n,over25:over25/n,over35:over35/n,btts:btts/n,hxg,axg,n};
+  // EXACT (2026-10-29): the independent-Poisson score grid instead of n sampled matches -- same model, no sampling noise.
+  var K=Math.max(20,Math.ceil(Math.max(hxg,axg)*4+12)),ph=_poisPmfArr(hxg,K),pa=_poisPmfArr(axg,K);
+  var hW=0,draw=0,aW=0,over25=0,over35=0;
+  for(var h=0;h<=K;h++)for(var a=0;a<=K;a++){var pr=ph[h]*pa[a],tot=h+a;
+    if(h>a)hW+=pr;else if(h===a)draw+=pr;else aW+=pr;
+    if(tot>2.5)over25+=pr;if(tot>3.5)over35+=pr;}
+  return{hWin:hW,draw:draw,aWin:aW,avgH:hxg,avgA:axg,avgT:hxg+axg,over25:over25,over35:over35,btts:(1-Math.exp(-hxg))*(1-Math.exp(-axg)),hxg:hxg,axg:axg,n:0,exact:true,dist:'poisson'};
 }
 
 // Goal-spread (Asian Handicap) probability -- explicit request, 2026-09-16:
@@ -36879,7 +36840,7 @@ const _CHAT_GLOSS=[
   [/pre.?start|published (basis|figures?)|late (lock|manual)/,'**Published basis = pre-start locks only.** Picks known to have been locked after their game started are left out of every published figure, because the result was largely known. ASK shows the all-picks number and, when it differs, the published one next to it.'],
   [/retired|archiv/,'**Retired leagues** (MLB, WNBA, tennis, MLS, Bundesliga, World Cup...) are excluded from every figure in the app and their settled picks are archived. ASK follows the same rule: active leagues only.'],
   [/\bev\b|expected value/,'**EV (expected value)** = win probability x decimal odds - 1. Positive EV means the price pays more than the model thinks the pick is worth.'],
-  [/win prob|hit rate|probabilit|monte carlo|\bmc\b|simulat/,'**Win probability / MC** is the model\'s chance the pick wins, from a Monte Carlo simulation of the game (or of the player\'s stat for props). For props it is directional, not market-calibrated, and capped at 68%.'],
+  [/win prob|hit rate|probabilit|monte carlo|\bmc\b|simulat/,'**Win probability / MC** is the model\'s chance the pick wins, computed exactly from the game\'s scoring model (a Poisson or normal distribution, so it never changes between refreshes; or the player\'s stat distribution for props). For props it is directional, not market-calibrated, and capped at 68%.'],
   [/\bpush\b/,'A **push** is a tie with the line (for example a total of exactly 6 on a 6.0 line). The stake is returned, so it counts 0 units.'],
   [/\block(?:s|ed|ing)?\b|auto.?lock/,'A **lock** records a pick at its line and price so it can be tracked and settled. Auto-lock runs on a schedule and locks the qualifying picks (PREMIUM/OPTIMAL and the hockey high-probability lane); you can also lock by hand from a card.'],
   [/\bsettle|\bpending\b/,'**Pending** means the game has not finished or has not been graded yet. Settlement runs automatically after games end and marks each pick win, loss or push.'],
