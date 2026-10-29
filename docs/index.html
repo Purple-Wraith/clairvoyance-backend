@@ -8914,6 +8914,10 @@ const _CFB_HFA_DEFAULT=2.2; // typical college home-field edge, in points — de
 // takes effect on the next render without a page reload.
 window.CFB_HFA_PTS=window.CFB_HFA_PTS??(typeof S!=='undefined'?S.g('cfb_hfa'):null)??_CFB_HFA_DEFAULT;
 function _cfbHFA(){return window.CFB_HFA_PTS;}
+// LIGHT MARKET ANCHOR ON THE CFB TOTAL (owner 2026-10-29): with a posted total, the model keeps CFB_MKT_ANCHOR.total.keep (70%) of its disagreement with it and gives up 30% -- the projection, the over/under probability and
+// the projected scores all use the anchored mean.  NFL anchors far harder (it keeps at most 10%, scaled by games played, NFL_MKT_ANCHOR); CFB is light on purpose: the corrected two-sided total is unbiased (+0.6 on 448
+// finished games) but its error is 13.9 points, and finished CFB games do not keep their posted totals, so the weight cannot be fitted yet.  Revisit once logged lines exist.  No posted total -> no anchor (the card then has nothing to grade against).
+const CFB_MKT_ANCHOR={on:true,total:{keep:.70}};
 const _CFB_SIGMA_MARGIN=16.5,_CFB_SIGMA_TOTAL=14.0; // CFB's real game-to-game variance is high (total sigma 13 -> 14 with the two-sided total, 2026-10-29: its error on the 448 finished games is 13.9 in-sample, a little more out of it)
 function _boxMullerZ(){
   const u1=Math.random()||1e-10,u2=Math.random();
@@ -9143,15 +9147,17 @@ function cfbMC(hA,awA,n,ouLine,g){
   const finalOU=ouLine!=null?parseFloat(ouLine):parseFloat(_forceHalfLine(baseTotal));
   // EXACT (2026-10-29): margin ~ N(margin0, sigma) and total ~ N(baseTotal, sigma) in closed form instead of 15k sampled games.  The total is floored at 20 and each team's score at 0 (as the sim did), so the
   // projected scores are the floored expectations, while the win / over probabilities come from the unfloored distributions.
-  const hw=normalCDF(margin0/_CFB_SIGMA_MARGIN),ov=finalOU<20?1:1-normalCDF((finalOU-baseTotal)/_CFB_SIGMA_TOTAL);
-  const _sc=_nScoreMeans(margin0,_CFB_SIGMA_MARGIN,baseTotal,_CFB_SIGMA_TOTAL,20);
-  const avgMargin=margin0,avgTotal=_nClampMean(baseTotal,_CFB_SIGMA_TOTAL,20);
+  const anchoredT=CFB_MKT_ANCHOR.on&&ouLine!=null&&isFinite(finalOU),totalA=anchoredT?finalOU+CFB_MKT_ANCHOR.total.keep*(baseTotal-finalOU):baseTotal;
+  const hw=normalCDF(margin0/_CFB_SIGMA_MARGIN),ov=finalOU<20?1:1-normalCDF((finalOU-totalA)/_CFB_SIGMA_TOTAL);
+  const _sc=_nScoreMeans(margin0,_CFB_SIGMA_MARGIN,totalA,_CFB_SIGMA_TOTAL,20);
+  const avgMargin=margin0,avgTotal=_nClampMean(totalA,_CFB_SIGMA_TOTAL,20);
   n=0;
   return{
     hwP:hw,avgMargin:+avgMargin.toFixed(1),avgTotal:+avgTotal.toFixed(1),
     avgH:+_sc.h.toFixed(1),avgA:+_sc.a.toFixed(1),
     overP:ov,underP:1-ov,ouLine:+finalOU.toFixed(1),
     n,exact:true,dist:'normal', // n = 0: no sampling any more; exact/dist label the model for the UI
+    baseTotal:+baseTotal.toFixed(2),anchor:{totalA:+totalA.toFixed(2),keep:CFB_MKT_ANCHOR.total.keep,total:anchoredT}, // the raw model total and the anchored one the projection / probabilities use
     wx,wxImpact,hasFpi,marketMargin,
     rankAdjPts,hist2025Margin,boxScoreMargin,stMargin,primaryMargin,coreMargin,
     passingMargin,rushingMargin,receivingMargin,miscMargin,scoringMargin,defPassMargin,defRushMargin, // exposed for debugging/transparency, same convention as the other adjustment terms above
@@ -9676,6 +9682,7 @@ function _cfbPickReasoning(g,mc,f,focus){
     }else{
       sents.push(`No forecast loaded yet for this matchup's venue (either too far out for a 16-day forecast window, or the game's location hasn't resolved) — total is weather-neutral for now.`);
     }
+    if(mc.anchor&&mc.anchor.total&&Math.abs(mc.baseTotal-mc.ouLine)>=0.5)sents.push(`Light market anchor: the raw model total was ${mc.baseTotal} against the posted ${mc.ouLine}; ${Math.round(mc.anchor.keep*100)}% of that gap is kept.`);
     sents.push(`The model projects ${mc.avgTotal} combined points (an exact normal distribution, not a simulation), built from each team's points scored against the other's points allowed plus the capped yardage/turnover/weather adjustments above — independent of the FPI-based margin used for the moneyline/spread side.`);
   }
 

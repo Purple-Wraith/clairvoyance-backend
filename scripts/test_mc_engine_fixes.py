@@ -65,6 +65,24 @@ class Engines(unittest.TestCase):
         self.assertGreater(r["n"], 200)
         self.assertLess(abs(r["bias"]), 1.5)                           # was -3.9
 
+    def test_cfb_total_has_a_light_market_anchor(self):
+        r = self.pg.evaluate("""()=>{const D=_CFB_DATA;const g=Object.values(D.weeks).flat().find(x=>x.state==='post'&&D.stats[x.home]&&D.stats[x.away]);
+          const free=cfbMC(g.home,g.away,10,null,{neutralSite:true});
+          const hi=Math.round(free.avgTotal)+20.5,lo=Math.round(free.avgTotal)-20.5;
+          const a=cfbMC(g.home,g.away,10,hi,{neutralSite:true}),b=cfbMC(g.home,g.away,10,lo,{neutralSite:true});
+          return{raw:free.baseTotal,hi:hi,lo:lo,aHi:a,aLo:b,keep:CFB_MKT_ANCHOR.total.keep,free:free}}""")
+        keep = r["keep"]
+        self.assertEqual(keep, 0.70)
+        self.assertFalse(r["free"]["anchor"]["total"])                                     # no posted total -> no anchor
+        self.assertAlmostEqual(r["free"]["avgTotal"], r["raw"], delta=0.1)
+        for key, line in (("aHi", r["hi"]), ("aLo", r["lo"])):
+            a = r[key]
+            self.assertTrue(a["anchor"]["total"])
+            self.assertAlmostEqual(a["anchor"]["totalA"], line + keep * (r["raw"] - line), delta=0.02)   # pulled 30% of the way to the posted total
+            self.assertAlmostEqual(a["baseTotal"], r["raw"], delta=0.02)                              # the raw model total is still reported
+            self.assertAlmostEqual(a["avgTotal"], a["anchor"]["totalA"], delta=0.6)       # avgTotal is the floored mean (total floored at 20, about +0.2)
+        self.assertGreater(r["aHi"]["avgTotal"], r["raw"]); self.assertLess(r["aLo"]["avgTotal"], r["raw"])
+
     # ── 2. hockey overtime goal ─────────────────────────────────────────────────────────
     def test_ot_goal_term_only_on_even_floor_lines(self):
         f = lambda line, lg="SHL": self.pg.evaluate("([l,g])=>_hkOtGoalOverAdd(3.1,3.0,l,g)", [line, lg])
