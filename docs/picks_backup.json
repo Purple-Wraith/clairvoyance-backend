@@ -103440,14 +103440,14 @@
     "betOn": "EDM ML",
     "sport": "NHL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 0,
+    "hScore": 4,
     "league": "NHL",
     "source": "manual",
     "betType": "ML",
     "decOdds": 1.46,
     "leadMin": 778,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1793233800000,
     "winProb": 0.6985566787616357,
     "lockedAt": 1793187110804,
@@ -103457,7 +103457,8 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6532,
-    "priceSource": "market"
+    "priceSource": "market",
+    "settledAt": 1793244666926
   },
   {
     "hA": "EDM",
@@ -103468,8 +103469,8 @@
     "betOn": "UNDER 7.5",
     "sport": "NHL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 0,
+    "hScore": 4,
     "league": "NHL",
     "source": "manual",
     "altLine": {
@@ -103486,14 +103487,15 @@
     "betType": "OU",
     "decOdds": 1.335,
     "leadMin": 778,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1793233800000,
     "winProb": 0.704,
     "lockedAt": 1793187111216,
     "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (70.4% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 46.2%; the 1-goal cushion is priced from the historical margin curve for this market (about 70% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1793244666927
   },
   {
     "hA": "Genoa",
@@ -104382,10 +104384,10 @@
     "winProb": 0.682,
     "lockedAt": 1793187099474,
     "reasoning": "PICK: MIN +2.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted MIN -3.5 to MIN +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.9%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "settledAt": 1793242875057,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1793242875057
+    "priceSource": "estimated"
   },
   {
     "hA": "MIN",
@@ -104408,9 +104410,9 @@
     "winProb": 0.658369754159424,
     "lockedAt": 1793187099056,
     "reasoning": "PICK: MIN ML \u2014 PREMIUM (65.8% win prob, EV +6.5%)\nMODEL: Projected 111.2\u2013118.0 (total 229.2), from a 25k-sim Monte Carlo.\nWHY: Best market: MIN ML \u00b7 PREMIUM \u00b7 65.8% \u00b7 EV +6.5% \u00b7 edge +4.0pp. ORtg: 116.8 vs 114.9 | DRtg: 113.4 vs 115.5 | Net: 0.0 vs 0.0 | eFG%: 55.9 vs 52.0 | TS%: 56.0 | TOV%: 13.0 | Opp eFG%: 51.0. Projected: MIN 118.0\u2013111.2 (margin +6.8 vs line -3.5). Pace avg 148.2 \u2014 normal pace game. MC 62% / BAY 61% / ELO 75% (partial consensus). Kelly 10.5%. Full-unit play \u00b7 Also: MIN -3.5 (OPTIMAL), UNDER 229.5 (LEAN).",
+    "settledAt": 1793242875057,
     "lockOrigin": "auto",
-    "lockTiming": "pre",
-    "settledAt": 1793242875057
+    "lockTiming": "pre"
   },
   {
     "hA": "MIN",
@@ -104444,10 +104446,10 @@
     "winProb": 0.67,
     "lockedAt": 1793187099662,
     "reasoning": "PICK: UNDER 237.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted UNDER 229.5 to UNDER 237.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.8%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "settledAt": 1793242875057,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1793242875057
+    "priceSource": "estimated"
   },
   {
     "hA": "Monza",
@@ -115049,10 +115051,10 @@
     "outcome": "win",
     "winProb": 0.57,
     "lockedAt": 1793232177893,
+    "playerMin": 32,
     "reasoning": "PICK: Ayo Dosunmu OVER PTS 14.5 \u2014 LEAN (57% model hit rate)\nMODEL: projection 15.43 PTS (season average 14.8, last-5 form 17.8, opponent adjustment +0.6) vs the 14.5 line, spread \u03c3 5.81, from a 5k-sim Monte Carlo.\nWHY: Ayo Dosunmu averages 14.8 ppg across 69 games this season. Opp GS DRtg 115.5 vs a 115.7 league average computed from every currently-loaded team, a -0% reduction folded into the projection. Game pace 99.9 (-0.6%), MIN offense 116.8 vs a 115.7 league average. No head-to-head history vs GS this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793242877238,
-    "playerResult": 17,
-    "playerMin": 32
+    "playerResult": 17
   },
   {
     "hA": "DEN",
@@ -115237,10 +115239,10 @@
     "outcome": "win",
     "winProb": 0.56,
     "lockedAt": 1793232174758,
+    "playerMin": 35,
     "reasoning": "PICK: Jaden McDaniels OVER PTS 14.5 \u2014 LEAN (56% model hit rate)\nMODEL: projection 15.67 PTS (season average 14.8, last-5 form 18.8, opponent adjustment +0.9) vs the 14.5 line, spread \u03c3 6.85, from a 5k-sim Monte Carlo.\nWHY: Jaden McDaniels averages 14.8 ppg across 73 games this season. Opp GS DRtg 115.5 vs a 115.7 league average computed from every currently-loaded team, a -0% reduction folded into the projection. Game pace 99.9 (-0.6%), MIN offense 116.8 vs a 115.7 league average. No head-to-head history vs GS this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793242877238,
-    "playerResult": 19,
-    "playerMin": 35
+    "playerResult": 19
   },
   {
     "hA": "NY",
@@ -115262,10 +115264,10 @@
     "outcome": "win",
     "winProb": 0.58,
     "lockedAt": 1793232075582,
+    "playerMin": 28,
     "reasoning": "PICK: Karl-Anthony Towns OVER REB 11.5 \u2014 LEAN (58% model hit rate)\nMODEL: projection 12.14 REB (season average 11.9, last-5 form 10.6, opponent adjustment +0.2) vs the 11.5 line, spread \u03c3 3.84, from a 5k-sim Monte Carlo.\nWHY: Karl-Anthony Towns averages 11.9 rpg across 75 games this season. Opp CHI DRtg 117.9 vs a 115.7 league average computed from every currently-loaded team, a 2% boost folded into the projection. Game pace 99.7 (+2.9%), NY offense 119.7 vs a 115.7 league average. No head-to-head history vs CHI this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793242877238,
-    "playerResult": 13,
-    "playerMin": 28
+    "playerResult": 13
   },
   {
     "hA": "MIN",
@@ -115297,11 +115299,11 @@
     "outcome": "loss",
     "winProb": 0.68,
     "lockedAt": 1793187105887,
+    "playerMin": 28,
     "reasoning": "PICK: LaMelo Ball OVER PTS 19.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 21.65 PTS (season average 20.1, last-5 form 27, opponent adjustment +1.5) vs the 19.5 line, spread \u03c3 7.13, from a 5k-sim Monte Carlo.\nWHY: LaMelo Ball averages 20.1 ppg across 72 games this season. Opp GS DRtg 115.5 vs a 115.7 league average computed from every currently-loaded team, a -0% reduction folded into the projection. Game pace 99.9 (-0.6%), MIN offense 116.8 vs a 115.7 league average. No head-to-head history vs GS this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
-    "priceSource": "estimated",
     "settledAt": 1793242877238,
-    "playerResult": 8,
-    "playerMin": 28
+    "priceSource": "estimated",
+    "playerResult": 8
   },
   {
     "hA": "UTAH",
@@ -115499,11 +115501,11 @@
     "outcome": "loss",
     "winProb": 0.68,
     "lockedAt": 1793187104020,
+    "playerMin": 37,
     "reasoning": "PICK: Norman Powell UNDER PTS 21.5 \u2014 OPTIMAL (65% model hit rate)\nMODEL: projection 18.9 PTS (season average 21.7, last-5 form 14.4, opponent adjustment -2.8) vs the 21.5 line, spread \u03c3 6.87, from a 5k-sim Monte Carlo.\nWHY: Norman Powell averages 21.7 ppg across 58 games this season. Opp NY DRtg 113.2 vs a 115.7 league average computed from every currently-loaded team, a -2% reduction folded into the projection. Game pace 99.7 (-2.8%), CHI offense 112.9 vs a 115.7 league average. No head-to-head history vs NY this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
-    "priceSource": "estimated",
     "settledAt": 1793242877238,
-    "playerResult": 30,
-    "playerMin": 37
+    "priceSource": "estimated",
+    "playerResult": 30
   },
   {
     "hA": "SA",
