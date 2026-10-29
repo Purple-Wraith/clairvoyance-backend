@@ -99,10 +99,12 @@ class SettlePassSim(unittest.TestCase):
             cls.browser = cls._pw.chromium.launch()
         except Exception as exc:  # pragma: no cover
             raise unittest.SkipTest(f"playwright/chromium unavailable: {exc}")
-        cls.ledger = json.loads((DOCS / "picks_backup.json").read_text())
+        # frozen 2026-10-02 snapshot of the ledger backup (rows from 2026-09-18 on plus every pending one, gzipped; holds the 32 pending 10-02 picks): the live backup is a rolling hybrid window and no longer has them
+        import gzip
+        cls.ledger = json.loads(gzip.decompress((Path(__file__).resolve().parent / "fixtures" / "ledger_20261002.json.gz").read_bytes()))
         cls.pending_1002 = [p for p in cls.ledger if p.get("outcome") == "pending" and p.get("date") == "2026-10-02"
                             and p.get("sport") in TAGS.values()]
-        assert len(cls.pending_1002) >= 20, "fixture assumption: the real ledger backup still holds the 10-02 pending picks"
+        assert len(cls.pending_1002) >= 20, "fixture assumption: the frozen ledger fixture holds the 10-02 pending picks"
 
     @classmethod
     def tearDownClass(cls):
@@ -204,8 +206,14 @@ class SettlePassSim(unittest.TestCase):
         self.assertEqual(graded, len(self.pending_1002))
         # a settle pass touches nothing else: every other pick is byte-identical, none added or removed
         untouched = {p["id"]: p for p in self.ledger if p["id"] not in {x["id"] for x in self.pending_1002}}
+        # (the frozen 2026-10-02 snapshot still holds rows of since-retired products -- NFL player props, retired leagues -- that the app drops when it loads the ledger; those are not "removed by the settle pass")
+        RETIRED = {"NCAAH", "MLS", "BUND", "BL", "WNBA", "MLB", "PWHL", "KHL"}
+        dropped_on_load = [pid for pid, p in untouched.items() if pid not in by_id]
+        self.assertTrue(all(pid.startswith("prop_nfl") or (untouched[pid].get("sport") or "").upper() in RETIRED or (untouched[pid].get("league") or "").upper() in RETIRED for pid in dropped_on_load),
+                        [(pid, untouched[pid].get("sport")) for pid in dropped_on_load if not (pid.startswith("prop_nfl") or (untouched[pid].get("sport") or "").upper() in RETIRED)][:5])
         for pid, p in untouched.items():
-            self.assertEqual(by_id[pid], p, pid)
+            if pid in by_id:
+                self.assertEqual(by_id[pid], p, pid)
         self.assertEqual(n0, n1)
         self.assertEqual(len(settled[0]), len(self.pending_1002))
         # nothing left the machine

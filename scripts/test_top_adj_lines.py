@@ -268,7 +268,11 @@ class AdjTab(unittest.TestCase):
         self.assertTrue(any("2W-1L" in x and "67% win" in x for x in tips))                                      # y1; the push is left out of the percentage
         self.assertTrue(any("1W-1L" in x and "50% win" in x for x in tips))                                      # y2
         self.assertTrue(any("1 adjusted lines, not settled yet" in x for x in tips))                              # today: nothing settled yet
-        self.assertGreaterEqual(len(tips), 7)
+        import datetime as _dt
+        t0 = _dt.date.fromisoformat(td); first = t0 - _dt.timedelta(days=2)                                   # earliest ledger day = two days ago
+        sunday = first - _dt.timedelta(days=(first.weekday() + 1) % 7)                                          # the grid is week-aligned: it starts on the Sunday on/before that day
+        self.assertEqual(len(tips), (t0 - sunday).days + 1)                                                    # one cell per day up to today (future padding cells are not squares)
+        self.assertGreaterEqual(len(tips), 3)
 
     def test_daily_win_rate_shows_even_with_no_lines_today_and_says_so_when_empty(self):
         self.seed([], [])

@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import auto_lock_settle as A  # noqa: E402
 
 POSTED_REASONING = ("PICK: BAL -11.5 — OPTIMAL (63.5% win prob, EV +21.2%)\n"
-                    "MODEL: Projected margin +14.1 (BAL), total 44.2 — BAL covers the 11.5-pt line in 63.5% of simulated outcomes, from a 2exact normal distribution.\n"
+                    "MODEL: Projected margin +14.1 (BAL), total 44.2 — BAL covers the 11.5-pt line in 63.5% of simulated outcomes, from a 25k-sim Monte Carlo.\n"
                     "WHY: BAL is the stronger side.")
 
 
@@ -35,7 +35,7 @@ class PythonSide(unittest.TestCase):
         for gone in ("OPTIMAL", "EV +21.2", "11.5-pt line in", "63.5% win prob"):
             self.assertNotIn(gone, txt)
         self.assertIn("estimate", txt)
-        self.assertIn("MODEL: Projected margin +14.1 (BAL), total 44.2, from a 2exact normal distribution.", txt)    # the projection survives, the posted cover claim does not
+        self.assertIn("MODEL: Projected margin +14.1 (BAL), total 44.2, from a 25k-sim Monte Carlo.", txt)    # the projection survives, the posted cover claim does not
         self.assertIn("rated this side 63.5%", txt)
 
     def test_hockey_uses_goals_and_a_missing_model_line_is_fine(self):
@@ -67,7 +67,7 @@ class JsSide(unittest.TestCase):
         cls.browser.close(); cls.pw.stop(); cls.srv.shutdown()
 
     def test_alt_reasoning_is_identical_in_js_and_python(self):
-        model = "MODEL: Projected margin +14.1 (BAL), total 44.2, from a 2exact normal distribution."
+        model = "MODEL: Projected margin +14.1 (BAL), total 44.2, from a 25k-sim Monte Carlo."
         for label, p, posted_label, posted_p, k, unit, ml in (("BAL -5.5", .673, "BAL -11.5", .635, 6, "pt", model), ("UNDER 233.5", .67, "UNDER 225.5", .6, 8, "pt", None),
                                                               ("MIA +13.5", .682, "MIA +7.5", None, 6.5, "pt", None), ("OVER 5.5", .61, "OVER 6.5", .58, 1, "goal", None),
                                                               ("OVER 4.5", .64, "OVER 6.5", .5, 2, "goal", None), ("UNDER 6.5", .611, "OVER 5.5", .55, 1, "goal", None), ("UNDER 7.5", .684, "OVER 5.5", .62, 2, "goal", None)):
@@ -104,8 +104,8 @@ class JsSide(unittest.TestCase):
 
     def _manual_lock(self, call):
         return self.pg.evaluate("""(call)=>{
-          window._reasoningCache={'BOS|NYK|OU':[{label:'OVER 225.5',reasoning:'PICK: OVER 225.5 — OPTIMAL (62%)\\nMODEL: Projected margin +4.0 (BOS), total 231.0 — OVER hits 62.0% of simulated outcomes vs the 225.5 line, from a 2exact normal distribution.'}],
-                                  'BOS|NYK|SPREAD':[{label:'BOS -4.5',reasoning:'PICK: BOS -4.5 — OPTIMAL (60%)\\nMODEL: Projected margin +6.0 (BOS), total 231.0, from a 2exact normal distribution.'}]};
+          window._reasoningCache={'BOS|NYK|OU':[{label:'OVER 225.5',reasoning:'PICK: OVER 225.5 — OPTIMAL (62%)\\nMODEL: Projected margin +4.0 (BOS), total 231.0 — OVER hits 62.0% of simulated outcomes vs the 225.5 line, from a 25k-sim Monte Carlo.'}],
+                                  'BOS|NYK|SPREAD':[{label:'BOS -4.5',reasoning:'PICK: BOS -4.5 — OPTIMAL (60%)\\nMODEL: Projected margin +6.0 (BOS), total 231.0, from a 25k-sim Monte Carlo.'}]};
           let got=null;const orig=window.lockPick;window.lockPick=function(){got=[...arguments];};
           let inp=document.getElementById('tstInp');if(!inp){inp=document.createElement('input');inp.id='tstInp';document.body.appendChild(inp);}
           try{eval(call.js);}finally{window.lockPick=orig;}
@@ -118,7 +118,7 @@ class JsSide(unittest.TestCase):
         self.assertIn("MANUAL LINE", txt)
         self.assertIn("changed by hand from OVER 225.5 to OVER 222.5", txt)
         self.assertIn("not a market quote", txt)
-        self.assertIn("MODEL: Projected margin +4.0 (BOS), total 231.0, from a 2exact normal distribution.", txt)      # the card's projection survives, its posted-line cover % does not
+        self.assertIn("MODEL: Projected margin +4.0 (BOS), total 231.0, from a 25k-sim Monte Carlo.", txt)      # the card's projection survives, its posted-line cover % does not
         self.assertNotIn("vs the 225.5 line", txt)
         r = self._manual_lock({"js": "document.getElementById('tstInp').value='-7';_spreadLockDir('BOS','NYK','BOS','NYK','2026-10-05',.6,4.5,'tstInp','FAV','NBA')"})
         self.assertEqual(r["label"], "BOS -7.5")
@@ -138,6 +138,7 @@ class JsSide(unittest.TestCase):
           LOCKED_PROPS.length=0;
           lockProp(p.team,p.player,String(p.line),p.over,p.prob,p.ml,'NBA',p.opp,p.statAbbr);                       // the LOCK button's call: no reasoning passed
           const exact=LOCKED_PROPS.slice(-1)[0];
+          saveP([]);                                                                                               // one prop per player per game (2026-10-28): a hand-edited second lock needs the first one gone from the ledger
           lockProp(p.team,p.player,String(p.line+2),p.over,p.prob,p.ml,'NBA',p.opp,p.statAbbr);                     // line edited by hand
           const edited=LOCKED_PROPS.slice(-1)[0];
           return {n:props.length,reasoning:p.reasoning,exact:exact.reasoning,edited:edited.reasoning,line:p.line,over:p.over}}""")
