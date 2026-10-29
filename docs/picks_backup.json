@@ -106043,6 +106043,102 @@
     "priceSource": "estimated"
   },
   {
+    "id": "2026-10-30_CLT_TULN_CFB_TULN-2.5",
+    "date": "2026-10-30",
+    "hA": "CLT",
+    "awA": "TULN",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "SPREAD",
+    "betOn": "TULN -2.5",
+    "winProb": 0.6903,
+    "ml": "-278",
+    "decOdds": 1.36,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793259704967,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: TULN -2.5 \u2014 ADJUSTED LINE (69.0% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted TULN -9.5 to TULN -2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 71.7%; the 7-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -9.5,
+      "line": -2.5,
+      "shift": 7,
+      "postedLabel": "TULN -9.5",
+      "postedProb": 0.7172699054994791,
+      "postedDec": 1.909,
+      "postedMl": "-110",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793401200000,
+    "leadMin": 2358,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-30_CLT_TULN_CFB_TULNML",
+    "date": "2026-10-30",
+    "hA": "CLT",
+    "awA": "TULN",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "ML",
+    "betOn": "TULN ML",
+    "winProb": 0.8243974793456579,
+    "ml": -469,
+    "decOdds": 1.2132196162046909,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793259704793,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: TULN ML \u2014 SKIP (82.4% win prob, EV +0.0%)\nMODEL: Projected margin +21.9 (TULN), total 65.1, from a 25k-sim Monte Carlo.\nWHY: TULN ML \u00b7 SKIP \u00b7 82.4% \u00b7 EV +0.0% FPI has CLT at -22 (#133 nationally) and TULN at -4 (#85) \u2014 a 18.0-point model gap, a significant edge. CLT is home \u2014 this model uses a team-specific -0.51-point home-field edge here (vs the 2.2-pt default), derived from CLT's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: CLT ranks #68 nationally, TULN #84 \u2014 CLT has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): CLT 18.1, TULN 42.3. Elo (built from this season's own final scores, separate from FPI): CLT 1404 (12 games played), TULN 1478 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: CLT 1-6, TULN 3-4. Turnover margin: CLT -4, TULN +1 on the season \u2014 a real disparity that tends to swing close games. Season TD production: CLT 6 passing / 9 rushing, TULN 5 passing / 9 rushing (season totals, not per-game rates) \u2014 CLT has scored more often through the air and on the ground so far.",
+    "startMs": 1793401200000,
+    "leadMin": 2358,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-10-30_CLT_TULN_CFB_UNDER54.5",
+    "date": "2026-10-30",
+    "hA": "CLT",
+    "awA": "TULN",
+    "sport": "CFB",
+    "league": "CFB",
+    "betType": "OU",
+    "betOn": "UNDER 54.5",
+    "winProb": 0.683,
+    "ml": "-268",
+    "decOdds": 1.374,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793259705325,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 54.5 \u2014 ADJUSTED LINE (68.3% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted UNDER 47.5 to UNDER 54.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 13.3%; the 7-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 47.5,
+      "line": 54.5,
+      "shift": 7,
+      "postedLabel": "UNDER 47.5",
+      "postedProb": 0.1331398515263995,
+      "postedDec": 1.909,
+      "postedMl": "-110",
+      "bestTotal": true,
+      "product": true
+    },
+    "startMs": 1793401200000,
+    "leadMin": 2358,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Davos",
     "id": "2026-10-30_Davos_Rapperswil-Jona_NLA_UNDER6.5",
     "ml": "-135",
@@ -106591,122 +106687,192 @@
     "priceSource": "market"
   },
   {
-    "id": "2026-10-30_Villarreal_Espanyol_LIGA_Espanyol+2.5",
+    "id": "2026-10-30_UCF_BAY_CFB_BAY+8.5",
     "date": "2026-10-30",
-    "hA": "Villarreal",
-    "awA": "Espanyol",
-    "sport": "LIGA",
-    "league": "LIGA",
+    "hA": "UCF",
+    "awA": "BAY",
+    "sport": "CFB",
+    "league": "CFB",
     "betType": "SPREAD",
-    "betOn": "Espanyol +2.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
+    "betOn": "BAY +8.5",
+    "winProb": 0.6903,
+    "ml": "-278",
+    "decOdds": 1.36,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793259579247,
+    "lockedAt": 1793259705819,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.06,
-        "away": 0.94
-      },
-      "form": {
-        "home": 1.0218571428571428,
-        "away": 0.9635625
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1.06,
-        "away": 0.94
-      }
-    },
-    "reasoning": "PICK: Espanyol +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Espanyol +1.5 to Espanyol +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 67.3%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nMODEL: Projected 0.99\u20131.83 goals (xG 0.99/1.83), BTTS 53%, from a 25k-sim Monte Carlo.",
+    "reasoning": "PICK: BAY +8.5 \u2014 ADJUSTED LINE (69.0% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted BAY +1.5 to BAY +8.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.5%; the 7-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "priceSource": "estimated",
     "altLine": {
       "posted": 1.5,
-      "line": 2.5,
-      "shift": 1,
-      "postedLabel": "Espanyol +1.5",
-      "postedProb": 0.6727334326700958,
-      "postedDec": null,
-      "postedMl": null
+      "line": 8.5,
+      "shift": 7,
+      "postedLabel": "BAY +1.5",
+      "postedProb": 0.5048355710593528,
+      "postedDec": 1.909,
+      "postedMl": "-110",
+      "bestOfGame": true,
+      "product": true
     },
-    "startMs": 1793390400000,
-    "leadMin": 2180,
+    "startMs": 1793403000000,
+    "leadMin": 2388,
     "lockTiming": "pre"
   },
   {
-    "id": "2026-10-30_Villarreal_Espanyol_LIGA_UNDER3.5",
+    "id": "2026-10-30_UCF_BAY_CFB_UNDER52.5",
     "date": "2026-10-30",
-    "hA": "Villarreal",
-    "awA": "Espanyol",
-    "sport": "LIGA",
-    "league": "LIGA",
+    "hA": "UCF",
+    "awA": "BAY",
+    "sport": "CFB",
+    "league": "CFB",
     "betType": "OU",
-    "betOn": "UNDER 3.5",
-    "winProb": 0.68,
-    "ml": "-110",
-    "decOdds": 1.91,
+    "betOn": "UNDER 52.5",
+    "winProb": 0.6806,
+    "ml": "-264",
+    "decOdds": 1.378,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793259579044,
+    "lockedAt": 1793259705475,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 52.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted UNDER 47.5 to UNDER 52.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 73.3%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +1.3 (UCF), total 39.4, from a 25k-sim Monte Carlo.",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 47.5,
+      "line": 52.5,
+      "shift": 5,
+      "postedLabel": "UNDER 47.5",
+      "postedProb": 0.7333830727776657,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "startMs": 1793403000000,
+    "leadMin": 2388,
+    "lockTiming": "pre"
+  },
+  {
+    "hA": "Villarreal",
+    "id": "2026-10-30_Villarreal_Espanyol_LIGA_Espanyol+2.5",
+    "ml": "-408",
+    "awA": "Espanyol",
+    "date": "2026-10-30",
+    "betOn": "Espanyol +2.5",
+    "sport": "LIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "LIGA",
+    "source": "manual",
+    "altLine": {
+      "line": 2.5,
+      "shift": 1,
+      "posted": 1.5,
+      "postedMl": null,
+      "postedDec": null,
+      "postedProb": 0.6727334326700958,
+      "postedLabel": "Espanyol +1.5"
+    },
+    "betType": "SPREAD",
+    "decOdds": 1.245,
+    "leadMin": 2180,
+    "outcome": "pending",
+    "startMs": 1793390400000,
+    "winProb": 0.758,
+    "lockedAt": 1793259579247,
+    "reasoning": "PICK: Espanyol +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Espanyol +1.5 to Espanyol +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 67.3%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nMODEL: Projected 0.99\u20131.83 goals (xG 0.99/1.83), BTTS 53%, from a 25k-sim Monte Carlo.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.06,
-        "away": 0.94
+      "h2h": {
+        "away": 0.94,
+        "home": 1.06
       },
       "form": {
-        "home": 1.0218571428571428,
-        "away": 0.9635625
+        "away": 0.9635625,
+        "home": 1.0218571428571428
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 1.06
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1.06,
-        "away": 0.94
+        "away": 0.94,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: UNDER 3.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.99\u20131.83 goals (xG 0.99/1.83), BTTS 53% \u2014 OVER 3.5 hits 31.2% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Villarreal 1.83 xG/G vs Espanyol 0.99 xG/G. 3-way: Home 76% / Draw 29% / Away 26%. MC proj: 1.83 \u2013 0.99 (2.82 total vs 3.5 line, BTTS 53%). Goal spread: Villarreal -1.5 covers 33%, Espanyol +1.5 covers 67% (proj margin +0.83). Combined xG 2.82 supports a tighter, lower-scoring line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Espanyol +1.5 (PREMIUM), Villarreal Win (PREMIUM). Factors moving this pick: Fbref (H) +6%, Standings (H) -6%, H2H (H) +6%, Fbref (A) -6%, Standings (A) -6%, H2H (A) -6%, Form (A) -4%.",
-    "startMs": 1793390400000,
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Villarreal",
+    "id": "2026-10-30_Villarreal_Espanyol_LIGA_UNDER3.5",
+    "ml": "-110",
+    "awA": "Espanyol",
+    "date": "2026-10-30",
+    "betOn": "UNDER 3.5",
+    "sport": "LIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "LIGA",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.91,
     "leadMin": 2180,
-    "lockTiming": "pre"
+    "outcome": "pending",
+    "startMs": 1793390400000,
+    "winProb": 0.68,
+    "lockedAt": 1793259579044,
+    "reasoning": "PICK: UNDER 3.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 0.99\u20131.83 goals (xG 0.99/1.83), BTTS 53% \u2014 OVER 3.5 hits 31.2% of outcomes, from a 25k-sim Monte Carlo.\nWHY: xG basis: Villarreal 1.83 xG/G vs Espanyol 0.99 xG/G. 3-way: Home 76% / Draw 29% / Away 26%. MC proj: 1.83 \u2013 0.99 (2.82 total vs 3.5 line, BTTS 53%). Goal spread: Villarreal -1.5 covers 33%, Espanyol +1.5 covers 67% (proj margin +0.83). Combined xG 2.82 supports a tighter, lower-scoring line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Espanyol +1.5 (PREMIUM), Villarreal Win (PREMIUM). Factors moving this pick: Fbref (H) +6%, Standings (H) -6%, H2H (H) +6%, Fbref (A) -6%, Standings (A) -6%, H2H (A) -6%, Form (A) -4%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 0.94,
+        "home": 1.06
+      },
+      "form": {
+        "away": 0.9635625,
+        "home": 1.0218571428571428
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 1.06
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 0.94,
+        "home": 0.94
+      }
+    }
   },
   {
     "hA": "Zug",
