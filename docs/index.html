@@ -5536,7 +5536,7 @@ function _mcLineSoccer(mc,side,ouLine){
   const extra=(side==='over'||side==='under')&&ouLine!=null
     ?(Math.abs(ouLine-2.5)<0.01?` — OVER 2.5 hits ${(mc.over25*100).toFixed(1)}% of outcomes`:Math.abs(ouLine-3.5)<0.01?` — OVER 3.5 hits ${(mc.over35*100).toFixed(1)}% of outcomes`:''):'';
   const nTxt='';
-  return`Projected ${mc.avgA.toFixed(2)}–${mc.avgH.toFixed(2)} goals (xG ${mc.axg.toFixed(2)}/${mc.hxg.toFixed(2)}), BTTS ${(mc.btts*100).toFixed(0)}%${extra}, from an exact Poisson distribution (not a simulation).`;
+  return`Projected ${mc.avgA.toFixed(2)}–${mc.avgH.toFixed(2)} goals (xG ${mc.axg.toFixed(2)}/${mc.hxg.toFixed(2)}), BTTS ${(mc.btts*100).toFixed(0)}%${extra}, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).`;
 }
 // Strips HTML for storage in the plain-text `reasoning` field -- several
 // sports' existing per-market explanation strings (CFB/NFL's mlReasoning/
@@ -29517,7 +29517,16 @@ function _socMarketBlend(hP,dP,aP,hML,dML,aML){
 // separately by restricting those loops to today-only; a single
 // league-day's worth of fixtures at 25k is not in that regime.
 var _SOC_MC_N=25000;
-function _soccerMC(hxg,axg,n){
+// DRAW INFLATION (Dixon-Coles low-score correction, 2026-10-29, owner): independent Poisson goals understate 0-0 and 1-1 (and overstate 1-0 / 0-1).  Multiplying the four low-score cells by
+// tau(0,0)=1-lh*la*rho, tau(0,1)=1+lh*rho, tau(1,0)=1+la*rho, tau(1,1)=1-rho (rho < 0) keeps total probability and every total of 2+ goals exactly as they were (so over 2.5 / 3.5 do not move), lifts draws by
+// 2|rho|*lh*la*e^-(lh+la) (~1.1 points at rho -0.05) and BTTS slightly.  rho -0.05: this season's 864 finished matches across the six leagues draw 24.4% against 23.0% for independent Poisson
+// (+1.4, SE 1.5), and -0.05 models 24.1%; the per-league figures swing from -9 to +4 on 54-99 matches each, so a single mild pooled value is used.  Soccer only: the hockey engines share the grid helpers but pass rho 0.
+const SOC_DC_RHO=-0.05;
+function _socDcTau(h,a,lh,la,rho){
+  if(!rho||h>1||a>1)return 1;
+  return h===0?(a===0?1-lh*la*rho:1+lh*rho):(a===0?1+la*rho:1-rho);
+}
+function _soccerMC(hxg,axg,n,rho){
   if(!n)n=_SOC_MC_N;
   // Every other sport's MC function clamps its input (mlbMC's ERA-based
   // lambda, nhlMC's Math.max(.4,...), nbaMC/wnbaMC's Math.max(70/55,...))
@@ -29532,12 +29541,13 @@ function _soccerMC(hxg,axg,n){
   hxg=(hxg!=null&&!isNaN(hxg)&&hxg>0)?hxg:0.9;
   axg=(axg!=null&&!isNaN(axg)&&axg>0)?axg:0.9;
   // EXACT (2026-10-29): the independent-Poisson score grid instead of n sampled matches -- same model, no sampling noise.
+  if(rho==null)rho=SOC_DC_RHO;
   var K=Math.max(20,Math.ceil(Math.max(hxg,axg)*4+12)),ph=_poisPmfArr(hxg,K),pa=_poisPmfArr(axg,K);
-  var hW=0,draw=0,aW=0,over25=0,over35=0;
-  for(var h=0;h<=K;h++)for(var a=0;a<=K;a++){var pr=ph[h]*pa[a],tot=h+a;
+  var hW=0,draw=0,aW=0,over25=0,over35=0,btts=0;
+  for(var h=0;h<=K;h++)for(var a=0;a<=K;a++){var pr=ph[h]*pa[a]*_socDcTau(h,a,hxg,axg,rho),tot=h+a;
     if(h>a)hW+=pr;else if(h===a)draw+=pr;else aW+=pr;
-    if(tot>2.5)over25+=pr;if(tot>3.5)over35+=pr;}
-  return{hWin:hW,draw:draw,aWin:aW,avgH:hxg,avgA:axg,avgT:hxg+axg,over25:over25,over35:over35,btts:(1-Math.exp(-hxg))*(1-Math.exp(-axg)),hxg:hxg,axg:axg,n:0,exact:true,dist:'poisson'};
+    if(tot>2.5)over25+=pr;if(tot>3.5)over35+=pr;if(h>0&&a>0)btts+=pr;}
+  return{hWin:hW,draw:draw,aWin:aW,avgH:hxg,avgA:axg,avgT:hxg+axg,over25:over25,over35:over35,btts:btts,hxg:hxg,axg:axg,n:0,exact:true,dist:'poisson',dcRho:rho};
 }
 
 // Goal-spread (Asian Handicap) probability -- explicit request, 2026-09-16:
@@ -29551,14 +29561,14 @@ function _soccerMC(hxg,axg,n){
 // directly rather than truncated at a smaller bound to avoid any real
 // accuracy loss for a genuinely lopsided projection.
 function _socPoissonPmf(lam,k){let p=Math.exp(-lam);for(let i=1;i<=k;i++)p*=lam/i;return p;}
-function _socMarginDist(hxg,axg){
+function _socMarginDist(hxg,axg,rho){   // rho: optional Dixon-Coles low-score correction (soccer passes SOC_DC_RHO; the hockey engines leave it 0)
   const maxG=15;
   const hP=[],aP=[];
   for(let k=0;k<=maxG;k++){hP[k]=_socPoissonPmf(hxg,k);aP[k]=_socPoissonPmf(axg,k);}
   const dist={};
   for(let h=0;h<=maxG;h++)for(let a=0;a<=maxG;a++){
     const m=h-a;
-    dist[m]=(dist[m]||0)+hP[h]*aP[a];
+    dist[m]=(dist[m]||0)+hP[h]*aP[a]*_socDcTau(h,a,hxg,axg,rho);
   }
   return dist;
 }
@@ -29569,8 +29579,8 @@ function _socMarginDist(hxg,axg){
 // always 1-this (lines are always X.5, so no push is possible), matching
 // how UNDER is already derived as 1-ouP a few lines below in
 // _renderSocMatchCard rather than computed independently.
-function _socSpreadProb(hxg,axg,homeLine){
-  const dist=_socMarginDist(hxg,axg);
+function _socSpreadProb(hxg,axg,homeLine,rho){
+  const dist=_socMarginDist(hxg,axg,rho);
   let p=0;
   Object.keys(dist).forEach(function(m){if(parseFloat(m)>-homeLine)p+=dist[m];});
   return Math.max(0,Math.min(1,p));
@@ -29880,7 +29890,7 @@ function _renderSocMatchCardRaw(g,leagueKey){
   }
   var ahAbsLine=parseFloat(_forceHalfLine(Math.abs(ahMargin)||0.5));
   var ahHomeLine=ahMargin>=0?-ahAbsLine:ahAbsLine;
-  var ahHomeCoverP=_socSpreadProb(hxg,axg,ahHomeLine);
+  var ahHomeCoverP=_socSpreadProb(hxg,axg,ahHomeLine,SOC_DC_RHO);
   var ahHomeIsFav=ahHomeLine<0;
   var ahFavName=ahHomeIsFav?g.home:g.away,ahDogName=ahHomeIsFav?g.away:g.home;
   var ahFavP=_capMktP(ahHomeIsFav?ahHomeCoverP:(1-ahHomeCoverP),'SPREAD','SOC_'+leagueKey);

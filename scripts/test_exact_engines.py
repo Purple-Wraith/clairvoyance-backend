@@ -59,7 +59,7 @@ class Exact(unittest.TestCase):
         r = self.pg.evaluate("""()=>{
           const pois=l=>{const L=Math.exp(-l);let k=0,p=1;do{k++;p*=Math.random()}while(p>L);return k-1};
           const N=400000,hx=1.6,ax=1.2;let hW=0,d=0,o25=0,bt=0;for(let i=0;i<N;i++){const h=pois(hx),a=pois(ax);if(h>a)hW++;else if(h===a)d++;if(h+a>2.5)o25++;if(h>0&&a>0)bt++}
-          const e=_soccerMC(hx,ax,10);
+          const e=_soccerMC(hx,ax,10,0);   // rho 0: the sampler is plain independent Poisson (the live default adds the Dixon-Coles draw adjustment)
           const sd=(p)=>Math.sqrt(p*(1-p)/N);
           return{z:[(e.hWin-hW/N)/sd(hW/N),(e.draw-d/N)/sd(d/N),(e.over25-o25/N)/sd(o25/N),(e.btts-bt/N)/sd(bt/N)]}}""")
         for z in r["z"]:
