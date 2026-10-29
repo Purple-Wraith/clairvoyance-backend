@@ -3951,6 +3951,13 @@ function _hkBlendML(pModel,g,minGp){
 // (lower and higher rungs showed no gap). 0 disables a league.
 // Python has no copy: the lock engine reads the probability this produces. Revisit at ~100 games per league.
 const HOCKEY_OU_UNDER_SHIFT={SHL:0.50,EXTRALIGA:0.40,NLA:0.30,LIIGA:0.25};
+// OVERTIME GOAL IN THE TOTAL (audit 2026-10-29).  Books grade a total on regulation + overtime goals (the shootout-winning goal is not counted), but the sims / exact Poisson below count regulation goals only.
+// A game tied after 60 minutes whose regulation total sits just under the line (3-3 at 6.5, 2-2 at 4.5, 4-4 at 8.5: an EVEN total equal to floor(line)) goes OVER when someone scores in overtime, so P(over) was
+// understated by ~3 points at the 4.5 / 6.5 lines (0 at 5.5 / 7.5, where a tie can never sit at floor(line)) in all five leagues.  HOCKEY_OT_GOAL_SHARE = the share of tied games decided by an OT goal rather than a shootout:
+// NHL ~57% (3v3 OT), European leagues ~52% (Flashscore flags 8% of finished games as shootouts against ~17% tied after 60 minutes).
+const HOCKEY_OT_GOAL_SHARE={NHL:.57,DEFAULT:.52};
+function _hkOtGoalShare(lg){const s=HOCKEY_OT_GOAL_SHARE[String(lg||'').toUpperCase()];return s==null?HOCKEY_OT_GOAL_SHARE.DEFAULT:s;}
+function _hkOtGoalOverAdd(hLam,aLam,line,lg){const t=Math.floor(line);if(!(t>=2)||t%2)return 0;const k=t/2;return _hkOtGoalShare(lg)*_socPoissonPmf(hLam,k)*_socPoissonPmf(aLam,k);}
 function _hkUnderBias(line,lg){const s=HOCKEY_OU_UNDER_SHIFT[String(lg||'').toUpperCase()];return(s&&line>=5.5&&line<=6.5)?s:0;}
 // The same shift applied to the model's OWN over probability (the exact-Poisson total in liigaMC / nlaMC / extraligaMC / shlMC), so model-only totals (no market price) and the model share of the market blend lean under as well.
 // With this plus the market-share shift in _hkBlendOU the blended probability moves by the full figure; the projected goal total (avgT) is left as the Poisson mean.
@@ -8287,8 +8294,9 @@ function nhlMC(hA,awA,n=25000,marketOU){
   // the last-resort fallback for the narrow case of no live data loaded.
   const ouLine=marketOU!=null?parseFloat(marketOU):(TONIGHT.find(g=>(g.h===hA&&g.a===awA)||(g.h===awA&&g.a===hA))?.ou||5.5);
   let hw=0,aw2=0,ot=0,hT=0,aT=0,rT=0,ov=0,rl15h=0,rl15a=0;
+  const _otShare=_hkOtGoalShare('NHL');
   const _hp=_poisSampler(hLam),_ap=_poisSampler(aLam);
-  for(let i=0;i<n;i++){const hg=_hp(),ag=_ap();hT+=hg;aT+=ag;rT+=hg+ag;if(hg+ag>ouLine)ov++;if(hg>ag){hw++;if(hg-ag>=2)rl15h++;}else if(ag>hg){aw2++;if(ag-hg>=2)rl15a++;}else{ot++;hw+=.5;aw2+=.5;}}
+  for(let i=0;i<n;i++){const hg=_hp(),ag=_ap();hT+=hg;aT+=ag;rT+=hg+ag;if(hg+ag>ouLine)ov++;if(hg>ag){hw++;if(hg-ag>=2)rl15h++;}else if(ag>hg){aw2++;if(ag-hg>=2)rl15a++;}else{ot++;hw+=.5;aw2+=.5;if(hg+ag<=ouLine&&hg+ag+1>ouLine)ov+=_otShare;}}   // tied after 60: an overtime goal adds one to the book total (expected value, no extra noise), see HOCKEY_OT_GOAL_SHARE
   // Special-teams (hStAdj/aStAdj) and shot-quality (hSqAdj/aSqAdj) multipliers
   // already drive hLam/aLam above but were never surfaced anywhere in the
   // reasoning text -- a real signal the model uses but the reader never sees.
@@ -8890,7 +8898,7 @@ const _CFB_HFA_DEFAULT=2.2; // typical college home-field edge, in points — de
 // takes effect on the next render without a page reload.
 window.CFB_HFA_PTS=window.CFB_HFA_PTS??(typeof S!=='undefined'?S.g('cfb_hfa'):null)??_CFB_HFA_DEFAULT;
 function _cfbHFA(){return window.CFB_HFA_PTS;}
-const _CFB_SIGMA_MARGIN=16.5,_CFB_SIGMA_TOTAL=13.0; // CFB's real game-to-game variance is high
+const _CFB_SIGMA_MARGIN=16.5,_CFB_SIGMA_TOTAL=14.0; // CFB's real game-to-game variance is high (total sigma 13 -> 14 with the two-sided total, 2026-10-29: its error on the 448 finished games is 13.9 in-sample, a little more out of it)
 function _boxMullerZ(){
   const u1=Math.random()||1e-10,u2=Math.random();
   return Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);
@@ -9097,7 +9105,11 @@ function cfbMC(hA,awA,n,ouLine,g){
   // fall back to just the FBS side's own allowed average plus a modest
   // assumed FCS-offense floor, rather than the full league-average total,
   // since an FBS-vs-FCS total is realistically lopsided, not average.
-  let baseTotal=(hAllowed!=null&&aAllowed!=null)?(hAllowed+aAllowed)
+  // Expected total = each team's scoring against the OTHER's defence: (hPF + aPA)/2 + (aPF + hPA)/2.  It used to be hPA + aPA alone (points allowed only, offense ignored), which ran 3.9 points LOW across all 448 finished
+  // games of 2026 (7 points low on the lowest-total third: every defence-first pairing read as a 40-point game) and made CFB UNDERs 99-80 against 79% stated (audit 2026-10-29). The two-sided form is +0.6 / RMSE
+  // 13.9 on the same games.  Without the scoring figures (FCS side, missing stats) the old defence-only forms remain as the fallback.
+  let baseTotal=(hAllowed!=null&&aAllowed!=null)
+    ?((hPtsFor!=null&&aPtsFor!=null)?((hPtsFor+aAllowed)+(aPtsFor+hAllowed))/2:(hAllowed+aAllowed))
     :(hAllowed!=null?hAllowed+17:aAllowed!=null?aAllowed+17:_CFB_LG_TOTAL);
   // Real per-venue forecast (wind/rain/cold), when it's already been
   // prefetched into _CFB_WX_CACHE by _cfbPrefetchWeather -- capped nudge,
@@ -12918,7 +12930,7 @@ function liigaMC(homeId,awayId,marketOU){
   const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
-  const overP=_hkUnderBiasP(1-cdf,ouLine,'LIIGA');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
+  const overP=_hkUnderBiasP(Math.min(.999,1-cdf+_hkOtGoalOverAdd(hLam,aLam,ouLine,'LIIGA')),ouLine,'LIIGA');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
   const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5)); // P(home covers -1.5), incl. empty-net margin calibration
   const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
@@ -13075,7 +13087,7 @@ function nlaMC(homeId,awayId,marketOU){
   const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
-  const overP=_hkUnderBiasP(1-cdf,ouLine,'NLA');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
+  const overP=_hkUnderBiasP(Math.min(.999,1-cdf+_hkOtGoalOverAdd(hLam,aLam,ouLine,'NLA')),ouLine,'NLA');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
   const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5));
   const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
@@ -13191,7 +13203,7 @@ function extraligaMC(homeId,awayId,marketOU){
   const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
-  const overP=_hkUnderBiasP(1-cdf,ouLine,'EXTRALIGA');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
+  const overP=_hkUnderBiasP(Math.min(.999,1-cdf+_hkOtGoalOverAdd(hLam,aLam,ouLine,'EXTRALIGA')),ouLine,'EXTRALIGA');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
   const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5));
   const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
@@ -14105,7 +14117,7 @@ function shlMC(homeId,awayId,marketOU){
   const ouLine=marketOU!=null?parseFloat(marketOU):parseFloat(_forceHalfLine((hR.gm+aR.gm)/2));
   const totLam=hLam+aLam;
   let cdf=0;for(let k=0;k<=Math.floor(ouLine);k++)cdf+=_socPoissonPmf(totLam,k);
-  const overP=_hkUnderBiasP(1-cdf,ouLine,'SHL');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
+  const overP=_hkUnderBiasP(Math.min(.999,1-cdf+_hkOtGoalOverAdd(hLam,aLam,ouLine,'SHL')),ouLine,'SHL');   // euro under bias on the model's own over probability too (see HOCKEY_OU_UNDER_SHIFT)
   const rl15=_hkMarginCal(_socSpreadProb(hLam,aLam,-1.5)); // P(home covers -1.5), incl. empty-net margin calibration
   const rl15A=_hkMarginCal(_socSpreadProb(aLam,hLam,-1.5)); // P(AWAY covers -1.5) -- rlN is NOT this (rlN = away +1.5)
   return{hwP,awP,avgH:hLam,avgA:aLam,avgT:totLam,overP,otP,ouLine,rl15,rl15A,rlN:1-rl15};
@@ -14935,6 +14947,9 @@ function nbaTeamScore(abbr){
 }
 
 // ═══ NBA SIMULATION ENGINES ══════════════════════════════════
+// NBA sim dispersion (audit 2026-10-29): the sim drew each team's score with an SD of ~17 (18 - (TS% - .56) x 40), independent, so the MARGIN and TOTAL both had an SD of ~24 -- against 16.7 / 19.1 observed in the 68
+// finished games of 2026 (about 13-14 / 18 long-run).  Win and over probabilities came out far too close to 50%.  The margin and the total are now drawn directly with realistic spreads; the spread chip uses the same margin sigma.
+const NBA_SIGMA_MARGIN=13.0,NBA_SIGMA_TOTAL=18.5;
 function nbaMC(hA,awA,n=25000,ouLine=220.5){
   // AUDIT FIX: NBA_TEAMS/NBA_BBREF are both hardcoded to the same 4 teams
   // from a single past Finals matchup (OKC/SA/NY/CLE) — for any of the
@@ -14972,17 +14987,13 @@ function nbaMC(hA,awA,n=25000,ouLine=220.5){
   const poss=pace/100,HCA=2.9;
   const hProj=hOrtg*(aDrtg/lgDrtg)*poss+HCA/2;
   const aProj=aOrtg*(hDrtg/lgDrtg)*poss-HCA/2;
-  // TS%/eFG% based SD (better teams have tighter variance)
-  const hTS=hLive?.ts_pct??(h?h.p100.ts_pct:LG_TS);const aTS=aLive?.ts_pct??(aw?aw.p100.ts_pct:LG_TS);
-  const hSD=Math.max(8,18-(hTS-.56)*40);const aSD=Math.max(8,18-(aTS-.56)*40);
+  const mProj=hProj-aProj,tProj=hProj+aProj;
   let hw=0,aw2=0,hT=0,aT=0,ts=0,ov=0;
   for(let i=0;i<n;i++){
-    // Normal distribution approximation using Box-Muller
-    const u1=Math.random()||1e-10,u2=Math.random();
-    const z1=Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);
-    const z2=Math.sqrt(-2*Math.log(Math.random()||1e-10))*Math.cos(2*Math.PI*Math.random());
-    const hs=Math.max(70,Math.round(hProj+z1*hSD));
-    const as=Math.max(70,Math.round(aProj+z2*aSD));
+    // margin and total drawn directly (normal, Box-Muller), each team's score = (total +/- margin)/2
+    const simM=mProj+_boxMullerZ()*NBA_SIGMA_MARGIN,simT=tProj+_boxMullerZ()*NBA_SIGMA_TOTAL;
+    const hs=Math.max(70,Math.round((simT+simM)/2));
+    const as=Math.max(70,Math.round((simT-simM)/2));
     hT+=hs;aT+=as;
     if(hs>as)hw++;else if(as>hs)aw2++;else ts++;
     if(hs+as>ouLine)ov++;
@@ -15291,7 +15302,7 @@ const espnSprdNum=-_sprdL;const sprdFav=_mktFav;const sprdLbl=sprdFav+' '+espnSp
       const mcProjSpread=nbaEnsD?.mcD?.spread||0;
       const favProjMargin=(_mktFav===hn?mcProjSpread:-mcProjSpread);const lineMargin=_sprdL;   // projected margin of the MARKET favourite (mcProjSpread > 0 = home favoured)
       // P(fav covers) = normalCDF((projMargin - lineMargin) / nba_sigma)
-      const _nbaSigma=11.5;
+      const _nbaSigma=NBA_SIGMA_MARGIN;   // was 11.5 (the sim itself used ~24): one margin sigma for both now
       const sprdP=Math.min(0.82,Math.max(0.18,normalCDF((favProjMargin-lineMargin)/_nbaSigma+0.015)));
       const sprdD=ml2d('-115');const sprdCS=chipC(sprdP,ev(sprdP,sprdD));
       // Engine reasoning — best-market evaluation across ML, spread, O/U
