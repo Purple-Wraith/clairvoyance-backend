@@ -22378,7 +22378,7 @@ function endSplash(forced){
     setTimeout(()=>{sp.style.display='none';},950);
   }
   if(app)app.classList.add('ready');
-  try{SS('home');}catch(e){}
+  try{const cur=document.querySelector('.spane.act');if(!cur||cur.id==='sp-home')SS('home');}catch(e){}   // land on Home unless something already navigated elsewhere (deep link, early tab switch)
 }
 function startSplash(){
   _splashT0=Date.now();
@@ -22435,7 +22435,7 @@ function startSplash(){
     try{if(!document.getElementById('sp-home')?.classList.contains('act')){
       document.getElementById('splash').style.display='none';
       document.getElementById('app')?.classList.add('ready');
-      document.getElementById('sp-home')?.classList.add('act');
+      if(!document.querySelector('.spane.act'))document.getElementById('sp-home')?.classList.add('act');   // only when NO pane is showing: a deep link / early tab switch keeps its pane (2026-10-29, was an unconditional add that stacked Home on top of it)
     }}catch(e){}
   },8000);
 }
@@ -27448,7 +27448,7 @@ window.addEventListener('load',()=>{
           sp.style.animation='none';sp.style.opacity='0';
           setTimeout(()=>{sp.style.display='none';},800);
           document.getElementById('app')?.classList.add('ready');
-          document.getElementById('sp-home')?.classList.add('act');
+          if(!document.querySelector('.spane.act'))document.getElementById('sp-home')?.classList.add('act');   // see the 8s escape hatch in startSplash: never stack Home on a pane that is already showing
         }
       }
     }catch(e){}
@@ -27671,7 +27671,7 @@ document.addEventListener('DOMContentLoaded',()=>{(async()=>{
   // Final guaranteed initialization — runs after all async operations complete
   try{endSplash();}catch(e){console.warn('[CV] endSplash error:',e);}
   try{
-    if(!document.getElementById('sp-home')?.classList.contains('act')){
+    if(!document.querySelector('.spane.act')){                       // 2026-10-29: was "if Home is not active, add it" -- which stacked Home on top of whatever pane an early navigation had opened
       document.getElementById('sp-home')?.classList.add('act');
     }
   }catch(e){}
