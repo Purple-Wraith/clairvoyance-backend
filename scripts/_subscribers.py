@@ -125,7 +125,7 @@ def _load_events() -> list[dict]:
         return []
 
 
-def _log_event(action: str, product: str, email: str) -> None:
+def _log_event(action: str, product: str, email: str, promo: bool = False) -> None:
     """Append-only history of add/renew/remove actions, the only source
     of real trend/churn data -- current-state files alone (subscribers.json)
     can't answer "how many joined this week" or "who lapsed", since a
@@ -133,7 +133,10 @@ def _log_event(action: str, product: str, email: str) -> None:
     that need history only see it from the point this logging started
     (event_history_since in analytics_summary()), not retroactively."""
     events = _load_events()
-    events.append({"ts": _now().isoformat(), "action": action, "product": product, "email": email})
+    ev = {"ts": _now().isoformat(), "action": action, "product": product, "email": email}
+    if promo:
+        ev["promo"] = True           # a free / promo month: never counted as revenue (see _reconstruct_periods)
+    events.append(ev)
     EVENTS_FILE.write_text(json.dumps(events, indent=2) + "\n")
 
 
@@ -262,8 +265,20 @@ def active_subscribers(product: str) -> list[dict]:
         out.append({
             "email": email, "added": entry["added"], "days_left": days_left,
             "reminder_sent": bool(entry.get("reminder_sent")),
+            "promo": bool(entry.get("promo")),
         })
     return out
+
+
+def paid_counts_by_email() -> dict[str, int]:
+    """Active PAID list memberships per email. A free / promo month is a real, emailed membership but earns nothing, so every revenue figure
+    counts only these (a person with one paid list and one promo list is priced as one list)."""
+    counts: dict[str, int] = {}
+    for product in PRODUCTS:
+        for entry in active_subscribers(product):
+            if not entry["promo"]:
+                counts[entry["email"]] = counts.get(entry["email"], 0) + 1
+    return counts
 
 
 def recipients_for(product: str) -> list[str]:
@@ -280,10 +295,14 @@ def recipients_for(product: str) -> list[str]:
     return out
 
 
-def add_subscriber(product: str, email: str) -> str:
+def add_subscriber(product: str, email: str, promo: bool = False) -> str:
     """Adds email to product with a fresh 30-day window, or renews it
     (resets "added" to now) if already present -- either way returns a
-    short human-readable status string for CLI/caller use."""
+    short human-readable status string for CLI/caller use.
+
+    promo=True marks the window a FREE / PROMO month (owner 2026-10-29: an occasional free month for one person): the person is emailed exactly like
+    a paying subscriber, but the entry is flagged "promo" so no revenue figure counts it. A later normal add / renew of the same entry (they paid)
+    clears the flag, which is how a free month turns into a paid one."""
     if product not in PRODUCTS:
         raise ValueError(f"Unknown product {product!r} -- must be one of {PRODUCTS}")
     email = email.strip().lower()
@@ -298,13 +317,20 @@ def add_subscriber(product: str, email: str) -> str:
             # leave reminder_sent=True carried over and they'd never get
             # warned before the NEW window's own expiry.
             entry["reminder_sent"] = False
+            if promo:
+                entry["promo"] = True
+            else:
+                entry.pop("promo", None)
             save_subscribers(data)
-            _log_event("renew", product, email)
-            return f"renewed {email} on {product} -- 30-day window reset from today"
-    entries.append({"email": email, "added": now_iso, "reminder_sent": False})
+            _log_event("renew", product, email, promo)
+            return f"renewed {email} on {product} -- 30-day window reset from today" + (" (free / promo month)" if promo else "")
+    row = {"email": email, "added": now_iso, "reminder_sent": False}
+    if promo:
+        row["promo"] = True
+    entries.append(row)
     save_subscribers(data)
-    _log_event("add", product, email)
-    return f"added {email} to {product} -- active for {EXPIRY_DAYS} days"
+    _log_event("add", product, email, promo)
+    return f"added {email} to {product} -- active for {EXPIRY_DAYS} days" + (" (free / promo month)" if promo else "")
 
 
 def remove_subscriber(product: str, email: str) -> str:
@@ -371,8 +397,8 @@ def _reconstruct_periods() -> tuple[dict[tuple[str, str], list[dict]], list[floa
     as a fresh period (a win-back), not an extension of the old one.
 
     Returns (periods_by_key, renewal_gap_days) where periods_by_key maps
-    (email, product) -> ordered list of {start, end, cycles, removed}
-    dicts, and renewal_gap_days is one signed value per real "renew"
+    (email, product) -> ordered list of {start, end, cycles, removed, free_from, free_until}
+    dicts (free_from..free_until is the stretch given as a free / promo month, else None), and renewal_gap_days is one signed value per real "renew"
     event: negative = renewed that many days before it would have expired
     (a true on-time renewal), positive = renewed that many days after it
     had already lapsed (a win-back, not a renewal)."""
@@ -399,9 +425,13 @@ def _reconstruct_periods() -> tuple[dict[tuple[str, str], list[dict]], list[floa
                     if ts <= current["end"]:
                         current["end"] = ts + timedelta(days=EXPIRY_DAYS)
                         current["cycles"] += 1
+                        if e.get("promo"):
+                            current["free_from"] = current["free_from"] or ts
+                            current["free_until"] = current["end"]
                         continue
                     periods.append(current)
-                current = {"start": ts, "end": ts + timedelta(days=EXPIRY_DAYS), "cycles": 1, "removed": False}
+                current = {"start": ts, "end": ts + timedelta(days=EXPIRY_DAYS), "cycles": 1, "removed": False,
+                           "free_from": ts if e.get("promo") else None, "free_until": ts + timedelta(days=EXPIRY_DAYS) if e.get("promo") else None}
             elif action == "remove":
                 if current is not None:
                     if ts < current["end"]:
@@ -439,8 +469,8 @@ def revenue_timeline(weeks: int = 8) -> list[dict]:
     for cp in checkpoints:
         counts_by_email: dict[str, int] = {}
         for (email, _product), periods in periods_by_key.items():
-            if any(p["start"] <= cp < p["end"] for p in periods):
-                counts_by_email[email] = counts_by_email.get(email, 0) + 1
+            if any(p["start"] <= cp < p["end"] and not (p["free_from"] and p["free_from"] <= cp < p["free_until"]) for p in periods):
+                counts_by_email[email] = counts_by_email.get(email, 0) + 1     # a free / promo month is not revenue
         revenue = sum(PRICING_BY_COUNT.get(min(n, len(PRODUCTS)), 0) for n in counts_by_email.values())
         out.append({"week_of": cp.date().isoformat(), "active_emails": len(counts_by_email), "estimated_revenue": revenue})
     return out
@@ -452,12 +482,12 @@ def per_product_revenue() -> dict[str, float]:
     evenly across those products -- there's no real separate per-product
     price once bundled, so this is an allocation for comparing products
     against each other, not a second ledger."""
-    active_counts_by_email: dict[str, int] = {}
+    active_counts_by_email = paid_counts_by_email()
     active_by_product: dict[str, list[str]] = {p: [] for p in PRODUCTS}
     for product in PRODUCTS:
         for entry in active_subscribers(product):
-            active_counts_by_email[entry["email"]] = active_counts_by_email.get(entry["email"], 0) + 1
-            active_by_product[product].append(entry["email"])
+            if not entry["promo"]:
+                active_by_product[product].append(entry["email"])
 
     out = {p: 0.0 for p in PRODUCTS}
     for product, emails in active_by_product.items():
@@ -567,13 +597,19 @@ def analytics_summary() -> dict:
 
     per_product_counts: dict[str, int] = {}
     active_counts_by_email: dict[str, int] = {}
+    promo_memberships = 0
+    promo_emails: set[str] = set()
     for product in PRODUCTS:
         actives = active_subscribers(product)
         per_product_counts[product] = len(actives)
         for entry in actives:
             active_counts_by_email[entry["email"]] = active_counts_by_email.get(entry["email"], 0) + 1
+            if entry["promo"]:
+                promo_memberships += 1
+                promo_emails.add(entry["email"])
 
-    estimated_mrr = sum(PRICING_BY_COUNT.get(min(n, len(PRODUCTS)), 0) for n in active_counts_by_email.values())
+    # free / promo months are emailed like any subscription but earn nothing: priced on PAID lists only
+    estimated_mrr = sum(PRICING_BY_COUNT.get(min(n, len(PRODUCTS)), 0) for n in paid_counts_by_email().values())
 
     expiring_soon = []
     for product in PRODUCTS:
@@ -612,6 +648,8 @@ def analytics_summary() -> dict:
         "active_subscriptions": sum(per_product_counts.values()),
         "per_product_counts": per_product_counts,
         "estimated_mrr": estimated_mrr,
+        "promo_memberships": promo_memberships,
+        "promo_emails": len(promo_emails),
         "expiring_soon": expiring_soon,
         "events_since": events_since,
         "window_7d": win7,
@@ -651,6 +689,7 @@ def products_for_email(email: str) -> list[dict]:
                 "added": entry["added"],
                 "days_left": days_left,
                 "active": days_left > 0,
+                "promo": bool(entry.get("promo")),
             })
     return out
 
@@ -672,7 +711,8 @@ def build_receipt_email(rows: list[dict], renewal: bool = False) -> tuple[str, s
     """(subject, html) of the access receipt for these ACTIVE product rows ({product, added, ...} as products_for_email() returns them).  Split out of send_receipt_email so a sample receipt can be
     rendered and sent to the owner without a real subscriber (scripts/send_demo_emails.py --only receipt)."""
     n = len(rows)
-    price = PRICING_BY_COUNT.get(min(n, len(PRODUCTS)), 0)
+    n_paid = sum(1 for r in rows if not r.get("promo"))
+    price = PRICING_BY_COUNT.get(min(n_paid, len(PRODUCTS)), 0)
     now = _now()
     expiry_rows = "".join(
         f'<div style="padding:14px 0;'
@@ -685,6 +725,15 @@ def build_receipt_email(rows: list[dict], renewal: bool = False) -> tuple[str, s
         f'</div>'
         for i, r in enumerate(rows)
     )
+    # A free / promo month shows FREE (no standard price) -- only the paid lists, if any, carry the reference price.
+    n_promo = n - n_paid
+    if n_paid == 0:
+        price_big, price_note = "FREE", f"complimentary access for {n} product{'s' if n != 1 else ''} / {EXPIRY_DAYS} days"
+    elif n_promo:
+        price_big = f"${price}"
+        price_note = f"standard price for {n_paid} paid product{'s' if n_paid != 1 else ''} / {EXPIRY_DAYS} days, plus {n_promo} complimentary"
+    else:
+        price_big, price_note = f"${price}", f"standard price for {n} product{'s' if n != 1 else ''} / {EXPIRY_DAYS} days"
     subject = f"Clairvoyance — {'Renewal' if renewal else 'Access'} confirmation: {n} product{'s' if n != 1 else ''} active"
     # Custom open (not the shared EMAIL_WRAP_OPEN) so the receipt can carry
     # its own bordered card instead of going flat-white right under a neon
@@ -739,13 +788,13 @@ def build_receipt_email(rows: list[dict], renewal: bool = False) -> tuple[str, s
         f'padding:4px 20px;margin-bottom:20px">{expiry_rows}</div>'
         f'<div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:6px;'
         f'padding:18px 22px;margin-bottom:24px">'
-        f'<div style="font-size:24px;font-weight:800;color:#f20cff">${price}<span '
-        f'style="font-size:13px;font-weight:500;color:{BLACK};margin-left:6px">standard price for {n} product{"s" if n != 1 else ""} / {EXPIRY_DAYS} days</span></div></div>'
+        f'<div style="font-size:24px;font-weight:800;color:#f20cff">{price_big}<span '
+        f'style="font-size:13px;font-weight:500;color:{BLACK};margin-left:6px">{price_note}</span></div></div>'
         f'<div style="font-size:13px;color:{BLACK};line-height:1.7">'
         'This confirms the access currently live on your account -- not a record of a specific '
         'Venmo payment (payments aren\'t processed or tracked here). Each product above is renewed '
         f'for {EXPIRY_DAYS} days from the day your next payment is recorded; reply to this email with any '
-        'questions.</div>' +
+        'questions.' + (f' Complimentary access ends on the date shown above; reply to this email if you would like to keep it.' if n_promo else '') + '</div>' +
         receipt_close
     )
     return subject, body

@@ -37334,7 +37334,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 .ml-eh{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .ml-em{font-family:var(--mono);font-size:16px;color:var(--t);word-break:break-all}
 .ml-pill{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;padding:2px 8px;border-radius:2px;font-weight:700;color:#000;background:#00e644}
-.ml-pill.expiring{background:#ffd500}.ml-pill.expired{background:#ff2050;color:#fff}
+.ml-pill.expiring{background:#ffd500}.ml-pill.expired{background:#ff2050;color:#fff}.ml-pill.promo{background:#f20cff;color:#000;font-size:10px;margin-left:6px;vertical-align:middle}
 .ml-prod{display:grid;grid-template-columns:150px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid rgba(255,255,255,.06)}
 .ml-pn{font-family:var(--mono);font-size:14px;color:var(--t2)}
 .ml-track{height:8px;background:rgba(255,255,255,.08);border-radius:1px;overflow:hidden;position:relative}
@@ -37406,8 +37406,8 @@ function _mlStatCards(a,subs){
   const exp=subs.filter(s=>s.status==='expiring').length;
   return `<div class="ml-stats">
     <div class="ml-stat"><div class="ml-sv">${a.active_emails}</div><div class="ml-sl">Active subscribers</div></div>
-    <div class="ml-stat"><div class="ml-sv">${a.active_subscriptions}</div><div class="ml-sl">Active list memberships</div></div>
-    <div class="ml-stat"><div class="ml-sv" style="color:#00e644">$${a.estimated_mrr}</div><div class="ml-sl">Est. 30-day revenue</div><div class="ml-sn">standard pricing, not a payment ledger</div></div>
+    <div class="ml-stat"><div class="ml-sv">${a.active_subscriptions}</div><div class="ml-sl">Active list memberships</div>${a.promo_memberships?`<div class="ml-sn">${a.promo_memberships} free / promo</div>`:''}</div>
+    <div class="ml-stat"><div class="ml-sv" style="color:#00e644">$${a.estimated_mrr}</div><div class="ml-sl">Est. 30-day revenue</div><div class="ml-sn">standard pricing, not a payment ledger${a.promo_memberships?' · free months not counted':''}</div></div>
     <div class="ml-stat"><div class="ml-sv" style="color:${exp?'#ffd500':'var(--t)'}">${exp}</div><div class="ml-sl">Expiring in 5 days or less</div></div>
   </div>`;
 }
@@ -37427,14 +37427,16 @@ function _mlRenderSubs(){
       const cls=!p.active?'expired':p.days_left<=5?'expiring':'';
       const pct=p.active?Math.max(3,Math.min(100,Math.round(100*p.days_left/d.expiry_days))):100;
       const dl=p.active?`${p.days_left} day${p.days_left===1?'':'s'} left · ends ${_mlFmtDay(p.expires)}`:`expired ${_mlFmtDay(p.expires)}`;
-      return `<div class="ml-prod" data-product="${_escHtml(p.product)}"><div class="ml-pn">${_escHtml(p.label)}</div>
+      const free=p.promo?` <span class="ml-pill promo" title="Free / promo month: emailed like a subscriber, not counted as revenue">FREE MONTH</span>`:'';
+      return `<div class="ml-prod${p.promo?' promo':''}" data-product="${_escHtml(p.product)}"><div class="ml-pn">${_escHtml(p.label)}${free}</div>
         <div><div class="ml-track"><div class="ml-fill ${cls}" style="width:${pct}%"></div></div><div class="ml-dl">${dl}</div></div>
-        <div class="ml-act"><button class="ml-btn go" onclick="mlRenew('${_escHtml(s.email)}','${p.product}')">RENEW</button><button class="ml-btn rm" onclick="mlRemove('${_escHtml(s.email)}','${p.product}')">REMOVE</button></div></div>`;
+        <div class="ml-act"><button class="ml-btn go" onclick="mlRenew('${_escHtml(s.email)}','${p.product}')"${p.promo?' title="They paid: start a normal paid 30 days from today"':''}>${p.promo?'RENEW AS PAID':'RENEW'}</button><button class="ml-btn rm" onclick="mlRemove('${_escHtml(s.email)}','${p.product}')">REMOVE</button></div></div>`;
     }).join('');
-    const price=s.active_count?`$${s.price} / 30 days · ${s.active_count} list${s.active_count===1?'':'s'}`:'no active lists';
+    const paidN=s.active_count-(s.promo_count||0);
+    const price=s.active_count?((paidN?`$${s.price} / 30 days · ${paidN} paid list${paidN===1?'':'s'}`:'free month · no charge')+(paidN&&s.promo_count?` + ${s.promo_count} free`:'')):'no active lists';
     return `<div class="ml-sub ${s.status}" data-email="${_escHtml(s.email)}"><div class="ml-eh"><div><div class="ml-em">${_escHtml(s.email)}</div><div class="ml-dl">${price}</div></div>
       <div class="ml-act"><span class="ml-pill ${s.status}">${s.status.toUpperCase()}</span>
-      <button class="ml-btn go" onclick="mlRenewAll('${_escHtml(s.email)}')">RENEW ALL</button><button class="ml-btn" onclick="mlReceipt('${_escHtml(s.email)}')">SEND RECEIPT</button></div></div>${prow}</div>`;
+      <button class="ml-btn go" onclick="mlRenewAll('${_escHtml(s.email)}')">${s.promo_count?'RENEW ALL AS PAID':'RENEW ALL'}</button><button class="ml-btn" onclick="mlReceipt('${_escHtml(s.email)}')">SEND RECEIPT</button></div></div>${prow}</div>`;
   }).join('');
   const syncMsg=_ml.msg?`<div class="ml-msg ${_ml.msg.ok?'ok':'err'}" id="ml-msg">${_escHtml(_ml.msg.text)}</div>`:'';
   el.innerHTML=`<div class="ml-top"><div><div class="ml-h">MAILING LIST</div><div class="ml-hs">PAID SUBSCRIBERS · LISTS · TIME LEFT · 30-DAY ACCESS PER PURCHASE</div></div>
@@ -37451,16 +37453,19 @@ function _mlRenderAdd(){
   const d=_ml.data,el=document.getElementById('ml-add');if(!el)return;
   const chips=d.products.map(p=>`<button class="ml-chip${_ml.sel[p.key]?' on':''}" aria-pressed="${!!_ml.sel[p.key]}" onclick="_ml.sel['${p.key}']=!_ml.sel['${p.key}'];_mlRenderAdd()">${_escHtml(p.label.toUpperCase())}</button>`).join('');
   const n=Object.values(_ml.sel).filter(Boolean).length;
-  const price=n?`$${d.pricing[Math.min(n,5)]||'?'} for ${n} list${n===1?'':'s'} (standard pricing)`:'pick the lists they paid for';
+  const promo=!!_ml.promo;
+  const price=n?(promo?`${n} list${n===1?'':'s'} · FREE (no charge, not counted as revenue)`:`$${d.pricing[Math.min(n,5)]||'?'} for ${n} list${n===1?'':'s'} (standard pricing)`):(promo?'pick the lists to give them for free':'pick the lists they paid for');
   const msg=_ml.msg?`<div class="ml-msg ${_ml.msg.ok?'ok':'err'}" id="ml-msg">${_escHtml(_ml.msg.text)}</div>`:'';
   el.innerHTML=`<div class="ml-top"><div><div class="ml-h">ADD / RENEW</div><div class="ml-hs">WHEN SOMEONE PAYS (VENMO): ADD THEM HERE</div></div></div>
   <div class="ml-card"><div class="ml-ct">SUBSCRIBER</div>
     <div class="ml-bar"><input class="ml-in" id="ml-email" type="email" autocomplete="off" placeholder="their@email.com" value="${_escHtml(_ml.email||'')}" oninput="_ml.email=this.value"></div>
-    <div class="ml-ct" style="margin-top:12px">LISTS THEY PAID FOR</div><div class="ml-bar">${chips}</div><div class="ml-dl">${price}</div>
+    <div class="ml-ct" style="margin-top:12px">${promo?'LISTS TO GIVE FOR FREE':'LISTS THEY PAID FOR'}</div><div class="ml-bar">${chips}</div><div class="ml-dl">${price}</div>
+    <label class="ml-dl ml-promo-opt" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="ml-promo" ${promo?'checked':''} onchange="_ml.promo=this.checked;_mlRenderAdd()"> Free / promo month (no payment · marked FREE · not counted as revenue)</label>
     <label class="ml-dl" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="ml-receipt" ${_ml.receipt===false?'':'checked'} onchange="_ml.receipt=this.checked"> Email them a receipt of what is now active</label>
-    <div style="margin-top:12px"><button class="ml-btn go" id="ml-addbtn" onclick="mlAddSubmit()" ${_ml.busy?'disabled':''}>ADD / RENEW — START 30 DAYS FROM TODAY</button></div>
+    <div style="margin-top:12px"><button class="ml-btn go" id="ml-addbtn" onclick="mlAddSubmit()" ${_ml.busy?'disabled':''}>${promo?'GIVE A FREE MONTH — 30 DAYS FROM TODAY':'ADD / RENEW — START 30 DAYS FROM TODAY'}</button></div>
     ${msg}</div>
   <div class="ml-card"><div class="ml-ct">HOW IT WORKS</div><div class="ml-msg">Adding starts a 30-day window today on each list; adding someone already on a list renews it (resets to 30 days). The change is saved to the private list and synced to GitHub so the next lock email includes them. The receipt is emailed from GitHub (it queues, then arrives within a minute or two).
+  A free / promo month works the same way (they are emailed every pick) but is marked FREE and left out of every revenue figure; pressing RENEW AS PAID on it later turns it into a normal paid month.
   Nothing here is automatic: the website sign-up is a pre-written email and the payment is a Venmo, so the engine only learns about a new subscriber when you add them here.</div></div>`;
 }
 function _mlRenderAna(){
@@ -37474,7 +37479,7 @@ function _mlRenderAna(){
   const w=(x)=>`${x.add} new · ${x.renew} renewed · ${x.remove} removed`;
   const soon=(a.expiring_soon||[]).map(r=>`<tr><td>${_escHtml(r.email)}</td><td>${_escHtml(r.product)}</td><td>${r.days_left}</td></tr>`).join('');
   el.innerHTML=`<div class="ml-top"><div><div class="ml-h">ANALYTICS</div><div class="ml-hs">${a.events_since?'ACTIVITY TRACKED SINCE '+_escHtml(_mlMtDate(a.events_since)):'NO ACTIVITY TRACKED YET'} · REVENUE IS AN ESTIMATE FROM STANDARD PRICING</div></div></div>
-  <div class="ml-stats">${stat(a.active_emails,'Active subscribers')}${stat(a.active_subscriptions,'List memberships')}${stat('$'+a.estimated_mrr,'Est. 30-day revenue')}
+  <div class="ml-stats">${stat(a.active_emails,'Active subscribers')}${stat(a.active_subscriptions,'List memberships',a.promo_memberships?a.promo_memberships+' free / promo':'')}${stat('$'+a.estimated_mrr,'Est. 30-day revenue',a.promo_memberships?'free months not counted':'')}
     ${stat(a.renewal_rate_30d==null?'—':a.renewal_rate_30d+'%','Renewal rate (30d)','renewals ÷ (renewals + removals)')}${stat(ad.pct_multi==null?'—':ad.pct_multi+'%','On 2+ lists',ad.multi_product_emails+' of '+ad.active_emails)}
     ${stat(lt.avg_cycles==null?'—':lt.avg_cycles,'Avg lifetime (30-day cycles)',lt.sample_size?lt.sample_size+' ended':'none ended yet')}${stat(ttr.avg_days_before_expiry==null?'—':(ttr.avg_days_before_expiry>=0?ttr.avg_days_before_expiry+'d early':Math.abs(ttr.avg_days_before_expiry)+'d late'),'Renews vs expiry',ttr.sample_size?ttr.on_time_count+' on time · '+ttr.late_count+' late':'no renewals yet')}</div>
   <div class="ml-card"><div class="ml-ct">LAST 7 / 30 DAYS</div><div class="ml-msg">7 days: ${w(a.window_7d)}<br>30 days: ${w(a.window_30d)}</div></div>
@@ -37485,7 +37490,7 @@ function _mlRenderAna(){
 }
 function _mlRenderAct(){
   const d=_ml.data,el=document.getElementById('ml-act');if(!el)return;
-  const rows=d.events.map(e=>`<tr><td>${_escHtml(_mlFmtTime(e.ts))}</td><td>${_escHtml(String(e.action||'').toUpperCase())}</td><td>${_escHtml((d.products.find(p=>p.key===e.product)||{}).label||e.product)}</td><td>${_escHtml(e.email)}</td></tr>`).join('');
+  const rows=d.events.map(e=>`<tr><td>${_escHtml(_mlFmtTime(e.ts))}</td><td>${_escHtml(String(e.action||'').toUpperCase())}${e.promo?' · FREE':''}</td><td>${_escHtml((d.products.find(p=>p.key===e.product)||{}).label||e.product)}</td><td>${_escHtml(e.email)}</td></tr>`).join('');
   el.innerHTML=`<div class="ml-top"><div><div class="ml-h">ACTIVITY</div><div class="ml-hs">EVERY ADD, RENEWAL AND REMOVAL · NEWEST FIRST</div></div></div>
   <div class="ml-card">${rows?`<div class="ml-tw"><table class="ml-t"><tr><th>WHEN</th><th>ACTION</th><th>LIST</th><th>EMAIL</th></tr>${rows}</table></div>`:'<div class="empty">NO ACTIVITY YET</div>'}</div>`;
 }
@@ -37503,15 +37508,15 @@ async function _mlDo(label,work,syncMsg,after){
   await mlLoad();
 }
 async function mlAddSubmit(){
-  const email=(document.getElementById('ml-email')?.value||'').trim(),receipt=!!document.getElementById('ml-receipt')?.checked;
+  const email=(document.getElementById('ml-email')?.value||'').trim(),receipt=!!document.getElementById('ml-receipt')?.checked,promo=!!document.getElementById('ml-promo')?.checked;
   const picks=Object.keys(_ml.sel).filter(k=>_ml.sel[k]);
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!picks.length){_ml.msg={ok:false,text:'Enter a valid email and pick at least one list.'};_mlRenderAdd();return;}
-  await _mlDo('Added '+email,async out=>{
-    for(const p of picks){const j=await mlFetch('/api/add',{method:'POST',body:JSON.stringify({product:p,email})});out.push(j.message);}
-  },`Add ${email} to ${picks.join(', ')}`,async out=>{
+  await _mlDo((promo?'Gave a free month to ':'Added ')+email,async out=>{
+    for(const p of picks){const j=await mlFetch('/api/add',{method:'POST',body:JSON.stringify(promo?{product:p,email,promo:true}:{product:p,email})});out.push(j.message);}
+  },`${promo?'Free month: add':'Add'} ${email} to ${picks.join(', ')}`,async out=>{
     if(receipt){const r=await mlFetch('/api/receipt',{method:'POST',body:JSON.stringify({email})});out.push(r.ok?r.message:'receipt not sent ('+r.message+')');}     // after the sync: the receipt is sent from GitHub, which reads the synced list
   });
-  if(_ml.msg&&_ml.msg.ok){_ml.sel={};_ml.email='';}
+  if(_ml.msg&&_ml.msg.ok){_ml.sel={};_ml.email='';_ml.promo=false;mlRender();}      // clear the form (chips, email, the free-month box) without waiting for the next refresh
 }
 // A renewal emails the subscriber a RENEWAL receipt (after the sync: it is sent from GitHub, which reads the synced list) unless the "email a receipt when I renew" box on the SUBSCRIBERS tab is off.
 async function _mlRenewReceipt(email,out){

@@ -112,13 +112,15 @@ def build_overview() -> dict:
             row = by_email.setdefault(email, {"email": email, "products": []})
             row["products"].append({"product": product, "label": PRODUCT_LABEL.get(product, product), "added": added.isoformat(), "expires": exp.isoformat(),
                                     "days_left": math.ceil(days_left),
-                                    "active": days_left > 0, "reminder_sent": bool(e.get("reminder_sent"))})
+                                    "active": days_left > 0, "reminder_sent": bool(e.get("reminder_sent")), "promo": bool(e.get("promo"))})
     subs = []
     for row in by_email.values():
         row["products"].sort(key=lambda p: p["product"])
         act = [p for p in row["products"] if p["active"]]
         row["active_count"] = len(act)
-        row["price"] = PRICING_BY_COUNT.get(min(len(act), len(PRODUCTS)), 0) if act else 0
+        paid = [p for p in act if not p["promo"]]
+        row["promo_count"] = len(act) - len(paid)
+        row["price"] = PRICING_BY_COUNT.get(min(len(paid), len(PRODUCTS)), 0) if paid else 0      # a free / promo month is not priced
         row["soonest_days_left"] = min((p["days_left"] for p in act), default=None)
         row["status"] = "expired" if not act else ("expiring" if row["soonest_days_left"] <= 5 else "active")
         subs.append(row)
@@ -717,7 +719,7 @@ class Handler(BaseHTTPRequestHandler):
             if product not in PRODUCTS or not email:
                 self._json({"error": "invalid product/email"}, 400)
                 return
-            self._json({"ok": True, "message": add_subscriber(product, email)})
+            self._json({"ok": True, "message": add_subscriber(product, email, promo=body.get("promo") is True)})
         elif parsed.path == "/api/remove":
             if product not in PRODUCTS or not email:
                 self._json({"error": "invalid product/email"}, 400)

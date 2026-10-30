@@ -105,6 +105,71 @@ class ServerTests(unittest.TestCase):
         self.assertEqual([p["product"] for p in o["subscribers"][0]["products"]], ["nba"])
         self.assertEqual([e["action"] for e in o["events"]], ["remove", "renew", "add", "add"])   # newest first
 
+    def test_a_free_month_is_emailed_but_never_counted_as_revenue(self):
+        self.s.req("/api/add", "POST", {"product": "cfb", "email": "Free@Example.com", "promo": True})
+        self.s.req("/api/add", "POST", {"product": "nba", "email": "paid@example.com"})
+        o = self.s.req("/api/overview")[2]
+        by = {r["email"]: r for r in o["subscribers"]}
+        f = by["free@example.com"]
+        self.assertEqual((f["products"][0]["promo"], f["products"][0]["days_left"], f["promo_count"], f["price"], f["status"]), (True, 30, 1, 0, "active"))
+        self.assertEqual((by["paid@example.com"]["promo_count"], by["paid@example.com"]["price"]), (0, 20))
+        a = o["analytics"]
+        self.assertEqual((a["active_emails"], a["active_subscriptions"], a["estimated_mrr"], a["promo_memberships"], a["promo_emails"]), (2, 2, 20, 1, 1))   # $20, not $40
+        self.assertEqual(a["per_product_revenue"]["cfb"], 0)
+        self.assertEqual(a["revenue_timeline"][-1]["estimated_revenue"], 20)
+        self.assertIn("free@example.com", S.recipients_for("cfb"))                         # they still get every CFB email
+        self.assertTrue(o["events"][1]["promo"] and "promo" not in o["events"][0])           # newest first: the paid add carries no flag
+        self.assertTrue(next(r for r in S.products_for_email("free@example.com"))["promo"])
+
+    def test_a_promo_month_mixed_with_a_paid_list_prices_only_the_paid_list(self):
+        self.s.req("/api/add", "POST", {"product": "nba", "email": "mix@example.com"})
+        self.s.req("/api/add", "POST", {"product": "cfb", "email": "mix@example.com", "promo": True})
+        o = self.s.req("/api/overview")[2]
+        r = o["subscribers"][0]
+        self.assertEqual((r["active_count"], r["promo_count"], r["price"]), (2, 1, 20))
+        self.assertEqual(o["analytics"]["estimated_mrr"], 20)
+
+    def test_paying_after_a_free_month_turns_it_into_a_paid_month(self):
+        self.s.req("/api/add", "POST", {"product": "cfb", "email": "conv@example.com", "promo": True})
+        self.s.req("/api/add", "POST", {"product": "cfb", "email": "conv@example.com"})        # RENEW AS PAID: a normal add of the same entry
+        o = self.s.req("/api/overview")[2]
+        self.assertFalse(o["subscribers"][0]["products"][0]["promo"])
+        self.assertEqual((o["analytics"]["estimated_mrr"], o["analytics"]["promo_memberships"]), (20, 0))
+        self.assertEqual(json.loads(self.s.subs.read_text())["cfb"][0].get("promo"), None)
+
+    def test_a_non_boolean_promo_value_is_not_a_free_month(self):
+        self.s.req("/api/add", "POST", {"product": "cfb", "email": "x@example.com", "promo": "false"})        # a truthy string must never silently make someone free
+        self.assertFalse(self.s.req("/api/overview")[2]["subscribers"][0]["products"][0]["promo"])
+
+    def test_the_free_month_period_is_excluded_from_the_revenue_history_only_while_it_lasts(self):
+        base = datetime.now(timezone.utc)
+        ev = [{"ts": (base - timedelta(days=40)).isoformat(), "action": "add", "product": "cfb", "email": "c@x.com", "promo": True},
+              {"ts": (base - timedelta(days=10)).isoformat(), "action": "renew", "product": "cfb", "email": "c@x.com"}]       # free month, then they paid
+        self.s.events.write_text(json.dumps(ev))
+        periods = S._reconstruct_periods()[0][("c@x.com", "cfb")]
+        self.assertEqual(len(periods), 1)
+        p = periods[0]
+        self.assertEqual((p["free_from"], p["free_until"]), (datetime.fromisoformat(ev[0]["ts"]), datetime.fromisoformat(ev[0]["ts"]) + timedelta(days=30)))
+        free_at, paid_at = base - timedelta(days=30), base - timedelta(days=5)
+        isfree = lambda cp: bool(p["free_from"] and p["free_from"] <= cp < p["free_until"])
+        self.assertTrue(isfree(free_at)); self.assertFalse(isfree(paid_at))
+
+    def test_the_receipt_for_a_free_month_says_free_not_a_price(self):
+        rows = [{"product": "cfb", "added": iso(0), "promo": True, "active": True, "days_left": 30}]
+        _, html = S.build_receipt_email(rows)
+        self.assertIn("FREE", html); self.assertIn("complimentary", html); self.assertNotIn("standard price", html)
+        _, html2 = S.build_receipt_email([{"product": "nba", "added": iso(0), "promo": False}, rows[0]])
+        self.assertIn("$20", html2); self.assertIn("1 complimentary", html2)
+        _, html3 = S.build_receipt_email([{"product": "nba", "added": iso(0)}])
+        self.assertIn("standard price for 1 product", html3); self.assertNotIn("complimentary", html3)
+
+    def test_the_cli_marks_a_promo_month(self):
+        import manage_subscribers as M
+        with mock.patch.object(sys, "argv", ["m", "add", "--promo", "cfb", "cli@example.com"]), mock.patch.object(M, "send_receipt_email", return_value=(True, "")), \
+                mock.patch.object(M, "sync_subscribers_to_git", return_value=(True, "synced")):
+            M.main()
+        self.assertTrue(json.loads(self.s.subs.read_text())["cfb"][0]["promo"])
+
     def test_cors_only_for_the_engine_app_and_local_pages(self):
         for ok in (APP_ORIGIN, "http://127.0.0.1:5173", "http://localhost:8000"):
             _, h, _ = self.s.req("/api/overview", origin=ok)
@@ -266,6 +331,28 @@ class TabTests(unittest.TestCase):
         pg.click("#sp-mail .sb2:has-text('SUBSCRIBERS')"); pg.wait_for_selector("#ml-subs .ml-sub[data-email='first@client.com']")
         got = pg.evaluate("[...document.querySelectorAll('#ml-subs .ml-sub[data-email=\"first@client.com\"] .ml-dl')].map(e=>e.innerText).join('|')")
         self.assertIn("30 days left", got)
+        pg.context.close()
+
+    def test_giving_a_free_month_from_the_add_tab(self):
+        pg = self.page(); self.open_tab(pg)
+        pg.click("#sp-mail .sb2:has-text('ADD / RENEW')"); pg.wait_for_selector("#ml-email")
+        pg.fill("#ml-email", "gift@client.com"); pg.click("#ml-add .ml-chip:has-text('COLLEGE FOOTBALL')")
+        self.assertIn("$20", pg.inner_text("#ml-add"))
+        pg.check("#ml-promo"); pg.wait_for_selector("#ml-add:has-text('FREE (no charge')")
+        self.assertIn("GIVE A FREE MONTH", pg.inner_text("#ml-addbtn")); self.assertNotIn("$20", pg.inner_text("#ml-add .ml-bar + .ml-dl"))
+        self.assertEqual(pg.input_value("#ml-email"), "gift@client.com")                      # toggling must not wipe what was typed
+        with mock.patch.object(A, "deliver_receipt", side_effect=lambda e: (True, "receipt queued")), mock.patch.object(A, "sync_subscribers_to_git", side_effect=lambda m: (True, "synced")) as sy:
+            pg.click("#ml-addbtn"); pg.wait_for_selector("#ml-msg")
+            self.assertIn("Free month", sy.call_args[0][0])
+        self.assertIn("Gave a free month to gift@client.com", pg.inner_text("#ml-msg"))
+        self.assertFalse(pg.is_checked("#ml-promo")); self.assertEqual(pg.input_value("#ml-email"), "")      # back to the normal, empty add form
+        self.assertIn("ADD / RENEW", pg.inner_text("#ml-addbtn"))
+        pg.click("#sp-mail .sb2:has-text('SUBSCRIBERS')"); pg.wait_for_selector("#ml-subs .ml-sub[data-email='gift@client.com']")
+        card = pg.inner_text("#ml-subs .ml-sub[data-email='gift@client.com']")
+        self.assertIn("FREE MONTH", card); self.assertIn("free month", card); self.assertIn("RENEW AS PAID", card); self.assertNotIn("$20", card)
+        stats = pg.evaluate("[...document.querySelectorAll('#ml-subs .ml-stat')].map(e=>e.innerText.replace(/\\n/g,' '))")
+        self.assertTrue(any("1 free / promo" in x for x in stats), stats)
+        self.assertTrue(any(x.startswith("$50") for x in stats), stats)                        # seeded paid: sam on 2 lists ($30) + kim ($20); the free month adds nothing
         pg.context.close()
 
     def test_a_failed_sync_is_reported_loudly(self):

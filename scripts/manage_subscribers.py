@@ -8,6 +8,7 @@ pays, you run `add`, and it commits + pushes subscribers.json for you (to the pr
 Usage:
   python3 scripts/manage_subscribers.py add nba someone@example.com
   python3 scripts/manage_subscribers.py add nba nfl hockey someone@example.com  # one email, multiple products -- any order, email can go anywhere
+  python3 scripts/manage_subscribers.py add --promo cfb someone@example.com  # a FREE / PROMO month: emailed like a subscriber, never counted as revenue
   python3 scripts/manage_subscribers.py remove nba someone@example.com
   python3 scripts/manage_subscribers.py list                                  # every product
   python3 scripts/manage_subscribers.py list nba                              # one product
@@ -45,7 +46,7 @@ def _print_list(data: dict[str, list[dict]]) -> None:
             continue
         print(f"{product}:")
         for e in sorted(entries, key=lambda x: x["days_left"]):
-            print(f"  {e['email']:<40} {e['days_left']} day(s) left (added {e['added'][:10]})")
+            print(f"  {e['email']:<40} {e['days_left']} day(s) left (added {e['added'][:10]}){' [FREE / PROMO]' if e.get('promo') else ''}")
     print(f"\n{total} total active subscriber-product pair(s), {EXPIRY_DAYS}-day window")
 
 
@@ -80,6 +81,11 @@ def main() -> None:
         # how most people would naturally type it) as email="hockey" and
         # "someone@x.com" as an unknown product. Detecting by "@" instead
         # accepts the email in any position, so every ordering works.
+        promo = "--promo" in args
+        args = [a for a in args if a != "--promo"]
+        if len(args) < 3:
+            print("Usage: manage_subscribers.py add [--promo] <product> [more products...] <email>  (any order)")
+            sys.exit(1)
         email_candidates = [a for a in args[1:] if "@" in a]
         if len(email_candidates) != 1:
             print(f"Usage: manage_subscribers.py add <product> [more products...] <email>  (any order)\n"
@@ -95,7 +101,7 @@ def main() -> None:
                 print(f"Unknown product {product!r} -- must be one of: {', '.join(PRODUCTS)}")
                 sys.exit(1)
         for product in products:
-            print(add_subscriber(product, email))
+            print(add_subscriber(product, email, promo=promo))
         ok, msg = send_receipt_email(email)
         print(f"Receipt sent to {email}" if ok else f"Receipt NOT sent: {msg}")
         synced, sync_msg = sync_subscribers_to_git(f"Add {email} to {', '.join(products)}")
@@ -116,7 +122,7 @@ def main() -> None:
         if active:
             print(f"{email} is actively receiving:")
             for r in sorted(active, key=lambda x: x["days_left"]):
-                print(f"  {r['product']:<10} {r['days_left']} day(s) left (added {r['added'][:10]})")
+                print(f"  {r['product']:<10} {r['days_left']} day(s) left (added {r['added'][:10]}){' [FREE / PROMO]' if r.get('promo') else ''}")
         else:
             print(f"{email} has no active subscriptions.")
         if expired:
