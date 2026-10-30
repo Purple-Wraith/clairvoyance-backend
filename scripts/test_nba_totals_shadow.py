@@ -29,7 +29,8 @@ class Shadow(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
         self.patches = [mock.patch.object(A, "ROOT", self.root), mock.patch.object(A, "_commit_and_push", lambda *a, **k: None),
-                        mock.patch.object(A, "_nba_preseason_pairs", lambda: set()), mock.patch.object(A, "_nba_regular_season_start", lambda: "2000-01-01")]
+                        mock.patch.object(A, "_nba_preseason_pairs", lambda: set()), mock.patch.object(A, "_nba_regular_season_start", lambda: "2000-01-01"),
+                        mock.patch.object(A, "_beyond_horizon", lambda *a, **k: False)]      # the fake game starts 5h out = tomorrow's MT date after ~7 PM MT; the same-day rule is not under test here
         for p in self.patches:
             p.start()
 

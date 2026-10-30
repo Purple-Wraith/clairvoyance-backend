@@ -40,7 +40,9 @@ def game(ab=SPREAD, abou=TOTAL, start_in_h=5, markets=()):
 
 
 def build(gl):
-    with mock.patch.object(A, "_nba_preseason_pairs", lambda: set()), mock.patch.object(A, "_nba_regular_season_start", lambda: "2000-01-01"):
+    # _beyond_horizon off: the fake game starts 5h from now, which after ~7 PM MT is TOMORROW's MT date and would be dropped by the same-day rule (the horizon is not what this file tests)
+    with mock.patch.object(A, "_nba_preseason_pairs", lambda: set()), mock.patch.object(A, "_nba_regular_season_start", lambda: "2000-01-01"), \
+            mock.patch.object(A, "_beyond_horizon", lambda *a, **k: False):
         return A.build_qualifying({"gameLegs": [gl], "propLegs": []}, only_sports=frozenset({"NBA"}))
 
 
