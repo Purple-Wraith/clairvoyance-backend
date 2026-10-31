@@ -5398,7 +5398,7 @@ function _autoLockCapture(sport,hA,awA,nm,mcSummary,socFactors,startRaw){
       // European hockey cards only) so the pipeline's lockPick call stores it; evVal/tierN stay the
       // tier inputs (see HOCKEY_MKT_PRICE_TIERING) so qualification is unaffected. priceSource
       // ('market'|'assumed'|null) is threaded through build_qualifying/lock_game_leg onto the pick.
-      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:(m.mktDec!=null?m.mktDec:m.dec),ml:(m.mktMl!=null?m.mktMl:m.ml),priceSource:m.priceSource||null,modelProb:m.modelProb!=null?m.modelProb:null,marketProb:m.marketProb!=null?m.marketProb:null,blendAlpha:m.blendAlpha!=null?m.blendAlpha:null,rawProb:m.rawProb!=null?m.rawProb:null,capCeil:m.capCeil!=null?m.capCeil:null,hkLane:!!m.hkLane,tierN:m.tierN,legacyTierN:m.legacyTierN!=null?m.legacyTierN:null,mfScore:m.mfScore,reasoning:m.reasoning||null})),
+      markets:(nm.mkts||[]).map(m=>({label:m.label,side:m.side,prob:m.prob,evVal:m.evVal,dec:(m.mktDec!=null?m.mktDec:m.dec),ml:(m.mktMl!=null?m.mktMl:m.ml),priceSource:m.priceSource||null,modelProb:m.modelProb!=null?m.modelProb:null,marketProb:m.marketProb!=null?m.marketProb:null,blendAlpha:m.blendAlpha!=null?m.blendAlpha:null,rawProb:m.rawProb!=null?m.rawProb:null,capCeil:m.capCeil!=null?m.capCeil:null,mktRef:m.mktRef||null,hkLane:!!m.hkLane,tierN:m.tierN,legacyTierN:m.legacyTierN!=null?m.legacyTierN:null,mfScore:m.mfScore,reasoning:m.reasoning||null})),
       // Optional -- only soccer's capture call currently passes this (see
       // _renderSocMatchCard). Threaded through build_qualifying/
       // lock_game_leg into lockPick's extraMeta so it lands on the
@@ -7394,6 +7394,9 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   const _reasonEntry=_reasonArr.find(e=>e.label===betOn||e.label===betOn+' ML'||betOn===String(e.label).replace(/ ML$/,''));
   const _cachedReasoning=_reasonEntry?_reasonEntry.reasoning:null;
   const reasoning=(extraMeta&&extraMeta.reasoning)||_cachedReasoning||null;
+  // Lock-time market reference for a soccer moneyline (2026-10-31, audit only): {p: de-vigged market probability, dec: market decimal price} -- from the auto pipeline's extraMeta, else the card's manual-lock cache.
+  const _mktRefV=(extraMeta&&extraMeta.mktRef)||(window._socMktRef&&window._socMktRef[hA+'|'+awA+'|'+betOn])||null;
+  const _mktRefMeta=(_mktRefV&&_betTypeNorm==='ML')?{mktRef:_mktRefV}:{};
   const _apiDup=_findSameMarketLock(getP(),dateKey,hA,awA,_betTypeNorm);
   if(_apiDup){toast(`// ALREADY LOCKED: ${_apiDup.betOn} ${_apiDup.ml} (${_apiDup.outcome==='pending'?'still pending':_apiDup.outcome.toUpperCase()})`);return;}
   if(API_ONLINE()){
@@ -7407,7 +7410,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
       const preds=getP();const localId=`api_${res.id}`;
       if(!preds.find(x=>x.id===localId)){
         _removeWipedIds([localId]); // see _removeWipedIds' own comment
-        preds.push({id:localId,_backendId:res.id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:100,outcome:'pending',lockedAt:Date.now(),source:_lockSource,lockOrigin:'manual',...(extraMeta||{}),..._timingMeta,...(_pCapMeta||{}),reasoning});
+        preds.push({id:localId,_backendId:res.id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag||sportTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:100,outcome:'pending',lockedAt:Date.now(),source:_lockSource,lockOrigin:'manual',...(extraMeta||{}),..._timingMeta,...(_pCapMeta||{}),..._mktRefMeta,reasoning});
       }
       saveP(preds);
       const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
@@ -7435,7 +7438,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   // with an explicit "already locked" toast instead.
   if(_dup){toast(`// ALREADY LOCKED: ${_dup.betOn} ${_dup.ml} (${_dup.outcome==='pending'?'still pending':_dup.outcome.toUpperCase()})`);return;}
   _removeWipedIds([id]); // see _removeWipedIds' own comment -- a deliberate new lock must never be silently swallowed by an old wipe of this same id
-  preds.push({id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:0,outcome:'pending',lockedAt:Date.now(),hScore:null,aScore:null,source:_lockSource,lockOrigin:'manual',...(extraMeta||{}),..._timingMeta,...(_pCapMeta||{}),reasoning});saveP(preds);
+  preds.push({id,date:dateKey,hA,awA,sport:sportTag,league:leagueTag,betType:_betTypeNorm,betOn,winProb:p,ml,decOdds:d,wager:0,outcome:'pending',lockedAt:Date.now(),hScore:null,aScore:null,source:_lockSource,lockOrigin:'manual',...(extraMeta||{}),..._timingMeta,...(_pCapMeta||{}),..._mktRefMeta,reasoning});saveP(preds);
   const log=getDailyLog();if(!log[dateKey])log[dateKey]={recs:[],locked:[],assessed:false};
   if(!log[dateKey].locked.includes(betOn))log[dateKey].locked.push(betOn);
   const rec=log[dateKey].recs.find(r=>r.ha===hA&&r.awa===awA&&r.lb===betOn);if(rec)rec.locked=true;
@@ -29854,6 +29857,12 @@ function _renderSocMatchCardRaw(g,leagueKey){
   // every soccer EV/edge/Kelly number below compare the model against
   // itself instead of the real market.
   var hML=g.hML!=null?g.hML:p2ml(hP),dML=g.dML!=null?g.dML:p2ml(dP),aML=g.aML!=null?g.aML:p2ml(aP);
+  // Lock-time MARKET REFERENCE (2026-10-31, audit only -- changes no probability, grade, EV or pick): the real de-vigged 3-way market probability and decimal price for each outcome, stored on the locked
+  // moneyline as `mktRef` ({p, dec}) so soccer ML can later be judged against the real lock-time price (scripts/backtest_soccer_unders.py-style replays had to re-fetch ESPN odds). Only when the card
+  // actually blended a market (all three prices present and valid). NOT marketProb: that field switches on the market-anchored rules (tier re-pricing, ceiling exemption).
+  var _mktRef=_blend.blended?{home:{p:+_blend.marketH.toFixed(4),dec:+ml2d(g.hML).toFixed(3)},draw:{p:+_blend.marketD.toFixed(4),dec:+ml2d(g.dML).toFixed(3)},away:{p:+_blend.marketA.toFixed(4),dec:+ml2d(g.aML).toFixed(3)}}:null;
+  window._socMktRef=window._socMktRef||{};     // manual-lock path: lockPick reads it by home|away|betOn (the three chips below pass the team name / 'DRAW')
+  if(_mktRef){window._socMktRef[g.home+'|'+g.away+'|'+g.home]=_mktRef.home;window._socMktRef[g.home+'|'+g.away+'|DRAW']=_mktRef.draw;window._socMktRef[g.home+'|'+g.away+'|'+g.away]=_mktRef.away;}
   var hCS=_socGC(hP,leagueKey),dCS=_socGC(dP,leagueKey),aCS=_socGC(aP,leagueKey);
   // Without a real market line, comparing every match against a flat 2.5
   // systematically favors OVER — the model's own average combined total
@@ -29930,9 +29939,9 @@ function _renderSocMatchCardRaw(g,leagueKey){
   var _mlsNoML=leagueKey==='mls';
   var _mkts=_evalMkts([
     ...(_mlsNoML?[]:[
-      {label:g.home+' Win',prob:hP,evVal:ev(hP,ml2d(hML)),side:'home'},
-      {label:'Draw',prob:dP,evVal:ev(dP,ml2d(dML)),side:'draw'},
-      {label:g.away+' Win',prob:aP,evVal:ev(aP,ml2d(aML)),side:'away'},
+      {label:g.home+' Win',prob:hP,evVal:ev(hP,ml2d(hML)),side:'home',mktRef:_mktRef?_mktRef.home:null},
+      {label:'Draw',prob:dP,evVal:ev(dP,ml2d(dML)),side:'draw',mktRef:_mktRef?_mktRef.draw:null},
+      {label:g.away+' Win',prob:aP,evVal:ev(aP,ml2d(aML)),side:'away',mktRef:_mktRef?_mktRef.away:null},
     ]),
     {label:'OVER '+ouL,prob:ouP,evVal:ev(ouP,1.909),side:'over'},
     {label:'UNDER '+ouL,prob:unP,evVal:ev(unP,1.909),side:'under'},

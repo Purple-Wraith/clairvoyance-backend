@@ -3065,6 +3065,8 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                     # Kept so the CFB selection band below keeps judging the model's own number, and persisted on the pick as pCap for audit.
                     "rawProb": m.get("rawProb"),
                     "capCeil": m.get("capCeil"),
+                    # Soccer moneyline only: the de-vigged market probability + decimal price at lock time ({p, dec}), audit only (docs/app.html mktRef) -- persisted on the pick, changes nothing graded.
+                    "mktRef": m.get("mktRef"),
                     # "Why this pick" persistence, added 2026-10-02: the
                     # plain-text reasoning string app.html's _attachReasoning
                     # already computed for THIS specific market (not the
@@ -3261,6 +3263,7 @@ def lock_game_leg(page, q: dict, date_override: str | None = None, now=None) -> 
     model_prob = q.get("modelProb")
     market_prob = q.get("marketProb")
     blend_alpha = q.get("blendAlpha")
+    mkt_ref = q.get("mktRef")   # soccer ML lock-time market reference (audit only), see build_qualifying
     start_ms = parse_start_ms(q.get("startMs"))
     alt_line = q.get("altLine")
     # Non-moneyline confidence ceiling audit trail (see build_qualifying): {raw, ceiling} when the stated probability was clamped, else None (nothing is stored).
@@ -3269,7 +3272,7 @@ def lock_game_leg(page, q: dict, date_override: str | None = None, now=None) -> 
     lineup = q.get("lineup")
     return page.evaluate(
         """
-        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors, reasoning, priceSource, modelProb, marketProb, blendAlpha, startMs, altLine, lineup, pCap }) => {
+        async ({ hA, awA, type, betOn, prob, ml, dec, dateOverride, betTypeOverride, socFactors, reasoning, priceSource, modelProb, marketProb, blendAlpha, startMs, altLine, lineup, pCap, mktRef }) => {
           // Real gap, found auditing the locks-email "X of Y legs actually
           // locked" line: this used to return a single 'dup-or-failed' for
           // BOTH "this exact leg was already locked by an earlier pass
@@ -3313,14 +3316,14 @@ def lock_game_leg(page, q: dict, date_override: str | None = None, now=None) -> 
           if (dup) return 'already-locked';
           const before = getP().length;
           const hasBlend = (modelProb != null && marketProb != null);
-          const extraMeta = { lockOrigin: 'auto', ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}), ...(altLine ? { altLine } : {}), ...(pCap ? { pCap } : {}), ...(lineup ? { lineup } : {}), ...(hasBlend ? { modelProb, marketProb, ...(blendAlpha != null ? { blendAlpha } : {}) } : {}), ...(startMs != null ? { startMs } : {}) };
+          const extraMeta = { lockOrigin: 'auto', ...(socFactors ? { socFactors } : {}), ...(reasoning ? { reasoning } : {}), ...(priceSource ? { priceSource } : {}), ...(altLine ? { altLine } : {}), ...(pCap ? { pCap } : {}), ...(mktRef ? { mktRef } : {}), ...(lineup ? { lineup } : {}), ...(hasBlend ? { modelProb, marketProb, ...(blendAlpha != null ? { blendAlpha } : {}) } : {}), ...(startMs != null ? { startMs } : {}) };
           await lockPick(hA, awA, type, betOn, prob, ml != null ? ml : '-110', dec || 1.91, dateKey, 'manual', betTypeOverride, extraMeta);
           const after = getP().length;
           return after > before ? 'locked' : 'failed';
         }
         """,
         {"hA": q["hA"], "awA": q["awA"], "type": lock_type, "betOn": q["label"], "prob": q["prob"], "ml": ml, "dec": dec, "dateOverride": date_override, "betTypeOverride": bet_type_override, "socFactors": sock_factors, "reasoning": reasoning_text, "priceSource": price_source,
-         "modelProb": model_prob, "marketProb": market_prob, "blendAlpha": blend_alpha, "startMs": start_ms, "altLine": alt_line, "lineup": lineup, "pCap": p_cap},
+         "modelProb": model_prob, "marketProb": market_prob, "blendAlpha": blend_alpha, "startMs": start_ms, "altLine": alt_line, "lineup": lineup, "pCap": p_cap, "mktRef": mkt_ref},
     )
 
 
