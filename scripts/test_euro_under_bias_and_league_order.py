@@ -93,9 +93,19 @@ class T(unittest.TestCase):
                              "outcome": "win" if i < w else "loss", "decOdds": 1.9, "winProb": .6, "hScore": 3, "aScore": 2})
         self.pg.evaluate("(r)=>{window._homeLgPerfPeriod='all';saveP(r);renderHomePage()}", rows)
         self.pg.wait_for_function("document.body.innerText.includes('PERIOD PERFORMANCE')")
-        labels = self.pg.evaluate("""()=>{const box=[...document.querySelectorAll('div')].find(d=>d.textContent.trim()==='// PERIOD PERFORMANCE — LEAGUE');
-          return [...box.parentElement.querySelectorAll('.card > div')].map(r=>r.firstElementChild.textContent.trim())}""")
+        labels = self.pg.evaluate("""()=>{const box=[...document.querySelectorAll('span')].find(d=>d.textContent.trim()==='// PERIOD PERFORMANCE — LEAGUE');
+          return [...box.parentElement.parentElement.querySelectorAll('.card > div')].map(r=>r.firstElementChild.textContent.trim())}""")
         self.assertEqual(labels, ["CFB", "NFL", "SHL", "NLA", "NHL", "LIIGA", "NBA"], labels)       # 100%, 90%, 86%, 80%, 80% (NLA has more picks), 50%, 30%
+
+
+    def test_period_tag_names_the_active_filter(self):
+        """The tag beside the PERIOD PERFORMANCE — LEAGUE heading always shows the same label as the highlighted button (2026-10-31)."""
+        out = self.pg.evaluate("""()=>{const r=[];for(const p of ['today','yesterday','lastMonth','month','all']){window._homeLgPerfPeriod=p;renderHomePage();
+          const tag=document.getElementById('home-lgperf-tag'),act=[...tag.parentElement.parentElement.querySelectorAll('button.act')].map(b=>b.textContent.trim());
+          r.push([p,tag.textContent.trim(),act])}return r}""")
+        for p, tag, act in out:
+            self.assertEqual(act, [tag], p)
+        self.assertEqual([t for _, t, _ in out][0::4], ["TODAY", "ALL TIME"])
 
 
 if __name__ == "__main__":
