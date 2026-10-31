@@ -4352,18 +4352,30 @@ const MARKET_P_CEILING={
 // Mirrors SOCCER_ML_FLOOR in scripts/auto_lock_settle.py (checked by scripts/test_soccer_ml_floor.py).
 var SOC_ML_FLOOR=0.65,SOC_ML_FLOOR_LEAGUES={pl:1,liga:1,ita:1};
 function _socMlBelowFloor(leagueKey,p){return !!SOC_ML_FLOOR_LEAGUES[String(leagueKey||'').toLowerCase().replace(/^soc_/,'')]&&p<SOC_ML_FLOOR;}
-function _mktCeiling(league,mktT){
+// SOCCER UNDER CEILING (2026-10-31, owner-approved after scripts/backtest_soccer_unders.py): a soccer UNDER total's stated probability is capped LOWER than its OVER twin.
+// Settled soccer O/U legs (PL / LIGA / SERIEA / CL, n=181): UNDER stated >= .68 won 24 of 46 (52%, z -3.5); OVER stated >= .68 won 18 of 24 (75%). The model's low goal projections regress
+// to the mean (UNDER games projected 2.53 goals, played 3.38), so the symmetric .68 above is too generous for unders only. UNDER-only ceiling .64: Brier .2385 -> .2270 on the ledger,
+// .2385 -> .2275 leave-one-date-out. A SYMMETRIC lower ceiling was worse (it clips the overs, which are fine). OVER legs keep .68. Applies to the UNDER leg only; its OVER twin gets the
+// complementary floor 1 - .64 = .36, so the two sides of one market still sum to 1. ITA = the Serie A card key, SERIEA = the lock tag. Python mirror: scripts/market_ceiling.py.
+const MARKET_P_UNDER_CEILING={byLeague:{PL:{OU:.64},LIGA:{OU:.64},CL:{OU:.64},SERIEA:{OU:.64},ITA:{OU:.64}}};
+function _ouSideOf(s){const t=String(s||'').toLowerCase();return /under/.test(t)?'under':/over/.test(t)?'over':null;}
+function _mktCeiling(league,mktT,side){
   const L=String(league||'').toUpperCase().replace(/^SOC_/,'');
   const k=(mktT==='PL'||mktT==='RL')?'SPREAD':mktT;
   const o=MARKET_P_CEILING.byLeague[L];
-  if(o&&o[k]!=null)return o[k];
-  const d=MARKET_P_CEILING.default[k];
-  return d!=null?d:null;     // ML (and anything unknown) has no ceiling
+  let c;
+  if(o&&o[k]!=null)c=o[k];
+  else{const d=MARKET_P_CEILING.default[k];c=d!=null?d:null;}     // ML (and anything unknown) has no ceiling
+  if(c!=null&&side==='under'){const u=MARKET_P_UNDER_CEILING.byLeague[L];if(u&&u[k]!=null)return Math.min(c,u[k]);}
+  return c;
 }
-function _capMktP(p,mktT,league){
-  const c=_mktCeiling(league,mktT);
+// side: 'over' | 'under' | undefined -- the side of the LEG whose probability p is. With no side (or no under ceiling for the league) this is the plain symmetric clamp(p, 1-c, c).
+// With an under ceiling the OVER leg's floor is 1 - (the UNDER ceiling) and the UNDER leg's floor is 1 - (the OVER ceiling), so the two legs of one market still sum to 1.
+function _capMktP(p,mktT,league,side){
+  const c=_mktCeiling(league,mktT,side);
   if(c==null||!(p>0&&p<1))return p;
-  return Math.max(1-c,Math.min(c,p));
+  const co=(side==='under'||side==='over')?_mktCeiling(league,mktT,side==='under'?'over':'under'):c;
+  return Math.max(1-co,Math.min(c,p));
 }
 function ev(p,d){return+(p*d-1).toFixed(4)}
 function tier(p,e,mktType,marketAnchored,floors,capC){
@@ -5442,16 +5454,16 @@ function _evalMkts(mkts,league){
     // Non-moneyline confidence ceiling (MARKET_P_CEILING): clamp the stated probability BEFORE tier / lane / EV / mfScore see it, and re-price the EV at the SAME odds
     // (e' = p'*(e+1)/p - 1, the identity tier() uses). Market-anchored rows (probability already blended with the real price) are left alone.
     if(mktT!=='ML'&&m.marketProb==null&&!m.altLine){
-      const _pc=_capMktP(m.prob,mktT,league);
+      const _pc=_capMktP(m.prob,mktT,league,_ouSideOf(m.side));
       if(_pc!==m.prob&&m.prob>0){
         const _k=_pc/m.prob;
-        m={...m,rawProb:m.prob,capCeil:_mktCeiling(league,mktT),prob:+_pc.toFixed(4),evVal:+(_k*(m.evVal+1)-1).toFixed(4),...(m.mktEv!=null?{mktEv:+(_k*(m.mktEv+1)-1).toFixed(4)}:{})};
+        m={...m,rawProb:m.prob,capCeil:_mktCeiling(league,mktT,_ouSideOf(m.side)),prob:+_pc.toFixed(4),evVal:+(_k*(m.evVal+1)-1).toFixed(4),...(m.mktEv!=null?{mktEv:+(_k*(m.mktEv+1)-1).toFixed(4)}:{})};
       }
     }
     // hockey rows (hk:true) are graded on the real price with HOCKEY_TIER_* and may qualify through the high-probability lane;
     // everything else keeps tier()'s app-wide floors. Market-blended legs skip tier()'s model-bias re-pricing (see tier()).
     // capC: the non-moneyline ceiling for this row (null for ML, market-anchored rows and alt-line rows): tier() clamps AFTER its own band re-pricing, see tier().
-    const capC=(mktT!=='ML'&&m.marketProb==null&&!m.altLine)?_mktCeiling(league,mktT):null;
+    const capC=(mktT!=='ML'&&m.marketProb==null&&!m.altLine)?_mktCeiling(league,mktT,_ouSideOf(m.side)):null;
     const tN=m.hk?_hkTierRow(m,mktT,capC):(mktT==='ML'&&_socMlBelowFloor(league,m.prob))?0:tier(m.prob,m.evVal,mktT,m.marketProb!=null,undefined,capC);   // soccer ML floor: see SOC_ML_FLOOR
     const lane=m.hk?_hkLaneRow(m):false;
     const edg=m.dec?_edge(m.prob,m.dec):_edge(m.prob,1.91);
@@ -7342,8 +7354,9 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
   // (card chips that already pass a clamped number are untouched). Alt-line picks (their probability is the empirical margin-curve estimate) and market-anchored legs are exempt. pCap keeps the raw figure.
   let _pCapMeta=null;
   if(!(extraMeta&&(extraMeta.altLine||extraMeta.marketProb!=null))&&_betTypeNorm!=='ML'){
-    const _pcL=_capMktP(+p,_betTypeNorm,leagueTag);
-    if(_pcL<+p){_pCapMeta={pCap:{raw:+(+p).toFixed(4),ceiling:_mktCeiling(leagueTag,_betTypeNorm)}};p=+_pcL.toFixed(4);}
+    const _sideL=_betTypeNorm==='OU'?_ouSideOf(betOn):null;
+    const _pcL=_capMktP(+p,_betTypeNorm,leagueTag,_sideL);
+    if(_pcL<+p){_pCapMeta={pCap:{raw:+(+p).toFixed(4),ceiling:_mktCeiling(leagueTag,_betTypeNorm,_sideL)}};p=+_pcL.toFixed(4);}
   }
   // ── "Why this pick" reasoning — persistence (Part 1, added 2026-10-02) ──
   // `reasoning`: a plain-text snapshot of the real model reasoning behind
@@ -29855,7 +29868,7 @@ function _renderSocMatchCardRaw(g,leagueKey){
   var ouL=g.ou||_ouDefaultLine(mc.avgT,2.5);
   var ouId='ouinp_lg_'+leagueKey+'_'+(g.hAbbr||g.home)+'_'+(g.aAbbr||g.away);
   // ouP / ahFavP are clamped by the non-moneyline confidence ceiling (MARKET_P_CEILING, league tag SOC_<KEY>): every chip, tier and the lock all read the stated number.
-  var ouP=_capMktP(_poissonOverProb(hxg+axg,parseFloat(ouL)),'OU','SOC_'+leagueKey);
+  var ouP=_capMktP(_poissonOverProb(hxg+axg,parseFloat(ouL)),'OU','SOC_'+leagueKey,'over');   // 'over': this is the OVER leg's probability; its floor is 1 - the soccer UNDER ceiling (MARKET_P_UNDER_CEILING)
   var unP=1-ouP;
   var ouTier=tier(ouP,ev(ouP,1.909)),unTier=tier(unP,ev(unP,1.909));
   var gCol=function(t){return t===3?'var(--gc)':t===2?'var(--nc)':t===1?'var(--ic)':'var(--t3)';};

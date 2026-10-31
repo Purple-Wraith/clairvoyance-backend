@@ -39,24 +39,45 @@ MARKET_P_CEILING = {
 OPTIMAL_P_FLOOR = 0.62
 
 
-def ceiling_for(league, mkt):
-    """Ceiling for a league tag ('CFB', 'SOC_PL', ...) and market ('SPREAD'|'OU'|'PROP'|'PL'|'RL'|'ML'); None = no ceiling (moneyline / unknown)."""
+# Soccer UNDER totals only (2026-10-31, scripts/backtest_soccer_unders.py): an UNDER leg's stated probability is capped below its OVER twin's -- keep identical to MARKET_P_UNDER_CEILING in docs/app.html.
+# ITA = the Serie A card key, SERIEA = the lock tag.
+MARKET_P_UNDER_CEILING = {"byLeague": {lg: {"OU": 0.64} for lg in ("PL", "LIGA", "CL", "SERIEA", "ITA")}}
+
+
+def ou_side_of(text):
+    """'under' | 'over' | None from a pick label ('UNDER 2.5', 'OVER 3.5', side keys like 'under') -- mirrors _ouSideOf in docs/app.html."""
+    t = str(text or "").lower()
+    return "under" if "under" in t else "over" if "over" in t else None
+
+
+def ceiling_for(league, mkt, side=None):
+    """Ceiling for a league tag ('CFB', 'SOC_PL', ...) and market ('SPREAD'|'OU'|'PROP'|'PL'|'RL'|'ML'); None = no ceiling (moneyline / unknown).
+    side='under' applies the lower soccer UNDER ceiling where one exists (MARKET_P_UNDER_CEILING); any other side gets the plain ceiling."""
     lg = str(league or "").upper()
     if lg.startswith("SOC_"):
         lg = lg[4:]
     k = "SPREAD" if mkt in ("PL", "RL") else mkt
     o = MARKET_P_CEILING["byLeague"].get(lg)
     if o and o.get(k) is not None:
-        return o[k]
-    return MARKET_P_CEILING["default"].get(k)
+        c = o[k]
+    else:
+        c = MARKET_P_CEILING["default"].get(k)
+    if c is not None and side == "under":
+        u = MARKET_P_UNDER_CEILING["byLeague"].get(lg)
+        if u and u.get(k) is not None:
+            return min(c, u[k])
+    return c
 
 
-def cap_prob(p, mkt, league=None):
-    """clamp(p, 1-c, c): symmetric so the two sides of one market still sum to 1. Moneyline / out-of-range probabilities pass through."""
-    c = ceiling_for(league, mkt)
+def cap_prob(p, mkt, league=None, side=None):
+    """clamp(p, 1-c, c): symmetric so the two sides of one market still sum to 1. Moneyline / out-of-range probabilities pass through.
+    side ('over' | 'under') is the side of the LEG whose probability p is: with a soccer UNDER ceiling the OVER leg's floor is 1 - the UNDER ceiling and the UNDER leg's floor is
+    1 - the OVER ceiling, so the two legs still sum to 1. No side (or no under ceiling for the league) = the plain symmetric clamp."""
+    c = ceiling_for(league, mkt, side)
     if c is None or not (0 < p < 1):
         return p
-    return max(1 - c, min(c, p))
+    co = ceiling_for(league, mkt, "over" if side == "under" else "under") if side in ("under", "over") else c
+    return max(1 - co, min(c, p))
 
 
 def rescale_ev(ev_val, p_old, p_new):
@@ -214,7 +235,7 @@ def _print_impact():
     for r in rows:
         if r["lg"] not in ACTIVE or r["mkt"] == "ML" or r["alt"] or r["mp"] is not None:
             continue
-        c = cap_prob(r["p"], r["mkt"], r["lg"])
+        c = cap_prob(r["p"], r["mkt"], r["lg"], ou_side_of(r["bet"]) if r["mkt"] == "OU" else None)
         if c >= r["p"]:
             continue
         d = r["dec"] or 1.909
@@ -236,7 +257,7 @@ def _print_impact():
         wp = _f(p.get("winProb"))
         if wp is None:
             continue
-        c = cap_prob(wp, mkt, lg)
+        c = cap_prob(wp, mkt, lg, ou_side_of(p.get("betOn")) if mkt == "OU" else None)
         if c < wp:
             print(f"  {lg} {mkt} {p.get('betOn')}  stated {wp:.3f} -> {c:.3f}")
 

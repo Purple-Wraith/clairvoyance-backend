@@ -3510,14 +3510,21 @@ def _prop_matchup_key(leg: dict) -> str:
 
 
 def _ceiling_note_html(qualifying: list[dict]) -> str:
-    """Legend line for the non-moneyline confidence ceiling (docs/app.html MARKET_P_CEILING, scripts/market_ceiling.py): CFB / NFL spread and over/under
-    probabilities are capped at 62%, so those picks show a stated 62% at most and can be OPTIMAL but never PREMIUM (PREMIUM needs 67%). Shown only in
-    an email that actually carries a CFB / NFL pick, so no other product's email is padded with it."""
-    if not any(q.get("kind") == "GAME" and q.get("sport") in ("CFB", "NFL") for q in qualifying):
-        return ""
-    return ('<div style="font-size:13px;color:#eee;line-height:1.6;margin-top:10px">'
-            '<strong style="color:#fff">62% cap</strong> CFB and NFL spread and over/under picks at the posted line: the stated probability is capped at 62%, because higher numbers have not held up '
-            'in the settled results. Those picks can therefore be graded OPTIMAL but never PREMIUM. Moneylines and ADJUSTED LINE picks are not capped.</div>')
+    """Legend lines for the non-moneyline confidence ceiling (docs/app.html MARKET_P_CEILING, scripts/market_ceiling.py): CFB / NFL spread and over/under
+    probabilities are capped at 62%, so those picks show a stated 62% at most and can be OPTIMAL but never PREMIUM (PREMIUM needs 67%); soccer UNDER totals are capped
+    at 64% (MARKET_P_UNDER_CEILING). Each line is shown only in an email that actually carries such a pick, so no other product's email is padded with it."""
+    style = '<div style="font-size:13px;color:#eee;line-height:1.6;margin-top:10px">'
+    out = ""
+    if any(q.get("kind") == "GAME" and q.get("sport") in ("CFB", "NFL") for q in qualifying):
+        out += (style + '<strong style="color:#fff">62% cap</strong> CFB and NFL spread and over/under picks at the posted line: the stated probability is capped at 62%, because higher numbers have not held up '
+                'in the settled results. Those picks can therefore be graded OPTIMAL but never PREMIUM. Moneylines and ADJUSTED LINE picks are not capped.</div>')
+    soc = [q for q in qualifying if q.get("kind") == "GAME" and q.get("side") == "under" and q.get("rawProb") is not None and q.get("capCeil") is not None
+           and q.get("sport") not in ("CFB", "NFL")]
+    if soc:
+        pct = round(min(q["capCeil"] for q in soc) * 100)
+        out += (style + f'<strong style="color:#fff">{pct}% cap</strong> Soccer UNDER totals: the stated probability is capped at {pct}%, because the model\'s low-scoring projections have not held up '
+                'in the settled results (soccer OVER totals and moneylines are not capped).</div>')
+    return out
 
 
 def slate_phrase(dates, now=None) -> str:

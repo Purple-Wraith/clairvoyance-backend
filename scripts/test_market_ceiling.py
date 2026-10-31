@@ -72,6 +72,59 @@ class Math(unittest.TestCase):
         self.assertAlmostEqual(M.rescale_ev(e, .91, .62), .62 * dec - 1, places=9)
         self.assertAlmostEqual(M.rescale_ev(.123, .7, .7), .123, places=12)
 
+    # ── soccer UNDER ceiling (MARKET_P_UNDER_CEILING, 2026-10-31) ───────────────────────────────────────────────────────
+    SOC = ["PL", "LIGA", "CL", "SERIEA", "ITA", "SOC_PL", "SOC_ITA", "SOC_CL", "SOC_LIGA"]
+
+    def test_under_ceiling_table_is_below_the_over_ceiling_and_above_the_optimal_floor(self):
+        for lg in self.SOC:
+            self.assertEqual(M.ceiling_for(lg, "OU", "under"), .64, lg)
+            self.assertEqual(M.ceiling_for(lg, "OU", "over"), .68, lg)               # the OVER leg keeps the generic ceiling
+            self.assertEqual(M.ceiling_for(lg, "OU"), .68, lg)                        # no side = unchanged
+            self.assertEqual(M.ceiling_for(lg, "SPREAD", "under"), .68, lg)           # only the O/U market has an under ceiling
+            self.assertIsNone(M.ceiling_for(lg, "ML", "under"))
+        for lg in ("CFB", "NFL", "NBA", "NHL", "SHL", "LIIGA", "NLA", "EXTRALIGA", "", None):
+            self.assertEqual(M.ceiling_for(lg, "OU", "under"), M.ceiling_for(lg, "OU"), lg)   # no other league is touched
+        for c in M.MARKET_P_UNDER_CEILING["byLeague"].values():
+            for v in c.values():
+                self.assertGreaterEqual(v, M.OPTIMAL_P_FLOOR)                         # an UNDER can still be OPTIMAL (it just cannot be PREMIUM, which needs .67)
+                self.assertLess(v, M.MARKET_P_CEILING["default"]["OU"])
+
+    def test_under_clamp_only_trims_the_under_side_and_the_two_legs_still_sum_to_one(self):
+        for lg in self.SOC:
+            self.assertEqual(M.cap_prob(.80, "OU", lg, "under"), .64)
+            self.assertEqual(M.cap_prob(.80, "OU", lg, "over"), .68)                  # a high OVER is capped at the OVER ceiling, as before
+            self.assertAlmostEqual(M.cap_prob(.20, "OU", lg, "over"), .36, places=12)                  # ... and the OVER leg of a capped UNDER is its complement
+            self.assertAlmostEqual(M.cap_prob(.20, "OU", lg, "under"), .32, places=12)
+            self.assertEqual(M.cap_prob(.64, "OU", lg, "under"), .64)                 # at the ceiling: untouched
+            self.assertEqual(M.cap_prob(.66, "OU", lg, "over"), .66)                  # an OVER between .64 and .68 is NOT trimmed (the backtest's winners)
+            for p in GRID:
+                u, o = M.cap_prob(p, "OU", lg, "under"), M.cap_prob(1 - p, "OU", lg, "over")
+                self.assertAlmostEqual(u + o, 1.0, places=12, msg=(lg, p))           # the two legs of one market are complementary
+                self.assertEqual(M.cap_prob(u, "OU", lg, "under"), u)                # idempotent
+                self.assertLessEqual(u, .64 if 0 < p < 1 else 1)
+            prev = -1
+            for p in GRID:
+                q = M.cap_prob(p, "OU", lg, "under")
+                self.assertGreaterEqual(q, prev - 1e-12)                              # monotone
+                prev = q
+
+    def test_other_markets_and_leagues_ignore_the_side(self):
+        for lg in LEAGUES:
+            for mk in MKTS:
+                for p in GRID:
+                    if mk == "OU" and str(lg or "").upper().replace("SOC_", "") in M.MARKET_P_UNDER_CEILING["byLeague"]:
+                        continue
+                    for side in ("under", "over"):
+                        self.assertAlmostEqual(M.cap_prob(p, mk, lg, side), M.cap_prob(p, mk, lg), places=12, msg=(lg, mk, p, side))
+
+    def test_side_is_read_from_the_pick_label(self):
+        self.assertEqual(M.ou_side_of("UNDER 2.5"), "under")
+        self.assertEqual(M.ou_side_of("Over 3.5"), "over")
+        self.assertEqual(M.ou_side_of("under"), "under")
+        self.assertEqual(M.ou_side_of("setsUnder"), "under")
+        self.assertIsNone(M.ou_side_of("Chelsea Win"))
+        self.assertIsNone(M.ou_side_of(None))
+
     def test_the_wilson_rule(self):
         # a stream that really wins 55% at every stated level is supported only up to ~.55-.6
         import random
@@ -122,6 +175,15 @@ class Browser(unittest.TestCase):
         for (lg, mk, p), (c, q) in zip(cases, got):
             self.assertEqual(c, M.ceiling_for(lg, mk), (lg, mk))
             self.assertAlmostEqual(q, M.cap_prob(p, mk, lg), places=12, msg=(lg, mk, p))
+        # the soccer UNDER ceiling: same table, same side-aware functions
+        self.assertEqual(self.ev("()=>JSON.parse(JSON.stringify(MARKET_P_UNDER_CEILING))"), M.MARKET_P_UNDER_CEILING)
+        scases = [[lg, mk, p, sd] for lg in LEAGUES + ["ITA", "SOC_LIGA"] for mk in ("OU", "SPREAD", "ML", "PL") for p in GRID for sd in ("under", "over", None)]
+        sgot = self.ev("(cs)=>cs.map(([lg,mk,p,sd])=>[_mktCeiling(lg,mk,sd||undefined),_capMktP(p,mk,lg,sd||undefined)])", scases)
+        for (lg, mk, p, sd), (c, q) in zip(scases, sgot):
+            self.assertEqual(c, M.ceiling_for(lg, mk, sd), (lg, mk, sd))
+            self.assertAlmostEqual(q, M.cap_prob(p, mk, lg, sd), places=12, msg=(lg, mk, p, sd))
+        for t in ("UNDER 2.5", "Over 3.5", "setsUnder", "under", "Chelsea Win", "", None):
+            self.assertEqual(self.ev("(t)=>_ouSideOf(t)", t) if t is not None else self.ev("()=>_ouSideOf(null)"), M.ou_side_of(t), t)
 
     # ── _evalMkts: probability, EV, tier, lanes ───────────────────────────────────────────────────────────────────────
     def rows(self, league, specs):
@@ -188,6 +250,61 @@ class Browser(unittest.TestCase):
         r = self.rows("CFB", [("over", .69, 1.4, {"altLine": {"posted": 50.5, "line": 40.5}})])
         self.assertEqual(r["over"]["p"], .69)
         self.assertIsNone(r["over"]["raw"])
+
+    def test_soccer_under_leg_is_capped_at_the_under_ceiling_but_the_over_leg_is_not(self):
+        for lg in ("SOC_PL", "SOC_LIGA", "SOC_ITA", "SOC_CL"):
+            r = self.rows(lg, [("under", .80, 1.909, None), ("over", .80, 1.909, None)])
+            self.assertEqual((r["under"]["p"], r["under"]["raw"], r["under"]["c"]), (.64, .80, .64), lg)
+            self.assertEqual((r["over"]["p"], r["over"]["raw"], r["over"]["c"]), (.68, .80, .68), lg)
+        r = self.rows("SOC_PL", [("under", .66, 1.909, None), ("over", .66, 1.909, None)])
+        self.assertEqual((r["under"]["p"], r["under"]["raw"]), (.64, .66))              # UNDER .66 is trimmed ...
+        self.assertEqual((r["over"]["p"], r["over"]["raw"]), (.66, None))               # ... the same-strength OVER is not
+        r = self.rows("SOC_PL", [("under", .62, 1.909, None)])
+        self.assertEqual((r["under"]["p"], r["under"]["raw"]), (.62, None))             # below the ceiling: untouched
+
+    def test_soccer_under_can_be_optimal_but_never_premium_and_ev_is_repriced_at_the_same_odds(self):
+        r = self.rows("SOC_PL", [("under", .80, 1.909, None), ("over", .80, 1.909, None)])
+        self.assertEqual(r["under"]["t"], 2)                                              # OPTIMAL (.64 >= .62), not PREMIUM (.67)
+        self.assertEqual(r["over"]["t"], 3)                                               # the OVER keeps its old grade
+        self.assertAlmostEqual(r["under"]["ev"], .64 * 1.909 - 1, places=3)               # e' = p'(e+1)/p - 1 at the same odds
+
+    def test_other_leagues_and_hockey_unders_keep_the_generic_ceiling(self):
+        for lg in ("NHL", "NBA", "SHL", "SOC_BUND", "CFB"):
+            r = self.rows(lg, [("under", .90, 1.909, None)])
+            self.assertEqual(r["under"]["c"], M.ceiling_for(lg, "OU"), lg)
+            self.assertEqual(r["under"]["p"], M.ceiling_for(lg, "OU"), lg)
+
+    def test_soccer_under_alt_line_and_market_anchored_rows_stay_exempt(self):
+        r = self.rows("SOC_PL", [("under", .75, 1.909, {"altLine": {"posted": 2.5, "line": 3.5, "shift": 1}})])
+        self.assertEqual(r["under"]["p"], .75)
+        r = self.rows("SOC_PL", [("under", .75, 1.909, {"marketProb": .6})])
+        self.assertEqual(r["under"]["p"], .75)
+
+    def test_lockpick_caps_a_soccer_under_at_the_under_ceiling_and_records_it(self):
+        r = self.ev("""async()=>{saveP([]);const st=Date.now()+7200000;
+          await lockPick('ZZA','ZZB','PL_SOC','UNDER 2.5',.78,'-110',1.909,'2026-10-31',undefined,'OU',{lockOrigin:'auto',startMs:st});
+          await lockPick('ZZC','ZZD','PL_SOC','OVER 2.5',.78,'-110',1.909,'2026-10-31',undefined,'OU',{lockOrigin:'auto',startMs:st});
+          await lockPick('ZZE','ZZF','SERIEA','UNDER 3.5',.66,'-110',1.909,'2026-10-31',undefined,'OU',{lockOrigin:'auto',startMs:st});
+          await lockPick('ZZG','ZZH','SERIEA','OVER 3.5',.66,'-110',1.909,'2026-10-31',undefined,'OU',{lockOrigin:'auto',startMs:st});
+          await lockPick('ZZI','ZZJ','NHL','UNDER 5.5',.78,'-110',1.909,'2026-10-31',undefined,'OU',{lockOrigin:'auto',startMs:st});
+          const out=getP().map(p=>({bet:p.betOn,lg:p.league,p:p.winProb,pCap:p.pCap}));saveP([]);return out}""")
+        by = {(x["lg"], x["bet"]): x for x in r}
+        self.assertEqual(by[("PL", "UNDER 2.5")]["p"], .64)
+        self.assertEqual(by[("PL", "UNDER 2.5")]["pCap"], {"raw": .78, "ceiling": .64})
+        self.assertEqual(by[("PL", "OVER 2.5")]["p"], .68)
+        self.assertEqual(by[("PL", "OVER 2.5")]["pCap"], {"raw": .78, "ceiling": .68})
+        self.assertEqual(by[("SERIEA", "UNDER 3.5")]["p"], .64)
+        self.assertEqual(by[("SERIEA", "OVER 3.5")]["p"], .66)                            # between the two ceilings: only the UNDER is trimmed
+        self.assertIsNone(by[("SERIEA", "OVER 3.5")]["pCap"])
+        self.assertEqual(by[("NHL", "UNDER 5.5")]["p"], .68)                              # hockey unders: generic ceiling, not the soccer one
+
+    def test_soccer_card_over_and_under_probabilities_stay_complementary_and_within_both_ceilings(self):
+        got = self.ev("""()=>{const out=[];for(const r of [.05,.2,.3,.36,.5,.64,.7,.9,.97]){const ouP=_capMktP(r,'OU','SOC_pl','over');out.push([r,ouP,1-ouP])}return out}""")
+        for raw, over, under in got:
+            self.assertAlmostEqual(over + under, 1.0, places=12)
+            self.assertLessEqual(over, .68 + 1e-12)
+            self.assertLessEqual(under, .64 + 1e-12)                                      # a raw UNDER of .95 is now stated at .64, its OVER twin at .36
+        self.assertEqual([round(o, 4) for _, o, _ in got], [.36, .36, .36, .36, .5, .64, .68, .68, .68])
 
     def test_default_ceiling_applies_to_soccer_and_nba_style_rows(self):
         r = self.rows("SOC_PL", [("over", .95, 1.909, None), ("ahFav", .80, 1.909, None), ("home", .95, 1.2, None)])
@@ -318,6 +435,17 @@ class Python(unittest.TestCase):
         self.assertGreater(alt["prob"], .62)                                          # the ceiling does not touch the empirical alt-line probability
         self.assertEqual(alt["altLine"]["postedProb"], .88)                           # ... and the audit trail records the model's own number
         self.assertIn("rated this side 88.0%", alt["reasoning"])
+
+    def test_email_legend_names_the_soccer_under_cap_only_when_such_a_pick_is_in_the_email(self):
+        under = {"kind": "GAME", "sport": "PL", "side": "under", "rawProb": .8, "capCeil": .64}
+        self.assertIn("64% cap", A._ceiling_note_html([under]))
+        self.assertIn("Soccer UNDER", A._ceiling_note_html([under]))
+        self.assertEqual(A._ceiling_note_html([{**under, "side": "over", "capCeil": .68}]), "")      # an OVER is on the generic ceiling: no soccer note
+        self.assertEqual(A._ceiling_note_html([{**under, "rawProb": None}]), "")                      # nothing was trimmed: no note
+        both = A._ceiling_note_html([under, {"kind": "GAME", "sport": "CFB", "side": "over"}])
+        self.assertIn("62% cap", both)
+        self.assertIn("64% cap", both)
+        self.assertEqual(A._ceiling_note_html([{"kind": "GAME", "sport": "NHL", "side": "under"}]), "")
 
     def test_lock_game_leg_passes_pcap_for_a_clamped_leg_and_nothing_for_others(self):
         class Page:
