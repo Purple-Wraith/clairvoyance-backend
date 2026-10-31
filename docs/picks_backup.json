@@ -109097,8 +109097,8 @@
     "betOn": "AC Milan +1.5",
     "sport": "SERIEA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 1,
+    "hScore": 3,
     "league": "SERIEA",
     "source": "manual",
     "altLine": {
@@ -109115,7 +109115,7 @@
     "betType": "SPREAD",
     "decOdds": 1.245,
     "leadMin": 2162,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1793475900000,
     "winProb": 0.758,
     "lockedAt": 1793346197828,
@@ -109152,7 +109152,8 @@
         "home": 1.06
       }
     },
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1793483036745
   },
   {
     "hA": "AC Milan",
@@ -109163,14 +109164,14 @@
     "betOn": "OVER 2.5",
     "sport": "SERIEA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 1,
+    "hScore": 3,
     "league": "SERIEA",
     "source": "manual",
     "betType": "OU",
     "decOdds": 1.91,
     "leadMin": 2162,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1793475900000,
     "winProb": 0.6573855452521166,
     "lockedAt": 1793346197328,
@@ -109206,7 +109207,8 @@
         "away": 1.06,
         "home": 1.06
       }
-    }
+    },
+    "settledAt": 1793483036746
   },
   {
     "hA": "AFA",
@@ -109532,12 +109534,12 @@
     "lockedAt": 1793353308990,
     "modelProb": 0.7398,
     "reasoning": "PICK: Ambri-Piotta +1.5 \u2014 HIGH PROB (68.9% win prob, EV -4.9% \u00b7 MARKET PRICE -263 (EV at market -4.9%) \u00b7 MARKET-BLENDED: model 74.0% \u00b7 no-vig market 66.6% \u2192 68.9% (alpha 0.70))\nMODEL: Projected 2.9\u20133.4 (total 6.4) (OT/SO in 16% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Ambri-Piotta 3.02/2.96 (16GP this season, 52GP prior) vs Lugano 3.09/3.28 (17GP, 52GP prior). Market line: 5.5 (Ambri-Piotta 5.78, Lugano 6.23). Record: Ambri-Piotta 8-5-2OTW-1OTL vs Lugano 6-8-1OTW-2OTL. Exact-Poisson proj: Lugano 2.9 \u2013 Ambri-Piotta 3.4 (6.4 total vs 5.5 line). Ambri-Piotta +1.5 covers in 68.9% of the model's blended scoring+margin projection (fav covers 31.1%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 65.3% \u00b7 no-vig market 44.1% \u2192 49.5%; Puck line market blend (alpha 0.70): model 26.0% \u00b7 no-vig market 33.4% \u2192 31.1%; O/U market blend (alpha 0.65): model 60.5% \u00b7 no-vig market 50.0% \u2192 53.7%. Half-unit play.",
+    "settledAt": 1793482924045,
     "blendAlpha": 0.7,
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.6659,
-    "priceSource": "market",
-    "settledAt": 1793482924045
+    "priceSource": "market"
   },
   {
     "hA": "Ambri-Piotta",
@@ -109571,10 +109573,10 @@
     "winProb": 0.7137,
     "lockedAt": 1793345380190,
     "reasoning": "PICK: OVER 4.5 \u2014 ADJUSTED LINE (71.4% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 5.5 to OVER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.3%; the 1-goal cushion is priced from the historical margin curve for this market (about 71% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "settledAt": 1793482924046,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1793482924046
+    "priceSource": "estimated"
   },
   {
     "hA": "Aston Villa",
@@ -110580,10 +110582,10 @@
     "winProb": 0.6903,
     "lockedAt": 1793346344397,
     "reasoning": "PICK: KSU +8.5 \u2014 ADJUSTED LINE (69.0% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted KSU +1.5 to KSU +8.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 81.0%; the 7-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "settledAt": 1793482918207,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1793482918207
+    "priceSource": "estimated"
   },
   {
     "hA": "COLO",
@@ -110606,9 +110608,9 @@
     "winProb": 0.7316961092594974,
     "lockedAt": 1793431952701,
     "reasoning": "PICK: KSU ML \u2014 PREMIUM (73.2% win prob, EV -0.0%)\nMODEL: Projected margin +13.0 (COLO), total 50.5, from an exact normal distribution (not a simulation).\nWHY: KSU ML \u00b7 PREMIUM \u00b7 73.2% \u00b7 EV -0.0% FPI has COLO at -2 (#75 nationally) and KSU at +5.7 (#52) \u2014 a 7.7-point model gap, a moderate edge. COLO is home \u2014 this model uses a team-specific 6.96-point home-field edge here (vs the 2.2-pt default), derived from COLO's own actual home-vs-away scoring margin split this season, not a flat league-wide assumption. Strength of schedule: COLO ranks #15 nationally, KSU #84 \u2014 COLO has faced the tougher slate. Overall efficiency (0-100 scale, ~50 = average): COLO 48.4, KSU 62.7. Elo (built from this season's own final scores, separate from FPI): COLO 1441 (12 games played), KSU 1521 (12) \u2014 currently weighted 12% into the win probability, ramping toward the Model tab's configured Elo weight as both teams accumulate more results. Bayesian W-L: COLO 2-5, KSU 4-3. Turnover margin: COLO -3, KSU +1 on the season \u2014 a real disparity that tends to swing close games. Season TD production: COLO 12 passing / 6 rushing, KSU 11 passing / 16 rushing (season totals, not per-game rates) \u2014 KSU has scored more often through the air and on the ground so far.",
+    "settledAt": 1793482918208,
     "lockOrigin": "auto",
-    "lockTiming": "pre",
-    "settledAt": 1793482918208
+    "lockTiming": "pre"
   },
   {
     "hA": "COLO",
@@ -110640,10 +110642,10 @@
     "winProb": 0.6806,
     "lockedAt": 1793346343978,
     "reasoning": "PICK: OVER 41.5 \u2014 ADJUSTED LINE (68.1% estimated win prob at this line)\nADJUSTED LINE: moved 5 pts from the posted OVER 46.5 to OVER 41.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 62.7%; the 5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin +13.0 (COLO), total 50.5, from an exact normal distribution (not a simulation).",
+    "settledAt": 1793482918209,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1793482918209
+    "priceSource": "estimated"
   },
   {
     "hA": "COL",
@@ -128672,10 +128674,10 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1793444570862,
+    "playerMin": 30,
     "reasoning": "PICK: Deni Avdija OVER PTS 23.5 \u2014 PREMIUM (68% model hit rate)\nMODEL: projection 27.7 PTS (season average 24.2, last-5 form 31.2, opponent adjustment +3.5) vs the 23.5 line, spread \u03c3 7.43, from an exact normal distribution (not a simulation).\nWHY: Deni Avdija averages 24.2 ppg across 66 games this season. Opp UTAH DRtg 122.0 vs a 115.7 league average computed from every currently-loaded team, a 5% boost folded into the projection. Game pace 101.6 (+1.1%), POR offense 114.4 vs a 115.7 league average. No head-to-head history vs UTAH this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793482923889,
-    "playerResult": 24,
-    "playerMin": 30
+    "playerResult": 24
   },
   {
     "hA": "PHI",
