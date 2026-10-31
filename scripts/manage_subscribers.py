@@ -9,6 +9,9 @@ Usage:
   python3 scripts/manage_subscribers.py add nba someone@example.com
   python3 scripts/manage_subscribers.py add nba nfl hockey someone@example.com  # one email, multiple products -- any order, email can go anywhere
   python3 scripts/manage_subscribers.py add --promo cfb someone@example.com  # a FREE / PROMO month: emailed like a subscriber, never counted as revenue
+  python3 scripts/manage_subscribers.py add --referred-by referrer@example.com nfl new@example.com   # a referred sign-up: the REFERRER earns a free month and is emailed to pick their sport
+  python3 scripts/manage_subscribers.py add --referred-by referrer@example.com --reward nba nfl new@example.com   # ...or name the sport now: the referrer gets a free month of nba
+  python3 scripts/manage_subscribers.py grant-referral referrer@example.com new@example.com nba   # the referrer replied with their sport: give them the free month that was waiting
   python3 scripts/manage_subscribers.py remove nba someone@example.com
   python3 scripts/manage_subscribers.py list                                  # every product
   python3 scripts/manage_subscribers.py list nba                              # one product
@@ -34,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _subscribers import (
     PRODUCTS, add_subscriber, remove_subscriber, list_subscribers,
     products_for_email, send_receipt_email, EXPIRY_DAYS, sync_subscribers_to_git,
+    referral_problem, grant_referral_reward, log_pending_referral, pending_referral_problem, send_referral_notice_email,
 )
 
 
@@ -83,6 +87,19 @@ def main() -> None:
         # accepts the email in any position, so every ordering works.
         promo = "--promo" in args
         args = [a for a in args if a != "--promo"]
+        referred_by = reward = None
+        for flag in ("--referred-by", "--reward"):
+            if flag in args:
+                i = args.index(flag)
+                if i + 1 >= len(args):
+                    print(f"{flag} needs a value")
+                    sys.exit(1)
+                val = args[i + 1]
+                args = args[:i] + args[i + 2:]
+                if flag == "--referred-by":
+                    referred_by = val
+                else:
+                    reward = val
         if len(args) < 3:
             print("Usage: manage_subscribers.py add [--promo] <product> [more products...] <email>  (any order)")
             sys.exit(1)
@@ -100,11 +117,39 @@ def main() -> None:
             if product not in PRODUCTS:
                 print(f"Unknown product {product!r} -- must be one of: {', '.join(PRODUCTS)}")
                 sys.exit(1)
+        if referred_by:
+            problem = referral_problem(referred_by, email, reward)      # checked BEFORE adding: the referred person must still be new
+            if problem:
+                print(f"Referral not applied -- {problem}. Nothing was added.")
+                sys.exit(1)
         for product in products:
             print(add_subscriber(product, email, promo=promo))
+        if referred_by and reward:
+            print(grant_referral_reward(referred_by, email, reward))
+        elif referred_by:
+            log_pending_referral(referred_by, email)
+            sent, why = send_referral_notice_email(referred_by)
+            print(f"{referred_by} earned a free month -- " + ("emailed them to pick a sport; when they reply run: grant-referral "
+                  f"{referred_by} {email} <sport>" if sent else f"NOT emailed ({why}); ask them which sport, then run: grant-referral {referred_by} {email} <sport>"))
         ok, msg = send_receipt_email(email)
         print(f"Receipt sent to {email}" if ok else f"Receipt NOT sent: {msg}")
         synced, sync_msg = sync_subscribers_to_git(f"Add {email} to {', '.join(products)}")
+        print(sync_msg if synced else f"WARNING: {sync_msg}")
+        return
+
+    if cmd == "grant-referral":
+        if len(args) != 4:
+            print("Usage: manage_subscribers.py grant-referral <referrer email> <referred email> <product>")
+            sys.exit(1)
+        referrer, referred, sport = args[1].strip().lower(), args[2].strip().lower(), args[3]
+        problem = pending_referral_problem(referrer, referred, sport)
+        if problem:
+            print(f"Not granted -- {problem}")
+            sys.exit(1)
+        print(grant_referral_reward(referrer, referred, sport))
+        ok, msg = send_receipt_email(referrer)
+        print(f"Receipt sent to {referrer}" if ok else f"Receipt NOT sent: {msg}")
+        synced, sync_msg = sync_subscribers_to_git(f"Referral reward: {referrer} gets {sport}")
         print(sync_msg if synced else f"WARNING: {sync_msg}")
         return
 

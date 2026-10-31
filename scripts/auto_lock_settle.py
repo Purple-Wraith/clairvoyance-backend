@@ -1528,7 +1528,9 @@ def settle_section_name(tag: str) -> str:
     return SPORT_DISPLAY_NAME.get(tag) or LEDGER_LEAGUE_DISPLAY_NAME.get(tag) or tag
 
 
-def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | None = None, late_excluded: int = 0) -> str:
+def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | None = None, late_excluded: int = 0, customer: bool = False) -> str:
+    """customer=True is the SUBSCRIBER version (see send_customer_settlement_emails): the same sections and result rows under the brand banner, with the subscriber
+    footer, a plainer note for picks still awaiting a result, and none of the owner-only notes (pre-start-locks count)."""
     by_sport: dict[str, list[dict]] = {}
     for b in settled:
         by_sport.setdefault(norm_sport_for_email(b.get("sport"), b.get("league")), []).append(b)
@@ -1537,16 +1539,25 @@ def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | No
     losses = sum(1 for b in settled if b.get("outcome") == "loss")
     pushes = sum(1 for b in settled if b.get("outcome") not in ("win", "loss"))
     record = f"{wins}W-{losses}L" + (f"-{pushes}P" if pushes else "")
-    parts = [_EMAIL_WRAP_OPEN,
+    close = _LOCKS_EMAIL_CLOSE if customer else _EMAIL_WRAP_CLOSE
+    banner = (f'<div style="max-width:640px;margin:0 auto"><img src="{EMAIL_BANNER_URL}" alt="Clairvoyance Engine" width="640" '
+              f'style="display:block;width:100%;max-width:640px;height:auto;border:0;font-family:-apple-system,sans-serif;color:#999" /></div>') if customer else ""
+    parts = [banner, _EMAIL_WRAP_OPEN,
               f'<div style="font-size:12px;letter-spacing:1px;color:#555;text-transform:uppercase">'
-              f'{len(settled)} bets settled — {record}</div>']
+              f'{len(settled)} {"picks" if customer else "bets"} settled — {record}</div>']
     # Surfacing unresolved bets directly in the email (rather than just
     # silently omitting them) is the whole point of running a final,
     # targeted settle pass right before building this -- if something is
     # STILL pending after that, that's a real gap worth knowing about the
     # same morning, not discovering days later that a pick silently never
     # got graded.
-    if unresolved:
+    if unresolved and customer:
+        parts.append('<div style="margin-top:10px;padding:10px 14px;background:#fff6d6;border:1px solid #e6c200;border-radius:6px;color:#7a5900;font-size:13px">'
+                     f'{len(unresolved)} pick{"s" if len(unresolved) != 1 else ""} from this date still awaiting a final result:'
+                     '<ul style="margin:6px 0 0;padding-left:18px">'
+                     + "".join(f'<li>{_esc(settle_section_name(norm_sport_for_email(b.get("sport"), b.get("league"))))}: {_esc(b.get("betOn"))}</li>' for b in unresolved)
+                     + '</ul></div>')
+    elif unresolved:
         parts.append(f'<div style="margin-top:10px;padding:10px 14px;background:#3a0000;border:1px solid #ff3b5c;'
                       f'border-radius:6px;color:#ff9090;font-size:13px">'
                       f'⚠ {len(unresolved)} pick(s) from this date could not be confirmed settled yet -- '
@@ -1557,15 +1568,19 @@ def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | No
     # not predictions and were never sent to subscribers pre-game -- they are left out of the lists and the totals above, and
     # only COUNTED here (no names), so the record in this email matches every published figure.
     late_note = (f'<div style="margin-top:14px;font-size:12px;color:#777">Pre-start locks only: {late_excluded} pick(s) locked '
-                 f'after their game started are not counted or listed.</div>') if late_excluded else ""
+                 f'after their game started are not counted or listed.</div>') if late_excluded and not customer else ""
     if not settled:
         parts.append('<div style="padding:20px 0;color:#555;font-size:14px">No bets settled this run.</div>')
         parts.append(late_note)
-        parts.append(_EMAIL_WRAP_CLOSE)
+        parts.append(close)
         return "".join(parts)
 
-    for sport in sorted(by_sport, key=settle_section_name):
-        bets = by_sport[sport]
+    def _earliest(sp: str) -> float:
+        return min([t for t in (parse_start_ms(b.get("startMs")) for b in by_sport[sp]) if t is not None] or [float("inf")])
+
+    for sport in sorted(by_sport, key=lambda sp: (_earliest(sp), settle_section_name(sp))):      # leagues by their earliest game, like the picks email
+        # chronological (owner 2026-10-31): earliest game first; an unknown start goes last
+        bets = sorted(by_sport[sport], key=lambda b: (parse_start_ms(b.get("startMs")) or float("inf"), str(b.get("betOn") or "")))
         sw = sum(1 for b in bets if b.get("outcome") == "win")
         sl = sum(1 for b in bets if b.get("outcome") == "loss")
         parts.append(f'<div style="font-size:13px;letter-spacing:2px;color:#0090a8;text-transform:uppercase;'
@@ -1575,7 +1590,7 @@ def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | No
         parts.append("".join(_settle_result_html(b) for b in bets))
         parts.append('</div>')
     parts.append(late_note)
-    parts.append(_EMAIL_WRAP_CLOSE)
+    parts.append(close)
     return "".join(parts)
 
 
@@ -1621,6 +1636,106 @@ def send_settlement_email(settled: list[dict], live: bool, forced_date: str | No
     log(f"Settlement email sent to {LOCKS_EMAIL_TO}" if ok else f"Settlement email send failed: {msg}")
 
 
+# ── CUSTOMER SETTLEMENT EMAILS (owner 2026-10-31) ───────────────────────────────────────────────────────────────────
+# Until now only the OWNER got a results email. A subscriber now gets the previous day's results for exactly the products they are signed up for (someone on NFL gets NFL
+# results the next day; someone on NFL + Hockey gets one email with both), sent by the same once-daily digest, after the owner's copy. Rules:
+#   * one email per distinct set of products, BCC'd (never a visible list of other subscribers);
+#   * only picks that were sent to subscribers: pre-start locks (the digest already removes known-late ones), no removed picks, and no NBA player props while EMAIL_NBA_PROPS is off;
+#   * KHL and any other owner-only league never appear;
+#   * a subscriber whose products had no picks that day gets nothing;
+#   * the owner is not re-sent a customer copy (they have the full email), and a dry run sends nothing to customers;
+#   * once per date: data/last_customer_settlement_date.txt (read from origin) stops a re-run of the digest from emailing everyone again.
+EMAIL_CUSTOMER_SETTLEMENT = True
+CUSTOMER_SETTLEMENT_MARKER = "data/last_customer_settlement_date.txt"
+# ledger league code (norm_sport_for_email) -> paid product; PRODUCT_SPORTS is keyed by the lock pass's SOC_* tags, so the soccer codes are spelled out
+LEDGER_TAG_PRODUCT = {"NFL": "nfl", "CFB": "cfb", "NBA": "nba", "NHL": "hockey", "SHL": "hockey", "LIIGA": "hockey", "NLA": "hockey", "EXTRALIGA": "hockey",
+                      "PL": "soccer", "LIGA": "soccer", "SERIEA": "soccer", "CL": "soccer"}
+
+
+def settled_pick_product(b: dict) -> str | None:
+    """The paid product a settled ledger row belongs to, or None (owner-only league, retired sport, unknown)."""
+    return LEDGER_TAG_PRODUCT.get(norm_sport_for_email(b.get("sport"), b.get("league")))
+
+
+def _is_nba_prop_row(b: dict) -> bool:
+    return norm_sport_for_email(b.get("sport"), b.get("league")) == "NBA" and (str(b.get("betType") or "").upper() == "PROP" or bool(b.get("player")) or b.get("playerResult") is not None)
+
+
+def customer_settlement_groups(settled: list[dict], unresolved: list[dict] | None = None) -> list[dict]:
+    """[{products: (..), emails: [..], settled: [..], unresolved: [..]}] -- one entry per distinct set of products among the active subscribers (owner excluded) that
+    has at least one pick to report. Pure: reads the subscriber list and the rows, sends nothing."""
+    from _subscribers import PRODUCTS, active_subscribers
+    owner = (OWNER_EMAIL or "").strip().lower()
+
+    def ok_row(b: dict) -> bool:
+        if b.get("outcome") == "_removed":
+            return False
+        return not (_is_nba_prop_row(b) and not EMAIL_NBA_PROPS)
+
+    by_product: dict[str, list[dict]] = {p: [] for p in PRODUCTS}
+    pend_by_product: dict[str, list[dict]] = {p: [] for p in PRODUCTS}
+    for b in settled:
+        prod = settled_pick_product(b)
+        if prod and ok_row(b):
+            by_product[prod].append(b)
+    for b in unresolved or []:
+        prod = settled_pick_product(b)
+        if prod and ok_row(b):
+            pend_by_product[prod].append(b)
+    products_of: dict[str, set] = {}
+    for prod in PRODUCTS:
+        for e in active_subscribers(prod):
+            em = e["email"].strip().lower()
+            if em and em != owner:
+                products_of.setdefault(em, set()).add(prod)
+    groups: dict[tuple, list[str]] = {}
+    for em, prods in products_of.items():
+        groups.setdefault(tuple(sorted(prods)), []).append(em)
+    out = []
+    for prods, emails in sorted(groups.items()):
+        rows = [b for p in prods for b in by_product[p]]
+        pend = [b for p in prods for b in pend_by_product[p]]
+        if rows or pend:
+            out.append({"products": prods, "emails": sorted(emails), "settled": rows, "unresolved": pend})
+    return out
+
+
+def send_customer_settlement_emails(settled: list[dict], unresolved: list[dict] | None, live: bool, date_str: str) -> int:
+    """Sends the groups from customer_settlement_groups(); returns how many emails were attempted. Never raises (a failure here must not fail the owner's digest)."""
+    if not EMAIL_CUSTOMER_SETTLEMENT:
+        return 0
+    try:
+        groups = customer_settlement_groups(settled, unresolved)
+        if not groups:
+            log(f"Customer settlement emails for {date_str}: nobody to send to (no subscriber has a pick that day)")
+            return 0
+        if not live:
+            log(f"[DRY RUN] customer settlement emails for {date_str}: would send {len(groups)} email(s) to {sum(len(g['emails']) for g in groups)} subscriber(s) -- none sent")
+            return 0
+        if read_marker_from_origin(CUSTOMER_SETTLEMENT_MARKER) == date_str:
+            log(f"Customer settlement emails for {date_str}: already sent (marker) -- skipping")
+            return 0
+        sent = 0
+        for g in groups:
+            wins = sum(1 for b in g["settled"] if b.get("outcome") == "win")
+            losses = sum(1 for b in g["settled"] if b.get("outcome") == "loss")
+            subject = f"Clairvoyance — Your results for {date_str}: {wins}W-{losses}L ({len(g['settled'])})"
+            ok, msg = _send_gmail(subject, g["emails"], build_settlement_email_html(g["settled"], unresolved=g["unresolved"], customer=True))
+            sent += 1
+            log(f"Customer settlement email ({'+'.join(g['products'])}) to {len(g['emails'])} subscriber(s): {'sent' if ok else 'FAILED -- ' + str(msg)}")
+            if not ok:
+                EMAIL_FAILURES.append(f"customer settlement email ({'+'.join(g['products'])}): {msg}")
+        try:
+            (ROOT / CUSTOMER_SETTLEMENT_MARKER).write_text(date_str)
+            _commit_and_push([CUSTOMER_SETTLEMENT_MARKER], f"chore: record customer settlement emails sent for {date_str}")
+        except Exception as exc:
+            log(f"failed to record the customer-settlement marker: {exc}")
+        return sent
+    except Exception as exc:  # noqa: BLE001
+        log(f"Customer settlement emails for {date_str} skipped ({exc.__class__.__name__}: {exc})")
+        return 0
+
+
 def send_daily_settlement_digest(page, live: bool) -> None:
     """Once-daily digest covering EXACTLY yesterday's (America/Denver)
     locked picks -- decoupled from the frequent intraday settle passes,
@@ -1646,7 +1761,7 @@ def send_daily_settlement_digest(page, live: bool) -> None:
           .map(p => ({
             id: p.id, betOn: p.betOn, sport: p.sport, league: p.league, outcome: p.outcome, date: p.date,
             hA: p.hA, awA: p.awA, hScore: p.hScore, aScore: p.aScore,
-            playerResult: p.playerResult,
+            playerResult: p.playerResult, betType: p.betType, player: p.player,
             lockedAt: p.lockedAt, startMs: p.startMs, lockTiming: p.lockTiming,
           }))
         """,
@@ -1664,6 +1779,7 @@ def send_daily_settlement_digest(page, live: bool) -> None:
             + ", ".join(r.get("betOn") or "?" for r in unresolved))
     log(f"Digest for {yesterday}: {len(settled)} settled, {len(unresolved)} unresolved")
     send_settlement_email(settled, live, forced_date=yesterday, unresolved=unresolved, late_excluded=len(late_rows))
+    send_customer_settlement_emails(settled, unresolved, live, yesterday)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -3425,6 +3541,30 @@ def slate_phrase(dates, now=None) -> str:
     return " and ".join(out)
 
 
+def _game_starts_by_teams(qualifying: list[dict]) -> dict:
+    """{frozenset({home, away}): earliest start (epoch ms)} from the game legs, so a player prop (which carries no start of its own) sorts with its game."""
+    out: dict = {}
+    for q in qualifying:
+        if q.get("kind") != "GAME":
+            continue
+        st = parse_start_ms(q.get("startMs"))
+        if st is not None:
+            key = frozenset({q.get("hA"), q.get("awA")})
+            out[key] = min(st, out.get(key, st))
+    return out
+
+
+def _leg_start_ms(q: dict, by_teams: dict):
+    """A leg's game start (epoch ms) for ordering the email: its own startMs, else the prop's game found among the game legs, else None (sorts last)."""
+    leg = q.get("leg") if isinstance(q.get("leg"), dict) else {}
+    st = parse_start_ms(q.get("startMs"))
+    if st is None:
+        st = parse_start_ms(leg.get("startMs"))
+    if st is None:
+        st = by_teams.get(frozenset({q.get("hA") or leg.get("hA") or leg.get("team"), q.get("awA") or leg.get("awA") or leg.get("opp")}))
+    return st
+
+
 def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int | None = None, zero: dict | None = None) -> str:
     """Groups qualifying legs by sport/league, then by matchup within each
     sport: the matchup, every qualifying pick for it (grade, probability,
@@ -3439,6 +3579,14 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
         sport = q["sport"]
         matchup = f"{q['awA']} @ {q['hA']}" if q["kind"] == "GAME" else _prop_matchup_key(q["leg"])
         by_sport.setdefault(sport, {}).setdefault(matchup, []).append(q)
+    # CHRONOLOGICAL (owner 2026-10-31): within a league the earliest game is listed first and the latest last; leagues are ordered by their earliest game.
+    # A game with no known start goes after the timed ones (stable: ties and unknowns keep name order).
+    _by_teams = _game_starts_by_teams(qualifying)
+    _FAR = float("inf")
+    _mu_start = {sp: {m: min([t for t in (_leg_start_ms(l, _by_teams) for l in legs) if t is not None] or [_FAR]) for m, legs in mu.items()} for sp, mu in by_sport.items()}
+    for sp in by_sport:
+        by_sport[sp] = {m: by_sport[sp][m] for m in sorted(by_sport[sp], key=lambda m: (_mu_start[sp][m], m))}
+    _sport_start = {sp: min(_mu_start[sp].values()) for sp in by_sport}
 
     # Real bug, found via audit: "actually locked" reads as "this specific
     # send only managed to lock N of them" -- misleading on a day the
@@ -3570,7 +3718,7 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
                               f'font-size:12px;color:#bbb;line-height:1.5">{"<br>".join(bits)}</div>')
             parts.append('</div>')
 
-    for sport in sorted(by_sport, key=lambda s: SPORT_DISPLAY_NAME.get(s, s)):
+    for sport in sorted(by_sport, key=lambda s: (_sport_start[s], SPORT_DISPLAY_NAME.get(s, s))):
         _render_sport_section(sport)
 
     parts.append(_LOCKS_EMAIL_CLOSE)

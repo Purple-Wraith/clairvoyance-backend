@@ -348,6 +348,96 @@ def remove_subscriber(product: str, email: str) -> str:
     return f"removed {email} from {product}"
 
 
+REFERRAL_BONUS_DAYS = EXPIRY_DAYS      # a referral reward is one month (30 days) of one sport
+
+
+def _has_entry(data: dict, email: str) -> bool:
+    return any(isinstance(e, dict) and e.get("email", "").strip().lower() == email
+               for p in PRODUCTS for e in (data.get(p) or []))
+
+
+REFERRAL_CRITERIA = (
+    "You must already be a Clairvoyance subscriber.",
+    "The friend you refer must be a brand-new subscriber (never on any of our lists before) and must put your email address in the \"Referred by\" line of their sign-up email.",
+    "You earn one free month for each new friend who joins, and you choose the sport.",
+    f"If you already have that sport, the {REFERRAL_BONUS_DAYS} days are added after your current access ends; otherwise a free {REFERRAL_BONUS_DAYS}-day month of it starts the day you choose.",
+)      # shown in the referrer's email; the landing page states the same rules in its own words (scripts/test_mailing_list.py checks the key phrases match)
+
+
+def referral_problem(referrer: str, referred: str, reward_product: str | None = None) -> str | None:
+    """Why this referral cannot be rewarded (a short sentence for the admin tab), or None when it can. `referrer` is the existing subscriber who gets the free month; `referred` is
+    the new sign-up. Rules (owner 2026-10-31): the referrer must already be a subscriber; the person referred must be NEW (no entry on any list, ever -- an existing or lapsed
+    subscriber is not a new sign-up); nobody refers themselves; and each referred person earns ONE reward, ever (whether it is still waiting for the referrer's sport or already given).
+    `reward_product` is optional: left out, the reward waits until the referrer says which sport they want (see log_pending_referral)."""
+    referrer, referred = (referrer or "").strip().lower(), (referred or "").strip().lower()
+    if reward_product and reward_product not in PRODUCTS:
+        return f"pick which sport the referrer gets free ({', '.join(PRODUCTS)})"
+    if "@" not in referrer or " " in referrer:
+        return "enter the referrer's email address"
+    if referrer == referred:
+        return "someone cannot refer themselves"
+    data = load_subscribers()
+    if not _has_entry(data, referrer):
+        return f"{referrer} is not a subscriber, so there is nobody to reward"
+    if _has_entry(data, referred):
+        return f"{referred} is already on a list, so this is not a new sign-up"
+    for e in _load_events():
+        if e.get("action") in ("referral", "referral_pending") and str(e.get("referred", "")).strip().lower() == referred:
+            return f"{referred} has already earned a referral reward"
+    return None
+
+
+def log_pending_referral(referrer: str, referred: str) -> None:
+    """Records that `referrer` has earned a free month (for referring `referred`) but has not said which sport yet. It has no product, so it never touches access periods or revenue."""
+    ev = _load_events()
+    ev.append({"ts": _now().isoformat(), "action": "referral_pending", "product": "", "email": referrer.strip().lower(), "referred": referred.strip().lower()})
+    EVENTS_FILE.write_text(json.dumps(ev, indent=2) + "\n")
+
+
+def pending_referral_rewards() -> list[dict]:
+    """Free months earned and not yet given: [{referrer, referred, ts}], newest first."""
+    events = _load_events()
+    done = {str(e.get("referred", "")).strip().lower() for e in events if e.get("action") == "referral"}
+    out = [{"referrer": e.get("email", ""), "referred": e.get("referred", ""), "ts": e.get("ts", "")} for e in events
+           if e.get("action") == "referral_pending" and str(e.get("referred", "")).strip().lower() not in done]
+    return list(reversed(out))
+
+
+def pending_referral_problem(referrer: str, referred: str, reward_product: str) -> str | None:
+    """Why this waiting reward cannot be given now (None when it can): it must still be waiting, for this referrer, and the sport must be a real one."""
+    referrer, referred = (referrer or "").strip().lower(), (referred or "").strip().lower()
+    if reward_product not in PRODUCTS:
+        return f"pick a sport ({', '.join(PRODUCTS)})"
+    if not any(p["referrer"].strip().lower() == referrer and p["referred"].strip().lower() == referred for p in pending_referral_rewards()):
+        return "that reward is not waiting (it may already have been given)"
+    return None
+
+
+def grant_referral_reward(referrer: str, referred: str, reward_product: str) -> str:
+    """Gives `referrer` one free month of `reward_product` for referring `referred` (call referral_problem() first). If the referrer is ACTIVE on that sport the month is
+    added after their current end date (their paid time is never shortened); otherwise it starts today as a free / promo month. Either way it is logged as a 'referral' event."""
+    referrer, referred = referrer.strip().lower(), referred.strip().lower()
+    data = load_subscribers()
+    now = _now()
+    for entry in data.get(reward_product) or []:
+        if isinstance(entry, dict) and entry.get("email", "").strip().lower() == referrer:
+            added = _parse(entry.get("added", ""))
+            if added is not None and now - added < timedelta(days=EXPIRY_DAYS):
+                entry["added"] = (added + timedelta(days=REFERRAL_BONUS_DAYS)).isoformat()      # the window now ends REFERRAL_BONUS_DAYS later
+                entry["reminder_sent"] = False
+                save_subscribers(data)
+                ev = _load_events()
+                ev.append({"ts": now.isoformat(), "action": "referral", "product": reward_product, "email": referrer, "referred": referred, "extended": True})
+                EVENTS_FILE.write_text(json.dumps(ev, indent=2) + "\n")
+                end = added + timedelta(days=EXPIRY_DAYS + REFERRAL_BONUS_DAYS)
+                return f"referral reward: {referrer} gets {REFERRAL_BONUS_DAYS} extra days on {reward_product} (now through {fmt_mt_date(end)})"
+    msg = add_subscriber(reward_product, referrer, promo=True)
+    ev = _load_events()
+    ev.append({"ts": now.isoformat(), "action": "referral", "product": reward_product, "email": referrer, "referred": referred, "extended": False})
+    EVENTS_FILE.write_text(json.dumps(ev, indent=2) + "\n")
+    return f"referral reward: {msg}"
+
+
 def subscribers_needing_reminder(days_before: int = 3) -> list[dict]:
     """Active (product, email) pairs at or under `days_before` days left
     that haven't been sent an expiry reminder for their CURRENT window
@@ -405,6 +495,8 @@ def _reconstruct_periods() -> tuple[dict[tuple[str, str], list[dict]], list[floa
     events = _load_events()
     by_key: dict[tuple[str, str], list[dict]] = {}
     for e in events:
+        if e.get("action") == "referral_pending":
+            continue                                   # a waiting reward has no product and no access period yet
         by_key.setdefault((e["email"], e["product"]), []).append(e)
 
     periods_by_key: dict[tuple[str, str], list[dict]] = {}
@@ -432,6 +524,11 @@ def _reconstruct_periods() -> tuple[dict[tuple[str, str], list[dict]], list[floa
                     periods.append(current)
                 current = {"start": ts, "end": ts + timedelta(days=EXPIRY_DAYS), "cycles": 1, "removed": False,
                            "free_from": ts if e.get("promo") else None, "free_until": ts + timedelta(days=EXPIRY_DAYS) if e.get("promo") else None}
+            elif action == "referral" and e.get("extended"):
+                if current is not None:                    # a free month added after the paid time: the period runs longer, and that tail is not revenue
+                    current["free_from"] = current["free_from"] or current["end"]
+                    current["end"] = current["end"] + timedelta(days=REFERRAL_BONUS_DAYS)
+                    current["free_until"] = current["end"]
             elif action == "remove":
                 if current is not None:
                     if ts < current["end"]:
@@ -650,6 +747,8 @@ def analytics_summary() -> dict:
         "estimated_mrr": estimated_mrr,
         "promo_memberships": promo_memberships,
         "promo_emails": len(promo_emails),
+        "referral_rewards_30d": sum(1 for e in _events_in(30) if e.get("action") == "referral"),
+        "referral_rewards_total": sum(1 for e in events if e.get("action") == "referral"),
         "expiring_soon": expiring_soon,
         "events_since": events_since,
         "window_7d": win7,
@@ -829,4 +928,36 @@ def send_receipt_email(email: str) -> tuple[bool, str]:
         return False, f"{email} has no active products -- nothing to receipt"
 
     subject, body = build_receipt_email(rows, renewal=recently_renewed(email))     # a renewal just recorded (add_subscriber logged a 'renew') reads as one
+    return _send_gmail(subject, email, body)
+
+
+def build_referral_notice_email() -> tuple[str, str]:
+    """(subject, html) of the note to a REFERRER whose friend just joined: they have earned a free month and should reply with the sport they want.  Same plain receipt look as build_receipt_email.
+    It never names the friend (their address stays private) and carries the full criteria, so the referrer sees exactly how the offer works."""
+    BLACK = '#1a1a2e'
+    sports = "NFL · College Football · NBA · Hockey (NHL + European) · European Soccer"
+    criteria = "".join(f'<li style="margin-bottom:6px">{c}</li>' for c in REFERRAL_CRITERIA)
+    body = (
+        f'<div style="max-width:640px;margin:0 auto"><img src="{EMAIL_BANNER_URL}" alt="Clairvoyance Engine" width="640" '
+        f'style="display:block;width:100%;max-width:640px;height:auto;border:0;font-family:-apple-system,sans-serif;color:#999" /></div>'
+        '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1a1a2e;border:1px solid #ececec;padding:28px 24px">'
+        f'<div style="font-size:11px;letter-spacing:2.5px;color:{BLACK};text-transform:uppercase;font-weight:700;margin-bottom:14px">Referral reward</div>'
+        f'<div style="font-size:19px;font-weight:700;color:{BLACK};margin-bottom:10px;line-height:1.3">A friend you referred just joined &mdash; you&rsquo;ve earned a free month.</div>'
+        f'<div style="font-size:14px;color:{BLACK};line-height:1.7;margin-bottom:20px">Thank you for spreading the word. Your reward is <b>{REFERRAL_BONUS_DAYS} days free of any one sport</b>, '
+        'and you pick which one.</div>'
+        '<div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:6px;padding:18px 22px;margin-bottom:20px">'
+        f'<div style="font-size:15px;font-weight:700;color:#f20cff;margin-bottom:6px">Reply to this email with the sport you want</div>'
+        f'<div style="font-size:13px;color:{BLACK};line-height:1.7">{sports}</div></div>'
+        f'<div style="font-size:11px;letter-spacing:1.5px;color:{BLACK};text-transform:uppercase;font-weight:700;margin-bottom:8px">How the offer works</div>'
+        f'<ul style="font-size:13px;color:{BLACK};line-height:1.6;padding-left:18px;margin:0 0 8px">{criteria}</ul>'
+        '<div style="margin-top:28px;padding-top:14px;border-top:1px solid #e5e5e5;font-size:11px;line-height:1.5;color:#1a1a2e;font-weight:400">'
+        'Clairvoyance Engine outputs are probabilistic projections for informational and analytical purposes only. Model outputs do not constitute financial or betting advice. '
+        'Past model performance does not guarantee future results.</div></div>'
+    )
+    return "Clairvoyance — you've earned a free month", body
+
+
+def send_referral_notice_email(email: str) -> tuple[bool, str]:
+    """Emails a referrer the 'you have earned a free month -- reply with your sport' note (build_referral_notice_email)."""
+    subject, body = build_referral_notice_email()
     return _send_gmail(subject, email, body)

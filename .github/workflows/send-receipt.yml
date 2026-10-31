@@ -3,6 +3,8 @@ name: Send Subscriber Receipt
 # One subscriber's access receipt (scripts/send_receipt.py), emailed from GitHub because the Gmail App Password is a GitHub secret and is not on the owner's Mac.
 # Dispatched by the MAILING LIST admin server (scripts/subscribers_admin.py) right after it syncs the list to the private repo -- or by hand:
 #   gh workflow run send-receipt.yml -f email=someone@example.com
+# kind=referral sends a REFERRER the "you have earned a free month -- reply with your sport" note instead of an access receipt:
+#   gh workflow run send-receipt.yml -f email=referrer@example.com -f kind=referral
 
 on:
   workflow_dispatch:
@@ -10,6 +12,11 @@ on:
       email:
         description: 'Subscriber email to send the receipt to'
         required: true
+        type: string
+      kind:
+        description: 'receipt (default) or referral'
+        required: false
+        default: 'receipt'
         type: string
 
 permissions:
@@ -43,4 +50,5 @@ jobs:
           SOCIAL_CARD_EMAIL_TO: ${{ secrets.SOCIAL_CARD_EMAIL_TO }}
           # through the environment, never interpolated into the shell line
           RECEIPT_TO: ${{ inputs.email }}
-        run: python3 scripts/send_receipt.py --email "$RECEIPT_TO"
+          RECEIPT_KIND: ${{ inputs.kind }}
+        run: python3 scripts/send_receipt.py --email "$RECEIPT_TO" --kind "${RECEIPT_KIND:-receipt}"

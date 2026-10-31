@@ -34,7 +34,9 @@ class Server:
         self.subs, self.events = self.tmp / "subscribers.json", self.tmp / "subscriber_events.json"
         self.subs.write_text(json.dumps({p: [] for p in S.PRODUCTS}))
         self.events.write_text("[]")
+        self.notice = mock.Mock(side_effect=lambda e: (True, "referral email queued"))          # the 'you earned a free month' email: recorded, never sent
         self.patches = [mock.patch.object(S, "SUBSCRIBERS_FILE", self.subs), mock.patch.object(S, "EVENTS_FILE", self.events),
+                        mock.patch.object(A, "deliver_referral_notice", self.notice),
                         mock.patch.object(A, "deliver_receipt", side_effect=lambda e: (True, "receipt queued")), mock.patch.object(A, "sync_subscribers_to_git", side_effect=lambda m: (True, "synced"))]
         for p in self.patches:
             p.start()
@@ -163,6 +165,204 @@ class ServerTests(unittest.TestCase):
         _, html3 = S.build_receipt_email([{"product": "nba", "added": iso(0)}])
         self.assertIn("standard price for 1 product", html3); self.assertNotIn("complimentary", html3)
 
+    # ── referrals (owner 2026-10-31): the REFERRER (an existing subscriber) earns a free month of a sport when a NEW subscriber names them ─────────────────────────────────────────
+    def _seed_referrer(self, **entries):
+        self.s.seed(entries or {"nba": [{"email": "ref@example.com", "added": iso(10)}]})
+        self.s.events.write_text(json.dumps([{"ts": iso(10), "action": "add", "product": "nba", "email": "ref@example.com"}]))
+
+    def test_referring_a_new_subscriber_adds_a_month_after_the_referrers_current_end(self):
+        self._seed_referrer()                                                                    # ref pays for NBA, 20 days left
+        code, _, o = self.s.req("/api/add", "POST", {"product": "cfb", "email": "New@Example.com", "referred_by": "REF@example.com", "reward": "nba"})
+        self.assertEqual(code, 200); self.assertIn("referral reward", o["message"])
+        ov = self.s.req("/api/overview")[2]
+        by = {r["email"]: r for r in ov["subscribers"]}
+        nba = next(p for p in by["ref@example.com"]["products"] if p["product"] == "nba")
+        self.assertGreaterEqual(nba["days_left"], 49); self.assertLessEqual(nba["days_left"], 50)       # 20 left + 30 added, never shortened
+        self.assertFalse(nba["promo"])                                                            # still a paid entry: the bonus does not mark the paid time free
+        self.assertEqual([p["product"] for p in by["new@example.com"]["products"]], ["cfb"])      # the referred person was added normally (paid)
+        self.assertFalse(by["new@example.com"]["products"][0]["promo"])
+        a = ov["analytics"]
+        self.assertEqual((a["estimated_mrr"], a["referral_rewards_30d"], a["referral_rewards_total"]), (40, 1, 1))     # ref $20 + new $20: the reward earns nothing
+        ev = next(e for e in ov["events"] if e["action"] == "referral")
+        self.assertEqual((ev["email"], ev["referred"], ev["product"], ev["extended"]), ("ref@example.com", "new@example.com", "nba", True))
+
+    def test_a_sport_the_referrer_does_not_have_starts_as_a_free_month(self):
+        self._seed_referrer()
+        self.s.req("/api/add", "POST", {"product": "nfl", "email": "new@example.com", "referred_by": "ref@example.com", "reward": "soccer"})
+        by = {r["email"]: r for r in self.s.req("/api/overview")[2]["subscribers"]}
+        soc = next(p for p in by["ref@example.com"]["products"] if p["product"] == "soccer")
+        self.assertTrue(soc["promo"]); self.assertEqual(soc["days_left"], 30)
+        self.assertEqual(self.s.req("/api/overview")[2]["analytics"]["estimated_mrr"], 40)        # ref's paid NBA + new's NFL; the free soccer month is not counted
+
+    def test_a_lapsed_referrer_gets_a_fresh_free_month_on_that_sport(self):
+        self.s.seed({"nba": [{"email": "ref@example.com", "added": iso(50)}]})                    # expired 20 days ago
+        self.s.req("/api/add", "POST", {"product": "cfb", "email": "new@example.com", "referred_by": "ref@example.com", "reward": "nba"})
+        nba = next(p for p in {r["email"]: r for r in self.s.req("/api/overview")[2]["subscribers"]}["ref@example.com"]["products"] if p["product"] == "nba")
+        self.assertEqual((nba["active"], nba["promo"], nba["days_left"]), (True, True, 30))
+
+    def test_invalid_referrals_are_refused_and_add_nobody(self):
+        self._seed_referrer()
+        bad = [({"referred_by": "stranger@example.com", "reward": "nba"}, "not a subscriber"),
+               ({"referred_by": "ref@example.com", "reward": "nba", "email": "ref@example.com"}, "cannot refer themselves"),
+               ({"referred_by": "ref@example.com", "reward": "bogus"}, "pick which sport"),
+               ({"referred_by": "not-an-email", "reward": "nba"}, "referrer's email")]
+        for extra, why in bad:
+            body = {"product": "cfb", "email": "new@example.com", **extra}
+            code, _, o = self.s.req("/api/add", "POST", body)
+            self.assertEqual(code, 400, why); self.assertIn(why, o["error"])
+        by = {r["email"] for r in self.s.req("/api/overview")[2]["subscribers"]}
+        self.assertEqual(by, {"ref@example.com"})                                                 # nobody was added, nobody rewarded
+        self.assertFalse([e for e in self.s.req("/api/overview")[2]["events"] if e["action"] == "referral"])
+
+    def test_an_existing_or_lapsed_subscriber_is_not_a_new_signup_and_one_reward_per_person(self):
+        self._seed_referrer(**{"nba": [{"email": "ref@example.com", "added": iso(10)}], "nfl": [{"email": "old@example.com", "added": iso(60)}]})
+        code, _, o = self.s.req("/api/add", "POST", {"product": "cfb", "email": "old@example.com", "referred_by": "ref@example.com", "reward": "nba"})
+        self.assertEqual(code, 400); self.assertIn("already on a list", o["error"])             # a lapsed customer coming back is not a referral
+        self.assertEqual(self.s.req("/api/add", "POST", {"product": "cfb", "email": "fresh@example.com", "referred_by": "ref@example.com", "reward": "nba"})[0], 200)
+        self.s.req("/api/remove", "POST", {"product": "cfb", "email": "fresh@example.com"})
+        s = json.loads(self.s.subs.read_text()); s["cfb"] = []; self.s.subs.write_text(json.dumps(s))   # even if they are cleared off every list and sign up again ...
+        code, _, o = self.s.req("/api/add", "POST", {"product": "cfb", "email": "fresh@example.com", "referred_by": "ref@example.com", "reward": "nba"})
+        self.assertEqual(code, 400); self.assertIn("already earned", o["error"])                  # ... they never earn a second reward
+
+    def test_a_multi_product_signup_rewards_once(self):
+        self._seed_referrer()
+        self.s.req("/api/add", "POST", {"product": "cfb", "email": "new@example.com", "referred_by": "ref@example.com", "reward": "nba"})
+        self.s.req("/api/add", "POST", {"product": "nfl", "email": "new@example.com"})              # the UI sends the referral on the first add only
+        refs = [e for e in self.s.req("/api/overview")[2]["events"] if e["action"] == "referral"]
+        self.assertEqual(len(refs), 1)
+
+    def test_the_revenue_history_treats_the_referral_month_as_free(self):
+        base = datetime.now(timezone.utc)
+        ev = [{"ts": (base - timedelta(days=20)).isoformat(), "action": "add", "product": "nba", "email": "r@x.com"},
+              {"ts": (base - timedelta(days=5)).isoformat(), "action": "referral", "product": "nba", "email": "r@x.com", "referred": "n@x.com", "extended": True}]
+        self.s.events.write_text(json.dumps(ev))
+        p = S._reconstruct_periods()[0][("r@x.com", "nba")][0]
+        self.assertEqual(p["end"], p["start"] + timedelta(days=60))                              # the period now runs 60 days ...
+        self.assertEqual((p["free_from"], p["free_until"]), (p["start"] + timedelta(days=30), p["start"] + timedelta(days=60)))      # ... and only the added month is free
+
+    # ── the referrer chooses their sport: the reward waits, they are emailed, the owner gives it when they reply ──────────────────────────────
+    def _pending(self):
+        return self.s.req("/api/overview")[2]["pending_referrals"]
+
+    def test_a_referral_without_a_sport_waits_and_emails_the_referrer(self):
+        self._seed_referrer()
+        self.s.notice.reset_mock()
+        code, _, o = self.s.req("/api/add", "POST", {"product": "cfb", "email": "New@Example.com", "referred_by": "REF@example.com"})
+        self.assertEqual(code, 200); self.assertIn("earned a free month", o["message"]); self.assertNotIn("NOT emailed", o["message"])
+        self.s.notice.assert_called_once_with("REF@example.com")                                  # the REFERRER is emailed (never the new person)
+        pend = self._pending()
+        self.assertEqual([(p["referrer"], p["referred"]) for p in pend], [("ref@example.com", "new@example.com")])
+        ov = self.s.req("/api/overview")[2]
+        by = {r["email"]: r for r in ov["subscribers"]}
+        self.assertEqual([p["product"] for p in by["new@example.com"]["products"]], ["cfb"])      # the new person is added normally
+        self.assertRegex(str([p["days_left"] for p in by["ref@example.com"]["products"]]), r"\[(19|20)\]")      # the referrer's access is unchanged until they choose
+        self.assertEqual(ov["analytics"]["referral_rewards_total"], 0)                            # nothing has been given yet
+        self.assertIn("referral_pending", [e["action"] for e in ov["events"]])
+        self.assertEqual(ov["analytics"]["estimated_mrr"], 40)                                    # a waiting reward never counts as revenue
+
+    def test_one_waiting_reward_per_new_person_and_a_failed_email_is_reported_not_fatal(self):
+        self._seed_referrer()
+        self.s.notice.side_effect = lambda e: (False, "could not start the referral email on GitHub (HTTP 404)")
+        try:
+            code, _, o = self.s.req("/api/add", "POST", {"product": "cfb", "email": "new@example.com", "referred_by": "ref@example.com"})
+            self.assertEqual(code, 200); self.assertIn("NOT emailed", o["message"]); self.assertIn("could not start", o["message"])
+            self.assertEqual(len(self._pending()), 1)                                             # the sign-up and the waiting reward stand; the owner is told to ask them by hand
+        finally:
+            self.s.notice.side_effect = lambda e: (True, "referral email queued")
+        code, _, o = self.s.req("/api/add", "POST", {"product": "nfl", "email": "new@example.com", "referred_by": "ref@example.com"})
+        self.assertEqual(code, 400)                                                              # (new@ is also on a list now) -- either way a second reward is refused
+        self.assertEqual(len(self._pending()), 1)
+
+    def test_giving_the_waiting_reward_once_the_referrer_replies(self):
+        self._seed_referrer()
+        self.s.req("/api/add", "POST", {"product": "cfb", "email": "new@example.com", "referred_by": "ref@example.com"})
+        bad = [({"referrer": "ref@example.com", "referred": "new@example.com", "reward": "bogus"}, "pick a sport"),
+               ({"referrer": "ref@example.com", "referred": "someone-else@example.com", "reward": "nba"}, "not waiting"),
+               ({"referrer": "other@example.com", "referred": "new@example.com", "reward": "nba"}, "not waiting")]
+        for body, why in bad:
+            code, _, o = self.s.req("/api/referral/grant", "POST", body)
+            self.assertEqual(code, 400, body); self.assertIn(why, o["error"])
+        self.assertEqual(len(self._pending()), 1)
+        code, _, o = self.s.req("/api/referral/grant", "POST", {"referrer": "REF@example.com", "referred": "new@example.com", "reward": "soccer"})
+        self.assertEqual(code, 200); self.assertIn("referral reward", o["message"])
+        self.assertEqual(self._pending(), [])
+        ov = self.s.req("/api/overview")[2]
+        ref = next(r for r in ov["subscribers"] if r["email"] == "ref@example.com")
+        self.assertEqual(sorted(p["product"] for p in ref["products"]), ["nba", "soccer"]); self.assertTrue(next(p for p in ref["products"] if p["product"] == "soccer")["promo"])
+        self.assertEqual(ov["analytics"]["referral_rewards_total"], 1)
+        self.assertEqual(self.s.req("/api/referral/grant", "POST", {"referrer": "ref@example.com", "referred": "new@example.com", "reward": "soccer"})[0], 400)      # never twice
+        self.assertEqual(self.s.req("/api/add", "POST", {"product": "nfl", "email": "new@example.com", "referred_by": "ref@example.com"})[0], 400)
+
+    def test_granting_to_a_sport_the_referrer_already_has_extends_it(self):
+        self._seed_referrer()
+        self.s.req("/api/add", "POST", {"product": "cfb", "email": "new@example.com", "referred_by": "ref@example.com"})
+        self.s.req("/api/referral/grant", "POST", {"referrer": "ref@example.com", "referred": "new@example.com", "reward": "nba"})
+        ref = next(r for r in self.s.req("/api/overview")[2]["subscribers"] if r["email"] == "ref@example.com")
+        self.assertRegex(str(ref["products"][0]["days_left"]), r"^(49|50)$")                     # 20 left + 30; still the paid entry
+        self.assertFalse(ref["products"][0]["promo"])
+
+    def test_the_referrer_email_names_the_criteria_and_never_the_friend(self):
+        subject, html = S.build_referral_notice_email()
+        self.assertIn("free month", subject)
+        for phrase in ("Reply to this email with the sport", "30 days free of any one sport", "NFL", "College Football", "NBA", "Hockey", "European Soccer"):
+            self.assertIn(phrase, html)
+        for rule in S.REFERRAL_CRITERIA:
+            self.assertIn(rule, html)
+        self.assertNotIn("@", html.replace("noreply", ""))                                       # no address of anyone ends up in the email
+        self.assertIn("brand-new subscriber", html); self.assertIn("already have that sport", html.lower())
+
+    def test_a_waiting_reward_does_not_disturb_revenue_history(self):
+        self._seed_referrer()
+        self.s.req("/api/add", "POST", {"product": "cfb", "email": "new@example.com", "referred_by": "ref@example.com"})
+        periods, _ = S._reconstruct_periods()
+        self.assertNotIn(("ref@example.com", ""), periods)                                       # the product-less event is skipped
+        self.assertEqual(S.analytics_summary()["referral_rewards_total"], 0)
+
+    def test_the_cli_waits_for_the_referrers_sport_then_grants_it(self):
+        import manage_subscribers as M
+        self._seed_referrer()
+        base = dict(send_receipt_email=mock.Mock(return_value=(True, "")), sync_subscribers_to_git=mock.Mock(return_value=(True, "synced")))
+        with mock.patch.object(sys, "argv", ["m", "add", "--referred-by", "ref@example.com", "cfb", "cli@example.com"]), mock.patch.multiple(M, send_referral_notice_email=mock.Mock(return_value=(True, "")), **base) as _:
+            M.main()
+        self.assertEqual([p["referrer"] for p in S.pending_referral_rewards()], ["ref@example.com"])
+        self.assertLess(abs(S._parse(json.loads(self.s.subs.read_text())["nba"][0]["added"]) - S._parse(iso(10))), timedelta(seconds=5))      # still unchanged
+        with mock.patch.object(sys, "argv", ["m", "grant-referral", "ref@example.com", "cli@example.com", "bogus"]), mock.patch.multiple(M, **base):
+            with self.assertRaises(SystemExit):
+                M.main()
+        with mock.patch.object(sys, "argv", ["m", "grant-referral", "ref@example.com", "cli@example.com", "nfl"]), mock.patch.multiple(M, **base):
+            M.main()
+        self.assertEqual(S.pending_referral_rewards(), [])
+        self.assertEqual([e["email"] for e in json.loads(self.s.subs.read_text())["nfl"]], ["ref@example.com"])
+
+    def test_the_landing_page_says_the_referrer_earns_it_and_lists_the_criteria(self):
+        page = ROOT.parent / "clairvoyance-landing" / "docs" / "index.html"
+        if not page.exists():
+            self.skipTest("landing repo not checked out here")
+        html = page.read_text()
+        for phrase in ("you</b> get 30 days free of any one sport", "must already be a Clairvoyance subscriber", "brand-new subscriber", "never on any of our lists before",
+                       "One free month for each new friend", "You choose the sport", "added after your current access ends", "Did a Clairvoyance subscriber refer you?", "referrer&rsquo;s email address"):
+            self.assertIn(phrase, html)
+        self.assertNotIn('placeholder="their email address"', html)                              # the ambiguous box wording is gone
+        self.assertIn("Referral note:", html)                                                    # the sign-up email carries the criteria too
+        self.assertIn("Referred by: ' + refBy", html)
+        for rule_start in ("You must already be a Clairvoyance subscriber", "brand-new subscriber"):     # the email and the page state the same rules
+            self.assertTrue(any(rule_start in c for c in S.REFERRAL_CRITERIA))
+
+    def test_the_cli_applies_a_referral(self):
+        import manage_subscribers as M
+        self._seed_referrer()
+        with mock.patch.object(sys, "argv", ["m", "add", "--referred-by", "ref@example.com", "--reward", "nba", "cfb", "cli@example.com"]), \
+                mock.patch.object(M, "send_receipt_email", return_value=(True, "")), mock.patch.object(M, "sync_subscribers_to_git", return_value=(True, "synced")):
+            M.main()
+        data = json.loads(self.s.subs.read_text())
+        self.assertEqual([e["email"] for e in data["cfb"]], ["cli@example.com"])
+        self.assertEqual(S._parse(data["nba"][0]["added"]) - S._parse(iso(10)) > timedelta(days=29), True)       # the referrer's NBA window moved out by a month
+        with mock.patch.object(sys, "argv", ["m", "add", "--referred-by", "ghost@example.com", "--reward", "nba", "cfb", "cli2@example.com"]), \
+                mock.patch.object(M, "send_receipt_email", return_value=(True, "")), mock.patch.object(M, "sync_subscribers_to_git", return_value=(True, "synced")):
+            with self.assertRaises(SystemExit):
+                M.main()
+        self.assertNotIn("cli2@example.com", [e["email"] for e in json.loads(self.s.subs.read_text())["cfb"]])
+
     def test_the_cli_marks_a_promo_month(self):
         import manage_subscribers as M
         with mock.patch.object(sys, "argv", ["m", "add", "--promo", "cfb", "cli@example.com"]), mock.patch.object(M, "send_receipt_email", return_value=(True, "")), \
@@ -227,6 +427,19 @@ class ReceiptDelivery(unittest.TestCase):
             self.assertEqual(A.deliver_receipt("a@b.com"), (True, "sent"))
         send.assert_called_once_with("a@b.com"); gh.assert_not_called()
 
+    def test_referral_notice_delivery_routes(self):
+        with mock.patch.object(A, "_gmail_ready", return_value=False), mock.patch.object(A, "sync_subscribers_to_git") as sy, mock.patch.object(A, "_run_gh", return_value=(True, "")) as gh:
+            ok, msg = A.deliver_referral_notice(" Ref@Example.com ")
+        self.assertTrue(ok); self.assertIn("queued", msg); sy.assert_not_called()                  # the note is the same for everyone: nothing to sync first
+        args = gh.call_args[0][0]
+        self.assertEqual(args[:3], ["workflow", "run", "send-receipt.yml"]); self.assertIn("email=ref@example.com", args); self.assertIn("kind=referral", args)
+        with mock.patch.object(A, "_gmail_ready", return_value=True), mock.patch.object(A, "send_referral_notice_email", return_value=(True, "sent")) as send, mock.patch.object(A, "_run_gh") as gh:
+            self.assertEqual(A.deliver_referral_notice("a@b.com"), (True, "sent"))
+        send.assert_called_once_with("a@b.com"); gh.assert_not_called()
+        for bad in ("", "nope", "a@b.com;rm -rf /", "<a@b.com>"):
+            with mock.patch.object(A, "_run_gh") as gh:
+                self.assertFalse(A.deliver_referral_notice(bad)[0], bad); gh.assert_not_called()
+
     def test_junk_addresses_never_reach_a_command(self):
         for bad in ("", "nope", "a b@c.com", "a@b.com;rm -rf /", "x@y", "<a@b.com>"):
             with mock.patch.object(A, "_run_gh") as gh:
@@ -252,8 +465,16 @@ class ReceiptDelivery(unittest.TestCase):
         self.assertIn("workflow_dispatch", wf); self.assertIn('RECEIPT_TO: ${{ inputs.email }}', wf); self.assertIn('--email "$RECEIPT_TO"', wf)
         self.assertNotIn('--email "${{', wf)                                             # never interpolated into the shell line
         self.assertIn("private-data", wf)
+        self.assertIn("kind:", wf); self.assertIn("RECEIPT_KIND: ${{ inputs.kind }}", wf); self.assertIn('--kind "${RECEIPT_KIND:-receipt}"', wf)      # referral note vs access receipt; empty means receipt
         import send_receipt as R
         self.assertFalse(R.EMAIL_RE.match("a@b.com;x")); self.assertTrue(R.EMAIL_RE.match("a@b.com"))
+        with mock.patch.object(R, "send_referral_notice_email", return_value=(True, "sent")) as note, mock.patch.object(R, "send_receipt_email", return_value=(True, "sent")) as rec, \
+                mock.patch.object(sys, "argv", ["send_receipt.py", "--email", "A@b.com", "--kind", "referral"]):
+            self.assertEqual(R.main(), 0)
+        note.assert_called_once_with("a@b.com"); rec.assert_not_called()
+        with mock.patch.object(R, "send_referral_notice_email") as note, mock.patch.object(R, "send_receipt_email", return_value=(True, "sent")) as rec, mock.patch.object(sys, "argv", ["send_receipt.py", "--email", "a@b.com"]):
+            self.assertEqual(R.main(), 0)
+        rec.assert_called_once_with("a@b.com"); note.assert_not_called()                          # default stays the access receipt
 
 
 class TabTests(unittest.TestCase):
@@ -353,6 +574,62 @@ class TabTests(unittest.TestCase):
         stats = pg.evaluate("[...document.querySelectorAll('#ml-subs .ml-stat')].map(e=>e.innerText.replace(/\\n/g,' '))")
         self.assertTrue(any("1 free / promo" in x for x in stats), stats)
         self.assertTrue(any(x.startswith("$50") for x in stats), stats)                        # seeded paid: sam on 2 lists ($30) + kim ($20); the free month adds nothing
+        pg.context.close()
+
+    def test_referring_a_friend_from_the_add_tab(self):
+        self.s.seed({"nba": [{"email": "ref@example.com", "added": iso(10)}]})
+        pg = self.page(); self.open_tab(pg)
+        pg.click("#sp-mail .sb2:has-text('ADD / RENEW')"); pg.wait_for_selector("#ml-email")
+        pg.fill("#ml-email", "newbie@client.com"); pg.click("#ml-add .ml-chip:has-text('COLLEGE FOOTBALL')")
+        self.assertEqual(pg.query_selector("#ml-refbox"), None)
+        pg.check("#ml-ref"); pg.wait_for_selector("#ml-refbox")
+        self.assertEqual(pg.input_value("#ml-email"), "newbie@client.com")
+        pg.check("#ml-promo"); pg.wait_for_timeout(150)                                           # the two options are exclusive
+        self.assertFalse(pg.is_checked("#ml-ref")); pg.check("#ml-ref"); pg.wait_for_selector("#ml-refbox"); self.assertFalse(pg.is_checked("#ml-promo"))
+        with mock.patch.object(A, "deliver_receipt", side_effect=lambda e: (True, "receipt queued")), mock.patch.object(A, "sync_subscribers_to_git", side_effect=lambda m: (True, "synced")) as sy:
+            pg.click("#ml-addbtn"); pg.wait_for_selector("#ml-msg")                               # no friend / sport yet
+            self.assertIn("who referred them", pg.inner_text("#ml-msg")); self.assertFalse(sy.called)
+            pg.fill("#ml-refby", "stranger@example.com"); pg.click("#ml-refbox .ml-chip:has-text('NBA')")
+            pg.click("#ml-addbtn"); pg.wait_for_function("document.querySelector('#ml-msg')&&/not a subscriber/.test(document.querySelector('#ml-msg').innerText)")
+            self.assertFalse(sy.called)                                                           # refused: nothing added, nothing synced
+            self.assertEqual(pg.input_value("#ml-email"), "newbie@client.com")                    # the form keeps what was typed so it can be fixed
+            pg.fill("#ml-refby", "ref@example.com")
+            pg.click("#ml-addbtn"); pg.wait_for_function("document.querySelector('#ml-msg')&&/referral reward/.test(document.querySelector('#ml-msg').innerText)")
+            self.assertIn("Referred sign-up", sy.call_args[0][0])
+        self.assertFalse(pg.is_checked("#ml-ref")); self.assertEqual(pg.input_value("#ml-email"), "")
+        pg.click("#sp-mail .sb2:has-text('SUBSCRIBERS')"); pg.wait_for_selector("#ml-subs .ml-sub[data-email='newbie@client.com']")
+        card = pg.inner_text("#ml-subs .ml-sub[data-email='ref@example.com']")
+        self.assertRegex(card, r"(49|50) days left")
+        pg.click("#sp-mail .sb2:has-text('ACTIVITY')"); pg.wait_for_selector("#ml-act table")
+        self.assertIn("REFERRAL REWARD", pg.inner_text("#ml-act")); self.assertIn("for referring newbie@client.com", pg.inner_text("#ml-act"))
+        pg.context.close()
+
+    def test_a_waiting_referral_reward_is_given_from_the_subscribers_tab(self):
+        self.s.seed({"nba": [{"email": "ref@example.com", "added": iso(10)}]})
+        self.s.events.write_text("[]")
+        pg = self.page(); self.open_tab(pg)
+        pg.click("#sp-mail .sb2:has-text('ADD / RENEW')"); pg.wait_for_selector("#ml-email")
+        pg.fill("#ml-email", "newbie@client.com"); pg.click("#ml-add .ml-chip:has-text('COLLEGE FOOTBALL')")
+        pg.check("#ml-ref"); pg.wait_for_selector("#ml-refbox")
+        self.assertIn("REFERRER", pg.inner_text("#ml-refbox")); self.assertIn("emailed to choose", pg.inner_text("#ml-refbox"))      # no sport picked: the referrer will be asked
+        pg.click("#ml-refbox .ml-chip:has-text('NBA')"); self.assertIn("right away", pg.inner_text("#ml-refbox"))
+        pg.click("#ml-refbox .ml-chip:has-text('NBA')"); self.assertIn("emailed to choose", pg.inner_text("#ml-refbox"))            # a second tap clears it
+        pg.fill("#ml-refby", "ref@example.com")
+        with mock.patch.object(A, "deliver_receipt", side_effect=lambda e: (True, "receipt queued")), mock.patch.object(A, "sync_subscribers_to_git", side_effect=lambda m: (True, "synced")):
+            pg.click("#ml-addbtn"); pg.wait_for_function("document.querySelector('#ml-msg')&&/earned a free month/.test(document.querySelector('#ml-msg').innerText)")
+        self.s.notice.assert_called_with("ref@example.com")
+        pg.click("#sp-mail .sb2:has-text('SUBSCRIBERS')"); pg.wait_for_selector("#ml-pending")
+        self.assertIn("ref@example.com", pg.inner_text("#ml-pending")); self.assertIn("newbie@client.com", pg.inner_text("#ml-pending"))
+        pg.click("#ml-pending .ml-btn.go"); pg.wait_for_selector("#ml-msg")
+        self.assertIn("Pick the sport", pg.inner_text("#ml-msg"))                                   # no sport chosen yet
+        pg.click("#ml-pending .ml-chip:has-text('HOCKEY')")
+        with mock.patch.object(A, "deliver_receipt", side_effect=lambda e: (True, "receipt queued")) as rc, mock.patch.object(A, "sync_subscribers_to_git", side_effect=lambda m: (True, "synced")) as sy:
+            pg.click("#ml-pending .ml-btn.go"); pg.wait_for_function("document.querySelector('#ml-msg')&&/Gave ref@example.com a free month/.test(document.querySelector('#ml-msg').innerText)")
+            rc.assert_called_with("ref@example.com"); self.assertIn("Referral reward", sy.call_args[0][0])
+        self.assertEqual(pg.query_selector("#ml-pending"), None)                                    # nothing left waiting
+        self.assertEqual(pg.evaluate("[...document.querySelectorAll('#ml-subs .ml-sub[data-email=\"ref@example.com\"] .ml-pill')].some(e=>/FREE MONTH/.test(e.innerText))"), True)
+        pg.click("#sp-mail .sb2:has-text('ACTIVITY')"); pg.wait_for_selector("#ml-act table")
+        self.assertIn("REFERRAL EARNED", pg.inner_text("#ml-act")); self.assertIn("REFERRAL REWARD", pg.inner_text("#ml-act"))
         pg.context.close()
 
     def test_a_failed_sync_is_reported_loudly(self):

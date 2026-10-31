@@ -37,7 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _subscribers import (
     PRODUCTS, add_subscriber, remove_subscriber, active_subscribers,
     products_for_email, analytics_summary, send_receipt_email, EXPIRY_DAYS,
-    sync_subscribers_to_git, load_subscribers, _load_events, _parse, _now, PRICING_BY_COUNT, OWNER_EMAIL,
+    sync_subscribers_to_git, load_subscribers, referral_problem, grant_referral_reward, log_pending_referral, pending_referral_rewards, pending_referral_problem, send_referral_notice_email, _load_events, _parse, _now, PRICING_BY_COUNT, OWNER_EMAIL,
 )
 
 # ── ENGINE APP "MAILING LIST" TAB (2026-10-25) ────────────────────────────────────────────────────────────────────────────────
@@ -87,6 +87,18 @@ def deliver_receipt(email: str) -> tuple[bool, str]:
     return (True, "receipt queued -- GitHub emails it within a minute or two") if ok else (False, f"could not start the receipt email on GitHub ({msg})")
 
 
+def deliver_referral_notice(email: str) -> tuple[bool, str]:
+    """Emails a referrer 'you have earned a free month -- reply with your sport'.  Same two routes as deliver_receipt (send directly with a Gmail password here, else dispatch the GitHub workflow), but
+    the note is the same for everyone, so there is nothing to sync first."""
+    email = (email or "").strip().lower()
+    if not _RECEIPT_EMAIL.match(email):
+        return False, "that is not a valid email address"
+    if _gmail_ready():
+        return send_referral_notice_email(email)
+    ok, msg = _run_gh(["workflow", "run", "send-receipt.yml", "-R", BACKEND_REPO, "-f", f"email={email}", "-f", "kind=referral"])
+    return (True, "referral email queued -- GitHub sends it within a minute or two") if ok else (False, f"could not start the referral email on GitHub ({msg})")
+
+
 PRODUCT_LABEL = {"nfl": "NFL", "cfb": "College Football", "nba": "NBA", "hockey": "Hockey (NHL + European)", "soccer": "European Soccer"}
 
 
@@ -128,7 +140,7 @@ def build_overview() -> dict:
     subs.sort(key=lambda r: (order[r["status"]], r["soonest_days_left"] if r["soonest_days_left"] is not None else 9999, r["email"]))
     events = list(reversed(_load_events()))[:60]
     return {"now": now.isoformat(), "expiry_days": EXPIRY_DAYS, "products": [{"key": p, "label": PRODUCT_LABEL.get(p, p)} for p in PRODUCTS],
-            "pricing": {str(k): v for k, v in PRICING_BY_COUNT.items()}, "owner": OWNER_EMAIL or None, "subscribers": subs, "events": events, "analytics": analytics_summary()}
+            "pricing": {str(k): v for k, v in PRICING_BY_COUNT.items()}, "owner": OWNER_EMAIL or None, "subscribers": subs, "events": events, "pending_referrals": pending_referral_rewards(), "analytics": analytics_summary()}
 
 PORT = 8899
 # TextLogo.png (the "CLAIRVOYANCE" wordmark on the diamond-grid brand
@@ -719,7 +731,32 @@ class Handler(BaseHTTPRequestHandler):
             if product not in PRODUCTS or not email:
                 self._json({"error": "invalid product/email"}, 400)
                 return
+            referred_by, reward = (body.get("referred_by") or "").strip(), body.get("reward") or None
+            if referred_by:
+                # a referred sign-up: refused (nothing added) unless the referral is valid, then the sign-up is added.  The REFERRER is rewarded: at once when a sport is given, otherwise the reward
+                # waits (shown in the tab) and the referrer is emailed to choose their sport -- see _subscribers.referral_problem()
+                problem = referral_problem(referred_by, email, reward)
+                if problem:
+                    self._json({"error": f"referral not applied -- {problem}"}, 400)
+                    return
+                message = add_subscriber(product, email)
+                if reward:
+                    message += " · " + grant_referral_reward(referred_by, email, reward)
+                else:
+                    log_pending_referral(referred_by, email)
+                    sent, why = deliver_referral_notice(referred_by)
+                    message += f" · {referred_by} earned a free month -- " + (why if sent else f"NOT emailed ({why}); ask them which sport they want, then grant it under REFERRAL REWARDS WAITING")
+                self._json({"ok": True, "message": message})
+                return
             self._json({"ok": True, "message": add_subscriber(product, email, promo=body.get("promo") is True)})
+        elif parsed.path == "/api/referral/grant":
+            # the referrer has told us their sport: give them the free month that was waiting
+            referrer, referred, sport = (body.get("referrer") or "").strip().lower(), (body.get("referred") or "").strip().lower(), body.get("reward")
+            problem = pending_referral_problem(referrer, referred, sport)
+            if problem:
+                self._json({"error": problem}, 400)
+                return
+            self._json({"ok": True, "message": grant_referral_reward(referrer, referred, sport)})
         elif parsed.path == "/api/remove":
             if product not in PRODUCTS or not email:
                 self._json({"error": "invalid product/email"}, 400)

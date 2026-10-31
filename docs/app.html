@@ -37446,26 +37446,47 @@ function _mlRenderSubs(){
     <label class="ml-dl" style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input type="checkbox" ${_ml.renewReceipt===false?'':'checked'} onchange="_ml.renewReceipt=this.checked"> Email a renewal receipt when I renew someone</label>
     <div class="ml-bar"><input class="ml-in" id="ml-q" type="search" placeholder="Search email" value="${_escHtml(_ml.q)}" oninput="_ml.q=this.value;mlRender();const i=document.getElementById('ml-q');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}"></div>
     ${syncMsg}
+    ${_mlPendingCard(d)}
     ${cards||`<div class="empty">${all.length?'NO SUBSCRIBERS MATCH THESE FILTERS':'NO SUBSCRIBERS YET — USE ADD / RENEW WHEN SOMEONE PAYS'}</div>`}
     <div class="ml-dl" style="margin-top:8px">${d.owner?'Your own address ('+_escHtml(d.owner.replace(/(.).*(@.*)/,'$1***$2'))+') always receives every list.':'Your own address always receives every list.'} A subscriber is emailed only while a list shows days left; an entry with 0 days stops receiving on its end date.</div>`;
+}
+// Free months earned (a referred friend joined) but not yet given: the referrer was emailed to choose a sport; pick it here when they reply and give it.
+function _mlPendingCard(d){
+  const pr=d.pending_referrals||[];if(!pr.length)return '';
+  const rows=pr.map((r,i)=>{const pick=(_ml.gp||{})[r.referred];return `<div class="ml-pend" style="padding:10px 0;border-top:1px solid var(--bdr,#2a2a3a)">
+    <div class="ml-dl"><b>${_escHtml(r.referrer)}</b> earned a free month for referring ${_escHtml(r.referred)} · ${_escHtml(_mlFmtTime(r.ts))}</div>
+    <div class="ml-bar">${d.products.map(p=>`<button class="ml-chip${pick===p.key?' on':''}" aria-pressed="${pick===p.key}" onclick="_ml.gp=_ml.gp||{};_ml.gp[_ml.data.pending_referrals[${i}].referred]='${p.key}';mlRender()">${_escHtml(p.label.toUpperCase())}</button>`).join('')}
+    <button class="ml-btn go" onclick="mlGrant(${i})" ${_ml.busy?'disabled':''}>GIVE FREE MONTH</button></div></div>`;}).join('');
+  return `<div class="ml-card" id="ml-pending"><div class="ml-ct">REFERRAL REWARDS WAITING (${pr.length})</div><div class="ml-dl">Each of these referrers was emailed to choose a sport. When they reply, pick it and give the month.</div>${rows}</div>`;
+}
+async function mlGrant(i){
+  const r=((_ml.data||{}).pending_referrals||[])[i];if(!r)return;
+  const sport=(_ml.gp||{})[r.referred];
+  if(!sport){_ml.msg={ok:false,text:'Pick the sport '+r.referrer+' asked for first.'};mlRender();return;}
+  await _mlDo('Gave '+r.referrer+' a free month',async out=>{const j=await mlFetch('/api/referral/grant',{method:'POST',body:JSON.stringify({referrer:r.referrer,referred:r.referred,reward:sport})});out.push(j.message);},`Referral reward: ${r.referrer} gets ${sport}`,out=>_mlRenewReceipt(r.referrer,out));
 }
 function _mlRenderAdd(){
   const d=_ml.data,el=document.getElementById('ml-add');if(!el)return;
   const chips=d.products.map(p=>`<button class="ml-chip${_ml.sel[p.key]?' on':''}" aria-pressed="${!!_ml.sel[p.key]}" onclick="_ml.sel['${p.key}']=!_ml.sel['${p.key}'];_mlRenderAdd()">${_escHtml(p.label.toUpperCase())}</button>`).join('');
   const n=Object.values(_ml.sel).filter(Boolean).length;
-  const promo=!!_ml.promo;
+  const promo=!!_ml.promo,ref=!!_ml.ref;
   const price=n?(promo?`${n} list${n===1?'':'s'} · FREE (no charge, not counted as revenue)`:`$${d.pricing[Math.min(n,5)]||'?'} for ${n} list${n===1?'':'s'} (standard pricing)`):(promo?'pick the lists to give them for free':'pick the lists they paid for');
   const msg=_ml.msg?`<div class="ml-msg ${_ml.msg.ok?'ok':'err'}" id="ml-msg">${_escHtml(_ml.msg.text)}</div>`:'';
   el.innerHTML=`<div class="ml-top"><div><div class="ml-h">ADD / RENEW</div><div class="ml-hs">WHEN SOMEONE PAYS (VENMO): ADD THEM HERE</div></div></div>
   <div class="ml-card"><div class="ml-ct">SUBSCRIBER</div>
     <div class="ml-bar"><input class="ml-in" id="ml-email" type="email" autocomplete="off" placeholder="their@email.com" value="${_escHtml(_ml.email||'')}" oninput="_ml.email=this.value"></div>
     <div class="ml-ct" style="margin-top:12px">${promo?'LISTS TO GIVE FOR FREE':'LISTS THEY PAID FOR'}</div><div class="ml-bar">${chips}</div><div class="ml-dl">${price}</div>
-    <label class="ml-dl ml-promo-opt" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="ml-promo" ${promo?'checked':''} onchange="_ml.promo=this.checked;_mlRenderAdd()"> Free / promo month (no payment · marked FREE · not counted as revenue)</label>
+    <label class="ml-dl ml-promo-opt" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="ml-promo" ${promo?'checked':''} onchange="_ml.promo=this.checked;if(this.checked)_ml.ref=false;_mlRenderAdd()"> Free / promo month (no payment · marked FREE · not counted as revenue)</label>
+    <label class="ml-dl ml-ref-opt" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="ml-ref" ${ref?'checked':''} onchange="_ml.ref=this.checked;if(this.checked)_ml.promo=false;_mlRenderAdd()"> Referred by an existing subscriber (the person who referred them earns a free month)</label>
+    ${ref?`<div class="ml-card" id="ml-refbox" style="margin:10px 0 0"><div class="ml-ct">REFERRER — THE ONE WHO EARNS THE FREE MONTH</div>
+      <div class="ml-bar"><input class="ml-in" id="ml-refby" type="email" autocomplete="off" placeholder="referrer@email.com (an existing subscriber)" value="${_escHtml(_ml.refBy||'')}" oninput="_ml.refBy=this.value"></div>
+      <div class="ml-ct" style="margin-top:10px">SPORT THE REFERRER PICKED (OPTIONAL)</div><div class="ml-bar">${d.products.map(p=>`<button class="ml-chip${_ml.refReward===p.key?' on':''}" aria-pressed="${_ml.refReward===p.key}" onclick="_ml.refReward=_ml.refReward==='${p.key}'?'':'${p.key}';_mlRenderAdd()">${_escHtml(p.label.toUpperCase())}</button>`).join('')}</div>
+      <div class="ml-dl">${_ml.refReward?'The referrer gets their free month of this sport right away.':'Nothing picked: the referrer is emailed to choose their sport, and their free month waits under REFERRAL REWARDS WAITING (SUBSCRIBERS tab) until you give it.'} If the referrer already has the sport, 30 days are added after their current end date; otherwise it starts today as a free month. The new sign-up must not be on any list already, and each new sign-up earns one reward.</div></div>`:''}
     <label class="ml-dl" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="ml-receipt" ${_ml.receipt===false?'':'checked'} onchange="_ml.receipt=this.checked"> Email them a receipt of what is now active</label>
     <div style="margin-top:12px"><button class="ml-btn go" id="ml-addbtn" onclick="mlAddSubmit()" ${_ml.busy?'disabled':''}>${promo?'GIVE A FREE MONTH — 30 DAYS FROM TODAY':'ADD / RENEW — START 30 DAYS FROM TODAY'}</button></div>
     ${msg}</div>
   <div class="ml-card"><div class="ml-ct">HOW IT WORKS</div><div class="ml-msg">Adding starts a 30-day window today on each list; adding someone already on a list renews it (resets to 30 days). The change is saved to the private list and synced to GitHub so the next lock email includes them. The receipt is emailed from GitHub (it queues, then arrives within a minute or two).
-  A free / promo month works the same way (they are emailed every pick) but is marked FREE and left out of every revenue figure; pressing RENEW AS PAID on it later turns it into a normal paid month.
+  A referral: when the new person's sign-up email says who referred them, tick "Referred by an existing subscriber" and enter the REFERRER's email. The referrer (not the new person) earns one free month: pick their sport now if they already told you, or leave it blank and they are emailed to choose -- then give it from REFERRAL REWARDS WAITING. A free / promo month works the same way (they are emailed every pick) but is marked FREE and left out of every revenue figure; pressing RENEW AS PAID on it later turns it into a normal paid month.
   Nothing here is automatic: the website sign-up is a pre-written email and the payment is a Venmo, so the engine only learns about a new subscriber when you add them here.</div></div>`;
 }
 function _mlRenderAna(){
@@ -37479,7 +37500,7 @@ function _mlRenderAna(){
   const w=(x)=>`${x.add} new · ${x.renew} renewed · ${x.remove} removed`;
   const soon=(a.expiring_soon||[]).map(r=>`<tr><td>${_escHtml(r.email)}</td><td>${_escHtml(r.product)}</td><td>${r.days_left}</td></tr>`).join('');
   el.innerHTML=`<div class="ml-top"><div><div class="ml-h">ANALYTICS</div><div class="ml-hs">${a.events_since?'ACTIVITY TRACKED SINCE '+_escHtml(_mlMtDate(a.events_since)):'NO ACTIVITY TRACKED YET'} · REVENUE IS AN ESTIMATE FROM STANDARD PRICING</div></div></div>
-  <div class="ml-stats">${stat(a.active_emails,'Active subscribers')}${stat(a.active_subscriptions,'List memberships',a.promo_memberships?a.promo_memberships+' free / promo':'')}${stat('$'+a.estimated_mrr,'Est. 30-day revenue',a.promo_memberships?'free months not counted':'')}
+  <div class="ml-stats">${stat(a.active_emails,'Active subscribers')}${stat(a.active_subscriptions,'List memberships',a.promo_memberships?a.promo_memberships+' free / promo':'')}${stat(a.referral_rewards_30d||0,'Referral rewards (30d)',(a.referral_rewards_total||0)+' all time')}${stat('$'+a.estimated_mrr,'Est. 30-day revenue',a.promo_memberships?'free months not counted':'')}
     ${stat(a.renewal_rate_30d==null?'—':a.renewal_rate_30d+'%','Renewal rate (30d)','renewals ÷ (renewals + removals)')}${stat(ad.pct_multi==null?'—':ad.pct_multi+'%','On 2+ lists',ad.multi_product_emails+' of '+ad.active_emails)}
     ${stat(lt.avg_cycles==null?'—':lt.avg_cycles,'Avg lifetime (30-day cycles)',lt.sample_size?lt.sample_size+' ended':'none ended yet')}${stat(ttr.avg_days_before_expiry==null?'—':(ttr.avg_days_before_expiry>=0?ttr.avg_days_before_expiry+'d early':Math.abs(ttr.avg_days_before_expiry)+'d late'),'Renews vs expiry',ttr.sample_size?ttr.on_time_count+' on time · '+ttr.late_count+' late':'no renewals yet')}</div>
   <div class="ml-card"><div class="ml-ct">LAST 7 / 30 DAYS</div><div class="ml-msg">7 days: ${w(a.window_7d)}<br>30 days: ${w(a.window_30d)}</div></div>
@@ -37490,7 +37511,7 @@ function _mlRenderAna(){
 }
 function _mlRenderAct(){
   const d=_ml.data,el=document.getElementById('ml-act');if(!el)return;
-  const rows=d.events.map(e=>`<tr><td>${_escHtml(_mlFmtTime(e.ts))}</td><td>${_escHtml(String(e.action||'').toUpperCase())}${e.promo?' · FREE':''}</td><td>${_escHtml((d.products.find(p=>p.key===e.product)||{}).label||e.product)}</td><td>${_escHtml(e.email)}</td></tr>`).join('');
+  const rows=d.events.map(e=>`<tr><td>${_escHtml(_mlFmtTime(e.ts))}</td><td>${e.action==='referral'?'REFERRAL REWARD':e.action==='referral_pending'?'REFERRAL EARNED':_escHtml(String(e.action||'').toUpperCase())}${e.promo?' · FREE':''}</td><td>${_escHtml((d.products.find(p=>p.key===e.product)||{}).label||e.product)}</td><td>${_escHtml(e.email)}${e.action==='referral'||e.action==='referral_pending'?`<div class="ml-dl">for referring ${_escHtml(e.referred||'')}${e.action==='referral_pending'?' · waiting for their sport':''}</div>`:''}</td></tr>`).join('');
   el.innerHTML=`<div class="ml-top"><div><div class="ml-h">ACTIVITY</div><div class="ml-hs">EVERY ADD, RENEWAL AND REMOVAL · NEWEST FIRST</div></div></div>
   <div class="ml-card">${rows?`<div class="ml-tw"><table class="ml-t"><tr><th>WHEN</th><th>ACTION</th><th>LIST</th><th>EMAIL</th></tr>${rows}</table></div>`:'<div class="empty">NO ACTIVITY YET</div>'}</div>`;
 }
@@ -37509,14 +37530,19 @@ async function _mlDo(label,work,syncMsg,after){
 }
 async function mlAddSubmit(){
   const email=(document.getElementById('ml-email')?.value||'').trim(),receipt=!!document.getElementById('ml-receipt')?.checked,promo=!!document.getElementById('ml-promo')?.checked;
+  const ref=!!document.getElementById('ml-ref')?.checked,refBy=(document.getElementById('ml-refby')?.value||'').trim(),refReward=_ml.refReward||'';
   const picks=Object.keys(_ml.sel).filter(k=>_ml.sel[k]);
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!picks.length){_ml.msg={ok:false,text:'Enter a valid email and pick at least one list.'};_mlRenderAdd();return;}
+  if(ref&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(refBy)){_ml.msg={ok:false,text:'For a referral, enter the email of the subscriber who referred them.'};_mlRenderAdd();return;}
   await _mlDo((promo?'Gave a free month to ':'Added ')+email,async out=>{
-    for(const p of picks){const j=await mlFetch('/api/add',{method:'POST',body:JSON.stringify(promo?{product:p,email,promo:true}:{product:p,email})});out.push(j.message);}
-  },`${promo?'Free month: add':'Add'} ${email} to ${picks.join(', ')}`,async out=>{
+    for(const [i,p] of picks.entries()){
+      const body=promo?{product:p,email,promo:true}:(ref&&i===0)?{product:p,email,referred_by:refBy,reward:refReward||undefined}:{product:p,email};     // the referral rides on the FIRST add only (the person must still be new when it is checked)
+      const j=await mlFetch('/api/add',{method:'POST',body:JSON.stringify(body)});out.push(j.message);
+    }
+  },`${promo?'Free month: add':ref?'Referred sign-up: add':'Add'} ${email} to ${picks.join(', ')}`,async out=>{
     if(receipt){const r=await mlFetch('/api/receipt',{method:'POST',body:JSON.stringify({email})});out.push(r.ok?r.message:'receipt not sent ('+r.message+')');}     // after the sync: the receipt is sent from GitHub, which reads the synced list
   });
-  if(_ml.msg&&_ml.msg.ok){_ml.sel={};_ml.email='';_ml.promo=false;mlRender();}      // clear the form (chips, email, the free-month box) without waiting for the next refresh
+  if(_ml.msg&&_ml.msg.ok){_ml.sel={};_ml.email='';_ml.promo=false;_ml.ref=false;_ml.refBy='';_ml.refReward='';mlRender();}      // clear the form (chips, email, the free-month box) without waiting for the next refresh
 }
 // A renewal emails the subscriber a RENEWAL receipt (after the sync: it is sent from GitHub, which reads the synced list) unless the "email a receipt when I renew" box on the SUBSCRIBERS tab is off.
 async function _mlRenewReceipt(email,out){
