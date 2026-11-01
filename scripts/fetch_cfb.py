@@ -12,6 +12,7 @@ real conference.
 from __future__ import annotations
 
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -48,19 +49,14 @@ WWW_HEADERS = {
                     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
 }
 
-# The 11 conferences this engine tracks, keyed by ESPN's own group id.
-# Conference USA (12) and Sun Belt (167) were missing entirely until this
-# was caught during a coverage audit -- confirmed by resolving real 2026
-# member teams' own groups.id field directly (verified against 3 real
-# C-USA teams for 12; 2 real Sun Belt teams for 167). ESPN's old
-# .../standings?group=80 children-listing endpoint this comment used to
-# cite no longer returns that shape (verified directly -- it now just
-# returns a fullViewLink), hence resolving via real member teams instead.
-# Note Sun Belt's own group id (167) is NOT its groups.parent.id (37) --
-# 37 returned zero teams when tried first; ESPN marks 167 isConference:
-# False despite it being the correct, consistently-used id for every
-# actual Sun Belt team checked.
-TARGET_CONFERENCES = {
+# The 11 conferences this engine tracks, keyed by ESPN's own group id. MEMBERSHIP comes from ESPN's core API group listing
+# (.../seasons/{year}/types/2/groups/{id}/teams), which lists every member of a conference directly.
+# 2026-11-01 (why this is not the old per-team `groups.id` lookup any more): ESPN changed what a team's own detail record reports. All 14
+# American teams now say group 80 (generic "FBS", isConference False) instead of 151, and all 14 Sun Belt teams say 37 instead of 167/168, so the
+# per-team resolution found nobody for those two conferences and the monthly refresh committed an EMPTY American and Sun Belt (CFB lock
+# eligibility and the CFB games tab both read this file). The group listing still returns the full rosters (American 151 -> 14, Sun Belt 37 -> 14;
+# 167 / 168 are only its two divisions and list 7 each), so it is the source now, and run() refuses to overwrite a roster that collapses.
+MEMBER_GROUPS = {
     "151": "American",
     "1":   "ACC",
     "4":   "Big 12",
@@ -71,15 +67,11 @@ TARGET_CONFERENCES = {
     "17":  "Mountain West",
     "9":   "Pac-12",
     "8":   "SEC",
-    "167": "Sun Belt",
-    "168": "Sun Belt",  # Sun Belt actually has 2 sub-group ids (divisions),
-                         # both parented under 37 -- confirmed via real
-                         # members on each (James Madison/Marshall -> 167,
-                         # Arkansas State/Troy -> 168). Both map to the
-                         # same conference name; roster building already
-                         # groups by resolved name, not by raw id, so this
-                         # just needs the second id present as a key.
+    "37":  "Sun Belt",
 }
+CORE_BASE = "https://sports.core.api.espn.com/v2/sports/football/leagues/college-football"
+# A refresh that would leave a conference with fewer than this share of its previous teams (or empty) is refused -- membership moves by a team or two a year, never by a quarter.
+ROSTER_MIN_KEEP = 0.75
 
 
 def _log(msg: str) -> None:
@@ -134,40 +126,92 @@ def fetch_team_conference(team_id: str) -> dict | None:
         return None
 
 
-def build_roster() -> dict:
-    all_teams = fetch_all_team_ids()
-    _log(f"{len(all_teams)} total teams found (all divisions) — resolving conference for each…")
+def fetch_group_member_ids(group_id: str, season: int | None = None) -> list[str]:
+    """Team ids of every member of an ESPN college-football group (a conference), via the core API group listing. [] on any failure."""
+    season = season or football_season_year("cfb")
+    ids: list[str] = []
+    page = 1
+    try:
+        while True:
+            r = requests.get(f"{CORE_BASE}/seasons/{season}/types/2/groups/{group_id}/teams", params={"limit": 100, "page": page}, headers=HEADERS, timeout=15)
+            r.raise_for_status()
+            d = r.json()
+            for it in d.get("items") or []:
+                m = re.search(r"/teams/(\d+)", str(it.get("$ref") or ""))
+                if m:
+                    ids.append(m.group(1))
+            if page >= int(d.get("pageCount") or 1):
+                return ids
+            page += 1
+    except Exception as e:  # noqa: BLE001
+        _log(f"  group {group_id} member list FAILED: {e}")
+        return []
 
-    roster: dict[str, list[dict]] = {name: [] for name in TARGET_CONFERENCES.values()}
-    checked = 0
-    for t in all_teams:
-        tid = t.get("id")
-        if not tid:
+
+def load_previous_roster() -> dict:
+    """The roster currently on disk ({conference: [team dicts]}), {} when there is none or it is unreadable."""
+    try:
+        return json.loads(OUT_PATH.read_text()).get("conferences") or {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def build_roster(previous: dict | None = None) -> dict:
+    """{conference name: [{id, abbr, name, venueCapacity, venueName, venueIndoor}]} for the tracked conferences.
+    Members come from ESPN's group listing; each member's name / abbreviation / venue from its own detail record (one call per member, ~145 calls).
+    A conference whose listing comes back empty keeps its previous roster (logged), so a flaky ESPN answer cannot empty it."""
+    previous = load_previous_roster() if previous is None else previous
+    season = football_season_year("cfb")
+    roster: dict[str, list[dict]] = {name: [] for name in MEMBER_GROUPS.values()}
+    for gid, conf in MEMBER_GROUPS.items():
+        ids = fetch_group_member_ids(gid, season)
+        if not ids:
+            if previous.get(conf):
+                _log(f"  {conf}: member list empty -- keeping the previous roster ({len(previous[conf])} teams)")
+                roster[conf] = list(previous[conf])
+            else:
+                _log(f"  {conf}: member list empty and no previous roster")
             continue
-        info = fetch_team_conference(tid)
-        checked += 1
-        if checked % 25 == 0:
-            _log(f"  …{checked}/{len(all_teams)} checked")
-        if not info or not info.get("confId"):
-            time.sleep(0.15)
-            continue
-        conf_name = TARGET_CONFERENCES.get(str(info["confId"]))
-        if conf_name:
-            roster[conf_name].append({
+        old = {str(t.get("id")): t for t in previous.get(conf) or []}
+        for tid in ids:
+            info = fetch_team_conference(tid)
+            if not info:                                   # detail call failed: fall back to what the old roster knew about this team, else just the id
+                t = old.get(str(tid)) or {"id": tid, "abbr": None, "name": None}
+                if t.get("abbr"):
+                    roster[conf].append(t)
+                time.sleep(0.15)
+                continue
+            roster[conf].append({
                 "id": info["id"], "abbr": info["abbr"], "name": info["name"],
                 "venueCapacity": info.get("venueCapacity"),
                 "venueName": info.get("venueName"),
                 "venueIndoor": info.get("venueIndoor"),
             })
-        time.sleep(0.15)
-
+            time.sleep(0.15)
     for conf, teams in roster.items():
         _log(f"  {conf}: {len(teams)} teams")
     return roster
 
 
+def roster_problems(new: dict, previous: dict, min_keep: float = ROSTER_MIN_KEEP) -> list[str]:
+    """Why `new` must not replace `previous`: a conference (or the whole roster) emptied or shrunk below `min_keep` of what it had. [] = safe to write."""
+    out = []
+    for conf, old in (previous or {}).items():
+        if not old:
+            continue
+        n = len(new.get(conf) or [])
+        if n == 0 or (len(old) >= 5 and n < min_keep * len(old)):
+            out.append(f"{conf}: {len(old)} -> {n} teams")
+    return out
+
+
 def run() -> dict:
-    roster = build_roster()
+    previous = load_previous_roster()
+    roster = build_roster(previous)
+    problems = roster_problems(roster, previous)
+    if problems:
+        # Loud on purpose: the workflow fails, the old roster stays, and nothing downstream (CFB lock eligibility, the games tab) loses a conference.
+        raise RuntimeError("refusing to overwrite docs/cfb_teams.json -- roster collapsed: " + "; ".join(problems))
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps({
         "generated_at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),

@@ -52,6 +52,11 @@ def load(sport_json: Path = SPORT_JSON, engine_json: Path = ENGINE_JSON) -> dict
             if name is None:
                 raise ValueError(f"unexpected league in {key}: {row['lbl']!r} (not a covered league)")
             leagues.setdefault(name, {})[out] = _rec(int(row["w"]), int(row["l"]), int(row["n"]))
+    # A covered league with no settled pick yet in a period (every league on the 1st of a month, a league that has not played this month) is a 0-0 record, never a missing key.
+    for name in ac.ALL_LEAGUES:
+        slot = leagues.setdefault(name, {})
+        slot.setdefault("month", _rec(0, 0, 0))
+        slot.setdefault("all", _rec(0, 0, 0))
     periods = {p["key"]: p for p in eng["periods"]}
     overall = {"month": _rec(int(periods["THIS_MONTH"]["w"]), int(periods["THIS_MONTH"]["l"]), int(periods["THIS_MONTH"]["n"])),
                "all": _rec(int(periods["ALL_TIME"]["w"]), int(periods["ALL_TIME"]["l"]), int(periods["ALL_TIME"]["n"]))}

@@ -118,7 +118,7 @@ class Ui(unittest.TestCase):
           const w=document.getElementById('cfb-filter-week');w.value=week;
           document.getElementById('cfb-filter-conf').value='all';window._cfbTop25Only=false;
           renderCFBGames();
-          return document.querySelectorAll('#cfb-games-list > .gc').length}""", week)
+          return document.querySelectorAll('#cfb-games-list > *').length}""", week)   # every listed game is one child: a game against an FCS team (no model data, e.g. WAKE vs Merrimack) renders as a plain .card, not a .gc
         self.assertEqual(got, want)
         opts = self.pg.evaluate("[...document.querySelectorAll('#cfb-filter-conf option')].map(o=>o.textContent)")
         self.assertNotIn("MAC", opts)
