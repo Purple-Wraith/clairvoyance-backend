@@ -116983,6 +116983,70 @@
     "lockTiming": "pre"
   },
   {
+    "id": "2026-11-01_ANA_OTT_NHL_OTT+1.5",
+    "date": "2026-11-01",
+    "hA": "ANA",
+    "awA": "OTT",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "OTT +1.5",
+    "winProb": 0.7093598577876643,
+    "ml": "-278",
+    "decOdds": 1.36,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534330124,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OTT +1.5 \u2014 HIGH PROB (70.9% win prob, EV -3.5% \u00b7 MARKET PRICE -278 (EV at market -3.5%) \u00b7 MARKET-BLENDED: model 72.7% \u00b7 no-vig market 70.2% \u2192 70.9% (alpha 0.70))\nMODEL: Projected 3.5\u20133.2 (total 6.7) (OT/SO in 16% of outcomes) \u2014 underdog covers +1.5 in 72.7% of outcomes (incl. late-game empty-net margin calibration), from an exact Poisson distribution (not a simulation).\nWHY: Best market: OTT +1.5 graded HIGH PROB (70.9%, EV -3.5%). Dog covers +1.5 in 70.9% of sims (proj 3.2\u20133.5). GSAx: +0.2 vs +8.3 (injury adj: ANA: Troy Terry RW OUT, Pavel Mintyukov D OUT, Ryan Poehling C OUT -> scoring -5.6% | OTT: William Eklund LW OUT -> scoring -2.3%; Linus Ullmark G OUT -> goalie rating set to league average) keeps this within a goal. MC 46% / xGF 50% / hv -5.1pp / ST +4.2pp / SQ -1.6pp \u00b7 ML market blend (alpha 0.75): model 57.0% \u00b7 no-vig market 48.0% \u2192 50.2%; Puck line market blend (alpha 0.70): model 27.3% \u00b7 no-vig market 29.8% \u2192 29.1%; O/U market blend (alpha 0.65): model 52.3% \u00b7 no-vig market 54.5% \u2192 53.8%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.7267,
+    "marketProb": 0.7018,
+    "blendAlpha": 0.7,
+    "startMs": 1793581200000,
+    "leadMin": 781,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_ANA_OTT_NHL_UNDER7.5",
+    "date": "2026-11-01",
+    "hA": "ANA",
+    "awA": "OTT",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 7.5",
+    "winProb": 0.7042,
+    "ml": "-299",
+    "decOdds": 1.335,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534330578,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (70.4% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 46.2%; the 1-goal cushion is priced from the historical margin curve for this market (about 70% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 6.5,
+      "line": 7.5,
+      "shift": 1,
+      "postedLabel": "UNDER 6.5",
+      "postedProb": 0.4624132055589806,
+      "postedDec": 2.1,
+      "postedMl": "+110",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793581200000,
+    "leadMin": 781,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Athletic Club",
     "id": "2026-11-01_Athletic Club_Real Sociedad_LIGA_AthleticClub+1.5",
     "ml": "-408",
@@ -117099,6 +117163,217 @@
         "home": 0.9791921664626682
       }
     }
+  },
+  {
+    "id": "2026-11-01_BUF_BAL_NFL_BUF+3.5",
+    "date": "2026-11-01",
+    "hA": "BUF",
+    "awA": "BAL",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "SPREAD",
+    "betOn": "BUF +3.5",
+    "winProb": 0.6862,
+    "ml": "-272",
+    "decOdds": 1.368,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534308675,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: BUF +3.5 \u2014 ADJUSTED LINE (68.6% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted BUF -3.0 to BUF +3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.4%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin -3.8 (BUF), total 54.5, from an exact normal distribution (not a simulation).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -3,
+      "line": 3.5,
+      "shift": 6.5,
+      "postedLabel": "BUF -3.0",
+      "postedProb": 0.5236272634339874,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "modelProb": 0.6772,
+    "marketProb": 0.5,
+    "blendAlpha": 0.871,
+    "startMs": 1793556000000,
+    "leadMin": 362,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_BUF_BAL_NFL_OVER48.5",
+    "date": "2026-11-01",
+    "hA": "BUF",
+    "awA": "BAL",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "OU",
+    "betOn": "OVER 48.5",
+    "winProb": 0.6778,
+    "ml": "-261",
+    "decOdds": 1.384,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534308920,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 48.5 \u2014 ADJUSTED LINE (67.8% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted OVER 54.5 to OVER 48.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.0%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 54.5,
+      "line": 48.5,
+      "shift": 6,
+      "postedLabel": "OVER 54.5",
+      "postedProb": 0.5000000014786983,
+      "postedDec": 1.909,
+      "postedMl": "-110",
+      "bestTotal": true,
+      "product": true
+    },
+    "startMs": 1793556000000,
+    "leadMin": 362,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_CAR_WPG_NHL_CARML",
+    "date": "2026-11-01",
+    "hA": "CAR",
+    "awA": "WPG",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "ML",
+    "betOn": "CAR ML",
+    "winProb": 0.7791870863455646,
+    "ml": "-282",
+    "decOdds": 1.355,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534327044,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: CAR ML \u2014 PREMIUM (77.9% win prob, EV +5.6% \u00b7 MARKET PRICE -282 (EV at market +5.6%) \u00b7 MARKET-BLENDED: model 92.0% \u00b7 no-vig market 70.4% \u2192 77.9% (alpha 0.75))\nMODEL: Projected 1.7\u20134.7 (total 6.5) (OT/SO in 8% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Best market: CAR ML graded PREMIUM (77.9%, EV +5.6%). GSAx: +6.2 vs +3.8 (injury adj: CAR: Taylor Hall LW OUT, Alexander Nikishin D OUT, Jordan Staal C OUT -> scoring -3.9% | WPG: Josh Morrissey D OUT -> scoring -3.5%) favors CAR. MC 88% / xGF 50% / hv +10.6pp / ST +6.9pp / SQ +2.9pp \u00b7 ML market blend (alpha 0.75): model 92.0% \u00b7 no-vig market 70.4% \u2192 77.9%; Puck line market blend (alpha 0.70): model 75.7% \u00b7 no-vig market 48.8% \u2192 57.7%; O/U market blend (alpha 0.65): model 48.0% \u00b7 no-vig market 45.3% \u2192 46.2%. Full-unit play \u00b7 Also: CAR -1.5 (LEAN).",
+    "priceSource": "market",
+    "modelProb": 0.92,
+    "marketProb": 0.7041,
+    "blendAlpha": 0.75,
+    "startMs": 1793556000000,
+    "leadMin": 361,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_CAR_WPG_NHL_UNDER7.5",
+    "date": "2026-11-01",
+    "hA": "CAR",
+    "awA": "WPG",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 7.5",
+    "winProb": 0.7418,
+    "ml": "-369",
+    "decOdds": 1.271,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534327234,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (74.2% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.8%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 6.5,
+      "line": 7.5,
+      "shift": 1,
+      "postedLabel": "UNDER 6.5",
+      "postedProb": 0.5376112268609825,
+      "postedDec": 1.74,
+      "postedMl": "-135",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793556000000,
+    "leadMin": 361,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_CIN_TEN_NFL_CIN-6.5",
+    "date": "2026-11-01",
+    "hA": "CIN",
+    "awA": "TEN",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "SPREAD",
+    "betOn": "CIN -6.5",
+    "winProb": 0.6728,
+    "ml": "-254",
+    "decOdds": 1.393,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534309478,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: CIN -6.5 \u2014 ADJUSTED LINE (67.3% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted CIN -12.5 to CIN -6.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.1%; the 6-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected margin -13.2 (CIN), total 46.4, from an exact normal distribution (not a simulation).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -12.5,
+      "line": -6.5,
+      "shift": 6,
+      "postedLabel": "CIN -12.5",
+      "postedProb": 0.52067669730648,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "modelProb": 0.666,
+    "marketProb": 0.5,
+    "blendAlpha": 0.871,
+    "startMs": 1793556000000,
+    "leadMin": 362,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_CIN_TEN_NFL_UNDER52.5",
+    "date": "2026-11-01",
+    "hA": "CIN",
+    "awA": "TEN",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "OU",
+    "betOn": "UNDER 52.5",
+    "winProb": 0.6778,
+    "ml": "-261",
+    "decOdds": 1.384,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534309672,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 52.5 \u2014 ADJUSTED LINE (67.8% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted UNDER 46.5 to UNDER 52.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.3%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin -13.2 (CIN), total 46.4, from an exact normal distribution (not a simulation).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 46.5,
+      "line": 52.5,
+      "shift": 6,
+      "postedLabel": "UNDER 46.5",
+      "postedProb": 0.5030687730578973,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "modelProb": 0.6235,
+    "marketProb": 0.5,
+    "blendAlpha": 0.957,
+    "startMs": 1793556000000,
+    "leadMin": 362,
+    "lockTiming": "pre"
   },
   {
     "hA": "Ceske Budejovice",
@@ -117255,6 +117530,225 @@
       }
     },
     "priceSource": "estimated"
+  },
+  {
+    "id": "2026-11-01_DAL_ARI_NFL_DAL-0.5",
+    "date": "2026-11-01",
+    "hA": "DAL",
+    "awA": "ARI",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "SPREAD",
+    "betOn": "DAL -0.5",
+    "winProb": 0.6862,
+    "ml": "-272",
+    "decOdds": 1.368,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534310150,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: DAL -0.5 \u2014 ADJUSTED LINE (68.6% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted DAL -7.0 to DAL -0.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.5%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin -8.2 (DAL), total 54.4, from an exact normal distribution (not a simulation).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -7,
+      "line": -0.5,
+      "shift": 6.5,
+      "postedLabel": "DAL -7.0",
+      "postedProb": 0.5354149560295494,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "modelProb": 0.7365,
+    "marketProb": 0.5,
+    "blendAlpha": 0.86,
+    "startMs": 1793556000000,
+    "leadMin": 361,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_DAL_ARI_NFL_UNDER60.5",
+    "date": "2026-11-01",
+    "hA": "DAL",
+    "awA": "ARI",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "OU",
+    "betOn": "UNDER 60.5",
+    "winProb": 0.6778,
+    "ml": "-261",
+    "decOdds": 1.384,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534310349,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 60.5 \u2014 ADJUSTED LINE (67.8% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted UNDER 54.5 to UNDER 60.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.3%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 54.5,
+      "line": 60.5,
+      "shift": 6,
+      "postedLabel": "UNDER 54.5",
+      "postedProb": 0.5030687730578973,
+      "postedDec": 1.909,
+      "postedMl": "-110",
+      "bestTotal": true,
+      "product": true
+    },
+    "startMs": 1793556000000,
+    "leadMin": 361,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_DEN_KC_NFL_KC+4.5",
+    "date": "2026-11-01",
+    "hA": "DEN",
+    "awA": "KC",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "SPREAD",
+    "betOn": "KC +4.5",
+    "winProb": 0.6728,
+    "ml": "-254",
+    "decOdds": 1.393,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534314182,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: KC +4.5 \u2014 ADJUSTED LINE (67.3% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted KC -1.5 to KC +4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.4%; the 6-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected margin -2.3 (KC), total 40.8, from an exact normal distribution (not a simulation).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -1.5,
+      "line": 4.5,
+      "shift": 6,
+      "postedLabel": "KC -1.5",
+      "postedProb": 0.5236272634339874,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "modelProb": 0.6799,
+    "marketProb": 0.5,
+    "blendAlpha": 0.871,
+    "startMs": 1793568300000,
+    "leadMin": 566,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_DEN_KC_NFL_OVER34.5",
+    "date": "2026-11-01",
+    "hA": "DEN",
+    "awA": "KC",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "OU",
+    "betOn": "OVER 34.5",
+    "winProb": 0.6778,
+    "ml": "-261",
+    "decOdds": 1.384,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534314719,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 34.5 \u2014 ADJUSTED LINE (67.8% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted OVER 40.5 to OVER 34.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.9%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 40.5,
+      "line": 34.5,
+      "shift": 6,
+      "postedLabel": "OVER 40.5",
+      "postedProb": 0.5092055865918212,
+      "postedDec": 1.909,
+      "postedMl": "-110",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793568300000,
+    "leadMin": 566,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_DET_MIN_NFL_MIN+9.5",
+    "date": "2026-11-01",
+    "hA": "DET",
+    "awA": "MIN",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "SPREAD",
+    "betOn": "MIN +9.5",
+    "winProb": 0.6862,
+    "ml": "-272",
+    "decOdds": 1.368,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534310821,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: MIN +9.5 \u2014 ADJUSTED LINE (68.6% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted MIN +3.0 to MIN +9.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 51.5%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin -2.5 (DET), total 46.6, from an exact normal distribution (not a simulation).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 3,
+      "line": 9.5,
+      "shift": 6.5,
+      "postedLabel": "MIN +3.0",
+      "postedProb": 0.5147723211917141,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "modelProb": 0.6074,
+    "marketProb": 0.5,
+    "blendAlpha": 0.871,
+    "startMs": 1793556000000,
+    "leadMin": 361,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_DET_MIN_NFL_OVER40.5",
+    "date": "2026-11-01",
+    "hA": "DET",
+    "awA": "MIN",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "OU",
+    "betOn": "OVER 40.5",
+    "winProb": 0.6778,
+    "ml": "-261",
+    "decOdds": 1.384,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534311004,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 40.5 \u2014 ADJUSTED LINE (67.8% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted OVER 46.5 to OVER 40.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.3%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 46.5,
+      "line": 40.5,
+      "shift": 6,
+      "postedLabel": "OVER 46.5",
+      "postedProb": 0.5030687730578973,
+      "postedDec": 1.909,
+      "postedMl": "-110",
+      "bestTotal": true,
+      "product": true
+    },
+    "startMs": 1793556000000,
+    "leadMin": 361,
+    "lockTiming": "pre"
   },
   {
     "hA": "Elche",
@@ -117575,6 +118069,76 @@
     "priceSource": "estimated"
   },
   {
+    "id": "2026-11-01_GS_LAC_NBA_LAC+8.5",
+    "date": "2026-11-01",
+    "hA": "GS",
+    "awA": "LAC",
+    "sport": "NBA",
+    "league": "NBA",
+    "betType": "SPREAD",
+    "betOn": "LAC +8.5",
+    "winProb": 0.682,
+    "ml": "-266",
+    "decOdds": 1.376,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534322374,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: LAC +8.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted LAC +2.5 to LAC +8.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.7%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 2.5,
+      "line": 8.5,
+      "shift": 6,
+      "postedLabel": "LAC +2.5",
+      "postedProb": 0.5369260570340249,
+      "postedDec": null,
+      "postedMl": null,
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793583000000,
+    "leadMin": 811,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_GS_LAC_NBA_OVER211.5",
+    "date": "2026-11-01",
+    "hA": "GS",
+    "awA": "LAC",
+    "sport": "NBA",
+    "league": "NBA",
+    "betType": "OU",
+    "betOn": "OVER 211.5",
+    "winProb": 0.67,
+    "ml": "-251",
+    "decOdds": 1.399,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534321749,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 211.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted OVER 219.5 to OVER 211.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 66.8%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected 113.2\u2013114.3 (total 227.5), from an exact normal distribution (not a simulation).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 219.5,
+      "line": 211.5,
+      "shift": 8,
+      "postedLabel": "OVER 219.5",
+      "postedProb": 0.6682082202753996,
+      "postedDec": null,
+      "postedMl": null
+    },
+    "startMs": 1793583000000,
+    "leadMin": 811,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Getafe",
     "id": "2026-11-01_Getafe_Sevilla_LIGA_OVER1.5",
     "ml": "-110",
@@ -117691,6 +118255,173 @@
       }
     },
     "priceSource": "estimated"
+  },
+  {
+    "id": "2026-11-01_IND_BKN_NBA_IND+2.5",
+    "date": "2026-11-01",
+    "hA": "IND",
+    "awA": "BKN",
+    "sport": "NBA",
+    "league": "NBA",
+    "betType": "SPREAD",
+    "betOn": "IND +2.5",
+    "winProb": 0.682,
+    "ml": "-266",
+    "decOdds": 1.376,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534321544,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: IND +2.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted IND -3.5 to IND +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 55.8%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -3.5,
+      "line": 2.5,
+      "shift": 6,
+      "postedLabel": "IND -3.5",
+      "postedProb": 0.5579482383370546,
+      "postedDec": null,
+      "postedMl": null,
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793570400000,
+    "leadMin": 601,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_IND_BKN_NBA_INDML",
+    "date": "2026-11-01",
+    "hA": "IND",
+    "awA": "BKN",
+    "sport": "NBA",
+    "league": "NBA",
+    "betType": "ML",
+    "betOn": "IND ML",
+    "winProb": 0.6419982738152652,
+    "ml": "-166",
+    "decOdds": 1.6024096385542168,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534321043,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: IND ML \u2014 OPTIMAL (64.2% win prob, EV +2.9%)\nMODEL: Projected 109.0\u2013114.2 (total 223.2), from an exact normal distribution (not a simulation).",
+    "startMs": 1793570400000,
+    "leadMin": 601,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_IND_BKN_NBA_UNDER239.5",
+    "date": "2026-11-01",
+    "hA": "IND",
+    "awA": "BKN",
+    "sport": "NBA",
+    "league": "NBA",
+    "betType": "OU",
+    "betOn": "UNDER 239.5",
+    "winProb": 0.67,
+    "ml": "-251",
+    "decOdds": 1.399,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534320822,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 239.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted UNDER 231.5 to UNDER 239.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 67.3%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected 109.0\u2013114.2 (total 223.2), from an exact normal distribution (not a simulation).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 231.5,
+      "line": 239.5,
+      "shift": 8,
+      "postedLabel": "UNDER 231.5",
+      "postedProb": 0.6728575108068298,
+      "postedDec": null,
+      "postedMl": null
+    },
+    "startMs": 1793570400000,
+    "leadMin": 601,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_JAX_IND_NFL_JAX-3.5",
+    "date": "2026-11-01",
+    "hA": "JAX",
+    "awA": "IND",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "SPREAD",
+    "betOn": "JAX -3.5",
+    "winProb": 0.6862,
+    "ml": "-272",
+    "decOdds": 1.368,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534312903,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: JAX -3.5 \u2014 ADJUSTED LINE (68.6% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted JAX -10.0 to JAX -3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.1%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin -10.7 (JAX), total 46.5, from an exact normal distribution (not a simulation).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -10,
+      "line": -3.5,
+      "shift": 6.5,
+      "postedLabel": "JAX -10.0",
+      "postedProb": 0.52067669730648,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "modelProb": 0.659,
+    "marketProb": 0.5,
+    "blendAlpha": 0.871,
+    "startMs": 1793556000000,
+    "leadMin": 361,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_JAX_IND_NFL_OVER40.5",
+    "date": "2026-11-01",
+    "hA": "JAX",
+    "awA": "IND",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "OU",
+    "betOn": "OVER 40.5",
+    "winProb": 0.6778,
+    "ml": "-261",
+    "decOdds": 1.384,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534313252,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 40.5 \u2014 ADJUSTED LINE (67.8% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted OVER 46.5 to OVER 40.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.0%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 46.5,
+      "line": 40.5,
+      "shift": 6,
+      "postedLabel": "OVER 46.5",
+      "postedProb": 0.5000000014786983,
+      "postedDec": 1.909,
+      "postedMl": "-110",
+      "bestTotal": true,
+      "product": true
+    },
+    "startMs": 1793556000000,
+    "leadMin": 361,
+    "lockTiming": "pre"
   },
   {
     "hA": "Juventus",
@@ -117857,6 +118588,151 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "priceSource": "estimated"
+  },
+  {
+    "id": "2026-11-01_LAL_TOR_NBA_OVER219.5",
+    "date": "2026-11-01",
+    "hA": "LAL",
+    "awA": "TOR",
+    "sport": "NBA",
+    "league": "NBA",
+    "betType": "OU",
+    "betOn": "OVER 219.5",
+    "winProb": 0.67,
+    "ml": "-251",
+    "decOdds": 1.399,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534323143,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 219.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted OVER 227.5 to OVER 219.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 51.0%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 227.5,
+      "line": 219.5,
+      "shift": 8,
+      "postedLabel": "OVER 227.5",
+      "postedProb": 0.5104884048991312,
+      "postedDec": null,
+      "postedMl": null,
+      "bestTotal": true,
+      "product": true
+    },
+    "startMs": 1793584800000,
+    "leadMin": 841,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_LAL_TOR_NBA_TOR+10.5",
+    "date": "2026-11-01",
+    "hA": "LAL",
+    "awA": "TOR",
+    "sport": "NBA",
+    "league": "NBA",
+    "betType": "SPREAD",
+    "betOn": "TOR +10.5",
+    "winProb": 0.682,
+    "ml": "-266",
+    "decOdds": 1.376,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534322602,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: TOR +10.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted TOR +4.5 to TOR +10.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 57.6%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 4.5,
+      "line": 10.5,
+      "shift": 6,
+      "postedLabel": "TOR +4.5",
+      "postedProb": 0.576400008111879,
+      "postedDec": null,
+      "postedMl": null,
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793584800000,
+    "leadMin": 841,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_LAR_LAC_NFL_LAR+0.5",
+    "date": "2026-11-01",
+    "hA": "LAR",
+    "awA": "LAC",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "SPREAD",
+    "betOn": "LAR +0.5",
+    "winProb": 0.6862,
+    "ml": "-272",
+    "decOdds": 1.368,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534313483,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: LAR +0.5 \u2014 ADJUSTED LINE (68.6% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted LAR -6.0 to LAR +0.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.8%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin -7.3 (LAR), total 45.5, from an exact normal distribution (not a simulation).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -6,
+      "line": 0.5,
+      "shift": 6.5,
+      "postedLabel": "LAR -6.0",
+      "postedProb": 0.5383574329666982,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "modelProb": 0.7692,
+    "marketProb": 0.5,
+    "blendAlpha": 0.871,
+    "startMs": 1793567100000,
+    "leadMin": 546,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_LAR_LAC_NFL_OVER39.5",
+    "date": "2026-11-01",
+    "hA": "LAR",
+    "awA": "LAC",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "OU",
+    "betOn": "OVER 39.5",
+    "winProb": 0.6778,
+    "ml": "-261",
+    "decOdds": 1.384,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534313989,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 39.5 \u2014 ADJUSTED LINE (67.8% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted OVER 45.5 to OVER 39.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.0%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 45.5,
+      "line": 39.5,
+      "shift": 6,
+      "postedLabel": "OVER 45.5",
+      "postedProb": 0.5000000014786983,
+      "postedDec": 1.909,
+      "postedMl": "-110",
+      "bestTotal": true,
+      "product": true
+    },
+    "startMs": 1793567100000,
+    "leadMin": 546,
+    "lockTiming": "pre"
   },
   {
     "hA": "Lazio",
@@ -118267,6 +119143,367 @@
     "priceSource": "estimated"
   },
   {
+    "id": "2026-11-01_MIA_NE_NFL_NE-0.5",
+    "date": "2026-11-01",
+    "hA": "MIA",
+    "awA": "NE",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "SPREAD",
+    "betOn": "NE -0.5",
+    "winProb": 0.6862,
+    "ml": "-272",
+    "decOdds": 1.368,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534314983,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: NE -0.5 \u2014 ADJUSTED LINE (68.6% estimated win prob at this line)\nADJUSTED LINE: moved 6.5 pts from the posted NE -7.0 to NE -0.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.4%; the 6.5-pt cushion is priced from the historical margin curve for this market (about 69% to cover).\nMODEL: Projected margin -7.8 (NE), total 43.6, from an exact normal distribution (not a simulation).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": -7,
+      "line": -0.5,
+      "shift": 6.5,
+      "postedLabel": "NE -7.0",
+      "postedProb": 0.5236272634339874,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "modelProb": 0.6865,
+    "marketProb": 0.5,
+    "blendAlpha": 0.871,
+    "startMs": 1793568300000,
+    "leadMin": 566,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_MIA_NE_NFL_OVER37.5",
+    "date": "2026-11-01",
+    "hA": "MIA",
+    "awA": "NE",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "OU",
+    "betOn": "OVER 37.5",
+    "winProb": 0.6778,
+    "ml": "-261",
+    "decOdds": 1.384,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534315555,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 37.5 \u2014 ADJUSTED LINE (67.8% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted OVER 43.5 to OVER 37.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.3%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 43.5,
+      "line": 37.5,
+      "shift": 6,
+      "postedLabel": "OVER 43.5",
+      "postedProb": 0.5030687730578973,
+      "postedDec": 1.909,
+      "postedMl": "-110",
+      "bestTotal": true,
+      "product": true
+    },
+    "startMs": 1793568300000,
+    "leadMin": 566,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_NYJ_LV_NFL_OVER40.5",
+    "date": "2026-11-01",
+    "hA": "NYJ",
+    "awA": "LV",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "OU",
+    "betOn": "OVER 40.5",
+    "winProb": 0.6778,
+    "ml": "-261",
+    "decOdds": 1.384,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534311478,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 40.5 \u2014 ADJUSTED LINE (67.8% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted OVER 46.5 to OVER 40.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.3%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 46.5,
+      "line": 40.5,
+      "shift": 6,
+      "postedLabel": "OVER 46.5",
+      "postedProb": 0.5030687730578973,
+      "postedDec": 1.909,
+      "postedMl": "-110",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793556000000,
+    "leadMin": 361,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_NYR_EDM_NHL_EDM+1.5",
+    "date": "2026-11-01",
+    "hA": "NYR",
+    "awA": "EDM",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "EDM +1.5",
+    "winProb": 0.7039295407752377,
+    "ml": "-233",
+    "decOdds": 1.43,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534329343,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: EDM +1.5 \u2014 HIGH PROB (70.4% win prob, EV +0.7% \u00b7 MARKET PRICE -233 (EV at market +0.7%) \u00b7 MARKET-BLENDED: model 78.2% \u00b7 no-vig market 66.6% \u2192 70.4% (alpha 0.70))\nMODEL: Projected 4.0\u20133.1 (total 7.2) (OT/SO in 15% of outcomes) \u2014 underdog covers +1.5 in 78.2% of outcomes (incl. late-game empty-net margin calibration), from an exact Poisson distribution (not a simulation).\nWHY: Best market: EDM +1.5 graded HIGH PROB (70.4%, EV +0.7%). Dog covers +1.5 in 70.4% of sims (proj 3.1\u20134.0). GSAx: -0.4 vs -1.4 (injury adj: NYR: Sean Durzi D DAY-TO-DAY, Eeli Tolvanen RW DAY-TO-DAY -> scoring -0.6% | EDM: Zach Hyman LW OUT, Matt Savoie C OUT -> scoring -3.9%; Devon Levi G OUT -> goalie rating set to league average) keeps this within a goal. MC 38% / xGF 50% / hv -8.2pp / ST +1.0pp / SQ +0.5pp \u00b7 ML market blend (alpha 0.75): model 47.8% \u00b7 no-vig market 53.5% \u2192 52.0%; Puck line market blend (alpha 0.70): model 21.8% \u00b7 no-vig market 33.4% \u2192 29.6%; O/U market blend (alpha 0.65): model 59.0% \u00b7 no-vig market 51.0% \u2192 53.9%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.7821,
+    "marketProb": 0.6659,
+    "blendAlpha": 0.7,
+    "startMs": 1793574000000,
+    "leadMin": 661,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_NYR_EDM_NHL_UNDER7.5",
+    "date": "2026-11-01",
+    "hA": "NYR",
+    "awA": "EDM",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 7.5",
+    "winProb": 0.7037,
+    "ml": "-298",
+    "decOdds": 1.336,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534329741,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (70.4% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 46.1%; the 1-goal cushion is priced from the historical margin curve for this market (about 70% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 6.5,
+      "line": 7.5,
+      "shift": 1,
+      "postedLabel": "UNDER 6.5",
+      "postedProb": 0.46134787226336516,
+      "postedDec": 1.95,
+      "postedMl": "-105",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793574000000,
+    "leadMin": 661,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_ORL_BOS_NBA_ORL+12.5",
+    "date": "2026-11-01",
+    "hA": "ORL",
+    "awA": "BOS",
+    "sport": "NBA",
+    "league": "NBA",
+    "betType": "SPREAD",
+    "betOn": "ORL +12.5",
+    "winProb": 0.682,
+    "ml": "-266",
+    "decOdds": 1.376,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534320067,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: ORL +12.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted ORL +6.5 to ORL +12.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 56.4%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 6.5,
+      "line": 12.5,
+      "shift": 6,
+      "postedLabel": "ORL +6.5",
+      "postedProb": 0.5643167927040906,
+      "postedDec": null,
+      "postedMl": null,
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793565000000,
+    "leadMin": 511,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_ORL_BOS_NBA_OVER213.5",
+    "date": "2026-11-01",
+    "hA": "ORL",
+    "awA": "BOS",
+    "sport": "NBA",
+    "league": "NBA",
+    "betType": "OU",
+    "betOn": "OVER 213.5",
+    "winProb": 0.67,
+    "ml": "-251",
+    "decOdds": 1.399,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534320308,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 213.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted OVER 221.5 to OVER 213.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 57.5%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 221.5,
+      "line": 213.5,
+      "shift": 8,
+      "postedLabel": "OVER 221.5",
+      "postedProb": 0.5754572286758382,
+      "postedDec": null,
+      "postedMl": null,
+      "bestTotal": true,
+      "product": true
+    },
+    "startMs": 1793565000000,
+    "leadMin": 511,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_PHI_UTA_NHL_UNDER6.5",
+    "date": "2026-11-01",
+    "hA": "PHI",
+    "awA": "UTA",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 6.5",
+    "winProb": 0.5698776340164686,
+    "ml": "-139",
+    "decOdds": 1.72,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534328781,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 6.5 \u2014 HIGH PROB (57.0% win prob, EV -2.0% \u00b7 MARKET PRICE -139 (EV at market -2.0%) \u00b7 MARKET-BLENDED: model 59.8% \u00b7 no-vig market 55.4% \u2192 57.0% (alpha 0.65))\nMODEL: Projected 3.9\u20132.0 (total 6.0) (OT/SO in 12% of outcomes) \u2014 UNDER hits 59.8% of outcomes vs the 6.5 line, from an exact Poisson distribution (not a simulation).",
+    "priceSource": "market",
+    "modelProb": 0.5982,
+    "marketProb": 0.5544,
+    "blendAlpha": 0.65,
+    "startMs": 1793566800000,
+    "leadMin": 541,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_PHI_UTA_NHL_UTAML",
+    "date": "2026-11-01",
+    "hA": "PHI",
+    "awA": "UTA",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "ML",
+    "betOn": "UTA ML",
+    "winProb": 0.6407969329917568,
+    "ml": "-164",
+    "decOdds": 1.61,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534328549,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UTA ML \u2014 OPTIMAL (64.1% win prob, EV +3.2% \u00b7 MARKET PRICE -164 (EV at market +3.2%) \u00b7 MARKET-BLENDED: model 76.4% \u00b7 no-vig market 59.4% \u2192 64.1% (alpha 0.75))\nMODEL: Projected 3.9\u20132.0 (total 6.0) (OT/SO in 12% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Best market: UTA ML graded OPTIMAL (64.1%, EV +3.2%). GSAx: -4.8 vs +3.4 (injury adj: PHI: Rasmus Ristolainen D OUT, Owen Tippett RW OUT, Travis Konecny RW OUT -> scoring -4.9% | UTA: John Marino D OUT, Michael Carcone LW OUT -> scoring -2.2%) favors UTA. MC 21% / xGF 50% / hv -13.7pp / ST -1.7pp / SQ -2.8pp \u00b7 ML market blend (alpha 0.75): model 23.6% \u00b7 no-vig market 40.6% \u2192 35.9%; Puck line market blend (alpha 0.70): model 61.0% \u00b7 no-vig market 37.7% \u2192 44.6%; O/U market blend (alpha 0.65): model 40.2% \u00b7 no-vig market 44.6% \u2192 43.0%. Standard-unit play \u00b7 Also: UNDER 6.5 (HIGH PROB).",
+    "priceSource": "market",
+    "modelProb": 0.7639,
+    "marketProb": 0.5939,
+    "blendAlpha": 0.75,
+    "startMs": 1793566800000,
+    "leadMin": 541,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_PIT_CLE_NFL_OVER32.5",
+    "date": "2026-11-01",
+    "hA": "PIT",
+    "awA": "CLE",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "OU",
+    "betOn": "OVER 32.5",
+    "winProb": 0.6778,
+    "ml": "-261",
+    "decOdds": 1.384,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534312234,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 32.5 \u2014 ADJUSTED LINE (67.8% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted OVER 38.5 to OVER 32.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 51.5%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 38.5,
+      "line": 32.5,
+      "shift": 6,
+      "postedLabel": "OVER 38.5",
+      "postedProb": 0.5153402113512332,
+      "postedDec": 1.909,
+      "postedMl": "-110",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793556000000,
+    "leadMin": 361,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_PIT_CLE_NFL_PITML",
+    "date": "2026-11-01",
+    "hA": "PIT",
+    "awA": "CLE",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "ML",
+    "betOn": "PIT ML",
+    "winProb": 0.6563069447540397,
+    "ml": -191,
+    "decOdds": 1.5235602094240837,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534311691,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: PIT ML \u2014 OPTIMAL (65.6% win prob, EV -0.0%)\nMODEL: Projected margin -3.9 (PIT), total 39.0, from an exact normal distribution (not a simulation).\nWHY: PIT ML \u00b7 OPTIMAL \u00b7 65.6% \u00b7 EV -0.0% Point differential: PIT +15 (5-2), CLE -13 (5-2). PIT is home, getting the model's 1.8-point default home-field edge. PIT injury notes: Doneiko Slaughter (Out, Hamstring); Brandin Echols (Out, Hamstring). CLE injury notes: Daniel Thomas (Questionable, Ankle); Myles Harden (Questionable, Hamstring).",
+    "startMs": 1793556000000,
+    "leadMin": 361,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Pardubice",
     "id": "2026-11-01_Pardubice_Mlada Boleslav_EXTRALIGA_PardubiceML",
     "ml": "-426",
@@ -118507,6 +119744,42 @@
     "priceSource": "market"
   },
   {
+    "id": "2026-11-01_TB_ATL_NFL_OVER37.5",
+    "date": "2026-11-01",
+    "hA": "TB",
+    "awA": "ATL",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "OU",
+    "betOn": "OVER 37.5",
+    "winProb": 0.6778,
+    "ml": "-261",
+    "decOdds": 1.384,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534312462,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 37.5 \u2014 ADJUSTED LINE (67.8% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted OVER 43.5 to OVER 37.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.9%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 43.5,
+      "line": 37.5,
+      "shift": 6,
+      "postedLabel": "OVER 43.5",
+      "postedProb": 0.5092055865918212,
+      "postedDec": 1.909,
+      "postedMl": "-110",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793556000000,
+    "leadMin": 361,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Tappara",
     "id": "2026-11-01_Tappara_Hameenlinna_LIIGA_TapparaML",
     "ml": "-256",
@@ -118599,636 +119872,761 @@
     "priceSource": "estimated"
   },
   {
-    "id": "2026-11-02_Atalanta_Parma_SERIEA_AtalantaWin",
-    "date": "2026-11-02",
-    "hA": "Atalanta",
-    "awA": "Parma",
-    "sport": "SERIEA",
-    "league": "SERIEA",
-    "betType": "ML",
-    "betOn": "Atalanta Win",
-    "winProb": 0.697634482065234,
-    "ml": "-110",
-    "decOdds": 1.91,
+    "id": "2026-11-01_WSH_MIN_NHL_MIN+1.5",
+    "date": "2026-11-01",
+    "hA": "WSH",
+    "awA": "MIN",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "MIN +1.5",
+    "winProb": 0.7122175180136294,
+    "ml": "-286",
+    "decOdds": 1.35,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793520403539,
+    "lockedAt": 1793534327793,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.0550559684867258,
-        "away": 0.94
-      },
-      "form": {
-        "home": 0.9862857142857143,
-        "away": 0.9921428571428571
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1.06,
-        "away": 0.94
-      }
+    "reasoning": "PICK: MIN +1.5 \u2014 HIGH PROB (71.2% win prob, EV -3.9% \u00b7 MARKET PRICE -286 (EV at market -3.9%) \u00b7 MARKET-BLENDED: model 73.2% \u00b7 no-vig market 70.3% \u2192 71.2% (alpha 0.70))\nMODEL: Projected 3.2\u20132.9 (total 6.2) (OT/SO in 16% of outcomes) \u2014 underdog covers +1.5 in 73.2% of outcomes (incl. late-game empty-net margin calibration), from an exact Poisson distribution (not a simulation).\nWHY: Best market: MIN +1.5 graded HIGH PROB (71.2%, EV -3.9%). Dog covers +1.5 in 71.2% of sims (proj 2.9\u20133.2). GSAx: +4.6 vs +8.7 (injury adj: WSH: Rasmus Sandin D OUT -> scoring -1.3% | MIN: Jared Spurgeon D OUT, Brock Faber D OUT -> scoring -3.9%) keeps this within a goal. MC 46% / xGF 50% / hv +2.9pp / ST -4.2pp / SQ -0.7pp \u00b7 ML market blend (alpha 0.75): model 60.3% \u00b7 no-vig market 50.1% \u2192 52.7%; Puck line market blend (alpha 0.70): model 26.8% \u00b7 no-vig market 29.7% \u2192 28.8%; O/U market blend (alpha 0.65): model 43.7% \u00b7 no-vig market 46.2% \u2192 45.3%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.7324,
+    "marketProb": 0.7033,
+    "blendAlpha": 0.7,
+    "startMs": 1793565000000,
+    "leadMin": 511,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_WSH_MIN_NHL_UNDER7.5",
+    "date": "2026-11-01",
+    "hA": "WSH",
+    "awA": "MIN",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 7.5",
+    "winProb": 0.7464,
+    "ml": "-379",
+    "decOdds": 1.264,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534327993,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (74.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 54.7%; the 1-goal cushion is priced from the historical margin curve for this market (about 75% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 6.5,
+      "line": 7.5,
+      "shift": 1,
+      "postedLabel": "UNDER 6.5",
+      "postedProb": 0.5468586168997862,
+      "postedDec": 1.76,
+      "postedMl": "-132",
+      "bestOfGame": true,
+      "product": true
     },
-    "reasoning": "PICK: Atalanta Win \u2014 PREMIUM (69.8% win prob, EV +3.8%)\nMODEL: Projected 0.75\u20131.88 goals (xG 0.75/1.88), BTTS 45%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Atalanta 1.88 xG/G vs Parma 0.75 xG/G. 3-way: Home 70% / Draw 29% / Away 19%. MC proj: 1.88 \u2013 0.75 (2.63 total vs 2.5 line, BTTS 45%). Goal spread: Atalanta -1.5 covers 39%, Parma +1.5 covers 61% (proj margin Atalanta -1.13). Atalanta xG edge unpriced by market. Kelly 7.8%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Parma +1.5 (OPTIMAL), UNDER 2.5 (LEAN). Factors moving this pick: Standings -6%, H2H +6%, Fbref +6%.",
+    "startMs": 1793565000000,
+    "leadMin": 511,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_WSH_PHI_NFL_OVER34.5",
+    "date": "2026-11-01",
+    "hA": "WSH",
+    "awA": "PHI",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "OU",
+    "betOn": "OVER 34.5",
+    "winProb": 0.6778,
+    "ml": "-261",
+    "decOdds": 1.384,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534315760,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 34.5 \u2014 ADJUSTED LINE (67.8% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted OVER 40.5 to OVER 34.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 51.8%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin -6.3 (WSH), total 41.1, from an exact normal distribution (not a simulation).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 40.5,
+      "line": 34.5,
+      "shift": 6,
+      "postedLabel": "OVER 40.5",
+      "postedProb": 0.5184062502161978,
+      "postedDec": 1.909,
+      "postedMl": "-110"
+    },
+    "modelProb": 0.6781,
+    "marketProb": 0.5,
+    "blendAlpha": 0.957,
+    "startMs": 1793582400000,
+    "leadMin": 801,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-01_WSH_PHI_NFL_WSHML",
+    "date": "2026-11-01",
+    "hA": "WSH",
+    "awA": "PHI",
+    "sport": "NFL",
+    "league": "NFL",
+    "betType": "ML",
+    "betOn": "WSH ML",
+    "winProb": 0.6300851897349261,
+    "ml": -170,
+    "decOdds": 1.5882352941176472,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793534316261,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: WSH ML \u2014 OPTIMAL (63.0% win prob, EV +0.1%)\nMODEL: Projected margin -6.3 (WSH), total 41.1, from an exact normal distribution (not a simulation).\nWHY: WSH ML \u00b7 OPTIMAL \u00b7 63.0% \u00b7 EV +0.1% Point differential: WSH -40 (1-4), PHI -48 (2-5). WSH is home, getting the model's 1.8-point default home-field edge. Injury adjustment: PHI: Dontayvion Wicks WR OUT, DeVonta Smith WR OUT (-0.8 pts); margin -0.8 for WSH, total -0.4. WSH injury notes: Daron Payne (Out, Foot); Jer'Zhan Newton (Injured Reserve, Pectoral). PHI injury notes: Jihaad Campbell (Out, Hamstring); Britain Covey (Out, Knee).",
+    "startMs": 1793582400000,
+    "leadMin": 801,
+    "lockTiming": "pre"
+  },
+  {
+    "hA": "Atalanta",
+    "id": "2026-11-02_Atalanta_Parma_SERIEA_AtalantaWin",
+    "ml": "-110",
+    "awA": "Parma",
+    "date": "2026-11-02",
+    "betOn": "Atalanta Win",
+    "sport": "SERIEA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "SERIEA",
     "mktRef": {
       "p": 0.6186,
       "dec": 1.488
     },
-    "startMs": 1793648700000,
-    "leadMin": 2138,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-02_Atalanta_Parma_SERIEA_Parma+2.5",
-    "date": "2026-11-02",
-    "hA": "Atalanta",
-    "awA": "Parma",
-    "sport": "SERIEA",
-    "league": "SERIEA",
-    "betType": "SPREAD",
-    "betOn": "Parma +2.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1793520404078,
-    "hScore": null,
-    "aScore": null,
     "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.91,
+    "leadMin": 2138,
+    "outcome": "pending",
+    "startMs": 1793648700000,
+    "winProb": 0.697634482065234,
+    "lockedAt": 1793520403539,
+    "reasoning": "PICK: Atalanta Win \u2014 PREMIUM (69.8% win prob, EV +3.8%)\nMODEL: Projected 0.75\u20131.88 goals (xG 0.75/1.88), BTTS 45%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Atalanta 1.88 xG/G vs Parma 0.75 xG/G. 3-way: Home 70% / Draw 29% / Away 19%. MC proj: 1.88 \u2013 0.75 (2.63 total vs 2.5 line, BTTS 45%). Goal spread: Atalanta -1.5 covers 39%, Parma +1.5 covers 61% (proj margin Atalanta -1.13). Atalanta xG edge unpriced by market. Kelly 7.8%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Parma +1.5 (OPTIMAL), UNDER 2.5 (LEAN). Factors moving this pick: Standings -6%, H2H +6%, Fbref +6%.",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.0550559684867258,
-        "away": 0.94
+      "h2h": {
+        "away": 0.94,
+        "home": 1.06
       },
       "form": {
-        "home": 0.9862857142857143,
-        "away": 0.9921428571428571
+        "away": 0.9921428571428571,
+        "home": 0.9862857142857143
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 1.0550559684867258
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1.06,
-        "away": 0.94
+        "away": 0.94,
+        "home": 0.94
       }
-    },
-    "reasoning": "PICK: Parma +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Parma +1.5 to Parma +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.5%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
-    "priceSource": "estimated",
+    }
+  },
+  {
+    "hA": "Atalanta",
+    "id": "2026-11-02_Atalanta_Parma_SERIEA_Parma+2.5",
+    "ml": "-408",
+    "awA": "Parma",
+    "date": "2026-11-02",
+    "betOn": "Parma +2.5",
+    "sport": "SERIEA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "SERIEA",
+    "source": "manual",
     "altLine": {
-      "posted": 1.5,
       "line": 2.5,
       "shift": 1,
-      "postedLabel": "Parma +1.5",
-      "postedProb": 0.6146556979080171,
-      "postedDec": null,
+      "posted": 1.5,
+      "product": true,
       "postedMl": null,
+      "postedDec": null,
       "bestOfGame": true,
-      "product": true
+      "postedProb": 0.6146556979080171,
+      "postedLabel": "Parma +1.5"
     },
-    "startMs": 1793648700000,
+    "betType": "SPREAD",
+    "decOdds": 1.245,
     "leadMin": 2138,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-02_Atalanta_Parma_SERIEA_UNDER3.5",
-    "date": "2026-11-02",
-    "hA": "Atalanta",
-    "awA": "Parma",
-    "sport": "SERIEA",
-    "league": "SERIEA",
-    "betType": "OU",
-    "betOn": "UNDER 3.5",
-    "winProb": 0.736,
-    "ml": "-357",
-    "decOdds": 1.28,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793520404267,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793648700000,
+    "winProb": 0.758,
+    "lockedAt": 1793520404078,
+    "reasoning": "PICK: Parma +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Parma +1.5 to Parma +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.5%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.0550559684867258,
-        "away": 0.94
+      "h2h": {
+        "away": 0.94,
+        "home": 1.06
       },
       "form": {
-        "home": 0.9862857142857143,
-        "away": 0.9921428571428571
+        "away": 0.9921428571428571,
+        "home": 0.9862857142857143
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 1.0550559684867258
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1.06,
-        "away": 0.94
+        "away": 0.94,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: UNDER 3.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 2.5 to UNDER 3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 51.0%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Atalanta",
+    "id": "2026-11-02_Atalanta_Parma_SERIEA_UNDER3.5",
+    "ml": "-357",
+    "awA": "Parma",
+    "date": "2026-11-02",
+    "betOn": "UNDER 3.5",
+    "sport": "SERIEA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "SERIEA",
+    "source": "manual",
     "altLine": {
-      "posted": 2.5,
       "line": 3.5,
       "shift": 1,
-      "postedLabel": "UNDER 2.5",
-      "postedProb": 0.5102314082250065,
-      "postedDec": null,
+      "posted": 2.5,
+      "product": true,
       "postedMl": null,
       "bestTotal": true,
-      "product": true
+      "postedDec": null,
+      "postedProb": 0.5102314082250065,
+      "postedLabel": "UNDER 2.5"
     },
-    "startMs": 1793648700000,
+    "betType": "OU",
+    "decOdds": 1.28,
     "leadMin": 2138,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-02_Deportivo_Osasuna_LIGA_DeportivoWin",
-    "date": "2026-11-02",
-    "hA": "Deportivo",
-    "awA": "Osasuna",
-    "sport": "LIGA",
-    "league": "LIGA",
-    "betType": "ML",
-    "betOn": "Deportivo Win",
-    "winProb": 0.691613789988552,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793520401778,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793648700000,
+    "winProb": 0.736,
+    "lockedAt": 1793520404267,
+    "reasoning": "PICK: UNDER 3.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 2.5 to UNDER 3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 51.0%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.06,
-        "away": 0.94
+      "h2h": {
+        "away": 0.94,
+        "home": 1.06
       },
       "form": {
-        "home": 0.97,
-        "away": 0.9750624999999999
+        "away": 0.9921428571428571,
+        "home": 0.9862857142857143
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 1.0550559684867258
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 0.94,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: Deportivo Win \u2014 PREMIUM (69.2% win prob, EV +48.7%)\nMODEL: Projected 0.88\u20131.91 goals (xG 0.88/1.91), BTTS 50%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Deportivo 1.91 xG/G vs Osasuna 0.88 xG/G. 3-way: Home 69% / Draw 31% / Away 24%. MC proj: 1.91 \u2013 0.88 (2.79 total vs 2.5 line, BTTS 50%). Goal spread: Deportivo -1.5 covers 37%, Osasuna +1.5 covers 63% (proj margin Deportivo -1.03). Deportivo xG edge unpriced by market. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Osasuna +1.5 (OPTIMAL), OVER 2.5 (LEAN). Factors moving this pick: Fbref +6%, Standings -6%, Form -3%.",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Deportivo",
+    "id": "2026-11-02_Deportivo_Osasuna_LIGA_DeportivoWin",
+    "ml": "-110",
+    "awA": "Osasuna",
+    "date": "2026-11-02",
+    "betOn": "Deportivo Win",
+    "sport": "LIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "LIGA",
     "mktRef": {
       "p": 0.4411,
       "dec": 2.15
     },
-    "startMs": 1793649600000,
-    "leadMin": 2153,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-02_Deportivo_Osasuna_LIGA_OVER1.5",
-    "date": "2026-11-02",
-    "hA": "Deportivo",
-    "awA": "Osasuna",
-    "sport": "LIGA",
-    "league": "LIGA",
-    "betType": "OU",
-    "betOn": "OVER 1.5",
-    "winProb": 0.736,
-    "ml": "-357",
-    "decOdds": 1.28,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1793520402610,
-    "hScore": null,
-    "aScore": null,
     "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.91,
+    "leadMin": 2153,
+    "outcome": "pending",
+    "startMs": 1793649600000,
+    "winProb": 0.691613789988552,
+    "lockedAt": 1793520401778,
+    "reasoning": "PICK: Deportivo Win \u2014 PREMIUM (69.2% win prob, EV +48.7%)\nMODEL: Projected 0.88\u20131.91 goals (xG 0.88/1.91), BTTS 50%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Deportivo 1.91 xG/G vs Osasuna 0.88 xG/G. 3-way: Home 69% / Draw 31% / Away 24%. MC proj: 1.91 \u2013 0.88 (2.79 total vs 2.5 line, BTTS 50%). Goal spread: Deportivo -1.5 covers 37%, Osasuna +1.5 covers 63% (proj margin Deportivo -1.03). Deportivo xG edge unpriced by market. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Osasuna +1.5 (OPTIMAL), OVER 2.5 (LEAN). Factors moving this pick: Fbref +6%, Standings -6%, Form -3%.",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.06,
-        "away": 0.94
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 0.97,
-        "away": 0.9750624999999999
+        "away": 0.9750624999999999,
+        "home": 0.97
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 1.06
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 0.94,
+        "home": 0.94
       }
-    },
-    "reasoning": "PICK: OVER 1.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 2.5 to OVER 1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.7%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
-    "priceSource": "estimated",
+    }
+  },
+  {
+    "hA": "Deportivo",
+    "id": "2026-11-02_Deportivo_Osasuna_LIGA_OVER1.5",
+    "ml": "-357",
+    "awA": "Osasuna",
+    "date": "2026-11-02",
+    "betOn": "OVER 1.5",
+    "sport": "LIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "LIGA",
+    "source": "manual",
     "altLine": {
-      "posted": 2.5,
       "line": 1.5,
       "shift": 1,
-      "postedLabel": "OVER 2.5",
-      "postedProb": 0.5270817565372461,
-      "postedDec": null,
+      "posted": 2.5,
+      "product": true,
       "postedMl": null,
       "bestTotal": true,
-      "product": true
+      "postedDec": null,
+      "postedProb": 0.5270817565372461,
+      "postedLabel": "OVER 2.5"
     },
-    "startMs": 1793649600000,
+    "betType": "OU",
+    "decOdds": 1.28,
     "leadMin": 2153,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-02_Deportivo_Osasuna_LIGA_Osasuna+2.5",
-    "date": "2026-11-02",
-    "hA": "Deportivo",
-    "awA": "Osasuna",
-    "sport": "LIGA",
-    "league": "LIGA",
-    "betType": "SPREAD",
-    "betOn": "Osasuna +2.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793520402148,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793649600000,
+    "winProb": 0.736,
+    "lockedAt": 1793520402610,
+    "reasoning": "PICK: OVER 1.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 2.5 to OVER 1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.7%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.06,
-        "away": 0.94
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 0.97,
-        "away": 0.9750624999999999
+        "away": 0.9750624999999999,
+        "home": 0.97
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 1.06
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 0.94,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: Osasuna +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Osasuna +1.5 to Osasuna +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 63.2%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Deportivo",
+    "id": "2026-11-02_Deportivo_Osasuna_LIGA_Osasuna+2.5",
+    "ml": "-408",
+    "awA": "Osasuna",
+    "date": "2026-11-02",
+    "betOn": "Osasuna +2.5",
+    "sport": "LIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "LIGA",
+    "source": "manual",
     "altLine": {
-      "posted": 1.5,
       "line": 2.5,
       "shift": 1,
-      "postedLabel": "Osasuna +1.5",
-      "postedProb": 0.6318089831877745,
-      "postedDec": null,
+      "posted": 1.5,
+      "product": true,
       "postedMl": null,
+      "postedDec": null,
       "bestOfGame": true,
-      "product": true
+      "postedProb": 0.6318089831877745,
+      "postedLabel": "Osasuna +1.5"
     },
-    "startMs": 1793649600000,
-    "leadMin": 2153,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-02_Newcastle United_Everton_PL_SOC_Everton+1.5",
-    "date": "2026-11-02",
-    "hA": "Newcastle United",
-    "awA": "Everton",
-    "sport": "PL",
-    "league": "PL",
     "betType": "SPREAD",
-    "betOn": "Everton +1.5",
-    "winProb": 0.758,
-    "ml": "-408",
     "decOdds": 1.245,
-    "wager": 0,
+    "leadMin": 2153,
     "outcome": "pending",
-    "lockedAt": 1793520400988,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793649600000,
+    "winProb": 0.758,
+    "lockedAt": 1793520402148,
+    "reasoning": "PICK: Osasuna +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Osasuna +1.5 to Osasuna +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 63.2%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.9914234525684608,
-        "away": 0.9930840816712314
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 0.9698333333333333,
-        "away": 0.97675
+        "away": 0.9750624999999999,
+        "home": 0.97
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 1.06
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 1.0117526826775676,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1.04,
-        "away": 0.96
+        "away": 0.94,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: Everton +1.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Everton +0.5 to Everton +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 54.9%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Newcastle United",
+    "id": "2026-11-02_Newcastle United_Everton_PL_SOC_Everton+1.5",
+    "ml": "-408",
+    "awA": "Everton",
+    "date": "2026-11-02",
+    "betOn": "Everton +1.5",
+    "sport": "PL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "PL",
+    "source": "manual",
     "altLine": {
-      "posted": 0.5,
       "line": 1.5,
       "shift": 1,
-      "postedLabel": "Everton +0.5",
-      "postedProb": 0.5490864335169092,
-      "postedDec": null,
+      "posted": 0.5,
+      "product": true,
       "postedMl": null,
+      "postedDec": null,
       "bestOfGame": true,
-      "product": true
+      "postedProb": 0.5490864335169092,
+      "postedLabel": "Everton +0.5"
     },
-    "startMs": 1793649600000,
+    "betType": "SPREAD",
+    "decOdds": 1.245,
     "leadMin": 2153,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-02_Newcastle United_Everton_PL_SOC_UNDER3.5",
-    "date": "2026-11-02",
-    "hA": "Newcastle United",
-    "awA": "Everton",
-    "sport": "PL",
-    "league": "PL",
-    "betType": "OU",
-    "betOn": "UNDER 3.5",
-    "winProb": 0.736,
-    "ml": "-357",
-    "decOdds": 1.28,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793520401253,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793649600000,
+    "winProb": 0.758,
+    "lockedAt": 1793520400988,
+    "reasoning": "PICK: Everton +1.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Everton +0.5 to Everton +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 54.9%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.9914234525684608,
-        "away": 0.9930840816712314
+      "h2h": {
+        "away": 0.96,
+        "home": 1.04
       },
       "form": {
-        "home": 0.9698333333333333,
-        "away": 0.97675
+        "away": 0.97675,
+        "home": 0.9698333333333333
+      },
+      "fbref": {
+        "away": 0.9930840816712314,
+        "home": 0.9914234525684608
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 1.0117526826775676,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1.04,
-        "away": 0.96
+        "away": 0.94,
+        "home": 1.0117526826775676
       }
     },
-    "reasoning": "PICK: UNDER 3.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 2.5 to UNDER 3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.3%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Newcastle United",
+    "id": "2026-11-02_Newcastle United_Everton_PL_SOC_UNDER3.5",
+    "ml": "-357",
+    "awA": "Everton",
+    "date": "2026-11-02",
+    "betOn": "UNDER 3.5",
+    "sport": "PL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "PL",
+    "source": "manual",
     "altLine": {
-      "posted": 2.5,
       "line": 3.5,
       "shift": 1,
-      "postedLabel": "UNDER 2.5",
-      "postedProb": 0.5233781566076631,
-      "postedDec": null,
+      "posted": 2.5,
+      "product": true,
       "postedMl": null,
       "bestTotal": true,
-      "product": true
+      "postedDec": null,
+      "postedProb": 0.5233781566076631,
+      "postedLabel": "UNDER 2.5"
     },
-    "startMs": 1793649600000,
+    "betType": "OU",
+    "decOdds": 1.28,
     "leadMin": 2153,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-02_Sassuolo_Fiorentina_SERIEA_Fiorentina+1.5",
-    "date": "2026-11-02",
-    "hA": "Sassuolo",
-    "awA": "Fiorentina",
-    "sport": "SERIEA",
-    "league": "SERIEA",
-    "betType": "SPREAD",
-    "betOn": "Fiorentina +1.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793520403344,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793649600000,
+    "winProb": 0.736,
+    "lockedAt": 1793520401253,
+    "reasoning": "PICK: UNDER 3.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 2.5 to UNDER 3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.3%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 0.94
+      "h2h": {
+        "away": 0.96,
+        "home": 1.04
       },
       "form": {
-        "home": 0.9461428571428572,
-        "away": 1.0073571428571428
+        "away": 0.97675,
+        "home": 0.9698333333333333
+      },
+      "fbref": {
+        "away": 0.9930840816712314,
+        "home": 0.9914234525684608
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1.04,
-        "away": 0.96
+        "away": 0.94,
+        "home": 1.0117526826775676
       }
     },
-    "reasoning": "PICK: Fiorentina +1.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Fiorentina +0.5 to Fiorentina +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 57.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Sassuolo",
+    "id": "2026-11-02_Sassuolo_Fiorentina_SERIEA_Fiorentina+1.5",
+    "ml": "-408",
+    "awA": "Fiorentina",
+    "date": "2026-11-02",
+    "betOn": "Fiorentina +1.5",
+    "sport": "SERIEA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "SERIEA",
+    "source": "manual",
     "altLine": {
-      "posted": 0.5,
       "line": 1.5,
       "shift": 1,
-      "postedLabel": "Fiorentina +0.5",
-      "postedProb": 0.5743741176095309,
-      "postedDec": null,
+      "posted": 0.5,
+      "product": true,
       "postedMl": null,
+      "postedDec": null,
       "bestOfGame": true,
-      "product": true
+      "postedProb": 0.5743741176095309,
+      "postedLabel": "Fiorentina +0.5"
     },
-    "startMs": 1793640600000,
+    "betType": "SPREAD",
+    "decOdds": 1.245,
     "leadMin": 2003,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-02_Sassuolo_Fiorentina_SERIEA_UNDER3.5",
-    "date": "2026-11-02",
-    "hA": "Sassuolo",
-    "awA": "Fiorentina",
-    "sport": "SERIEA",
-    "league": "SERIEA",
-    "betType": "OU",
-    "betOn": "UNDER 3.5",
-    "winProb": 0.6247173259334513,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793520402835,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793640600000,
+    "winProb": 0.758,
+    "lockedAt": 1793520403344,
+    "reasoning": "PICK: Fiorentina +1.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Fiorentina +0.5 to Fiorentina +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 57.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 0.94
+      "h2h": {
+        "away": 0.96,
+        "home": 1.04
       },
       "form": {
-        "home": 0.9461428571428572,
-        "away": 1.0073571428571428
+        "away": 1.0073571428571428,
+        "home": 0.9461428571428572
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1.04,
-        "away": 0.96
+        "away": 0.94,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: UNDER 3.5 \u2014 OPTIMAL (62.5% win prob, EV +19.3% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.44\u20131.66 goals (xG 1.44/1.66), BTTS 62% \u2014 OVER 3.5 hits 37.5% of outcomes, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Sassuolo 1.66 xG/G vs Fiorentina 1.44 xG/G. 3-way: Home 57% / Draw 32% / Away 42%. MC proj: 1.66 \u2013 1.44 (3.10 total vs 3.5 line, BTTS 62%). Goal spread: Sassuolo -0.5 covers 43%, Fiorentina +0.5 covers 57% (proj margin Sassuolo -0.23). Combined xG 3.10 supports a tighter, lower-scoring line. Kelly 21.2%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: Fiorentina +0.5 (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Form (H) -5%, H2H (H) +4%, Fbref (A) -6%, Standings (A) -6%, H2H (A) -4%.",
-    "startMs": 1793640600000,
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Sassuolo",
+    "id": "2026-11-02_Sassuolo_Fiorentina_SERIEA_UNDER3.5",
+    "ml": "-110",
+    "awA": "Fiorentina",
+    "date": "2026-11-02",
+    "betOn": "UNDER 3.5",
+    "sport": "SERIEA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "SERIEA",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.91,
     "leadMin": 2003,
-    "lockTiming": "pre"
+    "outcome": "pending",
+    "startMs": 1793640600000,
+    "winProb": 0.6247173259334513,
+    "lockedAt": 1793520402835,
+    "reasoning": "PICK: UNDER 3.5 \u2014 OPTIMAL (62.5% win prob, EV +19.3% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 1.44\u20131.66 goals (xG 1.44/1.66), BTTS 62% \u2014 OVER 3.5 hits 37.5% of outcomes, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Sassuolo 1.66 xG/G vs Fiorentina 1.44 xG/G. 3-way: Home 57% / Draw 32% / Away 42%. MC proj: 1.66 \u2013 1.44 (3.10 total vs 3.5 line, BTTS 62%). Goal spread: Sassuolo -0.5 covers 43%, Fiorentina +0.5 covers 57% (proj margin Sassuolo -0.23). Combined xG 3.10 supports a tighter, lower-scoring line. Kelly 21.2%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: Fiorentina +0.5 (LEAN). Factors moving this pick: Fbref (H) -6%, Standings (H) -6%, Form (H) -5%, H2H (H) +4%, Fbref (A) -6%, Standings (A) -6%, H2H (A) -4%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 0.96,
+        "home": 1.04
+      },
+      "form": {
+        "away": 1.0073571428571428,
+        "home": 0.9461428571428572
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 0.94,
+        "home": 0.94
+      }
+    }
   },
   {
     "hA": "LAD @ ARI",
@@ -129502,6 +130900,104 @@
     "lockedAt": 1793444571091,
     "reasoning": "PICK: LeBron James OVER AST 6.5 \u2014 OPTIMAL (63% model hit rate)\nMODEL: projection 7.49 AST (season average 7.2, last-5 form 9.2, opponent adjustment +0.3) vs the 6.5 line, spread \u03c3 2.92, from an exact normal distribution (not a simulation).\nWHY: LeBron James averages 7.2 apg across 60 games this season. Opp CHA DRtg 114.4 vs a 115.7 league average computed from every currently-loaded team, a -1% reduction folded into the projection. Game pace 98.3 (-1.7%), PHI offense 115.3 vs a 115.7 league average. No head-to-head history vs CHA this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "priceSource": "estimated"
+  },
+  {
+    "id": "prop_2026-11-01_NBA_AndrewNembhard_AST_5.5_O",
+    "team": "IND",
+    "player": "Andrew Nembhard",
+    "line": 5.5,
+    "over": true,
+    "conf": 0.68,
+    "ml": "-246",
+    "lockedAt": 1793534323819,
+    "outcome": "pending",
+    "date": "2026-11-01",
+    "sport": "NBA",
+    "league": "NBA",
+    "betType": "PROP",
+    "betOn": "Andrew Nembhard OVER AST 5.5",
+    "winProb": 0.68,
+    "hA": "IND",
+    "awA": "BKN",
+    "decOdds": 1.4065040650406504,
+    "wager": 0,
+    "altLine": {
+      "posted": 7.5,
+      "line": 5.5,
+      "shift": 2,
+      "postedLabel": "Andrew Nembhard OVER AST 7.5",
+      "postedProb": 0.6600898785779588,
+      "postedMl": "-194",
+      "postedDec": null,
+      "estimatedPrice": true
+    },
+    "priceSource": "estimated",
+    "pstats": {
+      "gp": 57,
+      "mpg": 31.3,
+      "s": {
+        "PTS": 16.9,
+        "REB": 2.8,
+        "AST": 7.7
+      },
+      "l5": {
+        "n": 5,
+        "cur": null,
+        "PTS": 16,
+        "REB": 2.8,
+        "AST": 12
+      }
+    },
+    "reasoning": "PICK: Andrew Nembhard OVER AST 7.5 \u2014 OPTIMAL (66% model hit rate)\nMODEL: projection 8.86 AST (season average 7.7, last-5 form 12, opponent adjustment +1.2) vs the 7.5 line, spread \u03c3 3.3, from an exact normal distribution (not a simulation).\nWHY: Andrew Nembhard averages 7.7 apg across 57 games this season. Opp BKN DRtg 119.1 vs a 115.7 league average computed from every currently-loaded team, a 3% boost folded into the projection. Game pace 98.8 (-2.0%), IND offense 110.8 vs a 115.7 league average. No head-to-head history vs BKN this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
+  },
+  {
+    "id": "prop_2026-11-01_NBA_NikolaVucevic_REB_10.5_U",
+    "team": "ORL",
+    "player": "Nikola Vucevic",
+    "line": 10.5,
+    "over": false,
+    "conf": 0.68,
+    "ml": "-246",
+    "lockedAt": 1793534323532,
+    "outcome": "pending",
+    "date": "2026-11-01",
+    "sport": "NBA",
+    "league": "NBA",
+    "betType": "PROP",
+    "betOn": "Nikola Vucevic UNDER REB 10.5",
+    "winProb": 0.68,
+    "hA": "ORL",
+    "awA": "BOS",
+    "decOdds": 1.4065040650406504,
+    "wager": 0,
+    "altLine": {
+      "posted": 8.5,
+      "line": 10.5,
+      "shift": 2,
+      "postedLabel": "Nikola Vucevic UNDER REB 8.5",
+      "postedProb": 0.6692428023199452,
+      "postedMl": "-202",
+      "postedDec": null,
+      "estimatedPrice": true
+    },
+    "priceSource": "estimated",
+    "pstats": {
+      "gp": 64,
+      "mpg": 28.4,
+      "s": {
+        "PTS": 15.1,
+        "REB": 8.4,
+        "AST": 3.3
+      },
+      "l5": {
+        "n": 5,
+        "cur": null,
+        "PTS": 6,
+        "REB": 4,
+        "AST": 2
+      }
+    },
+    "reasoning": "PICK: Nikola Vucevic UNDER REB 8.5 \u2014 OPTIMAL (67% model hit rate)\nMODEL: projection 6.91 REB (season average 8.4, last-5 form 4, opponent adjustment -1.5) vs the 8.5 line, spread \u03c3 3.64, from an exact normal distribution (not a simulation).\nWHY: Nikola Vucevic averages 8.4 rpg across 64 games this season. Opp BOS DRtg 112.7 vs a 115.7 league average computed from every currently-loaded team, a -3% reduction folded into the projection. Game pace 97.5 (-2.9%), ORL offense 114.7 vs a 115.7 league average. No head-to-head history vs BOS this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
   },
   {
     "id": "prop_hist_jwill_pts_g1",
