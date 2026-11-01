@@ -111471,10 +111471,10 @@
     "winProb": 0.6836,
     "lockedAt": 1793346366181,
     "reasoning": "PICK: FRES +13.5 \u2014 ADJUSTED LINE (68.4% estimated win prob at this line)\nADJUSTED LINE: moved 7.5 pts from the posted FRES +6.0 to FRES +13.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 40.9%; the 7.5-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "settledAt": 1793517081550,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1793517081550
+    "priceSource": "estimated"
   },
   {
     "hA": "FRES",
@@ -111508,10 +111508,10 @@
     "winProb": 0.683,
     "lockedAt": 1793346366630,
     "reasoning": "PICK: OVER 51.5 \u2014 ADJUSTED LINE (68.3% estimated win prob at this line)\nADJUSTED LINE: moved 7 pts from the posted OVER 58.5 to OVER 51.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 47.4%; the 7-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "settledAt": 1793517081551,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated",
-    "settledAt": 1793517081551
+    "priceSource": "estimated"
   },
   {
     "hA": "FSU",
@@ -118265,6 +118265,34 @@
       }
     },
     "priceSource": "estimated"
+  },
+  {
+    "id": "2026-11-01_Pardubice_Mlada Boleslav_EXTRALIGA_PardubiceML",
+    "date": "2026-11-01",
+    "hA": "Pardubice",
+    "awA": "Mlada Boleslav",
+    "sport": "EXTRALIGA",
+    "league": "EXTRALIGA",
+    "betType": "ML",
+    "betOn": "Pardubice ML",
+    "winProb": 0.7738620343932575,
+    "ml": "-426",
+    "decOdds": 1.235,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793519228410,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: Pardubice ML \u2014 HIGH PROB (77.4% win prob, EV -4.4% \u00b7 MARKET PRICE -426 (EV at market -4.4%) \u00b7 MARKET-BLENDED: model 83.0% \u00b7 no-vig market 75.2% \u2192 77.4% (alpha 0.75))\nMODEL: Projected 2.4\u20133.5 (total 6.0) (OT/SO in 15% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Pardubice 3.66/2.62 (16GP this season, 52GP prior) vs Mlada Boleslav 2.15/3.21 (16GP, 52GP prior). Market line: 5.5 (Pardubice 6.12, Mlada Boleslav 5.16). Record: Pardubice 10-4-1OTW-1OTL vs Mlada Boleslav 4-9-2OTW-1OTL. Exact-Poisson proj: Mlada Boleslav 2.4 \u2013 Pardubice 3.5 (6.0 total vs 5.5 line). Pardubice's scoring edge versus the moneyline price. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 83.0% \u00b7 no-vig market 75.2% \u2192 77.4%; Puck line market blend (alpha 0.70): model 57.0% \u00b7 no-vig market 54.1% \u2192 55.0%; O/U market blend (alpha 0.65): model 53.8% \u00b7 no-vig market 43.1% \u2192 46.8%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.8305,
+    "marketProb": 0.7523,
+    "blendAlpha": 0.75,
+    "startMs": 1793541600000,
+    "leadMin": 373,
+    "lockTiming": "pre"
   },
   {
     "hA": "Pardubice",
