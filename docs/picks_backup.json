@@ -117935,14 +117935,14 @@
     "betOn": "OVER 1.5",
     "sport": "LIGA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 1,
+    "hScore": 3,
     "league": "LIGA",
     "source": "manual",
     "betType": "OU",
     "decOdds": 1.91,
     "leadMin": 1771,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1793538000000,
     "winProb": 0.6759565600234152,
     "lockedAt": 1793431737014,
@@ -117978,7 +117978,8 @@
         "away": 1.06,
         "home": 0.94
       }
-    }
+    },
+    "settledAt": 1793545302262
   },
   {
     "hA": "Getafe",
@@ -117989,8 +117990,8 @@
     "betOn": "Sevilla +1.5",
     "sport": "LIGA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 1,
+    "hScore": 3,
     "league": "LIGA",
     "source": "manual",
     "altLine": {
@@ -118005,7 +118006,7 @@
     "betType": "SPREAD",
     "decOdds": 1.245,
     "leadMin": 1771,
-    "outcome": "pending",
+    "outcome": "loss",
     "startMs": 1793538000000,
     "winProb": 0.758,
     "lockedAt": 1793431737191,
@@ -118042,7 +118043,8 @@
         "home": 0.94
       }
     },
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1793545302263
   },
   {
     "hA": "IND",
@@ -119354,6 +119356,34 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "priceSource": "estimated"
+  },
+  {
+    "hA": "Plzen",
+    "id": "2026-11-01_Plzen_Kladno_EXTRALIGA_Kladno+1.5",
+    "ml": "-222",
+    "awA": "Kladno",
+    "date": "2026-11-01",
+    "betOn": "Kladno +1.5",
+    "sport": "EXTRALIGA",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "EXTRALIGA",
+    "source": "manual",
+    "betType": "SPREAD",
+    "decOdds": 1.45,
+    "leadMin": 65,
+    "outcome": "pending",
+    "startMs": 1793547000000,
+    "winProb": 0.6570642739784116,
+    "lockedAt": 1793543090296,
+    "modelProb": 0.6815,
+    "reasoning": "PICK: Kladno +1.5 \u2014 HIGH PROB (65.7% win prob, EV -4.7% \u00b7 MARKET PRICE -222 (EV at market -4.7%) \u00b7 MARKET-BLENDED: model 68.2% \u00b7 no-vig market 64.6% \u2192 65.7% (alpha 0.70))\nMODEL: Projected 2.6\u20132.7 (total 5.4) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Plzen 2.43/2.26 (16GP this season, 52GP prior) vs Kladno 2.92/2.68 (16GP, 52GP prior). Market line: 4.5 (Plzen 4.33, Kladno 5.32). Record: Plzen 4-6-5OTW-1OTL vs Kladno 7-4-3OTW-2OTL. Exact-Poisson proj: Kladno 2.6 \u2013 Plzen 2.7 (5.4 total vs 4.5 line). Kladno +1.5 covers in 65.7% of the model's blended scoring+margin projection (fav covers 34.3%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 45.7% \u00b7 no-vig market 60.3% \u2192 56.7%; Puck line market blend (alpha 0.70): model 31.9% \u00b7 no-vig market 35.4% \u2192 34.3%; O/U market blend (alpha 0.65): model 64.1% \u00b7 no-vig market 58.7% \u2192 60.6%. Half-unit play \u00b7 Also: OVER 4.5 (HIGH PROB).",
+    "blendAlpha": 0.7,
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "marketProb": 0.6463,
+    "priceSource": "market"
   },
   {
     "hA": "Plzen",
