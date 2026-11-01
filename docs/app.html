@@ -9457,6 +9457,56 @@ function _cardInfoRowHTML(label,items,note){
     return`<div class="nhlgk"><span class="nhlgk-l">${label}</span>${it}${note?`<span class="nhlgk-n">${note}</span>`:''}</div>`;
   }catch(e){return'';}
 }
+// ── PLAYERS OUT row on NFL + NHL game cards (owner 2026-11-01, same idea as the NBA card's PLAYERS OUT & REST) ─────────────────────────────────────────────────────────────────
+// DISPLAY ONLY: it never feeds a probability, price, grade or lock (the NFL model has its own injury adjustment, _nflInjNote; the NHL model has none).
+// NFL: docs/nfl_injuries.json (scripts/fetch_nfl.py, daily) via _NFL_DATA.injuriesByTeam, keyed by team abbreviation; hidden when the file is stale (> _NFL_INJ_STALE_H), the game is over, or it is more
+// than 8 days away (a week-specific designation does not apply -- the same rules the model uses). NHL: live ESPN injuries (the same feed as the NBA row), keyed by the athlete's team abbreviation.
+// Each team shows up to 3 (certain absences first, then the key position: NFL QB > RB/WR/TE > OL > DL/LB > DB > K/P; NHL G > C > W > D), then "+N more"; day-to-day / questionable players come last.
+var _NHL_INJ={ts:0,by:{}};
+async function _nhlPrefetchInj(){
+  try{
+    if(Date.now()-_NHL_INJ.ts<300000)return;
+    const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/injuries',{mode:'cors',cache:'no-cache'});
+    if(!r.ok)return;const d=await r.json(),by={};
+    (d.injuries||[]).forEach(t=>(t.injuries||[]).forEach(i=>{
+      const a=i.athlete||{},ab=String((a.team&&a.team.abbreviation)||'').toUpperCase();if(!ab||!a.displayName)return;
+      (by[ab]=by[ab]||[]).push({player:a.displayName,pos:(a.position&&a.position.abbreviation)||'',status:i.status||''});
+    }));
+    _NHL_INJ={ts:Date.now(),by:by};
+  }catch(e){}
+}
+const _OUT_TAGS={'out':['OUT',0],'injured reserve':['IR',1],'suspension':['SUSP',2],'doubtful':['DOUBTFUL',3],'day-to-day':['DAY-TO-DAY',4],'questionable':['QUESTIONABLE',5]};
+const _OUT_POS_RANK={QB:0,RB:1,FB:1,WR:1,TE:1,OL:2,OT:2,T:2,G:2,C:2,OG:2,DL:3,DE:3,DT:3,NT:3,LB:3,ILB:3,OLB:3,EDGE:3,DB:4,CB:4,S:4,FS:4,SS:4,K:5,P:5,LS:5};
+function _posOf(r){return String((r&&(r.pos||r.position))||'');}   // NHL rows carry `pos`, the NFL injury file `position`
+// rows: [{player,pos,status}] -> up to `max` row items for _cardInfoRowHTML, certain absences (Out / IR / suspended / doubtful) before maybe-plays (day-to-day / questionable).
+function _outRowItems(rows,abbr,side,posRank,max){
+  const list=(rows||[]).map(r=>{const t=_OUT_TAGS[String(r.status||'').trim().toLowerCase()];return t?{r,tag:t[0],ord:t[1]}:null;}).filter(Boolean)
+    .sort((a,b)=>((a.ord>=4)-(b.ord>=4))||((posRank[_posOf(a.r).toUpperCase()]??9)-(posRank[_posOf(b.r).toUpperCase()]??9))||(a.ord-b.ord)||String(a.r.player).localeCompare(String(b.r.player)));
+  const items=list.slice(0,max).map(x=>({team:abbr,side:side,text:_escHtml(x.r.player),sub:_posOf(x.r)?_escHtml(_posOf(x.r)):'',tag:x.tag,ok:0}));
+  if(list.length>max)items.push({team:abbr,side:side,text:'+'+(list.length-max)+' more'});
+  return items;
+}
+function _nflOutRowHTML(g){
+  try{
+    const D=(typeof _NFL_DATA!=='undefined')?_NFL_DATA:null;if(!D||!D.injuriesByTeam||!g)return'';
+    if(g.state==='post'||g.status==='post')return'';
+    if(_injStale(D.generatedAt&&D.generatedAt.injuries,_NFL_INJ_STALE_H))return'';
+    if(g.date){const dt=Date.parse(g.date);if(isFinite(dt)&&dt-Date.now()>8*864e5)return'';}
+    const items=[..._outRowItems(D.injuriesByTeam[g.away],g.away,'a',_OUT_POS_RANK,3),..._outRowItems(D.injuriesByTeam[g.home],g.home,'h',_OUT_POS_RANK,3)];
+    return _cardInfoRowHTML('PLAYERS OUT',items);
+  }catch(e){return'';}
+}
+// The app's NHL keys use LAK / NJD / SJS / TBL where ESPN's team abbreviations are LA / NJ / SJ / TB.
+const _NHL_INJ_ALIAS={LAK:'LA',NJD:'NJ',SJS:'SJ',TBL:'TB',LA:'LAK',NJ:'NJD',SJ:'SJS',TB:'TBL'};
+function _nhlInjFor(ab){ab=String(ab||'').toUpperCase();return _NHL_INJ.by[ab]||_NHL_INJ.by[_NHL_INJ_ALIAS[ab]]||[];}
+function _nhlOutRowHTML(g){
+  try{
+    if(!g||g.state==='post')return'';
+    const rank={G:0,C:1,LW:2,RW:2,W:2,D:3};
+    const items=[..._outRowItems(_nhlInjFor(g.away),g.away,'a',rank,3),..._outRowItems(_nhlInjFor(g.home),g.home,'h',rank,3)];
+    return _cardInfoRowHTML('PLAYERS OUT',items);
+  }catch(e){return'';}
+}
 function _compass(deg){if(deg==null||!isFinite(deg))return'';return['N','NE','E','SE','S','SW','W','NW'][Math.round(((deg%360)+360)%360/45)%8];}
 // ── OVER / UNDER RECORD ROW on NHL + European hockey cards (owner 2026-10-24) ───────────────────────────────────────────────────────────────────────────────────────────────
 // Source: Flashscore's standings "OVER/UNDER" tab (scripts/_flashscore_ou.py -> docs/nhl_ou.json for the NHL, `ou` on each team of docs/{liiga,shl,nla,extraliga}_schedule.json):
@@ -11095,6 +11145,7 @@ function _nflGameCard2(g){
         <button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('nfl2_${gidSafe}')">COMPARE</button>
       </div>
     </div>
+    ${_nflOutRowHTML(g)}
     ${_wxRowHTML(g)}
     <div id="radar_nfl2_${gidSafe}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(0,120,255,.1)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
@@ -11417,6 +11468,7 @@ async function renderNHLWeek(){
   el.innerHTML='<div class="loading"><span class="spi"></span> LOADING TODAY\'S GAMES…</div>';
   var now=Date.now();
   if(!_nhlWeekCache||now-_nhlWeekCacheTs>5*60*1000){_nhlWeekCache=await _fetchNHLWeekGames();_nhlWeekCacheTs=now;}
+  try{await _nhlPrefetchInj();}catch(e){}                                // players-out row (display only)
   var events=_nhlWeekCache||[];
   var todayIso=today();
   events=events.filter(function(ev){
@@ -11872,6 +11924,7 @@ function _nhlGameCard(espnEv){
     </div>
   </div>
   ${_nhlGoalieRowHTML(hn,an,espnEv.date,espnEv)}
+  ${_nhlOutRowHTML({home:hn,away:an,state:state})}
   <div id="radar_nhl_${hn}_${an}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
     <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
       <span style="color:#00f0ff">${_teamLogoHTML('nhl',an,'a',22,{ring:'cyan',url:aE?.team?.logo,name:aE?.team?.displayName})}■ ${an}</span><span style="color:#f000ff">${_teamLogoHTML('nhl',hn,'h',22,{ring:'magenta',url:hE?.team?.logo,name:hE?.team?.displayName})}■ ${hn}</span>
@@ -12207,6 +12260,7 @@ function _nhlUpcomingCardRaw(g,dayIdx){
       <div style="text-align:right"><div class="np mono" style="font-size:15px">${stateTxt}</div><button class="btn btn-o btn-sm" style="font-size:12px;padding:2px 6px;margin-top:3px" onclick="event.stopPropagation();_toggleMatchupRadar('nhlu_${uid}')">COMPARE</button></div>
     </div>
     ${_nhlGoalieRowHTML(g.home,g.away,g.date)}
+    ${_nhlOutRowHTML(g)}
     ${_hkOuRecordRowHTML('nhl',g)}
     <div id="radar_nhlu_${uid}" style="display:none;padding:8px 10px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;justify-content:center;gap:14px;margin-bottom:2px;font-family:var(--mono);font-size:12px">
@@ -12323,6 +12377,7 @@ async function renderNHLUpcoming(){
   el.innerHTML='<div class="loading"><span class="spi"></span></div>';
   const data=await loadNHLScheduleData();
   try{await loadNhlOuData();}catch(e){}                                  // over/under records for the OVER RATE row (display only)
+  try{await _nhlPrefetchInj();}catch(e){}                                // players-out row (display only)
   const games=data?.games||[];
   if(!games.length){el.innerHTML='<div class="empty">SCHEDULE NOT LOADED YET</div>';return;}
   _nhlPopulateScheduleDayFilter(games);
