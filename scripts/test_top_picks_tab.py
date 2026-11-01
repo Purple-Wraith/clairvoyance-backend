@@ -72,6 +72,41 @@ class TopPicks(unittest.TestCase):
         self.assertTrue(any("Top Picks: " + want in t for t in tips), (want, [t for t in tips if "Top Picks" in t][:3]))
         self.assertIn("WHOLE Top Picks record", self.pg.evaluate("document.getElementById('toppicks-heatmap').innerText"))
 
+    def test_period_rows_sit_above_the_grid_and_sum_the_same_whole_day_records(self):
+        """TODAY / YESTERDAY / LAST 7 DAYS / LAST 14 DAYS / THIS MONTH / LAST MONTH / ALL TIME (owner 2026-11-01): calendar days in Mountain time, summing each day's WHOLE record."""
+        sh = lambda n: self.pg.evaluate("(n)=>_scShift(today(),n)", n)
+        td = self.pg.evaluate("today()")
+        # distinct win/loss counts per offset so a wrong boundary changes the sum: (offset in days, wins, losses)
+        spec = [(0, 3, 1), (-1, 2, 2), (-6, 4, 0), (-7, 1, 3), (-13, 2, 1), (-14, 0, 2), (-40, 5, 0), (-75, 1, 1)]
+        picks, k = [], 0
+        for off, w, l in spec:
+            for i in range(w + l):
+                picks.append(pick(k, "NBA", "win" if i < w else "loss", sh(off), wp=.78 - k * .001)); k += 1
+        self.ledger(picks)
+        self.pg.evaluate("renderTopPicksHeatmap()")
+        rows = [r.strip() for r in self.pg.evaluate("[...document.querySelectorAll('#toppicks-heatmap .tp-period')].map(r=>r.innerText.replace(/\\s+/g,' '))")]
+        want = {"TODAY": [0], "YESTERDAY": [-1], "LAST 7 DAYS": [0, -1, -6], "LAST 14 DAYS": [0, -1, -6, -7, -13], "ALL TIME": [o for o, _, _ in spec]}
+        ym = td[:7]
+        lastm = self.pg.evaluate("_scShift(today().slice(0,7)+'-01',-1).slice(0,7)")
+        want["THIS MONTH"] = [o for o, _, _ in spec if sh(o)[:7] == ym]
+        want["LAST MONTH"] = [o for o, _, _ in spec if sh(o)[:7] == lastm]
+        self.assertEqual(len(rows), 7)
+        for r, lab in zip(rows, ["TODAY", "YESTERDAY", "LAST 7 DAYS", "LAST 14 DAYS", "THIS MONTH", "LAST MONTH", "ALL TIME"]):
+            self.assertTrue(r.startswith(lab), (lab, r))
+            offs = want[lab]
+            w = sum(x[1] for x in spec if x[0] in offs); l = sum(x[2] for x in spec if x[0] in offs)
+            self.assertIn(f"{w}W-{l}L", r, (lab, r))
+            self.assertIn(f"{round(100 * w / (w + l))}%" if w + l else "--", r, (lab, r))
+        grid_pos = self.pg.evaluate("(()=>{const h=document.getElementById('toppicks-heatmap');return h.querySelector('.tp-period').compareDocumentPosition(h.querySelector('.tp-heat-cell'))&4})()")
+        self.assertTrue(grid_pos)                                                                    # the rows come before the squares
+
+    def test_two_grids_have_identical_period_labels(self):
+        self.ledger([pick(0, "NBA", "win", self.day), {**pick(9, "NBA", "win", self.day), "id": "adj2", "betType": "OU", "betOn": "OVER 200.5", "altLine": {"posted": 205.5, "line": 200.5, "shift": 5, "postedLabel": "OVER 205.5"}}])
+        lab = lambda fn: self.pg.evaluate("(f)=>{const d=document.createElement('div');d.innerHTML=_tpPeriodSummaryHTML(window[f]);return [...d.querySelectorAll('.tp-period')].map(r=>r.firstElementChild.firstChild.textContent.trim())}", fn)
+        a, b = lab("_topPicksDayWinRate"), lab("_topAdjDayRecord")
+        self.assertEqual(a, ["TODAY", "YESTERDAY", "LAST 7 DAYS", "LAST 14 DAYS", "THIS MONTH", "LAST MONTH", "ALL TIME"])
+        self.assertEqual(a, b); self.assertEqual(len(a), 7)
+
     def test_the_two_grids_share_one_square_layout(self):
         old = self.pg.evaluate("_scShift(today(),-12)")      # the grid starts on the Sunday before the oldest pick: without this it has only 2 cells on a Monday
         self.ledger([pick(i, "NBA", "win", self.day) for i in range(3)] + [pick(20, "NBA", "win", old)] + [{**pick(9, "NBA", "win", self.day), "id": "adj1", "betType": "OU", "betOn": "OVER 200.5", "altLine": {"posted": 205.5, "line": 200.5, "shift": 5, "postedLabel": "OVER 205.5"}}])

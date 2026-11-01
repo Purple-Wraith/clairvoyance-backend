@@ -5640,6 +5640,9 @@ const _ALT_HK_EURO={LIIGA:{'-3':0.942,'-2':0.798,'-1':0.665,'1':0.667,'2':0.835,
   NLA:{'-3':0.948,'-2':0.810,'-1':0.697,'1':0.652,'2':0.848,'3':0.906},
   EXTRALIGA:{'-3':0.914,'-2':0.765,'-1':0.650,'1':0.714,'2':0.838,'3':0.895}};   // book basis (regulation + OT, no shootout goal) -- mirror of HOCKEY_OU_EURO in scripts/auto_lock_settle.py
 const _ALT_TARGET=.67,_ALT_FLOOR=.62,_ALT_VIG=.045;
+// EVERY adjusted line ends in .5 (owner 2026-11-01: lines like 13.3 / 17.6 appeared when a card had no posted spread and the model's raw margin stood in for it): snap to the nearest x.5 in the SAFE
+// direction (sign -1 = lower, an OVER; +1 = higher, an UNDER or a spread), so the cushion can only grow -- mirror of _alt_half_snap in scripts/auto_lock_settle.py.
+function _altHalfSnap(x,sign){return sign<0?Math.floor(x-.5+1e-9)+.5:Math.ceil(x-.5-1e-9)+.5;}
 function _altProb(c,k){
   if(c[0]==='normal')return normalCDF((k+c[2])/c[1]);
   const pts=c[1];if(k<=pts[0][0])return pts[0][1];
@@ -5659,7 +5662,7 @@ function _altShift(sport,mkt,label,modelP,neutral){
     if(mkt!=='OU')return null;
     const m=String(label).trim().match(/^(OVER|UNDER)\s+(\d+(?:\.\d+)?)$/i);if(!m)return null;
     if(modelP!=null&&!isNaN(modelP)&&modelP>=HOCKEY_LANE_OU_P)return null;   // already at the lane floor on the posted line: keep it at the real price (mirror of _hockey_pick_alt)
-    const posted=parseFloat(m[2]),own=m[1].toUpperCase(),anchor=posted===Math.floor(posted)?posted-.5:posted,bk=anchor<=6?'5.5':'6.5';
+    const posted=parseFloat(m[2]),own=m[1].toUpperCase(),anchor=_altHalfSnap(posted===Math.floor(posted)?posted-.5:posted,own==='OVER'?-1:1),bk=anchor<=6?'5.5':'6.5';
     const tab=_ALT_HK_EURO[sport]||_ALT_HK_NHL[bk],base0=_ALT_HK_EURO[sport]?.5:_ALT_HK_BASE0[bk][own];
     const adj=(modelP!=null&&!isNaN(modelP))?Math.max(_ALT_HK_EDGE_CLAMP[0],Math.min(_ALT_HK_EDGE_CLAMP[1],_ALT_HK_EDGE_W*(modelP-base0))):0;
     const cands=[[0,anchor,Math.min(.95,base0+adj)]];
@@ -5705,8 +5708,8 @@ function _altShift(sport,mkt,label,modelP,neutral){
   else{const m=String(label).trim().match(/^(.+?)\s+([+-]\d+(?:\.\d+)?)$/);if(!m)return null;team=m[1];posted=parseFloat(m[2]);sign=1;}
   let k=kmin+(posted===Math.floor(posted)?.5:0);
   while(k+1<=kmax+.5&&_altProb(curve,k)<_ALT_TARGET-1e-9)k+=1;
-  const p=_altProb(curve,k);if(p<_ALT_FLOOR)return null;
-  const line=posted+sign*k;let nl;
+  const line=_altHalfSnap(posted+sign*k,sign);k=+Math.abs(line-posted).toFixed(4);   // a posted line that is not a half-point (a model margin standing in for the spread) still lands on x.5, and the shift is the real distance moved
+  const p=_altProb(curve,k);if(p<_ALT_FLOOR)return null;let nl;
   if(mkt==='OU'){if(line<=0)return null;nl=direction+' '+line.toFixed(1);}else nl=team+' '+(line>=0?'+':'')+line.toFixed(1);
   return _altFinish(label,nl,p,posted,line,k,mkt);
 }
@@ -16252,7 +16255,7 @@ function _propAltLine(statKey,line,over,mu,sigma,postedProb){
   const band=_PROP_ALT_BAND[statKey];if(!band||!(sigma>0)||postedProb>=_PROP_ALT_TARGET)return null;
   let best=null;
   for(const k of band){
-    const L=over?line-k:line+k;if(L<0.5)continue;
+    const L=_altHalfSnap(over?line-k:line+k,over?-1:1);if(L<0.5)continue;
     let pr=over?1-normalCDF((L-mu)/sigma):normalCDF((L-mu)/sigma);
     pr=_capMktP(pr,'PROP','NBA');
     best={line:L,shift:k,prob:pr};
@@ -20916,6 +20919,24 @@ function _topPicksDayWinRate(dateStr,allBets){
 // history shown for cells that are actually readable/tappable on mobile,
 // which is what this widget is for ("hot/cold days visible at a glance").
 // All computed from the real ledger on tab-open -- no polling/setInterval.
+// PERIOD RECORDS shared by both DAILY WIN RATE cards (owner 2026-11-01): TODAY, YESTERDAY, LAST 7 DAYS, LAST 14 DAYS, THIS MONTH, LAST MONTH, ALL TIME -- each a W-L record and win %.
+// Calendar days in Mountain time (last 7 days = today and the 6 before it); every figure sums the SAME per-day WHOLE record the square below uses (dayFn), so the rows and the squares can never disagree.
+function _tpPeriodRows(dayFn){
+  const allBets=getP(),td=today(),ym=td.slice(0,7),lastM=_scShift(ym+'-01',-1).slice(0,7);
+  const dates=Array.from(new Set(allBets.map(p=>p&&p.date).filter(d=>d&&d<=td))).sort();
+  const per={};dates.forEach(d=>{try{per[d]=dayFn(d,allBets)||{};}catch(e){per[d]={};}});
+  const sum=pred=>{let w=0,l=0,pend=0;dates.forEach(d=>{if(!pred(d))return;const r=per[d];w+=r.w||0;l+=r.l||0;pend+=r.pend||0;});return{w,l,pend};};
+  const d7=_scShift(td,-6),d14=_scShift(td,-13),yd=_scShift(td,-1);
+  return[['TODAY',sum(d=>d===td)],['YESTERDAY',sum(d=>d===yd)],['LAST 7 DAYS',sum(d=>d>=d7)],['LAST 14 DAYS',sum(d=>d>=d14)],['THIS MONTH',sum(d=>d.slice(0,7)===ym)],['LAST MONTH',sum(d=>d.slice(0,7)===lastM)],['ALL TIME',sum(()=>true)]];
+}
+function _tpPeriodSummaryHTML(dayFn){
+  const col=r=>r==null?'var(--t3)':r>=.65?'#00e644':r>=.55?'var(--gc)':'#ff1a1a';
+  const row=(label,x)=>{const r=(x.w+x.l)?x.w/(x.w+x.l):null;return`<div class="tp-adj-day tp-period" style="display:flex;align-items:center;gap:8px;padding:5px 10px;background:rgba(10,0,24,.9);border-left:2px solid ${col(r)};border-radius:2px;margin-bottom:3px;font-family:var(--mono);font-size:13px">
+    <span style="flex:1;min-width:0;color:var(--pc);font-weight:700">${label}${x.pend?` <span style="color:var(--t3);font-weight:400;font-size:13px">· ${x.pend} pending</span>`:''}</span>
+    <span style="color:var(--t2)"><span style="color:#00e644">${x.w}W</span>-<span style="color:#ff1a1a">${x.l}L</span></span>
+    <span style="width:44px;text-align:right;color:${col(r)};font-weight:700">${r==null?'--':Math.round(r*100)+'%'}</span></div>`;};
+  return`<div class="tp-period-rows" style="margin-bottom:10px">${_tpPeriodRows(dayFn).map(([l,x])=>row(l,x)).join('')}</div>`;
+}
 // One square-grid calendar used by BOTH win-rate displays (TOP PICKS and TOP ADJUSTED LINES, owner 2026-10-24).  dayFn(ds,allBets) -> {n,graded,w,l,pct,pend}; every cell is that day's WHOLE record.
 function _tpHeatGridHTML(o){
   const allBets=getP();
@@ -20963,7 +20984,7 @@ function _tpHeatGridHTML(o){
 function renderTopPicksHeatmap(){
   const el=document.getElementById('toppicks-heatmap');if(!el)return;
   try{
-    el.innerHTML=_tpHeatGridHTML({title:'TOP PICKS — DAILY WIN RATE',noun:'Top Picks',dayFn:_topPicksDayWinRate,
+    el.innerHTML=_tpHeatGridHTML({title:'TOP PICKS — DAILY WIN RATE',noun:'Top Picks',dayFn:_topPicksDayWinRate,summary:_tpPeriodSummaryHTML(_topPicksDayWinRate),
       note:"Each square is one day's WHOLE Top Picks record: every qualifying pick of that day, not only the 10 overall or 5 per league the lists show, graded against the real ledger."});
   }catch(e){
     console.error('renderTopPicksHeatmap',e);
@@ -21106,21 +21127,8 @@ function _topAdjRowHTML(e){
     </div>
   </div>`;
 }
-// DAILY WIN RATE of the adjusted-line picks that were actually LOCKED (owner 2026-10-23): one row per day, newest first, last 14 days with picks, plus the 14-day and all-time totals.
+// DAILY WIN RATE of the adjusted-line picks that were actually LOCKED (owner 2026-10-23): the period rows (_tpPeriodSummaryHTML) and the square grid both read _topAdjDayRecord below.
 // Game lines only (spreads / totals); adjusted player props are tracked in their own list.  A push is neither a win nor a loss and is left out of the percentage.
-function _topAdjDaily(days){
-  const by={};let aw=0,al=0;
-  try{
-    getP().forEach(p=>{
-      if(!p||!p.altLine||p.outcome==='_removed'||String(p.betType||'').toUpperCase()==='PROP'||!p.date)return;
-      const o=by[p.date]=by[p.date]||{w:0,l:0,p:0,pend:0};
-      if(p.outcome==='win'){o.w++;aw++;}else if(p.outcome==='loss'){o.l++;al++;}else if(p.outcome==='push')o.p++;else o.pend++;
-    });
-  }catch(e){}
-  const dates=Object.keys(by).sort().reverse().slice(0,days||14);
-  let w=0,l=0;dates.forEach(d=>{w+=by[d].w;l+=by[d].l;});
-  return{by,dates,w,l,allW:aw,allL:al};
-}
 // WHOLE record of one day's locked adjusted lines (game lines): every lock counts, however many the per-league lists above show.
 function _topAdjDayRecord(ds,allBets){
   let w=0,l=0,pu=0,pend=0,n=0;
@@ -21132,15 +21140,9 @@ function _topAdjDayRecord(ds,allBets){
   return{n,graded:w+l,w,l,pct:(w+l)?w/(w+l):null,pend,pushes:pu};
 }
 function _topAdjDailyHTML(){
-  const D=_topAdjDaily(14);
-  if(!D.dates.length)return`<div class="tp-adj-daily card" style="margin-bottom:14px"><div class="sh" style="font-size:17px!important;margin-top:0"><span class="nc"></span> ADJUSTED LINES — DAILY WIN RATE</div><div class="empty">NO LOCKED ADJUSTED LINES YET</div></div>`;
-  const col=r=>r==null?'var(--t3)':r>=.65?'#00e644':r>=.55?'var(--gc)':'#ff1a1a';
-  const row=(label,w,l)=>{const r=(w+l)?w/(w+l):null;return`<div class="tp-adj-day" style="display:flex;align-items:center;gap:8px;padding:5px 10px;background:rgba(10,0,24,.9);border-left:2px solid ${col(r)};border-radius:2px;margin-bottom:3px;font-family:var(--mono);font-size:13px">
-    <span style="flex:1;min-width:0;color:var(--pc);font-weight:700">${label}</span>
-    <span style="color:var(--t2)"><span style="color:#00e644">${w}W</span>-<span style="color:#ff1a1a">${l}L</span></span>
-    <span style="width:44px;text-align:right;color:${col(r)};font-weight:700">${r==null?'--':Math.round(r*100)+'%'}</span></div>`;};
-  const summary=`<div style="margin-bottom:10px">${row(`LAST ${D.dates.length} DAY${D.dates.length===1?'':'S'}`,D.w,D.l)}${row('ALL TIME',D.allW,D.allL)}</div>`;
-  return`<div class="tp-adj-daily">`+_tpHeatGridHTML({title:'ADJUSTED LINES — DAILY WIN RATE',noun:'Adjusted lines',dayFn:_topAdjDayRecord,summary,
+  const hasAny=(()=>{try{return getP().some(p=>p&&p.altLine&&p.outcome!=='_removed'&&String(p.betType||'').toUpperCase()!=='PROP'&&p.date);}catch(e){return false;}})();
+  if(!hasAny)return`<div class="tp-adj-daily card" style="margin-bottom:14px"><div class="sh" style="font-size:17px!important;margin-top:0"><span class="nc"></span> ADJUSTED LINES — DAILY WIN RATE</div><div class="empty">NO LOCKED ADJUSTED LINES YET</div></div>`;
+  return`<div class="tp-adj-daily">`+_tpHeatGridHTML({title:'ADJUSTED LINES — DAILY WIN RATE',noun:'Adjusted lines',dayFn:_topAdjDayRecord,summary:_tpPeriodSummaryHTML(_topAdjDayRecord),
     note:"Each square is one day's WHOLE record of locked adjusted lines (spreads and totals): every lock counts, not only the top 10 / 7 / 5 the lists below show. Pushes are left out of the percentage."})+`</div>`;
 }
 function _topAdjHTML(){

@@ -2500,6 +2500,11 @@ def _alt_cdf(x: float) -> float:
     return _ND.cdf(x)
 
 
+def _alt_half_snap(x: float, sign: float) -> float:
+    """Every adjusted line ends in .5 (owner 2026-11-01): nearest x.5 in the SAFE direction (sign < 0 = lower, an OVER; otherwise higher, an UNDER or a spread) -- mirror of _altHalfSnap in docs/app.html."""
+    return math.floor(x - 0.5 + 1e-9) + 0.5 if sign < 0 else math.ceil(x - 0.5 - 1e-9) + 0.5
+
+
 def _fmt_line(x: float, signed: bool) -> str:
     return f"{x:+.1f}" if signed else f"{x:.1f}"
 
@@ -2608,7 +2613,7 @@ def _hockey_pick_alt(posted: float, sport: str = "NHL", own_side: str = "over", 
     credited (keep it as posted). The pick keeps its OWN side unless HOCKEY_ALT_FLIP and the model's own distribution puts the OPPOSITE side clearly closer to the band (never below the floor)."""
     if model_p is not None and model_p >= HOCKEY_LANE_OU_P:
         return None                       # already at the lane floor on the posted line: keep it, at the real market price
-    anchor = posted if posted != int(posted) else posted - 0.5
+    anchor = _alt_half_snap(posted if posted != int(posted) else posted - 0.5, -1 if own_side == "over" else 1)
     base = 5.5 if anchor <= 6.0 else 6.5
     table = HOCKEY_OU_EURO.get(sport) or HOCKEY_OU_NHL[base]
     base0 = 0.5 if sport in HOCKEY_OU_EURO else HOCKEY_BASE0_NHL[base][own_side]
@@ -2710,7 +2715,11 @@ def _alt_shift_leg(leg: dict) -> dict | None:
     p_alt = _alt_prob(curve, k)
     if p_alt < ALT_FLOOR_P:
         return None
-    new_line = posted + sign * k
+    new_line = _alt_half_snap(posted + sign * k, sign)
+    k = round(abs(new_line - posted), 4)        # a posted line that is not a half-point still lands on x.5; the shift is the real distance moved
+    p_alt = _alt_prob(curve, k)
+    if p_alt < ALT_FLOOR_P:
+        return None
     if mkt == "OU":
         if new_line <= 0:
             return None

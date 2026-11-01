@@ -262,8 +262,15 @@ class AdjTab(unittest.TestCase):
         t = self.pg.evaluate("document.querySelector('.tp-adj-daily').innerText.replace(/\\n+/g,' | ')")
         self.assertIn("DAILY WIN RATE", t)
         rows = self.pg.evaluate("[...document.querySelectorAll('.tp-adj-day')].map(r=>r.innerText.replace(/\\n+/g,' '))")
-        self.assertIn("LAST 3 DAYS", rows[0]); self.assertIn("3W-2L", rows[0]); self.assertIn("60%", rows[0])      # y1: 2W-1L (+1 push), y2: 1W-1L, today: pending only
-        self.assertIn("ALL TIME", rows[1]); self.assertIn("3W-2L", rows[1])
+        rows = [r.strip() for r in rows]
+        self.assertEqual(len(rows), 7)
+        for r, lab in zip(rows, ["TODAY", "YESTERDAY", "LAST 7 DAYS", "LAST 14 DAYS", "THIS MONTH", "LAST MONTH", "ALL TIME"]):
+            self.assertTrue(r.startswith(lab), (lab, r))
+        self.assertIn("TODAY", rows[0]); self.assertIn("0W-0L", rows[0]); self.assertIn("1 pending", rows[0])      # today: one lock, nothing settled yet
+        self.assertIn("YESTERDAY", rows[1]); self.assertIn("2W-1L", rows[1]); self.assertIn("67%", rows[1])         # y1: 2W-1L (+1 push left out)
+        self.assertIn("LAST 7 DAYS", rows[2]); self.assertIn("3W-2L", rows[2]); self.assertIn("60%", rows[2])      # y1 + y2 (1W-1L)
+        self.assertIn("LAST 14 DAYS", rows[3]); self.assertIn("3W-2L", rows[3])
+        self.assertIn("ALL TIME", rows[6]); self.assertIn("3W-2L", rows[6])
         tips = self.pg.evaluate("[...document.querySelectorAll('.tp-adj-daily .tp-heat-cell')].map(c=>c.dataset.tip)")             # the SQUARE GRID: one cell per day
         self.assertTrue(any("2W-1L" in x and "67% win" in x for x in tips))                                      # y1; the push is left out of the percentage
         self.assertTrue(any("1W-1L" in x and "50% win" in x for x in tips))                                      # y2
