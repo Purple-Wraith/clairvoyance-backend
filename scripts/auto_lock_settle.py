@@ -5095,6 +5095,33 @@ def _auto_lock(page, candidates: list[dict]) -> list[str]:
     return errors
 
 
+def watchdog_classify(u: dict, auth_keys: set, hold_keys: set, now_ms: float, lineup_hold_now) -> tuple[bool, str]:
+    """Is this unlocked qualifying leg something the owner must be told about?  -> (owed, reason).  (owner 2026-11-02: "find common watchdog issues ... try to have no watchdog issues")
+
+    The watchdog first SEES every leg (build_qualifying(now=0): no start guard, no lineup gate).  The lock passes then run the same function with the real clock, so they drop a leg the lineup gate holds
+    or reprices below the bar, and any leg of a game that has started.  Without this step the watchdog reported those legs (real 2026-10-31 .. 11-02 alerts): KC / CIN / DAL / PIT held on purpose for a
+    newly-out player and then flagged 'started N min ago' for three hours, and ATL ML / SA ML that no pass would ever lock.  `auth_keys` = the legs the passes' own run would attempt; `hold_keys` = the
+    legs that run held; `lineup_hold_now(u)` re-checks the lineup gate for a leg too close to kickoff for the passes' start guard.
+
+    Owed: a leg with no known start, a pre-start leg the passes WOULD lock (so one still open is a real failure or a not-yet-due early warning), or a pre-start leg inside the start-guard margin that the
+    lineup gate does not hold.  Quiet (logged, never emailed): a deliberate lineup hold, a game that already started (nothing can be locked; the pre-start alerts were the actionable ones), and a leg the
+    passes' own run does not qualify."""
+    key = u["key"]
+    st = u.get("startMs")
+    if st is None:
+        return True, "start time unknown"
+    mins = (st - now_ms) / 60000.0
+    if u.get("lineupHold") or key in hold_keys:
+        return False, "held by the confirmed-lineup gate on purpose"
+    if mins <= 0:
+        return False, f"game already started {-mins:.0f} min ago -- nothing can be locked now"
+    if key in auth_keys:
+        return True, "the lock passes qualify it"
+    if mins <= LOCK_START_MARGIN_MIN:
+        return (False, "held by the confirmed-lineup gate on purpose") if lineup_hold_now(u) else (True, "inside the start-guard margin")
+    return False, "the lock passes' own run (lineup gate / selection) does not qualify it"
+
+
 def run_watchdog(page, live: bool, now=None, auto_lock: bool = False) -> list[dict]:
     """Finds qualifying legs that are not in the ledger and start soon. Read-only unless auto_lock (live runs only): then any such leg whose game
     starts within AUTO_LOCK_WINDOW_MIN is handed to the normal lock runner for its product (see _auto_lock), and the owner is told what it locked.
@@ -5116,6 +5143,19 @@ def run_watchdog(page, live: bool, now=None, auto_lock: bool = False) -> list[di
     unlocked: list[dict] = []
     unlocked_q: list[dict] = []
     total = 0
+    auth_keys: set = set()      # legs the lock passes' own run (real clock, start guard + lineup gate) would attempt
+    hold_keys: set = set()      # legs that run holds through the confirmed-lineup gate
+    for name, res, only in gathered:
+        _gs: dict = {}
+        for _aq in build_qualifying(res, only_sports=only, now=now_ms, guard_stats=_gs):
+            if _aq.get("kind") == "GAME":
+                auth_keys.add((_aq["sport"], _aq["hA"], _aq["awA"], _aq["label"]))
+        for _h in _gs.get("lineupHolds") or []:
+            try:
+                _aw, _ho = str(_h.get("game") or "").split(" @ ", 1)
+                hold_keys.add((_h.get("sport"), _ho, _aw, _h.get("leg")))
+            except ValueError:
+                pass
     for name, res, only in gathered:
         # now=0: ignore the start guard here -- the watchdog WANTS to see legs of games that already started / are about to.
         for q in build_qualifying(res, only_sports=only, now=0):
@@ -5131,7 +5171,7 @@ def run_watchdog(page, live: bool, now=None, auto_lock: bool = False) -> list[di
                 continue
             mins = None if st is None else (st - now_ms) / 60000.0
             if mins is None or -WATCHDOG_BEHIND_H * 60 <= mins <= WATCHDOG_AHEAD_H * 60:
-                unlocked.append({"sport": q["sport"], "game": f"{q['awA']} @ {q['hA']}", "leg": q["label"], "startMs": st,
+                unlocked.append({"key": key, "sport": q["sport"], "game": f"{q['awA']} @ {q['hA']}", "leg": q["label"], "startMs": st,
                                  "why": ("kickoff unknown" if mins is None else
                                          f"kicks off in {mins:.0f} min" if mins > 0 else f"started {-mins:.0f} min ago"),
                                  "prob": q.get("prob"), "tier": TIER_LABEL.get(q.get("tierN"), "?")})
@@ -5147,7 +5187,8 @@ def run_watchdog(page, live: bool, now=None, auto_lock: bool = False) -> list[di
         log(f"  UNLOCKED [{u['sport']}] {u['game']} -- {u['leg']} ({u['why']})")
     if unlocked and auto_lock:
         cand = [u for u, _q in zip(unlocked, unlocked_q)
-                if u["startMs"] and LOCK_START_MARGIN_MIN < (u["startMs"] - now_ms) / 60000.0 <= AUTO_LOCK_WINDOW_MIN and not u.get("lineupHold")]
+                if u["startMs"] and LOCK_START_MARGIN_MIN < (u["startMs"] - now_ms) / 60000.0 <= AUTO_LOCK_WINDOW_MIN and not u.get("lineupHold")
+                and u["key"] in auth_keys and u["key"] not in hold_keys]      # a leg the pass's own run does not qualify would only start a pass that locks nothing
         if cand and not live:
             log(f"[DRY RUN] Would auto-lock {len(cand)} leg(s): " + "; ".join(f"[{c['sport']}] {c['game']} {c['leg']}" for c in cand))
         elif cand:
@@ -5166,6 +5207,26 @@ def run_watchdog(page, live: bool, now=None, auto_lock: bool = False) -> list[di
                 write_automation_status("lastWatchdog", True, f"auto-locked {len(done)} leg(s)")
             if errors:
                 EMAIL_FAILURES.append("watchdog auto-lock failed: " + "; ".join(errors))
+    if not unlocked:
+        return unlocked
+
+    def _hold_now(u: dict) -> bool:
+        # a leg inside the passes' start-guard margin never reaches their lineup gate: ask the gate directly
+        try:
+            _lq = next(_q for _u, _q in zip(unlocked, unlocked_q) if _u is u)
+            _d = lineup_review(_lq, now)[1] if LINEUP_CTX is not None else None
+            return bool(_d is not None and _d["action"] == "hold")
+        except Exception:
+            return False
+
+    owed: list[dict] = []
+    for u in unlocked:
+        is_owed, why_q = watchdog_classify(u, auth_keys, hold_keys, now_ms, _hold_now)
+        if is_owed:
+            owed.append(u)
+        else:
+            log(f"  not alerted: [{u['sport']}] {u['game']} -- {u['leg']} ({u['why']}): {why_q}")
+    unlocked = owed
     if not unlocked:
         return unlocked
     rep = {"live": True, "label": "WATCHDOG", "skippedDetail": unlocked, "failedLabels": []}

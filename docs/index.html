@@ -24155,8 +24155,12 @@ function _lvRelayNext(now){
   const nxt=sched.filter(g=>g.startMs>now).sort((a,b)=>a.startMs-b.startMs)[0];
   return nxt?Math.min(nxt.startMs-600000,now+3600000):now+3600000;
 }
+// The pipeline's own headless page (served from 127.0.0.1, always opened with ?nologo=1) has no use for live scores, and the relay's CORS rules refuse a local origin: the call only ever logged a browser
+// error on every watchdog / lock / settle run (59 of 59 runs, 2026-11-02).  A real browser, or the deployed-site fallback, still calls the relay.
+function _lvRelaySkipHere(){try{return /^(127\.0\.0\.1|localhost)$/.test(location.hostname)&&/[?&]nologo=1(?:&|$)/.test(location.search||'');}catch(e){return false;}}
 async function refreshRelay(force){
   const url=_lvRelayUrl();if(!url)return false;
+  if(_lvRelaySkipHere())return false;
   try{
     const tz=-new Date().getTimezoneOffset()/60;
     const r=await _fetchT(url+'/hockey?tz='+tz,{},15000);

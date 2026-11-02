@@ -149,11 +149,39 @@ MONITORED = [
 # either of them same-day -- only a later manual/triggered run of this
 # script would see it. A third daily-health-check.yml pass after 4pm MT
 # would close that gap; not added here since it wasn't asked for.
+# 2026-11-02 (owner: "find common health issues ... try to have none"): the marker is written by the LAST layer of each lock, and GitHub lands that workflow hours after its nominal slot -- observed
+# 7:03-11:45 AM MT over the last three weeks, 9:38-10:28 AM on every weekday of the last two.  The old 8 AM cutoff for the European lock was missed on most weekdays, and since the clocks changed (health pass
+# at 10:10 AM MT) the false alarm was set to repeat daily.  Cutoffs now sit after the observed envelope, and a marker that has not landed yet is NOT a problem while an EARLIER layer of the same lock
+# (the evening / pre-dawn passes, LOCK_LAYERS) has already succeeded today: the picks are locked by those, and the watchdog separately reports any leg that is really still open before kickoff.
 LOCK_MARKERS = [
-    (ROOT / "data" / "last_soccer_lock_date.txt", "European Early Lock (Soccer + SHL/Liiga)", 8),
-    (ROOT / "data" / "last_cfb_lock_date.txt", "CFB Early Lock", 11),
+    (ROOT / "data" / "last_soccer_lock_date.txt", "European Early Lock (Soccer + SHL/Liiga)", 11),
+    (ROOT / "data" / "last_cfb_lock_date.txt", "CFB Early Lock", 12),
     # 2026-10-27: the pick-of-day AM/PM markers are gone -- the picks ride in the single daily Social content email (social-cards-daily.yml), watched through MONITORED above.
 ]
+
+
+# Workflows that are layers of the same lock as a marker: a successful run of ANY of them today (Mountain date) counts as proof that the day's lock ran when the last layer's marker has not landed yet.
+LOCK_LAYERS = {
+    "European Early Lock (Soccer + SHL/Liiga)": ["european-lock-early.yml", "soccer-lock-evening.yml", "hockey-lock-evening.yml"],
+    "CFB Early Lock": ["cfb-lock-early.yml", "cfb-lock-evening.yml"],
+}
+
+
+def _lock_layer_ran_today(label: str, today_mt: str, api_get) -> str | None:
+    """The first layer workflow of `label`'s lock with a successful run created today (Mountain date), else None (also None when the API cannot be read: the caller then keeps the old verdict)."""
+    for wf in LOCK_LAYERS.get(label) or []:
+        try:
+            runs = (api_get(f"/repos/{REPO}/actions/workflows/{wf}/runs?status=success&per_page=10") or {}).get("workflow_runs") or []
+        except Exception:
+            continue
+        for r in runs:
+            try:
+                made = datetime.fromisoformat(r["created_at"].replace("Z", "+00:00")).astimezone(ZoneInfo("America/Denver"))
+            except Exception:
+                continue
+            if made.strftime("%Y-%m-%d") == today_mt and r.get("conclusion") == "success":
+                return wf
+    return None
 
 
 # Which pass checks which marker (daily-health-check.yml runs three times a day: early ~11:15 MT, full ~14:33 MT, late ~17:15 MT).
@@ -162,8 +190,10 @@ LOCK_MARKERS = [
 LATE_CUTOFF_HOUR = 16
 
 
-def check_lock_markers(which: str = "full", now_mt: datetime | None = None) -> list[str]:
+def check_lock_markers(which: str = "full", now_mt: datetime | None = None, api_get=None) -> list[str]:
     now_mt = now_mt or datetime.now(ZoneInfo("America/Denver"))
+    if api_get is None and GITHUB_TOKEN:
+        api_get = _api_get
     today_mt = now_mt.strftime("%Y-%m-%d")
     problems = []
     for path, label, cutoff_hour in LOCK_MARKERS:
@@ -183,6 +213,8 @@ def check_lock_markers(which: str = "full", now_mt: datetime | None = None) -> l
                 continue
             if recorded == today_mt:
                 break
+        if recorded != today_mt and api_get is not None and _lock_layer_ran_today(label, today_mt, api_get):
+            continue         # the last layer's marker has not landed yet, but an earlier layer of this lock already ran successfully today
         if recorded != today_mt:
             problems.append(
                 f"{label}: no successful live lock recorded for {today_mt} as of "

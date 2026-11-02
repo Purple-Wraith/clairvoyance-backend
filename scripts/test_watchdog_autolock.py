@@ -93,6 +93,77 @@ class AutoLock(unittest.TestCase):
         self.assertIn("boom", fails[0])
         a.EMAIL_FAILURES.clear()
 
+    # ── owner 2026-11-02: the watchdog only emails what the lock passes would really lock ──
+    def run_split(self, seen_legs, auth_legs, holds=(), **kw):
+        """seen_legs = what the watchdog sees (build_qualifying now=0); auth_legs = what the passes' own run (real clock, start guard, lineup gate) qualifies; holds = (sport, 'AWY @ HOM', label)."""
+        h = Harness(seen_legs, **kw)
+        orig = a.build_qualifying
+
+        def build(res, only_sports=None, now=None, guard_stats=None, **k):
+            if now == 0 or (not isinstance(now, bool) and now is not None and float(now) == 0):
+                return [l for l in seen_legs if only_sports is None or l["sport"] in only_sports]
+            if guard_stats is not None and holds:
+                guard_stats.setdefault("lineupHolds", []).extend({"sport": sp, "game": g, "leg": lb} for sp, g, lb in holds)
+            return [l for l in auth_legs if only_sports is None or l["sport"] in only_sports]
+        a.build_qualifying = build
+        failures = len(a.EMAIL_FAILURES)
+        try:
+            left = a.run_watchdog(None, True, now=NOW, auto_lock=True)
+        finally:
+            a.build_qualifying = orig
+            h.restore()
+        return h, left, a.EMAIL_FAILURES[failures:]
+
+    def test_a_game_that_already_started_is_logged_not_emailed(self):
+        legs = [q("NFL", "CIN ML", -33)]                       # the real TEN @ CIN case: held for a newly-out player, then flagged 'started 33 min ago' for 3 hours
+        h, left, _ = self.run_split(legs, auth_legs=[])
+        self.assertEqual(left, [])
+        self.assertEqual(h.owner, [])
+        self.assertEqual(h.calls, [])
+
+    def test_a_leg_the_lock_pass_does_not_qualify_is_not_emailed_and_starts_no_pass(self):
+        legs = [q("NBA", "ATL ML", 85)]                        # qualifies in the observe-only view, not in the pass's own run (real ATL @ NO case)
+        h, left, _ = self.run_split(legs, auth_legs=[])
+        self.assertEqual((left, h.owner, h.calls), ([], [], []))
+
+    def test_a_leg_the_passes_hold_through_the_lineup_gate_is_not_emailed(self):
+        legs = [q("NFL", "KC ML", 61, hA="DEN", awA="KC")]
+        h, left, _ = self.run_split(legs, auth_legs=[], holds=[("NFL", "KC @ DEN", "KC ML")])
+        self.assertEqual((left, h.owner, h.calls), ([], [], []))
+
+    def test_a_leg_the_pass_qualifies_but_could_not_lock_still_alerts(self):
+        legs = [q("NFL", "JAX ML", 95)]
+        h, left, _ = self.run_split(legs, auth_legs=legs)      # the pass attempts it and it stays unlocked: a real failure
+        self.assertEqual(h.calls, ["run_lock_segmented"])
+        self.assertEqual([u["leg"] for u in left], ["JAX ML"])
+        self.assertTrue(any("unlocked" in s for s in h.owner))
+
+    def test_a_pass_qualified_leg_that_gets_locked_alerts_nobody_but_the_auto_lock_note(self):
+        legs = [q("NFL", "JAX ML", 95)]
+        h, left, _ = self.run_split(legs, auth_legs=legs, locked_after={"run_lock_segmented": ["JAX ML"]})
+        self.assertEqual(left, [])
+        self.assertTrue(any("auto-locked 1 pick" in s for s in h.owner))
+
+    def test_a_leg_inside_the_start_guard_margin_the_pass_cannot_lock_still_alerts(self):
+        legs = [q("NBA", "ATL ML", 5)]                         # 5 min out: the passes' start guard refuses it, but nothing holds it -- the owner can still act
+        h, left, _ = self.run_split(legs, auth_legs=[])
+        self.assertEqual([u["leg"] for u in left], ["ATL ML"])
+
+    def test_classification_table(self):
+        mk = lambda mins, **kw: dict({"key": ("S", "H", "A", "L"), "startMs": NOW + mins * 60000}, **kw)
+        keys = {("S", "H", "A", "L")}
+        no = lambda u: False
+        cls = lambda u, auth=frozenset(), holds=frozenset(), hold_now=no: a.watchdog_classify(u, set(auth), set(holds), NOW, hold_now)[0]
+        self.assertTrue(cls(dict(mk(60), startMs=None)))                               # unknown start: cannot classify, tell the owner
+        self.assertFalse(cls(mk(60), auth=keys, holds=keys))                           # held beats qualifying
+        self.assertFalse(cls(mk(60, lineupHold=True), auth=keys))
+        self.assertFalse(cls(mk(-1), auth=keys))                                       # started
+        self.assertTrue(cls(mk(60), auth=keys))
+        self.assertTrue(cls(mk(200), auth=keys))                                       # early warning stays: the passes would lock it and have not
+        self.assertFalse(cls(mk(60)))                                                  # pre-start, the passes do not qualify it
+        self.assertTrue(cls(mk(5)))                                                    # inside the margin, not held
+        self.assertFalse(cls(mk(5), hold_now=lambda u: True))                          # inside the margin, held by the gate
+
     def test_workflow_passes_the_flag_only_for_live_runs_with_a_kill_switch(self):
         wf = (Path(__file__).resolve().parent.parent / ".github" / "workflows" / "lock-watchdog.yml").read_text()
         self.assertIn("steps.gate.outputs.live_flag != '' && vars.WATCHDOG_AUTOLOCK != 'false' && '--auto-lock'", wf)

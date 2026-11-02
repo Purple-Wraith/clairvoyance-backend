@@ -648,9 +648,9 @@ class Wiring(unittest.TestCase):
 
 
 class WatchdogHold(unittest.TestCase):
-    """The watchdog must not start a lock pass for a leg the pass would refuse, and must say why it is still open."""
+    """The watchdog must not start a lock pass for a leg the pass would refuse -- and (owner 2026-11-02) must not email the owner about a leg held on purpose; the reason is logged."""
 
-    def test_held_leg_is_left_for_the_owner_with_the_reason(self):
+    def test_held_leg_starts_no_pass_and_sends_no_alert(self):
         from test_watchdog_autolock import Harness, NOW as WD_NOW, q as wd_q
         start = WD_NOW + 45 * 60000
         leg = wd_q("NHL", "PHI ML", 45, hA="BOS", awA="PHI")
@@ -666,8 +666,8 @@ class WatchdogHold(unittest.TestCase):
             A.LINEUP_CTX = old
             h.restore()
         self.assertEqual(h.calls, [])                                # no lock pass was started for it
-        self.assertEqual(len(left), 1)
-        self.assertIn("LINEUP HOLD", left[0]["why"])
+        self.assertEqual(left, [])                                   # a deliberate hold is not an alert ...
+        self.assertEqual(h.owner, [])                                # ... no email
 
 
 if __name__ == "__main__":
