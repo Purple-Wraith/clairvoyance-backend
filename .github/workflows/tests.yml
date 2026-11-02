@@ -23,7 +23,9 @@ concurrency:
 jobs:
   tests:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # 2026-11-02: the suite is ~129 files run one after another (~21.5 min of test time on the runner, plus setup).  At 25 min the job was cut off by GitHub and shown as 'cancelled' (no result at all):
+    # runs of 26-27 min on 11-02 never finished.  45 leaves room to grow; running the files in parallel would be faster but some tests share repo files, so it is not done blindly.
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
