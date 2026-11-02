@@ -3584,6 +3584,62 @@ def _leg_start_ms(q: dict, by_teams: dict):
     return st
 
 
+# ── TOP PICKS AT THE TOP OF THE EMAIL (owner 2026-11-02: "college football has so many picks, top picks at the top makes it easier for the consumer") ──
+# The same ranking as the app's "Top 10 of the day" (docs/app.html _topPicksRankLegs): stated win probability x100 plus the grade number, at most EMAIL_TOP_LEAGUE_CAP per league first (then the
+# best of what is left fills the list).  Game picks only (the app's list has no props), grade LEAN or better, a known probability.  NOT mirrored: the app's demotion of a kind of pick with a weak
+# recent record (it needs the whole ledger; it only reorders a display list).  Shown only when the email carries more picks than the block would list -- a short email IS its own top list.
+EMAIL_TOP_N = 5
+EMAIL_TOP_LEAGUE_CAP = 3
+
+
+def select_email_top_picks(qualifying: list[dict], n: int = EMAIL_TOP_N, league_cap: int = EMAIL_TOP_LEAGUE_CAP) -> list[dict]:
+    cands = [q for q in qualifying if q.get("kind") == "GAME" and (q.get("tierN") or 0) >= 1 and q.get("probKnown", True) and q.get("prob") is not None]
+    rank = lambda q: (q["prob"] * 100 + q["tierN"], q.get("evVal") if q.get("evVal") is not None else -999)
+    cands.sort(key=rank, reverse=True)
+    top, held, per = [], [], {}
+    for q in cands:
+        if len(top) >= n:
+            break
+        if per.get(q["sport"], 0) >= league_cap:
+            held.append(q)
+            continue
+        per[q["sport"]] = per.get(q["sport"], 0) + 1
+        top.append(q)
+    for q in held:
+        if len(top) >= n:
+            break
+        top.append(q)
+    top.sort(key=rank, reverse=True)
+    return top
+
+
+def _top_picks_html(qualifying: list[dict]) -> str:
+    if len(qualifying) <= EMAIL_TOP_N:
+        return ""
+    top = select_email_top_picks(qualifying)
+    if not top:
+        return ""
+    rows = []
+    for i, q in enumerate(top, start=1):
+        alt = q.get("altLine")
+        tier_lbl, color = (HOCKEY_LANE_LABEL, _LANE_COLOR) if q.get("lane") else (TIER_LABEL.get(q["tierN"], "?"), _TIER_COLOR.get(q["tierN"], "#666"))
+        if q.get("badge"):
+            tier_lbl, color = q["badge"]
+        badge = (f'<span style="{_ADJ_TAG_STYLE};display:inline-block">ADJUSTED LINE</span>' if alt else
+                 f'<span style="background:{color};color:#000;font-weight:700;font-size:11px;padding:1px 7px;border-radius:3px;display:inline-block">{_esc(tier_lbl)}</span>')
+        ev_val = q.get("evVal")
+        ev_str = f' · EV {ev_val*100:+.1f}%' if (ev_val is not None and not alt) else ''
+        rows.append(
+            '<div style="padding:7px 0;border-top:1px solid rgba(255,255,255,.12)">'
+            f'<div style="font-size:11px;letter-spacing:1px;color:#bbb;text-transform:uppercase">{i}. {_esc(SPORT_DISPLAY_NAME.get(q["sport"], q["sport"]))} · {_esc(q["awA"])} @ {_esc(q["hA"])}</div>'
+            f'<div style="margin-top:3px">{badge} <span style="font-size:14px;color:#fff">{_esc(q["label"])} — {_prob_txt(q["prob"], True)}{ev_str}</span></div>'
+            '</div>')
+    return ('<div style="background:#14001f;border:1px solid rgba(242,12,255,.45);border-radius:6px;padding:12px 16px;margin:14px 0 6px">'
+            '<div style="font-size:13px;letter-spacing:2px;color:#f20cff;text-transform:uppercase;font-weight:700;margin-bottom:6px">'
+            f'Top {len(top)} picks of the day</div>' + "".join(rows) +
+            f'<div style="font-size:12px;color:#bbb;margin-top:8px">Ranked by win probability. All {len(qualifying)} picks are listed by league below.</div></div>')
+
+
 def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int | None = None, zero: dict | None = None) -> str:
     """Groups qualifying legs by sport/league, then by matchup within each
     sport: the matchup, every qualifying pick for it (grade, probability,
@@ -3649,6 +3705,8 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
                       f'border-radius:4px;padding:8px 12px;margin:10px 0;font-size:13px;color:#7a5900">'
                       f'🔥 {n} HIGH HIT % moneyline pick{"s" if n != 1 else ""} today '
                       f'(75%+ model win probability, regardless of tier/EV)</div>')
+
+    parts.append(_top_picks_html(qualifying))        # the day's best picks first, ahead of the long legend and the full by-league list (empty on a short email)
 
     # Grade + EV legend -- explains what every reader needs to interpret the picks below before they hit any of them.
     # Rewritten 2026-10-03 (hockey real-price cutoffs): hockey picks are graded against the REAL consensus market price (not an

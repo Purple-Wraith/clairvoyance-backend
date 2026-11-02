@@ -7,6 +7,8 @@ Runs the real settler in Chromium against a STUBBED ESPN scoreboard + box score 
   * a player is looked up in HIS OWN team's block: OKC's Jalen Williams is never graded on Denver's Jalen Williams;
   * an ambiguous surname is left pending rather than guessed;
   * a player who did not play (didNotPlay / no stats / 0 minutes) is VOID (push, voidReason DNP) -- never a zero-stat UNDER win or OVER loss;
+  * a player ABSENT from a final box score (ESPN leaves injured / inactive players out entirely, 2026-11-02: Markkanen, LeBron) is VOID too -- but only when his team's block looks complete and
+    nobody on either team shares a word of his name;
   * only FINAL games settle; the game is matched on both teams;
   * a settlement pulled in from another device brings the stat (and void marker) with it, so the next push cannot erase it.
 
@@ -47,7 +49,12 @@ def prop(pid, bet, team, opp, line_hA=None):
             "outcome": "pending", "lockedAt": 1, "winProb": .6, "decOdds": 1.7, "player": bet.split(" OVER ")[0].split(" UNDER ")[0]}
 
 
-SCORE = {"events": [event("E1", "DEN", "OKC"), event("E2", "BOS", "NY", state="in"), event("E3", "LAL", "GS")]}
+SCORE = {"events": [event("E1", "DEN", "OKC"), event("E2", "BOS", "NY", state="in"), event("E3", "LAL", "GS"), event("E4", "UTAH", "SA")]}
+
+
+def full(prefix, extra=()):
+    """A complete-looking block: 10 dressed players + a coach's-decision DNP, like ESPN's (the injured are simply not listed)."""
+    return blk([ath(f"{prefix} Player{i}", ["20", "8", "3", "2", "1-2"]) for i in range(10)] + list(extra) + [ath(f"{prefix} Benched", [], True, "COACH'S DECISION")])
 SUMMARY = {
     "E1": {"boxscore": {"players": [
         {"team": {"abbreviation": "DEN"}, "statistics": [blk([ath("Nikola Jokić", ["34", "28", "13", "9", "1-3"]), ath("Jalen Williams", ["30", "10", "4", "3", "1-2"]),
@@ -55,6 +62,9 @@ SUMMARY = {
                                                               ath("Reserve Guy", ["5", "0", "1", "1", "0-0"]), ath("Nine Min", ["9", "8", "2", "1", "1-2"]), ath("Ten Min", ["10", "8", "2", "1", "1-2"])])]},
         {"team": {"abbreviation": "OKC"}, "statistics": [blk([ath("Jalen Williams", ["33", "24", "5", "6", "2-5"]), ath("Shai Gilgeous-Alexander", ["35", "31", "4", "7", "1-2"]),
                                                               ath("Isaiah Joe", ["20", "12", "2", "1", "3-6"])])]}]}},
+    "E4": {"boxscore": {"players": [
+        {"team": {"abbreviation": "UTAH"}, "statistics": [full("Utah", [ath("Cameron Johnson", ["24", "12", "3", "2", "2-5"])])]},
+        {"team": {"abbreviation": "SA"}, "statistics": [full("Spurs", [ath("Mika Markkanen", ["18", "6", "2", "1", "1-3"])])]}]}},
     "E2": {"boxscore": {"players": [{"team": {"abbreviation": "NY"}, "statistics": [blk([ath("Jalen Brunson", ["20", "11", "1", "3", "0-1"])])]}]}},   # game still in progress
     "E3": {"boxscore": {"players": [
         {"team": {"abbreviation": "LAL"}, "statistics": [blk([ath("Jaxson Hayes", ["20", "6", "5", "0", "0-0"]), ath("Jake LaRavia", ["22", "9", "4", "2", "1-2"])])]},
@@ -127,9 +137,36 @@ class Settle(unittest.TestCase):
         r = self.settle([prop("h1", "Jaxson Hayes OVER REB 4.5", "LAL", "GS")])
         self.assertEqual((r["h1"]["outcome"], r["h1"]["playerResult"]), ("win", 5))
 
-    def test_a_player_in_no_box_score_stays_pending(self):
-        r = self.settle([prop("i1", "Nobody Atall OVER PTS 4.5", "DEN", "OKC")])
+    def test_a_player_in_no_box_score_stays_pending_when_the_box_score_is_short(self):
+        r = self.settle([prop("i1", "Nobody Atall OVER PTS 4.5", "DEN", "OKC")])             # DEN's stub block has 7 athletes: not trusted as a complete box score
         self.assertEqual(r["i1"]["outcome"], "pending")
+
+    def test_a_player_absent_from_a_complete_final_box_score_is_void(self):
+        r = self.settle([prop("j1", "Lauri Markkanen UNDER PTS 31.5", "UTAH", "SA"), prop("j2", "Lauri Markkanen OVER PTS 20.5", "UTAH", "SA")])
+        for k in ("j1", "j2"):
+            self.assertEqual((r[k]["outcome"], r[k]["voidReason"]), ("push", "DNP"))      # an UNDER does not "win" and an OVER does not "lose" on a player who never played
+            self.assertIsNone(r[k].get("playerResult"))
+
+    def test_absence_never_voids_a_player_who_is_in_the_box_score_under_another_spelling(self):
+        r = self.settle([prop("k1", "Cam Johnson OVER PTS 6.5", "UTAH", "SA"), prop("k2", "Johnson OVER PTS 6.5", "UTAH", "SA")])        # "Cameron Johnson" is in UTAH's block: a real result, not a void
+        self.assertEqual((r["k1"]["outcome"], r["k1"].get("voidReason")), ("win", None))
+        self.assertEqual(r["k1"]["playerResult"], 12)
+        self.assertNotEqual(r["k2"].get("voidReason"), "DNP")
+
+    def test_a_same_surname_player_on_the_other_team_does_not_stop_the_void(self):
+        r = self.settle([prop("m1", "Lauri Markkanen OVER PTS 20.5", "UTAH", "SA")])        # SA's "Mika Markkanen" is another person (real case: AJ Johnson / Sion James)
+        self.assertEqual((r["m1"]["outcome"], r["m1"]["voidReason"]), ("push", "DNP"))
+
+    def test_a_stale_team_on_the_bet_never_voids_a_player_the_other_team_lists_by_full_name(self):
+        r = self.settle([prop("n1", "Cameron Johnson OVER PTS 6.5", "SA", "UTAH")])         # bet says SA, the box score has him in UTAH's block
+        self.assertEqual(r["n1"]["outcome"], "pending")
+
+    def test_absence_needs_his_team_to_be_known_and_never_voids_an_in_progress_game(self):
+        noteam = prop("l1", "Absent Guy UNDER PTS 31.5", "UTAH", "SA"); noteam["team"] = None
+        live = prop("l2", "Absent Guy OVER PTS 4.5", "NY", "BOS")
+        r = self.settle([noteam, live])
+        self.assertEqual(r["l1"]["outcome"], "pending")                                    # no team on the bet: cannot tell whose block to trust
+        self.assertEqual(r["l2"]["outcome"], "pending")                                    # E2 is still in progress
 
     def test_a_pulled_in_settlement_keeps_the_stat_and_the_void_marker(self):
         res = self.pg.evaluate("""()=>{

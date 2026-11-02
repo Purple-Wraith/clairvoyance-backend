@@ -20068,6 +20068,23 @@ function _propBoxStat(sport,players,p,parsed){
   return foundStat===null?null:{val:foundStat,dnp:dnp,name:foundPlayer,min:foundMin,lowMin:lowMin};
 }
 
+// ABSENT FROM A FINAL BOX SCORE (owner 2026-11-02: Markkanen 10-28 and LeBron 10-31 sat pending after games he sat out; Cam Johnson 10-28 had to be removed by hand).  ESPN lists only the players who
+// dressed -- a player who is injured / inactive / resting is NOT in the box score at all (only coach's-decision DNPs carry didNotPlay), so the lookup above found nobody and the prop waited for a stat
+// that never comes.  Once the game is final, a player who is in neither team's block is a did-not-play: void.  Deliberately strict, because the wrong call voids a real bet: NBA/WNBA only, his own team's
+// block must be found and look complete (>= PROP_BOX_MIN_ROSTER athletes), no athlete on HIS team may share any word (3+ letters) of his name (a nickname / spelling difference stays pending), and the other team
+// may not list him under his full name (a stale team on the bet).  A different team's player with the same surname (AJ Johnson, Sion James) is a different person and blocks nothing.
+const PROP_BOX_MIN_ROSTER=8;
+function _propAbsentFromBox(sport,players,p,parsed){
+  if(sport!=='NBA'&&sport!=='WNBA')return false;
+  if(!p.team||!parsed||!players||!players.length)return false;
+  const mine=players.filter(t=>canonTeam(t.team?.abbreviation)===canonTeam(p.team));
+  if(mine.length!==1||(mine[0].statistics?.[0]?.athletes||[]).length<PROP_BOX_MIN_ROSTER)return false;
+  const words=_normName(parsed.player).split(' ').filter(w=>w.length>=3);
+  if(!words.length)return false;
+  const has=(a,w)=>(' '+_normName(a.athlete?.displayName)+' ').includes(' '+w+' ');
+  return !players.some(t=>(t.statistics?.[0]?.athletes||[]).some(a=>t===mine[0]?words.some(w=>has(a,w)):words.every(w=>has(a,w))));
+}
+
 function _propNeedsStat(p){   // a settled NBA win/loss prop of this season that still needs a box-score look: its stat was never stored, or its minutes were never checked against the low-minutes void rule
   return !!p&&p.betType==='PROP'&&(p.outcome==='win'||p.outcome==='loss')&&(p.playerResult==null||p.playerMin==null)&&!p.voidReason&&(_normSport(p)||p.sport)==='NBA'&&(p.date||'')>='2026-10-01';
 }
@@ -20200,7 +20217,8 @@ async function autoSettlePropsESPN(targetDate){
       // (G/A/SOG/SV) instead of PTS/REB/AST, so it also needs its own
       // lookup (extractNHLStat) rather than the single-statBlock
       // PTS/REB/AST logic NBA/MLB share below.
-      const hit=_propBoxStat(sport,bs.boxscore.players,p,parsed);
+      let hit=_propBoxStat(sport,bs.boxscore.players,p,parsed);
+      if(!hit&&!fill&&_propAbsentFromBox(sport,bs.boxscore.players,p,parsed))hit={val:0,dnp:true,name:parsed.player,min:null,lowMin:false};   // not in a FINAL box score at all: did not play (see _propAbsentFromBox)
       const foundStat=hit?hit.val:null,dnp=!!(hit&&hit.dnp);
       if(foundStat===null)continue;
       if(fill){

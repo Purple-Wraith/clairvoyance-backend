@@ -85,6 +85,47 @@ def _game(sport="NFL", label="SF +3.5", alt=None, tier=3, ev=0.08, **kw):
 ALT = {"posted": -3.0, "line": 3.5, "shift": 6.5, "postedLabel": "SF -3.0", "postedProb": 0.85}
 
 
+class TopPicksAtTheTop(unittest.TestCase):
+    """Owner 2026-11-02: the day's top picks sit at the top of every subscriber email (a CFB email can carry dozens of picks)."""
+    @staticmethod
+    def many(n_cfb=8):
+        legs = [_game("CFB", f"T{i} Win", prob=.60 + i / 100, side="mlHome", hA=f"H{i}", awA=f"A{i}", tier=2) for i in range(n_cfb)]
+        return legs + [_game("NHL", "BOS Win", prob=.70, side="mlHome", hA="BOS", awA="NYR", tier=2), _game("NBA", "LAL Win", prob=.66, side="mlHome", hA="LAL", awA="DEN", tier=3)]
+
+    def test_block_comes_before_the_legend_and_the_by_league_list(self):
+        html = a.build_locks_email_html(self.many(), live=True, locked_count=10)
+        self.assertIn("Top 5 picks of the day", html)
+        self.assertLess(html.index("Top 5 picks of the day"), html.index("What the grades mean"))
+        self.assertLess(html.index("Top 5 picks of the day"), html.index("CFB (8)"))
+        self.assertIn("All 10 picks are listed by league below", html)
+
+    def test_ranked_by_probability_with_at_most_three_per_league_first(self):
+        top = a.select_email_top_picks(self.many())
+        self.assertEqual([(q["sport"], round(q["prob"], 2)) for q in top], [("NHL", .70), ("CFB", .67), ("NBA", .66), ("CFB", .66), ("CFB", .65)])   # 3 CFB, not 5
+        self.assertEqual(len(a.select_email_top_picks(self.many(), n=10)), 10)             # not enough variety: the best of what is left fills the list
+
+    def test_a_short_email_has_no_block_and_nothing_else_changes(self):
+        short = self.many(3)[:5]
+        html = a.build_locks_email_html(short, live=True, locked_count=5)
+        self.assertNotIn("picks of the day", html)
+        self.assertEqual(a._top_picks_html(short), "")
+
+    def test_props_and_unknown_probability_never_make_the_block(self):
+        prop = {"kind": "PROP", "sport": "NBA", "leg": {"player": "X Y", "line": 20.5, "stat": "PTS", "over": True, "grade": "PREMIUM", "prob": .99, "team": "LAL", "opp": "DEN"}}
+        unknown = _game("CFB", "Z Win", prob=.99, side="mlHome", tier=3, probKnown=False)
+        top = a.select_email_top_picks(self.many() + [prop, unknown])
+        self.assertTrue(all(q["kind"] == "GAME" and q.get("probKnown", True) for q in top))
+        self.assertNotIn("X Y", a._top_picks_html(self.many() + [prop]))
+
+    def test_an_adjusted_line_shows_its_tag_and_no_ev(self):
+        legs = self.many() + [_game("CFB", "UGA -13.5", alt=ALT, prob=.80, side="sprdFav", hA="UGA", awA="UK", tier=3)]
+        block = a._top_picks_html(legs)
+        self.assertIn("ADJUSTED LINE", block)
+        self.assertIn("UGA -13.5", block)
+        row = block[block.index("UGA -13.5") - 400:block.index("UGA -13.5") + 200]
+        self.assertNotIn("EV +", row)
+
+
 class LocksEmail(unittest.TestCase):
     def test_adjusted_line_pick_is_labelled_and_has_no_ev_or_posted_tier(self):
         html = a._leg_html(_game(alt=ALT))
