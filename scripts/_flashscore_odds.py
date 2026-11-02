@@ -121,6 +121,27 @@ def parse_price(txt) -> tuple[float | None, str | None]:
     return round(dec, 4), fmt
 
 
+# Venues whose two prices are NOT a sportsbook's two-way market (2026-11-02: Flashscore began listing Kalshi on NHL fixtures that no sportsbook had priced yet; its Over/Under and puck-line prices are yes/no
+# contract ASKS, so a pair sums to 1.20-1.24 instead of a book's ~1.05-1.10 -- the nightly odds-sanity check alerted on 5 such pairs).  Their rows are ignored everywhere; a fixture only they have priced stays
+# unpriced (callers fall back to the model price) until real sportsbooks post.
+NON_SPORTSBOOKS = frozenset({"kalshi", "polymarket", "novig", "prophetx", "prophet exchange", "sx bet", "sporttrade"})
+# The most a CONSENSUS two-way pair may overround; the same ceiling the nightly check alerts on (daily_health_check.ODDS_OVERROUND_OK).  A pair above it is dropped, whatever its source.
+CONSENSUS_MAX_OVERROUND = 1.15
+
+
+def _is_non_sportsbook(row) -> bool:
+    return str((row or {}).get("book") or "").strip().lower() in NON_SPORTSBOOKS
+
+
+def _only_non_sportsbooks(odds: dict) -> bool:
+    bk = (odds or {}).get("bk") or []
+    return bool(bk) and all(str(b).strip().lower() in NON_SPORTSBOOKS for b in bk)
+
+
+def _consensus_ok(c: dict) -> bool:
+    return (1 / c["a"] + 1 / c["b"]) <= CONSENSUS_MAX_OVERROUND
+
+
 def _pair_ok(a: float, b: float) -> bool:
     """Two-way market sanity: implied probs should sum to ~1.0-1.15 (vig);
     allow a little slack either side, reject placeholder/mismatched pairs."""
@@ -156,6 +177,8 @@ def _load_rows(page, url: str):
 
 
 def _row_pair(row) -> tuple[float, float] | None:
+    if _is_non_sportsbook(row):
+        return None
     odds = row.get("odds") or []
     if len(odds) < 2:
         return None
@@ -215,6 +238,8 @@ def build_ml(rows) -> dict | None:
     if not pairs:
         return None
     c = _consensus(pairs)
+    if not _consensus_ok(c):
+        return None
     return {"home": c["a"], "away": c["b"], "homeBest": c["aBest"], "awayBest": c["bBest"],
             "books": c["books"]}
 
@@ -234,6 +259,8 @@ def build_ou(rows) -> list[dict]:
     out = []
     for line in sorted(by_line):
         c = _consensus(by_line[line])
+        if not _consensus_ok(c):
+            continue
         out.append({"line": line, "over": c["a"], "under": c["b"],
                     "overBest": c["aBest"], "underBest": c["bBest"], "books": c["books"]})
     return out
@@ -260,14 +287,16 @@ def build_pl(rows) -> dict | None:
     out = {}
     for k in sorted(by_h):
         c = _consensus(by_h[k])
+        if not _consensus_ok(c):
+            continue
         out[k] = {"home": c["a"], "away": c["b"], "homeBest": c["aBest"], "awayBest": c["bBest"],
                   "books": c["books"]}
-    return out
+    return out or None
 
 
 def _books_seen(*row_sets) -> list[str]:
     names = {r.get("book") for rows in row_sets if rows for r in rows
-             if r.get("book") and len(r.get("odds") or []) >= 2 and parse_price((r["odds"] or [None])[0])[0]}
+             if r.get("book") and not _is_non_sportsbook(r) and len(r.get("odds") or []) >= 2 and parse_price((r["odds"] or [None])[0])[0]}
     return sorted(n for n in names if n)
 
 
@@ -340,7 +369,8 @@ def carry_over_odds(games: list[dict], prev_path) -> int:
         prev = json.loads(prev_path.read_text()).get("games") or []
     except Exception:
         return 0
-    prev_odds = {g["id"]: g["odds"] for g in prev if g.get("odds")}
+    # odds quoted ONLY by prediction-market venues (see NON_SPORTSBOOKS) are never carried forward: they are not a sportsbook price, and carrying them would keep them in the file for good
+    prev_odds = {g["id"]: g["odds"] for g in prev if g.get("odds") and not _only_non_sportsbooks(g["odds"])}
     n = 0
     for g in games:
         if not g.get("odds") and g.get("id") in prev_odds:
