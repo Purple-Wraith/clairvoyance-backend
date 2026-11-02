@@ -98,6 +98,8 @@ jobs:
           [ "${{ steps.shl.outcome }}" = "failure" ] && bad="$bad SHL"
           [ "${{ steps.nla.outcome }}" = "failure" ] && bad="$bad NLA"
           [ "${{ steps.extraliga.outcome }}" = "failure" ] && bad="$bad Extraliga"
-          [ "${{ steps.nhlou.outcome }}" = "failure" ] && bad="$bad NHL-over-under"
+          # The NHL over/under records are display-only (see the step above) and their Flashscore table timed out twice in three days (2026-10-30, 11-01); that must not turn a run RED -- and trip the health
+          # alert -- when all four European leagues refreshed.  It stays visible as a warning on the run.
+          [ "${{ steps.nhlou.outcome }}" = "failure" ] && echo "::warning::NHL over/under records did not refresh this run (display-only; the next run retries)"
           if [ -n "$bad" ]; then echo "::error::refresh failed for:$bad"; exit 1; fi
-          echo "all four leagues and the NHL over/under records refreshed"
+          echo "all four leagues refreshed"

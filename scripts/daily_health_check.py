@@ -296,7 +296,9 @@ REFRESH_MONITORED = [
     ("scheduled-refresh.yml", "Main data refresh (data.json) 3x/day", 20, 1),
     ("daily-schedules-refresh.yml", "Daily schedules refresh", 20, 1),
     ("soccer-refresh.yml", "Soccer refresh (tomorrow schedule + Opta stats)", 36, 1),
-    ("hockey-euro-refresh.yml", "European hockey refresh (Liiga/SHL/NLA/Extraliga)", 20, 1),
+    # failures_to_alert 2 (2026-11-02): 4 failed runs in 100 (Oct 16 - Nov 2), every one a single failure that the next scheduled run (3 a day) cleared 2.8-4 h later; one alert per blip was noise. Two failures in a row,
+    # or no success inside the 20 h limit, still alerts, and the schedule-file freshness stamps (17 h warn / 28 h stale) back it up.
+    ("hockey-euro-refresh.yml", "European hockey refresh (Liiga/SHL/NLA/Extraliga)", 20, 2),
     ("daily-player-stats-refresh.yml", "Daily player & prop stats refresh", 36, 1),
     ("cfb-refresh.yml", "CFB stats + rankings", 36, 1),
     ("cfb-roster-monthly.yml", "CFB rosters (monthly)", 35 * 24, 1),
