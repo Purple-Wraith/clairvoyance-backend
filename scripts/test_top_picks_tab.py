@@ -96,7 +96,7 @@ class TopPicks(unittest.TestCase):
             offs = want[lab]
             w = sum(x[1] for x in spec if x[0] in offs); l = sum(x[2] for x in spec if x[0] in offs)
             self.assertIn(f"{w}W-{l}L", r, (lab, r))
-            self.assertIn(f"{round(100 * w / (w + l))}%" if w + l else "--", r, (lab, r))
+            self.assertIn(f"{int(100 * w / (w + l) + 0.5)}%" if w + l else "--", r, (lab, r))      # half-up, like the page's Math.round (Python's round() goes to even: 62.5 -> 62)
         grid_pos = self.pg.evaluate("(()=>{const h=document.getElementById('toppicks-heatmap');return h.querySelector('.tp-period').compareDocumentPosition(h.querySelector('.tp-heat-cell'))&4})()")
         self.assertTrue(grid_pos)                                                                    # the rows come before the squares
 
