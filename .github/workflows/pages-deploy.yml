@@ -116,6 +116,15 @@ jobs:
         continue-on-error: true
         run: python3 scripts/build_kickoffs.py
 
+      - name: Stamp version.json with this deploy
+        # 2026-11-01: docs/version.json was frozen at 20261026-0036 on the live site -- the pre-push hook stamps it AFTER the commit is made (so it is never pushed) and the refresh workflow
+        # stashes it away, so nothing committed it after Oct 26. The app's freshness check (cvVersionCheck) and the Engine Health tab both read it. Stamp it here, at deploy time, so every
+        # real deploy changes it. Mountain time, same "YYYYMMDD-HHMM" shape the local hook writes. Only touches the artifact checkout; nothing is committed.
+        if: steps.check.outputs.skip != 'true' || steps.kick.outputs.skip == 'false'
+        run: |
+          printf '{\n  "built": "%s",\n  "ts": %s\n}\n' "$(TZ=America/Denver date +%Y%m%d-%H%M)" "$(date +%s)" > docs/version.json
+          cat docs/version.json
+
       - name: Setup Pages
         if: steps.check.outputs.skip != 'true' || steps.kick.outputs.skip == 'false'
         uses: actions/configure-pages@v5
