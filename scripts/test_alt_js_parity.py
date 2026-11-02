@@ -64,6 +64,37 @@ class Parity(unittest.TestCase):
             self.assertAlmostEqual(js["shift"], py["altLine"]["shift"], places=6, msg=f"{sport} {label}")
             self.assertAlmostEqual(js["dec"], py["dec"], places=3, msg=f"{sport} {label}")
 
+    def test_every_shift_is_a_multiple_of_a_half_point_for_the_posted_lines_the_cards_make(self):
+        """Owner 2026-11-02: 'make sure shifts are only ending .5 or .0'.  The cards post half-point lines only (market lines, or the model margin snapped by _postedHalf); with both ends on a half-point
+        the shift between them is a multiple of .5 -- JS and Python, spreads and totals."""
+        on_half = lambda x: abs(x * 2 - round(x * 2)) < 1e-9
+        seen = 0
+        for sport, mkt, lo, hi in (("CFB", "SPREAD", 3, 35), ("NFL", "SPREAD", 1, 17), ("NBA", "SPREAD", 1, 20), ("CFB", "OU", 30, 90), ("NFL", "OU", 30, 60), ("NBA", "OU", 190, 250), ("NHL", "OU", 4, 8)):
+            v = float(lo)
+            while v <= hi:
+                for sign in ("-", "+"):
+                    for side in (("OVER", "UNDER") if mkt == "OU" else ("",)):
+                        label = f"{side} {v:.1f}" if mkt == "OU" else f"AAA {sign}{v:.1f}"
+                        js = self.pg.evaluate("([s,m,l,p])=>_altShift(s,m,l,p)", [sport, mkt, label, .6])
+                        py = A._alt_shift_leg({"kind": "GAME", "sport": sport, "hA": "H", "awA": "A", "side": ("over" if side == "OVER" else "under") if mkt == "OU" else "sprdFav", "label": label,
+                                               "prob": .6, "ml": "-110", "dec": 1.909, "tierN": 2, "evVal": .03})
+                        if js is None or py is None:
+                            continue
+                        seen += 1
+                        self.assertTrue(on_half(js["shift"]), f"JS {sport} {label}: shift {js['shift']}")
+                        self.assertTrue(on_half(py["altLine"]["shift"]), f"PY {sport} {label}: shift {py['altLine']['shift']}")
+                v += 0.5 if mkt == "SPREAD" or hi - lo > 20 else 0.5
+        self.assertGreater(seen, 400)
+
+    def test_posted_half_snaps_a_model_margin_to_a_bookable_line(self):
+        got = self.pg.evaluate("()=>[13.3,13.2,13.25,13.74,0.1,0,-7.26,6.0,6.5].map(_postedHalf)")
+        self.assertEqual(got, [13.5, 13.0, 13.5, 13.5, 0.5, 0.5, 7.5, 6.0, 6.5])
+
+    def test_no_card_posts_the_raw_model_margin_as_its_line(self):
+        src = (ROOT / "docs" / "app.html").read_text()
+        self.assertEqual(src.count("Math.abs(g.spread):_postedHalf(mc.avgMargin)"), 2)      # CFB + NFL cards
+        self.assertNotIn("Math.abs(g.spread):Math.abs(mc.avgMargin)", src)
+
     def test_every_adjusted_line_ends_in_point_five(self):
         """Owner 2026-11-01: 'all adjusted lines ever need to be ending with .5'.  Sweep posted lines in 0.1 steps (half-points, whole numbers, and the in-between values a raw model margin gives)."""
         def ends_half(x):

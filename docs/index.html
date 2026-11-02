@@ -5642,6 +5642,9 @@ const _ALT_HK_EURO={LIIGA:{'-3':0.942,'-2':0.798,'-1':0.665,'1':0.667,'2':0.835,
 const _ALT_TARGET=.67,_ALT_FLOOR=.62,_ALT_VIG=.045;
 // EVERY adjusted line ends in .5 (owner 2026-11-01: lines like 13.3 / 17.6 appeared when a card had no posted spread and the model's raw margin stood in for it): snap to the nearest x.5 in the SAFE
 // direction (sign -1 = lower, an OVER; +1 = higher, an UNDER or a spread), so the cushion can only grow -- mirror of _alt_half_snap in scripts/auto_lock_settle.py.
+// A "posted" spread the card makes up from the model margin (no market spread posted yet) is a bookable half-point line (owner 2026-11-02: adjusted-line shifts only ever end in .0 or .5): with the posted
+// line on a half-point and the adjusted line on one (_altHalfSnap), the shift between them is always a multiple of .5.  The cover probability on the card is computed at this same line.
+function _postedHalf(x){return Math.max(.5,Math.round(Math.abs(x)*2)/2);}
 function _altHalfSnap(x,sign){return sign<0?Math.floor(x-.5+1e-9)+.5:Math.ceil(x-.5-1e-9)+.5;}
 function _altProb(c,k){
   if(c[0]==='normal')return normalCDF((k+c[2])/c[1]);
@@ -7452,7 +7455,7 @@ async function lockPick(hA,awA,type,betOn,p,ml,d,date,source,betTypeOverride,ext
 // PURGED PICKS (owner request 2026-10-09): the 95 NFL player-prop picks (Sept 10-21; ledger tag FOOTBALL/PROP) were soft-deleted on Supabase (outcome='_removed'; full backup in
 // data/purged/nfl_props_20261009.json). A device only learns about a tombstone while the row is inside its pull window, and these are older than that, so every device ALSO carries the ids
 // here: they are treated as wiped (dropped from the local ledger on load, never re-pushed). Safe to leave in place; the list never needs updating.
-const _CV_PURGED_IDS=["2026-10-10_Rayo Vallecano_Athletic Club_LIGA_RayoVallecanoWin","nba_pl_010","nba_pl_011","nba_pl_012","nba_pl_013","nba_pl_091","nhl_pl_008","nhl_pl_009","nhl_pl_010","nhl_pl_071","2026-07-01_A.Davidovich Fokina_T.Tirante_ATP_A.DavidovichFokina","2026-07-06_POR_ESP_SOC_UNDER2.5","cfb_2026-09-03_ILL_UAB_OU_OVER54.5","cfb_2026-09-06_ND_WIS_ML_ND","cfb_2026-09-06_ND_WIS_OU_OVER46.5","cfb_2026-09-05_NAVY_TOW_ML_NAVY","2026-09-02_WSN_ATL_ML_ATL","2026-09-03_A.Tabilo_A.Popyrin_ATP_A.TabiloML","2026-10-17_NY_PHI_NBA_NY+0.5","2026-10-17_SA_OKC_NBA_SAML","2026-10-17_SA_OKC_NBA_UNDER239.5","prop_2026-10-22_NBA_NikolaJokic_REB_13.5_U","prop_nfl_model_2026-09-10_BrockPurdy_PassingTDs_OVER_0.5","prop_nfl_model_2026-09-10_ColbyParkinson_ReceivingYards_OVER_27.5","prop_nfl_model_2026-09-10_ColbyParkinson_Receptions_UNDER_3.5","prop_nfl_model_2026-09-10_DavanteAdams_ReceivingYards_OVER_56.5","prop_nfl_model_2026-09-10_DeeboSamuelSr._ReceivingYards_OVER_45.5","prop_nfl_model_2026-09-10_GeorgeKittle_ReceivingYards_OVER_57.5","prop_nfl_model_2026-09-10_KyrenWilliams_ReceivingYards_OVER_16.5","prop_nfl_model_2026-09-10_KyrenWilliams_RushingTDs_OVER_0.5","prop_nfl_model_2026-09-10_MatthewStafford_PassingTDs_OVER_0.5","prop_nfl_model_2026-09-10_MatthewStafford_PassingYards_OVER_277.5","prop_nfl_model_2026-09-10_MikeEvans_ReceivingYards_OVER_46.5","prop_nfl_model_2026-09-10_PukaNacua_ReceivingYards_OVER_107.5","prop_nfl_model_2026-09-11_ChristianMcCaffrey_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_AaronJonesSr._AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_BrentonStrange_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_BrianThomasJr._AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_BuckyIrving_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_CeeDeeLamb_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_ChubaHubbard_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_DJMoore_Receptions_OVER_3.5","prop_nfl_model_2026-09-13_DaltonSchultz_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_DevaughnVele_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_DontayvionWicks_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_EmekaEgbuka_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_IsaiahLikely_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_JalenCoker_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_JamesCookIII_Receptions_OVER_2.5","prop_nfl_model_2026-09-13_JamesonWilliams_Receptions_OVER_4.5","prop_nfl_model_2026-09-13_JaxsonDart_PassingTDs_OVER_1.5","prop_nfl_model_2026-09-13_JaxsonDart_PassingYards_OVER_162.5","prop_nfl_model_2026-09-13_JustinJefferson_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_JuwanJohnson_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_KyleMonangai_Receptions_OVER_1.5","prop_nfl_model_2026-09-13_LaddMcConkey_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_MarkAndrews_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_MikeGesicki_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_PatFreiermuth_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_SamLaPorta_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_StefonDiggs_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_T.J.Hockenson_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_TylerShough_PassingTDs_OVER_1.5","prop_nfl_model_2026-09-13_TylerWarren_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_Wan'DaleRobinson_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-17_JahmyrGibbs_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-17_JaredGoff_PassingYards_OVER_268.5","prop_nfl_model_2026-09-17_JoshAllen_PassingYards_OVER_216.5","prop_nfl_model_2026-09-17_SamLaPorta_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_AJBarner_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_AdonaiMitchell_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_AdonaiMitchell_Receptions_OVER_4.5","prop_nfl_model_2026-09-20_BhayshulTuten_Receptions_OVER_0.5","prop_nfl_model_2026-09-20_BreeceHall_Receptions_OVER_2.5","prop_nfl_model_2026-09-20_BrentonStrange_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_BrianThomasJr._AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_CadeOtton_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_CeeDeeLamb_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_CharlieKolar_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_ChubaHubbard_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_ChubaHubbard_Receptions_OVER_2.5","prop_nfl_model_2026-09-20_DaltonSchultz_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_DaltonSchultz_Receptions_OVER_5.5","prop_nfl_model_2026-09-20_DeVontaSmith_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_DerrickHenry_Receptions_OVER_1.5","prop_nfl_model_2026-09-20_DevaughnVele_Receptions_OVER_2.5","prop_nfl_model_2026-09-20_DontayvionWicks_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_EvanEngram_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_GeorgeHolani_Receptions_OVER_0.5","prop_nfl_model_2026-09-20_GunnarHelm_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_JakeFerguson_Receptions_OVER_5.5","prop_nfl_model_2026-09-20_JalenCoker_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_JalenNailor_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_JaydenReed_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_JerryJeudy_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_JustinJefferson_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_KennethWalkerIII_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_KennethWalkerIII_Receptions_OVER_2.5","prop_nfl_model_2026-09-20_KirkCousins_PassingTDs_OVER_1.5","prop_nfl_model_2026-09-20_MalikWillis_PassingYards_OVER_105.5","prop_nfl_model_2026-09-20_MarvinHarrisonJr._AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_MikeEvans_Receptions_OVER_4.5","prop_nfl_model_2026-09-20_ParkerWashington_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_PatrickMahomes_PassingYards_OVER_256.5","prop_nfl_model_2026-09-20_RachaadWhite_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_RashidShaheed_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_RashodBateman_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_StefonDiggs_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_TonyPollard_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_TravisKelce_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_TreTucker_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_Wan'DaleRobinson_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_XavierHutchinson_Receptions_OVER_2.5","prop_nfl_model_2026-09-20_XavierWorthy_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-21_CamSkattebo_Receptions_OVER_3.5","prop_nfl_model_2026-09-21_IsaiahLikely_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-21_IsaiahLikely_Receptions_OVER_2.5"];
+const _CV_PURGED_IDS=["2026-10-10_Rayo Vallecano_Athletic Club_LIGA_RayoVallecanoWin","nba_pl_010","nba_pl_011","nba_pl_012","nba_pl_013","nba_pl_091","nhl_pl_008","nhl_pl_009","nhl_pl_010","nhl_pl_071","2026-07-01_A.Davidovich Fokina_T.Tirante_ATP_A.DavidovichFokina","2026-07-06_POR_ESP_SOC_UNDER2.5","cfb_2026-09-03_ILL_UAB_OU_OVER54.5","cfb_2026-09-06_ND_WIS_ML_ND","cfb_2026-09-06_ND_WIS_OU_OVER46.5","cfb_2026-09-05_NAVY_TOW_ML_NAVY","2026-09-02_WSN_ATL_ML_ATL","2026-09-03_A.Tabilo_A.Popyrin_ATP_A.TabiloML","2026-10-17_NY_PHI_NBA_NY+0.5","2026-10-17_SA_OKC_NBA_SAML","2026-10-17_SA_OKC_NBA_UNDER239.5","prop_2026-10-22_NBA_NikolaJokic_REB_13.5_U","prop_nfl_model_2026-09-10_BrockPurdy_PassingTDs_OVER_0.5","prop_nfl_model_2026-09-10_ColbyParkinson_ReceivingYards_OVER_27.5","prop_nfl_model_2026-09-10_ColbyParkinson_Receptions_UNDER_3.5","prop_nfl_model_2026-09-10_DavanteAdams_ReceivingYards_OVER_56.5","prop_nfl_model_2026-09-10_DeeboSamuelSr._ReceivingYards_OVER_45.5","prop_nfl_model_2026-09-10_GeorgeKittle_ReceivingYards_OVER_57.5","prop_nfl_model_2026-09-10_KyrenWilliams_ReceivingYards_OVER_16.5","prop_nfl_model_2026-09-10_KyrenWilliams_RushingTDs_OVER_0.5","prop_nfl_model_2026-09-10_MatthewStafford_PassingTDs_OVER_0.5","prop_nfl_model_2026-09-10_MatthewStafford_PassingYards_OVER_277.5","prop_nfl_model_2026-09-10_MikeEvans_ReceivingYards_OVER_46.5","prop_nfl_model_2026-09-10_PukaNacua_ReceivingYards_OVER_107.5","prop_nfl_model_2026-09-11_ChristianMcCaffrey_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_AaronJonesSr._AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_BrentonStrange_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_BrianThomasJr._AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_BuckyIrving_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_CeeDeeLamb_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_ChubaHubbard_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_DJMoore_Receptions_OVER_3.5","prop_nfl_model_2026-09-13_DaltonSchultz_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_DevaughnVele_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_DontayvionWicks_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_EmekaEgbuka_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_IsaiahLikely_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_JalenCoker_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_JamesCookIII_Receptions_OVER_2.5","prop_nfl_model_2026-09-13_JamesonWilliams_Receptions_OVER_4.5","prop_nfl_model_2026-09-13_JaxsonDart_PassingTDs_OVER_1.5","prop_nfl_model_2026-09-13_JaxsonDart_PassingYards_OVER_162.5","prop_nfl_model_2026-09-13_JustinJefferson_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_JuwanJohnson_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_KyleMonangai_Receptions_OVER_1.5","prop_nfl_model_2026-09-13_LaddMcConkey_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_MarkAndrews_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_MikeGesicki_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_PatFreiermuth_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_SamLaPorta_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_StefonDiggs_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_T.J.Hockenson_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_TylerShough_PassingTDs_OVER_1.5","prop_nfl_model_2026-09-13_TylerWarren_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-13_Wan'DaleRobinson_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-17_JahmyrGibbs_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-17_JaredGoff_PassingYards_OVER_268.5","prop_nfl_model_2026-09-17_JoshAllen_PassingYards_OVER_216.5","prop_nfl_model_2026-09-17_SamLaPorta_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_AJBarner_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_AdonaiMitchell_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_AdonaiMitchell_Receptions_OVER_4.5","prop_nfl_model_2026-09-20_BhayshulTuten_Receptions_OVER_0.5","prop_nfl_model_2026-09-20_BreeceHall_Receptions_OVER_2.5","prop_nfl_model_2026-09-20_BrentonStrange_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_BrianThomasJr._AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_CadeOtton_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_CeeDeeLamb_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_CharlieKolar_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_ChubaHubbard_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_ChubaHubbard_Receptions_OVER_2.5","prop_nfl_model_2026-09-20_DaltonSchultz_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_DaltonSchultz_Receptions_OVER_5.5","prop_nfl_model_2026-09-20_DeVontaSmith_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_DerrickHenry_Receptions_OVER_1.5","prop_nfl_model_2026-09-20_DevaughnVele_Receptions_OVER_2.5","prop_nfl_model_2026-09-20_DontayvionWicks_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_EvanEngram_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_GeorgeHolani_Receptions_OVER_0.5","prop_nfl_model_2026-09-20_GunnarHelm_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_JakeFerguson_Receptions_OVER_5.5","prop_nfl_model_2026-09-20_JalenCoker_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_JalenNailor_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_JaydenReed_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_JerryJeudy_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_JustinJefferson_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_KennethWalkerIII_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_KennethWalkerIII_Receptions_OVER_2.5","prop_nfl_model_2026-09-20_KirkCousins_PassingTDs_OVER_1.5","prop_nfl_model_2026-09-20_MalikWillis_PassingYards_OVER_105.5","prop_nfl_model_2026-09-20_MarvinHarrisonJr._AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_MikeEvans_Receptions_OVER_4.5","prop_nfl_model_2026-09-20_ParkerWashington_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_PatrickMahomes_PassingYards_OVER_256.5","prop_nfl_model_2026-09-20_RachaadWhite_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_RashidShaheed_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_RashodBateman_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_StefonDiggs_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_TonyPollard_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_TravisKelce_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_TreTucker_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_Wan'DaleRobinson_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-20_XavierHutchinson_Receptions_OVER_2.5","prop_nfl_model_2026-09-20_XavierWorthy_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-21_CamSkattebo_Receptions_OVER_3.5","prop_nfl_model_2026-09-21_IsaiahLikely_AnytimeTD_OVER_0.5","prop_nfl_model_2026-09-21_IsaiahLikely_Receptions_OVER_2.5","prop_2026-10-21_NBA_NikolaVucevic_PTS_15.5_U","prop_2026-10-21_NBA_NikolaVucevic_REB_8.5_U","prop_2026-10-23_NBA_BrandonWilliams_PTS_7.5_O","prop_2026-10-23_NBA_NikolaVucevic_REB_10.5_U","prop_2026-10-30_NBA_NikolaVucevic_REB_10.5_U","prop_2026-10-28_NBA_CameronJohnson_PTS_6.5_O","prop_2026-10-28_NBA_LauriMarkkanen_PTS_31.5_U","prop_2026-10-31_NBA_LeBronJames_AST_4.5_O"];
 function _getWipedIds(){let s;try{s=new Set(JSON.parse(localStorage.getItem('cv_wiped_ids')||'[]'));}catch(e){s=new Set();}_CV_PURGED_IDS.forEach(id=>s.add(id));return s;}
 function _addWipedIds(ids){const s=_getWipedIds();ids.forEach(id=>s.add(id));localStorage.setItem('cv_wiped_ids',JSON.stringify([...s]));}
 // Real bug, found and fixed: lockPick's id is a deterministic hash of
@@ -10057,7 +10060,7 @@ function _cfbGameCard(g){
   // already accept) and this must never misrepresent the actual market
   // line. Our own fallback (when no market line exists yet) is forced to
   // .5 inside cfbMC().
-  const baseSpread=g.spread!=null?Math.abs(g.spread):Math.abs(mc.avgMargin);
+  const baseSpread=g.spread!=null?Math.abs(g.spread):_postedHalf(mc.avgMargin);
   const spreadFav=g.spread!=null?(g.spread<0?g.home:g.away):(mc.avgMargin>0?g.home:g.away);
   const spreadDog=spreadFav===g.home?g.away:g.home;
   const favIsHome=spreadFav===g.home;
@@ -11036,7 +11039,7 @@ function _nflGameCard2(g){
     </div>`;
   }
   const hCS=chipC(hP,ev(hP,hD)),aCS=chipC(aP,ev(aP,aD));
-  const baseSpread=g.spread!=null?Math.abs(g.spread):Math.abs(mc.avgMargin);
+  const baseSpread=g.spread!=null?Math.abs(g.spread):_postedHalf(mc.avgMargin);
   const spreadFav=g.spread!=null?(g.spread<0?g.home:g.away):(mc.avgMargin>0?g.home:g.away);
   const spreadDog=spreadFav===g.home?g.away:g.home;
   const favIsHome=spreadFav===g.home;
@@ -16269,6 +16272,15 @@ function _propAltLine(statKey,line,over,mu,sigma,postedProb){
 }
 // Who may carry an NBA prop. Rank = position among his team's players in that stat (everyone with >= 10 games counts, injured or not). 'any' = featured in at least one stat.
 var NBA_PROP_RANK={ppg:3,rpg:2,apg:2},NBA_PROP_MIN_MPG=26;
+// Players who never get a prop (owner 2026-11-02: Vucevic's props kept ending as low-minute voids).  Normalised names (see _normName).
+var NBA_PROP_BLOCKED=['nikola vucevic'];
+// A player who may not play gets no prop (owner 2026-11-02: props on players who did not play).  The feed's status is 'active' or an ESPN injury status (Out, Day-To-Day, ...): anything but 'active'
+// keeps him out, as does the blocklist.  Also used by pruneUnavailableNBAProps for props already locked.
+function _nbaPropUnavailable(name,status){
+  if(NBA_PROP_BLOCKED.indexOf(_normName(name))>=0)return true;
+  var st=String(status==null?'':status).trim().toLowerCase();
+  return st!==''&&st!=='active';
+}
 function _nbaPropFeatured(pl,players,stat){
   if(pl.mpg!=null&&pl.mpg<NBA_PROP_MIN_MPG)return false;     // bench / spot-minutes players are never featured (no minutes figure = unknown, not excluded)
   var stats=stat==='any'?['ppg','rpg','apg']:[stat];
@@ -16303,7 +16315,7 @@ function _generateNBAProps(games,statsData){
     // one of his OWN team's top NBA_PROP_RANK[stat] in it (ranked among everyone on the roster, injured included, so a star being Out never promotes a role player into his slot -- the
     // averages do not carry that usage bump) and plays real minutes. Scorers: top 3 per team; rebounders and passers: top 2.
     var gamePlayers=players.filter(function(p){
-      if(p.status&&/^out/i.test(p.status))return false;   // ESPN injury status from nba.playerProps: an Out player gets no prop
+      if(_nbaPropUnavailable(p.name,p.status))return false;   // blocklisted, or any ESPN injury status from nba.playerProps (Out, Day-To-Day, ...): no prop
       return(p.team===hn||p.team===an)&&p.gp>=10&&_nbaPropFeatured(p,players,'any');
     });
     var seen=new Set();
@@ -20068,6 +20080,45 @@ function _propBoxStat(sport,players,p,parsed){
   return foundStat===null?null:{val:foundStat,dnp:dnp,name:foundPlayer,min:foundMin,lowMin:lowMin};
 }
 
+// VOIDED PROPS ARE REMOVED, NOT KEPT AS A PUSH (owner 2026-11-02: "for player props that will be voided, just remove them").  Same removal the app's own REMOVE does for a pick: out of the ledger, on the
+// wipe list (so no device pulls it back) and soft-deleted on Supabase (outcome '_removed', see _deleteBetsFromSupabase), awaited so an automation run does not close the page first.
+async function _removeVoidedProps(ids){
+  ids=[...new Set(ids||[])];if(!ids.length)return 0;
+  const cur=getP(),keep=cur.filter(q=>!ids.includes(q.id));
+  if(keep.length===cur.length)return 0;
+  saveP(keep);_addWipedIds(ids);
+  try{await _deleteBetsFromSupabase(ids);}catch(e){}
+  ids.forEach(id=>{try{broadcastBetRemove(id);}catch(e){}});
+  try{updHdr();}catch(e){}
+  return cur.length-keep.length;
+}
+// PRE-TIP SWEEP: a pending NBA prop (today or later) whose game has NOT started and whose player is now blocklisted or on ESPN's injury list (any status, see _nbaPropUnavailable) is removed before the game.
+// Live ESPN injuries + scoreboard each time; a failed lookup, or a game that cannot be confirmed as 'pre', removes nothing.  Games already started are left to the box-score settler (a player hurt in
+// the game played minutes and his prop has a real result).  -> number removed.
+async function pruneUnavailableNBAProps(){
+  const td=today();
+  const pend=getP().filter(p=>p&&p.betType==='PROP'&&p.outcome==='pending'&&p.player&&p.date&&p.date>=td&&p.team&&(_normSport(p)||p.sport)==='NBA');
+  if(!pend.length)return 0;
+  let inj=null;const preTeams=new Set();
+  try{const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries?limit=100',{cache:'no-cache'});if(r.ok)inj=await r.json();}catch(e){}
+  if(!inj||!Array.isArray(inj.injuries))return 0;
+  const dates=[...new Set(pend.map(p=>p.date))];
+  for(const d of dates){
+    try{
+      for(const dd of [d,_scShift(d,1)]){
+        const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates='+dd.replace(/-/g,''),{cache:'no-cache'});
+        if(!r.ok)return 0;
+        ((await r.json()).events||[]).forEach(ev=>{const c0=ev.competitions&&ev.competitions[0];if(c0&&c0.status&&c0.status.type&&c0.status.type.state==='pre')(c0.competitors||[]).forEach(t=>preTeams.add(canonTeam(t.team&&t.team.abbreviation)));});
+      }
+    }catch(e){return 0;}
+  }
+  const status={};
+  inj.injuries.forEach(t=>(t.injuries||[]).forEach(i=>{const n=_normName(i.athlete&&i.athlete.displayName);if(n&&i.status)status[n]=i.status;}));
+  const gone=pend.filter(p=>preTeams.has(canonTeam(p.team))&&_nbaPropUnavailable(p.player,status[_normName(p.player)])).map(p=>p.id);
+  if(gone.length){try{toast('PROPS REMOVED (player out / blocked): '+gone.length);}catch(e){}}
+  return _removeVoidedProps(gone);
+}
+
 // ABSENT FROM A FINAL BOX SCORE (owner 2026-11-02: Markkanen 10-28 and LeBron 10-31 sat pending after games he sat out; Cam Johnson 10-28 had to be removed by hand).  ESPN lists only the players who
 // dressed -- a player who is injured / inactive / resting is NOT in the box score at all (only coach's-decision DNPs carry didNotPlay), so the lookup above found nobody and the prop waited for a stat
 // that never comes.  Once the game is final, a player who is in neither team's block is a did-not-play: void.  Deliberately strict, because the wrong call voids a real bet: NBA/WNBA only, his own team's
@@ -20102,6 +20153,7 @@ async function autoSettlePropsESPN(targetDate){
     const t=today(),floor=_scShift(t,-5),statFloor=_scShift(t,-12);
     // pending props of the last 5 days, plus settled NBA props of the last 12 days that are still missing their stat (see _propNeedsStat)
     const dates=[...new Set(getP().filter(p=>p.betType==='PROP'&&p.date&&(p.outcome==='pending'?p.date>=floor:(_propNeedsStat(p)&&p.date>=statFloor))).map(p=>p.date))].filter(d=>d<=t).sort();
+    try{await pruneUnavailableNBAProps();}catch(e){}
     for(const d of dates){try{await autoSettlePropsESPN(d);}catch(e){}}
     return;
   }
@@ -20111,6 +20163,7 @@ async function autoSettlePropsESPN(targetDate){
   const pending=preds.filter(p=>p.betType==='PROP'&&p.date===targetDate&&(p.outcome==='pending'||_propNeedsStat(p)));
   if(!pending.length)return;
   const fills={};
+  const removed=[];                                                       // voided props (did not play / under PROP_MIN_MINUTES): removed from the ledger, see _removeVoidedProps
   let changed=false;
   const bsCache={};// eventId → boxscore data
 
@@ -20228,14 +20281,14 @@ async function autoSettlePropsESPN(targetDate){
         fills[p.id]={stat:foundStat,min:hit.min,lowMin:!!hit.lowMin};changed=true;
         continue;
       }
-      if(hit.lowMin){                                                     // played under PROP_MIN_MINUTES: void (stake back, not in win %), the stat and minutes are kept for the record
-        p.outcome='push';p.settledAt=Date.now();p.playerResult=foundStat;p.playerMin=hit.min;p.voidReason='LOW_MIN';changed=true;
-        toast(`PROP VOID (${hit.min} MIN): ${parsed.player} ${parsed.stat} ${parsed.direction} ${parsed.line}`);
+      if(hit.lowMin){                                                     // played under PROP_MIN_MINUTES: a void -- the prop is removed (owner 2026-11-02), not recorded as a push
+        removed.push(p.id);
+        toast(`PROP REMOVED (${hit.min} MIN): ${parsed.player} ${parsed.stat} ${parsed.direction} ${parsed.line}`);
         continue;
       }
       if(dnp){
-        p.outcome='push';p.settledAt=Date.now();p.playerResult=null;p.voidReason='DNP';changed=true;
-        toast(`PROP VOID (DID NOT PLAY): ${parsed.player} ${parsed.stat} ${parsed.direction} ${parsed.line}`);
+        removed.push(p.id);
+        toast(`PROP REMOVED (DID NOT PLAY): ${parsed.player} ${parsed.stat} ${parsed.direction} ${parsed.line}`);
         continue;
       }
 
@@ -20253,14 +20306,14 @@ async function autoSettlePropsESPN(targetDate){
       const f=fills[q.id];let n=0;
       if(q.playerResult==null){q.playerResult=f.stat;n++;}
       if(q.playerMin==null&&f.min!=null){q.playerMin=f.min;n++;}
-      if(f.lowMin&&(q.outcome==='win'||q.outcome==='loss')){                // retroactive void of an already-settled win/loss; regradedNote is what carries a correction to other devices (see _mergeRemoteBetRows)
-        q.regradedNote='Voided '+new Date().toISOString().slice(0,10)+': played '+f.min+' min (under '+PROP_MIN_MINUTES+'); was '+q.outcome.toUpperCase();
-        q.outcome='push';q.voidReason='LOW_MIN';n++;
+      if(f.lowMin&&(q.outcome==='win'||q.outcome==='loss')){                // an already-settled win/loss that is a void after all (under PROP_MIN_MINUTES): removed too
+        removed.push(q.id);
       }
       window._propBackfillCount=(window._propBackfillCount||0)+(n?1:0);
     }});
     saveP(cur);updHdr();
   }
+  if(removed.length)await _removeVoidedProps(removed);
 }
 
 

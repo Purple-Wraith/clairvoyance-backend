@@ -123,6 +123,20 @@ class NbaPropsForm(unittest.TestCase):
         self.assertNotIn("Star", f)                       # out: no prop
         self.assertNotIn("Fourth", f)                     # still the 4th scorer on the roster, not the 3rd of the healthy ones
 
+    def test_any_injury_listing_keeps_a_player_out_not_just_out(self):
+        """Owner 2026-11-02: props on players who did not play.  Day-To-Day / questionable / any non-'active' status gets no prop either."""
+        f = self.featured([("Star", 28, 5, 6, 35, "Day-To-Day"), ("Second", 22, 4, 3, 33, "Questionable"), ("Third", 17, 9, 2, 30, "active")])
+        self.assertNotIn("Star", f)
+        self.assertNotIn("Second", f)
+        self.assertIn("PTS", f["Third"])                  # healthy: still gets his prop
+        self.assertIn("PTS", self.featured([("Solo", 28, 5, 6, 35, "")])["Solo"])        # no status at all: not excluded
+
+    def test_vucevic_never_gets_a_prop_however_he_is_spelled(self):
+        f = self.featured([("Nikola Vučević", 20, 10, 3, 32, "active"), ("Nikola Vucevic", 20, 10, 3, 32, None), ("Second", 18, 5, 3, 31, None)])
+        self.assertNotIn("Nikola Vučević", f)
+        self.assertNotIn("Nikola Vucevic", f)
+        self.assertIn("PTS", f["Second"])
+
     def test_missing_minutes_figure_is_not_a_reason_to_exclude(self):
         f = self.featured([("Star", 28, 5, 6, None, None)])
         self.assertIn("PTS", f["Star"])

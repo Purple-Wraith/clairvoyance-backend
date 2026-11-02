@@ -6,7 +6,7 @@ Runs the real settler in Chromium against a STUBBED ESPN scoreboard + box score 
   * accented names settle ("Nikola Jokic" vs ESPN's "Nikola Jokić") -- they used to sit pending forever;
   * a player is looked up in HIS OWN team's block: OKC's Jalen Williams is never graded on Denver's Jalen Williams;
   * an ambiguous surname is left pending rather than guessed;
-  * a player who did not play (didNotPlay / no stats / 0 minutes) is VOID (push, voidReason DNP) -- never a zero-stat UNDER win or OVER loss;
+  * a player who did not play (didNotPlay / no stats / 0 minutes) is VOID -- never a zero-stat UNDER win or OVER loss -- and (owner 2026-11-02) a void prop is REMOVED from the ledger, not kept as a push;
   * a player ABSENT from a final box score (ESPN leaves injured / inactive players out entirely, 2026-11-02: Markkanen, LeBron) is VOID too -- but only when his team's block looks complete and
     nobody on either team shares a word of his name;
   * only FINAL games settle; the game is matched on both teams;
@@ -49,7 +49,7 @@ def prop(pid, bet, team, opp, line_hA=None):
             "outcome": "pending", "lockedAt": 1, "winProb": .6, "decOdds": 1.7, "player": bet.split(" OVER ")[0].split(" UNDER ")[0]}
 
 
-SCORE = {"events": [event("E1", "DEN", "OKC"), event("E2", "BOS", "NY", state="in"), event("E3", "LAL", "GS"), event("E4", "UTAH", "SA")]}
+SCORE = {"events": [event("E1", "DEN", "OKC"), event("E2", "BOS", "NY", state="in"), event("E3", "LAL", "GS"), event("E4", "UTAH", "SA"), event("E5", "MIL", "CHI", state="pre")]}
 
 
 def full(prefix, extra=()):
@@ -84,6 +84,7 @@ class Settle(unittest.TestCase):
         cls.pg.goto(f"http://127.0.0.1:{cls.srv.server_address[1]}/app.html?nosb=1")
         cls.pg.wait_for_function("typeof autoSettlePropsESPN==='function'"); cls.pg.wait_for_timeout(1200)
         cls.pg.evaluate("""([sc,sm])=>{window.__f=window.fetch;window.fetch=async(u,o)=>{u=String(u);
+          if(u.includes('/nba/injuries'))return window.__inj?new Response(JSON.stringify(window.__inj),{status:200}):new Response('',{status:500});
           if(u.includes('/nba/scoreboard'))return new Response(JSON.stringify(sc),{status:200});
           const m=u.match(/\\/nba\\/summary\\?event=(\\w+)/);if(m)return new Response(JSON.stringify(sm[m[1]]||{}),{status:200});
           return window.__f(u,o)}}""", [SCORE, SUMMARY])
@@ -118,16 +119,18 @@ class Settle(unittest.TestCase):
         r = self.settle([prop("d1", "Williams OVER PTS 4.5", "GS", "LAL")])                   # GS has two Williamses in this box score
         self.assertEqual(r["d1"]["outcome"], "pending")
 
-    def test_a_player_who_did_not_play_is_void_not_a_zero_stat_result(self):
+    def wiped(self, pid):
+        return self.pg.evaluate("(id)=>_getWipedIds().has(id)", pid)
+
+    def test_a_player_who_did_not_play_is_removed_not_a_zero_stat_result(self):
         r = self.settle([prop("e1", "Zeke Nnaji UNDER PTS 4.5", "DEN", "OKC"), prop("e2", "Zeke Nnaji OVER PTS 4.5", "DEN", "OKC")])
         for k in ("e1", "e2"):
-            self.assertEqual(r[k]["outcome"], "push")                                      # void: stake back, 0 units, not counted in win %
-            self.assertEqual(r[k]["voidReason"], "DNP")
-            self.assertIsNone(r[k].get("playerResult"))
+            self.assertNotIn(k, r)                                                         # gone: neither a zero-stat win/loss nor a push on the books
+            self.assertTrue(self.wiped(k))                                                 # and on the wipe list, so no device pulls it back
 
     def test_zero_minutes_is_also_void_but_five_minutes_of_zeros_is_a_real_result(self):
         r = self.settle([prop("f1", "Bruce Brown UNDER PTS 3.5", "DEN", "OKC")])             # MIN "0" in the box score
-        self.assertEqual((r["f1"]["outcome"], r["f1"]["voidReason"]), ("push", "DNP"))
+        self.assertNotIn("f1", r)
 
     def test_only_final_games_settle(self):
         r = self.settle([prop("g1", "Jalen Brunson OVER PTS 10.5", "NY", "BOS")])            # E2 is in progress
@@ -137,6 +140,34 @@ class Settle(unittest.TestCase):
         r = self.settle([prop("h1", "Jaxson Hayes OVER REB 4.5", "LAL", "GS")])
         self.assertEqual((r["h1"]["outcome"], r["h1"]["playerResult"]), ("win", 5))
 
+    # ── pre-tip sweep (owner 2026-11-02): no props for players who are not going to play ──
+    INJ = {"injuries": [{"displayName": "Milwaukee Bucks", "injuries": [{"athlete": {"displayName": "Out Guy"}, "status": "Out"}]},
+                        {"displayName": "Chicago Bulls", "injuries": [{"athlete": {"displayName": "Day Guy"}, "status": "Day-To-Day"}]},
+                        {"displayName": "Denver Nuggets", "injuries": [{"athlete": {"displayName": "Out Guy2"}, "status": "Out"}]},
+                        {"displayName": "New Orleans Pelicans", "injuries": [{"athlete": {"displayName": "Out Guy3"}, "status": "Out"}]}]}
+
+    def sweep(self, inj, tag):
+        day = self.pg.evaluate("today()")
+        mk = lambda i, bet, team, opp: dict(prop(tag + i, bet, team, opp), date=day)        # fresh ids per test: removed ids stay on the wipe list
+        props = [mk("q1", "Out Guy OVER PTS 10.5", "MIL", "CHI"), mk("q2", "Healthy Guy OVER PTS 10.5", "MIL", "CHI"), mk("q3", "Day Guy OVER PTS 10.5", "CHI", "MIL"),
+                 mk("q4", "Nikola Vučević UNDER PTS 15.5", "CHI", "MIL"), mk("q5", "Out Guy2 OVER PTS 10.5", "DEN", "OKC"), mk("q6", "Out Guy3 OVER PTS 10.5", "NOP", "UTAH")]
+        self.pg.evaluate("(p)=>saveP(p)", props)
+        self.pg.evaluate("(i)=>{window.__inj=i}", inj)
+        n = self.pg.evaluate("pruneUnavailableNBAProps()")
+        self.pg.wait_for_timeout(300)
+        return n, {p["id"][len(tag):] for p in self.pg.evaluate("getP().filter(p=>p.betType==='PROP')")}
+
+    def test_the_pre_tip_sweep_removes_injured_and_blocklisted_players_before_their_game(self):
+        n, left = self.sweep(self.INJ, "A")
+        self.assertEqual(n, 3)
+        self.assertEqual(left, {"q2", "q5", "q6"})        # out / day-to-day / Vucevic removed; healthy kept; a game already started (q5) and one with no confirmed game (q6) are left alone
+        self.assertTrue(all(self.wiped("A" + i) for i in ("q1", "q3", "q4")))
+
+    def test_the_pre_tip_sweep_removes_nothing_when_the_injury_lookup_fails(self):
+        n, left = self.sweep(None, "B")                        # ESPN answers 500
+        self.assertEqual(n, 0)
+        self.assertEqual(left, {"q1", "q2", "q3", "q4", "q5", "q6"})
+
     def test_a_player_in_no_box_score_stays_pending_when_the_box_score_is_short(self):
         r = self.settle([prop("i1", "Nobody Atall OVER PTS 4.5", "DEN", "OKC")])             # DEN's stub block has 7 athletes: not trusted as a complete box score
         self.assertEqual(r["i1"]["outcome"], "pending")
@@ -144,8 +175,7 @@ class Settle(unittest.TestCase):
     def test_a_player_absent_from_a_complete_final_box_score_is_void(self):
         r = self.settle([prop("j1", "Lauri Markkanen UNDER PTS 31.5", "UTAH", "SA"), prop("j2", "Lauri Markkanen OVER PTS 20.5", "UTAH", "SA")])
         for k in ("j1", "j2"):
-            self.assertEqual((r[k]["outcome"], r[k]["voidReason"]), ("push", "DNP"))      # an UNDER does not "win" and an OVER does not "lose" on a player who never played
-            self.assertIsNone(r[k].get("playerResult"))
+            self.assertNotIn(k, r)                                                         # an UNDER does not "win" and an OVER does not "lose" on a player who never played: removed
 
     def test_absence_never_voids_a_player_who_is_in_the_box_score_under_another_spelling(self):
         r = self.settle([prop("k1", "Cam Johnson OVER PTS 6.5", "UTAH", "SA"), prop("k2", "Johnson OVER PTS 6.5", "UTAH", "SA")])        # "Cameron Johnson" is in UTAH's block: a real result, not a void
@@ -155,7 +185,7 @@ class Settle(unittest.TestCase):
 
     def test_a_same_surname_player_on_the_other_team_does_not_stop_the_void(self):
         r = self.settle([prop("m1", "Lauri Markkanen OVER PTS 20.5", "UTAH", "SA")])        # SA's "Mika Markkanen" is another person (real case: AJ Johnson / Sion James)
-        self.assertEqual((r["m1"]["outcome"], r["m1"]["voidReason"]), ("push", "DNP"))
+        self.assertNotIn("m1", r)
 
     def test_a_stale_team_on_the_bet_never_voids_a_player_the_other_team_lists_by_full_name(self):
         r = self.settle([prop("n1", "Cameron Johnson OVER PTS 6.5", "SA", "UTAH")])         # bet says SA, the box score has him in UTAH's block
@@ -211,20 +241,19 @@ class Settle(unittest.TestCase):
     def test_a_pending_prop_for_a_player_under_ten_minutes_is_void(self):
         r = self.settle([prop("v1", "Reserve Guy UNDER PTS 4.5", "DEN", "OKC"), prop("v2", "Reserve Guy OVER PTS 4.5", "DEN", "OKC")])      # 5 min, 0 pts
         for k in ("v1", "v2"):
-            self.assertEqual((r[k]["outcome"], r[k]["voidReason"], r[k]["playerMin"], r[k]["playerResult"]), ("push", "LOW_MIN", 5, 0))   # an UNDER did not "win", an OVER did not "lose"
+            self.assertNotIn(k, r)                                                         # 5 minutes: removed (an UNDER did not "win", an OVER did not "lose")
 
     def test_nine_minutes_is_void_ten_minutes_is_a_real_result(self):
         r = self.settle([prop("w1", "Nine Min OVER PTS 7.5", "DEN", "OKC"), prop("w2", "Ten Min OVER PTS 7.5", "DEN", "OKC")])
-        self.assertEqual((r["w1"]["outcome"], r["w1"]["voidReason"]), ("push", "LOW_MIN"))
+        self.assertNotIn("w1", r)                                                          # 9 minutes: removed
         self.assertEqual((r["w2"]["outcome"], r["w2"]["playerResult"], r["w2"]["playerMin"]), ("win", 8, 10))
         self.assertNotIn("voidReason", r["w2"])
 
-    def test_an_already_settled_win_or_loss_under_ten_minutes_is_voided_and_marked_as_a_correction(self):
+    def test_an_already_settled_win_or_loss_under_ten_minutes_is_removed(self):
         r = self.settle([self.settled("x1", "Reserve Guy UNDER PTS 4.5", "DEN", "OKC", "win"), self.settled("x2", "Reserve Guy OVER PTS 4.5", "DEN", "OKC", "loss")])
-        for k, was in (("x1", "WIN"), ("x2", "LOSS")):
-            self.assertEqual((r[k]["outcome"], r[k]["voidReason"], r[k]["playerMin"]), ("push", "LOW_MIN", 5))
-            self.assertIn("was " + was, r[k]["regradedNote"])                                                # the marker other devices use to accept a correction
-            self.assertEqual(r[k]["settledAt"], 1234567)
+        for k in ("x1", "x2"):
+            self.assertNotIn(k, r)
+            self.assertTrue(self.wiped(k))
 
     def test_a_settled_prop_that_already_has_its_minutes_is_not_looked_at_again(self):
         r = self.settle([self.settled("y1", "Reserve Guy UNDER PTS 4.5", "DEN", "OKC", "win", playerResult=0, playerMin=12)])   # minutes already checked (say 12): box score is not consulted
@@ -301,13 +330,12 @@ class CiSweep(unittest.TestCase):
         self.assertEqual((got["k1"]["outcome"], got["k1"]["playerResult"], got["k1"]["settledAt"]), ("win", 31, 1234567))
         self.assertEqual(newly, [])                                                         # it was not a new settlement
 
-    def test_the_scheduled_pass_voids_a_low_minute_win_and_counts_it_for_the_supabase_flush(self):
+    def test_the_scheduled_pass_removes_a_low_minute_win(self):
         import io, contextlib
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             _, got = self.run_pass(self.ledger(id="k3", betOn="Reserve Guy UNDER PTS 4.5", team="DEN", hA="DEN", awA="OKC"))
-        self.assertEqual((got["k3"]["outcome"], got["k3"]["voidReason"]), ("push", "LOW_MIN"))
-        self.assertIn("Prop box-score backfill: 1", buf.getvalue())                         # the flush to Supabase is keyed on this
+        self.assertNotIn("k3", got)                                                         # removed (the Supabase soft-delete is sent by the removal itself, not by the flush)
 
     def test_a_prop_older_than_the_sweep_window_is_left_alone(self):
         old = self.ledger(date="2026-10-01", id="k2")

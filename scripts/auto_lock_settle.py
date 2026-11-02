@@ -1401,6 +1401,8 @@ def run_settle(page, live: bool, only_dates: list[str] | None = None) -> list[di
             getP().filter(p => p.outcome === 'pending').map(p => p.date).filter(Boolean)
           )].sort();
           results.datesChecked = pendingDates.length;
+          // PRE-TIP SWEEP (owner 2026-11-02): a locked NBA prop whose player is now injured-listed / blocklisted and whose game has not started is removed before tip-off (docs/app.html pruneUnavailableNBAProps)
+          if (typeof pruneUnavailableNBAProps === 'function') { try { results.pruned = await pruneUnavailableNBAProps(); } catch (e) { results.pruneErr = e.message; } }
           for (const targetDate of pendingDates) {
             const dEspn = targetDate.replace(/-/g, '');
             const r = {};
