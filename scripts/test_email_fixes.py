@@ -126,6 +126,49 @@ class TopPicksAtTheTop(unittest.TestCase):
         self.assertNotIn("EV +", row)
 
 
+class OneSportPerEmail(unittest.TestCase):
+    """Owner 2026-11-02: a subscriber's email (top picks block included) only ever carries the sports of the product they bought."""
+    def sent_html(self, legs, product):
+        seen = {}
+        orig = (a._send_gmail, a.LOCKS_EMAIL_TO, a.OWNER_EMAIL, a.PENDING_PERSIST)
+        a._send_gmail = lambda subject, to, html, *x, **k: (seen.update(html=html, subject=subject) or (True, ""))
+        a.LOCKS_EMAIL_TO = "to@example.com"; a.PENDING_PERSIST = False
+        try:
+            self.assertTrue(a.send_locks_email(legs, live=True, locked_count=len(legs), label=product.upper(), to=["to@example.com"], product=product))
+        finally:
+            a._send_gmail, a.LOCKS_EMAIL_TO, a.OWNER_EMAIL, a.PENDING_PERSIST = orig
+        return seen["html"], seen["subject"]
+
+    def mixed(self):
+        legs = []
+        for sport, tag in (("CFB", "Cfb"), ("NBA", "Nba"), ("NHL", "Nhl"), ("SOC_PL", "Pl")):
+            legs += [_game(sport, f"{tag}{i} Win", prob=.60 + i / 100, side="mlHome", hA=f"{tag}H{i}", awA=f"{tag}A{i}", tier=2) for i in range(7)]
+        return legs
+
+    def test_each_products_email_carries_only_its_own_sport_including_the_top_block(self):
+        for product, tag, others in (("cfb", "Cfb", ("Nba", "Nhl", "Pl")), ("nba", "Nba", ("Cfb", "Nhl", "Pl")), ("hockey", "Nhl", ("Cfb", "Nba", "Pl"))):
+            html, _ = self.sent_html(self.mixed(), product)
+            self.assertIn("picks of the day", html, product)
+            self.assertIn(tag, html, product)
+            for o in others:
+                self.assertNotIn(f"{o}H", html, f"{product} email leaked {o}")
+            block = html[html.index("picks of the day"):html.index("What the grades mean")]
+            self.assertEqual(len(a.select_email_top_picks([q for q in self.mixed() if q["sport"] in a.PRODUCT_SPORTS[product]])), 5)
+            self.assertNotIn("CFB ·" if product != "cfb" else "NBA ·", block)
+
+    def test_a_single_sport_email_fills_its_top_block_from_that_sport_alone(self):
+        legs = [q for q in self.mixed() if q["sport"] == "CFB"]
+        top = a.select_email_top_picks(legs)
+        self.assertEqual(len(top), 5)                                        # the per-league cap of 3 gives way when there is only one league to draw from
+        self.assertEqual({q["sport"] for q in top}, {"CFB"})
+
+    def test_soccer_top_block_stays_inside_the_soccer_leagues(self):
+        html, _ = self.sent_html(self.mixed(), "soccer")
+        self.assertIn("Pl", html)
+        for o in ("CfbH", "NbaH", "NhlH"):
+            self.assertNotIn(o, html)
+
+
 class LocksEmail(unittest.TestCase):
     def test_adjusted_line_pick_is_labelled_and_has_no_ev_or_posted_tier(self):
         html = a._leg_html(_game(alt=ALT))

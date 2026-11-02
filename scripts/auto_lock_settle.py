@@ -4145,6 +4145,13 @@ def send_locks_email(qualifying: list[dict], live: bool, locked_count: int | Non
     # scripts/send_demo_emails.py (synthetic data, explicitly built for
     # that, never touches real subscribers). Dry-run now always routes to
     # the owner only, regardless of what `to` the caller passed.
+    # ONE PRODUCT'S SPORTS PER EMAIL (owner 2026-11-02: "if someone is subscribed to nba the email only gets nba top picks ... dont show multiple sports in an email").  Every pass already scopes its legs
+    # to its product; this makes it a guarantee for the whole email, top-picks block included: a leg outside the product's sports is dropped (and logged) instead of reaching that product's subscribers.
+    if product in PRODUCT_SPORTS:
+        stray = [q for q in qualifying if q.get("sport") not in PRODUCT_SPORTS[product]]
+        if stray:
+            log(f"Locks email ({label or product}): dropped {len(stray)} leg(s) outside the {product} product's sports: " + ", ".join(sorted({str(q.get('sport')) for q in stray})))
+            qualifying = [q for q in qualifying if q.get("sport") in PRODUCT_SPORTS[product]]
     recipients = ([OWNER_EMAIL] if OWNER_EMAIL else []) if not live else (to if to is not None else ([LOCKS_EMAIL_TO] if LOCKS_EMAIL_TO else []))
     if not recipients:
         log("No recipients (LOCKS_EMAIL_TO unset and none passed) — skipping locked-picks email")
