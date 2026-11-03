@@ -87,6 +87,7 @@ import email_tracking as et  # noqa: E402  -- per-pick 'emailed' state + catch-u
 import lineups  # noqa: E402  -- confirmed lineups (NHL goalies, NBA/NFL Out lists) at the lock pass; fail-open, see scripts/lineups.py
 import nfl_engine  # noqa: E402  -- NFL market anchor mirror + the alt-line lane constants (2026-10-11 NFL engine audit)
 import nba_totals_shadow as nts  # noqa: E402  -- record-only log of NBA totals rated 55%+ that did not qualify (owner 2026-10-27; never locks or emails)
+import _ledger_light  # noqa: E402  -- light-column ledger diff: download `raw` only for rows that changed (2026-11-03 Supabase egress cut)
 
 # _LOCKS_EMAIL_CLOSE (the disclaimer-bearing close, defined in
 # _gmail_email.py so _subscribers.py's receipt email can share the exact
@@ -1057,16 +1058,31 @@ async () => {
 }
 """
 
-_JS_WINDOW_PULL = """
-async (cutoff) => {
+# Light-column refresh (2026-11-03, Supabase egress): the window is first listed with the small flat columns only (scripts/_ledger_light.py), compared with the committed backup, and the big `raw` JSON is
+# downloaded just for the rows that differ.  A full window of raw was ~400 KB gzipped / 1.6 MB decoded per session; the light list is ~45 KB / 0.3 MB and the ~30 changed rows add ~15 KB.
+_JS_LIGHT_PULL = """
+async ([cutoff, cols]) => {
   const rows = []; let offset = 0; const page_size = 1000;
   while (true) {
-    const r = await fetch(SUPABASE_URL + '/rest/v1/bets?select=id,outcome,raw&or=(date.gte.' + cutoff + ',outcome.eq.pending)&order=id', {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/bets?select=' + cols + '&or=(date.gte.' + cutoff + ',outcome.eq.pending)&order=id', {
       headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, Range: offset + '-' + (offset + page_size - 1) } });
     if (!r.ok) return null;
     const batch = await r.json(); rows.push(...batch);
     if (batch.length < page_size) break;
     offset += page_size;
+  }
+  return rows;
+}
+"""
+
+_JS_RAW_BY_IDS = """
+async (filters) => {
+  const rows = [];
+  for (const f of filters) {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/bets?select=id,outcome,raw&id=in.' + encodeURIComponent(f), {
+      headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } });
+    if (!r.ok) return null;
+    rows.push(...(await r.json()));
   }
   return rows;
 }
@@ -1083,22 +1099,32 @@ def _hybrid_allowed(meta: dict) -> bool:
 
 
 def _load_hybrid(page) -> int | None:
-    """Backup as the base, Supabase only for the recent window + every pending pick (tombstones drop their id). None if Supabase failed."""
+    """Backup as the base, Supabase only for what changed in the recent window + every pending pick (tombstones drop their id). None if Supabase failed.
+    Two cheap requests instead of one heavy one: list the window's light columns, then fetch `raw` only for rows that differ from the base."""
     base = _read_backup_file()
     cutoff = (datetime.now(ZoneInfo("America/Denver")) - timedelta(days=HYBRID_WINDOW_DAYS)).strftime("%Y-%m-%d")
     try:
-        rows = page.evaluate(_JS_WINDOW_PULL, cutoff)
+        light = page.evaluate(_JS_LIGHT_PULL, [cutoff, _ledger_light.LIGHT_COLS])
+        if light is None or base is None:
+            return None
+        merged = _ids(base)
+        tombs, fetch = _ledger_light.plan(light, merged)
+        raw_rows = []
+        if fetch:
+            raw_rows = page.evaluate(_JS_RAW_BY_IDS, [_ledger_light.in_filter(c) for c in _ledger_light.chunks(fetch)])
+            if raw_rows is None:
+                return None
     except Exception as exc:
         log(f"Supabase window pull raised: {str(exc)[:200]}")
-        rows = None
-    if rows is None or base is None:
         return None
-    merged = _ids(base)
-    for r in rows:
+    for rid in tombs:
+        merged.pop(rid, None)
+    for r in raw_rows:
         if r.get("outcome") == "_removed":
             merged.pop(r.get("id"), None)
         elif isinstance(r.get("raw"), dict) and r["raw"].get("id"):
             merged[r["raw"]["id"]] = r["raw"]
+    log(f"  hybrid ledger: {len(light)} light rows listed, {len(tombs)} removed, {len(raw_rows)} downloaded in full")
     page.evaluate("(preds) => { saveP(preds); }", list(merged.values()))
     return len(merged)
 

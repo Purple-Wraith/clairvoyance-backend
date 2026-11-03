@@ -70,6 +70,7 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # `import _espn_injuries` however this is launched
 import _espn_injuries  # pure ESPN injuries/roster parsers (see that module's docstring for the 2 silent bugs it fixes)
 import _nhl_skaters    # pure NHL skater points/game table for the app's injury adjustment
+import _ledger_light   # light-column ledger diff (2026-11-03 Supabase egress cut): download `raw` only for rows that changed
 import _nba_espn       # ESPN-sourced NBA team ratings + player-prop inputs (retry/health helpers, parsers, possession math)
 
 # ── paths & config ────────────────────────────────────────────────────────────
@@ -3806,6 +3807,48 @@ def _supabase_headers() -> dict:
         "Content-Type": "application/json",
     }
 
+LIGHT_WINDOW_DAYS = 45      # rows older than this are taken from the committed backup unless the light listing says they changed
+
+
+def _fetch_bets_light() -> list[dict] | None:
+    """The same rows `select=*` returns, for a fraction of the egress (2026-11-03: this refresh ran ~6x/day, each time downloading the whole table -- ~6,500 rows x ~2 KB of columns + raw JSON).
+    List the recent window's small columns, diff them against docs/picks_backup.json (kept current by the lock/settle runs), download full rows only for the few that differ, and rebuild the rest from the
+    backup.  None = could not do it (no usable backup, or a request failed): the caller then does the original complete pull."""
+    try:
+        base = json.loads((ROOT / "docs" / "picks_backup.json").read_text())
+        held = {b["id"]: b for b in base if isinstance(b, dict) and b.get("id")}
+        if len(held) < 200:
+            return None
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=LIGHT_WINDOW_DAYS)).strftime("%Y-%m-%d")
+        light: list[dict] = []
+        offset, page = 0, 1000
+        while True:
+            r = _session.get(f"{SUPABASE_URL}/rest/v1/bets", headers={**_supabase_headers(), "Range": f"{offset}-{offset+page-1}"},
+                             params={"select": _ledger_light.LIGHT_COLS, "or": f"(date.gte.{cutoff},outcome.eq.pending)", "order": "id"}, timeout=15)
+            if r.status_code not in (200, 206):
+                return None
+            batch = r.json()
+            light.extend(batch)
+            if len(batch) < page:
+                break
+            offset += page
+        tombs, fetch = _ledger_light.plan(light, held)
+        fetched: list[dict] = []
+        for chunk in _ledger_light.chunks(fetch):
+            r = _session.get(f"{SUPABASE_URL}/rest/v1/bets", headers=_supabase_headers(), params={"select": "*", "id": "in." + _ledger_light.in_filter(chunk)}, timeout=15)
+            if r.status_code != 200:
+                return None
+            fetched.extend(r.json())
+        rows = {pid: _ledger_light.row_from_pick(b) for pid, b in held.items() if pid not in set(tombs)}
+        for row in fetched:
+            rows[row["id"]] = row
+        log(f"Supabase: {len(rows)} bets ({len(light)} listed, {len(fetch)} downloaded in full, {len(tombs)} removed)")
+        return sorted(rows.values(), key=lambda x: x.get("date") or "", reverse=True)
+    except Exception as exc:
+        log(f"Supabase light fetch failed ({type(exc).__name__}: {exc}) -- doing the complete pull", "WARN")
+        return None
+
+
 def fetch_bets_from_supabase() -> list[dict]:
     """All bets currently mirrored from the frontend. Read-only — the
     publishable key's RLS policy allows insert/update but this call only
@@ -3814,6 +3857,9 @@ def fetch_bets_from_supabase() -> list[dict]:
     if not SUPABASE_KEY:
         log("SUPABASE_KEY not set — skipping Supabase bet-ledger automation", "WARN")
         return []
+    light = _fetch_bets_light()
+    if light is not None:
+        return light
     rows: list[dict] = []
     offset = 0
     page = 1000

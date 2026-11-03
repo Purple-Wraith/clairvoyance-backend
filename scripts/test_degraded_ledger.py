@@ -9,6 +9,7 @@ degraded mode, the three-way backup merge (origin newer / older), the validation
 from __future__ import annotations
 
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -16,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _ledger_light as L  # noqa: E402
 import auto_lock_settle as A  # noqa: E402
 
 NOW = lambda: datetime.now(timezone.utc)  # noqa: E731
@@ -27,6 +29,14 @@ class FakePage:
         self.supabase_ok, self.remote, self.window_rows = supabase_ok, remote or [], window_rows or []
         self.ledger: list = []
         self.posted: list = []
+        self.light_calls, self.raw_asked, self.raw_fails = 0, set(), False
+
+    @staticmethod
+    def light(r):
+        row = L.row_from_pick(r["raw"])
+        row = {k: v for k, v in row.items() if k not in ("raw", "league")}
+        row.update(id=r["id"], outcome=r["outcome"], rn=r["raw"].get("regradedNote"))
+        return row
 
     def evaluate(self, js, arg=None):
         if js == A._JS_FULL_PULL:
@@ -34,8 +44,15 @@ class FakePage:
                 return -1
             self.ledger = list(self.remote)
             return len(self.ledger)
-        if js == A._JS_WINDOW_PULL:
-            return None if not self.supabase_ok else self.window_rows
+        if js == A._JS_LIGHT_PULL:                  # the light-column listing of the window (flat columns of every row)
+            self.light_calls += 1
+            return None if not self.supabase_ok else [self.light(r) for r in self.window_rows]
+        if js == A._JS_RAW_BY_IDS:                  # the full rows, only for the ids the diff asked for
+            if not self.supabase_ok or self.raw_fails:
+                return None
+            wanted = {i for f in arg for i in re.findall(r'"([^"]+)"', f)}
+            self.raw_asked |= wanted
+            return [r for r in self.window_rows if r["id"] in wanted]
         if "saveP(preds)" in js and arg is not None:
             self.ledger = list(arg)
             return None
@@ -105,6 +122,31 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(set(got), {"a", "c", "d"})          # b tombstoned, d added, c kept from the backup base
         self.assertEqual(got["a"]["outcome"], "win")          # window row overlays the base
         self.assertFalse(A._FULL_PULL_THIS_RUN)
+
+    def test_hybrid_downloads_raw_only_for_rows_that_changed(self):
+        # the whole point of the light-column listing (2026-11-03 egress cut): rows identical to the backup are listed but never downloaded in full
+        self.write_backup(meta={"last_full_supabase_sync": ISO(NOW() - timedelta(hours=2))})
+        pg = FakePage(window_rows=[{"id": p["id"], "outcome": p["outcome"], "raw": p} for p in self.backup])
+        A.load_bet_ledger(pg)
+        self.assertEqual(A.LEDGER_MODE, "hybrid")
+        self.assertEqual(pg.light_calls, 1)
+        self.assertEqual(pg.raw_asked, set())
+        self.assertEqual({p["id"] for p in pg.ledger}, {"a", "b", "c"})
+        # one settlement + one new pick: exactly those two are downloaded
+        settled = dict(self.backup[0], outcome="win", settledAt=5)
+        pg = FakePage(window_rows=[{"id": "a", "outcome": "win", "raw": settled}, {"id": "n", "outcome": "pending", "raw": pick("n")},
+                                   {"id": "b", "outcome": "win", "raw": self.backup[1]}])
+        A.load_bet_ledger(pg)
+        self.assertEqual(pg.raw_asked, {"a", "n"})
+        self.assertEqual({p["id"]: p["outcome"] for p in pg.ledger}, {"a": "win", "b": "win", "c": "loss", "n": "pending"})
+
+    def test_hybrid_raw_download_failure_falls_back_to_a_full_pull(self):
+        self.write_backup(meta={"last_full_supabase_sync": ISO(NOW() - timedelta(hours=2))})
+        pg = FakePage(remote=[pick("r1")], window_rows=[{"id": "n", "outcome": "pending", "raw": pick("n")}])
+        pg.raw_fails = True
+        A.load_bet_ledger(pg)
+        self.assertEqual(A.LEDGER_MODE, "full")
+        self.assertEqual({p["id"] for p in pg.ledger}, {"r1"})
 
     def test_stale_meta_or_needs_reconcile_forces_full(self):
         self.write_backup(meta={"last_full_supabase_sync": ISO(NOW() - timedelta(hours=30))})

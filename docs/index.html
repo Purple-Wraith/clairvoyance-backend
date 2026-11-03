@@ -6810,9 +6810,50 @@ let _lastSupabasePullTs=0;
 // anything older is either already-settled-and-unchanging locally or
 // would be caught on the next full sync anyway (page load, manual SYNC
 // button). Omit sinceDays (or pass null) for a real complete pull.
+// Light-column pull (2026-11-03, Supabase egress 11.6 GB against the Free plan's 5 GB): a scoped pull used to download every row's `raw` JSON (~1.4 KB each, ~85% of the bytes) although nearly every row in
+// the window is already identical to this device's copy. It now lists the window's flat columns (~45 KB gzipped for 10 days, vs ~270 KB), compares each row with the local pick -- the same columns
+// _supabaseBetRow() uploads, plus raw.regradedNote -- and downloads `raw` only for rows that are new here or differ. Soft-deleted rows travel as the light row (the merge only reads id/outcome/locked_at).
+// A complete pull (sinceDays omitted) and a near-empty device keep the original path; any failure here falls back to it.
+const _LIGHT_COLS='id,outcome,locked_at,settled_at,date,wager,dec_odds,ml,bet_on,win_prob,grade,note,ha,awa,sport,bet_type,rn:raw->>regradedNote';
+function _lightSigRow(r){return JSON.stringify([r.outcome||'pending',r.locked_at,r.settled_at,r.date,r.wager,r.dec_odds,r.ml,r.bet_on,r.win_prob,r.grade,r.note,r.ha,r.awa,r.sport,r.bet_type,r.rn||null]);}
+function _lightSigPick(p){const r=_supabaseBetRow(p);r.rn=p.regradedNote||null;return _lightSigRow(r);}
+async function _fetchSupabaseBetRowsLight(sinceDays){
+  const hdr={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY};
+  const cut=new Date(Date.now()-sinceDays*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+  const light=[];let offset=0;const pageSize=1000;
+  while(true){
+    const r=await fetch(SUPABASE_URL+'/rest/v1/bets?select='+_LIGHT_COLS+'&order=id&date=gte.'+cut,{headers:Object.assign({'Range':offset+'-'+(offset+pageSize-1)},hdr)});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const batch=await r.json();
+    if(!Array.isArray(batch))throw new Error('non-array response');
+    light.push(...batch);
+    if(batch.length<pageSize)break;
+    offset+=pageSize;
+  }
+  const held=new Map(getP().map(p=>[p.id,p]));
+  const out=[],need=[];
+  for(const r of light){
+    if(r.outcome==='_removed'){out.push({id:r.id,outcome:'_removed',locked_at:r.locked_at,settled_at:r.settled_at});continue;}
+    const p=held.get(r.id);
+    if(!p||_lightSigRow(r)!==_lightSigPick(p))need.push(r.id);
+  }
+  for(let i=0;i<need.length;i+=40){
+    const list='('+need.slice(i,i+40).map(id=>'"'+String(id).replace(/\\/g,'\\\\').replace(/"/g,'\\"')+'"').join(',')+')';
+    const r=await fetch(SUPABASE_URL+'/rest/v1/bets?select=id,raw,outcome,settled_at,locked_at&id=in.'+encodeURIComponent(list),{headers:hdr});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const batch=await r.json();
+    if(!Array.isArray(batch))throw new Error('non-array response');
+    out.push(...batch);
+  }
+  return out;
+}
 async function _fetchSupabaseBetRows(sinceDays){
   const rows=[];
   if(_sbOff())return rows;
+  if(sinceDays&&typeof getP==='function'&&getP().length>=200){
+    try{return await _fetchSupabaseBetRowsLight(sinceDays);}
+    catch(e){console.warn('[CV] light Supabase pull failed, using the full-column pull:',e.message);}
+  }
   let offset=0;const pageSize=1000;
   const dateFilter=sinceDays?'&date=gte.'+new Date(Date.now()-sinceDays*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'}):'';
   while(true){
