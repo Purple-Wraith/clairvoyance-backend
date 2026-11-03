@@ -184,6 +184,11 @@ class LandingAgrees(unittest.TestCase):
             self.assertRegex(html, rf'(?i)sport-abbr[^>]*>{re.escape(token)}<', f"{name} not on landing")
         for price in ac.PRICING_BY_COUNT.values():
             self.assertIn(f'price-amount">${price}<', html)
+        # the Build Your Access picker prices from its own JS map -- it went stale once (2026-11-03) while the table above it was right
+        m = re.search(r"var PRICING = \{([^}]*)\};", html)
+        self.assertIsNotNone(m, "landing PRICING map not found")
+        picker = {int(k): int(v) for k, v in re.findall(r"(\d+):(\d+)", m.group(1))}
+        self.assertEqual(picker, ac.PRICING_BY_COUNT)
         self.assertNotIn("NBA player props", html)       # owner 2026-10-25: player props are off the landing page until ~20 NBA games are settled
 
 
