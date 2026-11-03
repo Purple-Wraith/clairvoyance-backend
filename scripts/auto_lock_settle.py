@@ -5033,6 +5033,9 @@ def run_email_catchup(page, live: bool, now=None) -> int:
 
 
 # ── PRE-KICKOFF WATCHDOG (owner only) ──────────────────────────────────────────────────────────────────────────────────────
+import watchdog_legs   # noqa: E402  (record of every unlocked leg the watchdog saw -> the daily health check's "unlocked legs" count)
+LEGS_STATE_PATH = ROOT / watchdog_legs.STATE_REL
+LEGS_PERSIST = False       # like PENDING_PERSIST: the record lives in the repo, so it is written ONLY for a real --watchdog --live run (main() turns it on); unit tests never touch data/
 WATCHDOG_AHEAD_H = 4.0     # a qualifying-but-unlocked leg whose game starts within this many hours is "urgent"
 WATCHDOG_BEHIND_H = 3.0    # ... or started within this many hours (still worth knowing: a late manual lock may be wanted)
 
@@ -5207,9 +5210,6 @@ def run_watchdog(page, live: bool, now=None, auto_lock: bool = False) -> list[di
                 write_automation_status("lastWatchdog", True, f"auto-locked {len(done)} leg(s)")
             if errors:
                 EMAIL_FAILURES.append("watchdog auto-lock failed: " + "; ".join(errors))
-    if not unlocked:
-        return unlocked
-
     def _hold_now(u: dict) -> bool:
         # a leg inside the passes' start-guard margin never reaches their lineup gate: ask the gate directly
         try:
@@ -5220,12 +5220,22 @@ def run_watchdog(page, live: bool, now=None, auto_lock: bool = False) -> list[di
             return False
 
     owed: list[dict] = []
+    seen_legs: list[dict] = []
     for u in unlocked:
         is_owed, why_q = watchdog_classify(u, auth_keys, hold_keys, now_ms, _hold_now)
+        seen_legs.append({"sport": u["sport"], "game": u["game"], "leg": u["leg"], "startMs": u["startMs"], "code": watchdog_legs.code_for(is_owed, why_q)})
         if is_owed:
             owed.append(u)
         else:
             log(f"  not alerted: [{u['sport']}] {u['game']} -- {u['leg']} ({u['why']}): {why_q}")
+    if live and LEGS_PERSIST:
+        # Quiet is not invisible: remember what happened to every unlocked leg (and clear the ones no longer unlocked) for the daily health check's count.  Written only when something changed.
+        try:
+            _ws = watchdog_legs.load(LEGS_STATE_PATH)
+            if watchdog_legs.update(_ws, seen_legs, now_ms):
+                watchdog_legs.save(LEGS_STATE_PATH, _ws)
+        except Exception as exc:
+            log(f"  could not record unlocked legs ({type(exc).__name__}: {exc}) -- the watchdog itself is unaffected")
     unlocked = owed
     if not unlocked:
         return unlocked
@@ -5364,7 +5374,8 @@ def main() -> None:
                           "is also given; the only thing it writes on its own (with --live) is the owner-alert dedupe hash in "
                           "docs/automation_status.json.")
     args = ap.parse_args()
-    global PENDING_PERSIST
+    global PENDING_PERSIST, LEGS_PERSIST
+    LEGS_PERSIST = bool(args.live and args.watchdog)
     PENDING_PERSIST = bool(args.live)          # failed-email bookkeeping (data/email_pending.json) is a real-run feature only
 
     if args.alert_lock_missed:

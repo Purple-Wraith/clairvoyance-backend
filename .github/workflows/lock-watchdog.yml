@@ -132,3 +132,6 @@ jobs:
         uses: ./.github/actions/publish
         with:
           dispatch: never
+          # data/watchdog_legs.json: what happened to every qualifying-but-unlocked leg (the daily health check counts yesterday's); written only when a leg's status changes
+          paths: data/watchdog_legs.json
+          message: "chore: watchdog unlocked-leg record"

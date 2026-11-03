@@ -40,6 +40,7 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _gmail_email import send_email  # noqa: E402
+import watchdog_legs  # noqa: E402
 
 REPO = "Purple-Wraith/clairvoyance-backend"
 ROOT = Path(__file__).resolve().parent.parent
@@ -601,6 +602,29 @@ def check_odds_sanity(docs_dir: Path | None = None) -> list[tuple[str, str]]:
     return out
 
 
+def check_unlocked_legs(root: Path | None = None, now_mt: datetime | None = None) -> list[tuple[str, str]]:
+    """Yesterday's count of qualifying legs that were still unlocked when the watchdog saw them (owner 2026-11-02: "add the daily health check count of unlocked legs").  The watchdog (scripts/watchdog_legs.py)
+    records every such leg and what became of it; since it stopped emailing about legs held on purpose, legs the lock passes do not qualify, and games that already started, this count is where they stay visible.
+      alert: 'missed' legs -- qualified and still unlocked at their last pre-kickoff look, then the game started (the passes should have locked them);
+      note:  everything else (held on purpose / not qualified by the passes / first seen only after kickoff), including 'none' on a clean day."""
+    root = Path(root) if root else ROOT
+    now_mt = now_mt or datetime.now(ZoneInfo("America/Denver"))
+    day = (now_mt - timedelta(days=1)).strftime("%Y-%m-%d")
+    path = root / watchdog_legs.STATE_REL
+    if not path.exists():
+        return [("note", f"Unlocked legs on {day}: no watchdog record yet (data/watchdog_legs.json is created by the first live watchdog run that sees an unlocked leg)")]
+    s = watchdog_legs.summary(watchdog_legs.load(path), day)
+    detail = (f"{s['held']} held by the lineup gate on purpose, {s['unqualified']} not qualified by the lock passes' own run, "
+              f"{s['late']} first seen only after kickoff, {s['missed']} missed")
+    if s["missed"]:
+        listed = "; ".join(s["legs"]["missed"][:6]) + (" ..." if s["missed"] > 6 else "")
+        return [("alert", f"Unlocked legs on {day}: {s['missed']} qualifying leg(s) started without a lock after being open before kickoff -- {listed} ({detail}).  "
+                          f"Find out why the lock passes did not lock them (watchdog logs: 'UNLOCKED' lines and 'not alerted:' reasons)")]
+    if not s["total"]:
+        return [("note", f"Unlocked legs on {day}: none -- every qualifying leg the watchdog saw was locked")]
+    return [("note", f"Unlocked legs on {day}: {s['total']} qualifying leg(s) were seen unlocked, none missed ({detail})")]
+
+
 def check_ledger_archive(docs_dir: Path | None = None, now: datetime | None = None) -> list[tuple[str, str]]:
     """docs/ledger_archive.json is a static snapshot (see scripts/build_ledger_archive.py).  Note (never an email) when docs/picks_backup.json holds settled,
     >21-day-old picks of a retired league that the archive does not have: a stale archive would leave those picks in neither place on a slimmed device."""
@@ -664,6 +688,12 @@ def main() -> int:
             (problems if level == "alert" else notes).append(msg)
     except Exception as exc:  # fail-open
         notes.append(f"odds sanity check crashed ({exc})")
+
+    try:
+        for level, msg in check_unlocked_legs():
+            (problems if level == "alert" else notes).append(msg)
+    except Exception as exc:  # fail-open
+        notes.append(f"unlocked legs check crashed ({exc})")
 
     try:
         for _lvl, msg in check_ledger_archive():
