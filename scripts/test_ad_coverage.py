@@ -162,7 +162,7 @@ class GeneratorsCarryNoRetiredCopy(unittest.TestCase):
         self.assertIn("12 leagues", cov["x"])
         sub = g.build_subscription_caption()
         self.assertIn("$20", sub["instagram"])
-        self.assertIn("$75", sub["x"])
+        self.assertIn("$80", sub["x"])
         self.assertNotIn("props", sub["instagram"].lower())
 
     def test_breakdown_demo_rows_are_not_baseball(self):

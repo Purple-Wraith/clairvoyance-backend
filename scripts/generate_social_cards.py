@@ -1018,7 +1018,7 @@ def build_grading_caption() -> dict[str, str]:
 def build_subscription_caption() -> dict[str, str]:
     # Copy is data-driven from ad_coverage.py (pinned to the real pricing/leagues by scripts/test_ad_coverage.py).
     # The old Base/Plus/Insider/Day-Pass/Weekend-Pass tiers were retired 2026-09-09: pricing is now 1-5 sport
-    # products, $20-$75 per 30 days.
+    # products, $20-$80 per 30 days.
     import ad_coverage as ac
     ig = (
         "Full access. No guesswork.\n\nThis is Clairvoyance.\n\n"

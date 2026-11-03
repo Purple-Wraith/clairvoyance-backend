@@ -421,7 +421,7 @@ def record_grading_tiers_reveal(out_path: Path, duration_s: float = 10.0) -> Pat
 
 def record_subscription_tiers_reveal(out_path: Path, duration_s: float = 10.0) -> Path:
     """Dedicated 'Choose Your Access' subscription video - static content,
-    real public pricing (1-5 sports, $20-$75 per 30 days) and the current
+    real public pricing (1-5 sports, $20-$80 per 30 days) and the current
     league list. The template's copy is pinned to scripts/ad_coverage.py by
     scripts/test_ad_coverage.py, so it cannot silently drift."""
     return _record_template("subscription_tiers_reveal.html", "() => {}", out_path, duration_s)

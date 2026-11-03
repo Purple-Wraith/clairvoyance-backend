@@ -63,7 +63,7 @@ INCLUDES_LINE = "Graded picks + game lines on every league"
 EURO_HOCKEY_NOTE ="European hockey: HIGH PROB lane + adjusted lines"
 
 # ── Pricing (30-day access, 1-5 products) ────────────────────────────────────────────────────────
-PRICING_BY_COUNT: dict[int, int] = {1: 20, 2: 30, 3: 45, 4: 60, 5: 75}
+PRICING_BY_COUNT: dict[int, int] = {1: 20, 2: 35, 3: 50, 4: 65, 5: 80}
 ACCESS_DAYS = 30
 PRICE_FROM, PRICE_ALL = PRICING_BY_COUNT[1], PRICING_BY_COUNT[PRODUCT_COUNT]
 

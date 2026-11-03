@@ -56,7 +56,7 @@ Assets: `ClairvoyanceRedditAd` (.png/.mp4, + `_void`) = {mn} + all-time hero. `C
 | 2 | League Scorecard | Every league, every record — including the weak ones. | {top3} this month. {worst_n} {ad_perf.fmt_pct(worst['month'])} — we publish that too. | See the scorecard |
 | 3 | Reddit Ad (void) | A public track record, not a promise. | Mathematical models, graded picks, game lines on 12 leagues. Starting at $20 for 30 days. | Learn more |
 
-Destination: clairvoyanceengine.info. Pricing if asked: $20 / $30 / $45 / $60 / $75 for 1–5 sports, 30-day access.
+Destination: clairvoyanceengine.info. Pricing if asked: $20 / $35 / $50 / $65 / $80 for 1–5 sports, 30-day access.
 
 ## B. Organic posts (value-first)
 

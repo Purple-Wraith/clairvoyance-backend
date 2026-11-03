@@ -89,7 +89,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(set(by), {"a@x.com", "old@x.com"})                         # lower-cased + merged; the malformed row is skipped
         a = by["a@x.com"]
         self.assertEqual({p["product"]: p["days_left"] for p in a["products"]}, {"nba": 28, "nfl": 2})
-        self.assertEqual((a["status"], a["active_count"], a["price"]), ("expiring", 2, 30))      # soonest list ends in 2 days; 2 lists -> $30
+        self.assertEqual((a["status"], a["active_count"], a["price"]), ("expiring", 2, 35))      # soonest list ends in 2 days; 2 lists -> $35
         self.assertEqual((by["old@x.com"]["status"], by["old@x.com"]["active_count"]), ("expired", 0))
         self.assertFalse(by["old@x.com"]["products"][0]["active"])
         self.assertEqual(o["subscribers"][0]["email"], "a@x.com")                    # expiring first, expired last
@@ -544,7 +544,7 @@ class TabTests(unittest.TestCase):
         pg.click("#sp-mail .sb2:has-text('ADD / RENEW')"); pg.wait_for_selector("#ml-email")
         pg.fill("#ml-email", "first@client.com")
         pg.click("#ml-add .ml-chip:has-text('NBA')"); pg.click("#ml-add .ml-chip:has-text('HOCKEY')")
-        self.assertIn("$30", pg.inner_text("#ml-add"))                                                   # two lists -> standard $30
+        self.assertIn("$35", pg.inner_text("#ml-add"))                                                   # two lists -> standard $35
         with mock.patch.object(A, "deliver_receipt", side_effect=lambda e: (True, "receipt queued")) as rc, mock.patch.object(A, "sync_subscribers_to_git", side_effect=lambda m: (True, "synced")) as sy:
             pg.click("#ml-addbtn"); pg.wait_for_selector("#ml-msg")
             self.assertTrue(rc.called and sy.called)
@@ -573,7 +573,7 @@ class TabTests(unittest.TestCase):
         self.assertIn("FREE MONTH", card); self.assertIn("free month", card); self.assertIn("RENEW AS PAID", card); self.assertNotIn("$20", card)
         stats = pg.evaluate("[...document.querySelectorAll('#ml-subs .ml-stat')].map(e=>e.innerText.replace(/\\n/g,' '))")
         self.assertTrue(any("1 free / promo" in x for x in stats), stats)
-        self.assertTrue(any(x.startswith("$50") for x in stats), stats)                        # seeded paid: sam on 2 lists ($30) + kim ($20); the free month adds nothing
+        self.assertTrue(any(x.startswith("$55") for x in stats), stats)                        # seeded paid: sam on 2 lists ($35) + kim ($20); the free month adds nothing
         pg.context.close()
 
     def test_referring_a_friend_from_the_add_tab(self):

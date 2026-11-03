@@ -7,7 +7,7 @@ glow presets, footer); ALL copy -- leagues, product bundles, prices, what a subs
 ad_coverage.py, which scripts/test_ad_coverage.py pins to the real engine / pricing.
 
 Structure: LEAGUES COVERED (3 rows) -> PRICING header + "mix any combination" caption -> five tier rows
-(1-5 sports, $20/$30/$45/$60/$75 per 30 days; the 5-sport row is the highlighted ALL ACCESS row) -> what's included.
+(1-5 sports, $20/$35/$50/$65/$80 per 30 days; the 5-sport row is the highlighted ALL ACCESS row) -> what's included.
 
 Outputs (same content on both design_system backgrounds):
   <out-dir>/Clairvoyance_Subscription_Card_Black.png   void bg

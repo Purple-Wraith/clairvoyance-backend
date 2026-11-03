@@ -84,7 +84,8 @@ EXPIRY_DAYS = 30
 # added) -- explicit decision not to engineer a bulk-bundle discount,
 # each additional sport is charged for the real added value (more picks,
 # more opportunity), not discounted to push full-package signups.
-PRICING_BY_COUNT = {1: 20, 2: 30, 3: 45, 4: 60, 5: 75}
+# Repriced again 2026-11-03 (explicit): $20 for the first sport, a flat +$15 for each one after it -- $20 / $35 / $50 / $65 / $80.
+PRICING_BY_COUNT = {1: 20, 2: 35, 3: 50, 4: 65, 5: 80}
 
 # Hosted (not inline-attached) so it actually renders across mail clients --
 # many strip inline/CID images or require an extra click, while a plain
