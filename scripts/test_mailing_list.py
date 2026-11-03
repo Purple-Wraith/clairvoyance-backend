@@ -36,6 +36,7 @@ class Server:
         self.events.write_text("[]")
         self.notice = mock.Mock(side_effect=lambda e: (True, "referral email queued"))          # the 'you earned a free month' email: recorded, never sent
         self.patches = [mock.patch.object(S, "SUBSCRIBERS_FILE", self.subs), mock.patch.object(S, "EVENTS_FILE", self.events),
+                        mock.patch.object(S, "PRICING_CHANGED_AT", datetime(2000, 1, 1, tzinfo=timezone.utc)),          # price every seeded payment on the CURRENT ladder, whatever day the suite runs
                         mock.patch.object(A, "deliver_referral_notice", self.notice),
                         mock.patch.object(A, "deliver_receipt", side_effect=lambda e: (True, "receipt queued")), mock.patch.object(A, "sync_subscribers_to_git", side_effect=lambda m: (True, "synced"))]
         for p in self.patches:
@@ -673,11 +674,115 @@ class TabTests(unittest.TestCase):
         pg = self.page(); self.open_tab(pg)
         pg.click("#sp-mail .sb2:has-text('ANALYTICS')"); pg.wait_for_selector("#ml-ana .ml-stat")
         t = pg.inner_text("#ml-ana")
-        for s in ("ACTIVE SUBSCRIBERS", "EST. 30-DAY REVENUE", "ESTIMATED REVENUE BY WEEK", "BY LIST", "EXPIRING SOON"):
+        for s in ("ACTIVE SUBSCRIBERS", "COLLECTED THIS WEEK", "ACTIVE VALUE", "REVENUE BY WEEK", "PAYMENTS (ESTIMATED)", "BY LIST", "EXPIRING SOON"):
             self.assertIn(s, t)
         pg.click("#sp-mail .sb2:has-text('ACTIVITY')"); pg.wait_for_selector("#ml-act .ml-card")
         self.assertIn("WHEN", pg.inner_text("#ml-act") + "WHEN")
         pg.context.close()
+
+    # ── analytics tab: money in vs active value, and every interactive (2026-11-03) ─────────────────────────────────────────────────────────────
+    def seed_payments(self):
+        ev = lambda d, product, email: {"ts": iso(d), "action": "add", "product": product, "email": email}
+        self.s.events.write_text(json.dumps([ev(45, "hockey", "lapsed@example.com"), ev(26, "soccer", "sam@example.com"), ev(3, "nba", "sam@example.com"), ev(1, "soccer", "kim@example.com")]))
+        # sam: $20 soccer, then $15 to add NBA to the running plan; kim $20; lapsed $20 (outside 30 days)
+
+    def open_ana(self, w=1000, mobile=False):
+        self.seed_payments()
+        pg = self.page(w=w, mobile=mobile); self.open_tab(pg)
+        pg.click("#sp-mail .sb2:has-text('ANALYTICS')"); pg.wait_for_selector("#ml-a-chart .ml-ch-c")
+        return pg
+
+    def rows_summary(self, pg):
+        return pg.inner_text("#ml-a-rows .ml-sum")
+
+    def test_money_in_and_active_value_are_separate_numbers(self):
+        errs = len(self.errs)
+        pg = self.open_ana()
+        k = pg.inner_text("#ml-a-kpi")
+        self.assertRegex(k, r"\$55\s+COLLECTED, LAST 30 DAYS"); self.assertRegex(k, r"\$75\s+COLLECTED SINCE TRACKING")      # 20 + 15 + 20 in 30 days; + the lapsed $20 overall
+        self.assertRegex(k, r"\$55\s+ACTIVE VALUE")                                                                      # sam (soccer + nba) $35 + kim $20: what is running, not what came in
+        a = pg.evaluate("_ml.data.analytics")
+        sam = [p for p in a["payments"] if p["email"] == "sam@example.com"]
+        self.assertEqual(sorted((p["amount"], p["kind"]) for p in sam), [(15, "addon"), (20, "new")])      # the $15 add-on is $15, not the $35 plan price
+        self.assertEqual(len(self.errs), errs)
+        pg.context.close()
+
+    def test_clicking_a_week_filters_the_payment_table_and_the_chip_clears_it(self):
+        pg = self.open_ana()
+        self.assertIn("4", self.rows_summary(pg).split("payment")[0])
+        w = pg.evaluate("(()=>{const x=_ml.data.analytics.weekly_collected.filter(w=>w.payments>0).slice(-1)[0];return {n:x.payments,start:x.week_start,long:_mlWkLong(x.week_start)}})()")
+        pg.click(f'#ml-a-chart .ml-ch-c[aria-label^="Week of {w["long"]}"]')
+        self.assertTrue(self.rows_summary(pg).startswith(f"{w['n']} payment"), self.rows_summary(pg))
+        self.assertIn("WEEK OF", pg.inner_text("#ml-a-lctl")); self.assertIn("SELECTED", pg.inner_text("#ml-a-detail"))
+        pg.click("#ml-a-lctl .ml-chip:has-text('WEEK OF')")                                                  # the chip clears it
+        self.assertTrue(self.rows_summary(pg).startswith("4 payment"), self.rows_summary(pg))
+        pg.context.close()
+
+    def test_type_and_list_filters_search_and_sort(self):
+        pg = self.open_ana()
+        pg.click("#ml-a-ctl .ml-lg:has-text('Add-on sport')")                                                 # legend doubles as a type filter
+        self.assertTrue(self.rows_summary(pg).startswith("1 payment"), self.rows_summary(pg)); self.assertIn("$15", self.rows_summary(pg))
+        pg.click("#ml-a-lctl .ml-chip:has-text('ALL TYPES')"); self.assertTrue(self.rows_summary(pg).startswith("4 payment"))
+        pg.click("#ml-a-lctl .ml-chip:has-text('NBA')")                                                       # list filter: only the NBA add-on
+        self.assertTrue(self.rows_summary(pg).startswith("1 payment"), self.rows_summary(pg))
+        pg.click("#ml-a-lctl .ml-chip:has-text('ALL LISTS')")
+        pg.fill("#ml-a-q", "kim"); self.assertTrue(self.rows_summary(pg).startswith("1 payment"), self.rows_summary(pg))
+        self.assertEqual(pg.input_value("#ml-a-q"), "kim")                                                    # typing does not lose focus / value
+        pg.fill("#ml-a-q", ""); self.assertTrue(self.rows_summary(pg).startswith("4 payment"))
+        pg.click("#ml-a-rows .ml-th:has-text('AMOUNT')")                                                      # biggest first
+        first = lambda: pg.inner_text("#ml-a-rows tr:nth-child(2) td.r")
+        self.assertTrue(first().startswith("$20"), first())
+        pg.click("#ml-a-rows .ml-th:has-text('AMOUNT')")                                                      # then smallest first
+        self.assertTrue(first().startswith("$15"), first())
+        pg.context.close()
+
+    def test_chart_modes_ranges_and_hover(self):
+        pg = self.open_ana()
+        self.assertTrue(pg.locator("#ml-a-chart .ml-ch-line").count() == 1)                                    # both: bars + active-value line
+        pg.click("#ml-a-ctl .ml-chip:has-text('COLLECTED')")
+        self.assertEqual(pg.locator("#ml-a-chart .ml-ch-line").count(), 0)
+        pg.click("#ml-a-ctl .ml-chip:has-text('ACTIVE VALUE')")
+        self.assertEqual(pg.locator("#ml-a-chart .ml-ch-s").count(), pg.locator("#ml-a-chart .ml-ch-c").count())
+        pg.click("#ml-a-ctl .ml-chip:has-text('BOTH')")
+        n8 = pg.locator("#ml-a-chart .ml-ch-c").count()
+        pg.click("#ml-a-ctl .ml-chip:has-text('4W')"); self.assertLessEqual(pg.locator("#ml-a-chart .ml-ch-c").count(), 4)
+        self.assertLessEqual(pg.locator("#ml-a-chart .ml-ch-c").count(), n8)
+        pg.hover("#ml-a-chart .ml-ch-c >> nth=0"); self.assertIn("WEEK OF", pg.inner_text("#ml-a-detail"))      # hover shows that week's payments
+        pg.context.close()
+
+    def test_a_list_row_filters_everything_and_clear_resets(self):
+        pg = self.open_ana()
+        pg.click("#ml-a-lists .ml-lr:has-text('NBA')")
+        self.assertTrue(self.rows_summary(pg).startswith("1 payment"), self.rows_summary(pg))
+        self.assertIn("1 payment", self.rows_summary(pg))
+        pg.click("#ml-a-lists .ml-btn:has-text('CLEAR')"); self.assertTrue(self.rows_summary(pg).startswith("4 payment"))
+        pg.context.close()
+
+    def test_expiring_horizon_and_money_at_risk(self):
+        pg = self.open_ana()
+        t = lambda: pg.inner_text("#ml-a-exp .ml-sum")
+        self.assertRegex(t(), r"^1 list ending within 14 days"); self.assertIn("$15", t())                       # sam's soccer, 4 days left: lapsing drops a $35 plan to $20
+        pg.click("#ml-a-exp .ml-chip:has-text('30 DAYS')"); self.assertRegex(t(), r"^3 lists ending within 30 days"); self.assertIn("$50", t())
+        pg.click("#ml-a-exp .ml-chip:has-text('5 DAYS')"); self.assertRegex(t(), r"^1 list ending within 5 days")
+        pg.context.close()
+
+    def test_an_email_in_the_analytics_opens_that_subscriber(self):
+        pg = self.open_ana()
+        pg.click("#ml-a-rows .ml-lk >> nth=0")
+        self.assertTrue(pg.evaluate("document.getElementById('mail-subs').classList.contains('act')"))
+        self.assertTrue(pg.evaluate("_ml.q").endswith("@example.com"))
+        pg.wait_for_selector("#ml-subs .ml-sub")
+        pg.context.close()
+
+    def test_analytics_fit_a_phone_and_store_nothing(self):
+        for w in (390, 320):
+            pg = self.open_ana(w=w, mobile=True)
+            self.assertFalse(pg.evaluate("document.documentElement.scrollWidth>document.documentElement.clientWidth"), w)
+            pg.click("#ml-a-ctl .ml-chip:has-text('12W')")
+            self.assertFalse(pg.evaluate("document.documentElement.scrollWidth>document.documentElement.clientWidth"), w)
+            dump = pg.evaluate("JSON.stringify([Object.entries(localStorage),Object.entries(sessionStorage)])")
+            self.assertNotIn("example.com", dump)
+            pg.context.close()
 
     def test_when_the_server_is_not_running_the_tab_says_so_and_shows_no_data(self):
         pg = self.page(base="http://127.0.0.1:9")

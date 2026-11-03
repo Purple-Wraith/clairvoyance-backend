@@ -342,7 +342,7 @@ td{padding:9px 8px;border-bottom:1px solid rgba(255,255,255,.06);color:var(--t2)
     <div class="tracking-note" id="trackingNote"></div>
     <div class="stat-grid" id="statGrid"></div>
 
-    <div class="analytics-sub">Revenue Trend (weekly)</div>
+    <div class="analytics-sub">Active Value Trend (weekly) &mdash; what running subscriptions are worth, not money received</div>
     <div id="revenueChart"></div>
 
     <div class="analytics-sub">Active by Product</div>
@@ -389,7 +389,8 @@ async function loadAnalytics() {
   document.getElementById('statGrid').innerHTML = `
     <div class="stat"><div class="stat-val">${a.active_emails}</div><div class="stat-lbl">Active Subscribers</div></div>
     <div class="stat"><div class="stat-val">${a.active_subscriptions}</div><div class="stat-lbl">Active Subscriptions</div></div>
-    <div class="stat"><div class="stat-val money">$${a.estimated_mrr}</div><div class="stat-lbl">Est. 30-Day Revenue</div></div>
+    <div class="stat"><div class="stat-val money">$${a.collected_this_week}</div><div class="stat-lbl">Collected This Week</div><div class="stat-note">$${a.collected_30d} in the last 30 days (estimated)</div></div>
+    <div class="stat"><div class="stat-val money">$${a.estimated_mrr}</div><div class="stat-lbl">Active Value (30 days)</div></div>
     <div class="stat"><div class="stat-val">${a.renewal_rate_30d === null ? '—' : a.renewal_rate_30d + '%'}</div><div class="stat-lbl">Renewal Rate (30d)</div><div class="stat-note">${a.renewal_rate_30d === null ? 'no renewals/removes yet' : ''}</div></div>
     <div class="stat"><div class="stat-val">${adopt.pct_multi === null ? '—' : adopt.pct_multi + '%'}</div><div class="stat-lbl">On 2+ Products</div><div class="stat-note">${adopt.pct_multi === null ? 'no active subscribers yet' : adopt.multi_product_emails + ' of ' + adopt.active_emails}</div></div>
     <div class="stat"><div class="stat-val">${lt.avg_cycles === null ? '—' : lt.avg_cycles}</div><div class="stat-lbl">Avg Lifetime (cycles)</div><div class="stat-note">${lt.avg_days === null ? 'no completed subscriptions yet' : lt.avg_days + ' days avg · n=' + lt.sample_size}</div></div>

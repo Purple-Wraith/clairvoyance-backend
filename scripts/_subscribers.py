@@ -86,6 +86,10 @@ EXPIRY_DAYS = 30
 # more opportunity), not discounted to push full-package signups.
 # Repriced again 2026-11-03 (explicit): $20 for the first sport, a flat +$15 for each one after it -- $20 / $35 / $50 / $65 / $80.
 PRICING_BY_COUNT = {1: 20, 2: 35, 3: 50, 4: 65, 5: 80}
+# The ladder this one replaced (in force 2026-09-09 .. 2026-11-02).  A payment is priced with the ladder that was in force when it was made, so repricing never rewrites
+# the estimated money-in history (see pricing_at / payments_ledger).
+PRICING_BY_COUNT_BEFORE_20261103 = {1: 20, 2: 30, 3: 45, 4: 60, 5: 75}
+PRICING_CHANGED_AT = datetime(2026, 11, 3, 7, 0, tzinfo=timezone.utc)        # 2026-11-03 00:00 Mountain
 
 # Hosted (not inline-attached) so it actually renders across mail clients --
 # many strip inline/CID images or require an extra click, while a plain
@@ -543,11 +547,29 @@ def _reconstruct_periods() -> tuple[dict[tuple[str, str], list[dict]], list[floa
     return periods_by_key, renewal_gaps
 
 
+def pricing_at(ts: datetime) -> dict[int, int]:
+    """The price ladder (products -> dollars per 30 days) in force at `ts`."""
+    return PRICING_BY_COUNT if ts >= PRICING_CHANGED_AT else PRICING_BY_COUNT_BEFORE_20261103
+
+
+def _ladder_price(ladder: dict[int, int], n: int) -> int:
+    return 0 if n <= 0 else ladder.get(min(n, max(ladder)), 0)
+
+
+def _active_value_at(periods_by_key: dict, cp: datetime) -> tuple[int, int]:
+    """(active paying emails, standard 30-day price of everything paid-active at `cp`).  A free / promo month is not revenue."""
+    counts_by_email: dict[str, int] = {}
+    for (email, _product), periods in periods_by_key.items():
+        if any(p["start"] <= cp < p["end"] and not (p["free_from"] and p["free_from"] <= cp < p["free_until"]) for p in periods):
+            counts_by_email[email] = counts_by_email.get(email, 0) + 1
+    ladder = pricing_at(cp)
+    return len(counts_by_email), sum(_ladder_price(ladder, n) for n in counts_by_email.values())
+
+
 def revenue_timeline(weeks: int = 8) -> list[dict]:
-    """Estimated revenue at each weekly checkpoint going back up to
-    `weeks` weeks, reconstructed from the event log -- shows whether
-    revenue is actually growing instead of just what it is right now.
-    Only covers time since event logging started; empty until then."""
+    """ACTIVE VALUE at each weekly checkpoint going back up to `weeks` weeks, reconstructed from the event log: the standard 30-day price of everything that
+    was paid-active at that moment.  This is a run-rate snapshot, NOT money received that week (see weekly_collected for that).  Only covers time since
+    event logging started; empty until then."""
     periods_by_key, _ = _reconstruct_periods()
     if not periods_by_key:
         return []
@@ -565,12 +587,121 @@ def revenue_timeline(weeks: int = 8) -> list[dict]:
 
     out = []
     for cp in checkpoints:
-        counts_by_email: dict[str, int] = {}
-        for (email, _product), periods in periods_by_key.items():
-            if any(p["start"] <= cp < p["end"] and not (p["free_from"] and p["free_from"] <= cp < p["free_until"]) for p in periods):
-                counts_by_email[email] = counts_by_email.get(email, 0) + 1     # a free / promo month is not revenue
-        revenue = sum(PRICING_BY_COUNT.get(min(n, len(PRODUCTS)), 0) for n in counts_by_email.values())
-        out.append({"week_of": cp.date().isoformat(), "active_emails": len(counts_by_email), "estimated_revenue": revenue})
+        emails, revenue = _active_value_at(periods_by_key, cp)
+        out.append({"week_of": cp.date().isoformat(), "active_emails": emails, "estimated_revenue": revenue})
+    return out
+
+
+# ── ESTIMATED MONEY IN (2026-11-03) ───────────────────────────────────────────────────────────────────────────────────────────────────
+# Payment amounts are not recorded anywhere (Venmo is the rail), so "collected" is INFERRED from the event log: every paid add / renew is a payment, and what it
+# was worth is the marginal price on the ladder: PRICE[paid lists after] - PRICE[paid lists already running].  A first $20 sport = $20; adding a second sport to
+# a running $20 plan = $35 - $20 = $15; renewing both sports at once = $35.  Events for one email within PAYMENT_GROUP_MINUTES are ONE payment (the CLI / admin add
+# several products back to back).  A free / promo month is never a payment.
+PAYMENT_GROUP_MINUTES = 60
+KIND_LABEL = {"new": "New customer", "addon": "Add-on sport", "renewal": "Renewal", "winback": "Win-back", "converted": "Free month to paid", "mixed": "Renewal + new sport"}
+
+def _mt_week_start(ts: datetime):
+    d = ts.astimezone(_MT).date()
+    return d - timedelta(days=d.weekday())             # the Monday of that Mountain-time week
+
+
+def payments_ledger() -> list[dict]:
+    """Every inferred payment, oldest first: {ts, email, products, amount, kind, kind_label, others, week} (see the block comment above)."""
+    evs = []
+    for e in _load_events():
+        ts = _parse(e.get("ts", ""))
+        if ts is not None and e.get("action") in ("add", "renew", "remove", "referral"):
+            evs.append((ts, e))
+    evs.sort(key=lambda x: x[0])
+    state: dict[tuple[str, str], dict] = {}
+    ever_paid: set[str] = set()
+    open_group: dict[str, dict] = {}
+    groups: list[dict] = []
+    span = timedelta(days=EXPIRY_DAYS)
+    for ts, e in evs:
+        email = (e.get("email") or "").strip().lower()
+        product = e.get("product")
+        if not email or product not in PRODUCTS:
+            continue
+        key = (email, product)
+        cur = state.get(key)
+        action = e["action"]
+        if action in ("add", "renew"):
+            if e.get("promo"):                                     # a free month: access, never a payment
+                if cur is not None and ts <= cur["end"]:
+                    cur["end"] = ts + span
+                else:
+                    state[key] = {"end": ts + span, "paid_end": None}
+                continue
+            if cur is None:
+                kind = "new"
+            elif ts > cur["end"]:
+                kind = "winback"
+            elif cur["paid_end"] and cur["paid_end"] > ts:
+                kind = "renewal"
+            else:
+                kind = "converted"
+            g = open_group.get(email)
+            if g is None or ts - g["t0"] > timedelta(minutes=PAYMENT_GROUP_MINUTES):
+                others = {p for (em, p), v in state.items() if em == email and p != product and v["paid_end"] and v["paid_end"] > ts}
+                g = {"t0": ts, "email": email, "products": [], "kinds": [], "others": others, "first_paid": email not in ever_paid}
+                open_group[email] = g
+                groups.append(g)
+            g["others"].discard(product)
+            if product not in g["products"]:
+                g["products"].append(product)
+                g["kinds"].append(kind)
+            state[key] = {"end": ts + span, "paid_end": ts + span}
+            ever_paid.add(email)
+        elif action == "referral" and e.get("extended"):
+            if cur is not None and ts <= cur["end"]:
+                cur["end"] += timedelta(days=REFERRAL_BONUS_DAYS)
+        elif action == "remove" and cur is not None:
+            cur["end"] = min(cur["end"], ts)
+            if cur["paid_end"]:
+                cur["paid_end"] = min(cur["paid_end"], ts)
+    out = []
+    for g in groups:
+        ladder = pricing_at(g["t0"])
+        n, k = len(g["products"]), len(g["others"])
+        kinds = set(g["kinds"])
+        if len(kinds) > 1:
+            kind = "mixed"
+        else:
+            kind = kinds.pop()
+            if kind == "new":
+                kind = "new" if g["first_paid"] else ("addon" if g["others"] else "winback")      # a returning customer with nothing running is a win-back, not an add-on
+        out.append({"ts": g["t0"].isoformat(), "email": g["email"], "products": g["products"], "others": sorted(g["others"]),
+                    "amount": _ladder_price(ladder, n + k) - _ladder_price(ladder, k), "kind": kind, "kind_label": KIND_LABEL[kind],
+                    "week": _mt_week_start(g["t0"]).isoformat()})
+    return out
+
+
+def weekly_collected(payments: list[dict], weeks: int = 12) -> list[dict]:
+    """Estimated money in per Mountain-time week (Monday to Sunday), oldest first, zero weeks included, up to `weeks` weeks ending with the current one.
+    Each week also carries the ACTIVE VALUE at the end of it (or now, for the current week) so the two can be drawn on one axis."""
+    now = _now()
+    this_week = _mt_week_start(now)
+    first = min((_mt_week_start(_parse(p["ts"])) for p in payments), default=this_week)
+    start = max(first, this_week - timedelta(days=7 * (weeks - 1)))
+    periods_by_key, _ = _reconstruct_periods()
+    out = []
+    wk = start
+    while wk <= this_week:
+        mine = [p for p in payments if p["week"] == wk.isoformat()]
+        by_kind: dict[str, int] = {}
+        by_product: dict[str, float] = {}
+        for p in mine:
+            by_kind[p["kind"]] = by_kind.get(p["kind"], 0) + p["amount"]
+            for prod in p["products"]:
+                by_product[prod] = by_product.get(prod, 0) + p["amount"] / len(p["products"])
+        end_excl = datetime.combine(wk + timedelta(days=7), datetime.min.time(), tzinfo=_MT)
+        cp = min(now, end_excl - timedelta(seconds=1))
+        emails, value = _active_value_at(periods_by_key, cp) if periods_by_key else (0, 0)
+        out.append({"week_start": wk.isoformat(), "week_end": (wk + timedelta(days=6)).isoformat(), "collected": sum(p["amount"] for p in mine), "payments": len(mine),
+                    "by_kind": by_kind, "by_product": {k: round(v, 2) for k, v in by_product.items()}, "active_value": value, "active_emails": emails,
+                    "current": wk == this_week})
+        wk += timedelta(days=7)
     return out
 
 
@@ -741,6 +872,28 @@ def analytics_summary() -> dict:
 
     recent_signups = [e for e in reversed(events) if e.get("action") == "add"][:8]
 
+    # estimated money in (see the ESTIMATED MONEY IN block): inferred from the event log, not a payment ledger
+    pays = payments_ledger()
+    weekly = weekly_collected(pays)
+
+    def _collected(days: int) -> int:
+        cutoff = now - timedelta(days=days)
+        return sum(x["amount"] for x in pays if _parse(x["ts"]) >= cutoff)
+    cur_week = next((w for w in weekly if w["current"]), None)
+    prev_week = weekly[-2] if len(weekly) > 1 else None
+    pays30 = [x for x in pays if _parse(x["ts"]) >= now - timedelta(days=30)]
+
+    paid_n = paid_counts_by_email()
+    ladder_now = pricing_at(now)
+    expiring_30d = []
+    for product in PRODUCTS:
+        for entry in active_subscribers(product):
+            if entry["days_left"] <= 30:
+                n_paid = paid_n.get(entry["email"], 0)
+                at_risk = 0 if entry["promo"] else _ladder_price(ladder_now, n_paid) - _ladder_price(ladder_now, n_paid - 1)
+                expiring_30d.append({"product": product, "email": entry["email"], "days_left": entry["days_left"], "promo": entry["promo"], "at_risk": at_risk})
+    expiring_30d.sort(key=lambda r: (r["days_left"], r["email"], r["product"]))
+
     return {
         "active_emails": len(active_counts_by_email),
         "active_subscriptions": sum(per_product_counts.values()),
@@ -757,6 +910,16 @@ def analytics_summary() -> dict:
         "renewal_rate_30d": renewal_rate_30d,
         "recent_signups": recent_signups,
         "revenue_timeline": revenue_timeline(),
+        "collected_this_week": cur_week["collected"] if cur_week else 0,
+        "collected_last_week": prev_week["collected"] if prev_week else None,
+        "collected_7d": _collected(7),
+        "collected_30d": _collected(30),
+        "collected_total": sum(x["amount"] for x in pays),
+        "payments_30d": len(pays30),
+        "payers_30d": len({x["email"] for x in pays30}),
+        "weekly_collected": weekly,
+        "payments": list(reversed(pays))[:300],
+        "expiring_30d": expiring_30d,
         "per_product_revenue": per_product_revenue(),
         "multi_product_adoption": multi_product_adoption(),
         "cohort_retention": cohort_retention(),
