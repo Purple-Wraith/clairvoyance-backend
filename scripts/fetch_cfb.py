@@ -576,29 +576,16 @@ def write_stats(year: int | None = None) -> None:
 
 
 def git_push(paths: list[str], message: str) -> None:
-    import subprocess
+    """Commit + push `paths` through the shared robust helper (scripts/_git_publish.py): deepens the depth-1 checkout before rebasing, logs why a rebase failed, and never raises for a push that
+    cannot land -- the commit stays local and the workflow's final Publish step pushes it."""
     # `git add` of ANY missing path fails the whole pathspec (adds nothing) -- only add files that exist (e.g. the prior-season
     # snapshot does not exist until the first season rollover, or until the owner seeds it).
     paths = [p for p in paths if (ROOT / p).exists()]
-    subprocess.run(["git", "-C", str(ROOT), "add", *paths], check=False, capture_output=True)
-    diff = subprocess.run(["git", "-C", str(ROOT), "diff", "--cached", "--quiet"], capture_output=True)
-    if diff.returncode == 0:
+    if not paths:
         _log("git: nothing to commit")
         return
-    subprocess.run(["git", "-C", str(ROOT), "commit", "-m", message], check=True, capture_output=True)
-    # A single rebase-then-push attempt still races: CFB and NFL's schedule
-    # workflows fire on the same cron, plus a live-score bot pushes to main
-    # every ~3min, so another push can land between this rebase and this
-    # push. Retry with a fresh rebase each time instead of failing outright.
-    for attempt in range(5):
-        subprocess.run(["git", "-C", str(ROOT), "pull", "--rebase", "--autostash", "origin", "main"], capture_output=True)
-        push = subprocess.run(["git", "-C", str(ROOT), "push", "origin", "main"], capture_output=True, text=True)
-        if push.returncode == 0:
-            _log("git push → main ✓")
-            return
-        _log(f"git push attempt {attempt+1}/5 failed, retrying: {push.stderr.strip()[:160]}")
-        time.sleep(3 + attempt * 2)
-    raise RuntimeError("git push failed after 5 retries")
+    from _git_publish import publish
+    publish(paths, message, _log, root=ROOT)
 
 
 if __name__ == "__main__":

@@ -389,24 +389,10 @@ def _write(path: Path, payload: dict) -> None:
 
 
 def git_push(paths: list[str], message: str) -> None:
-    subprocess.run(["git", "add", *paths], cwd=ROOT, check=True)
-    r = subprocess.run(["git", "commit", "-m", message], cwd=ROOT, capture_output=True, text=True)
-    if r.returncode != 0:
-        _log(f"  nothing to commit ({r.stdout.strip()[:120]})")
-        return
-    # Same push-first-then-rebase-retry pattern already proven across
-    # this repo's other fetch scripts -- main gets pushed to constantly
-    # by multiple concurrent scheduled jobs, so a bare push failing once
-    # is a normal race, not a real error.
-    for attempt in range(5):
-        subprocess.run(["git", "pull", "--rebase", "--autostash", "origin", "main"], cwd=ROOT, capture_output=True)
-        push = subprocess.run(["git", "push", "origin", "main"], cwd=ROOT, capture_output=True, text=True)
-        if push.returncode == 0:
-            _log("  pushed")
-            return
-        _log(f"  push attempt {attempt + 1}/5 failed, retrying: {push.stderr.strip()[:160]}")
-        time.sleep(3 + attempt * 2)
-    raise RuntimeError("git push failed after 5 retries")
+    """Commit + push `paths` through the shared robust helper (scripts/_git_publish.py): deepens the depth-1 checkout before rebasing, logs why a rebase failed, and never raises for a push that
+    cannot land -- the commit stays local and the workflow's final Publish step pushes it."""
+    from _git_publish import publish
+    publish(paths, message, _log, root=ROOT)
 
 
 if __name__ == "__main__":
