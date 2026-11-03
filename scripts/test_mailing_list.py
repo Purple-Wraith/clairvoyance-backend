@@ -601,7 +601,7 @@ class TabTests(unittest.TestCase):
         pg.click("#sp-mail .sb2:has-text('SUBSCRIBERS')"); pg.wait_for_selector("#ml-subs .ml-sub[data-email='newbie@client.com']")
         card = pg.inner_text("#ml-subs .ml-sub[data-email='ref@example.com']")
         self.assertRegex(card, r"(49|50) days left")
-        pg.click("#sp-mail .sb2:has-text('ACTIVITY')"); pg.wait_for_selector("#ml-act table")
+        pg.click("#sp-mail .sb2:has-text('ACTIVITY')"); pg.wait_for_selector("#ml-ac-feed .ml-ae")
         self.assertIn("REFERRAL REWARD", pg.inner_text("#ml-act")); self.assertIn("for referring newbie@client.com", pg.inner_text("#ml-act"))
         pg.context.close()
 
@@ -629,7 +629,7 @@ class TabTests(unittest.TestCase):
             rc.assert_called_with("ref@example.com"); self.assertIn("Referral reward", sy.call_args[0][0])
         self.assertEqual(pg.query_selector("#ml-pending"), None)                                    # nothing left waiting
         self.assertEqual(pg.evaluate("[...document.querySelectorAll('#ml-subs .ml-sub[data-email=\"ref@example.com\"] .ml-pill')].some(e=>/FREE MONTH/.test(e.innerText))"), True)
-        pg.click("#sp-mail .sb2:has-text('ACTIVITY')"); pg.wait_for_selector("#ml-act table")
+        pg.click("#sp-mail .sb2:has-text('ACTIVITY')"); pg.wait_for_selector("#ml-ac-feed .ml-ae")
         self.assertIn("REFERRAL EARNED", pg.inner_text("#ml-act")); self.assertIn("REFERRAL REWARD", pg.inner_text("#ml-act"))
         pg.context.close()
 
@@ -677,7 +677,7 @@ class TabTests(unittest.TestCase):
         for s in ("ACTIVE SUBSCRIBERS", "COLLECTED THIS WEEK", "ACTIVE VALUE", "REVENUE BY WEEK", "PAYMENTS (ESTIMATED)", "BY LIST", "EXPIRING SOON"):
             self.assertIn(s, t)
         pg.click("#sp-mail .sb2:has-text('ACTIVITY')"); pg.wait_for_selector("#ml-act .ml-card")
-        self.assertIn("WHEN", pg.inner_text("#ml-act") + "WHEN")
+        self.assertIn("ACTIVITY", pg.inner_text("#ml-act")); self.assertIn("NO ACTIVITY YET", pg.inner_text("#ml-act"))      # nothing logged in this seed
         pg.context.close()
 
     # ── analytics tab: money in vs active value, and every interactive (2026-11-03) ─────────────────────────────────────────────────────────────
@@ -782,6 +782,95 @@ class TabTests(unittest.TestCase):
             self.assertFalse(pg.evaluate("document.documentElement.scrollWidth>document.documentElement.clientWidth"), w)
             dump = pg.evaluate("JSON.stringify([Object.entries(localStorage),Object.entries(sessionStorage)])")
             self.assertNotIn("example.com", dump)
+            pg.context.close()
+
+    # ── activity tab: filters, day chart, money per day, per-email timeline (2026-11-03) ─────────────────────────────────────────────────────────
+    def seed_activity(self, extra=None):
+        ev = lambda d, action, product, email, promo=False: {"ts": iso(d), "action": action, "product": product, "email": email, **({"promo": True} if promo else {})}
+        rows = [ev(45, "add", "hockey", "lapsed@example.com"), ev(40, "remove", "hockey", "lapsed@example.com"), ev(26, "add", "soccer", "sam@example.com"), ev(3, "add", "nba", "sam@example.com"),
+                ev(2, "add", "cfb", "free@example.com", True), ev(1, "add", "soccer", "kim@example.com"), ev(0.2, "renew", "soccer", "kim@example.com")] + (extra or [])
+        self.s.events.write_text(json.dumps(rows))
+
+    def open_act(self, w=1000, mobile=False, extra=None):
+        self.seed_activity(extra)
+        pg = self.page(w=w, mobile=mobile); self.open_tab(pg)
+        pg.click("#sp-mail .sb2:has-text('ACTIVITY')"); pg.wait_for_selector("#ml-ac-feed .ml-ae")
+        return pg
+
+    def feed_count(self, pg):
+        return pg.locator("#ml-ac-feed .ml-ae").count()
+
+    def test_activity_type_chips_count_what_they_would_show_and_filter_the_feed(self):
+        errs = len(self.errs)
+        pg = self.open_act()
+        c = pg.inner_text("#ml-ac-ctl")
+        for s in ("ALL 5", "NEW 3", "RENEWED 1", "FREE MONTH 1", "REMOVED 0"):                      # default range is 30 days: the 45- and 40-day-old rows are outside it
+            self.assertIn(s, c)
+        self.assertEqual(self.feed_count(pg), 5)
+        pg.click("#ml-ac-ctl .ml-chip:has-text('ALL TIME')")
+        self.assertIn("ALL 7", pg.inner_text("#ml-ac-ctl")); self.assertIn("REMOVED 1", pg.inner_text("#ml-ac-ctl"))
+        pg.click("#ml-ac-ctl .ml-tk:has-text('REMOVED')")
+        self.assertEqual(self.feed_count(pg), 1); self.assertIn("lapsed@example.com", pg.inner_text("#ml-ac-feed"))
+        pg.click("#ml-ac-ctl .ml-tk:has-text('REMOVED')")                                           # tapping it again clears the filter
+        self.assertEqual(self.feed_count(pg), 7)
+        self.assertEqual(len(self.errs), errs)
+        pg.context.close()
+
+    def test_activity_range_list_and_search(self):
+        pg = self.open_act()
+        pg.click("#ml-ac-ctl .ml-chip:has-text('7D')"); self.assertEqual(self.feed_count(pg), 4)       # sam NBA, free CFB, kim add + renew
+        pg.click("#ml-ac-ctl .ml-chip:has-text('ALL TIME')")
+        pg.click("#ml-ac-ctl .ml-chip:has-text('NBA')"); self.assertEqual(self.feed_count(pg), 1)
+        pg.click("#ml-ac-ctl .ml-chip:has-text('ALL LISTS')")
+        pg.fill("#ml-ac-q", "kim"); self.assertEqual(self.feed_count(pg), 2); self.assertEqual(pg.input_value("#ml-ac-q"), "kim")
+        pg.fill("#ml-ac-q", ""); self.assertEqual(self.feed_count(pg), 7)
+        pg.context.close()
+
+    def test_activity_day_bar_opens_that_day_and_the_chip_clears_it(self):
+        pg = self.open_act()
+        w = pg.evaluate("(()=>{const e=_ml.data.events.find(x=>x.email==='sam@example.com'&&x.product==='nba');const k=_mlMtDate(e.ts);return {label:_mlDayLabel(k),n:_ml.data.events.filter(x=>_mlMtDate(x.ts)===k&&Date.parse(x.ts)>Date.now()-30*864e5).length}})()")
+        pg.click(f'#ml-ac-chart .ml-ac-c[aria-label^="{w["label"]}"]')
+        self.assertEqual(self.feed_count(pg), w["n"]); self.assertIn("SELECTED", pg.inner_text("#ml-ac-detail"))
+        self.assertIn("DAY", pg.inner_text("#ml-ac-ctl"))
+        pg.click("#ml-ac-ctl .ml-chip:has-text('✕')")
+        self.assertEqual(self.feed_count(pg), 5)
+        pg.hover("#ml-ac-chart .ml-ac-c >> nth=0"); self.assertIn("COLLECTED", pg.inner_text("#ml-ac-detail"))      # hover previews any day
+        pg.context.close()
+
+    def test_activity_shows_what_each_payment_was_worth_and_money_per_day(self):
+        pg = self.open_act()
+        sam_nba = pg.locator("#ml-ac-feed .ml-ae", has_text="sam@example.com").filter(has_text="NBA")
+        self.assertIn("$15", sam_nba.inner_text()); self.assertIn("Add-on sport", sam_nba.inner_text())     # the add-on to a running plan, named the same way the Analytics tab names it
+        self.assertIn("collected", pg.inner_text("#ml-ac-feed .ml-ad >> nth=0") + pg.inner_text("#ml-ac-feed"))
+        free = pg.locator("#ml-ac-feed .ml-ae", has_text="free@example.com").inner_text()
+        self.assertIn("FREE MONTH", free); self.assertNotIn("$", free)                              # a free month is never money
+        pg.context.close()
+
+    def test_activity_expands_one_emails_whole_timeline_and_opens_the_subscriber(self):
+        pg = self.open_act()
+        pg.locator("#ml-ac-feed .ml-ae .ml-lk", has_text="sam@example.com").first.click()
+        t = pg.inner_text("#ml-ac-feed .ml-atl")
+        self.assertIn("THIS EMAIL · 2 EVENTS LOGGED", t); self.assertIn("OPEN SUBSCRIBER", t)
+        self.assertEqual(pg.locator("#ml-ac-feed .ml-atl").count(), 1)                                 # only the tapped row opens, not every row of that email
+        pg.click("#ml-ac-feed .ml-atl .ml-btn:has-text('OPEN SUBSCRIBER')")
+        self.assertTrue(pg.evaluate("document.getElementById('mail-subs').classList.contains('act')")); self.assertEqual(pg.evaluate("_ml.q"), "sam@example.com")
+        pg.context.close()
+
+    def test_activity_pages_long_histories(self):
+        extra = [{"ts": iso(5 + i / 100), "action": "add", "product": "nfl", "email": f"u{i}@example.com"} for i in range(45)]
+        pg = self.open_act(extra=extra)
+        self.assertEqual(self.feed_count(pg), 40)
+        self.assertIn("SHOW MORE (10 LEFT)", pg.inner_text("#ml-ac-feed"))
+        pg.click("#ml-ac-feed .ml-btn:has-text('SHOW MORE')"); self.assertEqual(self.feed_count(pg), 50)
+        pg.context.close()
+
+    def test_activity_fits_a_phone_and_stores_nothing(self):
+        for w in (390, 320):
+            pg = self.open_act(w=w, mobile=True)
+            self.assertFalse(pg.evaluate("document.documentElement.scrollWidth>document.documentElement.clientWidth"), w)
+            pg.locator("#ml-ac-feed .ml-ae .ml-lk").first.click()
+            self.assertFalse(pg.evaluate("document.documentElement.scrollWidth>document.documentElement.clientWidth"), w)
+            self.assertNotIn("example.com", pg.evaluate("JSON.stringify([Object.entries(localStorage),Object.entries(sessionStorage)])"))
             pg.context.close()
 
     def test_when_the_server_is_not_running_the_tab_says_so_and_shows_no_data(self):

@@ -138,7 +138,7 @@ def build_overview() -> dict:
         subs.append(row)
     order = {"expiring": 0, "active": 1, "expired": 2}
     subs.sort(key=lambda r: (order[r["status"]], r["soonest_days_left"] if r["soonest_days_left"] is not None else 9999, r["email"]))
-    events = list(reversed(_load_events()))[:60]
+    events = list(reversed(_load_events()))[:1000]      # the Activity tab filters and groups these client-side (it used to show only the newest 60)
     return {"now": now.isoformat(), "expiry_days": EXPIRY_DAYS, "products": [{"key": p, "label": PRODUCT_LABEL.get(p, p)} for p in PRODUCTS],
             "pricing": {str(k): v for k, v in PRICING_BY_COUNT.items()}, "owner": OWNER_EMAIL or None, "subscribers": subs, "events": events, "pending_referrals": pending_referral_rewards(), "analytics": analytics_summary()}
 

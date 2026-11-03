@@ -37588,6 +37588,21 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 .ml-rt{display:inline-block;width:70px;height:7px;background:rgba(255,255,255,.08);vertical-align:middle;border-radius:1px;overflow:hidden;margin-right:6px}.ml-rtf{display:block;height:100%}
 @media(max-width:640px){.ml-lr{grid-template-columns:1fr;gap:4px}.ml-xr{grid-template-columns:1fr auto;gap:4px 10px}.ml-xr .ml-xt{grid-column:1/-1;order:5}.ml-ch{padding-left:36px}.ml-ch-g span{left:-38px;width:32px}.ml-ch.dense .ml-ch-v{display:none}.ml-ch.dense .ml-ch-x span:nth-child(even){visibility:hidden}}
 @media(pointer:coarse),(max-width:640px){.ml-lg{min-height:40px}}
+.ml-tk{display:inline-flex;align-items:center;gap:6px}.ml-tk i{width:9px;height:9px;border-radius:1px;display:inline-block}
+.ml-ac-chart{display:flex;align-items:flex-end;gap:2px;height:96px;border-bottom:1px solid rgba(255,255,255,.15);margin-top:8px}
+.ml-ac-c{flex:1;min-width:0;height:100%;padding:0 1px;background:transparent;border:0;cursor:pointer;display:flex;align-items:flex-end;border-radius:2px}
+.ml-ac-c:hover,.ml-ac-c:focus-visible{background:rgba(240,0,255,.08);outline:none}.ml-ac-c.sel{background:rgba(240,0,255,.16);box-shadow:inset 0 0 0 1px rgba(240,0,255,.55)}
+.ml-ac-s{display:flex;flex-direction:column-reverse;width:100%}
+.ml-ac-x{justify-content:space-between}.ml-ac-x span{flex:0 0 auto}
+.ml-ad{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin:16px 0 4px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,.14);font-family:var(--orb);font-size:13px;letter-spacing:1.5px;color:var(--t)}
+.ml-ad:first-child{margin-top:4px}.ml-ad em{font-style:normal;font-family:var(--mono);font-size:12px;letter-spacing:0;color:var(--t3)}.ml-ad b.g{color:#00e644}
+.ml-ae{display:grid;grid-template-columns:96px 98px 150px minmax(0,1fr) auto;gap:8px 10px;align-items:start;padding:7px 2px;border-top:1px solid rgba(255,255,255,.05);font-family:var(--mono);font-size:13px;color:var(--t2)}
+.ml-ae:first-of-type{border-top:0}.ml-ae.open{background:rgba(240,0,255,.04)}
+.ml-at{display:block;color:var(--t)}.ml-at .ml-dl{display:block;margin-top:1px}
+.ml-ak{display:inline-block;font-size:11px;letter-spacing:1.2px;padding:2px 8px;border-radius:2px;font-weight:700;color:#000;white-space:nowrap}
+.ml-am{min-width:0}.ml-am .ml-lk{word-break:break-all}.ml-aa{text-align:right;white-space:nowrap}.ml-aa b.g{color:#00e644}
+.ml-atl{grid-column:1/-1;margin:4px 0 4px;padding:8px 10px;border:1px solid rgba(77,40,120,.55);background:rgba(0,0,0,.28);border-radius:3px}
+@media(max-width:640px){.ml-ae{grid-template-columns:auto 1fr auto;gap:4px 10px}.ml-ae .ml-al{grid-column:2/3}.ml-ae .ml-am{grid-column:1/-1;order:5}.ml-ae .ml-atl{order:6}.ml-ae .ml-aa{grid-column:3/4;grid-row:1}}
 @media(max-width:640px){.ml-prod{grid-template-columns:1fr;gap:4px}.ml-h{font-size:16px;letter-spacing:2px}.ml-sv{font-size:20px}}
 @media(pointer:coarse),(max-width:640px){.ml-chip,.ml-btn{min-height:40px}.ml-in{min-height:40px;font-size:16px}}
 </style>
@@ -37905,11 +37920,143 @@ function _mlAnaCoh(){
   const coh=(a.cohort_retention||[]).map(c=>{const p=c.retention_pct;return `<tr><td>${_escHtml(c.cohort_week)}</td><td>${c.signups}</td><td>${c.retained}</td><td><span class="ml-rt"><span class="ml-rtf" style="width:${p==null?0:p}%;background:${p>=70?'#00e644':p>=40?'#ffd500':'#ff2050'}"></span></span> ${p==null?'—':p+'%'}</td></tr>`;}).join('');
   el.innerHTML=coh?`<div class="ml-tw"><table class="ml-t"><tr><th>WEEK</th><th>SIGNED UP</th><th>RETAINED</th><th>RETENTION</th></tr>${coh}</table></div>`:'<div class="ml-msg">A cohort shows up once it is old enough to have had a full 30 days to renew.</div>';
 }
+// ── ACTIVITY TAB (rebuilt 2026-11-03) ────────────────────────────────────────────────────────────────────────────────────────────────────
+// The add / renew / remove log as a feed you can work with: filter by type, list, range and email, see activity per day (tap a bar to open that day), the estimated money each day
+// brought in, and expand any email to see that person's whole timeline. Kept in memory only (nothing is stored in the browser); every string from the list goes through _escHtml and
+// handlers only receive indexes or fixed keys.
+const _ML_AK=['new','renew','remove','free','referral'];
+const _ML_AK_COLOR={new:'#00f0ff',renew:'#00e644',remove:'#ff2050',free:'#ffd500',referral:'#f000ff'};
+const _ML_AK_LABEL={new:'NEW',renew:'RENEWED',remove:'REMOVED',free:'FREE MONTH',referral:'REFERRAL'};
+function _mlAc(){return _ml.act=_ml.act||{type:'all',prod:'all',range:30,day:null,q:'',limit:40,open:null,hover:null,view:[]};}
+function _mlActKind(e){
+  if(e.action==='referral'||e.action==='referral_pending')return 'referral';
+  if(e.action==='remove')return 'remove';
+  if(e.promo)return 'free';
+  return e.action==='renew'?'renew':'new';
+}
+function _mlAgo(iso){
+  const s=Math.max(0,(Date.now()-Date.parse(iso))/1000);
+  if(!isFinite(s))return '';
+  if(s<90)return 'just now';
+  if(s<3600)return Math.round(s/60)+'m ago';
+  if(s<86400)return Math.round(s/3600)+'h ago';
+  return Math.round(s/86400)+'d ago';
+}
+function _mlDayLabel(key){
+  try{return new Date(key+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric'}).toUpperCase();}catch(e){return key;}
+}
+function _mlDayKeys(n){
+  const today=_mlMtDate(new Date().toISOString()),base=Date.parse(today+'T12:00:00Z'),out=[];
+  for(let i=n-1;i>=0;i--)out.push(new Date(base-i*86400000).toISOString().slice(0,10));
+  return out;
+}
+function _mlActPaidMap(d){
+  // which logged add / renew rows were a payment, and for how much: a payment is the first event of an email's add / renew burst (see _subscribers.payments_ledger)
+  const map=new Map(),pays=(d.analytics.payments||[]).slice().reverse();
+  pays.forEach(p=>{
+    const t0=Date.parse(p.ts),hits=d.events.map((e,i)=>({e,i})).filter(x=>x.e.email===p.email&&!x.e.promo&&(x.e.action==='add'||x.e.action==='renew')&&p.products.includes(x.e.product)&&Date.parse(x.e.ts)>=t0-1000&&Date.parse(x.e.ts)<=t0+3600000)
+      .sort((a,b)=>Date.parse(a.e.ts)-Date.parse(b.e.ts));
+    hits.forEach((h,j)=>map.set(h.i,j===0?{amount:p.amount,total:p.products.length,kind:p.kind_label}:{part:p.amount}));
+  });
+  return map;
+}
+function _mlActScope(d,A,withType){
+  const cut=A.range==='all'?0:Date.now()-A.range*86400000,q=A.q.trim().toLowerCase();
+  return d.events.map((e,i)=>({e,i,k:_mlActKind(e),day:_mlMtDate(e.ts)})).filter(x=>Date.parse(x.e.ts)>=cut&&(A.prod==='all'||x.e.product===A.prod)&&(!q||String(x.e.email).toLowerCase().includes(q))&&(!withType||A.type==='all'||x.k===A.type));
+}
 function _mlRenderAct(){
   const d=_ml.data,el=document.getElementById('ml-act');if(!el)return;
-  const rows=d.events.map(e=>`<tr><td>${_escHtml(_mlFmtTime(e.ts))}</td><td>${e.action==='referral'?'REFERRAL REWARD':e.action==='referral_pending'?'REFERRAL EARNED':_escHtml(String(e.action||'').toUpperCase())}${e.promo?' · FREE':''}</td><td>${_escHtml((d.products.find(p=>p.key===e.product)||{}).label||e.product)}</td><td>${_escHtml(e.email)}${e.action==='referral'||e.action==='referral_pending'?`<div class="ml-dl">for referring ${_escHtml(e.referred||'')}${e.action==='referral_pending'?' · waiting for their sport':''}</div>`:''}</td></tr>`).join('');
-  el.innerHTML=`<div class="ml-top"><div><div class="ml-h">ACTIVITY</div><div class="ml-hs">EVERY ADD, RENEWAL AND REMOVAL · NEWEST FIRST</div></div></div>
-  <div class="ml-card">${rows?`<div class="ml-tw"><table class="ml-t"><tr><th>WHEN</th><th>ACTION</th><th>LIST</th><th>EMAIL</th></tr>${rows}</table></div>`:'<div class="empty">NO ACTIVITY YET</div>'}</div>`;
+  const A=_mlAc();
+  el.innerHTML=`<div class="ml-top"><div><div class="ml-h">ACTIVITY</div><div class="ml-hs">EVERY ADD, RENEWAL, FREE MONTH AND REMOVAL · NEWEST FIRST · TIMES IN MOUNTAIN</div></div></div>
+  <div class="ml-card"><div id="ml-ac-ctl"></div><div class="ml-bar"><input class="ml-in" id="ml-ac-q" type="search" placeholder="Search email" value="${_escHtml(A.q)}" oninput="_mlAc().q=this.value;_mlAc().limit=40;_mlActRefresh()"></div>
+    <div id="ml-ac-chart"></div><div id="ml-ac-detail"></div></div>
+  <div class="ml-card"><div id="ml-ac-feed"></div></div>`;
+  _mlActRefresh();
+}
+function _mlActRefresh(){
+  _mlActCtl();_mlActChart();_mlActFeed();
+}
+function mlAct(k,v){
+  const A=_mlAc();
+  if(k==='type'||k==='prod')A[k]=A[k]===v?'all':v;
+  else if(k==='day')A.day=A.day===v?null:v;
+  else A[k]=v;
+  A.limit=40;A.open=null;A.hover=null;
+  _mlActRefresh();
+}
+function mlActHover(key){_mlAc().hover=key;_mlActDetail();}
+function mlActMore(){_mlAc().limit+=40;_mlActFeed();}
+function mlActOpen(i){const A=_mlAc(),r=A.view[i];if(!r)return;A.open=A.open===r.i?null:r.i;_mlActFeed();}      // one row at a time: keyed by the event's own index, not the email
+function mlActGoto(i){const r=_mlAc().view[i];if(!r)return;_ml.q=r.e.email;_ml.list='ALL';_ml.status='ALL';setSub('mail','subs');mlRender();}
+function _mlActCtl(){
+  const d=_ml.data,A=_mlAc(),el=document.getElementById('ml-ac-ctl');if(!el)return;
+  const sc=_mlActScope(d,A,false),n=k=>sc.filter(x=>x.k===k).length;
+  const chip=(on,label,fn)=>`<button type="button" class="ml-chip${on?' on':''}" aria-pressed="${on}" onclick="${fn}">${label}</button>`;
+  const types=chip(A.type==='all',`ALL ${sc.length}`,"mlAct('type','all')")+_ML_AK.map(k=>`<button type="button" class="ml-chip ml-tk${A.type===k?' on':''}" aria-pressed="${A.type===k}" onclick="mlAct('type','${k}')"><i style="background:${_ML_AK_COLOR[k]}"></i>${_ML_AK_LABEL[k]} ${n(k)}</button>`).join('');
+  const ranges=[[7,'7D'],[30,'30D'],[90,'90D'],['all','ALL TIME']].map(r=>chip(A.range===r[0],r[1],`mlAct('range',${typeof r[0]==='string'?`'${r[0]}'`:r[0]})`)).join('');
+  const prods=chip(A.prod==='all','ALL LISTS',"mlAct('prod','all')")+d.products.map(p=>chip(A.prod===p.key,_escHtml(p.key.toUpperCase()),`mlAct('prod','${_escHtml(p.key)}')`)).join('');
+  const day=A.day?chip(true,'DAY '+_escHtml(_mlDayLabel(A.day))+' ✕',`mlAct('day','${_escHtml(A.day)}')`):'';
+  el.innerHTML=`<div class="ml-bar">${types}</div><div class="ml-bar">${ranges}<span class="ml-sp"></span>${day}</div><div class="ml-bar">${prods}</div>`;
+}
+function _mlActChart(){
+  const d=_ml.data,A=_mlAc(),el=document.getElementById('ml-ac-chart');if(!el)return;
+  const nDays=A.range==='all'?60:Math.min(A.range,90),keys=_mlDayKeys(nDays);
+  const sc=_mlActScope(d,A,true),by={};
+  sc.forEach(x=>{(by[x.day]=by[x.day]||{})[x.k]=(by[x.day][x.k]||0)+1;});
+  const tot=k=>Object.values(by[k]||{}).reduce((s,v)=>s+v,0),max=Math.max(1,...keys.map(tot));
+  if(!sc.length){el.innerHTML='<div class="ml-msg">Nothing in this view yet.</div>';_mlActDetail();return;}
+  const cols=keys.map(k=>{
+    const t=tot(k),sel=A.day===k;
+    const seg=_ML_AK.filter(a=>(by[k]||{})[a]).map(a=>`<span class="ml-seg" style="height:${100*by[k][a]/t}%;background:${_ML_AK_COLOR[a]}"></span>`).join('');
+    return `<button type="button" class="ml-ac-c${sel?' sel':''}" aria-pressed="${sel}" aria-label="${_escHtml(_mlDayLabel(k))}: ${t} event${t===1?'':'s'}" onclick="mlAct('day','${k}')" onmouseenter="mlActHover('${k}')" onmouseleave="mlActHover(null)" onfocus="mlActHover('${k}')" onblur="mlActHover(null)"><span class="ml-ac-s" style="height:${t?Math.max(8,100*t/max):0}%">${seg}</span></button>`;
+  }).join('');
+  el.innerHTML=`<div class="ml-ac-chart">${cols}</div><div class="ml-ch-x ml-ac-x"><span>${_escHtml(_mlWkShort(keys[0]))}</span><span>${_escHtml(_mlWkShort(keys[Math.floor(keys.length/2)]))}</span><span>${_escHtml(_mlWkShort(keys[keys.length-1]))}</span></div>`;
+  _mlActDetail();
+}
+function _mlActDetail(){
+  const d=_ml.data,A=_mlAc(),el=document.getElementById('ml-ac-detail');if(!el)return;
+  const key=A.hover||A.day;
+  if(!key){el.innerHTML='<div class="ml-dl" style="margin-top:6px">Hover or tap a bar to see that day. Tap it again to clear.</div>';return;}
+  const sc=_mlActScope(d,A,true).filter(x=>x.day===key),c=k=>sc.filter(x=>x.k===k).length;
+  const money=(d.analytics.payments||[]).filter(p=>_mlMtDate(p.ts)===key).reduce((s,p)=>s+p.amount,0);
+  el.innerHTML=`<div class="ml-det"><div class="ml-dt">${_escHtml(_mlDayLabel(key))}${A.day===key?' · SELECTED':''}</div><div class="ml-dm">${_ML_AK.map(k=>`<span><i class="ml-kd" style="background:${_ML_AK_COLOR[k]}"></i>${_ML_AK_LABEL[k]} <b>${c(k)}</b></span>`).join('')}<span>COLLECTED <b class="g">${_mlMoney(money)}</b></span></div></div>`;
+}
+function _mlActFeed(){
+  const d=_ml.data,A=_mlAc(),el=document.getElementById('ml-ac-feed');if(!el)return;
+  const rows=_mlActScope(d,A,true).filter(x=>!A.day||x.day===A.day);
+  A.view=rows;
+  if(!rows.length){el.innerHTML=`<div class="empty">${d.events.length?'NOTHING MATCHES THESE FILTERS':'NO ACTIVITY YET'}</div>`;return;}
+  const paid=_mlActPaidMap(d),pays=d.analytics.payments||[];
+  const shown=rows.slice(0,A.limit);
+  let html='',lastDay=null;
+  shown.forEach((x,vi)=>{
+    if(x.day!==lastDay){
+      lastDay=x.day;
+      const same=rows.filter(r=>r.day===x.day),c=k=>same.filter(r=>r.k===k).length;
+      const money=pays.filter(p=>_mlMtDate(p.ts)===x.day).reduce((s,p)=>s+p.amount,0);
+      const bits=_ML_AK.filter(k=>c(k)).map(k=>`${c(k)} ${_ML_AK_LABEL[k].toLowerCase()}`).join(' · ');
+      html+=`<div class="ml-ad"><span>${_escHtml(_mlDayLabel(x.day))}${x.day===_mlMtDate(new Date().toISOString())?' · TODAY':''}</span><em>${_escHtml(bits)}${money?` · <b class="g">${_mlMoney(money)} collected</b>`:''}</em></div>`;
+    }
+    const e=x.e,pm=paid.get(x.i);
+    const label=(d.products.find(p=>p.key===e.product)||{}).label||e.product||'';
+    const open=A.open!=null&&A.open===x.i;
+    const amt=pm?(pm.amount!=null?`<b class="g" title="Estimated payment">${_mlMoney(pm.amount)}</b><span class="ml-dl" style="display:block">${_escHtml(pm.kind||'')}${pm.total>1?' · '+pm.total+' lists':''}</span>`:'<span class="ml-dl">same payment</span>'):'';
+    const extra=e.action==='referral'||e.action==='referral_pending'?`<div class="ml-dl">for referring ${_escHtml(e.referred||'')}${e.action==='referral_pending'?' · waiting for their sport':''}</div>`:'';
+    html+=`<div class="ml-ae${open?' open':''}"><span class="ml-at" title="${_escHtml(_mlFmtTime(e.ts))}">${_escHtml(new Date(e.ts).toLocaleTimeString('en-US',{timeZone:'America/Denver',hour:'numeric',minute:'2-digit'}))}<span class="ml-dl">${_escHtml(_mlAgo(e.ts))}</span></span>
+      <span><span class="ml-ak" style="background:${_ML_AK_COLOR[x.k]}">${e.action==='referral'?'REFERRAL REWARD':e.action==='referral_pending'?'REFERRAL EARNED':_ML_AK_LABEL[x.k]}</span></span>
+      <span class="ml-al">${_escHtml(label)}</span>
+      <span class="ml-am"><button type="button" class="ml-lk" aria-expanded="${!!open}" onclick="mlActOpen(${vi})" title="Show everything for this email">${_escHtml(e.email)}</button>${extra}</span>
+      <span class="ml-aa">${amt}</span>${open?_mlActTimeline(d,e.email,vi):''}</div>`;
+  });
+  el.innerHTML=`<div class="ml-sum"><b>${rows.length}</b> event${rows.length===1?'':'s'}${A.day||A.type!=='all'||A.prod!=='all'||A.q?' · filtered':''}</div>${html}${rows.length>shown.length?`<div style="margin-top:10px"><button type="button" class="ml-btn go" onclick="mlActMore()">SHOW MORE (${rows.length-shown.length} LEFT)</button></div>`:''}`;
+}
+function _mlActTimeline(d,email,vi){
+  const all=d.events.filter(e=>e.email===email).slice().reverse();
+  const sub=(d.subscribers||[]).find(s=>s.email===email);
+  const rows=all.map(e=>{const k=_mlActKind(e);return `<div class="ml-dr"><span>${_escHtml(_mlFmtTime(e.ts))}</span><span><i class="ml-kd" style="background:${_ML_AK_COLOR[k]}"></i>${_ML_AK_LABEL[k]} · ${_escHtml(((d.products.find(p=>p.key===e.product)||{}).label)||e.product||'')}</span></div>`;}).join('');
+  const now=sub?sub.products.map(p=>`${_escHtml(p.label)}${p.promo?' (free)':''}: ${p.active?p.days_left+' day'+(p.days_left===1?'':'s')+' left':'expired'}`).join(' · '):'';
+  return `<div class="ml-atl"><div class="ml-dt">THIS EMAIL · ${all.length} EVENT${all.length===1?'':'S'} LOGGED</div>${now?`<div class="ml-dl" style="margin-bottom:6px">${now}${sub.active_count?` · $${sub.price} / 30 days`:''}</div>`:''}${rows}
+    <div style="margin-top:8px"><button type="button" class="ml-btn go" onclick="mlActGoto(${vi})">OPEN SUBSCRIBER</button></div></div>`;
 }
 async function _mlSync(message){
   try{const j=await mlFetch('/api/sync',{method:'POST',body:JSON.stringify({message})});return j.ok?{ok:true,text:'synced to GitHub'}:{ok:false,text:'NOT synced to GitHub: '+(j.message||'unknown error')+' — they will not get emails until it is'};}
