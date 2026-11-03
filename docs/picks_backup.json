@@ -120117,43 +120117,6 @@
     "priceSource": "estimated"
   },
   {
-    "hA": "BOS",
-    "id": "2026-11-02_BOS_VGK_NHL_OVER5.5",
-    "ml": "-189",
-    "awA": "VGK",
-    "date": "2026-11-02",
-    "betOn": "OVER 5.5",
-    "sport": "NHL",
-    "wager": 0,
-    "aScore": 2,
-    "hScore": 3,
-    "league": "NHL",
-    "source": "manual",
-    "altLine": {
-      "line": 5.5,
-      "shift": 1,
-      "posted": 6.5,
-      "product": true,
-      "postedMl": "+105",
-      "postedDec": 2.05,
-      "bestOfGame": true,
-      "postedProb": 0.5135159216698589,
-      "postedLabel": "OVER 6.5"
-    },
-    "betType": "OU",
-    "decOdds": 1.53,
-    "leadMin": 615,
-    "outcome": "loss",
-    "startMs": 1793664000000,
-    "winProb": 0.6088,
-    "lockedAt": 1793627090576,
-    "reasoning": "PICK: OVER 5.5 \u2014 ADJUSTED LINE (60.9% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 6.5 to OVER 5.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 51.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 61% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
-    "settledAt": 1793674873238,
-    "lockOrigin": "auto",
-    "lockTiming": "pre",
-    "priceSource": "estimated"
-  },
-  {
     "hA": "CHA",
     "id": "2026-11-02_CHA_DET_NBA_CHA+10.5",
     "ml": "-266",
@@ -122614,6 +122577,42 @@
     }
   },
   {
+    "id": "2026-11-03_CBJ_COL_NHL_OVER5.5",
+    "date": "2026-11-03",
+    "hA": "CBJ",
+    "awA": "COL",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "OVER 5.5",
+    "winProb": 0.6083,
+    "ml": "-188",
+    "decOdds": 1.531,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710665312,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 5.5 \u2014 ADJUSTED LINE (60.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 6.5 to OVER 5.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 51.3%; the 1-goal cushion is priced from the historical margin curve for this market (about 61% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 6.5,
+      "line": 5.5,
+      "shift": 1,
+      "postedLabel": "OVER 6.5",
+      "postedProb": 0.5125881368114596,
+      "postedDec": 2.05,
+      "postedMl": "+105",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Feyenoord Rotterdam",
     "id": "2026-11-03_Feyenoord Rotterdam_Internazionale_CL_FeyenoordRotterdam+2.5",
     "ml": "-408",
@@ -123160,6 +123159,70 @@
     "priceSource": "estimated"
   },
   {
+    "id": "2026-11-03_MTL_WPG_NHL_MTLML",
+    "date": "2026-11-03",
+    "hA": "MTL",
+    "awA": "WPG",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "ML",
+    "betOn": "MTL ML",
+    "winProb": 0.7147492573449694,
+    "ml": "-196",
+    "decOdds": 1.51,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710661208,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: MTL ML \u2014 PREMIUM (71.5% win prob, EV +7.9% \u00b7 MARKET PRICE -196 (EV at market +7.9%) \u00b7 MARKET-BLENDED: model 88.5% \u00b7 no-vig market 63.3% \u2192 71.5% (alpha 0.75))\nMODEL: Projected 1.8\u20133.7 (total 5.5) (OT/SO in 13% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Best market: MTL ML graded PREMIUM (71.5%, EV +7.9%). GSAx: +9.8 vs +1.9 (injury adj: MTL: Mike Matheson D OUT, Nick Suzuki C OUT, Ivan Demidov RW OUT -> scoring -8% | WPG: Dawson Mercer C DAY-TO-DAY, Josh Morrissey D OUT -> scoring -3.8%) favors MTL. MC 78% / xGF 50% / hv +7.4pp / ST +2.4pp / SQ +1.7pp \u00b7 ML market blend (alpha 0.75): model 88.5% \u00b7 no-vig market 63.3% \u2192 71.5%; Puck line market blend (alpha 0.70): model 59.6% \u00b7 no-vig market 41.3% \u2192 46.8%; O/U market blend (alpha 0.65): model 46.7% \u00b7 no-vig market 54.7% \u2192 51.9%. Full-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.8853,
+    "marketProb": 0.6326,
+    "blendAlpha": 0.75,
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_MTL_WPG_NHL_OVER4.5",
+    "date": "2026-11-03",
+    "hA": "MTL",
+    "awA": "WPG",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "OVER 4.5",
+    "winProb": 0.7319,
+    "ml": "-348",
+    "decOdds": 1.287,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710661396,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 4.5 \u2014 ADJUSTED LINE (73.2% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 5.5 to OVER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 51.9%; the 1-goal cushion is priced from the historical margin curve for this market (about 73% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 5.5,
+      "line": 4.5,
+      "shift": 1,
+      "postedLabel": "OVER 5.5",
+      "postedProb": 0.5188162531145968,
+      "postedDec": 1.74,
+      "postedMl": "-135",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Manchester United",
     "id": "2026-11-03_Manchester United_AS Roma_CL_ASRoma+0.5",
     "ml": "-408",
@@ -123348,6 +123411,326 @@
       }
     },
     "priceSource": "estimated"
+  },
+  {
+    "id": "2026-11-03_NJD_EDM_NHL_EDM+1.5",
+    "date": "2026-11-03",
+    "hA": "NJD",
+    "awA": "EDM",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "EDM +1.5",
+    "winProb": 0.6790237570802404,
+    "ml": "-192",
+    "decOdds": 1.52,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710665837,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: EDM +1.5 \u2014 OPTIMAL (67.9% win prob, EV +3.2% \u00b7 MARKET PRICE -192 (EV at market +3.2%) \u00b7 MARKET-BLENDED: model 78.4% \u00b7 no-vig market 62.6% \u2192 67.9% (alpha 0.70))\nMODEL: Projected 4.3\u20133.4 (total 7.8) (OT/SO in 14% of outcomes) \u2014 underdog covers +1.5 in 78.4% of outcomes (incl. late-game empty-net margin calibration), from an exact Poisson distribution (not a simulation).\nWHY: Best market: EDM +1.5 graded OPTIMAL (67.9%, EV +3.2%). Dog covers +1.5 in 67.9% of sims (proj 3.4\u20134.3). GSAx: -4.4 vs -1.4 (injury adj: NJD: Evan Rodrigues C DAY-TO-DAY, Anthony Mantha RW DAY-TO-DAY -> scoring -0.9% | EDM: Zach Hyman LW OUT, Matt Savoie C OUT -> scoring -2.4%; Devon Levi G OUT -> goalie rating set to league average) keeps this within a goal. MC 37% / xGF 50% / hv -4.8pp / ST -5.6pp / SQ +0.3pp \u00b7 ML market blend (alpha 0.75): model 57.7% \u00b7 no-vig market 58.4% \u2192 58.2%; Puck line market blend (alpha 0.70): model 21.6% \u00b7 no-vig market 37.3% \u2192 32.1%; O/U market blend (alpha 0.65): model 66.9% \u00b7 no-vig market 45.3% \u2192 53.1%. Standard-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.7842,
+    "marketProb": 0.6265,
+    "blendAlpha": 0.7,
+    "startMs": 1793752200000,
+    "leadMin": 692,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_NJD_EDM_NHL_UNDER7.5",
+    "date": "2026-11-03",
+    "hA": "NJD",
+    "awA": "EDM",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 7.5",
+    "winProb": 0.7076,
+    "ml": "-304",
+    "decOdds": 1.329,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710666279,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (70.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 46.9%; the 1-goal cushion is priced from the historical margin curve for this market (about 71% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 6.5,
+      "line": 7.5,
+      "shift": 1,
+      "postedLabel": "UNDER 6.5",
+      "postedProb": 0.46921816950912676,
+      "postedDec": 1.74,
+      "postedMl": "-135",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793752200000,
+    "leadMin": 692,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_NSH_CAR_NHL_CARML",
+    "date": "2026-11-03",
+    "hA": "NSH",
+    "awA": "CAR",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "ML",
+    "betOn": "CAR ML",
+    "winProb": 0.652865239630872,
+    "ml": "-200",
+    "decOdds": 1.5,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710666629,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: CAR ML \u2014 HIGH PROB (65.3% win prob, EV -2.1% \u00b7 MARKET PRICE -200 (EV at market -2.1%) \u00b7 MARKET-BLENDED: model 69.4% \u00b7 no-vig market 63.9% \u2192 65.3% (alpha 0.75))\nMODEL: Projected 4.3\u20132.4 (total 6.8) (OT/SO in 12% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Best market: CAR ML graded HIGH PROB (65.3%, EV -2.1%). GSAx: +9.2 vs +2.7 (injury adj: CAR: Taylor Hall LW DAY-TO-DAY, Alexander Nikishin D OUT, Jordan Staal C OUT -> scoring -2.5%) favors CAR. MC 23% / xGF 50% / hv -5.9pp / ST +4.9pp / SQ -0.8pp \u00b7 ML market blend (alpha 0.75): model 30.6% \u00b7 no-vig market 36.1% \u2192 34.7%; Puck line market blend (alpha 0.70): model 59.9% \u00b7 no-vig market 42.5% \u2192 47.7%; O/U market blend (alpha 0.65): model 53.5% \u00b7 no-vig market 46.8% \u2192 49.1%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.6941,
+    "marketProb": 0.6386,
+    "blendAlpha": 0.75,
+    "startMs": 1793754000000,
+    "leadMin": 722,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_NSH_CAR_NHL_UNDER7.5",
+    "date": "2026-11-03",
+    "hA": "NSH",
+    "awA": "CAR",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 7.5",
+    "winProb": 0.7274,
+    "ml": "-339",
+    "decOdds": 1.295,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710666849,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (72.7% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.9%; the 1-goal cushion is priced from the historical margin curve for this market (about 73% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 6.5,
+      "line": 7.5,
+      "shift": 1,
+      "postedLabel": "UNDER 6.5",
+      "postedProb": 0.5088940062817895,
+      "postedDec": 1.8,
+      "postedMl": "-125",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793754000000,
+    "leadMin": 722,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_NYR_STL_NHL_OVER4.5",
+    "date": "2026-11-03",
+    "hA": "NYR",
+    "awA": "STL",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "OVER 4.5",
+    "winProb": 0.7436,
+    "ml": "-373",
+    "decOdds": 1.268,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710662764,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 4.5 \u2014 ADJUSTED LINE (74.4% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 5.5 to OVER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 54.2%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 5.5,
+      "line": 4.5,
+      "shift": 1,
+      "postedLabel": "OVER 5.5",
+      "postedProb": 0.542116863754217,
+      "postedDec": 1.74,
+      "postedMl": "-135",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_NYR_STL_NHL_STL+1.5",
+    "date": "2026-11-03",
+    "hA": "NYR",
+    "awA": "STL",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "STL +1.5",
+    "winProb": 0.6803597284659264,
+    "ml": "-256",
+    "decOdds": 1.39,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710662479,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: STL +1.5 \u2014 HIGH PROB (68.0% win prob, EV -5.4% \u00b7 MARKET PRICE -256 (EV at market -5.4%) \u00b7 MARKET-BLENDED: model 67.3% \u00b7 no-vig market 68.3% \u2192 68.0% (alpha 0.70))\nMODEL: Projected 2.8\u20133.0 (total 6.0) (OT/SO in 17% of outcomes) \u2014 underdog covers +1.5 in 67.3% of outcomes (incl. late-game empty-net margin calibration), from an exact Poisson distribution (not a simulation).\nWHY: Best market: STL +1.5 graded HIGH PROB (68.0%, EV -5.4%). Dog covers +1.5 in 68.0% of sims (proj 3.0\u20132.8). GSAx: -0.5 vs +2.9 (injury adj: NYR: Sean Durzi D DAY-TO-DAY -> scoring -0.4% | STL: Colton Parayko D DAY-TO-DAY -> scoring -0.1%) keeps this within a goal. MC 53% / xGF 50% / hv +1.0pp / ST +2.1pp / SQ +0.1pp \u00b7 ML market blend (alpha 0.75): model 69.6% \u00b7 no-vig market 52.2% \u2192 56.8%; Puck line market blend (alpha 0.70): model 32.7% \u00b7 no-vig market 31.7% \u2192 32.0%; O/U market blend (alpha 0.65): model 53.3% \u00b7 no-vig market 54.7% \u2192 54.2%. Half-unit play \u00b7 Also: NYR ML (LEAN).",
+    "priceSource": "market",
+    "modelProb": 0.6733,
+    "marketProb": 0.6834,
+    "blendAlpha": 0.7,
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_PHI_MIN_NHL_MINML",
+    "date": "2026-11-03",
+    "hA": "PHI",
+    "awA": "MIN",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "ML",
+    "betOn": "MIN ML",
+    "winProb": 0.6525784761419887,
+    "ml": "-175",
+    "decOdds": 1.57,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710663182,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: MIN ML \u2014 HIGH PROB (65.3% win prob, EV +2.5% \u00b7 MARKET PRICE -175 (EV at market +2.5%) \u00b7 MARKET-BLENDED: model 76.6% \u00b7 no-vig market 61.0% \u2192 65.3% (alpha 0.75))\nMODEL: Projected 3.5\u20131.7 (total 5.3) (OT/SO in 13% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Best market: MIN ML graded HIGH PROB (65.3%, EV +2.5%). GSAx: +11.0 vs +3.4 (injury adj: PHI: Rasmus Ristolainen D OUT -> scoring -0.7% | MIN: Jared Spurgeon D OUT, Brock Faber D OUT -> scoring -2.5%) favors MIN. MC 21% / xGF 50% / hv -10.9pp / ST -6.1pp / SQ -1.8pp \u00b7 ML market blend (alpha 0.75): model 23.4% \u00b7 no-vig market 39.1% \u2192 34.7%; Puck line market blend (alpha 0.70): model 59.9% \u00b7 no-vig market 39.7% \u2192 45.7%; O/U market blend (alpha 0.65): model 41.5% \u00b7 no-vig market 54.7% \u2192 50.1%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.7661,
+    "marketProb": 0.6095,
+    "blendAlpha": 0.75,
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_PHI_MIN_NHL_OVER4.5",
+    "date": "2026-11-03",
+    "hA": "PHI",
+    "awA": "MIN",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "OVER 4.5",
+    "winProb": 0.7228,
+    "ml": "-331",
+    "decOdds": 1.302,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710663399,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 4.5 \u2014 ADJUSTED LINE (72.3% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 5.5 to OVER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.1%; the 1-goal cushion is priced from the historical margin curve for this market (about 72% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 5.5,
+      "line": 4.5,
+      "shift": 1,
+      "postedLabel": "OVER 5.5",
+      "postedProb": 0.5005465974397593,
+      "postedDec": 1.74,
+      "postedMl": "-135",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_PIT_VGK_NHL_UNDER7.5",
+    "date": "2026-11-03",
+    "hA": "PIT",
+    "awA": "VGK",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 7.5",
+    "winProb": 0.6975,
+    "ml": "-288",
+    "decOdds": 1.347,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710664341,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (69.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 44.9%; the 1-goal cushion is priced from the historical margin curve for this market (about 70% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 6.5,
+      "line": 7.5,
+      "shift": 1,
+      "postedLabel": "UNDER 6.5",
+      "postedProb": 0.4490970694654979,
+      "postedDec": 2,
+      "postedMl": "+100",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_PIT_VGK_NHL_VGK+1.5",
+    "date": "2026-11-03",
+    "hA": "PIT",
+    "awA": "VGK",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "VGK +1.5",
+    "winProb": 0.701583535048692,
+    "ml": "-286",
+    "decOdds": 1.35,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710663987,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: VGK +1.5 \u2014 HIGH PROB (70.2% win prob, EV -5.3% \u00b7 MARKET PRICE -286 (EV at market -5.3%) \u00b7 MARKET-BLENDED: model 69.8% \u00b7 no-vig market 70.3% \u2192 70.2% (alpha 0.70))\nMODEL: Projected 3.7\u20133.5 (total 7.3) (OT/SO in 15% of outcomes) \u2014 underdog covers +1.5 in 69.8% of outcomes (incl. late-game empty-net margin calibration), from an exact Poisson distribution (not a simulation).\nWHY: Best market: VGK +1.5 graded HIGH PROB (70.2%, EV -5.3%). Dog covers +1.5 in 70.2% of sims (proj 3.5\u20133.7). GSAx: +2.5 vs -0.4 (injury adj: PIT: Evgeni Malkin C DAY-TO-DAY, Kaedan Korczak D DAY-TO-DAY, Bryan Rust RW OUT -> scoring -5.3% | VGK: Parker Wotherspoon D OUT -> scoring -0.6%) keeps this within a goal. MC 48% / xGF 50% / hv -0.7pp / ST +3.7pp / SQ +0.3pp \u00b7 ML market blend (alpha 0.75): model 60.8% \u00b7 no-vig market 48.8% \u2192 51.8%; Puck line market blend (alpha 0.70): model 30.2% \u00b7 no-vig market 29.7% \u2192 29.8%; O/U market blend (alpha 0.65): model 60.3% \u00b7 no-vig market 52.2% \u2192 55.1%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.6976,
+    "marketProb": 0.7033,
+    "blendAlpha": 0.7,
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
   },
   {
     "hA": "Shakhtar Donetsk",
@@ -123540,6 +123923,154 @@
     "priceSource": "estimated"
   },
   {
+    "id": "2026-11-03_TBL_DET_NHL_TBLML",
+    "date": "2026-11-03",
+    "hA": "TBL",
+    "awA": "DET",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "ML",
+    "betOn": "TBL ML",
+    "winProb": 0.7308103669713083,
+    "ml": "-263",
+    "decOdds": 1.38,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710661854,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: TBL ML \u2014 HIGH PROB (73.1% win prob, EV +0.9% \u00b7 MARKET PRICE -263 (EV at market +0.9%) \u00b7 MARKET-BLENDED: model 82.7% \u00b7 no-vig market 69.2% \u2192 73.1% (alpha 0.75))\nMODEL: Projected 2.8\u20134.2 (total 7.1) (OT/SO in 13% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Best market: TBL ML graded HIGH PROB (73.1%, EV +0.9%). GSAx: -2.8 vs -5.7 (injury adj: DET: Dylan Larkin C OUT, Simon Edvinsson D OUT -> scoring -4.3%) favors TBL. MC 70% / xGF 50% / hv +3.1pp / ST +0.2pp / SQ +0.6pp \u00b7 ML market blend (alpha 0.75): model 82.7% \u00b7 no-vig market 69.2% \u2192 73.1%; Puck line market blend (alpha 0.70): model 52.9% \u00b7 no-vig market 48.8% \u2192 50.1%; O/U market blend (alpha 0.65): model 57.3% \u00b7 no-vig market 45.3% \u2192 49.5%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.8274,
+    "marketProb": 0.692,
+    "blendAlpha": 0.75,
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_TBL_DET_NHL_UNDER7.5",
+    "date": "2026-11-03",
+    "hA": "TBL",
+    "awA": "DET",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "UNDER 7.5",
+    "winProb": 0.7254,
+    "ml": "-336",
+    "decOdds": 1.298,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710662068,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (72.5% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.5%; the 1-goal cushion is priced from the historical margin curve for this market (about 73% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "priceSource": "estimated",
+    "altLine": {
+      "posted": 6.5,
+      "line": 7.5,
+      "shift": 1,
+      "postedLabel": "UNDER 6.5",
+      "postedProb": 0.5048030649865365,
+      "postedDec": 1.74,
+      "postedMl": "-135",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_TOR_UTA_NHL_OVER6.5",
+    "date": "2026-11-03",
+    "hA": "TOR",
+    "awA": "UTA",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "OVER 6.5",
+    "winProb": 0.6033148356722448,
+    "ml": "-135",
+    "decOdds": 1.74,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710660456,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 6.5 \u2014 HIGH PROB (60.3% win prob, EV +5.0% \u00b7 MARKET PRICE -135 (EV at market +5.0%) \u00b7 MARKET-BLENDED: model 70.0% \u00b7 no-vig market 54.7% \u2192 60.3% (alpha 0.65))\nMODEL: Projected 3.9\u20134.0 (total 8.0) (OT/SO in 14% of outcomes) \u2014 OVER hits 70.0% of outcomes vs the 6.5 line, from an exact Poisson distribution (not a simulation).\nWHY: Best market: OVER 6.5 graded HIGH PROB (60.3%, EV +5.0%). MC projects 7.9 goals vs the 6.5 line (70% over in sims). MC 52% / xGF 50% / hv -4.0pp / ST +5.4pp / SQ -3.9pp \u00b7 ML market blend (alpha 0.75): model 58.9% \u00b7 no-vig market 45.6% \u2192 48.9%; Puck line market blend (alpha 0.70): model 31.2% \u00b7 no-vig market 34.5% \u2192 33.5%; O/U market blend (alpha 0.65): model 70.0% \u00b7 no-vig market 54.7% \u2192 60.3%. Half-unit play \u00b7 Also: TOR +1.5 (HIGH PROB).",
+    "priceSource": "market",
+    "modelProb": 0.7003,
+    "marketProb": 0.5469,
+    "blendAlpha": 0.65,
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_TOR_UTA_NHL_TOR+1.5",
+    "date": "2026-11-03",
+    "hA": "TOR",
+    "awA": "UTA",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "TOR +1.5",
+    "winProb": 0.6648427865255693,
+    "ml": "-222",
+    "decOdds": 1.45,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710660666,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: TOR +1.5 \u2014 HIGH PROB (66.5% win prob, EV -3.6% \u00b7 MARKET PRICE -222 (EV at market -3.6%) \u00b7 MARKET-BLENDED: model 68.8% \u00b7 no-vig market 65.5% \u2192 66.5% (alpha 0.70))\nMODEL: Projected 3.9\u20134.0 (total 8.0) (OT/SO in 14% of outcomes) \u2014 underdog covers +1.5 in 64.8% of outcomes (incl. late-game empty-net margin calibration), from an exact Poisson distribution (not a simulation).",
+    "priceSource": "market",
+    "modelProb": 0.6878,
+    "marketProb": 0.6548,
+    "blendAlpha": 0.7,
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
+  },
+  {
+    "id": "2026-11-03_VAN_ANA_NHL_OVER6.5",
+    "date": "2026-11-03",
+    "hA": "VAN",
+    "awA": "ANA",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "OU",
+    "betOn": "OVER 6.5",
+    "winProb": 0.5719329842538088,
+    "ml": "-135",
+    "decOdds": 1.74,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1793710667357,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: OVER 6.5 \u2014 HIGH PROB (57.2% win prob, EV -0.5% \u00b7 MARKET PRICE -135 (EV at market -0.5%) \u00b7 MARKET-BLENDED: model 61.7% \u00b7 no-vig market 54.7% \u2192 57.2% (alpha 0.65))\nMODEL: Projected 4.1\u20133.2 (total 7.4) (OT/SO in 14% of outcomes) \u2014 OVER hits 61.7% of outcomes vs the 6.5 line, from an exact Poisson distribution (not a simulation).\nWHY: Best market: OVER 6.5 graded HIGH PROB (57.2%, EV -0.5%). MC projects 7.3 goals vs the 6.5 line (62% over in sims). MC 37% / xGF 50% / hv -1.4pp / ST -4.7pp / SQ -0.6pp \u00b7 ML market blend (alpha 0.75): model 48.9% \u00b7 no-vig market 41.6% \u2192 43.4%; Puck line market blend (alpha 0.70): model 45.2% \u00b7 no-vig market 37.3% \u2192 39.7%; O/U market blend (alpha 0.65): model 61.7% \u00b7 no-vig market 54.7% \u2192 57.2%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.6174,
+    "marketProb": 0.5469,
+    "blendAlpha": 0.65,
+    "startMs": 1793757600000,
+    "leadMin": 782,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "Villarreal",
     "id": "2026-11-03_Villarreal_Paris Saint-Germain_CL_OVER3.5",
     "ml": "-110",
@@ -123718,1396 +124249,1460 @@
     "priceSource": "estimated"
   },
   {
-    "id": "2026-11-04_AEK Athens_Real Madrid_CL_AEKAthens+2.5",
-    "date": "2026-11-04",
-    "hA": "AEK Athens",
-    "awA": "Real Madrid",
-    "sport": "CL",
-    "league": "CL",
+    "id": "2026-11-03_WSH_DAL_NHL_DAL+1.5",
+    "date": "2026-11-03",
+    "hA": "WSH",
+    "awA": "DAL",
+    "sport": "NHL",
+    "league": "NHL",
     "betType": "SPREAD",
-    "betOn": "AEK Athens +2.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
+    "betOn": "DAL +1.5",
+    "winProb": 0.7079673711503494,
+    "ml": "-286",
+    "decOdds": 1.35,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793694725390,
+    "lockedAt": 1793710664627,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "form": {
-        "home": 0.9999833333333333,
-        "away": 0.9762515151515152
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: AEK Athens +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted AEK Athens +1.5 to AEK Athens +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
-    "priceSource": "estimated",
-    "altLine": {
-      "posted": 1.5,
-      "line": 2.5,
-      "shift": 1,
-      "postedLabel": "AEK Athens +1.5",
-      "postedProb": 0.5239982706041765,
-      "postedDec": null,
-      "postedMl": null,
-      "bestOfGame": true,
-      "product": true
-    },
-    "startMs": 1793814300000,
-    "leadMin": 1993,
+    "reasoning": "PICK: DAL +1.5 \u2014 HIGH PROB (70.8% win prob, EV -4.4% \u00b7 MARKET PRICE -286 (EV at market -4.4%) \u00b7 MARKET-BLENDED: model 71.9% \u00b7 no-vig market 70.3% \u2192 70.8% (alpha 0.70))\nMODEL: Projected 2.7\u20132.7 (total 5.4) (OT/SO in 18% of outcomes) \u2014 underdog covers +1.5 in 71.9% of outcomes (incl. late-game empty-net margin calibration), from an exact Poisson distribution (not a simulation).\nWHY: Best market: DAL +1.5 graded HIGH PROB (70.8%, EV -4.4%). Dog covers +1.5 in 70.8% of sims (proj 2.7\u20132.7). GSAx: +3.5 vs +9.8 (injury adj: WSH: Rasmus Sandin D OUT -> scoring -1.3% | DAL: Matt Duchene C OUT -> scoring -3.3%) keeps this within a goal. MC 49% / xGF 50% / hv +0.0pp / ST -8.2pp / SQ +0.1pp \u00b7 ML market blend (alpha 0.75): model 62.3% \u00b7 no-vig market 50.0% \u2192 53.1%; Puck line market blend (alpha 0.70): model 28.1% \u00b7 no-vig market 29.7% \u2192 29.2%; O/U market blend (alpha 0.65): model 44.4% \u00b7 no-vig market 53.2% \u2192 50.1%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.7187,
+    "marketProb": 0.7033,
+    "blendAlpha": 0.7,
+    "startMs": 1793750400000,
+    "leadMin": 662,
     "lockTiming": "pre"
   },
   {
-    "id": "2026-11-04_AEK Athens_Real Madrid_CL_OVER2.5",
-    "date": "2026-11-04",
-    "hA": "AEK Athens",
-    "awA": "Real Madrid",
-    "sport": "CL",
-    "league": "CL",
+    "id": "2026-11-03_WSH_DAL_NHL_OVER4.5",
+    "date": "2026-11-03",
+    "hA": "WSH",
+    "awA": "DAL",
+    "sport": "NHL",
+    "league": "NHL",
     "betType": "OU",
-    "betOn": "OVER 2.5",
-    "winProb": 0.736,
-    "ml": "-357",
-    "decOdds": 1.28,
+    "betOn": "OVER 4.5",
+    "winProb": 0.7232,
+    "ml": "-331",
+    "decOdds": 1.302,
     "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793694725540,
+    "lockedAt": 1793710665066,
     "hScore": null,
     "aScore": null,
     "source": "manual",
     "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "form": {
-        "home": 0.9999833333333333,
-        "away": 0.9762515151515152
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: OVER 2.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 3.5 to OVER 2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 56.8%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "reasoning": "PICK: OVER 4.5 \u2014 ADJUSTED LINE (72.3% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 5.5 to OVER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.1%; the 1-goal cushion is priced from the historical margin curve for this market (about 72% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "priceSource": "estimated",
     "altLine": {
-      "posted": 3.5,
+      "posted": 5.5,
+      "line": 4.5,
+      "shift": 1,
+      "postedLabel": "OVER 5.5",
+      "postedProb": 0.5014044409457175,
+      "postedDec": 1.8,
+      "postedMl": "-125",
+      "bestOfGame": true,
+      "product": true
+    },
+    "startMs": 1793750400000,
+    "leadMin": 662,
+    "lockTiming": "pre"
+  },
+  {
+    "hA": "AEK Athens",
+    "id": "2026-11-04_AEK Athens_Real Madrid_CL_AEKAthens+2.5",
+    "ml": "-408",
+    "awA": "Real Madrid",
+    "date": "2026-11-04",
+    "betOn": "AEK Athens +2.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "altLine": {
       "line": 2.5,
       "shift": 1,
-      "postedLabel": "OVER 3.5",
-      "postedProb": 0.568004496164016,
+      "posted": 1.5,
+      "product": true,
+      "postedMl": null,
       "postedDec": null,
+      "bestOfGame": true,
+      "postedProb": 0.5239982706041765,
+      "postedLabel": "AEK Athens +1.5"
+    },
+    "betType": "SPREAD",
+    "decOdds": 1.245,
+    "leadMin": 1993,
+    "outcome": "pending",
+    "startMs": 1793814300000,
+    "winProb": 0.758,
+    "lockedAt": 1793694725390,
+    "reasoning": "PICK: AEK Athens +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted AEK Athens +1.5 to AEK Athens +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.9762515151515152,
+        "home": 0.9999833333333333
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 0.94
+      }
+    },
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "AEK Athens",
+    "id": "2026-11-04_AEK Athens_Real Madrid_CL_OVER2.5",
+    "ml": "-357",
+    "awA": "Real Madrid",
+    "date": "2026-11-04",
+    "betOn": "OVER 2.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "altLine": {
+      "line": 2.5,
+      "shift": 1,
+      "posted": 3.5,
+      "product": true,
       "postedMl": null,
       "bestTotal": true,
-      "product": true
+      "postedDec": null,
+      "postedProb": 0.568004496164016,
+      "postedLabel": "OVER 3.5"
     },
-    "startMs": 1793814300000,
+    "betType": "OU",
+    "decOdds": 1.28,
     "leadMin": 1993,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_Borussia Dortmund_Real Betis_CL_BorussiaDortmund+0.5",
-    "date": "2026-11-04",
-    "hA": "Borussia Dortmund",
-    "awA": "Real Betis",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "SPREAD",
-    "betOn": "Borussia Dortmund +0.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793694726780,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793814300000,
+    "winProb": 0.736,
+    "lockedAt": 1793694725540,
+    "reasoning": "PICK: OVER 2.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 3.5 to OVER 2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 56.8%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.0158234514822713,
-        "away": 1.0354412013684566
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 0.9652416666666667,
-        "away": 0.9960277777777777
+        "away": 0.9762515151515152,
+        "home": 0.9999833333333333
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 1.06,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: Borussia Dortmund +0.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Borussia Dortmund -0.5 to Borussia Dortmund +0.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.0%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Borussia Dortmund",
+    "id": "2026-11-04_Borussia Dortmund_Real Betis_CL_BorussiaDortmund+0.5",
+    "ml": "-408",
+    "awA": "Real Betis",
+    "date": "2026-11-04",
+    "betOn": "Borussia Dortmund +0.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
     "altLine": {
-      "posted": -0.5,
       "line": 0.5,
       "shift": 1,
-      "postedLabel": "Borussia Dortmund -0.5",
-      "postedProb": 0.5000965892667557,
-      "postedDec": null,
+      "posted": -0.5,
+      "product": true,
       "postedMl": null,
+      "postedDec": null,
       "bestOfGame": true,
-      "product": true
+      "postedProb": 0.5000965892667557,
+      "postedLabel": "Borussia Dortmund -0.5"
     },
-    "startMs": 1793822400000,
+    "betType": "SPREAD",
+    "decOdds": 1.245,
     "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_Borussia Dortmund_Real Betis_CL_BorussiaDortmundWin",
-    "date": "2026-11-04",
-    "hA": "Borussia Dortmund",
-    "awA": "Real Betis",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "ML",
-    "betOn": "Borussia Dortmund Win",
-    "winProb": 0.6252607623298139,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793694726620,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793822400000,
+    "winProb": 0.758,
+    "lockedAt": 1793694726780,
+    "reasoning": "PICK: Borussia Dortmund +0.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Borussia Dortmund -0.5 to Borussia Dortmund +0.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.0%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.0158234514822713,
-        "away": 1.0354412013684566
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 0.9652416666666667,
-        "away": 0.9960277777777777
+        "away": 0.9960277777777777,
+        "home": 0.9652416666666667
+      },
+      "fbref": {
+        "away": 1.0354412013684566,
+        "home": 1.0158234514822713
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 1.06,
+        "home": 1.06
       }
     },
-    "reasoning": "PICK: Borussia Dortmund Win \u2014 OPTIMAL (62.5% win prob, EV +7.2%)\nMODEL: Projected 1.49\u20132.04 goals (xG 1.49/2.04), BTTS 68%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Borussia Dortmund 2.04 xG/G vs Real Betis 1.49 xG/G. 3-way: Home 63% / Draw 29% / Away 35%. MC proj: 2.04 \u2013 1.49 (3.53 total vs 3.5 line, BTTS 68%). Goal spread: Borussia Dortmund -0.5 covers 50%, Real Betis +0.5 covers 50% (proj margin Borussia Dortmund -0.55). Borussia Dortmund xG edge unpriced by market. Kelly 10.1%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: UNDER 3.5 (LEAN), Borussia Dortmund -0.5 (LEAN). Factors moving this pick: Standings +6%, Form -3%.",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Borussia Dortmund",
+    "id": "2026-11-04_Borussia Dortmund_Real Betis_CL_BorussiaDortmundWin",
+    "ml": "-110",
+    "awA": "Real Betis",
+    "date": "2026-11-04",
+    "betOn": "Borussia Dortmund Win",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
     "mktRef": {
       "p": 0.5562,
       "dec": 1.714
     },
-    "startMs": 1793822400000,
-    "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_Borussia Dortmund_Real Betis_CL_UNDER4.5",
-    "date": "2026-11-04",
-    "hA": "Borussia Dortmund",
-    "awA": "Real Betis",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
-    "betOn": "UNDER 4.5",
-    "winProb": 0.736,
-    "ml": "-357",
-    "decOdds": 1.28,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1793694727062,
-    "hScore": null,
-    "aScore": null,
     "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.91,
+    "leadMin": 2128,
+    "outcome": "pending",
+    "startMs": 1793822400000,
+    "winProb": 0.6252607623298139,
+    "lockedAt": 1793694726620,
+    "reasoning": "PICK: Borussia Dortmund Win \u2014 OPTIMAL (62.5% win prob, EV +7.2%)\nMODEL: Projected 1.49\u20132.04 goals (xG 1.49/2.04), BTTS 68%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Borussia Dortmund 2.04 xG/G vs Real Betis 1.49 xG/G. 3-way: Home 63% / Draw 29% / Away 35%. MC proj: 2.04 \u2013 1.49 (3.53 total vs 3.5 line, BTTS 68%). Goal spread: Borussia Dortmund -0.5 covers 50%, Real Betis +0.5 covers 50% (proj margin Borussia Dortmund -0.55). Borussia Dortmund xG edge unpriced by market. Kelly 10.1%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: UNDER 3.5 (LEAN), Borussia Dortmund -0.5 (LEAN). Factors moving this pick: Standings +6%, Form -3%.",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.0158234514822713,
-        "away": 1.0354412013684566
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 0.9652416666666667,
-        "away": 0.9960277777777777
+        "away": 0.9960277777777777,
+        "home": 0.9652416666666667
+      },
+      "fbref": {
+        "away": 1.0354412013684566,
+        "home": 1.0158234514822713
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 1.06,
+        "home": 1.06
       }
-    },
-    "reasoning": "PICK: UNDER 4.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 3.5 to UNDER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.1%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
-    "priceSource": "estimated",
+    }
+  },
+  {
+    "hA": "Borussia Dortmund",
+    "id": "2026-11-04_Borussia Dortmund_Real Betis_CL_UNDER4.5",
+    "ml": "-357",
+    "awA": "Real Betis",
+    "date": "2026-11-04",
+    "betOn": "UNDER 4.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
     "altLine": {
-      "posted": 3.5,
       "line": 4.5,
       "shift": 1,
-      "postedLabel": "UNDER 3.5",
-      "postedProb": 0.5306426456670864,
-      "postedDec": null,
+      "posted": 3.5,
+      "product": true,
       "postedMl": null,
       "bestTotal": true,
-      "product": true
+      "postedDec": null,
+      "postedProb": 0.5306426456670864,
+      "postedLabel": "UNDER 3.5"
     },
-    "startMs": 1793822400000,
+    "betType": "OU",
+    "decOdds": 1.28,
     "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_FC Porto_Napoli_CL_FCPorto+1.5",
-    "date": "2026-11-04",
-    "hA": "FC Porto",
-    "awA": "Napoli",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "SPREAD",
-    "betOn": "FC Porto +1.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793694727199,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793822400000,
+    "winProb": 0.736,
+    "lockedAt": 1793694727062,
+    "reasoning": "PICK: UNDER 4.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 3.5 to UNDER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.1%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 0.9651402681072259
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1.0000166666666668,
-        "away": 1.0036041666666666
+        "away": 0.9960277777777777,
+        "home": 0.9652416666666667
+      },
+      "fbref": {
+        "away": 1.0354412013684566,
+        "home": 1.0158234514822713
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 1.06,
+        "home": 1.06
       }
     },
-    "reasoning": "PICK: FC Porto +1.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted FC Porto +0.5 to FC Porto +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 57.5%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "FC Porto",
+    "id": "2026-11-04_FC Porto_Napoli_CL_FCPorto+1.5",
+    "ml": "-408",
+    "awA": "Napoli",
+    "date": "2026-11-04",
+    "betOn": "FC Porto +1.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
     "altLine": {
-      "posted": 0.5,
       "line": 1.5,
       "shift": 1,
-      "postedLabel": "FC Porto +0.5",
-      "postedProb": 0.5748513877094106,
-      "postedDec": null,
+      "posted": 0.5,
+      "product": true,
       "postedMl": null,
+      "postedDec": null,
       "bestOfGame": true,
-      "product": true
+      "postedProb": 0.5748513877094106,
+      "postedLabel": "FC Porto +0.5"
     },
-    "startMs": 1793822400000,
+    "betType": "SPREAD",
+    "decOdds": 1.245,
     "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_FC Porto_Napoli_CL_UNDER3.5",
-    "date": "2026-11-04",
-    "hA": "FC Porto",
-    "awA": "Napoli",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
-    "betOn": "UNDER 3.5",
-    "winProb": 0.736,
-    "ml": "-357",
-    "decOdds": 1.28,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793694727518,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793822400000,
+    "winProb": 0.758,
+    "lockedAt": 1793694727199,
+    "reasoning": "PICK: FC Porto +1.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted FC Porto +0.5 to FC Porto +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 57.5%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 0.9651402681072259
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1.0000166666666668,
-        "away": 1.0036041666666666
+        "away": 1.0036041666666666,
+        "home": 1.0000166666666668
+      },
+      "fbref": {
+        "away": 0.9651402681072259,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 0.94,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: UNDER 3.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 2.5 to UNDER 3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "FC Porto",
+    "id": "2026-11-04_FC Porto_Napoli_CL_UNDER3.5",
+    "ml": "-357",
+    "awA": "Napoli",
+    "date": "2026-11-04",
+    "betOn": "UNDER 3.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
     "altLine": {
-      "posted": 2.5,
       "line": 3.5,
       "shift": 1,
-      "postedLabel": "UNDER 2.5",
-      "postedProb": 0.5335220129532594,
-      "postedDec": null,
+      "posted": 2.5,
+      "product": true,
       "postedMl": null,
       "bestTotal": true,
-      "product": true
+      "postedDec": null,
+      "postedProb": 0.5335220129532594,
+      "postedLabel": "UNDER 2.5"
     },
-    "startMs": 1793822400000,
+    "betType": "OU",
+    "decOdds": 1.28,
     "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_Fenerbahce_Liverpool_CL_Fenerbahce+4.5",
-    "date": "2026-11-04",
-    "hA": "Fenerbahce",
-    "awA": "Liverpool",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "SPREAD",
-    "betOn": "Fenerbahce +4.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793694726299,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793822400000,
+    "winProb": 0.736,
+    "lockedAt": 1793694727518,
+    "reasoning": "PICK: UNDER 3.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 2.5 to UNDER 3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.06,
-        "away": 1.06
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1.06,
-        "away": 0.9646375
+        "away": 1.0036041666666666,
+        "home": 1.0000166666666668
+      },
+      "fbref": {
+        "away": 0.9651402681072259,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 0.94,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: Fenerbahce +4.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Fenerbahce +3.5 to Fenerbahce +4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.5%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Fenerbahce",
+    "id": "2026-11-04_Fenerbahce_Liverpool_CL_Fenerbahce+4.5",
+    "ml": "-408",
+    "awA": "Liverpool",
+    "date": "2026-11-04",
+    "betOn": "Fenerbahce +4.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
     "altLine": {
-      "posted": 3.5,
       "line": 4.5,
       "shift": 1,
-      "postedLabel": "Fenerbahce +3.5",
-      "postedProb": 0.5248607860471005,
-      "postedDec": null,
+      "posted": 3.5,
+      "product": true,
       "postedMl": null,
+      "postedDec": null,
       "bestOfGame": true,
-      "product": true
+      "postedProb": 0.5248607860471005,
+      "postedLabel": "Fenerbahce +3.5"
     },
-    "startMs": 1793814300000,
+    "betType": "SPREAD",
+    "decOdds": 1.245,
     "leadMin": 1993,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_Fenerbahce_Liverpool_CL_LiverpoolWin",
-    "date": "2026-11-04",
-    "hA": "Fenerbahce",
-    "awA": "Liverpool",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "ML",
-    "betOn": "Liverpool Win",
-    "winProb": 0.8063401314552299,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793694726001,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793814300000,
+    "winProb": 0.758,
+    "lockedAt": 1793694726299,
+    "reasoning": "PICK: Fenerbahce +4.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Fenerbahce +3.5 to Fenerbahce +4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.5%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.06,
-        "away": 1.06
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1.06,
-        "away": 0.9646375
+        "away": 0.9646375,
+        "home": 1.06
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 1.06
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 1.06,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: Liverpool Win \u2014 PREMIUM (80.6% win prob, EV +23.1%)\nMODEL: Projected 6.11\u20132.72 goals (xG 6.11/2.72), BTTS 93%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Fenerbahce 2.72 xG/G vs Liverpool 6.11 xG/G. 3-way: Home 14% / Draw 13% / Away 81%. MC proj: 2.72 \u2013 6.11 (8.83 total vs 3.5 line, BTTS 93%). Goal spread: Liverpool -3.5 covers 48%, Fenerbahce +3.5 covers 52% (proj margin Liverpool -3.38). Liverpool road xG edge underpriced. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: OVER 3.5 (PREMIUM), Fenerbahce +3.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%, Form -4%.",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Fenerbahce",
+    "id": "2026-11-04_Fenerbahce_Liverpool_CL_LiverpoolWin",
+    "ml": "-110",
+    "awA": "Liverpool",
+    "date": "2026-11-04",
+    "betOn": "Liverpool Win",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
     "mktRef": {
       "p": 0.6268,
       "dec": 1.526
     },
-    "startMs": 1793814300000,
-    "leadMin": 1993,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_Fenerbahce_Liverpool_CL_OVER3.5",
-    "date": "2026-11-04",
-    "hA": "Fenerbahce",
-    "awA": "Liverpool",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
-    "betOn": "OVER 3.5",
-    "winProb": 0.68,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1793694725856,
-    "hScore": null,
-    "aScore": null,
     "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "form": {
-        "home": 1.06,
-        "away": 0.9646375
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: OVER 3.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 6.11\u20132.72 goals (xG 6.11/2.72), BTTS 93% \u2014 OVER 3.5 hits 97.6% of outcomes, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).",
-    "startMs": 1793814300000,
-    "leadMin": 1993,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_Lens_Como_CL_ComoWin",
-    "date": "2026-11-04",
-    "hA": "Lens",
-    "awA": "Como",
-    "sport": "CL",
-    "league": "CL",
     "betType": "ML",
-    "betOn": "Como Win",
-    "winProb": 0.8158375598657863,
-    "ml": "-110",
     "decOdds": 1.91,
-    "wager": 0,
+    "leadMin": 1993,
     "outcome": "pending",
-    "lockedAt": 1793694727656,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793814300000,
+    "winProb": 0.8063401314552299,
+    "lockedAt": 1793694726001,
+    "reasoning": "PICK: Liverpool Win \u2014 PREMIUM (80.6% win prob, EV +23.1%)\nMODEL: Projected 6.11\u20132.72 goals (xG 6.11/2.72), BTTS 93%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Fenerbahce 2.72 xG/G vs Liverpool 6.11 xG/G. 3-way: Home 14% / Draw 13% / Away 81%. MC proj: 2.72 \u2013 6.11 (8.83 total vs 3.5 line, BTTS 93%). Goal spread: Liverpool -3.5 covers 48%, Fenerbahce +3.5 covers 52% (proj margin Liverpool -3.38). Liverpool road xG edge underpriced. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: OVER 3.5 (PREMIUM), Fenerbahce +3.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%, Form -4%.",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.06
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1.0000166666666666,
-        "away": 1.0079914583333334
+        "away": 0.9646375,
+        "home": 1.06
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 1.06
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 1.06,
+        "home": 0.94
       }
-    },
-    "reasoning": "PICK: Como Win \u2014 PREMIUM (81.6% win prob, EV +75.4%)\nMODEL: Projected 2.51\u20131.06 goals (xG 2.51/1.06), BTTS 61%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Lens 1.06 xG/G vs Como 2.51 xG/G. 3-way: Home 22% / Draw 25% / Away 82%. MC proj: 1.06 \u2013 2.51 (3.58 total vs 3.5 line, BTTS 61%). Goal spread: Como -1.5 covers 47%, Lens +1.5 covers 53% (proj margin Como -1.45). Como road xG edge underpriced. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Lens +1.5 (LEAN), UNDER 3.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
+    }
+  },
+  {
+    "hA": "Fenerbahce",
+    "id": "2026-11-04_Fenerbahce_Liverpool_CL_OVER3.5",
+    "ml": "-110",
+    "awA": "Liverpool",
+    "date": "2026-11-04",
+    "betOn": "OVER 3.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.91,
+    "leadMin": 1993,
+    "outcome": "pending",
+    "startMs": 1793814300000,
+    "winProb": 0.68,
+    "lockedAt": 1793694725856,
+    "reasoning": "PICK: OVER 3.5 \u2014 PREMIUM (68.0% win prob, EV +29.8% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 6.11\u20132.72 goals (xG 6.11/2.72), BTTS 93% \u2014 OVER 3.5 hits 97.6% of outcomes, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.9646375,
+        "home": 1.06
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 1.06
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 0.94
+      }
+    }
+  },
+  {
+    "hA": "Lens",
+    "id": "2026-11-04_Lens_Como_CL_ComoWin",
+    "ml": "-110",
+    "awA": "Como",
+    "date": "2026-11-04",
+    "betOn": "Como Win",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
     "mktRef": {
       "p": 0.4423,
       "dec": 2.15
     },
-    "startMs": 1793822400000,
-    "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_Lens_Como_CL_Lens+2.5",
-    "date": "2026-11-04",
-    "hA": "Lens",
-    "awA": "Como",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "SPREAD",
-    "betOn": "Lens +2.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1793694727962,
-    "hScore": null,
-    "aScore": null,
     "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.91,
+    "leadMin": 2128,
+    "outcome": "pending",
+    "startMs": 1793822400000,
+    "winProb": 0.8158375598657863,
+    "lockedAt": 1793694727656,
+    "reasoning": "PICK: Como Win \u2014 PREMIUM (81.6% win prob, EV +75.4%)\nMODEL: Projected 2.51\u20131.06 goals (xG 2.51/1.06), BTTS 61%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Lens 1.06 xG/G vs Como 2.51 xG/G. 3-way: Home 22% / Draw 25% / Away 82%. MC proj: 1.06 \u2013 2.51 (3.58 total vs 3.5 line, BTTS 61%). Goal spread: Como -1.5 covers 47%, Lens +1.5 covers 53% (proj margin Como -1.45). Como road xG edge underpriced. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Lens +1.5 (LEAN), UNDER 3.5 (LEAN). Factors moving this pick: Fbref +6%, Standings +6%.",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.06
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1.0000166666666666,
-        "away": 1.0079914583333334
+        "away": 1.0079914583333334,
+        "home": 1.0000166666666666
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 1.06,
+        "home": 0.94
       }
-    },
-    "reasoning": "PICK: Lens +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Lens +1.5 to Lens +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.8%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
-    "priceSource": "estimated",
+    }
+  },
+  {
+    "hA": "Lens",
+    "id": "2026-11-04_Lens_Como_CL_Lens+2.5",
+    "ml": "-408",
+    "awA": "Como",
+    "date": "2026-11-04",
+    "betOn": "Lens +2.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
     "altLine": {
-      "posted": 1.5,
       "line": 2.5,
       "shift": 1,
-      "postedLabel": "Lens +1.5",
-      "postedProb": 0.5283837395371869,
-      "postedDec": null,
+      "posted": 1.5,
+      "product": true,
       "postedMl": null,
+      "postedDec": null,
       "bestOfGame": true,
-      "product": true
+      "postedProb": 0.5283837395371869,
+      "postedLabel": "Lens +1.5"
     },
-    "startMs": 1793822400000,
+    "betType": "SPREAD",
+    "decOdds": 1.245,
     "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_Lens_Como_CL_UNDER4.5",
-    "date": "2026-11-04",
-    "hA": "Lens",
-    "awA": "Como",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
-    "betOn": "UNDER 4.5",
-    "winProb": 0.736,
-    "ml": "-357",
-    "decOdds": 1.28,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793694728093,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793822400000,
+    "winProb": 0.758,
+    "lockedAt": 1793694727962,
+    "reasoning": "PICK: Lens +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Lens +1.5 to Lens +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.8%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.06
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1.0000166666666666,
-        "away": 1.0079914583333334
+        "away": 1.0079914583333334,
+        "home": 1.0000166666666666
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 1.06,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: UNDER 4.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 3.5 to UNDER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.0%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Lens",
+    "id": "2026-11-04_Lens_Como_CL_UNDER4.5",
+    "ml": "-357",
+    "awA": "Como",
+    "date": "2026-11-04",
+    "betOn": "UNDER 4.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
     "altLine": {
-      "posted": 3.5,
       "line": 4.5,
       "shift": 1,
-      "postedLabel": "UNDER 3.5",
-      "postedProb": 0.5200603818740388,
-      "postedDec": null,
+      "posted": 3.5,
+      "product": true,
       "postedMl": null,
       "bestTotal": true,
-      "product": true
+      "postedDec": null,
+      "postedProb": 0.5200603818740388,
+      "postedLabel": "UNDER 3.5"
     },
-    "startMs": 1793822400000,
+    "betType": "OU",
+    "decOdds": 1.28,
     "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_PSV Eindhoven_Club Brugge_CL_ClubBrugge+0.5",
-    "date": "2026-11-04",
-    "hA": "PSV Eindhoven",
-    "awA": "Club Brugge",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "SPREAD",
-    "betOn": "Club Brugge +0.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793694728668,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793822400000,
+    "winProb": 0.736,
+    "lockedAt": 1793694728093,
+    "reasoning": "PICK: UNDER 4.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 3.5 to UNDER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.0%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 0.94
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 0.96,
-        "away": 0.95
+        "away": 1.0079914583333334,
+        "home": 1.0000166666666666
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 1.06,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: Club Brugge +0.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Club Brugge -0.5 to Club Brugge +0.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.5%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "PSV Eindhoven",
+    "id": "2026-11-04_PSV Eindhoven_Club Brugge_CL_ClubBrugge+0.5",
+    "ml": "-408",
+    "awA": "Club Brugge",
+    "date": "2026-11-04",
+    "betOn": "Club Brugge +0.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
     "altLine": {
-      "posted": -0.5,
       "line": 0.5,
       "shift": 1,
-      "postedLabel": "Club Brugge -0.5",
-      "postedProb": 0.5252224486724958,
-      "postedDec": null,
+      "posted": -0.5,
+      "product": true,
       "postedMl": null,
+      "postedDec": null,
       "bestOfGame": true,
-      "product": true
+      "postedProb": 0.5252224486724958,
+      "postedLabel": "Club Brugge -0.5"
     },
-    "startMs": 1793822400000,
+    "betType": "SPREAD",
+    "decOdds": 1.245,
     "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_PSV Eindhoven_Club Brugge_CL_ClubBruggeWin",
-    "date": "2026-11-04",
-    "hA": "PSV Eindhoven",
-    "awA": "Club Brugge",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "ML",
-    "betOn": "Club Brugge Win",
-    "winProb": 0.610606709903732,
-    "ml": "-110",
-    "decOdds": 1.91,
-    "wager": 0,
     "outcome": "pending",
-    "lockedAt": 1793694728395,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793822400000,
+    "winProb": 0.758,
+    "lockedAt": 1793694728668,
+    "reasoning": "PICK: Club Brugge +0.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Club Brugge -0.5 to Club Brugge +0.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.5%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 0.94
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 0.96,
-        "away": 0.95
+        "away": 0.95,
+        "home": 0.96
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 1.06,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: Club Brugge Win \u2014 OPTIMAL (61.1% win prob, EV +86.2%)\nMODEL: Projected 2.37\u20131.70 goals (xG 2.37/1.70), BTTS 74%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: PSV Eindhoven 1.70 xG/G vs Club Brugge 2.37 xG/G. 3-way: Home 38% / Draw 27% / Away 61%. MC proj: 1.70 \u2013 2.37 (4.06 total vs 3.5 line, BTTS 74%). Goal spread: Club Brugge -0.5 covers 53%, PSV Eindhoven +0.5 covers 47% (proj margin Club Brugge -0.67). Club Brugge road xG edge underpriced. Kelly 30.0%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: OVER 3.5 (LEAN), Club Brugge -0.5 (LEAN). Factors moving this pick: Fbref -6%, Standings +6%, Form -5%.",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "PSV Eindhoven",
+    "id": "2026-11-04_PSV Eindhoven_Club Brugge_CL_ClubBruggeWin",
+    "ml": "-110",
+    "awA": "Club Brugge",
+    "date": "2026-11-04",
+    "betOn": "Club Brugge Win",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
     "mktRef": {
       "p": 0.3128,
       "dec": 3.05
     },
-    "startMs": 1793822400000,
-    "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_PSV Eindhoven_Club Brugge_CL_OVER2.5",
-    "date": "2026-11-04",
-    "hA": "PSV Eindhoven",
-    "awA": "Club Brugge",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
-    "betOn": "OVER 2.5",
-    "winProb": 0.736,
-    "ml": "-357",
-    "decOdds": 1.28,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1793694728861,
-    "hScore": null,
-    "aScore": null,
     "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "form": {
-        "home": 0.96,
-        "away": 0.95
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: OVER 2.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 3.5 to OVER 2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 57.9%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
-    "priceSource": "estimated",
-    "altLine": {
-      "posted": 3.5,
-      "line": 2.5,
-      "shift": 1,
-      "postedLabel": "OVER 3.5",
-      "postedProb": 0.5787327674531315,
-      "postedDec": null,
-      "postedMl": null,
-      "bestTotal": true,
-      "product": true
-    },
-    "startMs": 1793822400000,
-    "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_RB Leipzig_Manchester City_CL_ManchesterCity+1.5",
-    "date": "2026-11-04",
-    "hA": "RB Leipzig",
-    "awA": "Manchester City",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "SPREAD",
-    "betOn": "Manchester City +1.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1793694729127,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.9897951148683745,
-        "away": 1.06
-      },
-      "form": {
-        "home": 0.9962972916666667,
-        "away": 0.9665916666666666
-      },
-      "standings": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: Manchester City +1.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Manchester City +0.5 to Manchester City +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 60.3%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nMODEL: Projected 1.72\u20131.78 goals (xG 1.72/1.78), BTTS 69%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).",
-    "priceSource": "estimated",
-    "altLine": {
-      "posted": 0.5,
-      "line": 1.5,
-      "shift": 1,
-      "postedLabel": "Manchester City +0.5",
-      "postedProb": 0.6030554477727572,
-      "postedDec": null,
-      "postedMl": null
-    },
-    "startMs": 1793822400000,
-    "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_RB Leipzig_Manchester City_CL_UNDER4.5",
-    "date": "2026-11-04",
-    "hA": "RB Leipzig",
-    "awA": "Manchester City",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
-    "betOn": "UNDER 4.5",
-    "winProb": 0.736,
-    "ml": "-357",
-    "decOdds": 1.28,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1793694729324,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.9897951148683745,
-        "away": 1.06
-      },
-      "form": {
-        "home": 0.9962972916666667,
-        "away": 0.9665916666666666
-      },
-      "standings": {
-        "home": 1.06,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: UNDER 4.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 3.5 to UNDER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.8%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
-    "priceSource": "estimated",
-    "altLine": {
-      "posted": 3.5,
-      "line": 4.5,
-      "shift": 1,
-      "postedLabel": "UNDER 3.5",
-      "postedProb": 0.5375412812943783,
-      "postedDec": null,
-      "postedMl": null,
-      "bestTotal": true,
-      "product": true
-    },
-    "startMs": 1793822400000,
-    "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_Slavia Prague_Arsenal_CL_SlaviaPrague+2.5",
-    "date": "2026-11-04",
-    "hA": "Slavia Prague",
-    "awA": "Arsenal",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "SPREAD",
-    "betOn": "Slavia Prague +2.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1793694729604,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.9636270282159051,
-        "away": 1.06
-      },
-      "form": {
-        "home": 0.995,
-        "away": 0.9639277777777778
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: Slavia Prague +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Slavia Prague +1.5 to Slavia Prague +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.0%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nMODEL: Projected 2.29\u20131.23 goals (xG 2.29/1.23), BTTS 64%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).",
-    "priceSource": "estimated",
-    "altLine": {
-      "posted": 1.5,
-      "line": 2.5,
-      "shift": 1,
-      "postedLabel": "Slavia Prague +1.5",
-      "postedProb": 0.6100698422315493,
-      "postedDec": null,
-      "postedMl": null
-    },
-    "startMs": 1793822400000,
-    "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_Slavia Prague_Arsenal_CL_UNDER4.5",
-    "date": "2026-11-04",
-    "hA": "Slavia Prague",
-    "awA": "Arsenal",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
-    "betOn": "UNDER 4.5",
-    "winProb": 0.736,
-    "ml": "-357",
-    "decOdds": 1.28,
-    "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1793694729799,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.9636270282159051,
-        "away": 1.06
-      },
-      "form": {
-        "home": 0.995,
-        "away": 0.9639277777777778
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: UNDER 4.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 3.5 to UNDER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.2%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
-    "priceSource": "estimated",
-    "altLine": {
-      "posted": 3.5,
-      "line": 4.5,
-      "shift": 1,
-      "postedLabel": "UNDER 3.5",
-      "postedProb": 0.5324955956406887,
-      "postedDec": null,
-      "postedMl": null,
-      "bestTotal": true,
-      "product": true
-    },
-    "startMs": 1793822400000,
-    "leadMin": 2128,
-    "lockTiming": "pre"
-  },
-  {
-    "id": "2026-11-04_Viking FK_Sabah FK_CL_OVER3.5",
-    "date": "2026-11-04",
-    "hA": "Viking FK",
-    "awA": "Sabah FK",
-    "sport": "CL",
-    "league": "CL",
-    "betType": "OU",
-    "betOn": "OVER 3.5",
-    "winProb": 0.6686108507237415,
-    "ml": "-110",
+    "betType": "ML",
     "decOdds": 1.91,
-    "wager": 0,
+    "leadMin": 2128,
     "outcome": "pending",
-    "lockedAt": 1793694730116,
-    "hScore": null,
-    "aScore": null,
-    "source": "manual",
+    "startMs": 1793822400000,
+    "winProb": 0.610606709903732,
+    "lockedAt": 1793694728395,
+    "reasoning": "PICK: Club Brugge Win \u2014 OPTIMAL (61.1% win prob, EV +86.2%)\nMODEL: Projected 2.37\u20131.70 goals (xG 2.37/1.70), BTTS 74%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: PSV Eindhoven 1.70 xG/G vs Club Brugge 2.37 xG/G. 3-way: Home 38% / Draw 27% / Away 61%. MC proj: 1.70 \u2013 2.37 (4.06 total vs 3.5 line, BTTS 74%). Goal spread: Club Brugge -0.5 covers 53%, PSV Eindhoven +0.5 covers 47% (proj margin Club Brugge -0.67). Club Brugge road xG edge underpriced. Kelly 30.0%. OPTIMAL \u00b7 Standard-unit play \u00b7 Also: OVER 3.5 (LEAN), Club Brugge -0.5 (LEAN). Factors moving this pick: Fbref -6%, Standings +6%, Form -5%.",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.9893348396172958,
-        "away": 0.94
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1.03335,
-        "away": 1
+        "away": 0.95,
+        "home": 0.96
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 1.06,
+        "home": 0.94
       }
-    },
-    "reasoning": "PICK: OVER 3.5 \u2014 PREMIUM (66.9% win prob, EV +27.6% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 2.19\u20132.38 goals (xG 2.19/2.38), BTTS 81% \u2014 OVER 3.5 hits 66.9% of outcomes, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Viking FK 2.38 xG/G vs Sabah FK 2.19 xG/G. 3-way: Home 59% / Draw 26% / Away 42%. MC proj: 2.38 \u2013 2.19 (4.57 total vs 3.5 line, BTTS 81%). Goal spread: Viking FK -0.5 covers 44%, Sabah FK +0.5 covers 56% (proj margin Viking FK -0.19). Combined xG 4.57 supports goals above the line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Sabah FK +0.5 (LEAN). Factors moving this pick: Standings (H) -6%, Form (H) +3%, Fbref (A) -6%, Standings (A) -6%.",
-    "startMs": 1793822400000,
-    "leadMin": 2128,
-    "lockTiming": "pre"
+    }
   },
   {
-    "id": "2026-11-04_Viking FK_Sabah FK_CL_SabahFK+1.5",
+    "hA": "PSV Eindhoven",
+    "id": "2026-11-04_PSV Eindhoven_Club Brugge_CL_OVER2.5",
+    "ml": "-357",
+    "awA": "Club Brugge",
     "date": "2026-11-04",
-    "hA": "Viking FK",
-    "awA": "Sabah FK",
+    "betOn": "OVER 2.5",
     "sport": "CL",
-    "league": "CL",
-    "betType": "SPREAD",
-    "betOn": "Sabah FK +1.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
     "wager": 0,
-    "outcome": "pending",
-    "lockedAt": 1793694730261,
-    "hScore": null,
     "aScore": null,
+    "hScore": null,
+    "league": "CL",
     "source": "manual",
+    "altLine": {
+      "line": 2.5,
+      "shift": 1,
+      "posted": 3.5,
+      "product": true,
+      "postedMl": null,
+      "bestTotal": true,
+      "postedDec": null,
+      "postedProb": 0.5787327674531315,
+      "postedLabel": "OVER 3.5"
+    },
+    "betType": "OU",
+    "decOdds": 1.28,
+    "leadMin": 2128,
+    "outcome": "pending",
+    "startMs": 1793822400000,
+    "winProb": 0.736,
+    "lockedAt": 1793694728861,
+    "reasoning": "PICK: OVER 2.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 3.5 to OVER 2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 57.9%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.9893348396172958,
-        "away": 0.94
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1.03335,
-        "away": 1
+        "away": 0.95,
+        "home": 0.96
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.94
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 1.06,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: Sabah FK +1.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Sabah FK +0.5 to Sabah FK +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 56.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "RB Leipzig",
+    "id": "2026-11-04_RB Leipzig_Manchester City_CL_ManchesterCity+1.5",
+    "ml": "-408",
+    "awA": "Manchester City",
+    "date": "2026-11-04",
+    "betOn": "Manchester City +1.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
     "altLine": {
-      "posted": 0.5,
       "line": 1.5,
       "shift": 1,
-      "postedLabel": "Sabah FK +0.5",
-      "postedProb": 0.5640154311663247,
-      "postedDec": null,
+      "posted": 0.5,
       "postedMl": null,
-      "bestOfGame": true,
-      "product": true
+      "postedDec": null,
+      "postedProb": 0.6030554477727572,
+      "postedLabel": "Manchester City +0.5"
     },
-    "startMs": 1793822400000,
+    "betType": "SPREAD",
+    "decOdds": 1.245,
     "leadMin": 2128,
-    "lockTiming": "pre"
+    "outcome": "pending",
+    "startMs": 1793822400000,
+    "winProb": 0.758,
+    "lockedAt": 1793694729127,
+    "reasoning": "PICK: Manchester City +1.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Manchester City +0.5 to Manchester City +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 60.3%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nMODEL: Projected 1.72\u20131.78 goals (xG 1.72/1.78), BTTS 69%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.9665916666666666,
+        "home": 0.9962972916666667
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.9897951148683745
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 1.06
+      }
+    },
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "RB Leipzig",
+    "id": "2026-11-04_RB Leipzig_Manchester City_CL_UNDER4.5",
+    "ml": "-357",
+    "awA": "Manchester City",
+    "date": "2026-11-04",
+    "betOn": "UNDER 4.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "altLine": {
+      "line": 4.5,
+      "shift": 1,
+      "posted": 3.5,
+      "product": true,
+      "postedMl": null,
+      "bestTotal": true,
+      "postedDec": null,
+      "postedProb": 0.5375412812943783,
+      "postedLabel": "UNDER 3.5"
+    },
+    "betType": "OU",
+    "decOdds": 1.28,
+    "leadMin": 2128,
+    "outcome": "pending",
+    "startMs": 1793822400000,
+    "winProb": 0.736,
+    "lockedAt": 1793694729324,
+    "reasoning": "PICK: UNDER 4.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 3.5 to UNDER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.8%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.9665916666666666,
+        "home": 0.9962972916666667
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.9897951148683745
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 1.06
+      }
+    },
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Slavia Prague",
+    "id": "2026-11-04_Slavia Prague_Arsenal_CL_SlaviaPrague+2.5",
+    "ml": "-408",
+    "awA": "Arsenal",
+    "date": "2026-11-04",
+    "betOn": "Slavia Prague +2.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "altLine": {
+      "line": 2.5,
+      "shift": 1,
+      "posted": 1.5,
+      "postedMl": null,
+      "postedDec": null,
+      "postedProb": 0.6100698422315493,
+      "postedLabel": "Slavia Prague +1.5"
+    },
+    "betType": "SPREAD",
+    "decOdds": 1.245,
+    "leadMin": 2128,
+    "outcome": "pending",
+    "startMs": 1793822400000,
+    "winProb": 0.758,
+    "lockedAt": 1793694729604,
+    "reasoning": "PICK: Slavia Prague +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Slavia Prague +1.5 to Slavia Prague +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.0%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nMODEL: Projected 2.29\u20131.23 goals (xG 2.29/1.23), BTTS 64%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.9639277777777778,
+        "home": 0.995
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.9636270282159051
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 0.94
+      }
+    },
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Slavia Prague",
+    "id": "2026-11-04_Slavia Prague_Arsenal_CL_UNDER4.5",
+    "ml": "-357",
+    "awA": "Arsenal",
+    "date": "2026-11-04",
+    "betOn": "UNDER 4.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "altLine": {
+      "line": 4.5,
+      "shift": 1,
+      "posted": 3.5,
+      "product": true,
+      "postedMl": null,
+      "bestTotal": true,
+      "postedDec": null,
+      "postedProb": 0.5324955956406887,
+      "postedLabel": "UNDER 3.5"
+    },
+    "betType": "OU",
+    "decOdds": 1.28,
+    "leadMin": 2128,
+    "outcome": "pending",
+    "startMs": 1793822400000,
+    "winProb": 0.736,
+    "lockedAt": 1793694729799,
+    "reasoning": "PICK: UNDER 4.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 3.5 to UNDER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.2%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 0.9639277777777778,
+        "home": 0.995
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.9636270282159051
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 0.94
+      }
+    },
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Viking FK",
+    "id": "2026-11-04_Viking FK_Sabah FK_CL_OVER3.5",
+    "ml": "-110",
+    "awA": "Sabah FK",
+    "date": "2026-11-04",
+    "betOn": "OVER 3.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "betType": "OU",
+    "decOdds": 1.91,
+    "leadMin": 2128,
+    "outcome": "pending",
+    "startMs": 1793822400000,
+    "winProb": 0.6686108507237415,
+    "lockedAt": 1793694730116,
+    "reasoning": "PICK: OVER 3.5 \u2014 PREMIUM (66.9% win prob, EV +27.6% \u00b7 EV assumes a standard -110 price, not a market quote)\nMODEL: Projected 2.19\u20132.38 goals (xG 2.19/2.38), BTTS 81% \u2014 OVER 3.5 hits 66.9% of outcomes, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Viking FK 2.38 xG/G vs Sabah FK 2.19 xG/G. 3-way: Home 59% / Draw 26% / Away 42%. MC proj: 2.38 \u2013 2.19 (4.57 total vs 3.5 line, BTTS 81%). Goal spread: Viking FK -0.5 covers 44%, Sabah FK +0.5 covers 56% (proj margin Viking FK -0.19). Combined xG 4.57 supports goals above the line. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Sabah FK +0.5 (LEAN). Factors moving this pick: Standings (H) -6%, Form (H) +3%, Fbref (A) -6%, Standings (A) -6%.",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 1,
+        "home": 1.03335
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.9893348396172958
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 0.94,
+        "home": 0.94
+      }
+    }
+  },
+  {
+    "hA": "Viking FK",
+    "id": "2026-11-04_Viking FK_Sabah FK_CL_SabahFK+1.5",
+    "ml": "-408",
+    "awA": "Sabah FK",
+    "date": "2026-11-04",
+    "betOn": "Sabah FK +1.5",
+    "sport": "CL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "CL",
+    "source": "manual",
+    "altLine": {
+      "line": 1.5,
+      "shift": 1,
+      "posted": 0.5,
+      "product": true,
+      "postedMl": null,
+      "postedDec": null,
+      "bestOfGame": true,
+      "postedProb": 0.5640154311663247,
+      "postedLabel": "Sabah FK +0.5"
+    },
+    "betType": "SPREAD",
+    "decOdds": 1.245,
+    "leadMin": 2128,
+    "outcome": "pending",
+    "startMs": 1793822400000,
+    "winProb": 0.758,
+    "lockedAt": 1793694730261,
+    "reasoning": "PICK: Sabah FK +1.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Sabah FK +0.5 to Sabah FK +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 56.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 1,
+        "home": 1.03335
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.9893348396172958
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 0.94,
+        "home": 0.94
+      }
+    },
+    "priceSource": "estimated"
   },
   {
     "hA": "LAD @ ARI",
@@ -133114,11 +133709,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792686777120,
+    "playerMin": 35,
     "reasoning": "PICK: Donovan Mitchell OVER PTS 22.5 \u2014 MANUAL LINE\nLINE EDITED: the line was changed by hand from 27.5 to 22.5; the probability shown is the one you locked, not a re-run of the model.\nWHY: Donovan Mitchell averages 27.9 ppg across 70 games this season. Opp PHI DRtg 115.4 vs a 115.7 league average computed from every currently-loaded team, a -0% reduction folded into the projection. Game pace 99.8 (+0.2%), CLE offense 119.2 vs a 115.7 league average. No head-to-head history vs PHI this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792721478985,
     "priceSource": "estimated",
-    "playerResult": 32,
-    "playerMin": 35
+    "playerResult": 32
   },
   {
     "hA": "CLE",
@@ -133140,10 +133735,10 @@
     "outcome": "loss",
     "winProb": 0.55,
     "lockedAt": 1792686761734,
+    "playerMin": 34,
     "reasoning": "PICK: Evan Mobley OVER REB 8.5 \u2014 SKIP (55% model hit rate)\nMODEL: projection 8.99 REB (season average 9, last-5 form 9, opponent adjustment +0) vs the 8.5 line, spread \u03c3 3.5, from a 5k-sim Monte Carlo.\nWHY: Evan Mobley averages 9.0 rpg across 65 games this season. Opp PHI DRtg 115.4 vs a 115.7 league average computed from every currently-loaded team, a -0% reduction folded into the projection. Game pace 99.8 (+0.2%), CLE offense 119.2 vs a 115.7 league average. No head-to-head history vs PHI this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792721478985,
-    "playerResult": 8,
-    "playerMin": 34
+    "playerResult": 8
   },
   {
     "hA": "PHI",
@@ -133175,11 +133770,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792686248238,
+    "playerMin": 33,
     "reasoning": "PICK: LeBron James OVER AST 4.5 \u2014 MANUAL LINE\nLINE EDITED: the line was changed by hand from 6.5 to 4.5; the probability shown is the one you locked, not a re-run of the model.\nWHY: LeBron James averages 7.2 apg across 60 games this season. Opp CLE DRtg 115.1 vs a 115.7 league average computed from every currently-loaded team, a -1% reduction folded into the projection. Game pace 99.8 (-0.2%), PHI offense 115.3 vs a 115.7 league average. No head-to-head history vs CLE this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792721478986,
     "priceSource": "estimated",
-    "playerResult": 5,
-    "playerMin": 33
+    "playerResult": 5
   },
   {
     "hA": "OKC",
@@ -133201,10 +133796,10 @@
     "outcome": "loss",
     "winProb": 0.57,
     "lockedAt": 1792686308823,
+    "playerMin": 35,
     "reasoning": "PICK: Shai Gilgeous-Alexander OVER AST 6.5 \u2014 LEAN (57% model hit rate)\nMODEL: projection 6.82 AST (season average 6.6, last-5 form 7.2, opponent adjustment +0.2) vs the 6.5 line, spread \u03c3 2.53, from a 5k-sim Monte Carlo.\nWHY: Shai Gilgeous-Alexander averages 6.6 apg across 68 games this season. Opp DEN DRtg 117.3 vs a 115.7 league average computed from every currently-loaded team, a 1% boost folded into the projection. Game pace 99.5 (-0.3%), OKC offense 118.8 vs a 115.7 league average. No head-to-head history vs DEN this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792731420711,
-    "playerResult": 3,
-    "playerMin": 35
+    "playerResult": 3
   },
   {
     "hA": "IND",
@@ -133236,11 +133831,11 @@
     "outcome": "loss",
     "winProb": 0.68,
     "lockedAt": 1792750739517,
+    "playerMin": 32,
     "reasoning": "PICK: Andrew Nembhard OVER AST 7.5 \u2014 OPTIMAL (66% model hit rate)\nMODEL: projection 8.89 AST (season average 7.7, last-5 form 12, opponent adjustment +1.2) vs the 7.5 line, spread \u03c3 3.3, from a 5k-sim Monte Carlo.\nWHY: Andrew Nembhard averages 7.7 apg across 57 games this season. Opp DAL DRtg 116.4 vs a 115.7 league average computed from every currently-loaded team, a 1% boost folded into the projection. Game pace 101.6 (+0.7%), IND offense 110.8 vs a 115.7 league average. No head-to-head history vs DAL this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792806681432,
     "priceSource": "estimated",
-    "playerResult": 5,
-    "playerMin": 32
+    "playerResult": 5
   },
   {
     "hA": "GS",
@@ -133272,11 +133867,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792750739870,
+    "playerMin": 33,
     "reasoning": "PICK: Brandin Podziemski OVER PTS 13.5 \u2014 OPTIMAL (63% model hit rate)\nMODEL: projection 15.73 PTS (season average 13.8, last-5 form 19.4, opponent adjustment +1.9) vs the 13.5 line, spread \u03c3 6.29, from a 5k-sim Monte Carlo.\nWHY: Brandin Podziemski averages 13.8 ppg across 82 games this season. Opp MEM DRtg 118.5 vs a 115.7 league average computed from every currently-loaded team, a 2% boost folded into the projection. Game pace 100.3 (+1.0%), GS offense 114.9 vs a 115.7 league average. No head-to-head history vs MEM this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792819274833,
     "priceSource": "estimated",
-    "playerResult": 18,
-    "playerMin": 33
+    "playerResult": 18
   },
   {
     "hA": "POR",
@@ -133298,10 +133893,10 @@
     "outcome": "win",
     "winProb": 0.6762,
     "lockedAt": 1792750739287,
+    "playerMin": 38,
     "reasoning": "PICK: Deni Avdija OVER PTS 23.5 \u2014 PREMIUM (68% model hit rate)\nMODEL: projection 27.06 PTS (season average 24.2, last-5 form 31.2, opponent adjustment +2.9) vs the 23.5 line, spread \u03c3 7.43, from a 5k-sim Monte Carlo.\nWHY: Deni Avdija averages 24.2 ppg across 66 games this season. Opp SAC DRtg 121.3 vs a 115.7 league average computed from every currently-loaded team, a 5% boost folded into the projection. Game pace 99.8 (-0.6%), POR offense 114.4 vs a 115.7 league average. No head-to-head history vs SAC this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792817475085,
-    "playerResult": 26,
-    "playerMin": 38
+    "playerResult": 26
   },
   {
     "hA": "TOR",
@@ -133333,11 +133928,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792778030545,
+    "playerMin": 34,
     "reasoning": "PICK: RJ Barrett OVER PTS 19.5 \u2014 OPTIMAL (63% model hit rate)\nMODEL: projection 21.16 PTS (season average 19.3, last-5 form 20.8, opponent adjustment +1.9) vs the 19.5 line, spread \u03c3 5.59, from a 5k-sim Monte Carlo.\nWHY: RJ Barrett averages 19.3 ppg across 57 games this season. Opp WSH DRtg 122.5 vs a 115.7 league average computed from every currently-loaded team, a 6% boost folded into the projection. Game pace 99.8 (+1.6%), TOR offense 116.1 vs a 115.7 league average. No head-to-head history vs WSH this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792806681433,
     "priceSource": "estimated",
-    "playerResult": 23,
-    "playerMin": 34
+    "playerResult": 23
   },
   {
     "hA": "NO",
@@ -133369,11 +133964,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792750740280,
+    "playerMin": 22,
     "reasoning": "PICK: Saddiq Bey OVER PTS 17.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 19.72 PTS (season average 17.7, last-5 form 20.8, opponent adjustment +2) vs the 17.5 line, spread \u03c3 7.52, from a 5k-sim Monte Carlo.\nWHY: Saddiq Bey averages 17.7 ppg across 72 games this season. Opp UTAH DRtg 122.0 vs a 115.7 league average computed from every currently-loaded team, a 5% boost folded into the projection. Game pace 101.6 (+1.1%), NO offense 114.4 vs a 115.7 league average. No head-to-head history vs UTAH this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792815866186,
     "priceSource": "estimated",
-    "playerResult": 20,
-    "playerMin": 22
+    "playerResult": 20
   },
   {
     "hA": "MIA",
@@ -133405,11 +134000,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792750739984,
+    "playerMin": 21,
     "reasoning": "PICK: Tim Hardaway Jr. UNDER PTS 13.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 11.4 PTS (season average 13.5, last-5 form 8.4, opponent adjustment -2.1) vs the 13.5 line, spread \u03c3 6.82, from a 5k-sim Monte Carlo.\nWHY: Tim Hardaway Jr. averages 13.5 ppg across 80 games this season. Opp DET DRtg 109.9 vs a 115.7 league average computed from every currently-loaded team, a -5% reduction folded into the projection. Game pace 101.2 (-1.9%), MIA offense 116.6 vs a 115.7 league average. No head-to-head history vs DET this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792810328468,
     "priceSource": "estimated",
-    "playerResult": 8,
-    "playerMin": 21
+    "playerResult": 8
   },
   {
     "hA": "CHI",
@@ -133441,11 +134036,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792750739635,
+    "playerMin": 24,
     "reasoning": "PICK: Tre Jones OVER PTS 13.5 \u2014 OPTIMAL (64% model hit rate)\nMODEL: projection 16.14 PTS (season average 14.1, last-5 form 21.8, opponent adjustment +2) vs the 13.5 line, spread \u03c3 6.38, from a 5k-sim Monte Carlo.\nWHY: Tre Jones averages 14.1 ppg across 65 games this season. Opp MIL DRtg 119.3 vs a 115.7 league average computed from every currently-loaded team, a 3% boost folded into the projection. Game pace 100.0 (-2.4%), CHI offense 112.9 vs a 115.7 league average. No head-to-head history vs MIL this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792797680289,
     "priceSource": "estimated",
-    "playerResult": 11,
-    "playerMin": 24
+    "playerResult": 11
   },
   {
     "hA": "SA",
@@ -133477,11 +134072,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792834925913,
+    "playerMin": 28,
     "reasoning": "PICK: De'Aaron Fox OVER AST 5.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 6.27 AST (season average 6.2, last-5 form 6, opponent adjustment +0.1) vs the 5.5 line, spread \u03c3 2.46, from a 5k-sim Monte Carlo.\nWHY: De'Aaron Fox averages 6.2 apg across 72 games this season. Opp DAL DRtg 116.4 vs a 115.7 league average computed from every currently-loaded team, a 1% boost folded into the projection. Game pace 101.0 (+1.3%), SA offense 119.6 vs a 115.7 league average. No head-to-head history vs DAL this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792896677563,
     "priceSource": "estimated",
-    "playerResult": 9,
-    "playerMin": 28
+    "playerResult": 9
   },
   {
     "hA": "NO",
@@ -133503,10 +134098,10 @@
     "outcome": "loss",
     "winProb": 0.68,
     "lockedAt": 1792834925165,
+    "playerMin": 23,
     "reasoning": "PICK: Jeremiah Fears OVER PTS 14.5 \u2014 PREMIUM (68% model hit rate)\nMODEL: projection 18.83 PTS (season average 14.3, last-5 form 31.8, opponent adjustment +4.5) vs the 14.5 line, spread \u03c3 7.37, from a 5k-sim Monte Carlo.\nWHY: Jeremiah Fears averages 14.3 ppg across 82 games this season. Opp DEN DRtg 117.3 vs a 115.7 league average computed from every currently-loaded team, a 1% boost folded into the projection. Game pace 99.8 (-0.6%), NO offense 114.4 vs a 115.7 league average. No head-to-head history vs DEN this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792902078980,
-    "playerResult": 10,
-    "playerMin": 23
+    "playerResult": 10
   },
   {
     "hA": "CHI",
@@ -133538,11 +134133,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792834925688,
+    "playerMin": 30,
     "reasoning": "PICK: Josh Giddey OVER AST 8.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 9.73 AST (season average 9.1, last-5 form 9.6, opponent adjustment +0.6) vs the 8.5 line, spread \u03c3 3.71, from a 5k-sim Monte Carlo.\nWHY: Josh Giddey averages 9.1 apg across 54 games this season. Opp WSH DRtg 122.5 vs a 115.7 league average computed from every currently-loaded team, a 6% boost folded into the projection. Game pace 102.0 (-0.5%), CHI offense 112.9 vs a 115.7 league average. No head-to-head history vs WSH this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792896677563,
     "priceSource": "estimated",
-    "playerResult": 10,
-    "playerMin": 30
+    "playerResult": 10
   },
   {
     "hA": "CHI",
@@ -133564,10 +134159,10 @@
     "outcome": "loss",
     "winProb": 0.68,
     "lockedAt": 1792834924964,
+    "playerMin": 18,
     "reasoning": "PICK: Tre Jones OVER PTS 13.5 \u2014 PREMIUM (68% model hit rate)\nMODEL: projection 16.9 PTS (season average 14.1, last-5 form 21.8, opponent adjustment +2.8) vs the 13.5 line, spread \u03c3 6.38, from a 5k-sim Monte Carlo.\nWHY: Tre Jones averages 14.1 ppg across 65 games this season. Opp WSH DRtg 122.5 vs a 115.7 league average computed from every currently-loaded team, a 6% boost folded into the projection. Game pace 102.0 (-0.5%), CHI offense 112.9 vs a 115.7 league average. No head-to-head history vs WSH this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792896677564,
-    "playerResult": 10,
-    "playerMin": 18
+    "playerResult": 10
   },
   {
     "hA": "SA",
@@ -133599,11 +134194,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792834925532,
+    "playerMin": 29,
     "reasoning": "PICK: Victor Wembanyama OVER PTS 24.5 \u2014 OPTIMAL (66% model hit rate)\nMODEL: projection 27.92 PTS (season average 25, last-5 form 34.6, opponent adjustment +2.9) vs the 24.5 line, spread \u03c3 8.56, from a 5k-sim Monte Carlo.\nWHY: Victor Wembanyama averages 25.0 ppg across 64 games this season. Opp DAL DRtg 116.4 vs a 115.7 league average computed from every currently-loaded team, a 1% boost folded into the projection. Game pace 101.0 (+1.3%), SA offense 119.6 vs a 115.7 league average. No head-to-head history vs DAL this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792896677564,
     "priceSource": "estimated",
-    "playerResult": 23,
-    "playerMin": 29
+    "playerResult": 23
   },
   {
     "hA": "LAL",
@@ -133635,11 +134230,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792922344572,
+    "playerMin": 20,
     "reasoning": "PICK: Collin Sexton OVER PTS 15.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 17.37 PTS (season average 15.4, last-5 form 18.2, opponent adjustment +2) vs the 15.5 line, spread \u03c3 5.83, from a 5k-sim Monte Carlo.\nWHY: Collin Sexton averages 15.4 ppg across 68 games this season. Opp UTAH DRtg 122.0 vs a 115.7 league average computed from every currently-loaded team, a 5% boost folded into the projection. Game pace 100.3 (+2.4%), LAL offense 118.1 vs a 115.7 league average. No head-to-head history vs UTAH this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792973480899,
     "priceSource": "estimated",
-    "playerResult": 13,
-    "playerMin": 20
+    "playerResult": 13
   },
   {
     "hA": "TOR",
@@ -133671,11 +134266,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792922344312,
+    "playerMin": 28,
     "reasoning": "PICK: Immanuel Quickley UNDER PTS 16.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 14.38 PTS (season average 16.4, last-5 form 8.8, opponent adjustment -2) vs the 16.5 line, spread \u03c3 7.03, from a 5k-sim Monte Carlo.\nWHY: Immanuel Quickley averages 16.4 ppg across 70 games this season. Opp MIN DRtg 113.4 vs a 115.7 league average computed from every currently-loaded team, a -2% reduction folded into the projection. Game pace 99.4 (+1.2%), TOR offense 116.1 vs a 115.7 league average. No head-to-head history vs MIN this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792979472160,
     "priceSource": "estimated",
-    "playerResult": 19,
-    "playerMin": 28
+    "playerResult": 19
   },
   {
     "hA": "MIN",
@@ -133707,11 +134302,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792953702252,
+    "playerMin": 17,
     "reasoning": "PICK: LaMelo Ball OVER PTS 14.5 \u2014 MANUAL LINE\nLINE EDITED: the line was changed by hand from 19.5 to 14.5; the probability shown is the one you locked, not a re-run of the model.\nWHY: LaMelo Ball averages 20.1 ppg across 72 games this season. Opp TOR DRtg 113.2 vs a 115.7 league average computed from every currently-loaded team, a -2% reduction folded into the projection. Game pace 99.4 (-1.1%), MIN offense 116.8 vs a 115.7 league average. No head-to-head history vs TOR this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792979472160,
     "priceSource": "estimated",
-    "playerResult": 15,
-    "playerMin": 17
+    "playerResult": 15
   },
   {
     "hA": "LAL",
@@ -133743,11 +134338,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792922344093,
+    "playerMin": 38,
     "reasoning": "PICK: Luka Doncic OVER PTS 33.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 36.27 PTS (season average 33.5, last-5 form 34, opponent adjustment +2.8) vs the 33.5 line, spread \u03c3 9.21, from a 5k-sim Monte Carlo.\nWHY: Luka Doncic averages 33.5 ppg across 64 games this season. Opp UTAH DRtg 122.0 vs a 115.7 league average computed from every currently-loaded team, a 5% boost folded into the projection. Game pace 100.3 (+2.4%), LAL offense 118.1 vs a 115.7 league average. No head-to-head history vs UTAH this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792973480899,
     "priceSource": "estimated",
-    "playerResult": 52,
-    "playerMin": 38
+    "playerResult": 52
   },
   {
     "hA": "ORL",
@@ -133779,11 +134374,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792922343865,
+    "playerMin": 15,
     "reasoning": "PICK: Nikola Vucevic UNDER PTS 14.5 \u2014 OPTIMAL (63% model hit rate)\nMODEL: projection 12.32 PTS (season average 15.1, last-5 form 6, opponent adjustment -2.8) vs the 14.5 line, spread \u03c3 7.21, from a 5k-sim Monte Carlo.\nWHY: Nikola Vucevic averages 15.1 ppg across 64 games this season. Opp NY DRtg 113.2 vs a 115.7 league average computed from every currently-loaded team, a -2% reduction folded into the projection. Game pace 98.6 (-1.8%), ORL offense 114.7 vs a 115.7 league average. No head-to-head history vs NY this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792979472160,
     "priceSource": "estimated",
-    "playerResult": 5,
-    "playerMin": 15
+    "playerResult": 5
   },
   {
     "hA": "ORL",
@@ -133815,11 +134410,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1792922343695,
+    "playerMin": 15,
     "reasoning": "PICK: Nikola Vucevic UNDER REB 8.5 \u2014 OPTIMAL (66% model hit rate)\nMODEL: projection 7.02 REB (season average 8.4, last-5 form 4, opponent adjustment -1.4) vs the 8.5 line, spread \u03c3 3.64, from a 5k-sim Monte Carlo.\nWHY: Nikola Vucevic averages 8.4 rpg across 64 games this season. Opp NY DRtg 113.2 vs a 115.7 league average computed from every currently-loaded team, a -2% reduction folded into the projection. Game pace 98.6 (-1.8%), ORL offense 114.7 vs a 115.7 league average. No head-to-head history vs NY this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1792979472160,
     "priceSource": "estimated",
-    "playerResult": 3,
-    "playerMin": 15
+    "playerResult": 3
   },
   {
     "hA": "GS",
@@ -133851,11 +134446,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1793050524154,
+    "playerMin": 33,
     "reasoning": "PICK: Brandin Podziemski OVER PTS 13.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 15.41 PTS (season average 13.8, last-5 form 19.4, opponent adjustment +1.6) vs the 13.5 line, spread \u03c3 6.29, from a 5k-sim Monte Carlo.\nWHY: Brandin Podziemski averages 13.8 ppg across 82 games this season. Opp DEN DRtg 117.3 vs a 115.7 league average computed from every currently-loaded team, a 1% boost folded into the projection. Game pace 99.3 (-0.1%), GS offense 114.9 vs a 115.7 league average. No head-to-head history vs DEN this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793076680154,
     "priceSource": "estimated",
-    "playerResult": 18,
-    "playerMin": 33
+    "playerResult": 18
   },
   {
     "hA": "CHA",
@@ -133887,11 +134482,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1793043100251,
+    "playerMin": 36,
     "reasoning": "PICK: Brandon Miller OVER PTS 19.5 \u2014 OPTIMAL (63% model hit rate)\nMODEL: projection 21.71 PTS (season average 20.2, last-5 form 19.6, opponent adjustment +1.5) vs the 19.5 line, spread \u03c3 6.61, from a 5k-sim Monte Carlo.\nWHY: Brandon Miller averages 20.2 ppg across 65 games this season. Opp WSH DRtg 122.5 vs a 115.7 league average computed from every currently-loaded team, a 6% boost folded into the projection. Game pace 99.1 (+2.4%), CHA offense 119.4 vs a 115.7 league average. No head-to-head history vs WSH this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793064679284,
     "priceSource": "estimated",
-    "playerResult": 39,
-    "playerMin": 36
+    "playerResult": 39
   },
   {
     "hA": "PHX",
@@ -133923,11 +134518,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1793013980043,
+    "playerMin": 23,
     "reasoning": "PICK: Collin Gillespie UNDER PTS 12.5 \u2014 OPTIMAL (63% model hit rate)\nMODEL: projection 10.18 PTS (season average 12.7, last-5 form 5, opponent adjustment -2.5) vs the 12.5 line, spread \u03c3 6.67, from a 5k-sim Monte Carlo.\nWHY: Collin Gillespie averages 12.7 ppg across 80 games this season. Opp OKC DRtg 107.7 vs a 115.7 league average computed from every currently-loaded team, a -7% reduction folded into the projection. Game pace 98.3 (+1.4%), PHX offense 115.6 vs a 115.7 league average. No head-to-head history vs OKC this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793069474343,
     "priceSource": "estimated",
-    "playerResult": 9,
-    "playerMin": 23
+    "playerResult": 9
   },
   {
     "hA": "CHA",
@@ -133959,11 +134554,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1793013979832,
+    "playerMin": 29,
     "reasoning": "PICK: Naz Reid OVER REB 5.5 \u2014 OPTIMAL (65% model hit rate)\nMODEL: projection 6.51 REB (season average 6.2, last-5 form 5.4, opponent adjustment +0.3) vs the 5.5 line, spread \u03c3 2.6, from a 5k-sim Monte Carlo.\nWHY: Naz Reid averages 6.2 rpg across 77 games this season. Opp WSH DRtg 122.5 vs a 115.7 league average computed from every currently-loaded team, a 6% boost folded into the projection. Game pace 99.1 (+2.4%), CHA offense 119.4 vs a 115.7 league average. No head-to-head history vs WSH this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793064679284,
     "priceSource": "estimated",
-    "playerResult": 12,
-    "playerMin": 29
+    "playerResult": 12
   },
   {
     "hA": "CHI",
@@ -133995,11 +134590,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1793013979243,
+    "playerMin": 24,
     "reasoning": "PICK: Norman Powell UNDER PTS 21.5 \u2014 OPTIMAL (66% model hit rate)\nMODEL: projection 18.6 PTS (season average 21.7, last-5 form 14.4, opponent adjustment -3.1) vs the 21.5 line, spread \u03c3 6.87, from a 5k-sim Monte Carlo.\nWHY: Norman Powell averages 21.7 ppg across 58 games this season. Opp BOS DRtg 112.7 vs a 115.7 league average computed from every currently-loaded team, a -3% reduction folded into the projection. Game pace 98.5 (-3.9%), CHI offense 112.9 vs a 115.7 league average. No head-to-head history vs BOS this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793067081655,
     "priceSource": "estimated",
-    "playerResult": 20,
-    "playerMin": 24
+    "playerResult": 20
   },
   {
     "hA": "DET",
@@ -134031,11 +134626,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1793097999987,
+    "playerMin": 36,
     "reasoning": "PICK: Cade Cunningham UNDER PTS 23.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 20.87 PTS (season average 23.9, last-5 form 14.6, opponent adjustment -3) vs the 23.5 line, spread \u03c3 8.75, from a 5k-sim Monte Carlo.\nWHY: Cade Cunningham averages 23.9 ppg across 64 games this season. Opp NY DRtg 113.2 vs a 115.7 league average computed from every currently-loaded team, a -2% reduction folded into the projection. Game pace 98.0 (-1.2%), DET offense 118.1 vs a 115.7 league average. No head-to-head history vs NY this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793155879058,
     "priceSource": "estimated",
-    "playerResult": 19,
-    "playerMin": 36
+    "playerResult": 19
   },
   {
     "hA": "SA",
@@ -134067,11 +134662,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1793097999549,
+    "playerMin": 26,
     "reasoning": "PICK: De'Aaron Fox OVER AST 5.5 \u2014 OPTIMAL (64% model hit rate)\nMODEL: projection 6.42 AST (season average 6.2, last-5 form 6, opponent adjustment +0.2) vs the 5.5 line, spread \u03c3 2.46, from a 5k-sim Monte Carlo.\nWHY: De'Aaron Fox averages 6.2 apg across 72 games this season. Opp SAC DRtg 121.3 vs a 115.7 league average computed from every currently-loaded team, a 5% boost folded into the projection. Game pace 99.5 (-0.3%), SA offense 119.6 vs a 115.7 league average. No head-to-head history vs SAC this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793155879058,
     "priceSource": "estimated",
-    "playerResult": 6,
-    "playerMin": 26
+    "playerResult": 6
   },
   {
     "hA": "POR",
@@ -134103,11 +134698,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1793097999868,
+    "playerMin": 33,
     "reasoning": "PICK: Deni Avdija OVER PTS 23.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 25.78 PTS (season average 24.2, last-5 form 31.2, opponent adjustment +1.6) vs the 23.5 line, spread \u03c3 7.43, from a 5k-sim Monte Carlo.\nWHY: Deni Avdija averages 24.2 ppg across 66 games this season. Opp LAL DRtg 116.3 vs a 115.7 league average computed from every currently-loaded team, a 1% boost folded into the projection. Game pace 99.2 (-1.2%), POR offense 114.4 vs a 115.7 league average. No head-to-head history vs LAL this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793168484682,
     "priceSource": "estimated",
-    "playerResult": 23,
-    "playerMin": 33
+    "playerResult": 23
   },
   {
     "hA": "SA",
@@ -134129,10 +134724,10 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1793097999364,
+    "playerMin": 27,
     "reasoning": "PICK: Victor Wembanyama OVER PTS 24.5 \u2014 PREMIUM (68% model hit rate)\nMODEL: projection 28.62 PTS (season average 25, last-5 form 34.6, opponent adjustment +3.6) vs the 24.5 line, spread \u03c3 8.56, from a 5k-sim Monte Carlo.\nWHY: Victor Wembanyama averages 25.0 ppg across 64 games this season. Opp SAC DRtg 121.3 vs a 115.7 league average computed from every currently-loaded team, a 5% boost folded into the projection. Game pace 99.5 (-0.3%), SA offense 119.6 vs a 115.7 league average. No head-to-head history vs SAC this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793155879058,
-    "playerResult": 29,
-    "playerMin": 27
+    "playerResult": 29
   },
   {
     "hA": "SA",
@@ -134164,11 +134759,11 @@
     "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1793097999711,
+    "playerMin": 27,
     "reasoning": "PICK: Victor Wembanyama OVER REB 11.5 \u2014 OPTIMAL (63% model hit rate)\nMODEL: projection 12.68 REB (season average 11.5, last-5 form 14, opponent adjustment +1.2) vs the 11.5 line, spread \u03c3 3.59, from a 5k-sim Monte Carlo.\nWHY: Victor Wembanyama averages 11.5 rpg across 64 games this season. Opp SAC DRtg 121.3 vs a 115.7 league average computed from every currently-loaded team, a 5% boost folded into the projection. Game pace 99.5 (-0.3%), SA offense 119.6 vs a 115.7 league average. No head-to-head history vs SAC this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
     "settledAt": 1793155879058,
     "priceSource": "estimated",
-    "playerResult": 10,
-    "playerMin": 27
+    "playerResult": 10
   },
   {
     "hA": "IND",
@@ -135161,55 +135756,6 @@
     "settledAt": 1793580697376,
     "priceSource": "estimated",
     "playerResult": 4
-  },
-  {
-    "hA": "IND",
-    "id": "prop_2026-11-02_NBA_AndrewNembhard_AST_5.5_O",
-    "ml": "-246",
-    "awA": "ATL",
-    "conf": 0.68,
-    "date": "2026-11-02",
-    "line": 5.5,
-    "over": true,
-    "team": "IND",
-    "betOn": "Andrew Nembhard OVER AST 5.5",
-    "sport": "NBA",
-    "wager": 0,
-    "league": "NBA",
-    "player": "Andrew Nembhard",
-    "pstats": {
-      "s": {
-        "AST": 7.7,
-        "PTS": 16.9,
-        "REB": 2.8
-      },
-      "gp": 57,
-      "l5": {
-        "n": 5,
-        "AST": 12,
-        "PTS": 16,
-        "REB": 2.8,
-        "cur": null
-      },
-      "mpg": 31.3
-    },
-    "altLine": {
-      "line": 5.5,
-      "shift": 2,
-      "posted": 7.5,
-      "postedMl": "-175",
-      "postedDec": null,
-      "postedProb": 0.6359370475056847,
-      "postedLabel": "Andrew Nembhard OVER AST 7.5",
-      "estimatedPrice": true
-    },
-    "betType": "PROP",
-    "decOdds": 1.4065040650406504,
-    "outcome": "pending",
-    "winProb": 0.68,
-    "lockedAt": 1793627086513,
-    "reasoning": "PICK: Andrew Nembhard OVER AST 7.5 \u2014 OPTIMAL (64% model hit rate)\nMODEL: projection 8.65 AST (season average 7.7, last-5 form 12, opponent adjustment +0.9) vs the 7.5 line, spread \u03c3 3.3, from an exact normal distribution (not a simulation).\nWHY: Andrew Nembhard averages 7.7 apg across 57 games this season. Opp ATL DRtg 113.8 vs a 115.7 league average computed from every currently-loaded team, a -2% reduction folded into the projection. Game pace 101.2 (+0.2%), IND offense 110.8 vs a 115.7 league average. No head-to-head history vs ATL this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
-    "priceSource": "estimated"
   },
   {
     "hA": "SA",
