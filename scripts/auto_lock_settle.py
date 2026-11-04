@@ -102,10 +102,20 @@ APP_URL = "https://purple-wraith.github.io/clairvoyance-backend/app.html"
 # renders NO team-logo markup and never fetches docs/team_logos.json, so the card HTML is byte-identical to the pre-logo app and
 # the passes add zero image requests (logos are an interactive-UI feature only; navigator.webdriver is a second, independent guard).
 NOLOGO_QS = "nologo=1"
+# ?nobootpull=1 (2026-11-04, Supabase egress): docs/app.html runs its own ledger pull when it boots, and for an automated browser (navigator.webdriver) that pull is a COMPLETE raw one
+# (~5 MB, 15 requests -- measured). Every headless session already loads the ledger deliberately through load_bet_ledger() (or its own explicit pull), so the boot pull was a pure duplicate:
+# it was the dominant cost of every lock / watchdog / settle session. The flag makes the app skip it.
+NOBOOT_QS = "nobootpull=1"
 
 
 def with_nologo(url: str) -> str:
     return url if NOLOGO_QS in url else url + ("&" if "?" in url else "?") + NOLOGO_QS
+
+
+def with_pipeline_qs(url: str) -> str:
+    """the query flags every headless pipeline page carries: no team logos, no duplicate boot ledger pull"""
+    url = with_nologo(url)
+    return url if NOBOOT_QS in url else url + "&" + NOBOOT_QS
 # Separate from SOCIAL_CARD_EMAIL_TO on purpose -- this is a personal daily
 # betting reference, not public social content, so it can (and probably
 # should) go to a different inbox. Falls back to the social recipient only
@@ -957,8 +967,11 @@ def install_espn_relay(page) -> None:
 # ── Ledger source + backup (rewritten 2026-10-03: Supabase free-tier egress hit 96% of its cycle) ──────────────────────────────────────────────
 # One place decides where a CI session's ledger comes from and how the committed backup (docs/picks_backup.json + docs/picks_backup_meta.json) is kept
 # current, consistent and usable when Supabase is unavailable:
-#   FULL      complete Supabase pull (~3,900 rows, ~2-3 MB). Needed rarely: at most once per ~20h (meta.last_full_supabase_sync), after any degraded
-#             period (reconcile), or when the backup is missing/unreadable.
+#   FULL      verifies the WHOLE table without downloading it (2026-11-04, Supabase egress): every row's small flat columns are listed (~2 MB decoded) and compared with the
+#             committed backup; `raw` is downloaded only for rows that differ, and a backup pick Supabase no longer holds is dropped (the same authority a complete pull
+#             had). Once per FULL_SYNC_MAX_AGE_H (3 days; meta.last_full_supabase_sync), after any degraded period (reconcile), or when the marker is missing. A TRUE
+#             complete raw pull (~5 MB) only when there is no backup to diff against, when the light verification fails, or once per RAW_FULL_MAX_AGE_H (a month; it is the
+#             only thing that notices a change living purely inside `raw`).
 #   HYBRID    committed backup as the base + only the last HYBRID_WINDOW_DAYS days and every pending pick from Supabase (a few hundred KB). Used by every
 #             other run, so egress per run drops ~85-90%.
 #   DEGRADED  Supabase could not be read at all (quota restriction, outage): the backup alone. Nothing reaches Supabase; at the end of the run the changes are
@@ -967,13 +980,16 @@ def install_espn_relay(page) -> None:
 # overlapping workflows can never erase each other's locks, and a validation gate refuses to commit a backup that lost rows.
 BACKUP_PATH = lambda: ROOT / "docs" / "picks_backup.json"      # noqa: E731  (lambdas: tests re-point ROOT)
 META_PATH = lambda: ROOT / "docs" / "picks_backup_meta.json"   # noqa: E731
-FULL_SYNC_MAX_AGE_H = 20
+FULL_SYNC_MAX_AGE_H = 24 * 3
+RAW_FULL_MAX_AGE_H = 24 * 30
 HYBRID_WINDOW_DAYS = 14
+WHOLE_MIN_KEEP_RATIO = 0.5     # a whole-table listing with fewer than this share of the backup's ids is treated as a bad read, never as 'the owner removed everything'
 BACKUP_MIN_KEEP_RATIO = 0.97   # a new backup smaller than this share of origin's is refused (a bad pull must not shrink the safety net)
 
 LEDGER_DEGRADED = False
 LEDGER_MODE = "none"                    # none | full | hybrid | degraded
 _FULL_PULL_THIS_RUN = False
+_RAW_FULL_THIS_RUN = False             # a TRUE complete raw pull happened (not just the light whole-table verification)
 _RECONCILED_THIS_RUN = False
 _LEDGER_LOADED_AT: datetime | None = None
 _DEGRADED_INITIAL: dict[str, str] = {}  # id -> canonical JSON of every pick as this run LOADED it (all modes; name kept for the tests)
@@ -1061,10 +1077,10 @@ async () => {
 # Light-column refresh (2026-11-03, Supabase egress): the window is first listed with the small flat columns only (scripts/_ledger_light.py), compared with the committed backup, and the big `raw` JSON is
 # downloaded just for the rows that differ.  A full window of raw was ~400 KB gzipped / 1.6 MB decoded per session; the light list is ~45 KB / 0.3 MB and the ~30 changed rows add ~15 KB.
 _JS_LIGHT_PULL = """
-async ([cutoff, cols]) => {
+async ([flt, cols]) => {
   const rows = []; let offset = 0; const page_size = 1000;
   while (true) {
-    const r = await fetch(SUPABASE_URL + '/rest/v1/bets?select=' + cols + '&or=(date.gte.' + cutoff + ',outcome.eq.pending)&order=id', {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/bets?select=' + cols + flt + '&order=id', {
       headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, Range: offset + '-' + (offset + page_size - 1) } });
     if (!r.ok) return null;
     const batch = await r.json(); rows.push(...batch);
@@ -1098,16 +1114,39 @@ def _hybrid_allowed(meta: dict) -> bool:
     return _read_backup_file() is not None
 
 
-def _load_hybrid(page) -> int | None:
+def _raw_full_due(meta: dict) -> bool:
+    """True when the last COMPLETE raw pull is older than RAW_FULL_MAX_AGE_H (a monthly safety net for changes that live only inside `raw`). Before this field existed the last full sync
+    was a complete pull, so it stands in for it."""
+    last = _parse_iso(meta.get("last_raw_full_sync")) or _parse_iso(meta.get("last_full_supabase_sync"))
+    return last is None or (_now_utc() - last) > timedelta(hours=RAW_FULL_MAX_AGE_H)
+
+
+def _load_hybrid(page, whole: bool = False) -> int | None:
     """Backup as the base, Supabase only for what changed in the recent window + every pending pick (tombstones drop their id). None if Supabase failed.
-    Two cheap requests instead of one heavy one: list the window's light columns, then fetch `raw` only for rows that differ from the base."""
+    Two cheap requests instead of one heavy one: list the window's light columns, then fetch `raw` only for rows that differ from the base.
+    whole=True lists EVERY row instead of the window: the light equivalent of a complete pull. A backup pick that is not in the listing is gone from Supabase and is dropped
+    (so the page ledger is Supabase's truth, exactly as after a complete pull); a listing that is suspiciously small is a bad read and returns None."""
     base = _read_backup_file()
-    cutoff = (datetime.now(ZoneInfo("America/Denver")) - timedelta(days=HYBRID_WINDOW_DAYS)).strftime("%Y-%m-%d")
+    if whole:
+        flt = ""
+    else:
+        cutoff = (datetime.now(ZoneInfo("America/Denver")) - timedelta(days=HYBRID_WINDOW_DAYS)).strftime("%Y-%m-%d")
+        flt = f"&or=(date.gte.{cutoff},outcome.eq.pending)"
+    dropped = 0
     try:
-        light = page.evaluate(_JS_LIGHT_PULL, [cutoff, _ledger_light.LIGHT_COLS])
+        light = page.evaluate(_JS_LIGHT_PULL, [flt, _ledger_light.LIGHT_COLS])
         if light is None or base is None:
             return None
         merged = _ids(base)
+        if whole:
+            listed = {r.get("id") for r in light if r.get("id")}
+            if len(listed) < WHOLE_MIN_KEEP_RATIO * len(merged):
+                log(f"Whole-table listing returned only {len(listed)} rows against a backup of {len(merged)} -- not trusting it")
+                return None
+            gone = [k for k in merged if k not in listed]
+            dropped = len(gone)
+            for k in gone:
+                merged.pop(k, None)
         tombs, fetch = _ledger_light.plan(light, merged)
         raw_rows = []
         if fetch:
@@ -1124,16 +1163,43 @@ def _load_hybrid(page) -> int | None:
             merged.pop(r.get("id"), None)
         elif isinstance(r.get("raw"), dict) and r["raw"].get("id"):
             merged[r["raw"]["id"]] = r["raw"]
-    log(f"  hybrid ledger: {len(light)} light rows listed, {len(tombs)} removed, {len(raw_rows)} downloaded in full")
+    log(f"  {'whole-table' if whole else 'hybrid'} ledger: {len(light)} light rows listed, {len(tombs)} removed, {len(raw_rows)} downloaded in full"
+        + (f", {dropped} dropped (no longer in Supabase)" if whole else ""))
     page.evaluate("(preds) => { saveP(preds); }", list(merged.values()))
     return len(merged)
 
 
+_EGRESS = {"requests": 0, "bytes": 0}
+
+
+def attach_egress_meter(page) -> None:
+    """Count every Supabase response this headless session receives, in DECODED bytes (what Supabase's egress is measured in), so each run's log says what it cost (2026-11-04: the
+    dashboard lags by hours and cannot say WHICH job pulled). Read with log_egress()."""
+    def _on(resp):
+        try:
+            if "supabase.co" in resp.url:
+                _EGRESS["requests"] += 1
+                _EGRESS["bytes"] += len(resp.body())
+        except Exception:
+            pass
+    page.on("response", _on)
+
+
+def log_egress(where: str) -> None:
+    log(f"Supabase egress ({where}): {_EGRESS['requests']} requests, {_EGRESS['bytes'] / 1e6:.2f} MB decoded so far this session")
+
+
 def load_bet_ledger(page, force_full: bool = False) -> int:
+    n = _load_bet_ledger(page, force_full)
+    log_egress("after the ledger load")
+    return n
+
+
+def _load_bet_ledger(page, force_full: bool = False) -> int:
     """Put the real ledger into the page's getP()/saveP() store so every client function (settlement, dedup checks, sync) operates on it.
     See the block comment above for FULL / HYBRID / DEGRADED. Uses docs/app.html's own SUPABASE_URL/SUPABASE_KEY consts (the anon key, safe client-side by
     RLS design). Once degraded, later calls keep the in-page state rather than reloading the (older) backup over this run's changes."""
-    global LEDGER_MODE, _FULL_PULL_THIS_RUN
+    global LEDGER_MODE, _FULL_PULL_THIS_RUN, _RAW_FULL_THIS_RUN
     if LEDGER_DEGRADED:
         return page.evaluate("() => getP().length")
     meta = _read_meta()
@@ -1143,7 +1209,20 @@ def load_bet_ledger(page, force_full: bool = False) -> int:
             LEDGER_MODE = "hybrid"
             _snapshot_initial(page)
             return n
-        log("Hybrid (window) pull failed -- trying a full pull")
+        log("Hybrid (window) pull failed -- verifying the whole table instead")
+    if not force_full and not _raw_full_due(meta) and _read_backup_file() is not None:
+        n = _load_hybrid(page, whole=True)
+        if n is not None:
+            LEDGER_MODE = "full"
+            _FULL_PULL_THIS_RUN = True
+            _snapshot_initial(page)
+            if meta.get("needs_reconcile"):
+                try:
+                    reconcile_from_backup(page)
+                except Exception as exc:
+                    log(f"WARNING: reconcile from backup failed (will retry next run): {exc}")
+            return page.evaluate("() => getP().length")
+        log("Whole-table light verification failed -- trying a complete pull")
     try:
         count = page.evaluate(_JS_FULL_PULL)
     except Exception as exc:
@@ -1153,6 +1232,7 @@ def load_bet_ledger(page, force_full: bool = False) -> int:
         return _load_ledger_from_backup(page)
     LEDGER_MODE = "full"
     _FULL_PULL_THIS_RUN = True
+    _RAW_FULL_THIS_RUN = True
     _snapshot_initial(page)
     if meta.get("needs_reconcile"):
         try:
@@ -1319,6 +1399,7 @@ def write_ledger_backup(page) -> int:
         "count": len(merged),
         "source": LEDGER_MODE,
         "last_full_supabase_sync": _now_utc().strftime("%Y-%m-%dT%H:%M:%SZ") if _FULL_PULL_THIS_RUN else base_meta.get("last_full_supabase_sync"),
+        "last_raw_full_sync": _now_utc().strftime("%Y-%m-%dT%H:%M:%SZ") if _RAW_FULL_THIS_RUN else (base_meta.get("last_raw_full_sync") or base_meta.get("last_full_supabase_sync")),
         "needs_reconcile": True if LEDGER_DEGRADED else (False if _RECONCILED_THIS_RUN else bool(base_meta.get("needs_reconcile", False))),
         "last_degraded_at": _now_utc().strftime("%Y-%m-%dT%H:%M:%SZ") if LEDGER_DEGRADED else base_meta.get("last_degraded_at"),
         "last_reconcile_at": _now_utc().strftime("%Y-%m-%dT%H:%M:%SZ") if _RECONCILED_THIS_RUN else base_meta.get("last_reconcile_at"),
@@ -1387,6 +1468,7 @@ def flush_to_supabase(page) -> None:
     of them in an immediate verify pull -- a race, not a write failure.
     Awaiting the real completion here closes that gap."""
     page.evaluate("async () => { await _syncBetsToSupabaseNow(); }")
+    log_egress("after the flush")
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -5498,7 +5580,8 @@ def main() -> None:
         # interval variables one at a time.
         page.add_init_script("window.setInterval = () => 0;")
         log(f"Loading {args.app_url} …")
-        page.goto(with_nologo(args.app_url), wait_until="load", timeout=60000)
+        attach_egress_meter(page)
+        page.goto(with_pipeline_qs(args.app_url), wait_until="load", timeout=60000)
         page.wait_for_timeout(3000)
 
         bet_count = load_bet_ledger(page)

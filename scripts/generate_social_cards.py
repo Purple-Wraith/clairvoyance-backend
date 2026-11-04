@@ -766,10 +766,24 @@ def run(out_dir: Path, force: set[str] | None = None, json_only: bool = False) -
         page = context.new_page()
         log(f"Loading {APP_URL} …")
         # ?nologo=1: the in-app team-logo feature (docs/app.html _teamLogoHTML) must never reach an exported/public graphic.
-        page.goto(APP_URL + ("&" if "?" in APP_URL else "?") + "nologo=1", wait_until="load", timeout=60000)
+        # ?nobootpull=1: this script loads the ledger itself just below, so the app's own boot pull (a complete raw ledger download, ~5 MB) would be a pure duplicate (see auto_lock_settle.NOBOOT_QS).
+        page.goto(APP_URL + ("&" if "?" in APP_URL else "?") + "nologo=1&nobootpull=1", wait_until="load", timeout=60000)
         page.wait_for_timeout(3000)
 
-        bet_count = page.evaluate(
+        # The ledger comes from the committed backup first (2026-11-04, Supabase egress): it is the same ledger -- every lock / settle run that changes it writes it -- and costs no Supabase egress,
+        # where the complete raw pull below was ~5 MB on every daily run. Supabase stays as the fallback when the backup is missing or unreadable.
+        from_backup = False
+        bet_count = None
+        try:
+            _bk = json.loads((ROOT / "docs" / "picks_backup.json").read_text())
+            if isinstance(_bk, list) and _bk:
+                page.evaluate("(preds) => { saveP(preds); }", _bk)
+                bet_count = len(_bk)
+                from_backup = True
+        except Exception as exc:
+            log(f"docs/picks_backup.json not usable ({exc}) -- pulling the ledger from Supabase instead")
+
+        bet_count = bet_count if bet_count is not None else page.evaluate(
             """
             async () => {
               // PostgREST caps a single response at 1000 rows by default —
@@ -819,7 +833,8 @@ def run(out_dir: Path, force: set[str] | None = None, json_only: bool = False) -
             bet_count = len(backup)
             log(f"WARNING: Supabase unavailable -- built from docs/picks_backup.json ({bet_count} bets)")
         else:
-            log(f"Loaded {bet_count} real bets from Supabase into headless session")
+            log(f"Loaded {bet_count} real bets from docs/picks_backup.json (no Supabase pull) into headless session" if from_backup
+                else f"Loaded {bet_count} real bets from Supabase into headless session")
 
         # Pre-start-locks-only basis (2026-10-02): classify the whole ledger with the shared classifier, and hand the verdict to
         # the in-page renderer BEFORE anything renders, so every exported card, caption number and JSON agrees.

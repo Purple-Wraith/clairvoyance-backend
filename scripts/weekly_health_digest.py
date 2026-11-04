@@ -129,6 +129,14 @@ def probe_supabase(url: str, key: str) -> str | None:
 
 
 def load_ledger(url: str, key: str) -> list[dict]:
+    """The ledger for the weekly digest. From the committed backup first (2026-11-04, Supabase egress): it is the same ledger, written by every lock / settle run, and costs no egress -- the
+    complete raw pull below was ~5 MB every week. Supabase is only the fallback when the backup is missing or unreadable."""
+    try:
+        backup = json.loads((ROOT / "docs" / "picks_backup.json").read_text())
+        if isinstance(backup, list) and backup:
+            return [p for p in backup if isinstance(p, dict) and p.get("outcome") != "_removed"]
+    except Exception:
+        pass
     rows: list[dict] = []
     offset = 0
     page_size = 1000

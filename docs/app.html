@@ -2721,6 +2721,10 @@ const SUPABASE_URL='https://vhwkbeblforpnliowpam.supabase.co';
 // ?nosb=1 turns every Supabase read AND write off for that page load (local testing / agent sessions). Added 2026-10-03 when the free-tier egress
 // reached 96% of the cycle: every page load does a full ledger pull, so repeated test loads (not just CI and real use) burn the quota. Never set by the pipeline.
 function _sbOff(){try{return /[?&]nosb=1(?:&|$)/.test(location.search||'');}catch(e){return false;}}
+// ?nobootpull=1 (2026-11-04, Supabase egress): the headless lock / settle / watchdog / social-card sessions load the ledger deliberately through their own explicit pull, but this page's boot ran its
+// own COMPLETE raw pull as well (navigator.webdriver always means "full", ~5 MB, 15 requests, measured) on every single session: a pure duplicate and the biggest single source of egress. The pipelines
+// now open the page with this flag; it skips ONLY that boot pull (Supabase stays on for everything else, unlike nosb).
+function _bootPullOff(){try{return /[?&]nobootpull=1(?:&|$)/.test(location.search||'');}catch(e){return false;}}
 const SUPABASE_KEY='sb_publishable_AEgqvpaIh0MWpDdXI35BYw_lD8HzBlM';
 function _supabaseBetRow(p){
   return{
@@ -2827,6 +2831,9 @@ async function _doSupabaseSync(){
 }
 function syncBetsToSupabase(){
   try{relayManualLocks();}catch(e){}
+  // A ?nobootpull=1 page is a headless pipeline session: it flushes explicitly through _syncBetsToSupabaseNow() (auto_lock_settle.flush_to_supabase), so the debounced auto-sync that every saveP()
+  // arms -- including the one the pipeline's own ledger load triggers -- would only add a second pull-first on top of it.
+  if(_bootPullOff())return;
   // Debounced — saveP() can fire many times in a row (bulk imports,
   // migrations, settle sweeps); coalesce into one upload 2.5s after the
   // last change instead of one request per call.
@@ -6782,12 +6789,17 @@ window.applyBetClassificationFix=applyBetClassificationFix;
 // ~2-3 MB). It is now complete only when it has to be -- automation (the CI lock/settle sessions need the authoritative ledger), a new/empty device, or
 // no complete pull in the last 24h (same rule the foreground pull already used) -- otherwise the scoped 10-day pull, which is all a device that already
 // holds the ledger in localStorage needs. A change older than 10 days still reaches every device at least once a day.
+// A device re-reads the WHOLE table at most once a week (was daily, 2026-11-04): the scoped 10-day pull below carries every recent change, the 3-hourly foreground pull repeats it, and the committed
+// backup bootstraps a new device (see syncPicksFromSupabase), so a complete raw pull (~5 MB) is only the weekly safety net for a change older than 10 days.
+const _FULL_PULL_MAX_AGE_MS=7*24*60*60*1000;
+// A device holding fewer picks than this does not have the ledger yet (a brand-new one carries only ~280 built-in seed picks; the real ledger is 5,000+): it bootstraps from the committed backup.
+const _BOOTSTRAP_MIN_PICKS=1000;
 function _initNeedsFullPull(){
   try{
     if(navigator.webdriver===true)return true;
     const last=parseInt(localStorage.getItem('cv_last_full_pull_ts')||'0',10);
-    if(!last||Date.now()-last>24*60*60*1000)return true;
-    if((typeof getP==='function'?getP().length:0)<200)return true;
+    if(!last||Date.now()-last>_FULL_PULL_MAX_AGE_MS)return true;
+    if((typeof getP==='function'?getP().length:0)<_BOOTSTRAP_MIN_PICKS)return true;
     return false;
   }catch(e){return true;}
 }
@@ -6822,7 +6834,9 @@ async function _fetchSupabaseBetRowsLight(sinceDays){
   const cut=new Date(Date.now()-sinceDays*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
   const light=[];let offset=0;const pageSize=1000;
   while(true){
-    const r=await fetch(SUPABASE_URL+'/rest/v1/bets?select='+_LIGHT_COLS+'&order=id&date=gte.'+cut,{headers:Object.assign({'Range':offset+'-'+(offset+pageSize-1)},hdr)});
+    // `or=(date.gte.<cut>,outcome.eq.pending)` (2026-11-04): every pending pick is listed whatever its date, like the CI sessions do -- a pick still pending after 10 days (a postponed game) that
+    // is settled elsewhere would otherwise reach this device only at its weekly complete pull.
+    const r=await fetch(SUPABASE_URL+'/rest/v1/bets?select='+_LIGHT_COLS+'&order=id&or=(date.gte.'+cut+',outcome.eq.pending)',{headers:Object.assign({'Range':offset+'-'+(offset+pageSize-1)},hdr)});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const batch=await r.json();
     if(!Array.isArray(batch))throw new Error('non-array response');
@@ -6855,7 +6869,7 @@ async function _fetchSupabaseBetRows(sinceDays){
     catch(e){console.warn('[CV] light Supabase pull failed, using the full-column pull:',e.message);}
   }
   let offset=0;const pageSize=1000;
-  const dateFilter=sinceDays?'&date=gte.'+new Date(Date.now()-sinceDays*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'}):'';
+  const dateFilter=sinceDays?'&or=(date.gte.'+new Date(Date.now()-sinceDays*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Denver'})+',outcome.eq.pending)':'';
   while(true){
     const r=await fetch(SUPABASE_URL+'/rest/v1/bets?select=id,raw,outcome,settled_at,locked_at&order=id'+dateFilter,{
       headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,
@@ -7012,7 +7026,14 @@ async function syncPicksFromSupabase(full){
     _lastSupabasePullTs=now;
     let rows;
     try{
-      rows=await _fetchSupabaseBetRows(full?null:10);
+      // An (almost) empty device used to need the complete table from Supabase. The committed backup is the same ledger and is served by GitHub Pages at no Supabase cost: load it first, then ask
+      // Supabase for the last 10 days only. If the backup cannot be read, the complete pull below still runs as before.
+      let since=full?null:10;
+      if(full&&typeof getP==='function'&&getP().length<_BOOTSTRAP_MIN_PICKS){
+        try{await loadPicksFromBackupJSON();}catch(e0){console.warn('[CV] backup bootstrap failed, falling back to the complete pull:',e0.message);}
+        if(getP().length>=_BOOTSTRAP_MIN_PICKS)since=10;
+      }
+      rows=await _fetchSupabaseBetRows(since);
     }catch(e){
       // Real incident, 2026-09-13: Supabase's own egress quota got
       // exceeded and the project was restricted account-wide (HTTP 402
@@ -21986,7 +22007,7 @@ function renderHomePage(){
     if(document.hidden)return;
     try{
       const lastFull=parseInt(localStorage.getItem('cv_last_full_pull_ts')||'0',10);
-      const needsFull=Date.now()-lastFull>24*60*60*1000;
+      const needsFull=Date.now()-lastFull>_FULL_PULL_MAX_AGE_MS;
       syncPicksFromSupabase(needsFull);
     }catch(e){}
   };
@@ -27812,7 +27833,7 @@ document.addEventListener('DOMContentLoaded',()=>{(async()=>{
       Promise.race([loadPicksFromGitHub(),new Promise(r=>setTimeout(r,4000))]),
       Promise.race([idbRecoverDailyLog(),new Promise(r=>setTimeout(r,2000))]),
       Promise.race([syncPicksFromBackend(),new Promise(r=>setTimeout(r,5000))]),
-      Promise.race([syncPicksFromSupabase(_initNeedsFullPull()),new Promise(r=>setTimeout(r,25000))]),
+      _bootPullOff()?Promise.resolve():Promise.race([syncPicksFromSupabase(_initNeedsFullPull()),new Promise(r=>setTimeout(r,25000))]),
     ]);
   }catch(e){console.error('parallelSync',e);}
   try{_migrateMlbNhlMislabel();}catch(e){console.error('migrateMlbNhl',e);}
