@@ -63,6 +63,14 @@ class BootPull(unittest.TestCase):
         return ctx, pg, calls
 
     @staticmethod
+    def wait_for_calls(pg, calls, seconds=20):
+        """poll until the boot's request(s) have been made (a fixed sleep flaked on a cold CI browser), then give the rest of them a moment"""
+        end = time.time() + seconds
+        while not calls and time.time() < end:
+            pg.wait_for_timeout(250)
+        pg.wait_for_timeout(2500)
+
+    @staticmethod
     def filtered(url):
         return "date.gte." in url        # the scoped pull is `or=(date.gte.<cut>,outcome.eq.pending)`: a recent window plus every pending pick, never the whole table
 
@@ -74,19 +82,30 @@ class BootPull(unittest.TestCase):
         pg.evaluate("_fetchSupabaseBetRows(10)")
         ctx.close()
 
+    def test_nosb_mode_never_loads_the_live_backup(self):
+        # ?nosb=1 means "no live ledger" (tests, demos). The new-device bootstrap once ran there too and merged the real 5,400-pick backup into pages that expected only their own picks
+        # (found 2026-11-04 when five analytics / form-tip test files failed in CI).
+        ctx, pg, calls = self.open("nosb=1&nologo=1&nosw=1")
+        self.assertEqual(calls, [])
+        self.assertLess(pg.evaluate("getP().length"), 1000)
+        ctx.close()
+
     def test_without_the_flag_a_headless_boot_still_syncs(self):
         ctx, pg, calls = self.open("nologo=1&nosw=1")
+        self.wait_for_calls(pg, calls)
         self.assertGreaterEqual(len(calls), 1)
         ctx.close()
 
     def test_a_new_device_bootstraps_from_the_backup_and_never_pulls_the_whole_table(self):
         ctx, pg, calls = self.open("nologo=1&nosw=1")                        # fresh storage = a new device (and webdriver = 'wants a full pull')
-        self.assertGreaterEqual(pg.evaluate("getP().length"), 200)            # the committed backup filled it
+        self.wait_for_calls(pg, calls)
+        self.assertGreaterEqual(pg.evaluate("getP().length"), 1000)           # the committed backup filled it
         self.assertTrue(calls and all(self.filtered(u) for u in calls), calls)      # Supabase was only asked for a recent window, never the unfiltered table
         ctx.close()
 
     def test_the_scoped_pull_also_asks_for_every_pending_pick(self):
         ctx, pg, calls = self.open("nologo=1&nosw=1")
+        self.wait_for_calls(pg, calls)
         self.assertTrue(calls and all("outcome.eq.pending" in u for u in calls), calls)      # not just the recent window
         # and it really does reach an old pending pick: a stale local 'pending' is settled by the remote row even though its date is 3 weeks old
         pg.evaluate("""(()=>{const p=getP().find(x=>x.outcome!=='pending'&&x.outcome);const old=Object.assign({},p,{id:'zz_old_pending',date:'2026-10-01',outcome:'pending',settledAt:null});saveP(getP().concat([old]))})()""")
@@ -96,12 +115,13 @@ class BootPull(unittest.TestCase):
 
     def test_a_device_that_pulled_recently_does_the_scoped_pull_and_a_week_old_one_the_full_pull(self):
         ctx, pg, calls = self.open("nologo=1&nosw=1", webdriver=False)       # a normal browser
-        self.assertGreaterEqual(pg.evaluate("getP().length"), 200)
+        self.wait_for_calls(pg, calls)
+        self.assertGreaterEqual(pg.evaluate("getP().length"), 1000)
         pg.evaluate(f"localStorage.setItem('cv_last_full_pull_ts',String({int((time.time() - 2 * 86400) * 1000)}))")    # last full pull: 2 days ago
-        calls.clear(); pg.reload(wait_until="load"); pg.wait_for_timeout(4000)
+        calls.clear(); pg.reload(wait_until="load"); self.wait_for_calls(pg, calls)
         self.assertTrue(calls and all(self.filtered(u) for u in calls), calls)       # the old rule (24 h) would have pulled the whole table here
         pg.evaluate(f"localStorage.setItem('cv_last_full_pull_ts',String({int((time.time() - 8 * 86400) * 1000)}))")    # 8 days ago
-        calls.clear(); pg.reload(wait_until="load"); pg.wait_for_timeout(4000)
+        calls.clear(); pg.reload(wait_until="load"); self.wait_for_calls(pg, calls)
         self.assertTrue(any(not self.filtered(u) for u in calls), calls)             # the weekly safety net: one complete pull
         ctx.close()
 

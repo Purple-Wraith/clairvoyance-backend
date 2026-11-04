@@ -7029,7 +7029,7 @@ async function syncPicksFromSupabase(full){
       // An (almost) empty device used to need the complete table from Supabase. The committed backup is the same ledger and is served by GitHub Pages at no Supabase cost: load it first, then ask
       // Supabase for the last 10 days only. If the backup cannot be read, the complete pull below still runs as before.
       let since=full?null:10;
-      if(full&&typeof getP==='function'&&getP().length<_BOOTSTRAP_MIN_PICKS){
+      if(full&&!_sbOff()&&typeof getP==='function'&&getP().length<_BOOTSTRAP_MIN_PICKS){      // never under ?nosb=1: that mode means "no live ledger" (tests, demos), so the real backup must not be merged in
         try{await loadPicksFromBackupJSON();}catch(e0){console.warn('[CV] backup bootstrap failed, falling back to the complete pull:',e0.message);}
         if(getP().length>=_BOOTSTRAP_MIN_PICKS)since=10;
       }
