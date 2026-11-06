@@ -2809,7 +2809,8 @@ async function _doSupabaseSync(){
     // gets re-pushed since Supabase already has it from when it first
     // settled.
     const _pushCutoff=new Date(Date.now()-21*86400000).toISOString().slice(0,10);
-    const bets=(typeof getP==='function'?getP():[]).filter(p=>p&&p.id&&(p.outcome==='pending'||(p.date||'')>=_pushCutoff));
+    // `_rt` = this device's copy had its reasoning text trimmed to fit phone storage (see _storePreds): uploading it would overwrite the full row in Supabase, so it is never pushed
+    const bets=(typeof getP==='function'?getP():[]).filter(p=>p&&p.id&&!p._rt&&(p.outcome==='pending'||(p.date||'')>=_pushCutoff));
     if(!bets.length)return;
     const rows=bets.map(_supabaseBetRow);
     // PostgREST request bodies aren't unlimited — chunk into batches.
@@ -2872,7 +2873,37 @@ async function api(method, path, body) {
 }
 
 // ═══ LOCAL STORAGE (fallback when no backend) ════════════════
-const S={g:(k,d=null)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},s:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}},d:(k)=>{try{localStorage.removeItem(k)}catch{}}};
+// STORAGE FIX (2026-11-06): the ledger had grown to ~2.9M characters in ONE localStorage key, past what an iPhone allows (~2.6M; Safari counts UTF-16). setItem threw, this wrapper swallowed it, and the phone
+// froze at its last successful save (Oct 31): THIS MONTH 0-0, YESTERDAY 0-0, nothing new ever stuck. The ledger ('preds') now goes through _storePreds(): old settled picks lose their bulky `reasoning`
+// text (47% of the bytes; IndexedDB keeps the full copy and the Why-this-pick panel loads it on demand), and a failed write retries with progressively slimmer copies instead of dropping the save.
+const S={g:(k,d=null)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},s:(k,v)=>{if(k==='preds'&&Array.isArray(v))return _storePreds(v);try{localStorage.setItem(k,JSON.stringify(v))}catch{}},d:(k)=>{try{localStorage.removeItem(k)}catch{}}};
+// level 0: settled picks older than 2 days lose `reasoning` (kept in IndexedDB / Supabase; `_rt:1` marks the copy, and the Supabase push skips it so the cloud copy is never overwritten with the slim one)
+// level 1: every settled pick loses it    level 2: settled picks also lose socFactors/pstats    level 3: ...and pending picks lose their reasoning text too (last resort, so a save never fails)
+function _slimPickForStore(p,level,cut){
+  if(!p||typeof p!=='object'||p.outcome==='_removed')return p;
+  const settled=!!p.outcome&&p.outcome!=='pending';
+  const strip=settled?(level>=1||(p.date||'')<cut):level>=3;
+  if(!strip||(p.reasoning==null&&(level<2||(p.socFactors==null&&p.pstats==null))))return p;
+  const q=Object.assign({},p);
+  if(q.reasoning!=null){delete q.reasoning;q._rt=1;}
+  if(level>=2&&settled){delete q.socFactors;delete q.pstats;}
+  return q;
+}
+let _storeWarned=false;
+function _storePreds(arr){
+  let on=true;try{on=_slimOn();}catch(e){}
+  const cut=(()=>{try{return nDaysAgoET(2);}catch(e){return'';}})();
+  for(let level=0;level<=3;level++){
+    try{
+      const out=on||level>0?arr.map(p=>_slimPickForStore(p,level,cut)):arr;
+      localStorage.setItem('preds',JSON.stringify(out));
+      return true;
+    }catch(e){/* quota: try a slimmer copy */}
+  }
+  console.error('[CV] the ledger does not fit in this device\'s storage');
+  if(!_storeWarned){_storeWarned=true;try{toast('// STORAGE FULL — NEW PICKS MAY NOT SAVE ON THIS DEVICE');}catch(e){}}
+  return false;
+}
 let _rankFilter='all';
 let ENS={mc:.50,bay:.20,elo:.30};
 let NHL_ENS={mc:.50,bay:.20,elo:.30,hv:.00};
@@ -5834,10 +5865,27 @@ function _bestMarketBoxHTML(tierN,tierCol,tierLabel,bestLabel,bestProb,bestEvVal
 // or broken expand.
 function _safeUrl(u){u=String(u==null?'':u).trim();return /^https?:\/\//i.test(u)?u:'';}   // news links come from external feeds: http(s) only (no javascript: URLs)
 function _escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}   // quotes too: it is used inside "..." attributes (audit 2026-10-23)
+// A settled pick older than 2 days keeps no reasoning text on this device (storage; see _storePreds): opening its panel fetches just that one field from Supabase (~1 KB).
+async function _loadTrimmedReasoning(row){
+  const pid=row.getAttribute('data-rt');if(!pid||row.getAttribute('data-rt-state'))return;
+  row.setAttribute('data-rt-state','loading');
+  try{
+    if(_sbOff())throw new Error('offline mode');
+    const r=await fetch(SUPABASE_URL+'/rest/v1/bets?select=rs:raw->>reasoning&id=eq.'+encodeURIComponent(pid),{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json();const t=j&&j[0]&&j[0].rs;
+    row.innerHTML=t?_escHtml(t).replace(/\n/g,'<br>'):'<span style="color:var(--t3)">No detailed reasoning captured for this pick.</span>';
+    row.setAttribute('data-rt-state','done');
+  }catch(e){
+    row.innerHTML='<span style="color:var(--t3)">Could not load the reasoning right now — tap again to retry.</span>';
+    row.removeAttribute('data-rt-state');
+  }
+}
 function _toggleWhyPick(id){
   const row=document.getElementById(id);if(!row)return;
   const willOpen=row.style.display==='none';
   row.style.display=willOpen?'block':'none';
+  if(willOpen&&row.getAttribute('data-rt'))_loadTrimmedReasoning(row);
   const arrow=document.getElementById(id+'_arrow');
   if(arrow)arrow.textContent=willOpen?'▼':'▶';
 }
@@ -5850,8 +5898,10 @@ function _whyThisPickHTML(pick){
   // own tab) -- a shared, un-prefixed id would make both toggles fight
   // over one DOM node.
   const uid='whypick_'+(_whyPickSeq++)+'_'+String(pick.id||'').replace(/[^A-Za-z0-9]/g,'');
+  const trimmed=!pick.reasoning&&pick._rt;
   const body=pick.reasoning
     ?_escHtml(pick.reasoning).replace(/\n/g,'<br>')
+    :trimmed?'<span style="color:var(--t3)">Loading…</span>'
     :'<span style="color:var(--t3)">No detailed reasoning captured for this pick.</span>';
   // Touch target fix, 2026-10-02: this toggle shipped as a bare
   // inline-flex text row (no padding), which laid out as a ~72x12px hit
@@ -5872,7 +5922,7 @@ function _whyThisPickHTML(pick){
   return`<div style="margin-top:4px">`
     +`<div onclick="event.stopPropagation();_toggleWhyPick('${uid}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();_toggleWhyPick('${uid}')}" style="cursor:pointer;font-family:var(--mono);font-size:14px;color:var(--nc);letter-spacing:.5px;-webkit-user-select:none;user-select:none;display:inline-flex;align-items:center;gap:4px;padding:8px 6px;margin:-8px -6px;min-height:34px;box-sizing:border-box;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,240,255,.25)">`
     +`<span id="${uid}_arrow">▶</span> WHY THIS PICK</div>`
-    +`<div id="${uid}" style="display:none;margin-top:4px;padding:6px 8px;background:rgba(0,0,0,.35);border:1px solid rgba(0,240,255,.2);border-radius:3px;font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${body}</div>`
+    +`<div id="${uid}"${trimmed?` data-rt="${_escHtml(String(pick.id))}"`:''} style="display:none;margin-top:4px;padding:6px 8px;background:rgba(0,0,0,.35);border:1px solid rgba(0,240,255,.2);border-radius:3px;font-family:var(--mono);font-size:14px;color:var(--t2);line-height:1.6">${body}</div>`
     +`</div>`;
 }
 function evGrd(evPct){if(evPct>=12)return{lbl:'EV A+',col:'var(--gc)'};if(evPct>=8)return{lbl:'EV A',col:'var(--nc)'};if(evPct>=4)return{lbl:'EV B',col:'var(--pc)'};if(evPct>=1)return{lbl:'EV C',col:'var(--t2)'};return{lbl:'EV D',col:'var(--t3)'};}
