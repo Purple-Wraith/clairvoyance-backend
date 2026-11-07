@@ -128455,10 +128455,10 @@
     "ml": "-266",
     "decOdds": 1.376,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1793970490037,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 119,
+    "aScore": 95,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: CLE +8.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted CLE +2.5 to CLE +8.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 76.5%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected 113.1\u2013120.2 (total 233.3), from an exact normal distribution (not a simulation).",
@@ -128474,7 +128474,8 @@
     },
     "startMs": 1794011400000,
     "leadMin": 682,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794021681736
   },
   {
     "id": "2026-11-06_CLE_PHI_NBA_OVER221.5",
@@ -128489,10 +128490,10 @@
     "ml": "-251",
     "decOdds": 1.399,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "loss",
     "lockedAt": 1793970490553,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 119,
+    "aScore": 95,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: OVER 221.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted OVER 229.5 to OVER 221.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 58.1%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
@@ -128510,7 +128511,8 @@
     },
     "startMs": 1794011400000,
     "leadMin": 682,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794021681737
   },
   {
     "id": "2026-11-06_DAL_UTAH_NBA_DALML",
@@ -145956,7 +145958,7 @@
     "conf": 0.68,
     "ml": "-246",
     "lockedAt": 1793970498424,
-    "outcome": "pending",
+    "outcome": "loss",
     "date": "2026-11-06",
     "sport": "NBA",
     "league": "NBA",
@@ -145994,7 +145996,10 @@
         "AST": 9.2
       }
     },
-    "reasoning": "PICK: LeBron James OVER AST 6.5 \u2014 OPTIMAL (65% model hit rate)\nMODEL: projection 7.65 AST (season average 7.2, last-5 form 9.2, opponent adjustment +0.4) vs the 6.5 line, spread \u03c3 2.92, from an exact normal distribution (not a simulation).\nWHY: LeBron James averages 7.2 apg across 60 games this season. Opp CLE DRtg 115.1 vs a 115.7 league average computed from every currently-loaded team, a -1% reduction folded into the projection. Game pace 99.8 (-0.2%), PHI offense 115.3 vs a 115.7 league average. No head-to-head history vs CLE this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
+    "reasoning": "PICK: LeBron James OVER AST 6.5 \u2014 OPTIMAL (65% model hit rate)\nMODEL: projection 7.65 AST (season average 7.2, last-5 form 9.2, opponent adjustment +0.4) vs the 6.5 line, spread \u03c3 2.92, from an exact normal distribution (not a simulation).\nWHY: LeBron James averages 7.2 apg across 60 games this season. Opp CLE DRtg 115.1 vs a 115.7 league average computed from every currently-loaded team, a -1% reduction folded into the projection. Game pace 99.8 (-0.2%), PHI offense 115.3 vs a 115.7 league average. No head-to-head history vs CLE this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+    "settledAt": 1794021682643,
+    "playerResult": 3,
+    "playerMin": 32
   },
   {
     "id": "prop_2026-11-06_NBA_VictorWembanyama_PTS_24.5_O",
