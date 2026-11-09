@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-11-09 07:07 MT",
+  "generated_at": "2026-11-09 12:12 MT",
   "basis": "all locks (including picks locked after the game started)",
   "basis_note": "Figures count every settled pick in scope, including picks locked after the game had started. basis_detail shows how many of those there are.",
   "classifier": "scripts/lock_timing.py",
   "basis_detail": {
-    "settled_pre_start": 2813,
+    "settled_pre_start": 2815,
     "settled_locked_after_start_included": 211,
     "settled_unknown_timing_included": 361,
     "unknown_timing_by_league": {
@@ -17,7 +17,16 @@
   },
   "today": {
     "label": "TODAY",
-    "leagues": [],
+    "leagues": [
+      {
+        "lbl": "LIIGA",
+        "w": 2,
+        "l": 0,
+        "n": 2,
+        "pct": 1,
+        "units": 1.1150000000000002
+      }
+    ],
     "excluded_late": 0
   },
   "lastMonth": {
@@ -190,6 +199,14 @@
         "units": 5.905000000000002
       },
       {
+        "lbl": "LIIGA",
+        "w": 2,
+        "l": 0,
+        "n": 2,
+        "pct": 1,
+        "units": 1.1150000000000002
+      },
+      {
         "lbl": "EXTRALIGA",
         "w": 2,
         "l": 0,
@@ -266,6 +283,14 @@
         "n": 23,
         "pct": 0.8260869565217391,
         "units": 5.380000000000003
+      },
+      {
+        "lbl": "LIIGA",
+        "w": 2,
+        "l": 0,
+        "n": 2,
+        "pct": 1,
+        "units": 1.1150000000000002
       }
     ],
     "excluded_late": 0
@@ -307,11 +332,11 @@
       },
       {
         "lbl": "LIIGA",
-        "w": 138,
+        "w": 140,
         "l": 54,
-        "n": 192,
-        "pct": 0.71875,
-        "units": 33.743863793280184
+        "n": 194,
+        "pct": 0.7216494845360825,
+        "units": 34.85886379328018
       },
       {
         "lbl": "La Liga",
@@ -374,16 +399,6 @@
   },
   "rolling7_series": {
     "NHL": [
-      [
-        1793468704316,
-        1,
-        0.43
-      ],
-      [
-        1793468704887,
-        1,
-        0.52
-      ],
       [
         1793534327044,
         1,
@@ -3284,6 +3299,18 @@
         1793953994412,
         1,
         0.374
+      ]
+    ],
+    "LIIGA": [
+      [
+        1794123679332,
+        1,
+        0.62
+      ],
+      [
+        1794123679551,
+        1,
+        0.495
       ]
     ]
   }
