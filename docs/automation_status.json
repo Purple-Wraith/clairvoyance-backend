@@ -6,10 +6,10 @@
     "detail": "0 bet(s) settled"
   },
   "lastLock": {
-    "tsUTC": "2026-11-11T17:28:38Z",
-    "tsMT": "2026-11-11 10:28 AM MT",
+    "tsUTC": "2026-11-11T18:00:43Z",
+    "tsMT": "2026-11-11 11:00 AM MT",
     "ok": true,
-    "detail": "EURO EARLY lock pass completed, 0 locked this pass, 43 pick(s) verified for 2026-11-11; 3 leg(s) skipped: game already started"
+    "detail": "CFB lock pass completed, 0 locked this pass, 43 pick(s) verified for 2026-11-11"
   },
   "lastSoccerEveningLock": {
     "tsUTC": "2026-11-11T08:21:12Z",
@@ -30,32 +30,6 @@
     "detail": "SHL/Liiga/NLA/Extraliga rolling-horizon pass completed, 10 locked this pass, 20 pick(s) verified for 2026-11-11 + 2026-11-12"
   },
   "lockPasses": [
-    {
-      "key": "lastCfbEveningLock",
-      "kind": "cfb-evening",
-      "label": "CFB \u2014 UPCOMING SLATE",
-      "tsUTC": "2026-11-04T08:05:36Z",
-      "tsMT": "2026-11-04 01:05 AM MT",
-      "dates": [
-        "2026-11-04",
-        "2026-11-05"
-      ],
-      "live": true,
-      "complete": true,
-      "qualifying": 2,
-      "new": 2,
-      "already": 0,
-      "failed": 0,
-      "skippedStarted": 0,
-      "games": 1,
-      "started": 0,
-      "upcoming": 1,
-      "nextStartMs": 1793925000000.0,
-      "nextStartMT": "Thu 11-05 05:30 PM MT",
-      "marginMin": 2424,
-      "noPriceGames": 0,
-      "late": false
-    },
     {
       "key": "lastLock",
       "kind": "main",
@@ -1551,6 +1525,31 @@
       "marginMin": null,
       "noPriceGames": 0,
       "late": true
+    },
+    {
+      "key": "lastLock",
+      "kind": "early-cfb",
+      "label": "CFB",
+      "tsUTC": "2026-11-11T18:00:43Z",
+      "tsMT": "2026-11-11 11:00 AM MT",
+      "dates": [
+        "2026-11-11"
+      ],
+      "live": true,
+      "complete": true,
+      "qualifying": 0,
+      "new": 0,
+      "already": 0,
+      "failed": 0,
+      "skippedStarted": 0,
+      "games": 0,
+      "started": 0,
+      "upcoming": 0,
+      "nextStartMs": null,
+      "nextStartMT": null,
+      "marginMin": null,
+      "noPriceGames": 0,
+      "late": false
     }
   ],
   "ownerAlerts": {
