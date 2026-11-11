@@ -6,10 +6,10 @@
     "detail": "0 bet(s) settled"
   },
   "lastLock": {
-    "tsUTC": "2026-11-11T12:54:34Z",
-    "tsMT": "2026-11-11 05:54 AM MT",
+    "tsUTC": "2026-11-11T17:28:38Z",
+    "tsMT": "2026-11-11 10:28 AM MT",
     "ok": true,
-    "detail": "lock pass completed, 43 pick(s) verified for 2026-11-11"
+    "detail": "EURO EARLY lock pass completed, 0 locked this pass, 43 pick(s) verified for 2026-11-11; 3 leg(s) skipped: game already started"
   },
   "lastSoccerEveningLock": {
     "tsUTC": "2026-11-11T08:21:12Z",
@@ -30,58 +30,6 @@
     "detail": "SHL/Liiga/NLA/Extraliga rolling-horizon pass completed, 10 locked this pass, 20 pick(s) verified for 2026-11-11 + 2026-11-12"
   },
   "lockPasses": [
-    {
-      "key": "lastHockeyEveningLock",
-      "kind": "hockey-evening",
-      "label": "HOCKEY \u2014 UPCOMING SLATE",
-      "tsUTC": "2026-11-04T07:42:43Z",
-      "tsMT": "2026-11-04 12:42 AM MT",
-      "dates": [
-        "2026-11-04",
-        "2026-11-05"
-      ],
-      "live": true,
-      "complete": true,
-      "qualifying": 0,
-      "new": 0,
-      "already": 0,
-      "failed": 0,
-      "skippedStarted": 0,
-      "games": 0,
-      "started": 0,
-      "upcoming": 0,
-      "nextStartMs": null,
-      "nextStartMT": null,
-      "marginMin": null,
-      "noPriceGames": 0,
-      "late": false
-    },
-    {
-      "key": "lastSoccerEveningLock",
-      "kind": "soccer-evening",
-      "label": "SOCCER \u2014 UPCOMING SLATE",
-      "tsUTC": "2026-11-04T07:59:07Z",
-      "tsMT": "2026-11-04 12:59 AM MT",
-      "dates": [
-        "2026-11-04",
-        "2026-11-05"
-      ],
-      "live": true,
-      "complete": true,
-      "qualifying": 22,
-      "new": 0,
-      "already": 22,
-      "failed": 0,
-      "skippedStarted": 0,
-      "games": 9,
-      "started": 0,
-      "upcoming": 9,
-      "nextStartMs": 1793814300000.0,
-      "nextStartMT": "Wed 11-04 10:45 AM MT",
-      "marginMin": 586,
-      "noPriceGames": 0,
-      "late": false
-    },
     {
       "key": "lastCfbEveningLock",
       "kind": "cfb-evening",
@@ -1553,16 +1501,62 @@
       "marginMin": 215,
       "noPriceGames": 0,
       "late": false
+    },
+    {
+      "key": "lastLock",
+      "kind": "euro-early-soccer",
+      "label": "SOCCER",
+      "tsUTC": "2026-11-11T17:28:38Z",
+      "tsMT": "2026-11-11 10:28 AM MT",
+      "dates": [
+        "2026-11-11"
+      ],
+      "live": true,
+      "complete": true,
+      "qualifying": 0,
+      "new": 0,
+      "already": 0,
+      "failed": 0,
+      "skippedStarted": 0,
+      "games": 0,
+      "started": 0,
+      "upcoming": 0,
+      "nextStartMs": null,
+      "nextStartMT": null,
+      "marginMin": null,
+      "noPriceGames": 0,
+      "late": false
+    },
+    {
+      "key": "lastLock",
+      "kind": "euro-early-hockey",
+      "label": "HOCKEY",
+      "tsUTC": "2026-11-11T17:28:38Z",
+      "tsMT": "2026-11-11 10:28 AM MT",
+      "dates": [
+        "2026-11-11"
+      ],
+      "live": true,
+      "complete": true,
+      "qualifying": 0,
+      "new": 0,
+      "already": 0,
+      "failed": 0,
+      "skippedStarted": 3,
+      "games": 6,
+      "started": 6,
+      "upcoming": 0,
+      "nextStartMs": null,
+      "nextStartMT": null,
+      "marginMin": null,
+      "noPriceGames": 0,
+      "late": true
     }
   ],
   "ownerAlerts": {
-    "966da98c03ad": "2026-11-07T15:56:10Z",
-    "78887bc2947e": "2026-11-07T18:03:55Z",
-    "40a4274ab721": "2026-11-08T10:54:40Z",
-    "c9cf1f1724a4": "2026-11-08T12:04:08Z",
-    "79ceee3021ef": "2026-11-08T16:17:45Z",
     "3db0e8fabbf9": "2026-11-08T18:22:46Z",
-    "9afa08f17a76": "2026-11-09T21:35:18Z"
+    "9afa08f17a76": "2026-11-09T21:35:18Z",
+    "9372565e5f34": "2026-11-11T17:28:38Z"
   },
   "lastWatchdog": {
     "tsUTC": "2026-11-09T21:35:18Z",
