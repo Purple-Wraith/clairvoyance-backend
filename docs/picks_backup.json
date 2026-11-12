@@ -142486,10 +142486,10 @@
     "ml": "-124",
     "decOdds": 1.805,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "loss",
     "lockedAt": 1794401665719,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 2,
+    "aScore": 4,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: OVER 6.5 \u2014 HIGH PROB (56.1% win prob, EV +1.4% \u00b7 MARKET PRICE -124 (EV at market +1.4%) \u00b7 MARKET-BLENDED: model 61.6% \u00b7 no-vig market 53.1% \u2192 56.1% (alpha 0.65))\nMODEL: Projected 3.6\u20133.7 (total 7.4) (OT/SO in 15% of outcomes) \u2014 OVER hits 61.6% of outcomes vs the 6.5 line, from an exact Poisson distribution (not a simulation).\nWHY: Best market: OVER 6.5 graded HIGH PROB (56.1%, EV +1.4%). MC projects 7.3 goals vs the 6.5 line (62% over in sims). MC 51% / xGF 50% / hv +4.0pp / ST -2.2pp / SQ -1.7pp \u00b7 ML market blend (alpha 0.75): model 69.5% \u00b7 no-vig market 57.1% \u2192 60.4%; Puck line market blend (alpha 0.70): model 33.5% \u00b7 no-vig market 37.2% \u2192 36.1%; O/U market blend (alpha 0.65): model 61.6% \u00b7 no-vig market 53.1% \u2192 56.1%. Half-unit play \u00b7 Also: ANA ML (LEAN).",
@@ -142499,7 +142499,8 @@
     "blendAlpha": 0.65,
     "startMs": 1794452400000,
     "leadMin": 846,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794462678894
   },
   {
     "id": "2026-11-11_BUF_TBL_NHL_UNDER7.5",
@@ -142724,10 +142725,10 @@
     "ml": "-266",
     "decOdds": 1.376,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1794401658741,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 115,
+    "aScore": 108,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: HOU -0.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted HOU -6.5 to HOU -0.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 57.3%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
@@ -142745,7 +142746,8 @@
     },
     "startMs": 1794450600000,
     "leadMin": 816,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794462678577
   },
   {
     "id": "2026-11-11_HOU_GS_NBA_HOUML",
@@ -142760,16 +142762,17 @@
     "ml": "-237",
     "decOdds": 1.4219409282700421,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1794401658439,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 115,
+    "aScore": 108,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: HOU ML \u2014 PREMIUM (74.0% win prob, EV +5.3%)\nMODEL: Projected 108.8\u2013117.4 (total 226.2), from an exact normal distribution (not a simulation).\nWHY: Best market: HOU ML \u00b7 PREMIUM \u00b7 74.0% \u00b7 EV +5.3% \u00b7 edge +3.7pp. ORtg: 118.6 vs 114.9 | DRtg: 113.3 vs 115.5 | Net: 0.0 vs 0.0 | eFG%: 54.2 vs 52.0 | TS%: 56.0 | TOV%: 13.0 | Opp eFG%: 51.0. Projected: HOU 117.4\u2013108.8 (margin +8.6 vs line -6.5). Pace avg 148.2 \u2014 normal pace game. MC 75% / BAY 56% / ELO 64% (partial consensus). Kelly 12.5%. Full-unit play \u00b7 Also: OVER 222.5 (LEAN), HOU -6.5 (LEAN).",
     "startMs": 1794450600000,
     "leadMin": 816,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794462678578
   },
   {
     "id": "2026-11-11_HOU_GS_NBA_OVER214.5",
@@ -142784,10 +142787,10 @@
     "ml": "-251",
     "decOdds": 1.399,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1794401659054,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 115,
+    "aScore": 108,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: OVER 214.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted OVER 222.5 to OVER 214.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 57.9%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
@@ -142805,7 +142808,8 @@
     },
     "startMs": 1794450600000,
     "leadMin": 816,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794462678578
   },
   {
     "id": "2026-11-11_IFK Helsinki_Jokerit_LIIGA_OVER4.5",
@@ -143481,10 +143485,10 @@
     "ml": "-266",
     "decOdds": 1.376,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "loss",
     "lockedAt": 1794401659230,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 118,
+    "aScore": 108,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: OKC +4.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted OKC -1.5 to OKC +4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 70.7%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected 116.4\u2013108.0 (total 224.4), from an exact normal distribution (not a simulation).",
@@ -143500,7 +143504,8 @@
     },
     "startMs": 1794452400000,
     "leadMin": 846,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794462678578
   },
   {
     "id": "2026-11-11_POR_OKC_NBA_UNDER233.5",
@@ -143515,10 +143520,10 @@
     "ml": "-251",
     "decOdds": 1.399,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1794401659640,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 118,
+    "aScore": 108,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: UNDER 233.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted UNDER 225.5 to UNDER 233.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.4%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
@@ -143536,7 +143541,8 @@
     },
     "startMs": 1794452400000,
     "leadMin": 846,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794462678579
   },
   {
     "id": "2026-11-11_SJS_PIT_NHL_OVER5.5",
@@ -143729,10 +143735,10 @@
     "ml": "-296",
     "decOdds": 1.338,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "loss",
     "lockedAt": 1794401665532,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 5,
+    "aScore": 3,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (70.3% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 45.9%; the 1-goal cushion is priced from the historical margin curve for this market (about 70% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
@@ -143750,7 +143756,8 @@
     },
     "startMs": 1794450600000,
     "leadMin": 816,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794462678893
   },
   {
     "id": "2026-11-11_Zug_Ambri-Piotta_NLA_OVER4.5",
