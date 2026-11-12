@@ -142851,10 +142851,10 @@
     "ml": "-266",
     "decOdds": 1.376,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1794401653320,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 114,
+    "aScore": 101,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: IND +3.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted IND -2.5 to IND +3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 62.9%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected 113.5\u2013120.1 (total 233.7), from an exact normal distribution (not a simulation).",
@@ -142870,7 +142870,8 @@
     },
     "startMs": 1794441600000,
     "leadMin": 666,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794450684398
   },
   {
     "id": "2026-11-11_IND_WSH_NBA_OVER218.5",
@@ -142885,10 +142886,10 @@
     "ml": "-251",
     "decOdds": 1.399,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "loss",
     "lockedAt": 1794401653014,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 114,
+    "aScore": 101,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: OVER 218.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted OVER 226.5 to OVER 218.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 65.1%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected 113.5\u2013120.1 (total 233.7), from an exact normal distribution (not a simulation).",
@@ -142904,7 +142905,8 @@
     },
     "startMs": 1794441600000,
     "leadMin": 666,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794450684398
   },
   {
     "id": "2026-11-11_Ilves_Pelicans_LIIGA_UNDER5.5",
@@ -155633,7 +155635,7 @@
     "conf": 0.68,
     "ml": "-213",
     "lockedAt": 1794401659979,
-    "outcome": "pending",
+    "outcome": "win",
     "date": "2026-11-11",
     "sport": "NBA",
     "league": "NBA",
@@ -155660,7 +155662,10 @@
         "AST": 12
       }
     },
-    "reasoning": "PICK: Andrew Nembhard OVER AST 7.5 \u2014 PREMIUM (68% model hit rate)\nMODEL: projection 9.34 AST (season average 7.7, last-5 form 12, opponent adjustment +1.6) vs the 7.5 line, spread \u03c3 3.3, from an exact normal distribution (not a simulation).\nWHY: Andrew Nembhard averages 7.7 apg across 57 games this season. Opp WSH DRtg 122.5 vs a 115.7 league average computed from every currently-loaded team, a 6% boost folded into the projection. Game pace 101.2 (+0.2%), IND offense 110.8 vs a 115.7 league average. No head-to-head history vs WSH this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
+    "reasoning": "PICK: Andrew Nembhard OVER AST 7.5 \u2014 PREMIUM (68% model hit rate)\nMODEL: projection 9.34 AST (season average 7.7, last-5 form 12, opponent adjustment +1.6) vs the 7.5 line, spread \u03c3 3.3, from an exact normal distribution (not a simulation).\nWHY: Andrew Nembhard averages 7.7 apg across 57 games this season. Opp WSH DRtg 122.5 vs a 115.7 league average computed from every currently-loaded team, a 6% boost folded into the projection. Game pace 101.2 (+0.2%), IND offense 110.8 vs a 115.7 league average. No head-to-head history vs WSH this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+    "settledAt": 1794450685013,
+    "playerResult": 10,
+    "playerMin": 34
   },
   {
     "id": "prop_2026-11-11_NBA_CameronJohnson_PTS_6.5_O",
