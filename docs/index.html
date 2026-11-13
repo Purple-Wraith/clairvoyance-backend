@@ -78,7 +78,7 @@ window._cb=function(minutes){return Math.floor(Date.now()/(Math.max(1,minutes||1
    was for the dropdowns everywhere, not phone-specific. */
 select[id$="-filter-day"],select[id$="-filter-week"],select[id$="-filter-conf"]{border-color:var(--pc)!important;color:var(--pc)!important}
 html{height:-webkit-fill-available;-webkit-text-size-adjust:100%}
-body{font-family:var(--ex);font-size:25px;color:var(--t);background-color:#0d0d0d;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.04) 0px,rgba(255,255,255,.04) 1px,transparent 1px,transparent 50%),repeating-linear-gradient(-45deg,rgba(255,255,255,.04) 0px,rgba(255,255,255,.04) 1px,transparent 1px,transparent 50%),repeating-linear-gradient(0deg,rgba(0,0,0,.25) 0px,rgba(0,0,0,.25) 1px,transparent 1px,transparent 22px),repeating-linear-gradient(90deg,rgba(0,0,0,.25) 0px,rgba(0,0,0,.25) 1px,transparent 1px,transparent 22px),radial-gradient(ellipse at 0% 0%,rgba(240,0,255,.10) 0%,transparent 50%),radial-gradient(ellipse at 100% 0%,rgba(77,121,255,.08) 0%,transparent 45%),radial-gradient(ellipse at 50% 100%,rgba(0,240,255,.06) 0%,transparent 45%);background-size:22px 22px,22px 22px,22px 22px,22px 22px,100% 100%,100% 100%,100% 100%;-webkit-font-smoothing:antialiased;position:fixed;inset:0;overflow:hidden}
+body{font-family:var(--ex);font-size:25px;color:var(--t);background:radial-gradient(circle 620px at 16% 4%,rgba(255,255,255,.11),transparent),radial-gradient(circle 560px at 86% 94%,rgba(166,166,166,.07),transparent),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cg fill='%231E1E1E'%3E%3Crect x='0' y='0' width='4.4' height='4.4'/%3E%3Crect x='5' y='0' width='4.4' height='4.4'/%3E%3Crect x='0' y='5' width='4.4' height='4.4'/%3E%3Crect x='15' y='5' width='4.4' height='4.4'/%3E%3Crect x='10' y='10' width='4.4' height='4.4'/%3E%3Crect x='15' y='10' width='4.4' height='4.4'/%3E%3Crect x='5' y='15' width='4.4' height='4.4'/%3E%3Crect x='10' y='15' width='4.4' height='4.4'/%3E%3C/g%3E%3Cg fill='%23161616'%3E%3Crect x='10' y='0' width='4.4' height='4.4'/%3E%3Crect x='15' y='0' width='4.4' height='4.4'/%3E%3Crect x='5' y='5' width='4.4' height='4.4'/%3E%3Crect x='10' y='5' width='4.4' height='4.4'/%3E%3Crect x='0' y='10' width='4.4' height='4.4'/%3E%3Crect x='5' y='10' width='4.4' height='4.4'/%3E%3Crect x='0' y='15' width='4.4' height='4.4'/%3E%3Crect x='15' y='15' width='4.4' height='4.4'/%3E%3C/g%3E%3C/svg%3E"),#121212;background-attachment:fixed;-webkit-font-smoothing:antialiased;position:fixed;inset:0;overflow:hidden}
 body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(240,0,255,.006) 2px,rgba(240,0,255,.006) 3px);pointer-events:none;z-index:9999}
 #app{display:flex;flex-direction:column;height:100%;height:-webkit-fill-available;overflow:hidden;opacity:1;transition:opacity .7s}
 #app.ready{opacity:1}
@@ -103,7 +103,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .sk.v{opacity:1}.sk:hover{color:var(--t2)}
 @media(max-width:350px){#hdr-automation-status,#hdr-automation-status-left{display:none!important}}
 /* HEADER */
-#hdr{flex:0 0 calc(90px + env(safe-area-inset-top,0px));background:linear-gradient(180deg,rgba(10,0,24,1) 0%,rgba(20,0,46,.95) 100%);
+#hdr{flex:0 0 calc(90px + env(safe-area-inset-top,0px));background:linear-gradient(180deg,rgba(10,0,24,.40) 0%,rgba(20,0,46,.32) 100%);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
   border-bottom:1px solid rgba(240,0,255,.3);
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:env(safe-area-inset-top,0px) 14px 0;
   box-shadow:0 0 30px rgba(240,0,255,.15),0 0 60px rgba(77,121,255,.08);
@@ -140,7 +140,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
    with leftover empty space on the right -- falls back cleanly to the
    existing horizontal-scroll behavior on viewports too narrow to fit
    them all, since overflow-x:auto still applies once content overflows. */
-#sbar{flex:0 0 38px;background:rgba(6,0,15,.95);border-bottom:1px solid rgba(77,121,255,.2);display:flex;justify-content:space-evenly;overflow-x:auto;overflow-y:hidden;padding:0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;gap:2px}
+#sbar{flex:0 0 38px;background:rgba(6,0,15,.32);border-bottom:1px solid rgba(77,121,255,.2);display:flex;justify-content:space-evenly;overflow-x:auto;overflow-y:hidden;padding:0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;gap:2px}
 #sbar::-webkit-scrollbar{display:none}
 .sp{font-family:var(--orb);font-size:17px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--pc);padding:5px 14px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;flex:0 1 auto}
 .sp.act{color:var(--pc);border-bottom-color:var(--pc);text-shadow:0 0 8px rgba(240,0,255,.7)}
@@ -154,7 +154,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 }
 .spane{display:none;flex:1;flex-direction:column;overflow:hidden}.spane.act{display:flex}
 /* SUB/INNER NAV */
-.snav{flex:0 0 31px;background:rgba(2,0,8,.95);border-bottom:1px solid rgba(77,121,255,.15);display:flex;overflow-x:auto;overflow-y:hidden;padding:0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;gap:2px}
+.snav{flex:0 0 31px;background:rgba(2,0,8,.32);border-bottom:1px solid rgba(77,121,255,.15);display:flex;overflow-x:auto;overflow-y:hidden;padding:0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;gap:2px}
 .snav::-webkit-scrollbar{display:none}
 .sb2{font-family:var(--mono);font-size:17px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);padding:4px 10px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s}
 .sb2.act{color:var(--pc);border-bottom-color:var(--pc)}
@@ -167,7 +167,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
    order alone decides it, no !important needed. */
 [id^="cfb-innav-"].act,[id^="nfl2-innav-"].act{color:var(--nc);border-bottom-color:var(--nc)}
 .subp{display:none;flex:1;flex-direction:column;overflow:hidden}.subp.act{display:flex}
-.inav{flex:0 0 35px;background:rgba(6,0,15,.95);border-bottom:1px solid rgba(77,121,255,.15);display:flex;overflow-x:auto;overflow-y:hidden;padding:0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;gap:2px}
+.inav{flex:0 0 35px;background:rgba(6,0,15,.32);border-bottom:1px solid rgba(77,121,255,.15);display:flex;overflow-x:auto;overflow-y:hidden;padding:0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;gap:2px}
 .inav::-webkit-scrollbar{display:none}
 .nb{font-family:var(--mono);font-size:17px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);padding:7px 11px;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s}
 .nb:active{background:rgba(77,121,255,.06)}.nb.act{color:var(--nc);border-bottom-color:var(--nc)}.nb.ai{color:var(--ic);border-bottom-color:var(--ic)}.nb.ap{color:var(--pc);border-bottom-color:var(--pc)}
@@ -569,16 +569,16 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 }
 /* NAV ITEM DROPDOWNS */
 .nav-item{position:relative;display:inline-block}
-.nav-item .nav-drop{display:none;position:absolute;top:100%;left:0;z-index:999;background:rgba(6,0,15,.97);border:1px solid rgba(0,240,255,.25);border-radius:0 0 4px 4px;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.nav-item .nav-drop{display:none;position:absolute;top:100%;left:0;z-index:999;background:rgba(6,0,15,.6);border:1px solid rgba(0,240,255,.25);border-radius:0 0 4px 4px;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.6)}
 .nav-item:hover .nav-drop{display:block}
 .nav-drop button{display:block;width:100%;padding:8px 14px;background:none;border:none;border-bottom:1px solid rgba(255,255,255,.06);color:rgba(200,160,255,.85);font-family:var(--mono);font-size:16px;letter-spacing:1.5px;text-align:left;cursor:pointer;white-space:nowrap}
 .nav-drop button:hover{background:rgba(0,240,255,.08);color:#00f0ff}
 .nav-drop .nav-league{position:relative}
-.nav-drop .nav-league .nav-league-drop{display:none;position:absolute;left:100%;top:0;background:rgba(6,0,15,.97);border:1px solid rgba(0,240,255,.2);border-radius:0 4px 4px 4px;min-width:130px;z-index:1000}
+.nav-drop .nav-league .nav-league-drop{display:none;position:absolute;left:100%;top:0;background:rgba(6,0,15,.6);border:1px solid rgba(0,240,255,.2);border-radius:0 4px 4px 4px;min-width:130px;z-index:1000}
 .nav-drop .nav-league:hover .nav-league-drop{display:block}
 /* GRID + CARD */
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.card{background:rgba(10,4,22,0.92);backdrop-filter:blur(2px);border:1px solid rgba(77,40,120,.55);box-shadow:0 0 8px rgba(240,0,255,.05),inset 0 0 8px rgba(0,0,0,.3);border-radius:3px;padding:12px;position:relative;overflow:hidden;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px))}
+.card{background:rgba(10,4,22,.42);backdrop-filter:blur(2px);border:1px solid rgba(77,40,120,.55);box-shadow:0 0 8px rgba(240,0,255,.05),inset 0 0 8px rgba(0,0,0,.3);border-radius:3px;padding:12px;position:relative;overflow:hidden;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px))}
 .cn::before,.ch::before,.cv::before,.ci::before,.cg::before,.cp::before,.cm::before,.cr::before{content:'';position:absolute;top:0;left:0;right:0;height:1px}
 .cn::before{background:linear-gradient(90deg,var(--nc),transparent)}.ch::before{background:linear-gradient(90deg,var(--hc),transparent)}.cv::before{background:linear-gradient(90deg,var(--vc),transparent)}.ci::before{background:linear-gradient(90deg,var(--ic),transparent)}.cg::before{background:linear-gradient(90deg,var(--gc),transparent)}.cp::before{background:linear-gradient(90deg,var(--pc),transparent)}.cm::before{background:linear-gradient(90deg,var(--mc),transparent)}.cr::before{background:linear-gradient(90deg,var(--rc),transparent)}
 .ct{font-family:var(--mono);font-size:17px;letter-spacing:2px;color:var(--t2);text-transform:uppercase;margin-bottom:6px}
@@ -745,7 +745,7 @@ rect.mom-pin{fill:rgba(255,221,0,.09)}line.mom-pin{stroke:var(--gc);stroke-width
 .bmk2{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 9px;border-radius:3px;flex-wrap:wrap;color:#0b0612;font-family:var(--mono)}
 .bmk2.pg{background:linear-gradient(90deg,var(--gc),var(--g2))}.bmk2.pp{background:var(--pc)}.bmk2.pn{background:var(--nc)}.bmk2.pq{background:#39ff14}.bmk2.ph{background:var(--hc)}
 .fresh{font-family:var(--mono);font-size:12px;letter-spacing:.6px;white-space:nowrap;line-height:1.2;min-height:14px;text-align:center}.fresh.ok{color:rgba(0,230,68,.62)}.fresh.warn{color:#ffb020}.fresh.bad{color:#ff3b6b;text-shadow:0 0 8px rgba(255,59,107,.55);animation:blink 1.6s infinite}
-#cv-ticker{flex:0 0 auto;background:rgba(6,0,15,.97);border-bottom:1px solid rgba(77,121,255,.2);overflow:hidden;position:relative;font-family:var(--mono);font-size:14px;color:var(--t2)}
+#cv-ticker{flex:0 0 auto;background:rgba(6,0,15,.4);border-bottom:1px solid rgba(77,121,255,.2);overflow:hidden;position:relative;font-family:var(--mono);font-size:14px;color:var(--t2)}
 #cv-ticker{contain:layout paint}#cv-ticker .tk-track{display:inline-flex;align-items:center;white-space:nowrap;padding:8px 0;will-change:transform;transform:translate3d(0,0,0)}#cv-ticker .tkgrp{display:inline-flex;align-items:center}#cv-ticker .tkf .tkn{animation:tkflash3 .5s ease-in-out 3;border-radius:2px}@keyframes tkflash3{0%,100%{background:transparent;color:var(--t)}50%{background:#ffe600;color:#0b0612}}
 #cv-ticker .tk-track.go{animation:tkscroll var(--tkdur,60s) linear infinite}
 #cv-ticker:hover .tk-track.go,#cv-ticker:active .tk-track.go{animation-play-state:paused}
@@ -836,7 +836,7 @@ body.gt-open{overflow:hidden}#cv-ticker .tk[data-gid]{cursor:pointer}
 .altrow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin-bottom:8px;font-family:var(--mono)}.altrow .altk{flex:1 0 100%;font-size:13px;letter-spacing:1px;color:var(--t3)}.altrow .altc{flex:1 1 150px;display:flex;flex-direction:column;gap:2px;padding:6px 9px;border-radius:3px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);cursor:pointer;min-width:0}.bmk2.bmk-adj{flex:1 0 100%;box-sizing:border-box;min-height:44px;border:1px solid #f000ff;box-shadow:0 0 9px rgba(240,0,255,.6),inset 0 0 7px rgba(240,0,255,.2);cursor:pointer;margin-top:2px}.bmk2.bmk-adj.lockoff{cursor:default}.altrow .altc[role=button]{cursor:pointer}.altrow .altc.alt-top{border:1px solid #f000ff;box-shadow:0 0 9px rgba(240,0,255,.6),inset 0 0 7px rgba(240,0,255,.2)}.altrow .altc .alt1{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.altrow .altc .altp{font-family:var(--orb);font-size:16px;font-weight:700;color:var(--t)}.altrow .altc .alts{font-size:13px;color:var(--t2)}.altrow .altc .altw{font-size:12px;color:var(--t3)}.altrow .altc .pill{font-size:12px}
 .bmk2 .bmk2t{font-size:14px;padding:1px 6px;background:#0b0612;color:#fff;border-radius:2px;flex-shrink:0;font-weight:700}.bmk2 .bmk2k{font-size:13px;letter-spacing:1px;font-weight:700}.bmk2 .bmk2p{font-family:var(--orb);font-size:16px;font-weight:700}.bmk2 .bmk2s{font-size:14px;font-weight:700}
 /* GAME CARD */
-.gc{background:repeating-linear-gradient(45deg,rgba(255,255,255,.03) 0,rgba(255,255,255,.03) 1px,transparent 1px,transparent 5px),repeating-linear-gradient(-45deg,rgba(0,0,0,.2) 0,rgba(0,0,0,.2) 1px,transparent 1px,transparent 5px),rgba(34,36,46,.55);border:1px solid var(--w2);border-radius:3px;padding:12px;margin-bottom:7px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));backdrop-filter:blur(4px)}
+.gc{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cg fill='%23fff' fill-opacity='.028'%3E%3Crect x='0' y='0' width='4.4' height='4.4'/%3E%3Crect x='5' y='0' width='4.4' height='4.4'/%3E%3Crect x='0' y='5' width='4.4' height='4.4'/%3E%3Crect x='15' y='5' width='4.4' height='4.4'/%3E%3Crect x='10' y='10' width='4.4' height='4.4'/%3E%3Crect x='15' y='10' width='4.4' height='4.4'/%3E%3Crect x='5' y='15' width='4.4' height='4.4'/%3E%3Crect x='10' y='15' width='4.4' height='4.4'/%3E%3C/g%3E%3Cg fill='%23000' fill-opacity='.09'%3E%3Crect x='10' y='0' width='4.4' height='4.4'/%3E%3Crect x='15' y='0' width='4.4' height='4.4'/%3E%3Crect x='5' y='5' width='4.4' height='4.4'/%3E%3Crect x='10' y='5' width='4.4' height='4.4'/%3E%3Crect x='0' y='10' width='4.4' height='4.4'/%3E%3Crect x='5' y='10' width='4.4' height='4.4'/%3E%3Crect x='0' y='15' width='4.4' height='4.4'/%3E%3Crect x='15' y='15' width='4.4' height='4.4'/%3E%3C/g%3E%3C/svg%3E"),rgba(22,18,34,.5);border:1px solid var(--w2);border-radius:3px;padding:12px;margin-bottom:7px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .gc:active{filter:brightness(1.12)}.gch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
 .gtm{font-family:var(--orb);font-size:26px;font-weight:700;letter-spacing:2px;color:var(--t)}.gsp{font-family:var(--mono);font-size:18px;color:var(--t2);margin-top:3px;line-height:1.5}.brow{display:flex;gap:4px}
 .nhlgk{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:0;padding:6px 10px;font-family:var(--mono);font-size:13px;color:var(--t2);border-bottom:1px solid rgba(255,255,255,.06)}.nhlgk.in{padding:0;margin-top:4px;border:0}.nhlgk-l{font-size:11px;letter-spacing:.14em;color:var(--t3)}.nhlgk-i small{color:var(--t3);font-size:11px}.nhlgk-t{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid rgba(255,255,255,.2);border-radius:2px;font-size:10px;letter-spacing:.1em;color:var(--t3)}.nhlgk-t.c{border-color:#00f0ff;color:#00f0ff}.nhlgk-n{flex-basis:100%;font-size:11px;color:var(--t3)}
@@ -889,7 +889,7 @@ body.gt-open{overflow:hidden}#cv-ticker .tk[data-gid]{cursor:pointer}
 .dt th{font-family:var(--mono);font-size:17px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);padding:7px 7px;border-bottom:1px solid rgba(77,121,255,.2);text-align:left;white-space:nowrap;user-select:none;cursor:pointer}
 .dt th:hover{color:var(--pc)}.dt td{padding:7px 7px;border-bottom:1px solid rgba(77,121,255,.1);font-family:var(--mono);font-size:19px;color:var(--t)}.dt tr:hover td{background:rgba(240,0,255,.04)}
 /* SETTINGS */
-.sg{background:rgba(10,0,24,.8);border:1px solid var(--w2);border-radius:3px;padding:13px;margin-bottom:10px;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,0 100%)}
+.sg{background:rgba(10,0,24,.40);border:1px solid var(--w2);border-radius:3px;padding:13px;margin-bottom:10px;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,0 100%)}
 .sgt{font-family:var(--mono);font-size:18px;letter-spacing:2px;text-transform:uppercase;color:var(--pc);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(240,0,255,.2);text-shadow:0 0 8px rgba(240,0,255,.95),0 0 18px rgba(240,0,255,.55),0 0 38px rgba(240,0,255,.25)}
 /* neon glow on all inline magenta letter-spaced section labels */
 div[style*="color:var(--pc)"][style*="letter-spacing"],span[style*="color:var(--pc)"][style*="letter-spacing"]{text-shadow:0 0 8px rgba(240,0,255,.95),0 0 18px rgba(240,0,255,.5),0 0 38px rgba(240,0,255,.22)}
@@ -918,7 +918,7 @@ input[type=range]{width:100%;-webkit-appearance:none;height:3px;background:rgba(
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--pc);border-radius:50%;cursor:pointer;box-shadow:0 0 8px rgba(240,0,255,.6)}
 .rr{display:flex;justify-content:space-between;margin-bottom:3px}.rrl{font-size:18px;color:var(--t);font-family:var(--mono)}.rrv{font-size:18px;font-family:var(--mono);color:var(--pc)}
 /* HISTORY */
-.hist-day{background:rgba(10,0,24,.8);border:1px solid var(--w2);border-radius:3px;margin-bottom:8px;overflow:hidden}
+.hist-day{background:rgba(10,0,24,.40);border:1px solid var(--w2);border-radius:3px;margin-bottom:8px;overflow:hidden}
 .hist-hd{display:flex;justify-content:space-between;align-items:center;padding:10px 13px;cursor:pointer;background:rgba(14,0,35,.8);border-bottom:1px solid rgba(240,0,255,.15)}
 .hist-hd:active{background:rgba(20,0,46,.9)}.hist-body{padding:10px 13px;display:none}.hist-body.open{display:block}
 .ar{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(77,121,255,.1);flex-wrap:wrap}.ar:last-child{border-bottom:none}
@@ -932,14 +932,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .sttl{font-family:var(--orb);font-size:27px;font-weight:900;letter-spacing:3px;text-transform:uppercase;line-height:1.15;margin:5px 0 7px;background:linear-gradient(135deg,var(--gc),#fff,var(--pc));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .scard{background:rgba(255,204,0,.05);border:1px solid rgba(255,204,0,.2);border-left:2px solid var(--gc);border-radius:3px;padding:10px 12px;margin-bottom:6px}
 /* HV BARS */
-.hvw{background:rgba(10,0,24,.8);border:1px solid rgba(240,0,255,.2);border-radius:3px;padding:12px 13px;margin-bottom:8px}
+.hvw{background:rgba(10,0,24,.40);border:1px solid rgba(240,0,255,.2);border-radius:3px;padding:12px 13px;margin-bottom:8px}
 .hvr{margin-bottom:5px}.hvl{font-family:var(--mono);font-size:18px;color:var(--t);display:flex;justify-content:space-between;margin-bottom:3px}
 .hvt{height:8px;background:rgba(77,121,255,.15);border-radius:1px;overflow:hidden;position:relative}
 .hvf{height:100%;border-radius:1px}.hva{position:absolute;top:0;left:50%;width:1px;height:100%;background:var(--t3);opacity:.9}
 /* GOALIE + PROP */
-.gcrd{background:rgba(10,0,24,.8);border:1px solid var(--w2);border-radius:3px;padding:10px;flex:1;clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,0 100%)}
+.gcrd{background:rgba(10,0,24,.40);border:1px solid var(--w2);border-radius:3px;padding:10px;flex:1;clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,0 100%)}
 .gcrd-n{font-family:var(--orb);font-size:23px;font-weight:700;letter-spacing:1px;color:var(--t)}.gcrd-s{font-family:var(--mono);font-size:18px;color:var(--t2);margin-top:3px;line-height:1.7}
-.prw{background:rgba(10,0,24,.8);border:1px solid var(--w2);border-radius:3px;padding:9px 11px;margin-bottom:6px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,0 100%)}
+.prw{background:rgba(10,0,24,.40);border:1px solid var(--w2);border-radius:3px;padding:9px 11px;margin-bottom:6px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,0 100%)}
 .pr-n{font-family:var(--orb);font-size:23px;font-weight:700;letter-spacing:1px;color:var(--t)}.pr-d{font-family:var(--mono);font-size:18px;color:var(--t2);margin-top:2px;line-height:1.5}
 /* STATS TABLE EXTRAS */
 .stat-grid{display:grid;gap:8px;margin-bottom:12px}
@@ -1226,7 +1226,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
 .tv-cs{font-family:var(--mono);font-size:15px}
 .tv-call:hover,.tv-call[aria-pressed=true]{background:rgba(255,255,255,.06)}
 .tv-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
-.tv-tile{display:flex;flex-direction:column;align-items:center;text-align:center;background:rgba(10,0,24,.8);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:10px 8px;min-height:104px;cursor:pointer;color:var(--t);transition:border-color .15s,transform .12s}
+.tv-tile{display:flex;flex-direction:column;align-items:center;text-align:center;background:rgba(10,0,24,.40);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:10px 8px;min-height:104px;cursor:pointer;color:var(--t);transition:border-color .15s,transform .12s}
 .tv-tile:hover{border-color:rgba(255,255,255,.5);transform:translateY(-1px)}
 .tv-tile[aria-pressed=true]{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.3)}
 .tv-tile .tv-trk{width:100%}
@@ -1521,7 +1521,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
       </div>
       <div id="nhl-tab-edge" class="tab">
         <div class="sh"><span class="p"></span> NHL EDGE STATS</div>
-        <div style="background:rgba(10,0,24,.8);border:1px solid rgba(240,0,255,.25);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t);line-height:1.8">
+        <div style="background:rgba(10,0,24,.40);border:1px solid rgba(240,0,255,.25);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t);line-height:1.8">
           SOURCE: NHL.COM/NHL-EDGE · SKATING SPEED · SHOT LOCATION · ZONE TIME · SHOOTING %<br>
           <span style="color:var(--t3)">ALL STRENGTHS · 5v5 · PP · PK | UPDATED DAILY MIDNIGHT MST</span>
         </div>
@@ -1535,13 +1535,13 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
       </div>
       <div id="nhl-tab-goalies" class="tab">
         <div class="sh"><span class="i"></span> GOALIE ANALYSIS</div>
-        <div style="background:rgba(10,0,24,.8);border:1px solid rgba(77,121,255,.3);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:19px;color:var(--t);line-height:1.8">GSAx = GOALS SAVED ABOVE EXPECTED · HDSv% = HIGH-DANGER SAVE%<br>SOURCE: NHL EDGE GOALIE DATA + SAVE LOCATION BREAKDOWN</div>
+        <div style="background:rgba(10,0,24,.40);border:1px solid rgba(77,121,255,.3);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:19px;color:var(--t);line-height:1.8">GSAx = GOALS SAVED ABOVE EXPECTED · HDSv% = HIGH-DANGER SAVE%<br>SOURCE: NHL EDGE GOALIE DATA + SAVE LOCATION BREAKDOWN</div>
         <div id="goalies"></div>
       </div>
       <!-- NHL PLAYER PROPS tab removed 2026-10-09 (owner request): no NHL props are generated, shown or locked any more. -->
       <div id="nhl-tab-puck" class="tab">
         <div class="sh"><span class="m"></span> MONEYPUCK ANALYTICS</div>
-        <div style="background:rgba(10,0,24,.8);border:1px solid rgba(255,102,0,.3);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:19px;color:var(--mc);line-height:1.7">SOURCE: MONEYPUCK.COM/TEAMS.HTM · UPDATED DAILY MIDNIGHT MST</div>
+        <div style="background:rgba(10,0,24,.40);border:1px solid rgba(255,102,0,.3);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:19px;color:var(--mc);line-height:1.7">SOURCE: MONEYPUCK.COM/TEAMS.HTM · UPDATED DAILY MIDNIGHT MST</div>
         <div id="mp-content"><div class="loading"><span class="spi"></span></div></div>
       </div>
       <div id="nhl-tab-live" class="tab">
@@ -1588,7 +1588,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
         <div class="sh"><span class="p"></span> NHL STATS HUB</div>
         <!-- NHL EDGE Section -->
         <div style="font-family:var(--mono);font-size:17px;letter-spacing:3px;color:var(--pc);margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid rgba(240,0,255,.2)">// NHL EDGE</div>
-        <div style="background:rgba(10,0,24,.8);border:1px solid rgba(240,0,255,.25);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t);line-height:1.8">
+        <div style="background:rgba(10,0,24,.40);border:1px solid rgba(240,0,255,.25);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t);line-height:1.8">
           SOURCE: NHL.COM/NHL-EDGE · SKATING SPEED · SHOT LOCATION · ZONE TIME · SHOOTING %<br>
           <span style="color:var(--t3)">ALL STRENGTHS · 5v5 · PP · PK | UPDATED DAILY MIDNIGHT MST</span>
         </div>
@@ -1601,11 +1601,11 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
         <div id="nhl-stats-edge-tgt"><div class="loading"><span class="spi"></span></div></div>
         <!-- GOALIES Section -->
         <div style="font-family:var(--mono);font-size:17px;letter-spacing:3px;color:var(--ic);margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid rgba(77,121,255,.2)">// GOALIES</div>
-        <div style="background:rgba(10,0,24,.8);border:1px solid rgba(77,121,255,.3);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:19px;color:var(--t);line-height:1.8">GSAx = GOALS SAVED ABOVE EXPECTED · HDSv% = HIGH-DANGER SAVE%<br>SOURCE: NHL EDGE GOALIE DATA + SAVE LOCATION BREAKDOWN</div>
+        <div style="background:rgba(10,0,24,.40);border:1px solid rgba(77,121,255,.3);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:19px;color:var(--t);line-height:1.8">GSAx = GOALS SAVED ABOVE EXPECTED · HDSv% = HIGH-DANGER SAVE%<br>SOURCE: NHL EDGE GOALIE DATA + SAVE LOCATION BREAKDOWN</div>
         <div id="nhl-stats-goalies-tgt"></div>
         <!-- MONEYPUCK Section -->
         <div style="font-family:var(--mono);font-size:17px;letter-spacing:3px;color:var(--mc);margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid rgba(255,102,0,.2)">// MONEYPUCK</div>
-        <div style="background:rgba(10,0,24,.8);border:1px solid rgba(255,102,0,.3);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:19px;color:var(--mc);line-height:1.7">SOURCE: MONEYPUCK.COM/TEAMS.HTM · UPDATED DAILY MIDNIGHT MST</div>
+        <div style="background:rgba(10,0,24,.40);border:1px solid rgba(255,102,0,.3);border-radius:2px;padding:11px 13px;margin-bottom:12px;font-family:var(--mono);font-size:19px;color:var(--mc);line-height:1.7">SOURCE: MONEYPUCK.COM/TEAMS.HTM · UPDATED DAILY MIDNIGHT MST</div>
         <div id="nhl-stats-mp-tgt"><div class="loading"><span class="spi"></span></div></div>
       </div>
       <div id="nhl-tab-config" class="tab">
@@ -2033,7 +2033,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
       </div>
       <div id="nba-tab-stats" class="tab">
         <div class="sh"><span class="p"></span> NBA TEAM RATINGS</div>
-        <div style="background:rgba(10,0,24,.8);border:1px solid rgba(240,0,255,.25);border-radius:2px;padding:9px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2);line-height:1.8">COMPOSITE SCORE: NET RTG (40%) + eFG% (20%) + TS% (15%) + REBOUND% (15%) + TOV% (10%)<br>ROSTER ADJ: +/- BASED ON STAR PLAYER PERFORMANCE THIS POSTSEASON</div>
+        <div style="background:rgba(10,0,24,.40);border:1px solid rgba(240,0,255,.25);border-radius:2px;padding:9px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2);line-height:1.8">COMPOSITE SCORE: NET RTG (40%) + eFG% (20%) + TS% (15%) + REBOUND% (15%) + TOV% (10%)<br>ROSTER ADJ: +/- BASED ON STAR PLAYER PERFORMANCE THIS POSTSEASON</div>
         <div id="nba-stats"><div class="loading"><span class="spi"></span></div></div>
         <div class="sh" style="margin-top:14px"><span class="p"></span> TOP PERFORMERS</div>
         <div id="nba-players"><div class="loading"><span class="spi"></span></div></div>
@@ -2126,7 +2126,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
   <div class="sa" id="ovr-sa">
     <div id="ovr-tab-dash" class="tab act">
       <div class="sh"><span class="p"></span> CLAIRVOYANCE — OVERALL PERFORMANCE</div>
-      <div style="background:rgba(10,0,24,.8);border:1px solid rgba(102,144,255,.3);border-radius:2px;padding:9px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2);line-height:1.8">ALL SPORTS · ALL BET TYPES · LOCKED PICKS ONLY<br>TYPES: ML · SPREAD · O/U · PROP</div>
+      <div style="background:rgba(10,0,24,.40);border:1px solid rgba(102,144,255,.3);border-radius:2px;padding:9px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2);line-height:1.8">ALL SPORTS · ALL BET TYPES · LOCKED PICKS ONLY<br>TYPES: ML · SPREAD · O/U · PROP</div>
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
         <button class="btn btn-n btn-sm" style="background:var(--pc);color:#fff" onclick="showSyncKeyModal()">SYNC KEY</button>
         <button class="btn btn-o btn-sm" style="background:var(--pc);color:#fff" onclick="exportBetsClipboard()">EXPORT</button>
@@ -2165,7 +2165,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
     </div>
     <div id="ovr-tab-adaptive" class="tab">
       <div class="sh"><span class="i"></span> ADAPTIVE LEARNING ENGINE</div>
-      <div style="background:rgba(10,0,24,.8);border:1px solid rgba(102,144,255,.3);border-radius:2px;padding:9px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2);line-height:1.8">CLAIRVOYANCE SELF-ASSESSMENT · PATTERN RECOGNITION · MODEL CALIBRATION<br>UPDATED EACH SESSION BASED ON SETTLED BET OUTCOMES</div>
+      <div style="background:rgba(10,0,24,.40);border:1px solid rgba(102,144,255,.3);border-radius:2px;padding:9px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2);line-height:1.8">CLAIRVOYANCE SELF-ASSESSMENT · PATTERN RECOGNITION · MODEL CALIBRATION<br>UPDATED EACH SESSION BASED ON SETTLED BET OUTCOMES</div>
       <div id="ovr-adaptive"><div class="loading"><span class="spi"></span></div></div>
     </div>
     <div id="ovr-trends" style="display:none"></div>
@@ -2220,7 +2220,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
     </div>
     <div id="ovr-tab-health" class="tab">
       <div class="sh"><span class="gc"></span> ENGINE HEALTH</div>
-      <div style="background:rgba(10,0,24,.8);border:1px solid rgba(102,144,255,.3);border-radius:2px;padding:9px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2);line-height:1.8">AUTOMATION STATUS · GITHUB ACTIONS · BUILD INFO<br>ONE GLANCE INSTEAD OF CHECKING EMAIL + GITHUB SEPARATELY</div>
+      <div style="background:rgba(10,0,24,.40);border:1px solid rgba(102,144,255,.3);border-radius:2px;padding:9px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2);line-height:1.8">AUTOMATION STATUS · GITHUB ACTIONS · BUILD INFO<br>ONE GLANCE INSTEAD OF CHECKING EMAIL + GITHUB SEPARATELY</div>
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
         <button class="btn btn-p" style="padding:10px 22px;font-size:16px;letter-spacing:2px;background:var(--pc);color:#fff" onclick="renderEngineHealth()">↻ REFRESH</button>
       </div>
@@ -2539,7 +2539,7 @@ button.vz-cell:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.5
         <div class="sh" style="margin:0"><span class="h"></span> ALL LIVE EVENTS <span id="live-game-count" style="font-family:var(--mono);font-size:17px;color:var(--t3);margin-left:6px"></span></div>
         <button class="btn btn-p btn-sm" onclick="renderGlobalLive()">↻</button>
       </div>
-      <div style="background:rgba(10,0,24,.8);border:1px solid rgba(255,80,80,.2);border-radius:2px;padding:8px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2)">LIVE SCORES UPDATE EVERY FEW MINUTES · NBA · NHL · NFL · CFB · SOCCER</div>
+      <div style="background:rgba(10,0,24,.40);border:1px solid rgba(255,80,80,.2);border-radius:2px;padding:8px 12px;margin-bottom:12px;font-family:var(--mono);font-size:18px;color:var(--t2)">LIVE SCORES UPDATE EVERY FEW MINUTES · NBA · NHL · NFL · CFB · SOCCER</div>
       <div id="live-games-list"><div class="loading"><span class="spi"></span></div></div>
     </div>
     <div id="live-tab-bets" class="tab">
@@ -14603,7 +14603,7 @@ function exportBetsClipboard(){
 function showExportModal(data){
   const el=document.createElement('div');
   el.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
-  el.innerHTML=`<div style="background:rgba(4,0,12,.98);border:1px solid var(--pc);border-radius:4px;padding:16px;width:100%;max-width:400px"><div style="font-family:var(--orb);font-size:22px;color:var(--pc);margin-bottom:10px;letter-spacing:2px">SYNC CODE — COPY TO OTHER DEVICE</div><textarea style="width:100%;height:120px;background:rgba(10,0,24,.8);border:1px solid var(--w2);color:var(--t);font-family:var(--mono);font-size:17px;padding:8px;border-radius:2px;resize:none">${data}</textarea><div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-p" onclick="this.closest('div').parentElement.parentElement.remove()" style="flex:1">CLOSE</button></div></div>`;
+  el.innerHTML=`<div style="background:rgba(4,0,12,.98);border:1px solid var(--pc);border-radius:4px;padding:16px;width:100%;max-width:400px"><div style="font-family:var(--orb);font-size:22px;color:var(--pc);margin-bottom:10px;letter-spacing:2px">SYNC CODE — COPY TO OTHER DEVICE</div><textarea style="width:100%;height:120px;background:rgba(10,0,24,.40);border:1px solid var(--w2);color:var(--t);font-family:var(--mono);font-size:17px;padding:8px;border-radius:2px;resize:none">${data}</textarea><div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-p" onclick="this.closest('div').parentElement.parentElement.remove()" style="flex:1">CLOSE</button></div></div>`;
   document.body.appendChild(el);
 }
 function importBetsFromCode(code){
@@ -18575,7 +18575,7 @@ function renderAdaptiveLearning(){
   html+=`<div class="card" style="margin-bottom:12px;padding:12px">
     <div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin-bottom:10px">// PERFORMANCE SNAPSHOT</div>
     <div class="pfs-row" style="display:flex;gap:6px;flex-wrap:wrap">
-      ${[['L10 TREND',l10acc,L10.length],['L30 WINDOW',l30acc,L30.length],['ALL TIME',allAcc,all.length]].map(([lbl,acc,n])=>`<div style="flex:1;min-width:70px;background:rgba(10,0,24,.8);border:1px solid rgba(77,121,255,.2);border-radius:3px;padding:9px;text-align:center">
+      ${[['L10 TREND',l10acc,L10.length],['L30 WINDOW',l30acc,L30.length],['ALL TIME',allAcc,all.length]].map(([lbl,acc,n])=>`<div style="flex:1;min-width:70px;background:rgba(10,0,24,.40);border:1px solid rgba(77,121,255,.2);border-radius:3px;padding:9px;text-align:center">
         <div class="pfsv" style="font-family:var(--orb);font-size:27px;font-weight:700;color:${acc!==null?accColor(acc):'var(--t3)'}">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--pc);margin-top:2px">${lbl}</div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3)">${n} bets</div>
@@ -18740,7 +18740,7 @@ function renderAdaptiveLearning(){
   if(typeBets.length){
     html+=`<div style="font-family:var(--mono);font-size:15px;letter-spacing:2px;color:var(--pc);margin:12px 0 6px">// BY BET TYPE</div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">
-      ${typeBets.map(t=>`<div style="flex:1;min-width:70px;background:rgba(10,0,24,.8);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:9px;text-align:center">
+      ${typeBets.map(t=>`<div style="flex:1;min-width:70px;background:rgba(10,0,24,.40);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:9px;text-align:center">
         <div style="font-family:var(--mono);font-size:14px;color:var(--pc);margin-bottom:3px">${typeMap[t.bt]||t.bt}</div>
         <div style="font-family:var(--orb);font-size:24px;font-weight:700;color:#00e644">${t.acc!==null?(t.acc*100).toFixed(0)+'%':'--'}</div>
         <div style="font-family:var(--mono);font-size:14px;margin-top:2px"><span style="color:#00e644">${t.w}W</span>-<span style="color:#ff1a1a">${t.n-t.w}L</span></div>
@@ -18895,7 +18895,7 @@ function renderEngineOps(){
 
   const sec=(title,color,id,body)=>`
     <div class="card" style="margin-bottom:10px;padding:0;overflow:hidden;border-top:2px solid ${color}">
-      <div style="padding:10px 12px;background:rgba(10,0,24,.8)">
+      <div style="padding:10px 12px;background:rgba(10,0,24,.40)">
         <div style="font-family:var(--mono);font-size:14px;letter-spacing:3px;color:${color};margin-bottom:8px">${title}</div>
         ${body}
       </div>
@@ -19178,7 +19178,7 @@ function renderCrossDeviceSync(){
   <div class="card" style="margin-bottom:12px;padding:12px">
     <div style="font-family:var(--mono);font-size:15px;color:var(--t3);letter-spacing:1px;margin-bottom:8px">CURRENT DATABASE</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      ${[['PICKS',preds.length,'var(--nc)'],['WINS',wins,'var(--nc)'],['LOSSES',losses,'var(--hc)'],['PENDING',pending,'var(--pc)']].map(([l,v,c])=>`<div style="flex:1;min-width:60px;text-align:center;background:rgba(10,0,24,.8);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:8px"><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${c}">${v}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">${l}</div></div>`).join('')}
+      ${[['PICKS',preds.length,'var(--nc)'],['WINS',wins,'var(--nc)'],['LOSSES',losses,'var(--hc)'],['PENDING',pending,'var(--pc)']].map(([l,v,c])=>`<div style="flex:1;min-width:60px;text-align:center;background:rgba(10,0,24,.40);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:8px"><div style="font-family:var(--orb);font-size:26px;font-weight:700;color:${c}">${v}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t3)">${l}</div></div>`).join('')}
     </div>
     <button class="btn btn-p btn-fw" style="padding:11px;margin-bottom:8px;background:var(--pc);color:#fff" onclick="genSyncCode();const el=document.getElementById('ovr-sync');if(el)renderCrossDeviceSync()">GENERATE + COPY SYNC CODE</button>
     <div style="font-family:var(--mono);font-size:16px;color:var(--t3);margin-bottom:6px">IMPORT FROM ANOTHER DEVICE:</div>
@@ -23236,10 +23236,10 @@ function showSyncKeyModal(){
       <button onclick="document.getElementById('sync-key-modal').remove()" style="background:none;border:none;color:#00f0ff;font-size:24px;cursor:pointer">✕</button>
     </div>
     <div style="font-family:var(--mono);font-size:15px;color:rgba(200,180,255,.6);margin-bottom:8px">EXPORT KEY — copy to import on another device</div>
-    <textarea id="sync-key-export-ta" style="width:100%;height:80px;background:rgba(10,0,24,.8);border:1px solid rgba(0,240,255,.3);color:var(--t);font-family:var(--mono);font-size:15px;padding:8px;border-radius:2px;resize:none;box-sizing:border-box" readonly>${key}</textarea>
+    <textarea id="sync-key-export-ta" style="width:100%;height:80px;background:rgba(10,0,24,.40);border:1px solid rgba(0,240,255,.3);color:var(--t);font-family:var(--mono);font-size:15px;padding:8px;border-radius:2px;resize:none;box-sizing:border-box" readonly>${key}</textarea>
     <button onclick="navigator.clipboard?.writeText(document.getElementById('sync-key-export-ta').value).then(()=>alert('Copied!')).catch(()=>{})" style="margin-top:6px;width:100%;font-family:var(--mono);font-size:16px;padding:6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.3);color:#00f0ff;border-radius:2px;cursor:pointer">COPY KEY</button>
     <div style="font-family:var(--mono);font-size:15px;color:rgba(200,180,255,.6);margin:12px 0 6px">IMPORT KEY — paste from another device</div>
-    <textarea id="sync-key-import-ta" style="width:100%;height:60px;background:rgba(10,0,24,.8);border:1px solid rgba(0,240,255,.3);color:var(--t);font-family:var(--mono);font-size:15px;padding:8px;border-radius:2px;resize:none;box-sizing:border-box" placeholder="Paste key here..."></textarea>
+    <textarea id="sync-key-import-ta" style="width:100%;height:60px;background:rgba(10,0,24,.40);border:1px solid rgba(0,240,255,.3);color:var(--t);font-family:var(--mono);font-size:15px;padding:8px;border-radius:2px;resize:none;box-sizing:border-box" placeholder="Paste key here..."></textarea>
     <button onclick="const n=importSyncKey(document.getElementById('sync-key-import-ta').value.trim());if(n>0){toast('// IMPORTED '+n+' PICKS');updHdr();document.getElementById('sync-key-modal').remove();}else{alert('Invalid key');}" style="margin-top:6px;width:100%;font-family:var(--mono);font-size:16px;padding:6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.3);color:#00f0ff;border-radius:2px;cursor:pointer">APPLY IMPORT</button>
   </div>`;
   document.body.appendChild(div);
@@ -23655,15 +23655,15 @@ function renderMorningReport(){
   return`<div class="card" style="margin-top:14px;padding:13px;border:1px solid rgba(255,204,0,.22)">
     <div style="font-family:var(--mono);font-size:17px;letter-spacing:2px;color:var(--gc);margin-bottom:10px">// MORNING REPORT — WHAT HAPPENED WHILE YOU WERE AWAY</div>
     <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-      <div style="flex:1;background:rgba(10,0,24,.8);border:1px solid var(--w2);border-radius:2px;padding:9px;text-align:center;min-width:70px">
+      <div style="flex:1;background:rgba(10,0,24,.40);border:1px solid var(--w2);border-radius:2px;padding:9px;text-align:center;min-width:70px">
         <div style="font-family:var(--orb);font-size:27px;font-weight:700;color:${wins36>settled36-wins36?'var(--nc)':'var(--hc)'}">${wins36}W/${settled36-wins36}L</div>
         <div style="font-family:var(--mono);font-size:16px;color:var(--t3)">LAST 36H</div>
       </div>
-      <div style="flex:1;background:rgba(10,0,24,.8);border:1px solid var(--w2);border-radius:2px;padding:9px;text-align:center;min-width:70px">
+      <div style="flex:1;background:rgba(10,0,24,.40);border:1px solid var(--w2);border-radius:2px;padding:9px;text-align:center;min-width:70px">
         <div style="font-family:var(--orb);font-size:27px;font-weight:700;color:${wins8>settled8-wins8?'var(--nc)':'var(--hc)'}">${wins8}W/${settled8-wins8}L</div>
         <div style="font-family:var(--mono);font-size:16px;color:var(--t3)">LAST 8H</div>
       </div>
-      <div style="flex:1;background:rgba(10,0,24,.8);border:1px solid var(--w2);border-radius:2px;padding:9px;text-align:center;min-width:70px">
+      <div style="flex:1;background:rgba(10,0,24,.40);border:1px solid var(--w2);border-radius:2px;padding:9px;text-align:center;min-width:70px">
         <div style="font-family:var(--orb);font-size:27px;font-weight:700;color:var(--ic)">${preds.filter(p=>p.outcome==='pending').length}</div>
         <div style="font-family:var(--mono);font-size:16px;color:var(--t3)">PENDING</div>
       </div>
@@ -25223,7 +25223,7 @@ function renderFloatingLivePanel(bets){
   let panel=document.getElementById('cv-live-panel');
   if(!panel){
     panel=document.createElement('div');panel.id='cv-live-panel';
-    panel.style.cssText='position:fixed;bottom:16px;right:16px;z-index:9999;background:rgba(2,0,8,.95);border:1px solid var(--pc);border-radius:4px;padding:10px 14px;min-width:220px;max-width:300px;box-shadow:0 0 20px rgba(240,0,255,.3);font-family:var(--mono);font-size:18px';
+    panel.style.cssText='position:fixed;bottom:16px;right:16px;z-index:9999;background:rgba(2,0,8,.32);border:1px solid var(--pc);border-radius:4px;padding:10px 14px;min-width:220px;max-width:300px;box-shadow:0 0 20px rgba(240,0,255,.3);font-family:var(--mono);font-size:18px';
     document.body.appendChild(panel);
   }
   panel.style.display='block';
@@ -28593,7 +28593,7 @@ function renderAnalyticsNHL(){
   const el=document.getElementById('analytics-nhl-content');if(!el)return;
   if(!NHL||!Object.keys(NHL).length){el.innerHTML='<div class="empty">NO NHL DATA</div>';return;}
   el.innerHTML=Object.entries(NHL).map(([abbr,t])=>`
-    <div style="background:rgba(10,0,24,.8);border:1px solid rgba(77,121,255,.2);border-radius:3px;padding:12px;margin-bottom:9px;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,0 100%)">
+    <div style="background:rgba(10,0,24,.40);border:1px solid rgba(77,121,255,.2);border-radius:3px;padding:12px;margin-bottom:9px;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,0 100%)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
         <div style="font-family:var(--orb);font-size:19px;font-weight:700;letter-spacing:2px;color:var(--ic)">${abbr}</div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--t2)">${t.n}</div>
@@ -28639,11 +28639,11 @@ function renderTrends(){
   html+=`</div><div class="sh">BY SPORT</div><div class="g3" style="margin-bottom:14px">`;
   for(const[sp,d]of Object.entries(bySport)){const tot=d.w+d.l;const acc=tot?d.w/tot:0;html+=`<div class="card ci" style="text-align:center;padding:10px"><div class="ct">${sp}</div><div class="stat-val" style="font-size:22px;color:${acc>=.55?'var(--nc)':acc>=.45?'var(--vc)':'var(--hc)'}">${(acc*100).toFixed(0)}%</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${d.w}W/${d.l}L</div></div>`;}
   html+=`</div><div class="sh">WIN% BY DAY OF WEEK</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">`;
-  for(const d of byDOW){const tot=d.w+d.l;const acc=tot?d.w/tot:0;html+=`<div style="flex:1;min-width:40px;background:rgba(10,0,24,.8);border:1px solid rgba(204,0,255,.2);border-radius:3px;padding:8px;text-align:center"><div style="font-family:var(--mono);font-size:11px;color:var(--t3);margin-bottom:4px">${d.d}</div><div style="font-family:var(--mono);font-size:17px;font-weight:700;color:${tot===0?'var(--t3)':acc>=.55?'var(--nc)':acc>=.45?'var(--vc)':'var(--hc)'}">${tot===0?'--':(acc*100).toFixed(0)+'%'}</div><div style="font-family:var(--mono);font-size:11px;color:var(--t3)">${tot?d.w+'W':'-'}</div></div>`;}
+  for(const d of byDOW){const tot=d.w+d.l;const acc=tot?d.w/tot:0;html+=`<div style="flex:1;min-width:40px;background:rgba(10,0,24,.40);border:1px solid rgba(204,0,255,.2);border-radius:3px;padding:8px;text-align:center"><div style="font-family:var(--mono);font-size:11px;color:var(--t3);margin-bottom:4px">${d.d}</div><div style="font-family:var(--mono);font-size:17px;font-weight:700;color:${tot===0?'var(--t3)':acc>=.55?'var(--nc)':acc>=.45?'var(--vc)':'var(--hc)'}">${tot===0?'--':(acc*100).toFixed(0)+'%'}</div><div style="font-family:var(--mono);font-size:11px;color:var(--t3)">${tot?d.w+'W':'-'}</div></div>`;}
   html+='</div>';
   const byTeam={};for(const p of all){const t=p.betOn||p.hA;if(!t)continue;if(!byTeam[t])byTeam[t]={w:0,l:0};p.outcome==='win'?byTeam[t].w++:byTeam[t].l++;}
   const hot=Object.entries(byTeam).filter(([,d])=>d.w+d.l>=3&&d.w/(d.w+d.l)>=.60).sort((a,b)=>b[1].w/(b[1].w+b[1].l)-a[1].w/(a[1].w+a[1].l));
-  if(hot.length){html+=`<div class="sh"><span class="v">HOT ANGLES (≥3 picks, ≥60%)</div><div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px">`;for(const[name,d]of hot.slice(0,8)){const acc=d.w/(d.w+d.l);html+=`<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(10,0,24,.8);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:7px 10px"><div style="font-family:var(--mono);font-size:15px">${name}</div><div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--nc)">${(acc*100).toFixed(0)}%</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${d.w}W/${d.l}L</div></div>`;}html+='</div>';}
+  if(hot.length){html+=`<div class="sh"><span class="v">HOT ANGLES (≥3 picks, ≥60%)</div><div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px">`;for(const[name,d]of hot.slice(0,8)){const acc=d.w/(d.w+d.l);html+=`<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(10,0,24,.40);border:1px solid rgba(0,229,255,.2);border-radius:2px;padding:7px 10px"><div style="font-family:var(--mono);font-size:15px">${name}</div><div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--nc)">${(acc*100).toFixed(0)}%</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${d.w}W/${d.l}L</div></div>`;}html+='</div>';}
   el.innerHTML=html;
 }
 
@@ -28678,7 +28678,7 @@ function renderFutures(){
     <div class="card cn" style="text-align:center;padding:10px"><div class="stat-val" style="font-size:22px;color:var(--nc)">${won.length}</div><div class="stat-lbl">CASHED</div></div>
     <div class="card cg" style="text-align:center;padding:10px"><div class="stat-val" style="font-size:22px;color:${roi==='--'||parseFloat(roi)>=0?'var(--gc)':'var(--hc)'}">${roi==='--'?'--':roi+'%'}</div><div class="stat-lbl">ROI</div></div>
   </div>`;
-  html+=futures.map(f=>{const sc=f.status==='win'||f.status==='cash'?'var(--nc)':f.status==='loss'?'var(--hc)':'var(--gc)';return`<div style="background:rgba(10,0,24,.8);border:1px solid rgba(255,204,0,.2);border-left:3px solid ${sc};border-radius:3px;padding:12px;margin-bottom:7px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap"><div style="flex:1"><div style="font-family:var(--orb);font-size:17px;font-weight:700;letter-spacing:1px;color:var(--t)">${f.desc}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);margin-top:3px">ODDS: <span style="color:var(--gc)">${f.odds}</span> · STAKE: $${f.stake} · TO WIN: $${(f.payout-f.stake).toFixed(2)} · ${f.addedAt}</div></div><span style="font-family:var(--mono);font-size:13px;padding:2px 7px;border-radius:2px;background:${f.status==='open'?'var(--g3)':f.status==='win'||f.status==='cash'?'var(--n3)':'var(--h3)'};color:${sc};border:1px solid ${sc};white-space:nowrap">${f.status.toUpperCase()}</span></div><div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap">${f.status==='open'?`<button class="btn btn-n btn-sm" onclick="updateFutureStatus('${f.id}','cash')">✓ CASH</button><button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="updateFutureStatus('${f.id}','loss')">✗ LOSS</button>`:''}<button class="btn btn-o btn-sm" onclick="deleteFuture('${f.id}')" style="color:var(--t3)">✕ DEL</button></div></div>`;}).join('');
+  html+=futures.map(f=>{const sc=f.status==='win'||f.status==='cash'?'var(--nc)':f.status==='loss'?'var(--hc)':'var(--gc)';return`<div style="background:rgba(10,0,24,.40);border:1px solid rgba(255,204,0,.2);border-left:3px solid ${sc};border-radius:3px;padding:12px;margin-bottom:7px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap"><div style="flex:1"><div style="font-family:var(--orb);font-size:17px;font-weight:700;letter-spacing:1px;color:var(--t)">${f.desc}</div><div style="font-family:var(--mono);font-size:14px;color:var(--t2);margin-top:3px">ODDS: <span style="color:var(--gc)">${f.odds}</span> · STAKE: $${f.stake} · TO WIN: $${(f.payout-f.stake).toFixed(2)} · ${f.addedAt}</div></div><span style="font-family:var(--mono);font-size:13px;padding:2px 7px;border-radius:2px;background:${f.status==='open'?'var(--g3)':f.status==='win'||f.status==='cash'?'var(--n3)':'var(--h3)'};color:${sc};border:1px solid ${sc};white-space:nowrap">${f.status.toUpperCase()}</span></div><div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap">${f.status==='open'?`<button class="btn btn-n btn-sm" onclick="updateFutureStatus('${f.id}','cash')">✓ CASH</button><button class="btn btn-o btn-sm" style="color:var(--hc);border-color:var(--hc)" onclick="updateFutureStatus('${f.id}','loss')">✗ LOSS</button>`:''}<button class="btn btn-o btn-sm" onclick="deleteFuture('${f.id}')" style="color:var(--t3)">✕ DEL</button></div></div>`;}).join('');
   el.innerHTML=html;
 }
 
@@ -28708,7 +28708,7 @@ function renderNewsTab(){
     const col=sportColors[a.sport]||'var(--t3)';
     const lbl=sportLabels[a.sport]||a.sport.toUpperCase();
     const pubDate=a.published?new Date(a.published).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
-    return`<div style="background:rgba(10,0,24,.8);border:1px solid rgba(204,0,255,.15);border-left:3px solid ${col};border-radius:3px;padding:12px;margin-bottom:8px">
+    return`<div style="background:rgba(10,0,24,.40);border:1px solid rgba(204,0,255,.15);border-left:3px solid ${col};border-radius:3px;padding:12px;margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:6px">
         <span style="font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:2px;background:rgba(77,121,255,.1);color:${col};border:1px solid ${col}">${lbl}</span>
         <span style="font-family:var(--mono);font-size:11px;color:var(--t3)">${pubDate}</span>
@@ -30705,17 +30705,17 @@ function _buildATSHtml(settled){
   const byHome=settled.reduce((a,p)=>{if(p.hA===p.betOn?.split(' ')[0]||p.betOn?.includes('HOME'))a.home++;else a.away++;return a;},{home:0,away:0});
   const byFav=settled.reduce((a,p)=>{const ml=parseFloat(p.ml||0);if(ml<0)a.fav++;else a.dog++;return a;},{fav:0,dog:0});
   return`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
-    <div style="background:rgba(10,0,24,.8);border:1px solid rgba(187,255,0,.3);border-radius:3px;padding:10px;text-align:center">
+    <div style="background:rgba(10,0,24,.40);border:1px solid rgba(187,255,0,.3);border-radius:3px;padding:10px;text-align:center">
       <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">ATS RECORD</div>
       <div style="font-family:var(--orb);font-size:26px;font-weight:900;color:var(--vc);margin-top:4px">${totalW}-${totalN-totalW}</div>
       <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${totalN?((totalW/totalN)*100).toFixed(1):'--'}% COVER</div>
     </div>
-    <div style="background:rgba(10,0,24,.8);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:10px;text-align:center">
+    <div style="background:rgba(10,0,24,.40);border:1px solid rgba(0,240,255,.2);border-radius:3px;padding:10px;text-align:center">
       <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">HOME / AWAY</div>
       <div style="font-family:var(--orb);font-size:22px;font-weight:900;color:var(--nc);margin-top:4px">${byHome.home} / ${byHome.away}</div>
       <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">ATS SPLITS</div>
     </div>
-    <div style="background:rgba(10,0,24,.8);border:1px solid rgba(255,32,144,.2);border-radius:3px;padding:10px;text-align:center">
+    <div style="background:rgba(10,0,24,.40);border:1px solid rgba(255,32,144,.2);border-radius:3px;padding:10px;text-align:center">
       <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">FAV / DOG</div>
       <div style="font-family:var(--orb);font-size:22px;font-weight:900;color:var(--hc);margin-top:4px">${byFav.fav} / ${byFav.dog}</div>
       <div style="font-family:var(--mono);font-size:13px;color:var(--t3)">ATS SPLITS</div>
@@ -30723,7 +30723,7 @@ function _buildATSHtml(settled){
   </div>
   <div class="sh" style="margin-bottom:8px"><span class="vc"></span> ATS BY SPORT</div>
   <div style="display:grid;gap:5px">
-    ${sports.filter(s=>bySport[s].n>0).map(s=>{const d=bySport[s];const barW=Math.round((d.w/d.n)*100)||0;return`<div style="background:rgba(10,0,24,.8);border:1px solid rgba(187,255,0,.12);border-radius:2px;padding:8px 10px;display:flex;align-items:center;gap:10px">
+    ${sports.filter(s=>bySport[s].n>0).map(s=>{const d=bySport[s];const barW=Math.round((d.w/d.n)*100)||0;return`<div style="background:rgba(10,0,24,.40);border:1px solid rgba(187,255,0,.12);border-radius:2px;padding:8px 10px;display:flex;align-items:center;gap:10px">
       <div style="font-family:var(--mono);font-size:14px;color:var(--t3);width:40px">${s}</div>
       <div style="flex:1"><div style="height:4px;background:rgba(77,121,255,.15);border-radius:2px"><div style="height:100%;width:${barW}%;background:${barW>=55?'var(--vc)':barW>=50?'var(--gc)':'var(--hc)'};border-radius:2px"></div></div></div>
       <div style="font-family:var(--mono);font-size:15px;color:var(--t)">${d.w}-${d.l}</div>
@@ -30756,7 +30756,7 @@ function renderTeamResults(sportFilter='ALL'){
   }
   const teams=Object.values(teamMap).filter(t=>t.n>=1).sort((a,b)=>b.units-a.units);
   const top=teams.slice(0,10);const bottom=teams.slice(-5).reverse();
-  const row=(t,col)=>`<div style="background:rgba(10,0,24,.8);border:1px solid rgba(77,121,255,.15);border-left:3px solid ${col};border-radius:2px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
+  const row=(t,col)=>`<div style="background:rgba(10,0,24,.40);border:1px solid rgba(77,121,255,.15);border-left:3px solid ${col};border-radius:2px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
     <div><div style="font-family:var(--mono);font-size:15px;color:var(--t)">${t.team}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${t.w}-${t.l} (${t.n} bets)</div></div>
     <div style="text-align:right"><div style="font-family:var(--orb);font-size:17px;font-weight:900;color:${col}">${t.units>=0?'+':''}${t.units.toFixed(2)}u</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${t.n?((t.w/t.n)*100).toFixed(0):'0'}% WIN</div></div>
   </div>`;
@@ -30869,7 +30869,7 @@ function renderAnalyticsByBet(){
       +'</div>';
   }).filter(Boolean).join('');
   var typeTable='<div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">'
-    +'<div style="display:grid;grid-template-columns:'+_BYBET_COLS+';gap:6px;padding:6px 10px;background:rgba(10,0,24,.8);font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px">'
+    +'<div style="display:grid;grid-template-columns:'+_BYBET_COLS+';gap:6px;padding:6px 10px;background:rgba(10,0,24,.40);font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px">'
     +'<span>BET TYPE</span><span style="text-align:right">RECORD</span><span style="text-align:right">WIN%</span><span style="text-align:right">ODDS</span><span style="text-align:right">UNITS</span><span style="text-align:right">HIGH HIT</span></div>'
     +typeRows+'</div>';
   // By sport for selected type
@@ -30902,7 +30902,7 @@ function renderAnalyticsByBet(){
       +'</div>';
   }).filter(Boolean).join('');
   var sportTable=sportRows?'<div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">'
-    +'<div style="padding:6px 10px;background:rgba(10,0,24,.8);font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px">BY SPORT ('+tf+' BETS)</div>'
+    +'<div style="padding:6px 10px;background:rgba(10,0,24,.40);font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px">BY SPORT ('+tf+' BETS)</div>'
     +sportRows+'</div>':'';
   // Best combos
   var combos=[];
@@ -30926,7 +30926,7 @@ function renderAnalyticsByBet(){
       +'</div>';
   }).join('');
   var comboTable=comboRows?'<div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">'
-    +'<div style="padding:6px 10px;background:rgba(10,0,24,.8);font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px">// BEST SPORT + BET TYPE COMBOS (BY UNITS)</div>'
+    +'<div style="padding:6px 10px;background:rgba(10,0,24,.40);font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px">// BEST SPORT + BET TYPE COMBOS (BY UNITS)</div>'
     +comboRows+'</div>':'';
   el.innerHTML=filterRow+sumBar+typeTable+sportTable+comboTable;
 }
@@ -31058,7 +31058,7 @@ function renderBySportAnalytics(key){
     const l10=cardBets.slice(-10);const l10w=l10.filter(p=>p.outcome==='win').length;const l10acc=l10.length?l10w/l10.length:null;
     let streak=0,stType='';for(let i=cardBets.length-1;i>=0;i--){const o=cardBets[i].outcome;if(!stType){stType=o;streak=1;}else if(o===stType)streak++;else break;}
     return`<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden">
-      <div style="padding:10px 12px;background:rgba(10,0,24,.8);border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="padding:10px 12px;background:rgba(10,0,24,.40);border-bottom:1px solid rgba(255,255,255,.06)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-family:var(--orb);font-size:18px;font-weight:700;color:var(--pc)">${label}</span><div style="display:flex;gap:10px;font-family:var(--mono);font-size:16px"><span><span style="color:#00e644">${w}W</span>-<span style="color:#ff1a1a">${l2}L</span></span><span style="color:${pC(acc||0)};font-weight:700">${acc!==null?(acc*100).toFixed(1)+'%':'--'}</span><span style="color:${units>=0?'#00e644':'#ff1a1a'}">${units>=0?'+':''}${units.toFixed(1)}u</span></div></div>
         <div style="height:5px;background:rgba(255,255,255,.07);border-radius:2px;margin-bottom:6px"><div style="width:${barW}%;height:100%;background:${pC(acc||0)};border-radius:2px"></div></div>
         <div style="display:flex;gap:12px;font-family:var(--mono);font-size:15px;color:var(--t3)"><span>L10: <span style="color:${pC(l10acc||0)}">${l10acc!==null?(l10acc*100).toFixed(0)+'%':'--'}</span></span><span>STREAK: <span style="color:${stType==='win'?'#00e644':'#ff1a1a'}">${streak}${stType==='win'?'W':'L'}</span></span><span>${cardBets.length} bets</span></div>
@@ -31229,7 +31229,7 @@ function renderByTeamAnalytics(key){
       <div style="height:5px;background:rgba(255,255,255,.07);border-radius:2px"><div style="width:${tacc?Math.round(tacc*100):0}%;height:100%;background:${pC(tacc||0)};border-radius:2px"></div></div>
     </div>`;
     if(Object.keys(typeBreak).length>0){h+=`<div class="card" style="margin-bottom:10px;padding:10px"><div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px;margin-bottom:6px">BY BET TYPE</div>${Object.entries(typeBreak).map(([t,d])=>{const a=d.w+d.l?d.w/(d.w+d.l):null;return`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:15px"><span style="color:var(--t3)">${t}</span><span>${d.w}W-${d.l}L</span><span style="color:${pC(a||0)};font-weight:700">${a!==null?(a*100).toFixed(0)+'%':'--'}</span><span style="color:${uC(d.u)}">${d.u>=0?'+':''}${d.u.toFixed(1)}u</span></div>`;}).join('')}</div>`;}
-    h+=`<div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px;margin-bottom:6px">ALL BETS FOR ${td.name}</div><div style="display:grid;gap:4px">${dateBets.map(b=>{const col=b.outcome==='win'?'var(--nc)':b.outcome==='loss'?'var(--hc)':b.outcome==='push'?'var(--vc)':'var(--pc)';return`<div style="background:rgba(10,0,24,.8);border-left:2px solid ${col};border-radius:2px;padding:7px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div style="font-family:var(--mono);font-size:15px;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.betOn||''}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${b.betType||''} · ${b.ml||''} · ${b.date||''}</div></div><div style="text-align:right;flex-shrink:0"><div style="font-family:var(--mono);font-size:14px;color:${col};font-weight:700">${(b.outcome||'PENDING').toUpperCase()}</div>${b.winProb?`<div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${(b.winProb*100).toFixed(0)}%</div>`:''}</div></div>`;}).join('')}</div>`;
+    h+=`<div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px;margin-bottom:6px">ALL BETS FOR ${td.name}</div><div style="display:grid;gap:4px">${dateBets.map(b=>{const col=b.outcome==='win'?'var(--nc)':b.outcome==='loss'?'var(--hc)':b.outcome==='push'?'var(--vc)':'var(--pc)';return`<div style="background:rgba(10,0,24,.40);border-left:2px solid ${col};border-radius:2px;padding:7px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div style="font-family:var(--mono);font-size:15px;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.betOn||''}</div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${b.betType||''} · ${b.ml||''} · ${b.date||''}</div></div><div style="text-align:right;flex-shrink:0"><div style="font-family:var(--mono);font-size:14px;color:${col};font-weight:700">${(b.outcome||'PENDING').toUpperCase()}</div>${b.winProb?`<div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${(b.winProb*100).toFixed(0)}%</div>`:''}</div></div>`;}).join('')}</div>`;
     el.innerHTML=h;return;
   }
 
@@ -31526,7 +31526,7 @@ function renderAnalyticsBetHistory(filter){
   if(mKeys.length>1){h+=`<div class="card" style="margin-bottom:10px;padding:10px"><div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px;margin-bottom:6px">MONTHLY RESULTS</div>${mKeys.map(k=>{const m=monthly[k];const a=m.w+m.l?m.w/(m.w+m.l):null;const bw=a?Math.round(a*100):0;return`<div style="margin-bottom:5px"><div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:15px;margin-bottom:2px"><span style="color:var(--t3)">${k}</span><div style="display:flex;gap:8px"><span>${m.w}W-${m.l}L</span><span style="color:${pC(a||0)};font-weight:700">${a!==null?(a*100).toFixed(0)+'%':'--'}</span><span style="color:${uC(m.u)}">${m.u>=0?'+':''}${m.u.toFixed(1)}u</span></div></div><div style="height:3px;background:rgba(255,255,255,.06);border-radius:1px"><div style="width:${bw}%;height:100%;background:${pC(a||0)};border-radius:1px"></div></div></div>`;}).join('')}</div>`;}
   const sortedBets=bets.slice().sort((a,b)=>(b.lockedAt||0)-(a.lockedAt||0));
   h+=`<div style="font-family:var(--mono);font-size:14px;color:var(--t3);letter-spacing:2px;margin-bottom:6px">${filterLabel} — ${Math.min(60,sortedBets.length)} of ${sortedBets.length} BETS</div>`;
-  h+=`<div style="display:grid;gap:4px">${sortedBets.slice(0,60).map(b=>{const isPend=b.outcome==='pending';const col=b.outcome==='win'?'var(--nc)':b.outcome==='loss'?'var(--hc)':b.outcome==='push'?'var(--vc)':'var(--pc)';const sc={MLB:'var(--vc)',NHL:'var(--ic)',NBA:'var(--pc)',TEN:'var(--mc)',ATP:'var(--mc)',WTA:'var(--mc)'}[b.sport]||'var(--t3)';const mu=_gameTitle(b.hA,b.awA,b.sport)||b.betOn||'';return`<div style="background:rgba(10,0,24,.8);border-left:2px solid ${col};border-radius:2px;padding:7px 10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="font-family:var(--mono);font-size:13px;padding:1px 4px;border:1px solid ${sc};color:${sc};border-radius:2px">${b.sport}</span><span style="font-family:var(--mono);font-size:15px;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${mu}</span></div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${b.betOn||''} · ${b.ml||''} · ${b.date||''}</div></div><div style="display:flex;align-items:center;gap:5px;flex-shrink:0">${isPend?`<button class="btn btn-n btn-sm" onclick="recR('${b.id}','win');renderAnalyticsBetHistory('${filter}')" style="font-size:14px;padding:2px 7px">✓ WIN</button><button class="btn btn-o btn-sm" onclick="recR('${b.id}','loss');renderAnalyticsBetHistory('${filter}')" style="font-size:14px;padding:2px 7px;color:var(--hc);border-color:var(--hc)">✗ LOSS</button><button class="btn btn-sm" onclick="removePick('${b.id}');renderAnalyticsBetHistory('${filter}')" style="font-size:14px;padding:2px 7px;color:var(--t3);border-color:var(--t3)">✕</button>`:`<div style="text-align:right"><div style="font-family:var(--mono);font-size:14px;color:${col};font-weight:700">${(b.outcome||'').toUpperCase()}</div>${b.winProb?`<div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${(b.winProb*100).toFixed(0)}%</div>`:''}</div>`}</div></div>`;}).join('')}</div>`;
+  h+=`<div style="display:grid;gap:4px">${sortedBets.slice(0,60).map(b=>{const isPend=b.outcome==='pending';const col=b.outcome==='win'?'var(--nc)':b.outcome==='loss'?'var(--hc)':b.outcome==='push'?'var(--vc)':'var(--pc)';const sc={MLB:'var(--vc)',NHL:'var(--ic)',NBA:'var(--pc)',TEN:'var(--mc)',ATP:'var(--mc)',WTA:'var(--mc)'}[b.sport]||'var(--t3)';const mu=_gameTitle(b.hA,b.awA,b.sport)||b.betOn||'';return`<div style="background:rgba(10,0,24,.40);border-left:2px solid ${col};border-radius:2px;padding:7px 10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="font-family:var(--mono);font-size:13px;padding:1px 4px;border:1px solid ${sc};color:${sc};border-radius:2px">${b.sport}</span><span style="font-family:var(--mono);font-size:15px;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${mu}</span></div><div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${b.betOn||''} · ${b.ml||''} · ${b.date||''}</div></div><div style="display:flex;align-items:center;gap:5px;flex-shrink:0">${isPend?`<button class="btn btn-n btn-sm" onclick="recR('${b.id}','win');renderAnalyticsBetHistory('${filter}')" style="font-size:14px;padding:2px 7px">✓ WIN</button><button class="btn btn-o btn-sm" onclick="recR('${b.id}','loss');renderAnalyticsBetHistory('${filter}')" style="font-size:14px;padding:2px 7px;color:var(--hc);border-color:var(--hc)">✗ LOSS</button><button class="btn btn-sm" onclick="removePick('${b.id}');renderAnalyticsBetHistory('${filter}')" style="font-size:14px;padding:2px 7px;color:var(--t3);border-color:var(--t3)">✕</button>`:`<div style="text-align:right"><div style="font-family:var(--mono);font-size:14px;color:${col};font-weight:700">${(b.outcome||'').toUpperCase()}</div>${b.winProb?`<div style="font-family:var(--mono);font-size:13px;color:var(--t3)">${(b.winProb*100).toFixed(0)}%</div>`:''}</div>`}</div></div>`;}).join('')}</div>`;
   el.innerHTML=h;
 }
 window.renderAnalyticsBetHistory=renderAnalyticsBetHistory;
@@ -31558,7 +31558,7 @@ function renderFuturesOdds(){
     html+=top.map((p,i)=>{
       const ml=p.ml;const dec=ml>0?ml/100+1:100/Math.abs(ml)+1;
       const barW=Math.max(4,Math.min(100,100/dec));
-      return`<div style="background:rgba(10,0,24,.8);border:1px solid rgba(${sec.col==='var(--vc)'?'170,255,0':sec.col==='var(--pc)'?'204,0,255':sec.col==='var(--ic)'?'77,121,255':'255,204,0'},.15);border-radius:3px;padding:9px 11px;display:flex;align-items:center;gap:10px">
+      return`<div style="background:rgba(10,0,24,.40);border:1px solid rgba(${sec.col==='var(--vc)'?'170,255,0':sec.col==='var(--pc)'?'204,0,255':sec.col==='var(--ic)'?'77,121,255':'255,204,0'},.15);border-radius:3px;padding:9px 11px;display:flex;align-items:center;gap:10px">
         <div style="font-family:var(--mono);font-size:14px;color:var(--t3);width:18px;text-align:right">#${i+1}</div>
         <div style="flex:1">
           <div style="font-family:var(--orb);font-size:16px;font-weight:700;letter-spacing:1px;color:var(--t)">${p.name}</div>
@@ -34998,7 +34998,7 @@ window._clvScanAllSports=_clvScanAllSports;
 .pt-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px 14px;margin-bottom:12px}
 .pt-h{font-family:var(--orb);font-size:22px;font-weight:900;letter-spacing:3px;color:var(--pc);text-shadow:0 0 10px rgba(240,0,255,.55)}
 .pt-hs{font-family:var(--mono);font-size:12px;letter-spacing:1px;color:var(--t3);margin-top:3px;line-height:1.5}
-.pt-card{background:rgba(10,4,22,.92);border:1px solid rgba(77,40,120,.55);box-shadow:0 0 8px rgba(240,0,255,.05),inset 0 0 8px rgba(0,0,0,.3);border-radius:3px;padding:12px;margin-bottom:12px;position:relative;min-width:0}
+.pt-card{background:rgba(10,4,22,.42);border:1px solid rgba(77,40,120,.55);box-shadow:0 0 8px rgba(240,0,255,.05),inset 0 0 8px rgba(0,0,0,.3);border-radius:3px;padding:12px;margin-bottom:12px;position:relative;min-width:0}
 .pt-ch{display:flex;justify-content:space-between;align-items:flex-start;gap:8px 12px;flex-wrap:wrap;margin-bottom:8px}
 .pt-ct{font-family:var(--orb);font-size:15px;font-weight:700;letter-spacing:2px;color:var(--t)}
 .pt-cs{font-family:var(--mono);font-size:11px;letter-spacing:.6px;color:var(--t3);margin-top:3px;line-height:1.5}
@@ -35058,7 +35058,7 @@ input[type=date].pt-in{color-scheme:dark}
 .pt-notoday{align-self:flex-start}
 /* KPI tiles */
 .pt-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:8px}
-.pt-tile{background:rgba(10,4,22,.92);border:1px solid rgba(77,40,120,.5);border-radius:3px;padding:9px 11px;min-width:0}
+.pt-tile{background:rgba(10,4,22,.42);border:1px solid rgba(77,40,120,.5);border-radius:3px;padding:9px 11px;min-width:0}
 .pt-t-big{grid-column:span 2}
 .pt-k{font-family:var(--mono);font-size:10.5px;letter-spacing:1.5px;color:var(--t3)}
 .pt-v{font-family:var(--orb);font-size:21px;font-weight:700;margin:3px 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -37589,7 +37589,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 .ml-conn{font-family:var(--mono);font-size:13px;letter-spacing:1px;display:inline-flex;align-items:center;gap:6px}
 .ml-dot{width:8px;height:8px;border-radius:50%;background:#00e644;box-shadow:0 0 6px #00e644}
 .ml-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:12px}
-.ml-stat{background:rgba(10,4,22,.92);border:1px solid rgba(77,40,120,.55);border-radius:3px;padding:10px 12px;min-width:0}
+.ml-stat{background:rgba(10,4,22,.42);border:1px solid rgba(77,40,120,.55);border-radius:3px;padding:10px 12px;min-width:0}
 .ml-sv{font-family:var(--orb);font-size:24px;font-weight:900;color:var(--t);line-height:1.1}
 .ml-sl{font-family:var(--mono);font-size:12px;letter-spacing:1.5px;color:var(--t3);margin-top:4px;text-transform:uppercase}
 .ml-sn{font-family:var(--mono);font-size:11px;color:var(--t3);margin-top:3px}
@@ -37597,7 +37597,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 .ml-chip{font-family:var(--mono);font-size:13px;letter-spacing:1px;padding:4px 10px;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.65);background:transparent;border-radius:2px;cursor:pointer;min-height:30px}
 .ml-chip.on{border-color:var(--pc);color:var(--pc);background:rgba(240,0,255,.08);box-shadow:0 0 8px rgba(240,0,255,.25)}
 .ml-in{font-family:var(--mono);font-size:15px;color:var(--t);background:rgba(0,0,0,.45);border:1px solid rgba(77,40,120,.7);border-radius:2px;padding:7px 10px;min-width:0;flex:1 1 200px}
-.ml-sub{background:rgba(10,4,22,.92);border:1px solid rgba(77,40,120,.55);border-left:3px solid #00e644;border-radius:3px;padding:10px 12px;margin-bottom:8px;min-width:0}
+.ml-sub{background:rgba(10,4,22,.42);border:1px solid rgba(77,40,120,.55);border-left:3px solid #00e644;border-radius:3px;padding:10px 12px;margin-bottom:8px;min-width:0}
 .ml-sub.expiring{border-left-color:#ffd500}.ml-sub.expired{border-left-color:#ff2050;opacity:.82}
 .ml-eh{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .ml-em{font-family:var(--mono);font-size:16px;color:var(--t);word-break:break-all}
@@ -37612,7 +37612,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 .ml-btn{font-family:var(--mono);font-size:12px;letter-spacing:1.5px;padding:4px 10px;border:1px solid rgba(255,255,255,.25);color:var(--t2);background:transparent;border-radius:2px;cursor:pointer;min-height:28px}
 .ml-btn.go{border-color:var(--pc);color:var(--pc)}.ml-btn.rm{border-color:#ff2050;color:#ff2050}
 .ml-btn:disabled{opacity:.45;cursor:default}
-.ml-card{background:rgba(10,4,22,.92);border:1px solid rgba(77,40,120,.55);border-radius:3px;padding:12px;margin-bottom:12px;min-width:0}
+.ml-card{background:rgba(10,4,22,.42);border:1px solid rgba(77,40,120,.55);border-radius:3px;padding:12px;margin-bottom:12px;min-width:0}
 .ml-ct{font-family:var(--orb);font-size:14px;font-weight:700;letter-spacing:2px;color:var(--t);margin-bottom:8px}
 .ml-msg{font-family:var(--mono);font-size:13px;line-height:1.6;margin-top:8px;color:var(--t2)}
 .ml-msg.err{color:#ff2050}.ml-msg.ok{color:#00e644}
