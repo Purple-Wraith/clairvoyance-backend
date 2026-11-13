@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-11-13 06:20 MT",
+  "generated_at": "2026-11-13 11:42 MT",
   "basis": "all locks (including picks locked after the game started)",
   "basis_note": "Figures count every settled pick in scope, including picks locked after the game had started. basis_detail shows how many of those there are.",
   "classifier": "scripts/lock_timing.py",
   "basis_detail": {
-    "settled_pre_start": 2948,
+    "settled_pre_start": 2950,
     "settled_locked_after_start_included": 211,
     "settled_unknown_timing_included": 368,
     "unknown_timing_by_league": {
@@ -17,7 +17,16 @@
   },
   "today": {
     "label": "TODAY",
-    "leagues": [],
+    "leagues": [
+      {
+        "lbl": "EXTRALIGA",
+        "w": 1,
+        "l": 1,
+        "n": 2,
+        "pct": 0.5,
+        "units": -0.5900000000000001
+      }
+    ],
     "excluded_late": 0
   },
   "lastMonth": {
@@ -215,11 +224,11 @@
       },
       {
         "lbl": "EXTRALIGA",
-        "w": 2,
-        "l": 0,
-        "n": 2,
-        "pct": 1,
-        "units": 0.685
+        "w": 3,
+        "l": 1,
+        "n": 4,
+        "pct": 0.75,
+        "units": 0.09499999999999975
       }
     ],
     "excluded_late": 0
@@ -306,6 +315,14 @@
         "n": 2,
         "pct": 0.5,
         "units": -0.6399999999999999
+      },
+      {
+        "lbl": "EXTRALIGA",
+        "w": 1,
+        "l": 1,
+        "n": 2,
+        "pct": 0.5,
+        "units": -0.5900000000000001
       }
     ],
     "excluded_late": 0
@@ -403,28 +420,16 @@
       },
       {
         "lbl": "EXTRALIGA",
-        "w": 76,
-        "l": 32,
-        "n": 108,
-        "pct": 0.7037037037037037,
-        "units": 11.266514422576272
+        "w": 77,
+        "l": 33,
+        "n": 110,
+        "pct": 0.7,
+        "units": 10.676514422576272
       }
     ],
     "excluded_late": 0
   },
   "rolling7_series": {
-    "Champions League": [
-      [
-        1793813359173,
-        1,
-        0.91
-      ],
-      [
-        1793813359654,
-        1,
-        0.91
-      ]
-    ],
     "NBA": [
       [
         1793824084741,
@@ -2911,6 +2916,18 @@
       ],
       [
         1794505694307,
+        0,
+        -1
+      ]
+    ],
+    "EXTRALIGA": [
+      [
+        1794472657976,
+        1,
+        0.41
+      ],
+      [
+        1794472658200,
         0,
         -1
       ]
