@@ -24,7 +24,10 @@ class ArchiveTests(unittest.TestCase):
         threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
         cls.pw = sync_playwright().start()
         cls.browser = cls.pw.chromium.launch()
-        cls.backup = (DOCS / "picks_backup.json").read_text()
+        # The full backup (~5.3M chars) is over Chrome's ~5M localStorage limit, so seeding it whole silently fails and the app falls back to its
+        # built-in picks. Seed a copy without the bulky per-pick `reasoning` text: same picks/ids, about half the size.
+        full = json.loads((DOCS / "picks_backup.json").read_text())
+        cls.backup = json.dumps([{k: v for k, v in p.items() if k != "reasoning"} for p in full], separators=(",", ":"))
         cls.app_src = (DOCS / "app.html").read_text(encoding="utf-8")
         cls.archive = json.loads((DOCS / "ledger_archive.json").read_text())
 

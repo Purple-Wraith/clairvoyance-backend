@@ -70,11 +70,14 @@ class Engines(unittest.TestCase):
           const free=cfbMC(g.home,g.away,10,null,{neutralSite:true});
           const hi=Math.round(free.avgTotal)+20.5,lo=Math.round(free.avgTotal)-20.5;
           const a=cfbMC(g.home,g.away,10,hi,{neutralSite:true}),b=cfbMC(g.home,g.away,10,lo,{neutralSite:true});
-          return{raw:free.baseTotal,hi:hi,lo:lo,aHi:a,aLo:b,keep:CFB_MKT_ANCHOR.total.keep,free:free}}""")
+          return{raw:free.baseTotal,hi:hi,lo:lo,aHi:a,aLo:b,keep:CFB_MKT_ANCHOR.total.keep,free:free,floored:_nClampMean(free.baseTotal,_CFB_SIGMA_TOTAL,20)}}""")
         keep = r["keep"]
         self.assertEqual(keep, 0.70)
         self.assertFalse(r["free"]["anchor"]["total"])                                     # no posted total -> no anchor
-        self.assertAlmostEqual(r["free"]["avgTotal"], r["raw"], delta=0.1)
+        # avgTotal is the FLOORED mean (the total cannot go below 20), so it sits a little above the raw total, more so for low-scoring games; with no posted
+        # total there is no anchor, so it must equal that floored mean (it used to be compared to the raw total at +-0.1, which broke when the sampled game was low-scoring)
+        self.assertAlmostEqual(r["free"]["avgTotal"], r["floored"], delta=0.06)
+        self.assertGreaterEqual(r["free"]["avgTotal"], r["raw"] - 0.06)
         for key, line in (("aHi", r["hi"]), ("aLo", r["lo"])):
             a = r[key]
             self.assertTrue(a["anchor"]["total"])
