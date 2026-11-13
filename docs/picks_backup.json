@@ -145500,14 +145500,14 @@
     "betOn": "Ambri-Piotta +1.5",
     "sport": "NLA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 1,
+    "hScore": 4,
     "league": "NLA",
     "source": "manual",
     "betType": "SPREAD",
     "decOdds": 1.5,
     "leadMin": 140,
-    "outcome": "pending",
+    "outcome": "loss",
     "startMs": 1794595500000,
     "winProb": 0.6507708976802363,
     "lockedAt": 1794587128797,
@@ -145517,7 +145517,8 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.625,
-    "priceSource": "market"
+    "priceSource": "market",
+    "settledAt": 1794604911011
   },
   {
     "id": "2026-11-13_Davos_Ambri-Piotta_NLA_OVER4.5",
@@ -145532,10 +145533,10 @@
     "ml": "-293",
     "decOdds": 1.341,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1794472656375,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 4,
+    "aScore": 1,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: OVER 4.5 \u2014 ADJUSTED LINE (70.0% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 5.5 to OVER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.7%; the 1-goal cushion is priced from the historical margin curve for this market (about 70% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
@@ -145553,7 +145554,8 @@
     },
     "startMs": 1794595500000,
     "leadMin": 2047,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794604911012
   },
   {
     "id": "2026-11-13_HOU_UTAH_NBA_HOU-10.5",
@@ -146137,10 +146139,10 @@
     "ml": "-233",
     "decOdds": 1.43,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1794472657070,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 2,
+    "aScore": 1,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: Langnau Tigers +1.5 \u2014 HIGH PROB (67.1% win prob, EV -4.0% \u00b7 MARKET PRICE -233 (EV at market -4.0%) \u00b7 MARKET-BLENDED: model 72.0% \u00b7 no-vig market 65.0% \u2192 67.1% (alpha 0.70))\nMODEL: Projected 3.4\u20133.1 (total 6.6) (OT/SO in 16% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Lugano 3.05/3.38 (19GP this season, 52GP prior) vs Langnau Tigers 3.44/2.94 (19GP, 52GP prior). Market line: 5.5 (Lugano 6.25, Langnau Tigers 6.16). Record: Lugano 6-10-1OTW-2OTL vs Langnau Tigers 8-7-1OTW-3OTL. Exact-Poisson proj: Langnau Tigers 3.4 \u2013 Lugano 3.1 (6.6 total vs 5.5 line). Langnau Tigers +1.5 covers in 67.1% of the model's blended scoring+margin projection (fav covers 32.9%) -- close enough to stay within a goal. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 44.5% \u00b7 no-vig market 57.6% \u2192 54.3%; Puck line market blend (alpha 0.70): model 28.0% \u00b7 no-vig market 35.0% \u2192 32.9%; O/U market blend (alpha 0.65): model 62.8% \u00b7 no-vig market 53.5% \u2192 56.8%. Half-unit play \u00b7 Also: OVER 5.5 (HIGH PROB).",
@@ -146150,7 +146152,8 @@
     "blendAlpha": 0.7,
     "startMs": 1794595500000,
     "leadMin": 2047,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794604911013
   },
   {
     "id": "2026-11-13_Lugano_Langnau Tigers_NLA_OVER5.5",
@@ -146165,10 +146168,10 @@
     "ml": "-135",
     "decOdds": 1.74,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "loss",
     "lockedAt": 1794472656752,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 2,
+    "aScore": 1,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: OVER 5.5 \u2014 HIGH PROB (56.8% win prob, EV -1.2% \u00b7 MARKET PRICE -135 (EV at market -1.2%) \u00b7 MARKET-BLENDED: model 62.8% \u00b7 no-vig market 53.5% \u2192 56.8% (alpha 0.65))\nMODEL: Projected 3.4\u20133.1 (total 6.6) (OT/SO in 16% of outcomes) \u2014 OVER hits 62.8% of outcomes vs the 5.5 line, from an exact Poisson distribution (not a simulation).",
@@ -146178,7 +146181,8 @@
     "blendAlpha": 0.65,
     "startMs": 1794595500000,
     "leadMin": 2047,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794604911013
   },
   {
     "id": "2026-11-13_MIA_CLE_NBA_CLE+8.5",
@@ -147368,10 +147372,10 @@
     "ml": "-319",
     "decOdds": 1.314,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1794472657659,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 1,
+    "aScore": 5,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: OVER 4.5 \u2014 ADJUSTED LINE (71.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 5.5 to OVER 4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.8%; the 1-goal cushion is priced from the historical margin curve for this market (about 72% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
@@ -147389,7 +147393,8 @@
     },
     "startMs": 1794595500000,
     "leadMin": 2047,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794604911013
   },
   {
     "id": "2026-11-13_Zug_Rapperswil-Jona_NLA_ZugML",
@@ -147404,10 +147409,10 @@
     "ml": "-303",
     "decOdds": 1.33,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "loss",
     "lockedAt": 1794472657252,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 1,
+    "aScore": 5,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: Zug ML \u2014 HIGH PROB (75.3% win prob, EV +0.1% \u00b7 MARKET PRICE -303 (EV at market +0.1%) \u00b7 MARKET-BLENDED: model 85.5% \u00b7 no-vig market 71.0% \u2192 75.3% (alpha 0.75))\nMODEL: Projected 2.5\u20133.7 (total 6.3) (OT/SO in 15% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Blended GF/GA per game: Zug 3.39/2.28 (13GP this season, 52GP prior) vs Rapperswil-Jona 2.64/3.60 (19GP, 52GP prior). Market line: 5.5 (Zug 5.29, Rapperswil-Jona 5.98). Record: Zug 9-3-1OTL vs Rapperswil-Jona 4-10-2OTW-3OTL. Exact-Poisson proj: Rapperswil-Jona 2.5 \u2013 Zug 3.7 (6.3 total vs 5.5 line). Zug's scoring edge versus the moneyline price. Ensemble: Poisson model 70% / Bayesian log5 30%. ML market blend (alpha 0.75): model 85.5% \u00b7 no-vig market 71.0% \u2192 75.3%; Puck line market blend (alpha 0.70): model 57.9% \u00b7 no-vig market 46.8% \u2192 50.2%; O/U market blend (alpha 0.65): model 58.4% \u00b7 no-vig market 51.4% \u2192 53.8%. Half-unit play.",
@@ -147417,7 +147422,8 @@
     "blendAlpha": 0.75,
     "startMs": 1794595500000,
     "leadMin": 2047,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794604911013
   },
   {
     "id": "2026-11-14_AFA_SJSU_CFB_AFA-5.5",
