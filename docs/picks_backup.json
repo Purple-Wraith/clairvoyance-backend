@@ -150855,6 +150855,34 @@
     "priceSource": "market"
   },
   {
+    "id": "2026-11-14_PIT_OTT_NHL_PIT+1.5",
+    "date": "2026-11-14",
+    "hA": "PIT",
+    "awA": "OTT",
+    "sport": "NHL",
+    "league": "NHL",
+    "betType": "SPREAD",
+    "betOn": "PIT +1.5",
+    "winProb": 0.6682191423089847,
+    "ml": "-227",
+    "decOdds": 1.44,
+    "wager": 0,
+    "outcome": "pending",
+    "lockedAt": 1794681983565,
+    "hScore": null,
+    "aScore": null,
+    "source": "manual",
+    "lockOrigin": "auto",
+    "reasoning": "PICK: PIT +1.5 \u2014 HIGH PROB (66.8% win prob, EV -3.8% \u00b7 MARKET PRICE -227 (EV at market -3.8%) \u00b7 MARKET-BLENDED: model 68.6% \u00b7 no-vig market 66.0% \u2192 66.8% (alpha 0.70))\nMODEL: Projected 3.3\u20133.2 (total 6.6) (OT/SO in 16% of outcomes) \u2014 underdog covers +1.5 in 69.3% of outcomes (incl. late-game empty-net margin calibration), from an exact Poisson distribution (not a simulation).\nWHY: Best market: PIT +1.5 graded HIGH PROB (66.8%, EV -3.8%). Dog covers +1.5 in 66.8% of sims (proj 3.2\u20133.3). GSAx: -2.6 vs -2.3 (injury adj: PIT: Bryan Rust RW OUT -> scoring -3.7% | OTT: William Eklund LW OUT -> scoring -2.3%) keeps this within a goal. MC 50% / xGF 50% / hv -2.7pp / ST +6.6pp / SQ -0.9pp \u00b7 ML market blend (alpha 0.75): model 65.7% \u00b7 no-vig market 44.3% \u2192 49.8%; Puck line market blend (alpha 0.70): model 31.4% \u00b7 no-vig market 34.0% \u2192 33.2%; O/U market blend (alpha 0.65): model 50.1% \u00b7 no-vig market 47.8% \u2192 48.6%. Half-unit play.",
+    "priceSource": "market",
+    "modelProb": 0.6862,
+    "marketProb": 0.6604,
+    "blendAlpha": 0.7,
+    "startMs": 1794700800000,
+    "leadMin": 314,
+    "lockTiming": "pre"
+  },
+  {
     "hA": "PIT",
     "id": "2026-11-14_PIT_OTT_NHL_UNDER7.5",
     "ml": "-333",
@@ -165580,53 +165608,53 @@
     "priceSource": "estimated"
   },
   {
-    "hA": "CHI",
     "id": "prop_2026-11-14_NBA_NormanPowell_PTS_26.5_U",
-    "ml": "-246",
-    "awA": "MIN",
-    "conf": 0.68,
-    "date": "2026-11-14",
+    "team": "CHI",
+    "player": "Norman Powell",
     "line": 26.5,
     "over": false,
-    "team": "CHI",
-    "betOn": "Norman Powell UNDER PTS 26.5",
+    "conf": 0.68,
+    "ml": "-246",
+    "lockedAt": 1794681983249,
+    "outcome": "pending",
+    "date": "2026-11-14",
     "sport": "NBA",
-    "wager": 0,
     "league": "NBA",
-    "player": "Norman Powell",
-    "pstats": {
-      "s": {
-        "AST": 2.5,
-        "PTS": 21.7,
-        "REB": 3.5
-      },
-      "gp": 58,
-      "l5": {
-        "n": 5,
-        "AST": 1,
-        "PTS": 14.4,
-        "REB": 2,
-        "cur": null
-      },
-      "mpg": 29.6
-    },
+    "betType": "PROP",
+    "betOn": "Norman Powell UNDER PTS 26.5",
+    "winProb": 0.68,
+    "hA": "CHI",
+    "awA": "MIN",
+    "decOdds": 1.4065040650406504,
+    "wager": 0,
     "altLine": {
+      "posted": 21.5,
       "line": 26.5,
       "shift": 5,
-      "posted": 21.5,
+      "postedLabel": "Norman Powell UNDER PTS 21.5",
+      "postedProb": 0.6260252595708249,
       "postedMl": "-167",
       "postedDec": null,
-      "postedProb": 0.6260252595708249,
-      "postedLabel": "Norman Powell UNDER PTS 21.5",
       "estimatedPrice": true
     },
-    "betType": "PROP",
-    "decOdds": 1.4065040650406504,
-    "outcome": "pending",
-    "winProb": 0.68,
-    "lockedAt": 1794659041649,
-    "reasoning": "PICK: Norman Powell UNDER PTS 21.5 \u2014 OPTIMAL (63% model hit rate)\nMODEL: projection 19.29 PTS (season average 21.7, last-5 form 14.4, opponent adjustment -2.4) vs the 21.5 line, spread \u03c3 6.87, from an exact normal distribution (not a simulation).\nWHY: Norman Powell averages 21.7 ppg across 58 games this season. Opp MIN DRtg 113.4 vs a 115.7 league average computed from every currently-loaded team, a -2% reduction folded into the projection. Game pace 101.5 (-0.9%), CHI offense 112.9 vs a 115.7 league average. No head-to-head history vs MIN this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "pstats": {
+      "gp": 58,
+      "mpg": 29.6,
+      "s": {
+        "PTS": 21.7,
+        "REB": 3.5,
+        "AST": 2.5
+      },
+      "l5": {
+        "n": 5,
+        "cur": null,
+        "PTS": 14.4,
+        "REB": 2,
+        "AST": 1
+      }
+    },
+    "reasoning": "PICK: Norman Powell UNDER PTS 21.5 \u2014 OPTIMAL (63% model hit rate)\nMODEL: projection 19.29 PTS (season average 21.7, last-5 form 14.4, opponent adjustment -2.4) vs the 21.5 line, spread \u03c3 6.87, from an exact normal distribution (not a simulation).\nWHY: Norman Powell averages 21.7 ppg across 58 games this season. Opp MIN DRtg 113.4 vs a 115.7 league average computed from every currently-loaded team, a -2% reduction folded into the projection. Game pace 101.5 (-0.9%), CHI offense 112.9 vs a 115.7 league average. No head-to-head history vs MIN this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
   },
   {
     "hA": "MIA",
