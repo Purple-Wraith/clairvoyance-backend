@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-11-14 09:52 MT",
+  "generated_at": "2026-11-14 10:42 MT",
   "basis": "all locks (including picks locked after the game started)",
   "basis_note": "Figures count every settled pick in scope, including picks locked after the game had started. basis_detail shows how many of those there are.",
   "classifier": "scripts/lock_timing.py",
   "basis_detail": {
-    "settled_pre_start": 3018,
+    "settled_pre_start": 3020,
     "settled_locked_after_start_included": 211,
     "settled_unknown_timing_included": 370,
     "unknown_timing_by_league": {
@@ -20,11 +20,11 @@
     "leagues": [
       {
         "lbl": "SHL",
-        "w": 1,
-        "l": 1,
-        "n": 2,
+        "w": 2,
+        "l": 2,
+        "n": 4,
         "pct": 0.5,
-        "units": -0.667
+        "units": -1.337
       }
     ],
     "excluded_late": 0
@@ -215,20 +215,20 @@
         "units": -2.686
       },
       {
+        "lbl": "SHL",
+        "w": 8,
+        "l": 6,
+        "n": 14,
+        "pct": 0.5714285714285714,
+        "units": -2.835
+      },
+      {
         "lbl": "NLA",
         "w": 8,
         "l": 5,
         "n": 13,
         "pct": 0.6153846153846154,
         "units": -2.027
-      },
-      {
-        "lbl": "SHL",
-        "w": 7,
-        "l": 5,
-        "n": 12,
-        "pct": 0.5833333333333334,
-        "units": -2.165
       }
     ],
     "excluded_late": 0
@@ -269,6 +269,14 @@
         "units": -0.2809999999999997
       },
       {
+        "lbl": "SHL",
+        "w": 8,
+        "l": 6,
+        "n": 14,
+        "pct": 0.5714285714285714,
+        "units": -2.835
+      },
+      {
         "lbl": "NLA",
         "w": 8,
         "l": 5,
@@ -283,14 +291,6 @@
         "n": 13,
         "pct": 0.5384615384615384,
         "units": -3.3709999999999996
-      },
-      {
-        "lbl": "SHL",
-        "w": 7,
-        "l": 5,
-        "n": 12,
-        "pct": 0.5833333333333334,
-        "units": -2.165
       },
       {
         "lbl": "CFB",
@@ -364,11 +364,11 @@
       },
       {
         "lbl": "SHL",
-        "w": 112,
-        "l": 40,
-        "n": 152,
-        "pct": 0.7368421052631579,
-        "units": 27.911285078456757
+        "w": 113,
+        "l": 41,
+        "n": 154,
+        "pct": 0.7337662337662337,
+        "units": 27.241285078456755
       },
       {
         "lbl": "NLA",
@@ -2939,6 +2939,16 @@
         1794505694307,
         0,
         -1
+      ],
+      [
+        1794558234018,
+        0,
+        -1
+      ],
+      [
+        1794558234451,
+        1,
+        0.33
       ],
       [
         1794558234806,
