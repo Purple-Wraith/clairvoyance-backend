@@ -146879,10 +146879,10 @@
     "ml": "-251",
     "decOdds": 1.399,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "loss",
     "lockedAt": 1794576032783,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 123,
+    "aScore": 85,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: OVER 212.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted OVER 220.5 to OVER 212.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 67.3%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected 108.5\u2013120.3 (total 228.8), from an exact normal distribution (not a simulation).",
@@ -146898,7 +146898,8 @@
     },
     "startMs": 1794623400000,
     "leadMin": 789,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794633678061
   },
   {
     "id": "2026-11-13_SA_GS_NBA_SA-5.5",
@@ -146913,10 +146914,10 @@
     "ml": "-266",
     "decOdds": 1.376,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1794576033760,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 123,
+    "aScore": 85,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: SA -5.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted SA -11.5 to SA -5.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 51.2%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
@@ -146934,7 +146935,8 @@
     },
     "startMs": 1794623400000,
     "leadMin": 789,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794633678062
   },
   {
     "id": "2026-11-13_SA_GS_NBA_SAML",
@@ -146949,16 +146951,17 @@
     "ml": "-700",
     "decOdds": 1.1428571428571428,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1794576033303,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 123,
+    "aScore": 85,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: SA ML \u2014 SKIP (78.7% win prob, EV -10.1%)\nMODEL: Projected 108.5\u2013120.3 (total 228.8), from an exact normal distribution (not a simulation).",
     "startMs": 1794623400000,
     "leadMin": 789,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794633678062
   },
   {
     "hA": "SaiPa",
@@ -163842,7 +163845,7 @@
     "conf": 0.68,
     "ml": "-246",
     "lockedAt": 1794576037266,
-    "outcome": "pending",
+    "outcome": "loss",
     "date": "2026-11-13",
     "sport": "NBA",
     "league": "NBA",
@@ -163880,7 +163883,10 @@
         "AST": 4
       }
     },
-    "reasoning": "PICK: Victor Wembanyama OVER PTS 24.5 \u2014 OPTIMAL (63% model hit rate)\nMODEL: projection 27.3 PTS (season average 25, last-5 form 34.6, opponent adjustment +2.3) vs the 24.5 line, spread \u03c3 8.56, from an exact normal distribution (not a simulation).\nWHY: Victor Wembanyama averages 25.0 ppg across 64 games this season. Opp GS DRtg 115.5 vs a 115.7 league average computed from every currently-loaded team, a -0% reduction folded into the projection. Game pace 99.5 (-0.2%), SA offense 119.6 vs a 115.7 league average. No head-to-head history vs GS this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
+    "reasoning": "PICK: Victor Wembanyama OVER PTS 24.5 \u2014 OPTIMAL (63% model hit rate)\nMODEL: projection 27.3 PTS (season average 25, last-5 form 34.6, opponent adjustment +2.3) vs the 24.5 line, spread \u03c3 8.56, from an exact normal distribution (not a simulation).\nWHY: Victor Wembanyama averages 25.0 ppg across 64 games this season. Opp GS DRtg 115.5 vs a 115.7 league average computed from every currently-loaded team, a -0% reduction folded into the projection. Game pace 99.5 (-0.2%), SA offense 119.6 vs a 115.7 league average. No head-to-head history vs GS this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+    "settledAt": 1794633679602,
+    "playerResult": 12,
+    "playerMin": 21
   },
   {
     "hA": "SA",
