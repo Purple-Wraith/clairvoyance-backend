@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-11-14 08:47 MT",
+  "generated_at": "2026-11-14 09:52 MT",
   "basis": "all locks (including picks locked after the game started)",
   "basis_note": "Figures count every settled pick in scope, including picks locked after the game had started. basis_detail shows how many of those there are.",
   "classifier": "scripts/lock_timing.py",
   "basis_detail": {
-    "settled_pre_start": 3016,
+    "settled_pre_start": 3018,
     "settled_locked_after_start_included": 211,
     "settled_unknown_timing_included": 370,
     "unknown_timing_by_league": {
@@ -17,7 +17,16 @@
   },
   "today": {
     "label": "TODAY",
-    "leagues": [],
+    "leagues": [
+      {
+        "lbl": "SHL",
+        "w": 1,
+        "l": 1,
+        "n": 2,
+        "pct": 0.5,
+        "units": -0.667
+      }
+    ],
     "excluded_late": 0
   },
   "lastMonth": {
@@ -215,11 +224,11 @@
       },
       {
         "lbl": "SHL",
-        "w": 6,
-        "l": 4,
-        "n": 10,
-        "pct": 0.6,
-        "units": -1.498
+        "w": 7,
+        "l": 5,
+        "n": 12,
+        "pct": 0.5833333333333334,
+        "units": -2.165
       }
     ],
     "excluded_late": 0
@@ -276,20 +285,20 @@
         "units": -3.3709999999999996
       },
       {
+        "lbl": "SHL",
+        "w": 7,
+        "l": 5,
+        "n": 12,
+        "pct": 0.5833333333333334,
+        "units": -2.165
+      },
+      {
         "lbl": "CFB",
         "w": 5,
         "l": 6,
         "n": 11,
         "pct": 0.45454545454545453,
         "units": -4.347178694158075
-      },
-      {
-        "lbl": "SHL",
-        "w": 6,
-        "l": 4,
-        "n": 10,
-        "pct": 0.6,
-        "units": -1.498
       }
     ],
     "excluded_late": 0
@@ -355,11 +364,11 @@
       },
       {
         "lbl": "SHL",
-        "w": 111,
-        "l": 39,
-        "n": 150,
-        "pct": 0.74,
-        "units": 28.57828507845676
+        "w": 112,
+        "l": 40,
+        "n": 152,
+        "pct": 0.7368421052631579,
+        "units": 27.911285078456757
       },
       {
         "lbl": "NLA",
@@ -2928,6 +2937,16 @@
       ],
       [
         1794505694307,
+        0,
+        -1
+      ],
+      [
+        1794558234806,
+        1,
+        0.333
+      ],
+      [
+        1794558235078,
         0,
         -1
       ]
