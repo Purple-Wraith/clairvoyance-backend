@@ -3687,6 +3687,16 @@ def _game_starts_by_teams(qualifying: list[dict]) -> dict:
     return out
 
 
+def _mc_text(summary: str) -> str:
+    """The sim line without its internal 'MC PROJ' prefix, since the card already labels it MONTE CARLO SIM ('MC PROJ: A 3.1 - H 2.2 (Total 5.3)' -> 'A 3.1 - H 2.2 (Total 5.3)')."""
+    t = str(summary or "")
+    if t.startswith("MC PROJ TOTAL:"):
+        return "Projected total:" + t[len("MC PROJ TOTAL:"):]
+    if t.startswith("MC PROJ:"):
+        return t[len("MC PROJ:"):].strip()
+    return t
+
+
 def _start_label(ms) -> str:
     """A game's start as 'Sun Nov 15 · 1:00 PM MT' for the pick card header; '' when the start is unknown."""
     st = parse_start_ms(ms)
@@ -3914,8 +3924,8 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
                 if any(l.get("altLine") for l in legs):
                     bits.append('<strong style="color:#e6c200">Context at the POSTED line (not the adjusted line):</strong>')
                 if mc_summary:
-                    bits.append('<span style="background:#00d9ff;color:#000;font-weight:700;font-size:11px;padding:1px 6px;border-radius:3px;margin-right:6px">MC SIM</span>'
-                                + _esc(mc_summary))
+                    bits.append('<span style="background:#00d9ff;color:#000;font-weight:700;font-size:11px;padding:1px 6px;border-radius:3px;margin-right:6px">MONTE CARLO SIM</span>'
+                                + _esc(_mc_text(mc_summary)))
                 if best:
                     bits.append(f'Best market value on this game: {_esc(best["label"])} ({HOCKEY_LANE_LABEL if best.get("lane") else TIER_LABEL.get(best.get("tierN"), "?")})')
                 parts.append(f'<div style="border-top:1px solid rgba(255,255,255,.12);margin-top:8px;padding-top:8px;'

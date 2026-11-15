@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""2026-11-15 email additions: every game card in the picks emails shows the game's start time (Mountain) and a labelled MC SIM line; every settlement email opens
+"""2026-11-15 email additions: every game card in the picks emails shows the game's start time (Mountain) and a labelled MONTE CARLO SIM line; every settlement email opens
 with the day's record and win %. Pure HTML builders -- no browser."""
 import sys, unittest
 from datetime import datetime
@@ -51,7 +51,9 @@ class StartTime(unittest.TestCase):
 class McSim(unittest.TestCase):
     def test_sim_line_is_labelled_on_the_card(self):
         html = a.build_locks_email_html([_game()], live=True, locked_count=1)
-        self.assertIn("MC SIM", html)
+        self.assertIn("MONTE CARLO SIM", html)
+        self.assertNotIn("MC SIM", html)
+        self.assertNotIn("MC PROJ", html)
         self.assertIn("ANA 3.1 – CGY 2.2 (Total 5.3)", html)
 
     def test_catchup_leg_rebuilds_the_sim_line_from_the_ledger_reasoning(self):
@@ -59,11 +61,18 @@ class McSim(unittest.TestCase):
                 "reasoning": "PICK: ANA ML — OPTIMAL (64.9% win prob, EV +6.5%)\nMODEL: Projected 3.1–2.2 (total 5.3) (OT/SO in 10% of outcomes), from an exact Poisson distribution (not a simulation)."}
         leg = et.pick_to_leg(pick)
         self.assertEqual(leg["mcSummary"], "MC PROJ: ANA 3.1 – CGY 2.2 (Total 5.3)")
-        self.assertIn("MC SIM", a.build_locks_email_html([leg], live=True, locked_count=1))
+        self.assertIn("MONTE CARLO SIM", a.build_locks_email_html([leg], live=True, locked_count=1))
 
     def test_no_projection_in_the_reasoning_means_no_sim_line(self):
         self.assertIsNone(et._mc_from_reasoning({"hA": "H", "awA": "A", "reasoning": "PICK: A ML — OPTIMAL (64%)"}))
         self.assertIsNone(et._mc_from_reasoning({"hA": "H", "awA": "A"}))
+
+
+class McText(unittest.TestCase):
+    def test_prefix_is_dropped_under_the_monte_carlo_label(self):
+        self.assertEqual(a._mc_text("MC PROJ: ANA 3.1 \u2013 CGY 2.2 (Total 5.3)"), "ANA 3.1 \u2013 CGY 2.2 (Total 5.3)")
+        self.assertEqual(a._mc_text("MC PROJ TOTAL: 49.8 \u00b7 SEA projected -3.5"), "Projected total: 49.8 \u00b7 SEA projected -3.5")
+        self.assertEqual(a._mc_text("xG PROJ: A 1.1 \u2013 B 0.9"), "xG PROJ: A 1.1 \u2013 B 0.9")
 
 
 class SettlementTop(unittest.TestCase):
