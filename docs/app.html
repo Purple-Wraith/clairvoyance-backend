@@ -10252,7 +10252,7 @@ function _cfbGameCard(g){
   // behavior change to the guard itself (_cfbLockEligible), just later.
   _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverU,overU,ouL,favMarginMean),
     {mlFav:mlReasoning,mlDog:mlReasoning,sprdFav:sprdReasoning,sprdDog:sprdReasoning,over:ouReasoning,under:ouReasoning});
-  if(_cfbLockEligible(D,g.home,g.away))_autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`,undefined,g.date);
+  if(_cfbLockEligible(D,g.home,g.away))_autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${mc.avgMargin>=0?g.home:g.away} projected -${Math.abs(mc.avgMargin).toFixed(1)}`,undefined,g.date);
   const gidSafe=(g.home+'_'+g.away).replace(/[^A-Za-z0-9_]/g,'');
   return`<div class="gc" style="border-left:2px solid rgba(255,110,20,.4)">
     <div class="gch">
@@ -11246,7 +11246,7 @@ function _nflGameCard2(g){
   // text, then _autoLockCapture reads nm.mkts' new .reasoning field.
   _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverU,overU,ouL,favMarginMean),
     {mlFav:mlReasoning,mlDog:mlReasoning,sprdFav:sprdReasoning,sprdDog:sprdReasoning,over:ouReasoning,under:ouReasoning});
-  _autoLockCapture('NFL',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`,undefined,g.date);
+  _autoLockCapture('NFL',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${mc.avgMargin>=0?g.home:g.away} projected -${Math.abs(mc.avgMargin).toFixed(1)}`,undefined,g.date);
   return`<div class="gc" style="border-left:2px solid rgba(0,120,255,.4)">
     <div class="gch">
       <div>

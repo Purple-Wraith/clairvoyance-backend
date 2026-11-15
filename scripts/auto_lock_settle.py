@@ -3692,9 +3692,11 @@ def _mc_text(summary: str) -> str:
     t = str(summary or "")
     if t.startswith("MC PROJ TOTAL:"):
         return "Projected total:" + t[len("MC PROJ TOTAL:"):]
-    if t.startswith("MC PROJ:"):
-        return t[len("MC PROJ:"):].strip()
-    return t
+    for prefix in ("MC PROJ:", "EXACT-POISSON PROJ:"):
+        if t.startswith(prefix):
+            t = t[len(prefix):].strip()
+            break
+    return t.replace(", exact)", ")")
 
 
 def _start_label(ms) -> str:

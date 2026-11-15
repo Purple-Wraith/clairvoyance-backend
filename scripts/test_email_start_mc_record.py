@@ -75,6 +75,22 @@ class McText(unittest.TestCase):
         self.assertEqual(a._mc_text("xG PROJ: A 1.1 \u2013 B 0.9"), "xG PROJ: A 1.1 \u2013 B 0.9")
 
 
+    def test_internal_wording_is_cleaned(self):
+        self.assertEqual(a._mc_text("EXACT-POISSON PROJ: Lulea 2.6 \u2013 Brynas 3.2 (Total 5.9)"), "Lulea 2.6 \u2013 Brynas 3.2 (Total 5.9)")
+        self.assertEqual(a._mc_text("MC PROJ: IND 109.6 \u2013 PHI 120.3 (Total 229.9, exact)"), "IND 109.6 \u2013 PHI 120.3 (Total 229.9)")
+
+
+class FootballLine(unittest.TestCase):
+    """Found 2026-11-15: the CFB/NFL email line printed the POSTED spread as the model's 'projected' margin. It must come from the engine's own margin."""
+    def test_football_summary_uses_the_model_margin_not_the_posted_spread(self):
+        src = (Path(__file__).resolve().parent.parent / "docs" / "app.html").read_text(encoding="utf-8")
+        lines = [l for l in src.splitlines() if "_autoLockCapture('CFB'" in l or "_autoLockCapture('NFL'" in l]
+        self.assertEqual(len(lines), 2)
+        for l in lines:
+            self.assertNotIn("baseSpread", l)
+            self.assertIn("mc.avgMargin", l)
+
+
 class SettlementTop(unittest.TestCase):
     def test_record_and_win_pct_lead_the_email(self):
         bets = [_bet("win"), _bet("win"), _bet("win"), _bet("loss"), _bet("loss")]
