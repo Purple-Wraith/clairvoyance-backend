@@ -1652,9 +1652,13 @@ def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | No
     close = _LOCKS_EMAIL_CLOSE if customer else _EMAIL_WRAP_CLOSE
     banner = (f'<div style="max-width:640px;margin:0 auto"><img src="{EMAIL_BANNER_URL}" alt="Clairvoyance Engine" width="640" '
               f'style="display:block;width:100%;max-width:640px;height:auto;border:0;font-family:-apple-system,sans-serif;color:#999" /></div>') if customer else ""
+    decided = wins + losses
+    win_pct = f"{wins / decided * 100:.1f}%" if decided else "\u2014"
     parts = [banner, _EMAIL_WRAP_OPEN,
+              f'<div style="margin:2px 0 6px"><span style="font-size:30px;font-weight:800;color:#111;letter-spacing:.5px">{record}</span>'
+              f'<span style="font-size:22px;font-weight:700;color:#f000ff;margin-left:14px">{win_pct} win</span></div>',
               f'<div style="font-size:12px;letter-spacing:1px;color:#555;text-transform:uppercase">'
-              f'{len(settled)} {"picks" if customer else "bets"} settled — {record}</div>']
+              f'{len(settled)} {"picks" if customer else "bets"} settled</div>']
     # Surfacing unresolved bets directly in the email (rather than just
     # silently omitting them) is the whole point of running a final,
     # targeted settle pass right before building this -- if something is
@@ -3683,6 +3687,15 @@ def _game_starts_by_teams(qualifying: list[dict]) -> dict:
     return out
 
 
+def _start_label(ms) -> str:
+    """A game's start as 'Sun Nov 15 · 1:00 PM MT' for the pick card header; '' when the start is unknown."""
+    st = parse_start_ms(ms)
+    if st is None or st == float("inf"):
+        return ""
+    t = datetime.fromtimestamp(st / 1000.0, MT)
+    return f"{t.strftime('%a %b')} {t.day} \u00b7 {t.strftime('%I:%M %p').lstrip('0')} MT"
+
+
 def _leg_start_ms(q: dict, by_teams: dict):
     """A leg's game start (epoch ms) for ordering the email: its own startMs, else the prop's game found among the game legs, else None (sorts last)."""
     leg = q.get("leg") if isinstance(q.get("leg"), dict) else {}
@@ -3889,7 +3902,10 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
                       f'{_esc(SPORT_DISPLAY_NAME.get(sport, sport))} ({total_legs})</div>')
         for matchup, legs in matchups.items():
             parts.append('<div style="background:#14001f;border-radius:6px;padding:12px 14px;margin-bottom:10px">')
-            parts.append(f'<div style="font-weight:700;font-size:15px;color:#fff;margin-bottom:6px">{_esc(matchup)}</div>')
+            _st = _start_label(_mu_start[sport].get(matchup))
+            parts.append(f'<div style="font-weight:700;font-size:15px;color:#fff;margin-bottom:6px">{_esc(matchup)}'
+                         + (f'<div style="font-weight:400;font-size:12px;color:#00d9ff;margin-top:2px">\u23f0 Starts {_esc(_st)}</div>' if _st else '')
+                         + '</div>')
             parts.append("".join(_leg_html(q) for q in legs))
             mc_summary = next((l.get("mcSummary") for l in legs if l.get("mcSummary")), None)
             best = next((l.get("best") for l in legs if l.get("best")), None)
@@ -3898,7 +3914,8 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
                 if any(l.get("altLine") for l in legs):
                     bits.append('<strong style="color:#e6c200">Context at the POSTED line (not the adjusted line):</strong>')
                 if mc_summary:
-                    bits.append(_esc(mc_summary))
+                    bits.append('<span style="background:#00d9ff;color:#000;font-weight:700;font-size:11px;padding:1px 6px;border-radius:3px;margin-right:6px">MC SIM</span>'
+                                + _esc(mc_summary))
                 if best:
                     bits.append(f'Best market value on this game: {_esc(best["label"])} ({HOCKEY_LANE_LABEL if best.get("lane") else TIER_LABEL.get(best.get("tierN"), "?")})')
                 parts.append(f'<div style="border-top:1px solid rgba(255,255,255,.12);margin-top:8px;padding-top:8px;'

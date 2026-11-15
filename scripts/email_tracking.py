@@ -268,6 +268,18 @@ def win_prob(p: dict) -> float | None:
     return None
 
 
+_MC_RE = re.compile(r"MODEL:\s*Projected\s+(-?[\d.]+)\s*[\u2013-]\s*(-?[\d.]+)\s*\(total\s+(-?[\d.]+)\)")
+
+
+def _mc_from_reasoning(p: dict):
+    """The sim line for a catch-up email card, rebuilt from the pick's stored reasoning ('MODEL: Projected A-H (total T)', away first), in the same
+    wording the lock email's own cards use. None when the reasoning carries no projected score (spread/total-only engines, props, old picks)."""
+    m = _MC_RE.search(str(p.get("reasoning") or ""))
+    if not m or not p.get("hA") or not p.get("awA"):
+        return None
+    return f"MC PROJ: {p['awA']} {float(m.group(1)):.1f} \u2013 {p['hA']} {float(m.group(2)):.1f} (Total {float(m.group(3)):.1f})"
+
+
 def pick_to_leg(p: dict, now_ms: float | None = None, idx: dict | None = None) -> dict:
     """A ledger pick as the 'qualifying leg' dict build_locks_email_html / _leg_html render -- the SAME template as the lock emails."""
     code = lock_timing.norm_sport(p)
@@ -288,7 +300,7 @@ def pick_to_leg(p: dict, now_ms: float | None = None, idx: dict | None = None) -
     leg = {
         "kind": "GAME", "sport": TAG_OF_CODE.get(code, code), "hA": p.get("hA"), "awA": p.get("awA"), "side": side, "label": bet_on,
         "prob": (win_prob(p) or 0.0), "probKnown": win_prob(p) is not None, "ml": p.get("ml"), "dec": p.get("decOdds"), "tierN": _TIER_N.get(grade, 0), "evVal": ev,
-        "lane": grade == "HIGH PROB", "mcSummary": None, "best": None, "altLine": alt, "startMs": p.get("startMs"),
+        "lane": grade == "HIGH PROB", "mcSummary": _mc_from_reasoning(p), "best": None, "altLine": alt, "startMs": p.get("startMs"),
         "lockDate": p.get("date"), "pickId": p.get("id"), "fromLedger": True,
     }
     if grade not in _TIER_N and grade != "HIGH PROB" and not (grade == "ADJUSTED LINE" and alt):
