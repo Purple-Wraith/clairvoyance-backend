@@ -10252,7 +10252,7 @@ function _cfbGameCard(g){
   // behavior change to the guard itself (_cfbLockEligible), just later.
   _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverU,overU,ouL,favMarginMean),
     {mlFav:mlReasoning,mlDog:mlReasoning,sprdFav:sprdReasoning,sprdDog:sprdReasoning,over:ouReasoning,under:ouReasoning});
-  if(_cfbLockEligible(D,g.home,g.away))_autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`,undefined,g.date);
+  if(_cfbLockEligible(D,g.home,g.away))_autoLockCapture('CFB',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${mc.avgMargin>=0?g.home:g.away} projected -${Math.abs(mc.avgMargin).toFixed(1)}`,undefined,g.date);
   const gidSafe=(g.home+'_'+g.away).replace(/[^A-Za-z0-9_]/g,'');
   return`<div class="gc" style="border-left:2px solid rgba(255,110,20,.4)">
     <div class="gch">
@@ -11246,7 +11246,7 @@ function _nflGameCard2(g){
   // text, then _autoLockCapture reads nm.mkts' new .reasoning field.
   _attachReasoning(nm,side=>_mcLineMargin(mc,side,spreadFav,spreadDog,baseSpread,favCoverU,overU,ouL,favMarginMean),
     {mlFav:mlReasoning,mlDog:mlReasoning,sprdFav:sprdReasoning,sprdDog:sprdReasoning,over:ouReasoning,under:ouReasoning});
-  _autoLockCapture('NFL',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${spreadFav} projected -${baseSpread.toFixed(1)}`,undefined,g.date);
+  _autoLockCapture('NFL',g.home,g.away,nm,`MC PROJ TOTAL: ${mc.avgTotal.toFixed(1)} · ${mc.avgMargin>=0?g.home:g.away} projected -${Math.abs(mc.avgMargin).toFixed(1)}`,undefined,g.date);
   return`<div class="gc" style="border-left:2px solid rgba(0,120,255,.4)">
     <div class="gch">
       <div>
@@ -15175,8 +15175,12 @@ function nbaMC(hA,awA,n=25000,ouLine=220.5){
   const _advAll=Object.values(liveAdv).filter(t=>t&&t.ortg!=null&&t.drtg!=null);
   const lgDrtg=_advAll.length>=10?_advAll.reduce((x,t)=>x+t.drtg,0)/_advAll.length:115.7;
   const poss=pace/100,HCA=2.9;
-  const hProj=hOrtg*(aDrtg/lgDrtg)*poss+HCA/2;
-  const aProj=aOrtg*(hDrtg/lgDrtg)*poss-HCA/2;
+  // League-scoring correction (2026-11-15): early in a season the ratings above are LAST season's (teamRatings.statsMode 'prior'), so projected totals sat ~3 points above this season's results
+  // (230.2 vs 227.2 over 188 games). clairvoyance_update.py nba_total_shift() measures that bias on this season's finished games (shrunk n/(n+60), clamped +/-6) and ships it as
+  // nba.teamRatings.totalShift.shift; it is split between the two sides, so the total moves and the margin / home-court shift do not.
+  const _tSh=Math.max(-6,Math.min(6,Number(window.__CV_DATA?.nba?.teamRatings?.totalShift?.shift)||0));
+  const hProj=hOrtg*(aDrtg/lgDrtg)*poss+HCA/2+_tSh/2;
+  const aProj=aOrtg*(hDrtg/lgDrtg)*poss-HCA/2+_tSh/2;
   // EXACT (2026-10-29): margin ~ N(mProj, NBA_SIGMA_MARGIN), total ~ N(tProj, NBA_SIGMA_TOTAL) in closed form instead of n sampled games (rounding to whole points and the 70-point floor moved nothing measurable).
   const mProj=hProj-aProj,tProj=hProj+aProj;
   const hwP=normalCDF(mProj/NBA_SIGMA_MARGIN),overP=1-normalCDF((ouLine-tProj)/NBA_SIGMA_TOTAL);

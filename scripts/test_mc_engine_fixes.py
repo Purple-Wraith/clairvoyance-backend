@@ -146,5 +146,20 @@ class Engines(unittest.TestCase):
         self.assertAlmostEqual(r["avgT"], r["avgH"] + r["avgA"], delta=0.15)
 
 
+    # ── 4. NBA league-scoring shift (2026-11-15) ────────────────
+    def test_nba_total_shift_moves_the_total_not_the_margin(self):
+        r = self.pg.evaluate("""()=>{const abbr=Object.keys(window.__CV_DATA.nba.teamAdv||{});const tr=window.__CV_DATA.nba.teamRatings;const had=tr.totalShift;
+          const run=sh=>{tr.totalShift=sh==null?undefined:{shift:sh};const m=nbaMC(abbr[2],abbr[3],1000,225.5);return{t:m.avgT,s:m.spread,h:m.avgH,a:m.avgA,o:m.overP,w:m.hwP}};
+          const base=run(null),dn=run(-3),up=run(+3),huge=run(-50);tr.totalShift=had;return{base,dn,up,huge}}""")
+        self.assertAlmostEqual(r["dn"]["t"], r["base"]["t"] - 3, delta=0.15)
+        self.assertAlmostEqual(r["up"]["t"], r["base"]["t"] + 3, delta=0.15)
+        self.assertAlmostEqual(r["dn"]["s"], r["base"]["s"], delta=0.05)               # margin untouched
+        self.assertAlmostEqual(r["dn"]["w"], r["base"]["w"], delta=1e-9)               # so is the win probability
+        self.assertLess(r["dn"]["o"], r["base"]["o"])                                  # a lower total makes the over less likely
+        self.assertAlmostEqual(r["huge"]["t"], r["base"]["t"] - 6, delta=0.15)         # clamped at 6 points
+        self.assertAlmostEqual(r["dn"]["h"] - r["base"]["h"], -1.5, delta=0.1)         # split evenly between the sides
+        self.assertAlmostEqual(r["dn"]["a"] - r["base"]["a"], -1.5, delta=0.1)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
