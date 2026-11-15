@@ -837,6 +837,18 @@ body.gt-open{overflow:hidden}#cv-ticker .tk[data-gid]{cursor:pointer}
 .bmk2 .bmk2t{font-size:14px;padding:1px 6px;background:#0b0612;color:#fff;border-radius:2px;flex-shrink:0;font-weight:700}.bmk2 .bmk2k{font-size:13px;letter-spacing:1px;font-weight:700}.bmk2 .bmk2p{font-family:var(--orb);font-size:16px;font-weight:700}.bmk2 .bmk2s{font-size:14px;font-weight:700}
 /* GAME CARD */
 .gc{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cg fill='%23fff' fill-opacity='.028'%3E%3Crect x='0' y='0' width='4.4' height='4.4'/%3E%3Crect x='5' y='0' width='4.4' height='4.4'/%3E%3Crect x='0' y='5' width='4.4' height='4.4'/%3E%3Crect x='15' y='5' width='4.4' height='4.4'/%3E%3Crect x='10' y='10' width='4.4' height='4.4'/%3E%3Crect x='15' y='10' width='4.4' height='4.4'/%3E%3Crect x='5' y='15' width='4.4' height='4.4'/%3E%3Crect x='10' y='15' width='4.4' height='4.4'/%3E%3C/g%3E%3Cg fill='%23000' fill-opacity='.09'%3E%3Crect x='10' y='0' width='4.4' height='4.4'/%3E%3Crect x='15' y='0' width='4.4' height='4.4'/%3E%3Crect x='5' y='5' width='4.4' height='4.4'/%3E%3Crect x='10' y='5' width='4.4' height='4.4'/%3E%3Crect x='0' y='10' width='4.4' height='4.4'/%3E%3Crect x='5' y='10' width='4.4' height='4.4'/%3E%3Crect x='0' y='15' width='4.4' height='4.4'/%3E%3Crect x='15' y='15' width='4.4' height='4.4'/%3E%3C/g%3E%3C/svg%3E"),rgba(22,18,34,.5);border:1px solid var(--w2);border-radius:3px;padding:12px;margin-bottom:7px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+/* LOCKED PICKS strip under each game card (2026-11-15): lists the engine's locked picks for that game, with the grade, win probability and, once settled, the result */
+.gc-lk{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:12px 0 0;padding:10px 2px 2px;border-top:2px solid var(--pc);box-shadow:0 -3px 12px -6px rgba(240,0,255,.8)}
+.gc-lk-l{font-family:var(--orb);font-size:15px;font-weight:700;letter-spacing:2px;color:var(--pc);text-shadow:0 0 8px rgba(240,0,255,.6);margin-right:2px}
+.gc-lk-c{display:inline-flex;align-items:baseline;gap:8px;font-family:var(--mono);font-size:16px;color:var(--t);padding:4px 10px;border:1px solid rgba(0,240,255,.35);border-radius:3px;background:rgba(10,0,24,.40)}
+.gc-lk-c b{font-weight:700;letter-spacing:.3px}
+.gc-lk-c i{font-style:normal;font-size:14px;color:var(--t3)}
+.gc-lk-c em{font-style:normal;font-size:12px;font-weight:700;letter-spacing:1px;padding:0 5px;border-radius:2px;color:#000;background:rgba(0,240,255,.85)}
+.gc-lk-c.adj{border-color:rgba(240,0,255,.6)}
+.gc-lk-c.adj em.adj{background:var(--pc);color:#fff}
+.gc-lk-c.win{border-color:rgba(0,230,118,.7)}.gc-lk-c.win em.res{background:#00e676}
+.gc-lk-c.loss{border-color:rgba(255,59,92,.7)}.gc-lk-c.loss em.res{background:#ff3b5c}
+.gc-lk-c.push{border-color:rgba(255,179,0,.7)}.gc-lk-c.push em.res{background:#ffb300}
 .gc:active{filter:brightness(1.12)}.gch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
 .gtm{font-family:var(--orb);font-size:26px;font-weight:700;letter-spacing:2px;color:var(--t)}.gsp{font-family:var(--mono);font-size:18px;color:var(--t2);margin-top:3px;line-height:1.5}.brow{display:flex;gap:4px}
 .nhlgk{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:0;padding:6px 10px;font-family:var(--mono);font-size:13px;color:var(--t2);border-bottom:1px solid rgba(255,255,255,.06)}.nhlgk.in{padding:0;margin-top:4px;border:0}.nhlgk-l{font-size:11px;letter-spacing:.14em;color:var(--t3)}.nhlgk-i small{color:var(--t3);font-size:11px}.nhlgk-t{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid rgba(255,255,255,.2);border-radius:2px;font-size:10px;letter-spacing:.1em;color:var(--t3)}.nhlgk-t.c{border-color:#00f0ff;color:#00f0ff}.nhlgk-n{flex-basis:100%;font-size:11px;color:var(--t3)}
@@ -23789,6 +23801,47 @@ function _nbaSchedLine(hn,an){
   }catch(e){return null;}
 }
 setTimeout(loadNBASchedule,3000);setInterval(loadNBASchedule,10*60*1000);
+// ── LOCKED PICKS under each game card (2026-11-15) ──
+// Every sport's card builds its own HTML, so the game is read back from the card's own lock calls: lockH('HOME','AWAY',...) / lockOU(...) etc. (first two quoted arguments) or
+// lockAltKey('SPORT|DATE|HOME|AWAY|...'). Picks come from the ledger (getP()); nothing is fetched.
+function _lkGameOfCard(card){
+  const h=card.innerHTML;
+  let m=h.match(/\block[A-Za-z]*\('([^'|]+)','([^']+)'/);
+  if(m)return{home:m[1],away:m[2],date:null};
+  m=h.match(/lockAltKey\('[A-Z_]+\|(\d{4}-\d{2}-\d{2})\|([^|']+)\|([^|']+)\|/);
+  return m?{home:m[2],away:m[3],date:m[1]}:null;
+}
+function _lkTier(p){const m=/PICK:[^\n]*? \u2014 (PREMIUM|OPTIMAL|LEAN|SKIP|HIGH PROB|ADJUSTED LINE|MANUAL LINE)/.exec(String(p.reasoning||''));return m?m[1]:(p.altLine?'ADJUSTED LINE':'');}
+function _lockedStripHTML(g){
+  let ps;try{ps=getP();}catch(e){return'';}
+  if(!g||!Array.isArray(ps))return'';
+  const today=_mtDateOf(Date.now()),cutoff=_mtDateOf(Date.now()-86400000);
+  let mine=ps.filter(p=>p&&p.hA===g.home&&p.awA===g.away&&p.outcome!=='_removed'&&p.betType!=='PARLAY'&&(g.date?p.date===g.date:p.date>=cutoff));
+  if(!mine.length)return'';
+  if(!g.date){const d0=mine.map(p=>p.date).sort()[0];mine=mine.filter(p=>p.date===d0);}   // a rematch later in the week is a different card
+  const ord={ML:0,SPREAD:1,PL:1,RL:1,OU:2,PROP:3};
+  mine.sort((a,b)=>(ord[a.betType]??9)-(ord[b.betType]??9)||String(a.betOn).localeCompare(String(b.betOn)));
+  const chips=mine.map(p=>{
+    const o=String(p.outcome||'pending').toLowerCase(),tier=_lkTier(p),prob=parseFloat(p.winProb);
+    const adj=!!p.altLine||tier==='ADJUSTED LINE';
+    const cls=['gc-lk-c',adj?'adj':'',(o==='win'||o==='loss'||o==='push')?o:''].filter(Boolean).join(' ');
+    const meta=[(!adj&&tier)?tier:'',isFinite(prob)&&prob>0?(prob*100).toFixed(1)+'%':''].filter(Boolean).join(' \u00b7 ');
+    return`<span class="${cls}"><b>${_escHtml(p.betOn)}</b>${adj?'<em class="adj">ADJUSTED</em>':''}${meta?`<i>${_escHtml(meta)}</i>`:''}${(o==='win'||o==='loss'||o==='push')?`<em class="res">${o.toUpperCase()}</em>`:''}</span>`;
+  }).join('');
+  return`<div class="gc-lk"><span class="gc-lk-l">LOCKED</span>${chips}</div>`;
+}
+function _lkEnhanceCards(root){
+  try{
+    (root||document).querySelectorAll('.gc:not([data-lk])').forEach(c=>{
+      c.setAttribute('data-lk','1');
+      const g=_lkGameOfCard(c);if(!g)return;
+      const html=_lockedStripHTML(g);if(html)c.insertAdjacentHTML('beforeend',html);
+    });
+  }catch(e){}
+}
+(function(){let t=null;const run=()=>{t=null;_lkEnhanceCards(document);};
+  const start=()=>{try{new MutationObserver(()=>{if(!t)t=setTimeout(run,60);}).observe(document.body,{childList:true,subtree:true});run();}catch(e){}};
+  if(document.body)start();else document.addEventListener('DOMContentLoaded',start);})();
 // NBA season rollover, 2026-10-03: nba.eloSeed (all 30 teams: last season's net rating regressed + this season's results, from clairvoyance_update.py) replaces the 4 hardcoded
 // finalists in NBA_ELO (every other team read 1550 = identical). Called from both data loaders; resets the cached injury roster so nba.roster is picked up.
 function _applyNBARatings(d){
