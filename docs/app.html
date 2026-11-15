@@ -745,17 +745,30 @@ rect.mom-pin{fill:rgba(255,221,0,.09)}line.mom-pin{stroke:var(--gc);stroke-width
 .bmk2{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 9px;border-radius:3px;flex-wrap:wrap;color:#0b0612;font-family:var(--mono)}
 .bmk2.pg{background:linear-gradient(90deg,var(--gc),var(--g2))}.bmk2.pp{background:var(--pc)}.bmk2.pn{background:var(--nc)}.bmk2.pq{background:#39ff14}.bmk2.ph{background:var(--hc)}
 .fresh{font-family:var(--mono);font-size:12px;letter-spacing:.6px;white-space:nowrap;line-height:1.2;min-height:14px;text-align:center}.fresh.ok{color:rgba(0,230,68,.62)}.fresh.warn{color:#ffb020}.fresh.bad{color:#ff3b6b;text-shadow:0 0 8px rgba(255,59,107,.55);animation:blink 1.6s infinite}
-#cv-ticker{flex:0 0 auto;background:rgb(6,0,15);border-bottom:1px solid rgba(77,121,255,.2);overflow:hidden;position:relative;font-family:var(--mono);font-size:14px;color:var(--t2)}
-#cv-ticker{contain:layout paint}#cv-ticker .tk-track{display:inline-flex;align-items:center;white-space:nowrap;padding:8px 0;will-change:transform;transform:translate3d(0,0,0)}#cv-ticker .tkgrp{display:inline-flex;align-items:center}#cv-ticker .tkf .tkn{animation:tkflash3 .5s ease-in-out 3;border-radius:2px}@keyframes tkflash3{0%,100%{background:transparent;color:var(--t)}50%{background:#ffe600;color:#0b0612}}
+#cv-ticker{flex:0 0 auto;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cg fill='%23131315'%3E%3Crect x='0' y='0' width='4.4' height='4.4'/%3E%3Crect x='5' y='0' width='4.4' height='4.4'/%3E%3Crect x='0' y='5' width='4.4' height='4.4'/%3E%3Crect x='15' y='5' width='4.4' height='4.4'/%3E%3Crect x='10' y='10' width='4.4' height='4.4'/%3E%3Crect x='15' y='10' width='4.4' height='4.4'/%3E%3Crect x='5' y='15' width='4.4' height='4.4'/%3E%3Crect x='10' y='15' width='4.4' height='4.4'/%3E%3C/g%3E%3Cg fill='%230c0c0e'%3E%3Crect x='10' y='0' width='4.4' height='4.4'/%3E%3Crect x='15' y='0' width='4.4' height='4.4'/%3E%3Crect x='5' y='5' width='4.4' height='4.4'/%3E%3Crect x='10' y='5' width='4.4' height='4.4'/%3E%3Crect x='0' y='10' width='4.4' height='4.4'/%3E%3Crect x='5' y='10' width='4.4' height='4.4'/%3E%3Crect x='0' y='15' width='4.4' height='4.4'/%3E%3Crect x='15' y='15' width='4.4' height='4.4'/%3E%3C/g%3E%3C/svg%3E"),#09090b;border-bottom:2px solid var(--pc);box-shadow:0 3px 12px -3px rgba(240,0,255,.7);overflow:hidden;position:relative;z-index:3;font-family:var(--mono);font-size:14px;color:var(--t2)}
+#cv-ticker{contain:layout paint}#cv-ticker .tk-track{display:inline-flex;align-items:center;white-space:nowrap;padding:8px 0;will-change:transform;transform:translate3d(0,0,0)}#cv-ticker .tkgrp{display:inline-flex;align-items:center}#cv-ticker .tkf .tkn{animation:tkflash3 .45s ease-in-out 2;border-radius:2px}@keyframes tkflash3{0%,100%{background:transparent;color:var(--t);box-shadow:none}50%{background:var(--pc);color:#fff;box-shadow:0 0 10px var(--pc)}}
 #cv-ticker .tk-track.go{animation:tkscroll var(--tkdur,60s) linear infinite}
 #cv-ticker:hover .tk-track.go,#cv-ticker:active .tk-track.go{animation-play-state:paused}
-#cv-ticker .tk{display:inline-flex;align-items:center;gap:7px;padding:0 18px;border-right:1px solid rgba(255,255,255,.08)}
+#cv-ticker .tk{display:inline-flex;align-items:center;gap:7px;padding:0 18px;border-right:2px solid var(--pc);box-shadow:3px 0 9px -4px rgba(240,0,255,.75)}
 #cv-ticker .tks{font-size:11px;padding:1px 5px;border:1px solid currentColor;border-radius:2px;color:var(--nc);letter-spacing:.5px}
-#cv-ticker .tkn{color:var(--t)}#cv-ticker .tkc{color:var(--t3);font-size:12px}#cv-ticker .tkc.lv{color:var(--hc);font-weight:700}
-#cv-ticker .tkl{font-size:12px;padding:1px 6px;border-radius:2px;border:1px solid rgba(0,240,255,.5);color:#00f0ff}
-#cv-ticker .tkl.w{border-color:#00e644;color:#00e644}#cv-ticker .tkl.l{border-color:#ff1a1a;color:#ff1a1a}
+#cv-ticker .tkn{color:var(--t)}#cv-ticker .tkc{color:var(--t3);font-size:inherit}#cv-ticker .tkc.lv{color:var(--hc)}
+#cv-ticker .tkl{display:inline-flex;align-items:baseline;gap:7px;font-size:inherit;padding:1px 8px;border-radius:2px;border:1px solid #00f0ff;color:#00f0ff;text-shadow:0 0 6px rgba(0,240,255,.75);box-shadow:0 0 7px rgba(0,240,255,.4)}
+#cv-ticker .tkl .tkp{font-weight:700;color:#00f0ff;text-shadow:0 0 9px #00f0ff}
+#cv-ticker .tkl.w{border-color:#00e644;color:#00e644;text-shadow:0 0 6px rgba(0,230,68,.7);box-shadow:0 0 7px rgba(0,230,68,.45)}
+#cv-ticker .tkl.l{border-color:#ff2b2b;color:#ff2b2b;text-shadow:0 0 6px rgba(255,43,43,.7);box-shadow:0 0 7px rgba(255,43,43,.45)}
+#cv-ticker .tkl.w .tkp,#cv-ticker .tkl.l .tkp{color:inherit;text-shadow:inherit}
+#cv-ticker .tkn{font-weight:700}
+#cv-ticker .tkdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--pc);box-shadow:0 0 8px var(--pc);margin-right:6px;animation:tkpulse 1.4s ease-in-out infinite}
+@keyframes tkpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
+/* left badge: one font (the ticker's mono), one baseline, three steady parts -- LIVE count, today's record, data time */
+#cv-ticker .tk[data-k="__chip"]{gap:14px;font-variant-numeric:tabular-nums}
+#cv-ticker .tk[data-k="__chip"] .tks{font-weight:700;letter-spacing:1px;padding:2px 8px}
+#cv-ticker .tkrec{font-family:var(--mono);font-size:inherit;font-weight:700;letter-spacing:.5px;white-space:nowrap;display:inline-flex;align-items:baseline;gap:6px}
+#cv-ticker .tkrec .w{color:#00e644}#cv-ticker .tkrec .l{color:#ff2b2b}#cv-ticker .tkrec .d{color:var(--t3);font-weight:400}
+#cv-ticker .tkrec i{font-style:normal;font-size:.8em;font-weight:400;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3)}
+#cv-ticker .tk[data-k="__chip"] .tkc{font-size:inherit;font-weight:400;letter-spacing:.5px;color:var(--t2)}
 @keyframes tkscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-@media (prefers-reduced-motion:reduce){#cv-ticker .tk-track.go{animation:none}#cv-ticker{overflow-x:auto}}
+@media (prefers-reduced-motion:reduce){#cv-ticker .tk-track.go{animation:none}#cv-ticker .tkdot{animation:none}#cv-ticker{overflow-x:auto}}
 /* SCORES tab (renderScores): day bar, league / status chips, grid of compact score cards */
 #sc-root{max-width:1200px;margin:0 auto}
 .sc-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:10px}
@@ -790,7 +803,7 @@ rect.mom-pin{fill:rgba(255,221,0,.09)}line.mom-pin{stroke:var(--gc);stroke-width
 .sc-pick.w{border-color:var(--rc);color:var(--rc)}.sc-pick.l{border-color:var(--hc);color:var(--hc)}
 .sc-empty{padding:26px 10px;text-align:center;font-family:var(--mono);font-size:14px;letter-spacing:.08em;color:var(--t3)}
 @media (max-width:480px){.sc-date{flex:1 1 130px}}
-@media (max-width:768px){.fresh{font-size:8px!important;letter-spacing:.2px}#cv-ticker{font-size:11px}#cv-ticker .tk{padding:0 12px}#hdr{flex:0 0 calc(48px + env(safe-area-inset-top,0px))!important}}
+@media (max-width:768px){.fresh{font-size:8px!important;letter-spacing:.2px}#cv-ticker{font-size:12px}#cv-ticker .tk{padding:0 12px}#cv-ticker .tk[data-k="__chip"]{gap:10px}#hdr{flex:0 0 calc(48px + env(safe-area-inset-top,0px))!important}}
 .tpw>summary{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;cursor:pointer;padding:8px 10px;background:rgba(10,0,24,.7);border-left:2px solid var(--nc);border-radius:2px;font-family:var(--mono);font-size:13px;list-style:none}.tpw>summary::-webkit-details-marker{display:none}.tpw>summary::before{content:'▸';color:var(--nc)}.tpw[open]>summary::before{content:'▾'}
 .tpw .tpwd{color:var(--pc);letter-spacing:1px;min-width:92px}.tpw .tpwt{font-weight:700}.tpw .tpwa{color:var(--t3);font-size:12px}.tpw .tpwb{padding:2px 4px 8px}.tpw0>summary{list-style:none;cursor:pointer}.tpw0>summary::-webkit-details-marker{display:none}
 .lockoff{pointer-events:none;opacity:.62;filter:saturate(.75)}.lockoff *{cursor:default!important}
@@ -24751,10 +24764,11 @@ function _tkItemHTML(it){
   const lk=it.locks.map(p=>{
     const cls=p.outcome==='win'?' w':p.outcome==='loss'?' l':'';
     const ml=p.ml!=null&&p.ml!==''?' '+_mlFmt(p.ml):'';
-    return`<span class="tkl${cls}" title="Locked ${_escHtml(p.betOn)}${p.altLine?' (adjusted from '+_escHtml(p.altLine.postedLabel)+')':''}">LOCKED ${_escHtml(p.betOn)}${ml}${p.altLine?' · ADJ':''}${p.outcome==='win'?' ✓':p.outcome==='loss'?' ✗':''}</span>`;
+    const wp=parseFloat(p.winProb),pr=isFinite(wp)&&wp>0?`<span class="tkp">${(wp*100).toFixed(1)}%</span>`:'';
+    return`<span class="tkl${cls}" title="Locked ${_escHtml(p.betOn)}${p.altLine?' (adjusted from '+_escHtml(p.altLine.postedLabel)+')':''}"><span>LOCKED ${_escHtml(p.betOn)}${ml}${p.altLine?' · ADJ':''}</span>${pr}</span>`;
   }).join('');
   const g=it.g,sc=v=>it.state==='pre'||v==null||isNaN(v)?'':v;
-  return`<span class="tks">${_escHtml(it.tag)}</span><span class="tkn">${_escHtml(g.away)} ${sc(g.awayScore)} @ ${_escHtml(g.home)} ${sc(g.homeScore)}</span><span class="tkc${it.state==='in'?' lv':''}">${it.state==='in'?'● ':''}${_escHtml(it.state==='post'?(g.pending?'RESULT PENDING':'FINAL'):it.state==='pre'?_tkStartLabel(g.startMs):_tkLiveStatus(it))}</span>${lk}`;
+  return`<span class="tks">${_escHtml(it.tag)}</span><span class="tkn${it.state==='in'?' in':''}">${_escHtml(g.away)} ${sc(g.awayScore)} @ ${_escHtml(g.home)} ${sc(g.homeScore)}</span><span class="tkc${it.state==='in'?' lv':''}">${it.state==='in'?'<i class="tkdot"></i>':''}${_escHtml(it.state==='post'?(g.pending?'RESULT PENDING':'FINAL'):it.state==='pre'?_tkStartLabel(g.startMs):_tkLiveStatus(it))}</span>${lk}`;
 }
 function _tkEuroGames(withPre){
   const out=[],now=Date.now();
@@ -24854,7 +24868,10 @@ function renderTicker(){
     // data age = the oldest fetch among leagues that currently have a game in progress (idle leagues are deliberately not polled, so their age means nothing)
     const liveTs=Object.keys(_LV.lg).filter(k=>k!=='__relay'&&_LV.games.some(g=>g.k===k&&g.state==='in')).map(k=>_LV.lg[k].ts);
     const ageMin=liveTs.length?(Date.now()-Math.min(...liveTs))/60000:0;
-    const chipHtml=`<span class="tks" style="${ageMin>8?'color:#ffb020':''}">${liveN?liveN+' LIVE':'SCORES'}</span><span class="tkc${liveN&&ageMin<=8?' lv':''}" style="${ageMin>8?'color:#ffb020':''}">${ageMin>8?'⚠ '+_fmtAge(ageMin/60)+' OLD':new Date(Math.max(_LV.ts,(_LV.relay&&_LV.relay.ts)||0)).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Denver'})+' MT'}${_LV.fsFail>=3?'':''}</span>`;
+    // today's record = the Home TODAY tile (every pick locked today, the same _cvScoped set), so the two numbers always agree
+    let recW=0,recL=0;try{getP().filter(typeof _cvScoped==='function'?_cvScoped:()=>true).forEach(p=>{if(p&&p.date===td){if(p.outcome==='win')recW++;else if(p.outcome==='loss')recL++;}});}catch(e){}
+    const recHtml=`<span class="tkrec"><span><span class="w">${recW}W</span><span class="d"> - </span><span class="l">${recL}L</span></span><i>today</i></span>`;
+    const chipHtml=`<span class="tks" style="${ageMin>8?'color:#ffb020':''}">${liveN?liveN+' LIVE':'SCORES'}</span>${recHtml}<span class="tkc${liveN&&ageMin<=8?' lv':''}" style="${ageMin>8?'color:#ffb020':''}">${ageMin>8?'⚠ '+_fmtAge(ageMin/60)+' OLD':new Date(Math.max(_LV.ts,(_LV.relay&&_LV.relay.ts)||0)).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Denver'})+' MT'}${_LV.fsFail>=3?'':''}</span>`;
     const sig=order.join('|');
     el.style.display='block';
     if(sig!==_TKM.sig||!_TKM.track||!el.contains(_TKM.track)){
