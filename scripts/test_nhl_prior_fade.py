@@ -28,6 +28,16 @@ class Fade(unittest.TestCase):
         ws = [w(g) for g in range(0, 83)]
         self.assertEqual(ws, sorted(ws, reverse=True))                  # monotone: more games never raises the prior's share
 
+    def test_goalies_drop_last_season_at_15_starts(self):
+        w = C._nhl_goalie_prior_weight
+        self.assertEqual((w(2), w(5), w(10), w(15), w(20)), (0.9, 0.7, 0.4, 0.0, 0.0))   # same points to 10 starts, then straight to 0 at 15
+        self.assertAlmostEqual(w(12), 0.24, places=3)                      # 0.4 -> 0 over 5 starts
+        self.assertAlmostEqual(w(13), 0.16, places=3)
+        self.assertEqual((w(0), w(None)), (1.0, 1.0))
+        ws = [w(g) for g in range(0, 40)]
+        self.assertEqual(ws, sorted(ws, reverse=True))
+        self.assertEqual(C._nhl_prior_weight(15), 0.2)                     # team rates are NOT changed: still 20% at 15 games, gone at 20
+
     def test_blend_uses_the_weight(self):
         self.assertEqual(C._nhl_blend(4.0, 3.0, 0.75), 3.25)            # early: mostly last season
         self.assertEqual(C._nhl_blend(4.0, 3.0, 0.25), 3.75)            # late: mostly this season (the old flat blend)
@@ -58,6 +68,8 @@ class Fade(unittest.TestCase):
         self.assertEqual(l["pk"], 0.7)
         self.assertAlmostEqual(early["goalies"]["AAA"]["sv"], 0.88 * 0.1 + 0.92 * 0.9, places=3)    # goalie fades on his own games
         self.assertEqual(late["goalies"]["AAA"]["sv"], 0.88)
+        self.assertEqual(mid["goalies"]["AAA"]["sv"], 0.88)                               # a goalie with 15 starts: this season only (team rates at 15 games still carry 20%)
+        self.assertEqual(mid["goalieFullGp"], 15)
         self.assertEqual(late["zoneStart"]["AAA"], 52.0)
         self.assertLess(early["zoneStart"]["AAA"], mid["zoneStart"]["AAA"])
         self.assertEqual(early["priorFullGp"], 20)

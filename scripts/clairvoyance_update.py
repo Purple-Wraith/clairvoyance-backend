@@ -1794,17 +1794,26 @@ _NHL_PRIOR_FULL_GP = _NHL_PRIOR_CURVE[-1][0]   # 2026-10-08 (owner): last season
                                                # Owner's points: 90% at 2 games, 70% at 5, 40% at 10, 20% at 15, 0% at 20+; straight lines between them (and from 100% at 0 games). Early on a 2-5 game
                                                # sample is mostly noise (NJD's goals against per 60 was 4.0 after 2 games).
 
-def _nhl_prior_weight(games) -> float:
-    """Share of the NHL edge blend that comes from last season for a team (or goalie) with `games` current-season games played: the owner's curve in _NHL_PRIOR_CURVE,
-    interpolated linearly, 0 from 20 games. Unknown/zero games -> 1.0 (all prior; _nhl_blend already degrades to whichever side exists)."""
+# GOALIES drop last season sooner (owner 2026-11-15): same points up to 10 starts, then straight to 0 at 15 starts (team rates keep the 20-game curve above).
+_NHL_GOALIE_PRIOR_CURVE = ((0, 1.0), (2, 0.90), (5, 0.70), (10, 0.40), (15, 0.0))
+_NHL_GOALIE_PRIOR_FULL_GP = _NHL_GOALIE_PRIOR_CURVE[-1][0]
+
+
+def _nhl_prior_weight(games, curve=_NHL_PRIOR_CURVE) -> float:
+    """Share of the NHL edge blend that comes from last season for a team (or goalie) with `games` current-season games played: the owner's curve (_NHL_PRIOR_CURVE for team rates,
+    _NHL_GOALIE_PRIOR_CURVE for goalies via _nhl_goalie_prior_weight), interpolated linearly, 0 from the curve's last point. Unknown/zero games -> 1.0 (all prior; _nhl_blend already degrades to whichever side exists)."""
     try:
         g = max(0.0, float(games))
     except (TypeError, ValueError):
         return 1.0
-    for (g0, w0), (g1, w1) in zip(_NHL_PRIOR_CURVE, _NHL_PRIOR_CURVE[1:]):
+    for (g0, w0), (g1, w1) in zip(curve, curve[1:]):
         if g <= g1:
             return round(w0 + (w1 - w0) * (g - g0) / (g1 - g0), 4)
     return 0.0
+
+def _nhl_goalie_prior_weight(games) -> float:
+    """Last season's share of a goalie's sv% / GAA blend: gone after 15 starts (see _NHL_GOALIE_PRIOR_CURVE)."""
+    return _nhl_prior_weight(games, _NHL_GOALIE_PRIOR_CURVE)
 
 def _nhl_prior_season_id(season: str) -> str:
     start = int(season[:4]) - 1
@@ -1955,7 +1964,7 @@ def fetch_nhl_edge() -> dict:
     current_season = _nhl_current_season_id()
     prior_season = _nhl_prior_season_id(current_season)
     out: dict = {"season": current_season, "priorSeason": prior_season,
-                 "priorFullGp": _NHL_PRIOR_FULL_GP,
+                 "priorFullGp": _NHL_PRIOR_FULL_GP, "goalieFullGp": _NHL_GOALIE_PRIOR_FULL_GP,
                  "goalies": {}, "zoneStart": {}, "teamRates": {}}
 
     # Goalies: blend by the SAME PERSON's prior-season row, not just
@@ -1968,8 +1977,8 @@ def fetch_nhl_edge() -> dict:
             prior_stat = pri_g_name.get(cur["name"])
             out["goalies"][abbr] = {
                 "name": cur["name"],
-                "sv":  _nhl_blend(cur["sv"],  prior_stat["sv"]  if prior_stat else None, _nhl_prior_weight(cur["gp"])),
-                "gaa": _nhl_blend(cur["gaa"], prior_stat["gaa"] if prior_stat else None, _nhl_prior_weight(cur["gp"])),
+                "sv":  _nhl_blend(cur["sv"],  prior_stat["sv"]  if prior_stat else None, _nhl_goalie_prior_weight(cur["gp"])),
+                "gaa": _nhl_blend(cur["gaa"], prior_stat["gaa"] if prior_stat else None, _nhl_goalie_prior_weight(cur["gp"])),
                 "gp":  cur["gp"],
             }
         else:
@@ -2000,7 +2009,7 @@ def fetch_nhl_edge() -> dict:
             "priorW": w,
         }
 
-    vlog(f"  NHL Edge ({current_season} + fading {prior_season}, zero from {_NHL_PRIOR_FULL_GP} games): {len(out['goalies'])} team goalies, "
+    vlog(f"  NHL Edge ({current_season} + fading {prior_season}, zero from {_NHL_PRIOR_FULL_GP} games for team rates, {_NHL_GOALIE_PRIOR_FULL_GP} starts for goalies): {len(out['goalies'])} team goalies, "
          f"{len(out['zoneStart'])} zone-starts, {len(out['teamRates'])} team rates")
     return out
 
