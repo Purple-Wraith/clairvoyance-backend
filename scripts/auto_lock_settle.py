@@ -765,7 +765,7 @@ def owner_alert_for(reports: list[dict], watchdog: bool = False) -> tuple[str, s
     if watchdog:
         # The pre-kickoff watchdog is read-only: it never tried to lock anything, so it must not say a lock "failed".
         html = (f"{_EMAIL_WRAP_OPEN}"
-                f'<div style="font-size:16px;color:#ff9090;font-weight:700">⚠ {n} qualifying pick(s) not in the ledger yet</div>'
+                f'<div style="font-size:16px;color:#ff9090;font-weight:700">{n} qualifying pick(s) not in the ledger yet</div>'
                 f'<div style="margin-top:10px;font-size:14px;color:#ccc">The pre-kickoff watchdog ran at {now_mt}. It only reads (it never locks anything) '
                 f"and found these qualifying legs with a kickoff close by that are not locked. A later lock pass may still pick them up; if one gets close to "
                 f"kickoff and you want it, lock it manually in the app -- late locks are stamped 'late-manual' and excluded from every published figure "
@@ -773,7 +773,7 @@ def owner_alert_for(reports: list[dict], watchdog: bool = False) -> tuple[str, s
                 f'<ul style="margin:8px 0 0;padding-left:18px">{"".join(rows)}</ul></div>{_EMAIL_WRAP_CLOSE}')
         return h, f"Clairvoyance — WATCHDOG: {n} qualifying pick(s) still unlocked", html
     html = (f"{_EMAIL_WRAP_OPEN}"
-            f'<div style="font-size:16px;color:#ff9090;font-weight:700">⚠ {n} qualifying pick(s) NOT locked before kickoff</div>'
+            f'<div style="font-size:16px;color:#ff9090;font-weight:700">{n} qualifying pick(s) NOT locked before kickoff</div>'
             f'<div style="margin-top:10px;font-size:14px;color:#ccc">A lock pass landed at {now_mt} and found these legs qualifying, '
             f"but could not lock them (game already started or within {LOCK_START_MARGIN_MIN} min of start, or the lock failed). "
             f"No subscriber email was sent for them. If you still want any of these, lock them manually in the app -- they are "
@@ -1674,7 +1674,7 @@ def build_settlement_email_html(settled: list[dict], unresolved: list[dict] | No
     elif unresolved:
         parts.append(f'<div style="margin-top:10px;padding:10px 14px;background:#3a0000;border:1px solid #ff3b5c;'
                       f'border-radius:6px;color:#ff9090;font-size:13px">'
-                      f'⚠ {len(unresolved)} pick(s) from this date could not be confirmed settled yet -- '
+                      f'{len(unresolved)} pick(s) from this date could not be confirmed settled yet -- '
                       f'real score/result not found. Will keep retrying automatically.<ul style="margin:6px 0 0;padding-left:18px">'
                       + "".join(f'<li>{_esc(settle_section_name(norm_sport_for_email(b.get("sport"), b.get("league"))))}: {_esc(b.get("betOn"))}</li>' for b in unresolved)
                       + '</ul></div>')
@@ -3578,7 +3578,7 @@ def _leg_html(q: dict) -> str:
         ev_str = f' · EV {ev_val*100:+.1f}%' if ev_val is not None else ''
         prob = q.get("prob") or 0
         ptxt = _prob_txt(prob, q.get("probKnown", True))
-        hh = ' <span style="color:#ffdd00">🔥 HIGH HIT %</span>' if (_market_type(q.get("side")) == "ML" and prob >= _HIGH_HIT_P
+        hh = ' <span style="color:#ffdd00">HIGH HIT %</span>' if (_market_type(q.get("side")) == "ML" and prob >= _HIGH_HIT_P
                                                                      and q.get("sport") not in HOCKEY_SPORTS) else ''
         alt = q.get("altLine")
         if alt:
@@ -3826,7 +3826,7 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
         n = len(high_hit)
         parts.append(f'<div style="background:#fff6d6;border:1px solid #e6c200;'
                       f'border-radius:4px;padding:8px 12px;margin:10px 0;font-size:13px;color:#7a5900">'
-                      f'🔥 {n} HIGH HIT % moneyline pick{"s" if n != 1 else ""} today '
+                      f'{n} HIGH HIT % moneyline pick{"s" if n != 1 else ""} today '
                       f'(75%+ model win probability, regardless of tier/EV)</div>')
 
     parts.append(_top_picks_html(qualifying))        # the day's best picks first, ahead of the long legend and the full by-league list (empty on a short email)
@@ -3868,7 +3868,7 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
         'not a value edge. They are included even when the grade would otherwise be LEAN or SKIP, and are labelled so you can '
         'tell them apart from the value picks.</div>'
         '<div style="font-size:13px;color:#eee;line-height:1.6;margin-top:10px">'
-        '🔥 <strong style="color:#fff">HIGH HIT %</strong> every other sport: a '
+        '<strong style="color:#fff">HIGH HIT %</strong> every other sport: a '
         'moneyline pick at 75%+ model win probability is included regardless of tier -- even a '
         f'<span style="background:{_TIER_COLOR[1]};color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
         f'border-radius:3px">LEAN</span> or <span style="background:{_TIER_COLOR[0]};color:#fff;font-weight:700;'
@@ -3904,7 +3904,7 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
             parts.append('<div style="background:#14001f;border-radius:6px;padding:12px 14px;margin-bottom:10px">')
             _st = _start_label(_mu_start[sport].get(matchup))
             parts.append(f'<div style="font-weight:700;font-size:15px;color:#fff;margin-bottom:6px">{_esc(matchup)}'
-                         + (f'<div style="font-weight:400;font-size:12px;color:#00d9ff;margin-top:2px">\u23f0 Starts {_esc(_st)}</div>' if _st else '')
+                         + (f'<div style="font-weight:400;font-size:12px;color:#00d9ff;margin-top:2px">Starts {_esc(_st)}</div>' if _st else '')
                          + '</div>')
             parts.append("".join(_leg_html(q) for q in legs))
             mc_summary = next((l.get("mcSummary") for l in legs if l.get("mcSummary")), None)
@@ -5512,7 +5512,7 @@ def main() -> None:
             sys.exit(1)
         today_mt = datetime.now(ZoneInfo("America/Denver")).strftime("%Y-%m-%d")
         body = (f"{_EMAIL_WRAP_OPEN}"
-                f'<div style="font-size:16px;color:#ff9090;font-weight:700">⚠ No lock pass has completed today ({today_mt})</div>'
+                f'<div style="font-size:16px;color:#ff9090;font-weight:700">No lock pass has completed today ({today_mt})</div>'
                 f'<div style="margin-top:10px;font-size:14px;color:#ccc">It is past noon Mountain time and none of today\'s main lock passes '
                 f'recorded a completed run, so no new picks were locked by the main pass and no main locks email went out. '
                 f'(The dedicated soccer / CFB / hockey passes have their own checks and are not covered by this message.) '
