@@ -23817,7 +23817,7 @@ function _lockedStripHTML(g){
   let ps;try{ps=getP();}catch(e){return'';}
   if(!g||!Array.isArray(ps))return'';
   const today=_mtDateOf(Date.now()),cutoff=_mtDateOf(Date.now()-86400000);
-  let mine=ps.filter(p=>p&&p.hA===g.home&&p.awA===g.away&&p.outcome!=='_removed'&&p.betType!=='PARLAY'&&(g.date?p.date===g.date:p.date>=cutoff));
+  let mine=ps.filter(p=>p&&p.hA===g.home&&p.awA===g.away&&p.outcome!=='_removed'&&(g.date?p.date===g.date:p.date>=cutoff));
   if(!mine.length)return'';
   if(!g.date){const d0=mine.map(p=>p.date).sort()[0];mine=mine.filter(p=>p.date===d0);}   // a rematch later in the week is a different card
   const ord={ML:0,SPREAD:1,PL:1,RL:1,OU:2,PROP:3};
