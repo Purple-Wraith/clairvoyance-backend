@@ -1093,6 +1093,40 @@ def _nba_roster_with_carry(fresh: dict, prev: dict | None) -> tuple[dict, bool]:
     return merged, n > 0
 
 
+NBA_TOTAL_SHIFT_K = 60          # shrinkage: the observed league total-points bias counts n/(n+K) -- 188 games -> 76%, 30 games -> 33%
+NBA_TOTAL_SHIFT_MIN_GAMES = 20
+NBA_TOTAL_SHIFT_CLAMP = 6.0
+
+
+def nba_total_shift(adv: dict, games: list, k: float = NBA_TOTAL_SHIFT_K) -> dict | None:
+    """League-scoring correction for the app's NBA total projection (docs/app.html nbaMC adds it, split between the two teams, to every projected total; margins are untouched).
+    nbaMC projects points from each team's ortg/drtg/pace in nba.teamAdv. Early in a season those are LAST season's full-season numbers (teamRatings.statsMode 'prior'), so the
+    projection sits at last season's scoring level: through 188 games of 2026-27 the projected total averaged 230.2 against 227.2 actual (2026-11-15). This reruns the SAME
+    formula over this season's finished regular-season games (market-free) and returns shift = -(mean projected - mean actual) x n/(n+k): shrunk toward 0 for small samples,
+    clamped to +/-NBA_TOTAL_SHIFT_CLAMP, and self-correcting -- once the ratings turn current-season the measured bias, and so the shift, falls toward 0.
+    None when there are too few usable games or ratings."""
+    rows = [t for t in (adv or {}).values() if isinstance(t, dict) and t.get("ortg") is not None and t.get("drtg") is not None]
+    lg_drtg = sum(t["drtg"] for t in rows) / len(rows) if len(rows) >= 10 else 115.7     # same fallback as nbaMC
+    diffs = []
+    for g in games or []:
+        if g.get("state") != "post" or g.get("seasonType") != 2 or g.get("preseason"):
+            continue
+        h, a = (adv or {}).get(g.get("home")), (adv or {}).get(g.get("away"))
+        if not h or not a or g.get("homeScore") is None or g.get("awayScore") is None:
+            continue
+        if any(x.get(f) is None for x in (h, a) for f in ("ortg", "drtg", "pace")):
+            continue
+        poss = (h["pace"] + a["pace"]) / 2 / 100
+        model = (h["ortg"] * (a["drtg"] / lg_drtg) + a["ortg"] * (h["drtg"] / lg_drtg)) * poss   # home-court shift cancels in the total
+        diffs.append(model - (g["homeScore"] + g["awayScore"]))
+    n = len(diffs)
+    if n < NBA_TOTAL_SHIFT_MIN_GAMES:
+        return None
+    bias = sum(diffs) / n
+    shift = max(-NBA_TOTAL_SHIFT_CLAMP, min(NBA_TOTAL_SHIFT_CLAMP, -bias * n / (n + k)))
+    return {"shift": round(shift, 2), "rawBias": round(bias, 2), "n": n, "k": k}
+
+
 def collect_nba_season_data(no_reference: bool = False, prev_nba: dict | None = None) -> dict:
     """
     Everything season-dependent the NBA model needs, in one place (called from
@@ -1188,6 +1222,14 @@ def collect_nba_season_data(no_reference: bool = False, prev_nba: dict | None = 
     else:
         log(f"NBA teamRatings: {real} teams, season {cur} (prior {prior}), "
             f"stats season used {ratings['teamRatings']['statsSeasonUsed']}")
+    try:
+        _sched = json.loads((ROOT / "docs" / "nba_schedule.json").read_text()).get("games") or []
+        _tsh = nba_total_shift(adv or (prev_nba or {}).get("teamAdv") or {}, _sched)
+        if _tsh is not None and isinstance(ratings.get("teamRatings"), dict):
+            ratings["teamRatings"]["totalShift"] = _tsh
+            log(f"NBA total-points shift {_tsh['shift']:+.2f} (raw projection bias {_tsh['rawBias']:+.2f} over {_tsh['n']} games)")
+    except Exception as exc:
+        log(f"NBA total-points shift skipped: {exc}", "WARN")
     origin = (sel or {}).get("origin") or {}
     n_bb = sum(v.get("bbref", 0) for v in origin.values())
     n_es = sum(v.get("espn", 0) for v in origin.values())

@@ -3699,6 +3699,33 @@ def _mc_text(summary: str) -> str:
     return t.replace(", exact)", ")")
 
 
+_MC_TOTAL_RE = re.compile(r"(?:\(Total\s+|TOTAL:\s*|total:\s*)(-?\d+(?:\.\d+)?)")
+
+
+def _cushion_notes(legs: list[dict], mc_summary) -> list[str]:
+    """One plain line per ADJUSTED over/under pick on a card: how far the adjusted line sits from the simulation's projected total, so the moved line can be read against the sim
+    ('Projection 49.8, adjusted line UNDER 56.5: 6.7 points of cushion'). A negative cushion is stated plainly: the projection is on the other side of the adjusted line.
+    Nothing when the card has no projected total (props, spread-only engines) or the pick is not an adjusted total."""
+    m = _MC_TOTAL_RE.search(str(mc_summary or ""))
+    if not m:
+        return []
+    proj = float(m.group(1))
+    out = []
+    for l in legs:
+        if not l.get("altLine") or l.get("kind") != "GAME":
+            continue
+        lm = re.match(r"(OVER|UNDER)\s+(\d+(?:\.\d+)?)", str(l.get("label") or "").upper())
+        if not lm:
+            continue
+        over, line = lm.group(1) == "OVER", float(lm.group(2))
+        cushion = (proj - line) if over else (line - proj)
+        unit = "goals" if (l.get("sport") in HOCKEY_SPORTS or l.get("sport") in EURO_SOCCER_SPORTS) else "points"
+        head = f"Projection {proj:.1f}, adjusted line {lm.group(1)} {line:.1f}: "
+        out.append(head + (f"{cushion:.1f} {unit} of cushion." if cushion >= 0
+                           else f"the projection is {abs(cushion):.1f} {unit} on the other side of this line."))
+    return out
+
+
 def _start_label(ms) -> str:
     """A game's start as 'Sun Nov 15 · 1:00 PM MT' for the pick card header; '' when the start is unknown."""
     st = parse_start_ms(ms)
@@ -3928,6 +3955,7 @@ def build_locks_email_html(qualifying: list[dict], live: bool, locked_count: int
                 if mc_summary:
                     bits.append('<span style="background:#00d9ff;color:#000;font-weight:700;font-size:11px;padding:1px 6px;border-radius:3px;margin-right:6px">MONTE CARLO SIM</span>'
                                 + _esc(_mc_text(mc_summary)))
+                    bits.extend(_esc(n) for n in _cushion_notes(legs, mc_summary))
                 if best:
                     bits.append(f'Best market value on this game: {_esc(best["label"])} ({HOCKEY_LANE_LABEL if best.get("lane") else TIER_LABEL.get(best.get("tierN"), "?")})')
                 parts.append(f'<div style="border-top:1px solid rgba(255,255,255,.12);margin-top:8px;padding-top:8px;'

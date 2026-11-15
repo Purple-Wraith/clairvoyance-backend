@@ -91,6 +91,31 @@ class FootballLine(unittest.TestCase):
             self.assertIn("mc.avgMargin", l)
 
 
+class Cushion(unittest.TestCase):
+    ALT = {"posted": 49.5, "line": 56.5, "shift": 7.0, "postedLabel": "UNDER 49.5", "postedProb": 0.444}
+
+    def _card(self, label, line, summary, sport="CFB", **kw):
+        alt = dict(self.ALT, line=line)
+        return _game(sport=sport, kind="GAME", label=label, altLine=alt, mcSummary=summary, side="under", **kw)
+
+    def test_under_with_room_shows_positive_cushion(self):
+        html = a.build_locks_email_html([self._card("UNDER 56.5", 56.5, "MC PROJ TOTAL: 49.8 \u00b7 SEA projected -3.5")], live=True, locked_count=1)
+        self.assertIn("Projection 49.8, adjusted line UNDER 56.5: 6.7 points of cushion.", html)
+
+    def test_over_cushion_and_goals_unit_for_hockey(self):
+        html = a.build_locks_email_html([self._card("OVER 4.5", 4.5, "MC PROJ: ANA 3.1 \u2013 CGY 2.2 (Total 5.3)", sport="NHL")], live=True, locked_count=1)
+        self.assertIn("Projection 5.3, adjusted line OVER 4.5: 0.8 goals of cushion.", html)
+
+    def test_projection_on_the_other_side_is_said_plainly(self):
+        html = a.build_locks_email_html([self._card("OVER 214.5", 214.5, "MC PROJ: IND 105.0 \u2013 PHI 108.0 (Total 213.0)", sport="NBA")], live=True, locked_count=1)
+        self.assertIn("the projection is 1.5 points on the other side of this line.", html)
+
+    def test_no_note_without_a_total_or_for_a_non_adjusted_pick(self):
+        self.assertEqual(a._cushion_notes([self._card("UNDER 56.5", 56.5, None)], None), [])
+        self.assertEqual(a._cushion_notes([_game()], "MC PROJ: ANA 3.1 \u2013 CGY 2.2 (Total 5.3)"), [])
+        self.assertEqual(a._cushion_notes([self._card("MISS +8.5", 8.5, "MC PROJ TOTAL: 49.8")], "MC PROJ TOTAL: 49.8"), [])
+
+
 class SettlementTop(unittest.TestCase):
     def test_record_and_win_pct_lead_the_email(self):
         bets = [_bet("win"), _bet("win"), _bet("win"), _bet("loss"), _bet("loss")]
