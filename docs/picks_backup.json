@@ -155584,8 +155584,8 @@
     "betOn": "OVER 209.5",
     "sport": "NBA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 112,
+    "hScore": 108,
     "league": "NBA",
     "source": "manual",
     "altLine": {
@@ -155600,14 +155600,15 @@
     "betType": "OU",
     "decOdds": 1.399,
     "leadMin": 634,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1794783600000,
     "winProb": 0.67,
     "lockedAt": 1794745539494,
     "reasoning": "PICK: OVER 209.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted OVER 217.5 to OVER 209.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 65.9%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected 112.8\u2013112.3 (total 225.1), from an exact normal distribution (not a simulation).",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1794795681856
   },
   {
     "hA": "TOR",
@@ -155618,8 +155619,8 @@
     "betOn": "TOR +10.5",
     "sport": "NBA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 112,
+    "hScore": 108,
     "league": "NBA",
     "source": "manual",
     "altLine": {
@@ -155634,14 +155635,15 @@
     "betType": "SPREAD",
     "decOdds": 1.376,
     "leadMin": 634,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1794783600000,
     "winProb": 0.682,
     "lockedAt": 1794745539167,
     "reasoning": "PICK: TOR +10.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted TOR +4.5 to TOR +10.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.5%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected 112.8\u2013112.3 (total 225.1), from an exact normal distribution (not a simulation).",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1794795681857
   },
   {
     "hA": "UTAH",
@@ -167960,11 +167962,14 @@
     },
     "betType": "PROP",
     "decOdds": 1.4065040650406504,
-    "outcome": "pending",
+    "outcome": "win",
     "winProb": 0.68,
     "lockedAt": 1794745543367,
     "reasoning": "PICK: Immanuel Quickley UNDER PTS 16.5 \u2014 OPTIMAL (63% model hit rate)\nMODEL: projection 14.08 PTS (season average 16.4, last-5 form 8.8, opponent adjustment -2.3) vs the 16.5 line, spread \u03c3 7.03, from an exact normal distribution (not a simulation).\nWHY: Immanuel Quickley averages 16.4 ppg across 70 games this season. Opp NY DRtg 113.2 vs a 115.7 league average computed from every currently-loaded team, a -2% reduction folded into the projection. Game pace 97.5 (-0.8%), TOR offense 116.1 vs a 115.7 league average. No head-to-head history vs NY this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1794795683363,
+    "playerResult": 17,
+    "playerMin": 38
   },
   {
     "hA": "PHI",
