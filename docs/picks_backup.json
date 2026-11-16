@@ -153595,8 +153595,8 @@
     "betOn": "LAR -3.5",
     "sport": "NFL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 34,
+    "hScore": 6,
     "league": "NFL",
     "source": "manual",
     "altLine": {
@@ -153611,7 +153611,7 @@
     "betType": "SPREAD",
     "decOdds": 1.393,
     "leadMin": 520,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1794776700000,
     "winProb": 0.6728,
     "lockedAt": 1794745529268,
@@ -153621,7 +153621,8 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.5,
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1794787305472
   },
   {
     "hA": "ARI",
@@ -153632,8 +153633,8 @@
     "betOn": "OVER 33.5",
     "sport": "NFL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 34,
+    "hScore": 6,
     "league": "NFL",
     "source": "manual",
     "altLine": {
@@ -153648,7 +153649,7 @@
     "betType": "OU",
     "decOdds": 1.384,
     "leadMin": 520,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1794776700000,
     "winProb": 0.6778,
     "lockedAt": 1794745529628,
@@ -153658,7 +153659,8 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.5,
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1794787305472
   },
   {
     "hA": "ATL",
@@ -154062,6 +154064,45 @@
     "leadMin": 1931,
     "lockTiming": "pre",
     "settledAt": 1794769336935
+  },
+  {
+    "hA": "DAL",
+    "id": "2026-11-15_DAL_FLA_NHL_DALML",
+    "ml": "-909",
+    "awA": "FLA",
+    "date": "2026-11-15",
+    "betOn": "DAL ML",
+    "sport": "NHL",
+    "wager": 0,
+    "aScore": null,
+    "hScore": null,
+    "league": "NHL",
+    "lineup": {
+      "src": "espn",
+      "notes": [
+        "DAL: Casey DeSmith projected, not confirmed (not acted on)",
+        "FLA: Akira Schmid confirmed (gsax -1.4); model rates Jacob Markstrom (gsax +3.7)",
+        "DAL v FLA goalie change (opp. scoring x1.058/x1.000): in the leg's favour -> unchanged"
+      ],
+      "action": "none",
+      "status": "unknown",
+      "checkedAt": "2026-11-15T23:31:35Z"
+    },
+    "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.11,
+    "leadMin": 88,
+    "outcome": "pending",
+    "startMs": 1794790800000,
+    "winProb": 0.8562824613868405,
+    "lockedAt": 1794785496490,
+    "modelProb": 0.6328,
+    "reasoning": "PICK: DAL ML \u2014 HIGH PROB (85.6% win prob, EV -5.0% \u00b7 MARKET PRICE -909 (EV at market -5.0%) \u00b7 MARKET-BLENDED: model 63.3% \u00b7 no-vig market 90.0% \u2192 85.6% (alpha 0.75))\nMODEL: Projected 2.4\u20132.4 (total 5.0) (OT/SO in 19% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Best market: DAL ML graded HIGH PROB (85.6%, EV -5.0%). GSAx: +7.7 vs +3.7 (injury adj: DAL: Miro Heiskanen D OUT -> scoring -3.9% | FLA: Brad Marchand LW OUT -> scoring -4.6%) favors DAL. MC 49% / xGF 50% / hv -8.2pp / ST +2.4pp / SQ +0.6pp \u00b7 ML market blend (alpha 0.75): model 63.3% \u00b7 no-vig market 90.0% \u2192 85.6%; O/U market blend (alpha 0.65): model 36.1% \u00b7 no-vig market 53.2% \u2192 47.1%. Half-unit play.",
+    "blendAlpha": 0.75,
+    "lockOrigin": "auto",
+    "lockTiming": "pre",
+    "marketProb": 0.9001,
+    "priceSource": "market"
   },
   {
     "hA": "DAL",
@@ -154541,8 +154582,8 @@
     "betOn": "CHA +7.5",
     "sport": "NBA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 105,
+    "hScore": 113,
     "league": "NBA",
     "source": "manual",
     "altLine": {
@@ -154559,14 +154600,15 @@
     "betType": "SPREAD",
     "decOdds": 1.376,
     "leadMin": 544,
-    "outcome": "pending",
+    "outcome": "loss",
     "startMs": 1794778200000,
     "winProb": 0.682,
     "lockedAt": 1794745537047,
     "reasoning": "PICK: CHA +7.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted CHA +1.5 to CHA +7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 56.4%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1794787305157
   },
   {
     "hA": "LAC",
@@ -154577,8 +154619,8 @@
     "betOn": "OVER 207.5",
     "sport": "NBA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 105,
+    "hScore": 113,
     "league": "NBA",
     "source": "manual",
     "altLine": {
@@ -154593,14 +154635,15 @@
     "betType": "OU",
     "decOdds": 1.399,
     "leadMin": 544,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1794778200000,
     "winProb": 0.67,
     "lockedAt": 1794745536707,
     "reasoning": "PICK: OVER 207.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted OVER 215.5 to OVER 207.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 74.7%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected 114.3\u2013113.5 (total 227.8), from an exact normal distribution (not a simulation).",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1794787305158
   },
   {
     "hA": "LV",
@@ -154611,8 +154654,8 @@
     "betOn": "LV +12.5",
     "sport": "NFL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 21,
+    "hScore": 13,
     "league": "NFL",
     "source": "manual",
     "altLine": {
@@ -154627,7 +154670,7 @@
     "betType": "SPREAD",
     "decOdds": 1.393,
     "leadMin": 520,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1794776700000,
     "winProb": 0.6728,
     "lockedAt": 1794745528399,
@@ -154637,7 +154680,8 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.5,
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1794787305471
   },
   {
     "hA": "LV",
@@ -154648,8 +154692,8 @@
     "betOn": "OVER 34.5",
     "sport": "NFL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 21,
+    "hScore": 13,
     "league": "NFL",
     "source": "manual",
     "altLine": {
@@ -154664,7 +154708,7 @@
     "betType": "OU",
     "decOdds": 1.384,
     "leadMin": 520,
-    "outcome": "pending",
+    "outcome": "loss",
     "startMs": 1794776700000,
     "winProb": 0.6778,
     "lockedAt": 1794745528862,
@@ -154674,7 +154718,8 @@
     "lockOrigin": "auto",
     "lockTiming": "pre",
     "marketProb": 0.5,
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1794787305471
   },
   {
     "id": "2026-11-15_Liberec_Litvinov_EXTRALIGA_OVER4.5",
@@ -155203,8 +155248,8 @@
     "betOn": "PHX +8.5",
     "sport": "NBA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 131,
+    "hScore": 123,
     "league": "NBA",
     "source": "manual",
     "altLine": {
@@ -155219,14 +155264,15 @@
     "betType": "SPREAD",
     "decOdds": 1.376,
     "leadMin": 514,
-    "outcome": "pending",
+    "outcome": "win",
     "startMs": 1794776400000,
     "winProb": 0.682,
     "lockedAt": 1794745535810,
     "reasoning": "PICK: PHX +8.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted PHX +2.5 to PHX +8.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 64.7%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected 112.1\u2013114.7 (total 226.8), from an exact normal distribution (not a simulation).",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1794787305156
   },
   {
     "hA": "PHX",
@@ -155237,8 +155283,8 @@
     "betOn": "UNDER 236.5",
     "sport": "NBA",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 131,
+    "hScore": 123,
     "league": "NBA",
     "source": "manual",
     "altLine": {
@@ -155255,14 +155301,15 @@
     "betType": "OU",
     "decOdds": 1.399,
     "leadMin": 514,
-    "outcome": "pending",
+    "outcome": "loss",
     "startMs": 1794776400000,
     "winProb": 0.67,
     "lockedAt": 1794745536234,
     "reasoning": "PICK: UNDER 236.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted UNDER 228.5 to UNDER 236.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 53.7%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1794787305157
   },
   {
     "hA": "Plzen",
