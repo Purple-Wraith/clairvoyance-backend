@@ -46,6 +46,26 @@ class Venues(unittest.TestCase):
         for name in ("Kalshi", "KALSHI", "Polymarket", "Novig", "ProphetX"):
             self.assertIsNone(F.build_ml([row(name, 1.9, 1.9)]), name)
 
+    def test_region_suffixed_venue_names_are_ignored_too(self):
+        """2026-11-15: Flashscore lists the prediction market as "Polymarket.usa"; an exact-name lookup let it through and it was averaged with Fanatics."""
+        for name in ("Polymarket.usa", "polymarket.US", "Kalshi.us", "Novig.com", " Polymarket.usa "):
+            self.assertIsNone(F.build_ml([row(name, 1.11, 10.0)]), name)
+            self.assertEqual(F.build_ou([row(name, 1.11, 10.0, "5.5")]), [], name)
+        self.assertEqual(F._books_seen([row("Polymarket.usa", 1.11, 10.0), row("Fanatics", 1.76, 2.10)]), ["Fanatics"])
+
+    def test_the_2026_11_15_fla_dal_case_keeps_the_sportsbook_price_alone(self):
+        fanatics = row("Fanatics", 1.76, 2.10)
+        ml = F.build_ml([fanatics, row("Polymarket.usa", 1.11, 10.0)])
+        self.assertEqual((ml["home"], ml["away"], ml["books"]), (1.76, 2.10, 1))               # was 1.435 / 6.05 over 2 "books"
+        self.assertEqual(F.build_ml([fanatics]), ml)
+        self.assertIsNone(F.build_ml([row("Polymarket.usa", 1.11, 10.0)]))                    # a venue-only game stays unpriced (the model price is used) instead of -909
+        pl = F.build_pl([row("Fanatics", 2.8, 1.44, "-1.5"), row("Polymarket.usa", 1.2, 6.0, "-1.5")])
+        self.assertEqual(pl["-1.5"]["books"], 1)
+
+    def test_venue_suffix_never_hides_a_real_sportsbook(self):
+        for name in ("BetMGM.us", "bet365.us", "Fanduel", "DraftKings", "Fanatics", "Betr", "Caesars.us"):
+            self.assertFalse(F._is_non_sportsbook({"book": name}), name)
+
     def test_real_sportsbooks_are_untouched(self):
         for name in ("Fanduel", "DraftKings", "BetMGM.us", "bet365.us", "Fanatics", "Betr", None):
             self.assertIsNotNone(F.build_ml([row(name, 1.9, 1.95)]), name)
@@ -59,6 +79,14 @@ class ConsensusGuard(unittest.TestCase):
         self.assertIsNone(F.build_ml([row("SomeNewBook", 1.30, 2.30)]))                         # 1.204
         self.assertIsNone(F.build_pl([row("SomeNewBook", 1.60, 1.70, "-1.5"), row("SomeNewBook", 1.55, 1.75, "+1.5")]))
 
+    def test_a_consensus_pair_below_one_is_dropped_whatever_the_source(self):
+        """A single two-way market always sums to >= 1.0; a consensus under 1.0 means the sides came from different markets (the 11-15 median: 1.435 / 6.05 = 0.862)."""
+        mixed = [row("Fanatics", 1.76, 2.10), row("SomeNewVenue", 1.11, 10.0)]          # a venue nobody listed: only the overround window can catch it
+        self.assertLess(overround(1.435, 6.05), F.CONSENSUS_MIN_OVERROUND)
+        self.assertIsNone(F.build_ml(mixed))
+        self.assertEqual(F.build_ou([row("Fanatics", 1.76, 2.10, "5.5"), row("SomeNewVenue", 1.11, 10.0, "5.5")]), [])
+        self.assertIsNone(F.build_pl([row("Fanatics", 2.8, 1.44, "-1.5"), row("SomeNewVenue", 1.2, 6.0, "-1.5")]))
+
     def test_normal_markets_and_lopsided_rungs_are_kept(self):
         self.assertEqual(len(F.build_ou([row("Fanduel", 1.91, 1.91, "5.5"), row("Fanduel", 1.01, 16.0, "2.5"), row("Fanduel", 9.5, 1.04, "10.5")])), 3)
         self.assertEqual(F.build_ml([row("Fanduel", 1.495, 2.65)])["home"], 1.495)
@@ -67,6 +95,7 @@ class ConsensusGuard(unittest.TestCase):
     def test_the_ceiling_matches_the_nightly_check(self):
         import daily_health_check as H
         self.assertEqual(F.CONSENSUS_MAX_OVERROUND, H.ODDS_OVERROUND_OK[1])
+        self.assertEqual(F.CONSENSUS_MIN_OVERROUND, H.ODDS_OVERROUND_OK[0])
 
 
 class CarryOver(unittest.TestCase):

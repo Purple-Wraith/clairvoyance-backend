@@ -125,21 +125,31 @@ def parse_price(txt) -> tuple[float | None, str | None]:
 # contract ASKS, so a pair sums to 1.20-1.24 instead of a book's ~1.05-1.10 -- the nightly odds-sanity check alerted on 5 such pairs).  Their rows are ignored everywhere; a fixture only they have priced stays
 # unpriced (callers fall back to the model price) until real sportsbooks post.
 NON_SPORTSBOOKS = frozenset({"kalshi", "polymarket", "novig", "prophetx", "prophet exchange", "sx bet", "sporttrade"})
-# The most a CONSENSUS two-way pair may overround; the same ceiling the nightly check alerts on (daily_health_check.ODDS_OVERROUND_OK).  A pair above it is dropped, whatever its source.
+# The window a CONSENSUS two-way pair must sit in; the same bounds the nightly check alerts on (daily_health_check.ODDS_OVERROUND_OK).  A pair outside it is dropped, whatever its source.
+# Above the ceiling = a book/venue nobody listed pricing wide.  Below the floor (2026-11-15) = impossible for one real two-way market, so the sides came from DIFFERENT markets: a median across a
+# sportsbook and a thin venue (Fanatics 1.76/2.10 + Polymarket 1.11/10.0 -> 1.435/6.05, overround 0.862) -- the pair was written and one pick was locked at -909.
 CONSENSUS_MAX_OVERROUND = 1.15
+CONSENSUS_MIN_OVERROUND = 1.0
+# Flashscore appends a region suffix to US listings ("BetMGM.us", "bet365.us", "Polymarket.usa"); the venue list above is bare names, so the suffix is dropped before the lookup (2026-11-15: "Polymarket.usa"
+# slipped past an exact match and was averaged in as if it were a sportsbook).
+_VENUE_SUFFIX_RE = re.compile(r"\.(?:usa|us|com|net|co|ca|uk)$")
+
+
+def _venue_key(name) -> str:
+    return _VENUE_SUFFIX_RE.sub("", str(name or "").strip().lower())
 
 
 def _is_non_sportsbook(row) -> bool:
-    return str((row or {}).get("book") or "").strip().lower() in NON_SPORTSBOOKS
+    return _venue_key((row or {}).get("book")) in NON_SPORTSBOOKS
 
 
 def _only_non_sportsbooks(odds: dict) -> bool:
     bk = (odds or {}).get("bk") or []
-    return bool(bk) and all(str(b).strip().lower() in NON_SPORTSBOOKS for b in bk)
+    return bool(bk) and all(_venue_key(b) in NON_SPORTSBOOKS for b in bk)
 
 
 def _consensus_ok(c: dict) -> bool:
-    return (1 / c["a"] + 1 / c["b"]) <= CONSENSUS_MAX_OVERROUND
+    return CONSENSUS_MIN_OVERROUND <= (1 / c["a"] + 1 / c["b"]) <= CONSENSUS_MAX_OVERROUND
 
 
 def _pair_ok(a: float, b: float) -> bool:
