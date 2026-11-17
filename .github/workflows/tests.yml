@@ -42,7 +42,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -q requests beautifulsoup4 lxml playwright
+          pip install -q requests beautifulsoup4 lxml playwright pillow
           for i in 1 2 3; do playwright install --with-deps chromium && break; echo "Playwright install attempt $i failed -- retrying in 20s..."; sleep 20; done
 
       - name: Run tests
