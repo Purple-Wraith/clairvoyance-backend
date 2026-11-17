@@ -116,6 +116,39 @@ class FixedOutcome(Base):
         self.assertEqual((before[0]["outcome"], before[0]["bet_on"]), ("win", "OVER 43.5"))
 
 
+class CorrectedPrice(Base):
+    """DAL ML 2026-11-15 was locked at -909 / 85.6% off a Polymarket price; the row is corrected on Supabase and an old local copy is healed on load (price fields only -- the win stays a win)."""
+    __test__ = True
+    ID = "2026-11-15_DAL_FLA_NHL_DALML"
+
+    def test_old_local_copy_is_healed_and_nothing_else_is_touched(self):
+        pg = self.page()
+        old = dict(id=self.ID, date="2026-11-15", sport="NHL", hA="DAL", awA="FLA", betType="ML", betOn="DAL ML", ml="-909", decOdds=1.11, winProb=0.8562824613868405, marketProb=0.9001, outcome="win", wager=0)
+        other = dict(id="some_other_pick", date="2026-11-15", sport="NHL", betType="ML", betOn="X ML", ml="-150", decOdds=1.67, winProb=0.62, outcome="loss", wager=0)
+        out = pg.evaluate("([a,b])=>{localStorage.setItem('preds',JSON.stringify([a,b]));getP();return JSON.parse(localStorage.getItem('preds'))}", [old, other])
+        fixed, untouched = out[0], out[1]
+        self.assertEqual((fixed["ml"], fixed["decOdds"], fixed["outcome"]), ("-133", 1.75, "win"))
+        self.assertAlmostEqual(fixed["winProb"], 0.5678, places=3)
+        self.assertAlmostEqual(fixed["marketProb"], 0.5455, places=4)
+        self.assertIn("-909", fixed["priceCorrected"]["from"]["ml"])
+        self.assertNotIn("-909", fixed["reasoning"].split("CORRECTED 2026-11-17")[0])
+        self.assertEqual((untouched["ml"], untouched["decOdds"], untouched["outcome"]), ("-150", 1.67, "loss"))
+        pg.close()
+
+    def test_a_copy_already_corrected_is_left_alone(self):
+        pg = self.page()
+        done = dict(id=self.ID, date="2026-11-15", sport="NHL", betType="ML", betOn="DAL ML", ml="-133", decOdds=1.75, winProb=0.5678, outcome="win", wager=0, custom="kept")
+        out = pg.evaluate("([a])=>{localStorage.setItem('preds',JSON.stringify([a]));getP();return JSON.parse(localStorage.getItem('preds'))[0]}", [done])
+        self.assertEqual(out.get("custom"), "kept")
+        self.assertNotIn("priceCorrected", out)
+        pg.close()
+
+    def test_the_original_row_is_backed_up(self):
+        before = json.loads((ROOT / "data" / "purged" / "dal_ml_price_fix_20261117_before.json").read_text())
+        self.assertEqual(before[0]["id"], self.ID)
+        self.assertEqual((before[0]["ml"], before[0]["dec_odds"], before[0]["outcome"]), ("-909", 1.11, "win"))
+
+
 def pg_ids(case):
     pg = case.page()
     ids = sorted(pg.evaluate("[..._CV_RETAG_WNBA]"))
