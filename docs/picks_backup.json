@@ -155933,10 +155933,10 @@
     "ml": "-254",
     "decOdds": 1.393,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "loss",
     "lockedAt": 1794837209583,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 20,
+    "aScore": 23,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: BAL +1.5 \u2014 ADJUSTED LINE (67.3% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted BAL -4.5 to BAL +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.4%; the 6-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nMODEL: Projected margin -5.3 (BAL), total 39.2, from an exact normal distribution (not a simulation).",
@@ -155955,7 +155955,8 @@
     "blendAlpha": 0.85,
     "startMs": 1794878100000,
     "leadMin": 682,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794889884055
   },
   {
     "id": "2026-11-16_BAL_LAC_NFL_OVER32.5",
@@ -155970,10 +155971,10 @@
     "ml": "-261",
     "decOdds": 1.384,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1794837209809,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 20,
+    "aScore": 23,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: OVER 32.5 \u2014 ADJUSTED LINE (67.8% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted OVER 38.5 to OVER 32.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.1%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected margin -5.3 (BAL), total 39.2, from an exact normal distribution (not a simulation).",
@@ -155992,7 +155993,8 @@
     "blendAlpha": 0.95,
     "startMs": 1794878100000,
     "leadMin": 682,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794889884056
   },
   {
     "id": "2026-11-16_BKN_PHI_NBA_PHI+0.5",
@@ -156299,10 +156301,10 @@
     "ml": "-251",
     "decOdds": 1.399,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1794837217954,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 105,
+    "aScore": 117,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: OVER 220.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted OVER 228.5 to OVER 220.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 56.0%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
@@ -156320,7 +156322,8 @@
     },
     "startMs": 1794880800000,
     "leadMin": 726,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794889883666
   },
   {
     "id": "2026-11-16_DEN_PHX_NBA_PHX+15.5",
@@ -156335,10 +156338,10 @@
     "ml": "-266",
     "decOdds": 1.376,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1794837217756,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 105,
+    "aScore": 117,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: PHX +15.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted PHX +9.5 to PHX +15.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 59.1%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected 112.5\u2013118.8 (total 231.3), from an exact normal distribution (not a simulation).",
@@ -156354,7 +156357,8 @@
     },
     "startMs": 1794880800000,
     "leadMin": 726,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1794889883667
   },
   {
     "id": "2026-11-16_MIA_HOU_NBA_MIA+8.5",
@@ -168947,7 +168951,7 @@
     "conf": 0.68,
     "ml": "-246",
     "lockedAt": 1794837218703,
-    "outcome": "pending",
+    "outcome": "win",
     "date": "2026-11-16",
     "sport": "NBA",
     "league": "NBA",
@@ -168985,7 +168989,10 @@
         "AST": 6.6
       }
     },
-    "reasoning": "PICK: Devin Booker OVER AST 5.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 6.31 AST (season average 6, last-5 form 6.6, opponent adjustment +0.3) vs the 5.5 line, spread \u03c3 2.59, from an exact normal distribution (not a simulation).\nWHY: Devin Booker averages 6.0 apg across 64 games this season. Opp DEN DRtg 117.3 vs a 115.7 league average computed from every currently-loaded team, a 1% boost folded into the projection. Game pace 98.1 (+1.2%), PHX offense 115.6 vs a 115.7 league average. No head-to-head history vs DEN this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
+    "reasoning": "PICK: Devin Booker OVER AST 5.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 6.31 AST (season average 6, last-5 form 6.6, opponent adjustment +0.3) vs the 5.5 line, spread \u03c3 2.59, from an exact normal distribution (not a simulation).\nWHY: Devin Booker averages 6.0 apg across 64 games this season. Opp DEN DRtg 117.3 vs a 115.7 league average computed from every currently-loaded team, a 1% boost folded into the projection. Game pace 98.1 (+1.2%), PHX offense 115.6 vs a 115.7 league average. No head-to-head history vs DEN this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+    "settledAt": 1794889885215,
+    "playerResult": 8,
+    "playerMin": 37
   },
   {
     "id": "prop_2026-11-16_NBA_LeBronJames_AST_6.5_O",
