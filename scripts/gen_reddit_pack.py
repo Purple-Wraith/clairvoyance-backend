@@ -48,7 +48,7 @@ Win % = wins ÷ all graded picks (a third record number is pushes), the landing 
 
 ## A. Paid ad creative (3 variants)
 
-Assets: `ClairvoyanceRedditAd` (.png/.mp4, + `_void`) = {mn} + all-time hero. `ClairvoyanceLeagueScorecard` (.png/.mp4, + `_void`) = full league table.
+Assets: `ClairvoyanceRedditAd` (.png/.mp4, + `_void`, + `_carbon` = the app's carbon weave) = {mn} + all-time hero. `ClairvoyanceLeagueScorecard` (.png/.mp4, + `_void`, + `_carbon`) = full league table.
 
 | # | Asset | Headline | Body | CTA |
 |---|---|---|---|---|

@@ -177,6 +177,43 @@ def make_background_covers(w=W, h=H):
     vg = vg.filter(ImageFilter.GaussianBlur(30))
     return Image.alpha_composite(base, vg)
 
+# 4.4 px cells on a 20 px repeat, the same twill weave the app paints behind every page (docs/app.html `body`): lighter cells #1E1E1E, darker #161616, 0.6 px gaps showing the #121212 base.
+CARBON_BASE = (18, 18, 18)
+CARBON_LIGHT = (30, 30, 30)
+CARBON_DARK = (22, 22, 22)
+CARBON_CELL = 4.4
+CARBON_TILE = 20
+CARBON_LIGHT_CELLS = ((0, 0), (5, 0), (0, 5), (15, 5), (10, 10), (15, 10), (5, 15), (10, 15))
+CARBON_DARK_CELLS = ((10, 0), (15, 0), (5, 5), (10, 5), (0, 10), (5, 10), (0, 15), (15, 15))
+# the page's two soft glows: white top-left (r 620, .11) and grey bottom-right (r 560, .07), alpha falling linearly to 0 at the radius
+CARBON_GLOWS = (((0.16, 0.04), 620, (255, 255, 255), 0.11), ((0.86, 0.94), 560, (166, 166, 166), 0.07))
+
+def _carbon_tile():
+    k = 8                                   # draw big, shrink: the 4.4 px cells land on fractions of a pixel
+    big = Image.new('RGBA', (CARBON_TILE * k, CARBON_TILE * k), (0, 0, 0, 0))
+    d = ImageDraw.Draw(big)
+    for cells, col in ((CARBON_LIGHT_CELLS, CARBON_LIGHT), (CARBON_DARK_CELLS, CARBON_DARK)):
+        for x, y in cells:
+            d.rectangle([x * k, y * k, (x + CARBON_CELL) * k - 1, (y + CARBON_CELL) * k - 1], fill=(*col, 255))
+    return big.resize((CARBON_TILE, CARBON_TILE), Image.LANCZOS)
+
+def make_background_carbon(w=W, h=H):
+    """The app's carbon twill weave (docs/app.html body background) -- the third design_system background, used by the Reddit/pinned/subscription cards since 2026-11-17."""
+    base = Image.new('RGBA', (w, h), (*CARBON_BASE, 255))
+    tile = _carbon_tile()
+    for ty in range(0, h, CARBON_TILE):
+        for tx in range(0, w, CARBON_TILE):
+            base.alpha_composite(tile, (tx, ty))
+    for (fx, fy), radius, rgb, alpha in CARBON_GLOWS:
+        m = Image.radial_gradient('L').resize((radius * 2, radius * 2), Image.BILINEAR)         # 0 at the centre, 255 only at the square's CORNERS (about 180 at the inscribed circle's edge)
+        m = m.point(lambda v: int(round(alpha * 255 * max(0.0, 1 - v / 180.3))))                  # linear fall to 0 at the radius, like CSS `radial-gradient(circle Rpx, rgba(..), transparent)`
+        halo = Image.new('RGBA', (radius * 2, radius * 2), (*rgb, 0))
+        halo.putalpha(m)                                    # straight alpha: colour stays full strength, only the opacity falls off
+        glow_layer = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+        glow_layer.paste(halo, (int(w * fx) - radius, int(h * fy) - radius))      # plain paste copies all four channels (a masked paste would blend the colour toward black)
+        base = Image.alpha_composite(base, glow_layer)
+    return base
+
 # ── Footer bar ───────────────────────────────────────────────────
 FBAR_H = 70
 

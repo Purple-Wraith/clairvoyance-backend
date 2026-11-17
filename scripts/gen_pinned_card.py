@@ -27,7 +27,7 @@ from PIL.PngImagePlugin import PngInfo
 
 import ad_coverage as ac
 from design_system import (
-    W, H, CX, MAG, CYN, WHT, orb, mono, glow, make_background, make_background_covers, draw_footer, hline,
+    W, H, CX, MAG, CYN, WHT, orb, mono, glow, make_background, make_background_covers, make_background_carbon, draw_footer, hline,
     TITLE_GLOW, SUB_GLOW, HDR_GLOW,
 )
 
@@ -98,6 +98,7 @@ CARDS = (
     (make_background, COVERS_CARD, "covers_card.png"),
     (make_background, None, "CorrectPinnedCard2.0.png"),
     (make_background_covers, None, "CorrectPinnedCard6.0.png"),
+    (make_background_carbon, None, "CorrectPinnedCard_carbon.png"),
 )
 
 

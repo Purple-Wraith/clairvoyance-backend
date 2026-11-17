@@ -4,11 +4,12 @@ ad_perf.py (the same files the PNG cards and the landing page use) and league ro
 quote a different record from its card.  Replaces the two hand-edited HTML templates that used to live on the Tron Disc
 (they still said "71.7% WIN RATE", Bundesliga and MLS).
 
-Both videos render on both design_system backgrounds (covers = crosshatch, void = black/teal diamond), matching the PNGs.
+Both videos render on all three design_system backgrounds (covers = crosshatch, void = black/teal diamond, carbon = the app's twill weave), matching the PNGs.
 
 Outputs (in --out-dir):
   ClairvoyanceRedditAd.mp4            (covers bg)     ClairvoyanceRedditAd_void.mp4
   ClairvoyanceLeagueScorecard.mp4     (covers bg)     ClairvoyanceLeagueScorecard_void.mp4
+  ClairvoyanceRedditAd_carbon.mp4     ClairvoyanceLeagueScorecard_carbon.mp4    (carbon weave bg)
 Needs: pip install playwright imageio_ffmpeg && playwright install chromium (and network for the Google Fonts link).
 Usage:  python3 scripts/gen_reddit_ad_videos.py --out-dir ~/Desktop/<folder>   [--html-only to just write the .html files]
 """
@@ -54,6 +55,18 @@ BG_VOID = """
       var vg=ctx.createRadialGradient(cx,cy,minWH*.28,cx,cy,minWH*.75);
       vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.6)');
       ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+"""
+BG_CARBON = """
+      var TILE=20,K=8,tc=document.createElement('canvas');tc.width=TILE*K;tc.height=TILE*K;var tx=tc.getContext('2d');
+      function cells(list,col){tx.fillStyle=col;list.forEach(function(p){tx.fillRect(p[0]*K,p[1]*K,4.4*K,4.4*K);});}
+      cells([[0,0],[5,0],[0,5],[15,5],[10,10],[15,10],[5,15],[10,15]],'#1E1E1E');
+      cells([[10,0],[15,0],[5,5],[10,5],[0,10],[5,10],[0,15],[15,15]],'#161616');
+      ctx.fillStyle='#121212';ctx.fillRect(0,0,W,H);
+      ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+      for(var y=0;y<H;y+=TILE){for(var x=0;x<W;x+=TILE){ctx.drawImage(tc,x,y,TILE,TILE);}}
+      function soft(fx,fy,r,rgb,a){var g=ctx.createRadialGradient(W*fx,H*fy,0,W*fx,H*fy,r);
+        g.addColorStop(0,'rgba('+rgb+','+a+')');g.addColorStop(1,'rgba('+rgb+',0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
+      soft(.16,.04,620,'255,255,255',.11);soft(.86,.94,560,'166,166,166',.07);
 """
 
 CSS = """
@@ -223,6 +236,8 @@ def build_pages(data: dict) -> dict[str, str]:
         "ClairvoyanceRedditAd_void": _page(BG_VOID, ad_body(data)),
         "ClairvoyanceLeagueScorecard": _page(BG_COVERS, scorecard_body(data)),
         "ClairvoyanceLeagueScorecard_void": _page(BG_VOID, scorecard_body(data)),
+        "ClairvoyanceRedditAd_carbon": _page(BG_CARBON, ad_body(data)),
+        "ClairvoyanceLeagueScorecard_carbon": _page(BG_CARBON, scorecard_body(data)),
     }
 
 
@@ -247,6 +262,42 @@ def record(html_path: Path, out_path: Path, duration_s: float = DURATION_S) -> P
     return out_path
 
 
+def record_frames(html_path: Path, out_path: Path, duration_s: float = DURATION_S, fps: int = 25) -> Path:
+    """Frame-stepped render for machines without Playwright's bundled Chromium (it records the page itself, which needs that browser).  Uses the installed Google Chrome, pauses every CSS
+    animation and seeks it to each frame's time, screenshots, and encodes the frames.  Exact timing, no dropped frames.  (Chrome's own screencast is NOT used: on a screen shorter than the page
+    it fills the bottom of every frame with grey -- the footer was cut off in the first attempt on 2026-11-17.)  Every animation on these pages is CSS; there are no script timers."""
+    from playwright.sync_api import sync_playwright
+    import imageio_ffmpeg
+
+    secs = max(1.0, duration_s - RECORD_LEAD_S)         # the lead is wall-clock slack the screencast needed; animation time starts at 0 here
+    n = int(secs * fps)
+    with tempfile.TemporaryDirectory() as tmp:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            page = browser.new_context(viewport={"width": W, "height": H}).new_page()
+            page.goto(f"file://{html_path}")
+            page.evaluate("document.fonts.ready")
+            page.wait_for_timeout(1200)                  # web fonts + the canvas background
+            page.evaluate("document.getAnimations().forEach(a => a.pause())")
+            for i in range(n):
+                page.evaluate("t => document.getAnimations().forEach(a => { a.currentTime = t; })", i * 1000.0 / fps)
+                page.screenshot(path=f"{tmp}/f{i:05d}.png")
+            browser.close()
+        subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-framerate", str(fps), "-i", f"{tmp}/f%05d.png", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out_path)],
+                       check=True, capture_output=True)
+    return out_path
+
+
+def _bundled_chromium_ok() -> bool:
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as pw:
+            pw.chromium.launch().close()
+        return True
+    except Exception:
+        return False
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-dir", required=True)
@@ -255,6 +306,7 @@ if __name__ == "__main__":
     out_dir = Path(args.out_dir).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
     data = ad_perf.load()
+    rec = record if _bundled_chromium_ok() or args.html_only else record_frames
     with tempfile.TemporaryDirectory() as tmp:
         for name, page_html in build_pages(data).items():
             hp = (out_dir if args.html_only else Path(tmp)) / f"{name}.html"
@@ -262,4 +314,4 @@ if __name__ == "__main__":
             if args.html_only:
                 print(f"Wrote {hp}")
                 continue
-            print(f"Saved -> {record(hp, out_dir / (name + '.mp4'), scorecard_duration(data) if 'Scorecard' in name else DURATION_S)}")
+            print(f"Saved -> {rec(hp, out_dir / (name + '.mp4'), scorecard_duration(data) if 'Scorecard' in name else DURATION_S)}")

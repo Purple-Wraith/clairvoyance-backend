@@ -12,6 +12,7 @@ Structure: LEAGUES COVERED (3 rows) -> PRICING header + "mix any combination" ca
 Outputs (same content on both design_system backgrounds):
   <out-dir>/Clairvoyance_Subscription_Card_Black.png   void bg
   <out-dir>/Clairvoyance_Subscription_Card_Grey.png    covers bg
+  <out-dir>/Clairvoyance_Subscription_Card_Carbon.png  carbon weave bg (the app's background)
 Usage:  python3 scripts/gen_subscription_card.py --out-dir ~/Desktop
 """
 from __future__ import annotations
@@ -23,7 +24,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 import ad_coverage as ac
 from design_system import (
-    W, H, CX, MAG, CYN, WHT, T2, CARD, orb, mono, glow, make_background, make_background_covers, draw_footer,
+    W, H, CX, MAG, CYN, WHT, T2, CARD, orb, mono, glow, make_background, make_background_covers, make_background_carbon, draw_footer,
     TITLE_GLOW, SUB_GLOW, HDR_GLOW, SOCIAL_GLOW,
 )
 from gen_pinned_card import GOLD, dotted_row
@@ -86,6 +87,7 @@ def build_card(background_fn) -> Image.Image:
 CARDS = (
     (make_background, "Clairvoyance_Subscription_Card_Black.png"),
     (make_background_covers, "Clairvoyance_Subscription_Card_Grey.png"),
+    (make_background_carbon, "Clairvoyance_Subscription_Card_Carbon.png"),
 )
 
 
