@@ -245,8 +245,8 @@ class RenderedAssets(unittest.TestCase):
         import gen_pinned_card as gp
         import gen_reddit_ad_v1 as ad
         import gen_subscription_card as gs
-        from design_system import make_background, make_background_covers
-        for bg in (make_background, make_background_covers):
+        from design_system import make_background_carbon
+        for bg in (make_background_carbon,):
             for mod in (gp, ad, gs):
                 self.assertEqual(mod.build_card(bg).size, (1080, 1080))
 

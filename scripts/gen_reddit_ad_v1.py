@@ -31,7 +31,7 @@ import ad_perf
 from ad_glow import MAG_TITLE_GLOW, MAG_SOCIAL_GLOW, MAG_LABEL_GLOW, MAG_HDR_GLOW
 from design_system import (
     W, H, CX, BG, CARD, MAG, CYN, GOLD, RED, WHT, DIM, T2, T3,
-    orb, mono, glow, make_background, make_background_covers, make_background_carbon, draw_footer, hline,
+    orb, mono, glow, make_background_carbon, draw_footer, hline,
     TITLE_GLOW, SUB_GLOW, HDR_GLOW, SOCIAL_GLOW,
 )
 from PIL import Image, ImageDraw, ImageFilter
@@ -158,19 +158,15 @@ def build_card(background_fn):
 
 
 TRON_ADS = Path('/Volumes/Tron Disc/Clairvoyance/Advertising')
-CARDS = [
-    (make_background_covers, Path.home() / 'Desktop' / 'ClairvoyanceRedditAd.png'),
-    (make_background, TRON_ADS / 'ClairvoyanceRedditAd.png'),
-    (make_background_carbon, Path.home() / 'Desktop' / 'ClairvoyanceRedditAd_carbon.png'),
-]
+CARDS = [(make_background_carbon, Path.home() / 'Desktop' / 'ClairvoyanceRedditAd_carbon.png')]       # carbon only since 2026-11-17
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('--out-dir', help='write ClairvoyanceRedditAd.png (covers bg) + ClairvoyanceRedditAd_void.png (void bg) + ClairvoyanceRedditAd_carbon.png (carbon weave bg) here instead of the defaults')
+    ap.add_argument('--out-dir', help='write ClairvoyanceRedditAd_carbon.png (carbon weave bg) here instead of the defaults')
     args = ap.parse_args()
     for background_fn, out in CARDS:
         if args.out_dir:
-            name = {make_background_covers: 'ClairvoyanceRedditAd.png', make_background: 'ClairvoyanceRedditAd_void.png', make_background_carbon: 'ClairvoyanceRedditAd_carbon.png'}[background_fn]
+            name = 'ClairvoyanceRedditAd_carbon.png'
             out = Path(args.out_dir).expanduser() / name
         elif not out.parent.exists():
             print(f'SKIP {out} (folder not available -- Tron Disc not mounted?)')

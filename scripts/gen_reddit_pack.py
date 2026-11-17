@@ -48,13 +48,13 @@ Win % = wins ÷ all graded picks (a third record number is pushes), the landing 
 
 ## A. Paid ad creative (3 variants)
 
-Assets: `ClairvoyanceRedditAd` (.png/.mp4, + `_void`, + `_carbon` = the app's carbon weave) = {mn} + all-time hero. `ClairvoyanceLeagueScorecard` (.png/.mp4, + `_void`, + `_carbon`) = full league table.
+Assets: `ClairvoyanceRedditAd_carbon` (.png/.mp4) = {mn} + all-time hero. `ClairvoyanceLeagueScorecard_carbon` (.png/.mp4) = full league table.
 
 | # | Asset | Headline | Body | CTA |
 |---|---|---|---|---|
 | 1 | Reddit Ad | {ad_perf.fmt_pct(m)} in {mn}. {ad_perf.fmt_pct(a)} all-time. Every pick published and graded. | {a['w']:,} wins, {a['l']:,} losses, nothing deleted. 12 leagues across football, basketball, hockey and soccer. See the full record. | View track record |
 | 2 | League Scorecard | Every league, every record — including the weak ones. | {top3} this month. {worst_n} {ad_perf.fmt_pct(worst['month'])} — we publish that too. | See the scorecard |
-| 3 | Reddit Ad (void) | A public track record, not a promise. | Mathematical models, graded picks, game lines on 12 leagues. Starting at $20 for 30 days. | Learn more |
+| 3 | Reddit Ad (alt headline) | A public track record, not a promise. | Mathematical models, graded picks, game lines on 12 leagues. Starting at $20 for 30 days. | Learn more |
 
 Destination: clairvoyanceengine.info. Pricing if asked: $20 / $35 / $50 / $65 / $80 for 1–5 sports, 30-day access.
 

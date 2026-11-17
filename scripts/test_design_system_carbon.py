@@ -87,5 +87,27 @@ class EverywhereCarbon(unittest.TestCase):
             self.assertNotIn("ctx.fillStyle='#222233'", src, f.name)
 
 
+class CarbonOnlyOutputs(unittest.TestCase):
+    """Owner 2026-11-17: send ONLY the carbon-background versions -- every ad/card generator renders carbon and nothing else, and the committed rotation card is carbon."""
+    def test_every_card_generator_outputs_only_carbon(self):
+        import gen_league_scorecard as sc, gen_pinned_card as pc, gen_reddit_ad_v1 as ad, gen_subscription_card as sub
+        for mod in (sc, pc, ad, sub):
+            fns = {c[0] for c in mod.CARDS}
+            self.assertEqual(fns, {D.make_background_carbon}, mod.__name__)
+
+    def test_ad_videos_are_carbon_only(self):
+        import ad_perf
+        import gen_reddit_ad_videos as v
+        pages = v.build_pages(ad_perf.load())
+        self.assertEqual(sorted(pages), ["ClairvoyanceLeagueScorecard_carbon", "ClairvoyanceRedditAd_carbon"])
+
+    def test_committed_rotation_card_is_carbon(self):
+        from PIL import Image
+        im = Image.open(HERE / "assets" / "covers_card.png").convert("RGB")
+        r, g, b = im.getpixel((10, 540))
+        self.assertLess(max(r, g, b), 45)
+        self.assertLessEqual(abs(r - b), 6)                              # the old covers background was blue-grey (34,34,51) with a teal mesh
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

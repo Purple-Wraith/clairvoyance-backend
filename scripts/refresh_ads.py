@@ -1,6 +1,6 @@
 """
 refresh_ads.py -- one command to rebuild the whole Reddit asset set from the current published numbers:
-league scorecard + Reddit ad (PNG, both backgrounds), their four glitch-reveal MP4s, and Reddit_Marketing_Pack.md.
+league scorecard + Reddit ad (PNG, carbon background only), their two glitch-reveal MP4s, and Reddit_Marketing_Pack.md.
 Run `git pull` first so docs/sport_performance.json and docs/engine_performance_subscriber.json are today's.
 Usage:  python3 scripts/refresh_ads.py --out-dir ~/Desktop/<folder>
 """

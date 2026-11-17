@@ -131,8 +131,8 @@ class Render(unittest.TestCase):
     def test_both_cards_render_on_both_backgrounds(self):
         import gen_league_scorecard as sc
         import gen_reddit_ad_v1 as ad
-        from design_system import make_background, make_background_covers
-        for bg in (make_background, make_background_covers):
+        from design_system import make_background_carbon
+        for bg in (make_background_carbon,):
             for mod in (sc, ad):
                 img = mod.build_card(bg)
                 self.assertEqual(img.size, (1080, 1080))

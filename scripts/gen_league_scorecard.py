@@ -6,9 +6,7 @@ sport and league the paid products cover.  Built for Reddit (concrete numbers be
 All numbers come from ad_perf.py (the same files the landing page's Live Track Record reads); league names and coverage from
 ad_coverage.py.  Records + win % only -- no units.  Same brand system as the other cards (design_system.py).
 
-Outputs (same content on all three design_system backgrounds):
-  <out-dir>/ClairvoyanceLeagueScorecard.png         covers bg
-  <out-dir>/ClairvoyanceLeagueScorecard_void.png    void bg
+Outputs (carbon background only):
   <out-dir>/ClairvoyanceLeagueScorecard_carbon.png  carbon weave bg (the app's background)
 Usage:  python3 scripts/gen_league_scorecard.py --out-dir ~/Desktop
 """
@@ -22,7 +20,7 @@ from PIL import Image, ImageDraw
 import ad_perf
 from ad_glow import MAG_TITLE_GLOW, MAG_LABEL_GLOW
 from design_system import (
-    W, H, CX, MAG, CYN, GOLD, WHT, DIM, orb, mono, glow, make_background, make_background_covers, make_background_carbon, draw_footer, hline,
+    W, H, CX, MAG, CYN, GOLD, WHT, DIM, orb, mono, glow, make_background_carbon, draw_footer, hline,
     TITLE_GLOW, SUB_GLOW, SOCIAL_GLOW,
 )
 
@@ -90,7 +88,7 @@ def build_card(background_fn, data: dict | None = None):
     return base
 
 
-CARDS = [(make_background_covers, "ClairvoyanceLeagueScorecard.png"), (make_background, "ClairvoyanceLeagueScorecard_void.png"), (make_background_carbon, "ClairvoyanceLeagueScorecard_carbon.png")]
+CARDS = [(make_background_carbon, "ClairvoyanceLeagueScorecard_carbon.png")]       # carbon only since 2026-11-17 (owner: send only the carbon-background versions)
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()

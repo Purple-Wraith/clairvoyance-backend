@@ -4,12 +4,10 @@ ad_perf.py (the same files the PNG cards and the landing page use) and league ro
 quote a different record from its card.  Replaces the two hand-edited HTML templates that used to live on the Tron Disc
 (they still said "71.7% WIN RATE", Bundesliga and MLS).
 
-Both videos render on all three design_system backgrounds (covers = crosshatch, void = black/teal diamond, carbon = the app's twill weave), matching the PNGs.
+Both videos render on the carbon weave background only (the app's twill; owner 2026-11-17), matching the PNGs.
 
 Outputs (in --out-dir):
-  ClairvoyanceRedditAd.mp4            (covers bg)     ClairvoyanceRedditAd_void.mp4
-  ClairvoyanceLeagueScorecard.mp4     (covers bg)     ClairvoyanceLeagueScorecard_void.mp4
-  ClairvoyanceRedditAd_carbon.mp4     ClairvoyanceLeagueScorecard_carbon.mp4    (carbon weave bg)
+  ClairvoyanceRedditAd_carbon.mp4     ClairvoyanceLeagueScorecard_carbon.mp4
 Needs: pip install playwright imageio_ffmpeg && playwright install chromium (and network for the Google Fonts link).
 Usage:  python3 scripts/gen_reddit_ad_videos.py --out-dir ~/Desktop/<folder>   [--html-only to just write the .html files]
 """
@@ -29,33 +27,6 @@ DURATION_S = 9.0
 SCORECARD_HOLD_S = 5.0   # fully-loaded scorecard stays on screen this long before the video ends
 RECORD_LEAD_S = 0.7      # measured: recording starts ~0.7 s before the page animations do
 
-BG_COVERS = """
-      ctx.fillStyle='#222233';ctx.fillRect(0,0,W,H);
-      var DS=Math.max(8,Math.round(W/64));
-      ctx.save();ctx.strokeStyle='rgba(78,166,176,.5)';ctx.lineWidth=1;
-      for(var i=-H;i<=W+H;i+=DS){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();}
-      for(var i=-H;i<=W+H;i+=DS){ctx.beginPath();ctx.moveTo(i,H);ctx.lineTo(i+H,0);ctx.stroke();}
-      ctx.restore();
-      var vg=ctx.createRadialGradient(cx,cy,W*.30,cx,cy,W*.72);
-      vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.22)');
-      ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
-"""
-BG_VOID = """
-      var minWH=Math.min(W,H);
-      ctx.fillStyle='#080a0b';ctx.fillRect(0,0,W,H);
-      var DS=30;
-      ctx.save();ctx.strokeStyle='rgba(20,90,90,.6)';ctx.lineWidth=1;
-      for(var i=-H;i<=W+H;i+=DS){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();}
-      for(var i=-H;i<=W+H;i+=DS){ctx.beginPath();ctx.moveTo(i,H);ctx.lineTo(i+H,0);ctx.stroke();}
-      ctx.restore();
-      var glowR=minWH*0.52;
-      var gl=ctx.createRadialGradient(cx,H*0.4,0,cx,H*0.4,glowR);
-      gl.addColorStop(0,'rgba(0,180,180,.10)');gl.addColorStop(1,'rgba(0,180,180,0)');
-      ctx.fillStyle=gl;ctx.fillRect(0,0,W,H);
-      var vg=ctx.createRadialGradient(cx,cy,minWH*.28,cx,cy,minWH*.75);
-      vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.6)');
-      ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
-"""
 BG_CARBON = """
       var TILE=20,K=8,tc=document.createElement('canvas');tc.width=TILE*K;tc.height=TILE*K;var tx=tc.getContext('2d');
       function cells(list,col){tx.fillStyle=col;list.forEach(function(p){tx.fillRect(p[0]*K,p[1]*K,4.4*K,4.4*K);});}
@@ -237,10 +208,6 @@ def scorecard_body(data: dict) -> str:
 
 def build_pages(data: dict) -> dict[str, str]:
     return {
-        "ClairvoyanceRedditAd": _page(BG_COVERS, ad_body(data)),
-        "ClairvoyanceRedditAd_void": _page(BG_VOID, ad_body(data)),
-        "ClairvoyanceLeagueScorecard": _page(BG_COVERS, scorecard_body(data)),
-        "ClairvoyanceLeagueScorecard_void": _page(BG_VOID, scorecard_body(data)),
         "ClairvoyanceRedditAd_carbon": _page(BG_CARBON, ad_body(data), True),
         "ClairvoyanceLeagueScorecard_carbon": _page(BG_CARBON, scorecard_body(data), True),
     }

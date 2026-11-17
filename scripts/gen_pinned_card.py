@@ -8,14 +8,13 @@ string comes from ad_coverage.py, the single source of truth that scripts/test_a
 pins to the real engine (auto_lock_settle.PRODUCT_SPORTS, _subscribers.PRICING_BY_COUNT).
 
 Outputs (CARDS below; each renders the SAME content on one of the two design_system backgrounds):
-  scripts/assets/covers_card.png      void-black bg  -- the "What We Cover" rotation card that
+  scripts/assets/covers_card.png      carbon bg  -- the "What We Cover" rotation card that
                                       generate_social_cards.py attaches every 5th day.
-  <out-dir>/CorrectPinnedCard2.0.png  void-black bg  (profile-pin copy)
-  <out-dir>/CorrectPinnedCard6.0.png  covers_card bg (profile-pin copy)
+  <out-dir>/CorrectPinnedCard_carbon.png  carbon weave bg (profile-pin copy)
 
 Usage:
   python3 scripts/gen_pinned_card.py                      # covers_card.png in the repo only
-  python3 scripts/gen_pinned_card.py --out-dir ~/Desktop  # + CorrectPinnedCard2.0 / 6.0
+  python3 scripts/gen_pinned_card.py --out-dir ~/Desktop  # + CorrectPinnedCard_carbon
 """
 from __future__ import annotations
 
@@ -27,7 +26,7 @@ from PIL.PngImagePlugin import PngInfo
 
 import ad_coverage as ac
 from design_system import (
-    W, H, CX, MAG, CYN, WHT, orb, mono, glow, make_background, make_background_covers, make_background_carbon, draw_footer, hline,
+    W, H, CX, MAG, CYN, WHT, orb, mono, glow, make_background_carbon, draw_footer, hline,
     TITLE_GLOW, SUB_GLOW, HDR_GLOW,
 )
 
@@ -96,15 +95,13 @@ def build_card(background_fn, body_lines=ac.BODY_LINES, league_rows=ac.LEAGUE_RO
 
 CARDS = (
     (make_background_carbon, COVERS_CARD, "covers_card.png"),                  # the daily-rotation "What We Cover" card: carbon since 2026-11-17 (was void-black)
-    (make_background, None, "CorrectPinnedCard2.0.png"),
-    (make_background_covers, None, "CorrectPinnedCard6.0.png"),
     (make_background_carbon, None, "CorrectPinnedCard_carbon.png"),
 )
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out-dir", help="also write CorrectPinnedCard2.0.png / 6.0.png here")
+    ap.add_argument("--out-dir", help="also write CorrectPinnedCard_carbon.png here")
     args = ap.parse_args()
     for background_fn, fixed, name in CARDS:
         if fixed is None:
