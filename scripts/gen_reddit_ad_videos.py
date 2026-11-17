@@ -117,13 +117,18 @@ CSS = """
 """
 
 
-def _page(bg_js: str, body: str) -> str:
+# The Film Archive's "darker carbon with white edge" panel (film-archive globals.css `.side-menu`) as the footer bar of the carbon-background videos.
+FBAR_CARBON = (".fbar { background: linear-gradient(160deg, rgb(255 255 255 / .08), transparent 40%), "
+               "linear-gradient(rgb(0 0 0 / .35), rgb(0 0 0 / .35)), __WEAVE__, #101010; }").replace("__WEAVE__", 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'20\' height=\'20\'%3E%3Cg fill=\'%231E1E1E\'%3E%3Crect x=\'0\' y=\'0\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'5\' y=\'0\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'0\' y=\'5\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'15\' y=\'5\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'10\' y=\'10\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'15\' y=\'10\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'5\' y=\'15\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'10\' y=\'15\' width=\'4.4\' height=\'4.4\'/%3E%3C/g%3E%3Cg fill=\'%23161616\'%3E%3Crect x=\'10\' y=\'0\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'15\' y=\'0\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'5\' y=\'5\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'10\' y=\'5\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'0\' y=\'10\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'5\' y=\'10\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'0\' y=\'15\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'15\' y=\'15\' width=\'4.4\' height=\'4.4\'/%3E%3C/g%3E%3C/svg%3E")')
+
+
+def _page(bg_js: str, body: str, carbon_footer: bool = False) -> str:
     return f"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
-<style>{CSS}</style>
+<style>{CSS}{FBAR_CARBON if carbon_footer else ''}</style>
 </head>
 <body>
   <canvas id="bgCanvas" width="1080" height="1080" style="position:absolute;top:0;left:0;z-index:-1"></canvas>
@@ -236,8 +241,8 @@ def build_pages(data: dict) -> dict[str, str]:
         "ClairvoyanceRedditAd_void": _page(BG_VOID, ad_body(data)),
         "ClairvoyanceLeagueScorecard": _page(BG_COVERS, scorecard_body(data)),
         "ClairvoyanceLeagueScorecard_void": _page(BG_VOID, scorecard_body(data)),
-        "ClairvoyanceRedditAd_carbon": _page(BG_CARBON, ad_body(data)),
-        "ClairvoyanceLeagueScorecard_carbon": _page(BG_CARBON, scorecard_body(data)),
+        "ClairvoyanceRedditAd_carbon": _page(BG_CARBON, ad_body(data), True),
+        "ClairvoyanceLeagueScorecard_carbon": _page(BG_CARBON, scorecard_body(data), True),
     }
 
 

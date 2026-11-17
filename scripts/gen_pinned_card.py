@@ -91,11 +91,11 @@ def build_card(background_fn, body_lines=ac.BODY_LINES, league_rows=ac.LEAGUE_RO
             baseline += ROW_STEP
         hy = baseline - ROW_STEP + SEC_GAP
 
-    return draw_footer(base)
+    return draw_footer(base, carbon=background_fn is make_background_carbon)
 
 
 CARDS = (
-    (make_background, COVERS_CARD, "covers_card.png"),
+    (make_background_carbon, COVERS_CARD, "covers_card.png"),                  # the daily-rotation "What We Cover" card: carbon since 2026-11-17 (was void-black)
     (make_background, None, "CorrectPinnedCard2.0.png"),
     (make_background_covers, None, "CorrectPinnedCard6.0.png"),
     (make_background_carbon, None, "CorrectPinnedCard_carbon.png"),

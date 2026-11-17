@@ -81,16 +81,17 @@
       var cv=document.getElementById('bgCanvas');
       var ctx=cv.getContext('2d');
       var W=1080,H=1350,cx=W/2,cy=H/2;
-      ctx.fillStyle='#222233';ctx.fillRect(0,0,W,H);
-      var DS=Math.max(8,Math.round(W/64));
-      ctx.save();
-      ctx.strokeStyle='rgba(78,166,176,.5)';ctx.lineWidth=1;
-      for(var i=-H;i<=W+H;i+=DS){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();}
-      for(var i=-H;i<=W+H;i+=DS){ctx.beginPath();ctx.moveTo(i,H);ctx.lineTo(i+H,0);ctx.stroke();}
-      ctx.restore();
-      var vg=ctx.createRadialGradient(cx,cy,W*.30,cx,cy,W*.72);
-      vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.22)');
-      ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#121212';ctx.fillRect(0,0,W,H);
+      // carbon twill: the app's body background (20px tile of 4.4px graphite cells) + its two soft page glows (2026-11-17)
+      var TILE=20,K=8,tc=document.createElement('canvas');tc.width=TILE*K;tc.height=TILE*K;var tx=tc.getContext('2d');
+      function cells(list,col){tx.fillStyle=col;list.forEach(function(p){tx.fillRect(p[0]*K,p[1]*K,4.4*K,4.4*K);});}
+      cells([[0,0],[5,0],[0,5],[15,5],[10,10],[15,10],[5,15],[10,15]],'#1E1E1E');
+      cells([[10,0],[15,0],[5,5],[10,5],[0,10],[5,10],[0,15],[15,15]],'#161616');
+      ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+      for(var y=0;y<H;y+=TILE){for(var x=0;x<W;x+=TILE){ctx.drawImage(tc,x,y,TILE,TILE);}}
+      function soft(fx,fy,r,rgb,a){var g=ctx.createRadialGradient(W*fx,H*fy,0,W*fx,H*fy,r);
+        g.addColorStop(0,'rgba('+rgb+','+a+')');g.addColorStop(1,'rgba('+rgb+',0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
+      soft(.16,.04,620,'255,255,255',.11);soft(.86,.94,560,'166,166,166',.07);
     })();
   </script>
   <div class="stage">

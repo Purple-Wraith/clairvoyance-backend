@@ -25837,29 +25837,22 @@ function _saveCanvas(cv,filename,label){
   }catch(e){_dl();}
 }
 function _cfBg(ctx,W,H){
-  const cx=W/2,cy=H/2;
-  // ── Background matched pixel-for-pixel to StandardLogo.png ─────────────
-  // Measured from StandardLogo.png: base rgb(34,34,51) = #222233 blue-gray,
-  // fine cyan-teal diamond grid rgb(61,150,159), ~17px cell at 1080px wide,
-  // near-flat (no magenta bloom, only a faint vignette for card depth).
-  ctx.fillStyle='#222233';ctx.fillRect(0,0,W,H);
-  // ── Fine cyan-teal diamond diagonal grid ──────────────────────────────
-  const DS=Math.max(8,Math.round(W/64)); // ~17px at W=1080
-  ctx.save();
-  ctx.strokeStyle='rgba(78,166,176,.5)';ctx.lineWidth=1;
-  // +45° lines: from (i,0)→(i+H,H)
-  for(let i=-H;i<=W+H;i+=DS){
-    ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();
+  // ── Carbon twill background (2026-11-17, owner request): the app's own body background on every exported card ──
+  // 20px tile of 4.4px graphite cells (#1E1E1E / #161616 on #121212) plus the page's two soft glows (white top-left, grey bottom-right).
+  const T=20,K=8;
+  if(!_cfBg._tile){
+    const tc=document.createElement('canvas');tc.width=T*K;tc.height=T*K;const tx=tc.getContext('2d');
+    const cells=(list,col)=>{tx.fillStyle=col;list.forEach(p=>tx.fillRect(p[0]*K,p[1]*K,4.4*K,4.4*K));};
+    cells([[0,0],[5,0],[0,5],[15,5],[10,10],[15,10],[5,15],[10,15]],'#1E1E1E');
+    cells([[10,0],[15,0],[5,5],[10,5],[0,10],[5,10],[0,15],[15,15]],'#161616');
+    _cfBg._tile=tc;
   }
-  // -45° lines: from (i,H)→(i+H,0)
-  for(let i=-H;i<=W+H;i+=DS){
-    ctx.beginPath();ctx.moveTo(i,H);ctx.lineTo(i+H,0);ctx.stroke();
-  }
-  ctx.restore();
-  // ── Faint vignette for card depth (StandardLogo bg is near-flat) ───────
-  const vg=ctx.createRadialGradient(cx,cy,W*.30,cx,cy,W*.72);
-  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.22)');
-  ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#121212';ctx.fillRect(0,0,W,H);
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  for(let y=0;y<H;y+=T){for(let x=0;x<W;x+=T){ctx.drawImage(_cfBg._tile,x,y,T,T);}}
+  const soft=(fx,fy,r,rgb,a)=>{const g=ctx.createRadialGradient(W*fx,H*fy,0,W*fx,H*fy,r);
+    g.addColorStop(0,'rgba('+rgb+','+a+')');g.addColorStop(1,'rgba('+rgb+',0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);};
+  soft(.16,.04,620,'255,255,255',.11);soft(.86,.94,560,'166,166,166',.07);
 }
 function _hudCorners(ctx,W,H){
   const ARM=54,IN=22,LW=2.5,C='rgb(0,215,240)';
@@ -26158,14 +26151,11 @@ function renderTrackRecord(){
   const rC=p=>p===null?'rgba(220,190,255,.4)':p>=.62?'#00f0ff':p>=.50?'#bbff00':'#ff2090';
   const uC=u=>u>=0?'#00f0ff':'#ff2090';
 
-  // CF background CSS for HTML preview
-  // Matches the PNG export _cfBg: base #222233 blue-gray + cyan-teal diamond mesh
-  const cfBg='linear-gradient(135deg,rgba(34,34,51,.25),rgba(34,34,51,.25)),'
-    +'linear-gradient(45deg,rgba(78,166,176,.5) 1px,transparent 1px),'
-    +'linear-gradient(-45deg,rgba(78,166,176,.5) 1px,transparent 1px),'
-    +'linear-gradient(45deg,rgba(78,166,176,.28) 1px,transparent 1px),'
-    +'linear-gradient(-45deg,rgba(78,166,176,.28) 1px,transparent 1px),'
-    +'#222233';
+  // CF background CSS for HTML preview: the same carbon twill as the PNG export _cfBg (2026-11-17), scaled to the ~480px preview (x0.444)
+  const cfBg='radial-gradient(circle 275px at 16% 4%,rgba(255,255,255,.11),transparent),'
+    +'radial-gradient(circle 249px at 86% 94%,rgba(166,166,166,.07),transparent),'
+    +'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'20\' height=\'20\'%3E%3Cg fill=\'%231E1E1E\'%3E%3Crect x=\'0\' y=\'0\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'5\' y=\'0\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'0\' y=\'5\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'15\' y=\'5\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'10\' y=\'10\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'15\' y=\'10\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'5\' y=\'15\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'10\' y=\'15\' width=\'4.4\' height=\'4.4\'/%3E%3C/g%3E%3Cg fill=\'%23161616\'%3E%3Crect x=\'10\' y=\'0\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'15\' y=\'0\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'5\' y=\'5\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'10\' y=\'5\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'0\' y=\'10\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'5\' y=\'10\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'0\' y=\'15\' width=\'4.4\' height=\'4.4\'/%3E%3Crect x=\'15\' y=\'15\' width=\'4.4\' height=\'4.4\'/%3E%3C/g%3E%3C/svg%3E"),'
+    +'#121212';
 
   const periodRows=exportPeriods.map(per=>{
     const p=per.perf;
@@ -26213,7 +26203,7 @@ function renderTrackRecord(){
   </div>
 
   <!-- Combined square card preview -->
-  <div style="aspect-ratio:4/5;background:${cfBg};background-size:100% 100%,30px 30px,30px 30px,30px 30px,30px 30px,100% 100%;background-position:0 0,0 0,0 0,15px 0,15px 0,0 0;border:1px solid rgba(240,0,255,.35);border-radius:4px;overflow:hidden;display:flex;flex-direction:column;padding:16px 18px 14px;box-sizing:border-box;position:relative;margin-bottom:12px;max-width:480px">
+  <div style="aspect-ratio:4/5;background:${cfBg};background-size:100% 100%,100% 100%,9px 9px,100% 100%;background-position:0 0,0 0,0 0,0 0;border:1px solid rgba(240,0,255,.35);border-radius:4px;overflow:hidden;display:flex;flex-direction:column;padding:16px 18px 14px;box-sizing:border-box;position:relative;margin-bottom:12px;max-width:480px">
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(0,180,180,.08) 0%,transparent 65%),radial-gradient(ellipse at 50% 50%,transparent 40%,rgba(0,0,0,.55) 100%);pointer-events:none"></div>
     <!-- Header -->
     <div style="position:relative;text-align:center;margin-bottom:8px">
@@ -26275,7 +26265,7 @@ function renderTrackRecord(){
     window._cvSportActiveLabel=_filterDate?_fmtDay(_filterDate):(_spActive==='SINCE LAUNCH'?'SINCE JULY 1 LAUNCH':(_spPer.sub||_spPer.label));
     return'';
   })()}
-  <div style="aspect-ratio:4/5;background:${cfBg};background-size:100% 100%,30px 30px,30px 30px,30px 30px,30px 30px,100% 100%;background-position:0 0,0 0,0 0,15px 0,15px 0,0 0;border:1px solid rgba(240,0,255,.35);border-radius:4px;overflow:hidden;display:flex;flex-direction:column;padding:16px 18px 14px;box-sizing:border-box;position:relative;margin-bottom:12px;max-width:480px">
+  <div style="aspect-ratio:4/5;background:${cfBg};background-size:100% 100%,100% 100%,9px 9px,100% 100%;background-position:0 0,0 0,0 0,0 0;border:1px solid rgba(240,0,255,.35);border-radius:4px;overflow:hidden;display:flex;flex-direction:column;padding:16px 18px 14px;box-sizing:border-box;position:relative;margin-bottom:12px;max-width:480px">
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(0,180,180,.08) 0%,transparent 65%),radial-gradient(ellipse at 50% 50%,transparent 40%,rgba(0,0,0,.55) 100%);pointer-events:none"></div>
     <!-- Header -->
     <div style="position:relative;text-align:center;margin-bottom:8px">
@@ -26575,7 +26565,7 @@ function renderTrackRecord(){
       }).join('')}
     </div>
   </div>
-  <div style="aspect-ratio:4/5;background:${cfBg};background-size:100% 100%,30px 30px,30px 30px,30px 30px,30px 30px,100% 100%;background-position:0 0,0 0,0 0,15px 0,15px 0,0 0;border:1px solid rgba(240,0,255,.35);border-radius:4px;overflow:hidden;display:flex;flex-direction:column;padding:16px 18px 14px;box-sizing:border-box;position:relative;margin-bottom:12px;max-width:480px">
+  <div style="aspect-ratio:4/5;background:${cfBg};background-size:100% 100%,100% 100%,9px 9px,100% 100%;background-position:0 0,0 0,0 0,0 0;border:1px solid rgba(240,0,255,.35);border-radius:4px;overflow:hidden;display:flex;flex-direction:column;padding:16px 18px 14px;box-sizing:border-box;position:relative;margin-bottom:12px;max-width:480px">
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(0,180,180,.08) 0%,transparent 65%),radial-gradient(ellipse at 50% 50%,transparent 40%,rgba(0,0,0,.55) 100%);pointer-events:none"></div>
     ${(()=>{
     const LDEFS3=[

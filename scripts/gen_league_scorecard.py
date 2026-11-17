@@ -86,7 +86,7 @@ def build_card(background_fn, data: dict | None = None):
     note2 = "Win % = wins / all graded picks (a third number is pushes)."
     draw.text((CX, min(y, H - 118)), note, font=mono(14), fill=(*WHT, 255), anchor="mm")
     draw.text((CX, min(y, H - 118) + 20), note2, font=mono(14), fill=(*WHT, 255), anchor="mm")
-    base = draw_footer(base)
+    base = draw_footer(base, carbon=background_fn is make_background_carbon)
     return base
 
 

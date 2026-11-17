@@ -81,7 +81,7 @@ def build_card(background_fn) -> Image.Image:
     draw.text((CX, ty + 24), ac.INCLUDES_LINE, font=mono(16), fill=(*WHT, 255), anchor="ms")
     draw.text((CX, ty + 50),"Hockey = " + " + ".join(ac.LEAGUES_BY_PRODUCT["hockey"]) + "  ·  Soccer = "
               + ", ".join(ac.LEAGUES_BY_PRODUCT["soccer"]), font=mono(13), fill=(*T2, 255), anchor="ms")
-    return draw_footer(base)
+    return draw_footer(base, carbon=background_fn is make_background_carbon)
 
 
 CARDS = (

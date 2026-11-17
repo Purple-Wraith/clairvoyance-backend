@@ -217,10 +217,36 @@ def make_background_carbon(w=W, h=H):
 # ── Footer bar ───────────────────────────────────────────────────
 FBAR_H = 70
 
-def draw_footer(base, cx=CX):
-    """Standard footer bar with social handles + disclaimer."""
+def make_footer_carbon(w=W, h=FBAR_H):
+    """The Film Archive's "darker carbon with white edge" panel (film-archive src/app/globals.css `.side-menu`), as a footer strip: #101010 base, the carbon weave tiled from the
+    strip's own top-left corner, a 35% black layer over it, and a 160deg white sheen (8% at the corner, gone by 40% of the gradient's length)."""
+    strip = Image.new('RGBA', (w, h), (16, 16, 16, 255))
+    tile = _carbon_tile()
+    for ty in range(0, h, CARBON_TILE):
+        for tx in range(0, w, CARBON_TILE):
+            strip.alpha_composite(tile, (tx, ty))
+    strip = Image.alpha_composite(strip, Image.new('RGBA', (w, h), (0, 0, 0, 89)))        # rgb(0 0 0 / .35)
+    ang = math.radians(160)
+    dx, dy = math.sin(ang), -math.cos(ang)                                                # CSS angle: 0deg = up, 90deg = right
+    length = abs(w * dx) + abs(h * dy)
+    sheen = Image.new('L', (w, h), 0)
+    px = sheen.load()
+    for y in range(h):
+        for x in range(w):
+            t = ((x - w / 2) * dx + (y - h / 2) * dy) / length + 0.5                      # 0 at the gradient's start corner, 1 at its end
+            px[x, y] = int(round(255 * 0.08 * max(0.0, 1 - t / 0.4)))
+    white = Image.new('RGBA', (w, h), (255, 255, 255, 0))
+    white.putalpha(sheen)
+    return Image.alpha_composite(strip, white)
+
+def draw_footer(base, cx=CX, carbon=False):
+    """Standard footer bar with social handles + disclaimer.  carbon=True paints the Film Archive's darker carbon panel instead of the flat near-black bar."""
     draw = ImageDraw.Draw(base)
-    draw.rectangle([(0, H-FBAR_H), (W, H)], fill=(8,8,10,255))
+    if carbon:
+        base.alpha_composite(make_footer_carbon(W, FBAR_H), (0, H - FBAR_H))
+        draw = ImageDraw.Draw(base)
+    else:
+        draw.rectangle([(0, H-FBAR_H), (W, H)], fill=(8,8,10,255))
     for i, al in enumerate([60,120,200,255]):
         draw.line([(0, H-FBAR_H+i),(W, H-FBAR_H+i)], fill=(*MAG,al), width=1)
     FY = H - FBAR_H//2

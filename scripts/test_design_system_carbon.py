@@ -52,5 +52,40 @@ class Carbon(unittest.TestCase):
         self.assertGreater(mean((900, 980, 1060, 1040)), mean((500, 500, 660, 560)))         # grey glow bottom-right vs the middle
 
 
+class Footer(unittest.TestCase):
+    def test_footer_is_the_film_archives_darker_lit_carbon(self):
+        f = D.make_footer_carbon().convert("RGB")
+        self.assertEqual(f.size, (D.W, D.FBAR_H))
+        lit, shade = f.getpixel((5, 5)), f.getpixel((900, 40))
+        self.assertGreater(sum(lit), sum(shade) + 20)                    # the 160deg white sheen lights the top-left corner only
+        region = f.crop((700, 0, 1080, D.FBAR_H)).convert("L")
+        self.assertLess(sum(region.get_flattened_data() if hasattr(region, "get_flattened_data") else region.getdata()) / (380 * D.FBAR_H), 18)    # darker than the page's weave (mean ~24)
+
+    def test_draw_footer_carbon_changes_the_bar_not_the_flat_one(self):
+        flat = D.draw_footer(D.make_background_carbon(), carbon=False).convert("RGB")
+        dark = D.draw_footer(D.make_background_carbon(), carbon=True).convert("RGB")
+        self.assertEqual(flat.getpixel((900, D.H - 30)), (8, 8, 10))
+        self.assertNotEqual(flat.getpixel((900, D.H - 30)), dark.getpixel((900, D.H - 30)))
+
+
+class EverywhereCarbon(unittest.TestCase):
+    """2026-11-17: the daily social cards (app.html _cfBg) and every daily social video template draw the carbon weave, not the old #222233 crosshatch."""
+    def test_app_card_canvas_is_carbon(self):
+        html = (HERE.parent / "docs" / "app.html").read_text(encoding="utf-8")
+        body = html[html.index("function _cfBg(ctx,W,H){"):html.index("function _hudCorners")]
+        self.assertIn("#121212", body)
+        self.assertIn("#1E1E1E", body)
+        self.assertNotIn("#222233", body)
+        self.assertEqual((HERE.parent / "docs" / "app.html").read_bytes(), (HERE.parent / "docs" / "index.html").read_bytes())
+
+    def test_video_templates_are_carbon(self):
+        files = [f for f in sorted((HERE / "video_templates").glob("*.html")) if f.name != "image_glitch_reveal.html"]
+        self.assertGreaterEqual(len(files), 11)
+        for f in files:
+            src = f.read_text(encoding="utf-8")
+            self.assertIn("#1E1E1E", src, f.name)
+            self.assertNotIn("ctx.fillStyle='#222233'", src, f.name)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

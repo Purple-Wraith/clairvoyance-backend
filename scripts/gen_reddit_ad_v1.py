@@ -152,7 +152,7 @@ def build_card(background_fn):
 
     # ── Footer ────────────────────────────────────────────────────
     draw = ImageDraw.Draw(base)
-    base = draw_footer(base)
+    base = draw_footer(base, carbon=background_fn is make_background_carbon)
 
     return base
 
