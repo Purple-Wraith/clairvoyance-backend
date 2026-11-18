@@ -154075,9 +154075,10 @@
   {
     "hA": "DAL",
     "id": "2026-11-15_DAL_FLA_NHL_DALML",
-    "ml": "-909",
+    "ml": "-133",
     "awA": "FLA",
     "date": "2026-11-15",
+    "note": "CORRECTED 2026-11-17 (owner request): locked at -909 (1.11) because a Polymarket prediction-market price was read as a sportsbook price; recorded at the sportsbook consensus -133 (1.75 / 2.10, 6 books, last clean read 19:24Z) instead. Win/loss unchanged.",
     "betOn": "DAL ML",
     "sport": "NHL",
     "wager": 0,
@@ -154097,20 +154098,37 @@
     },
     "source": "manual",
     "betType": "ML",
-    "decOdds": 1.11,
+    "decOdds": 1.75,
     "leadMin": 88,
     "outcome": "win",
     "startMs": 1794790800000,
-    "winProb": 0.8562824613868405,
+    "winProb": 0.5678146770623397,
     "lockedAt": 1794785496490,
     "modelProb": 0.6328,
-    "reasoning": "PICK: DAL ML \u2014 HIGH PROB (85.6% win prob, EV -5.0% \u00b7 MARKET PRICE -909 (EV at market -5.0%) \u00b7 MARKET-BLENDED: model 63.3% \u00b7 no-vig market 90.0% \u2192 85.6% (alpha 0.75))\nMODEL: Projected 2.4\u20132.4 (total 5.0) (OT/SO in 19% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Best market: DAL ML graded HIGH PROB (85.6%, EV -5.0%). GSAx: +7.7 vs +3.7 (injury adj: DAL: Miro Heiskanen D OUT -> scoring -3.9% | FLA: Brad Marchand LW OUT -> scoring -4.6%) favors DAL. MC 49% / xGF 50% / hv -8.2pp / ST +2.4pp / SQ +0.6pp \u00b7 ML market blend (alpha 0.75): model 63.3% \u00b7 no-vig market 90.0% \u2192 85.6%; O/U market blend (alpha 0.65): model 36.1% \u00b7 no-vig market 53.2% \u2192 47.1%. Half-unit play.",
+    "reasoning": "PICK: DAL ML \u2014 (56.8% win prob, EV -0.6% \u00b7 MARKET PRICE -133 (EV at market -0.6%) \u00b7 MARKET-BLENDED: model 63.3% \u00b7 no-vig market 54.5% \u2192 56.8% (alpha 0.75)) [price corrected 2026-11-17, see note]\nMODEL: Projected 2.4\u20132.4 (total 5.0) (OT/SO in 19% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Best market: DAL ML (56.8%, EV -0.6%) at the corrected price. GSAx: +7.7 vs +3.7 (injury adj: DAL: Miro Heiskanen D OUT -> scoring -3.9% | FLA: Brad Marchand LW OUT -> scoring -4.6%) favors DAL. MC 49% / xGF 50% / hv -8.2pp / ST +2.4pp / SQ +0.6pp \u00b7 ML market blend (alpha 0.75): model 63.3% \u00b7 no-vig market 54.5% \u2192 56.8%; O/U market blend (alpha 0.65): model 36.1% \u00b7 no-vig market 53.2% \u2192 47.1%. Half-unit play.\nCORRECTED 2026-11-17 (owner request): locked at -909 (1.11) because a Polymarket prediction-market price was read as a sportsbook price; recorded at the sportsbook consensus -133 (1.75 / 2.10, 6 books, last clean read 19:24Z) instead. Win/loss unchanged.",
+    "settledAt": 1794801096312,
     "blendAlpha": 0.75,
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "marketProb": 0.9001,
+    "marketProb": 0.5455,
     "priceSource": "market",
-    "settledAt": 1794801096312
+    "priceCorrected": {
+      "on": "2026-11-17",
+      "to": {
+        "ml": "-133",
+        "decOdds": 1.75,
+        "winProb": 0.5678146770623397,
+        "marketProb": 0.5455
+      },
+      "from": {
+        "ml": "-909",
+        "decOdds": 1.11,
+        "winProb": 0.8562824613868405,
+        "marketProb": 0.9001
+      },
+      "reason": "prediction-market (Polymarket.usa) price read as a sportsbook price",
+      "source": "nhl_schedule.json 19:24Z consensus (Fanatics, DraftKings, Fanduel, BetMGM.us, Betr, bet365.us)"
+    }
   },
   {
     "hA": "DAL",
