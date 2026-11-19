@@ -31,7 +31,7 @@ class Python(unittest.TestCase):
                                                          "tierN": 1, "evVal": -.04, "lane": True, "mcSummary": None, "best": None, "startMs": None}], True, 1))
 
     def test_a_lane_flagged_total_qualifies_through_the_lane_even_at_low_tier(self):
-        q = A.build_qualifying(result("NHL", [market("over", "OVER 5.5", .64, tier=1, lane=True)]), now=T0)
+        q = A.build_qualifying(result("NHL", [market("over", "OVER 5.5", .66, tier=1, lane=True)]), now=T0)
         self.assertEqual(len(q), 1)
         self.assertTrue(q[0]["lane"])
 
@@ -42,7 +42,7 @@ class Python(unittest.TestCase):
         self.assertEqual(A.build_qualifying(result("SHL", [market("under", "UNDER 5.5", .70, tier=1, lane=True, real=False)]), now=T0), [])
 
     def test_the_adjusted_line_shift_still_runs_on_a_lane_total_and_keeps_the_lane_flag(self):
-        q = A.build_qualifying(result("NHL", [market("over", "OVER 6.5", .58, tier=1, lane=True)]), now=T0)
+        q = A.build_qualifying(result("NHL", [market("over", "OVER 6.5", .66, tier=1, lane=True)]), now=T0)
         shifted = A._apply_alt_lines(q)
         self.assertEqual(len(shifted), 1)
         self.assertTrue(shifted[0]["lane"])

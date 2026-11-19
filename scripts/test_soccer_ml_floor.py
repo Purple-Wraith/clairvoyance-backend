@@ -33,11 +33,14 @@ class Floor(unittest.TestCase):
             self.assertEqual(len(kept(sport, "home", .72)), 1, sport)
 
     def test_champions_league_is_exempt(self):
-        self.assertEqual(len(kept("SOC_CL", "home", .60)), 1)
+        # The soccer-only floor does not apply to the Champions League.  (Since 2026-11-19 the global 65% lock floor, LOCK_MIN_PROB, covers every sport and equals this one, so the
+        # exemption now only matters if the two are ever set apart: a CL moneyline at 65% locks, one at 60% does not.)
+        self.assertEqual(len(kept("SOC_CL", "home", .65)), 1)
+        self.assertEqual(kept("SOC_CL", "home", .60), [])
 
     def test_totals_and_goal_spreads_are_untouched(self):
         for side in ("over", "under", "ahFav", "ahDog"):
-            self.assertEqual(len(kept("SOC_PL", side, .60)), 1, side)
+            self.assertEqual(len(kept("SOC_PL", side, .66)), 1, side)
 
     def test_python_and_app_constants_match(self):
         html = (ROOT / "docs" / "app.html").read_text()

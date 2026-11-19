@@ -348,6 +348,24 @@ PRODUCT_LABEL: dict[str, str] = {
 QUALIFYING_TIERS = {2, 3}
 TIER_LABEL = {0: "SKIP", 1: "LEAN", 2: "OPTIMAL", 3: "PREMIUM"}
 
+# MINIMUM STATED WIN PROBABILITY TO LOCK (owner 2026-11-19): nothing is locked or emailed below 65%, whatever its tier or lane.  The tiers (OPTIMAL 62% / PREMIUM 67%), the hockey
+# high-probability lane (O/U from 56%) and the alternate-line floor (ALT_FLOOR_P) all admit picks in the 55-64% range; settled results over the 7 days to 2026-11-18 had those
+# picks at 22-33 (40%) against a 58-62% stated rate, and a 65% floor lifts the record 66.6% -> 70.0% there and 73.3% -> 74.6% over the prior four weeks, for ~11% fewer picks.
+# It is checked on the FINAL stated probability (after any alternate-line move), so a posted 62% leg that moves to a 67% adjusted line still locks.  Set to 0 to switch it off.
+LOCK_MIN_PROB = 0.65
+LOCK_FLOOR_DROPS: list[dict] = []   # every leg the floor dropped this process (for logs / tests)
+_LOCK_MIN_EPS = 1e-9      # a stated .65 that float arithmetic leaves at 0.6499999 still counts as 65%
+
+
+def below_lock_floor(prob) -> bool:
+    """True when a leg's stated win probability is under LOCK_MIN_PROB (an unknown probability is below it)."""
+    if not LOCK_MIN_PROB:
+        return False
+    try:
+        return float(prob) < LOCK_MIN_PROB - _LOCK_MIN_EPS
+    except (TypeError, ValueError):
+        return True
+
 # ── HOCKEY QUALIFICATION RULES (NHL + SHL/LIIGA/NLA/EXTRALIGA) ──────────────────────────────────────────────────────────
 # The numbers live in ONE place: the "HOCKEY QUALIFICATION CUTOFFS" block in docs/app.html (HOCKEY_TIER_EV,
 # HOCKEY_LANE_*, HOCKEY_REQUIRE_REAL_PRICE ...), which grades every hockey leg (tierN) and flags high-probability-lane
@@ -452,10 +470,10 @@ def lineup_requalify(q: dict, p: float, ev) -> tuple[bool, int, bool]:
                 lane = p >= HOCKEY_LANE_PLDOG_P
             elif side in ("over", "under"):
                 lane = p >= HOCKEY_LANE_OU_P
-        return (tier_n in QUALIFYING_TIERS or lane), tier_n, (lane and tier_n not in QUALIFYING_TIERS)
+        return (tier_n in QUALIFYING_TIERS or lane) and not below_lock_floor(p), tier_n, (lane and tier_n not in QUALIFYING_TIERS)
     tier_n = 3 if (p >= .67 and e >= .05) else 2 if (p >= .62 and e >= .03) else 1 if (p >= .55 and e >= .01) else 0
     high_hit = _market_type(side) == "ML" and p >= _HIGH_HIT_P
-    return (tier_n in QUALIFYING_TIERS or high_hit), tier_n, False
+    return (tier_n in QUALIFYING_TIERS or high_hit) and not below_lock_floor(p), tier_n, False
 
 
 def activate_lineup_gate(ctx=None) -> bool:
@@ -3281,14 +3299,23 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                         f"{new['label']} ({new['prob']*100:.0f}%, est. {new['ml']})")
             # An NFL lane leg exists only as an alternate-line pick: when no alternate line could be priced it is dropped, never locked at the posted line.
             game_qualifying = [q for q in shifted if not (q.get("nflLane") and not q.get("altLine"))]
+        # The minimum-probability floor (LOCK_MIN_PROB) on the FINAL stated probability, after the alternate-line move above.
+        _kept_q = []
+        for q in game_qualifying:
+            if below_lock_floor(q.get("prob")):
+                log(f"  skip {sport} {gl.get('awA')} @ {gl.get('hA')} {q.get('label')}: {(q.get('prob') or 0):.1%} is below the {LOCK_MIN_PROB:.0%} lock floor")
+                LOCK_FLOOR_DROPS.append({"sport": sport, "game": f"{gl.get('awA')} @ {gl.get('hA')}", "leg": q.get("label"), "prob": q.get("prob")})
+                continue
+            _kept_q.append(q)
+        game_qualifying = _kept_q
         qualifying.extend(game_qualifying)
         if LOCK_BEST_ADJUSTED and guard_ok:
             _ab = _best_adjusted_leg(gl, game_qualifying)
-            if _ab:
+            if _ab and not below_lock_floor(_ab.get("prob")):
                 qualifying.append(_ab)       # a normal qualifying leg: locked by the product's pass AND listed in the product's email (flagged BEST ADJUSTED LINE)
         if LOCK_BEST_ADJUSTED_TOTAL and guard_ok:
             _bt = _best_adjusted_total_leg(gl, game_qualifying)
-            if _bt:
+            if _bt and not below_lock_floor(_bt.get("prob")):
                 qualifying.append(_bt)       # same treatment, flagged BEST ADJUSTED TOTAL
     # Props only exist for NBA/NHL now -- NFL player props removed from
     # generation entirely 2026-09-23 (see gather_legs()'s own comment),
@@ -3313,7 +3340,12 @@ def build_qualifying(result: dict, only_sports: frozenset[str] | None = None, no
                 continue
             if p.get("sportTag") == "NBA" and frozenset({p.get("hA"), p.get("awA")}) in _pre_nba:
                 continue                      # NBA preseason prop: never locked or emailed
-            prop_q.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": _apply_prop_alt(p)})
+            _pl = _apply_prop_alt(p)
+            if below_lock_floor(_prop_prob(_pl)):
+                log(f"  skip prop {_pl.get('player')} {'OVER' if _pl.get('over') is not False else 'UNDER'} {_pl.get('statAbbr') or ''} {_pl.get('line')}: {_prop_prob(_pl):.1%} is below the {LOCK_MIN_PROB:.0%} lock floor")
+                LOCK_FLOOR_DROPS.append({"sport": p.get("sportTag"), "game": f"{p.get('awA')} @ {p.get('hA')}", "leg": f"{_pl.get('player')} {_pl.get('statAbbr') or ''} {_pl.get('line')}", "prob": _prop_prob(_pl)})
+                continue
+            prop_q.append({"kind": "PROP", "sport": p.get("sportTag"), "leg": _pl})
         prop_q, dropped_props = cap_props_per_player(prop_q)
         for q in dropped_props:
             lg = q["leg"]

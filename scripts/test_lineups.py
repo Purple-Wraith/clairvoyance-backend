@@ -542,14 +542,14 @@ class Wiring(unittest.TestCase):
 
     def test_inert_until_activated(self):
         A.LINEUP_CTX = None
-        q = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.64, 1.75, tier=2)]), now=NOW)
+        q = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.66, 1.75, tier=2)]), now=NOW)
         self.assertEqual(len(q), 1)
         self.assertNotIn("lineup", q[0])
 
     def test_held_leg_is_not_in_the_qualifying_list_and_is_reported(self):
         A.LINEUP_CTX = self.confirmed()
         stats: dict = {}
-        q = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.64, 1.75, tier=2)]), now=NOW, guard_stats=stats)
+        q = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.66, 1.75, tier=2)]), now=NOW, guard_stats=stats)
         self.assertEqual(q, [])
         self.assertEqual(len(A.LINEUP_HOLDS), 1)
         self.assertEqual(stats["lineupHolds"][0]["leg"], "PHI ML")
@@ -567,34 +567,34 @@ class Wiring(unittest.TestCase):
         self.assertAlmostEqual(leg["evVal"], leg["prob"] * 1.75 - 1, places=3)
 
     def test_unknown_lineup_leaves_the_leg_exactly_as_before_apart_from_the_record(self):
-        base = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.64, 1.75, tier=2)]), now=NOW)
+        base = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.66, 1.75, tier=2)]), now=NOW)
         A.LINEUP_CTX = ctx({})                                   # every request fails
-        q = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.64, 1.75, tier=2)]), now=NOW)
+        q = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.66, 1.75, tier=2)]), now=NOW)
         rec = q[0].pop("lineup")
         self.assertEqual(rec["status"], "unknown")
         self.assertEqual(q, base)
 
     def test_master_switch_off_restores_the_old_behaviour_exactly(self):
-        base = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.64, 1.75, tier=2)]), now=NOW)
+        base = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.66, 1.75, tier=2)]), now=NOW)
         A.LINEUP_CTX = self.confirmed()
         with mock.patch.object(L, "LINEUP_GATE_ENABLED", False):
-            self.assertEqual(A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.64, 1.75, tier=2)]), now=NOW), base)
+            self.assertEqual(A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.66, 1.75, tier=2)]), now=NOW), base)
 
     def test_the_watchdogs_observe_only_call_is_never_gated(self):
         A.LINEUP_CTX = self.confirmed()
-        q = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.64, 1.75, tier=2)]), now=0)
+        q = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.66, 1.75, tier=2)]), now=0)
         self.assertEqual(len(q), 1)
         self.assertNotIn("lineup", q[0])
 
     def test_a_leg_outside_the_window_is_untouched(self):
         A.LINEUP_CTX = self.confirmed()
-        q = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.64, 1.75, tier=2)]), now=PHI_BOS - 5 * 3600 * 1000)
+        q = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.66, 1.75, tier=2)]), now=PHI_BOS - 5 * 3600 * 1000)
         self.assertEqual(len(q), 1)
         self.assertNotIn("lineup", q[0])
 
     def test_the_other_leg_of_a_game_survives_when_one_is_held(self):
         A.LINEUP_CTX = self.confirmed()
-        q = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.64, 1.75, tier=2), hk_market("over", "OVER 5.5", 0.64, 1.91, tier=2)]), now=NOW)
+        q = A.build_qualifying(nhl_result([hk_market("mlDog", "PHI ML", 0.66, 1.75, tier=2), hk_market("over", "OVER 5.5", 0.66, 1.91, tier=2)]), now=NOW)
         self.assertEqual([x["label"] for x in q], ["OVER 5.5"])
         self.assertEqual(q[0]["lineup"]["action"], "none")
 
@@ -608,17 +608,20 @@ class Wiring(unittest.TestCase):
         rq = A.lineup_requalify
         leg = {"sport": "NHL", "side": "mlFav"}
         self.assertEqual(rq(leg, 0.68, 0.06), (True, 3, False))
-        self.assertEqual(rq(leg, 0.63, 0.04), (True, 2, False))
+        self.assertEqual(rq(leg, 0.66, 0.04), (True, 2, False))
+        self.assertEqual(rq(leg, 0.63, 0.04), (False, 2, False))      # OPTIMAL by the tier cutoffs, but under the 65% lock floor (2026-11-19)
         self.assertEqual(rq(leg, 0.66, -0.05), (True, 0, True))      # high-probability lane: qualifies at 65%+ and EV >= -7% with a sub-OPTIMAL tier
         self.assertTrue(rq(leg, 0.66, -0.05)[0])
         self.assertTrue(rq(leg, 0.66, -0.05)[2])
         self.assertFalse(rq(leg, 0.64, -0.05)[0])
         self.assertFalse(rq(leg, 0.66, -0.08)[0])
-        self.assertTrue(rq({"sport": "NHL", "side": "over"}, 0.57, -0.04)[0])                  # totals lane floor 56%
+        self.assertTrue(rq({"sport": "NHL", "side": "over"}, 0.66, -0.04)[0])                  # totals lane (floor 56%) -- but nothing locks under 65%
+        self.assertFalse(rq({"sport": "NHL", "side": "over"}, 0.57, -0.04)[0])
         self.assertFalse(rq({"sport": "NHL", "side": "plFav"}, 0.66, -0.05)[0])                 # the lane covers the +1.5 DOG only
         self.assertTrue(rq({"sport": "NFL", "side": "mlFav"}, 0.76, -0.2)[0])                   # the non-hockey 75% ML rule
         self.assertFalse(rq({"sport": "NFL", "side": "sprdFav"}, 0.76, -0.2)[0])
-        self.assertTrue(rq({"sport": "NBA", "side": "mlFav"}, 0.63, 0.04)[0])
+        self.assertTrue(rq({"sport": "NBA", "side": "mlFav"}, 0.66, 0.04)[0])
+        self.assertFalse(rq({"sport": "NBA", "side": "mlFav"}, 0.63, 0.04)[0])             # under the 65% lock floor
         self.assertFalse(rq({"sport": "NBA", "side": "mlFav"}, 0.61, 0.04)[0])
 
     def test_lock_game_leg_hands_the_lineup_record_to_lockpick(self):
