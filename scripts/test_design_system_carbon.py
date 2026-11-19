@@ -61,6 +61,7 @@ class Footer(unittest.TestCase):
         region = f.crop((700, 0, 1080, D.FBAR_H)).convert("L")
         self.assertLess(sum(region.get_flattened_data() if hasattr(region, "get_flattened_data") else region.getdata()) / (380 * D.FBAR_H), 18)    # darker than the page's weave (mean ~24)
 
+    @unittest.skipUnless(Path(D.ORB_PATH).exists() and Path(D.SYS_PATH).exists(), "footer text needs the Mac-only Orbitron/SF Mono fonts")
     def test_draw_footer_carbon_changes_the_bar_not_the_flat_one(self):
         flat = D.draw_footer(D.make_background_carbon(), carbon=False).convert("RGB")
         dark = D.draw_footer(D.make_background_carbon(), carbon=True).convert("RGB")
