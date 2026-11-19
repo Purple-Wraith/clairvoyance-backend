@@ -52,9 +52,9 @@ class GameCapSelection(unittest.TestCase):
     def test_build_qualifying_applies_both_caps(self):
         def raw(player, stat, prob):
             return {"grade": "OPTIMAL", "sportTag": "NBA", "hA": "DEN", "awA": "OKC", "player": player, "statAbbr": stat, "line": 10.5, "over": True, "prob": prob, "team": "DEN"}
-        props = [raw(f"P{i}", "PTS", .60 + i * .01) for i in range(7)] + [raw("P6", "REB", .59)]   # P6 has a second, worse prop
+        props = [raw(f"P{i}", "PTS", .64 + i * .01) for i in range(7)] + [raw("P6", "REB", .65)]   # P6 has a second, worse prop
         q = [x for x in als.build_qualifying({"gameLegs": [], "propLegs": props}) if x["kind"] == "PROP"]
-        self.assertEqual(sorted(x["leg"]["player"] for x in q), ["P2", "P3", "P4", "P5", "P6"])
+        self.assertEqual(sorted(x["leg"]["player"] for x in q), ["P2", "P3", "P4", "P5", "P6"])      # P0 (64%) is under the 65% lock floor; the per-game cap then keeps the best five
         self.assertTrue(all(x["leg"]["statAbbr"] == "PTS" for x in q))
 
 
