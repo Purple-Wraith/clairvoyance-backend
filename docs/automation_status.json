@@ -24,37 +24,12 @@
     "detail": "CFB rolling-horizon pass completed, 125 locked this pass, 213 pick(s) verified for 2026-11-20 + 2026-11-21"
   },
   "lastHockeyEveningLock": {
-    "tsUTC": "2026-11-20T08:52:01Z",
-    "tsMT": "2026-11-20 01:52 AM MT",
+    "tsUTC": "2026-11-20T11:01:25Z",
+    "tsMT": "2026-11-20 04:01 AM MT",
     "ok": true,
-    "detail": "SHL/Liiga/NLA/Extraliga rolling-horizon pass completed, 12 locked this pass, 50 pick(s) verified for 2026-11-20 + 2026-11-21"
+    "detail": "SHL/Liiga/NLA/Extraliga rolling-horizon pass completed, 2 locked this pass, 215 pick(s) verified for 2026-11-20 + 2026-11-21; 1 leg(s) skipped: game already started"
   },
   "lockPasses": [
-    {
-      "key": "lastLock",
-      "kind": "early-cfb",
-      "label": "CFB",
-      "tsUTC": "2026-11-13T17:59:21Z",
-      "tsMT": "2026-11-13 10:59 AM MT",
-      "dates": [
-        "2026-11-13"
-      ],
-      "live": true,
-      "complete": true,
-      "qualifying": 9,
-      "new": 0,
-      "already": 9,
-      "failed": 0,
-      "skippedStarted": 0,
-      "games": 3,
-      "started": 0,
-      "upcoming": 3,
-      "nextStartMs": 1794614400000.0,
-      "nextStartMT": "Fri 11-13 05:00 PM MT",
-      "marginMin": 361,
-      "noPriceGames": 0,
-      "late": false
-    },
     {
       "key": "lastLock",
       "kind": "main",
@@ -1557,12 +1532,38 @@
       "marginMin": 825,
       "noPriceGames": 0,
       "late": false
+    },
+    {
+      "key": "lastHockeyEveningLock",
+      "kind": "hockey-evening",
+      "label": "HOCKEY \u2014 UPCOMING SLATE",
+      "tsUTC": "2026-11-20T11:01:25Z",
+      "tsMT": "2026-11-20 04:01 AM MT",
+      "dates": [
+        "2026-11-20",
+        "2026-11-21"
+      ],
+      "live": true,
+      "complete": false,
+      "qualifying": 26,
+      "new": 2,
+      "already": 24,
+      "failed": 0,
+      "skippedStarted": 1,
+      "games": 35,
+      "started": 1,
+      "upcoming": 34,
+      "nextStartMs": 1795190400000.0,
+      "nextStartMT": "Fri 11-20 09:00 AM MT",
+      "marginMin": 299,
+      "noPriceGames": 10,
+      "late": true
     }
   ],
   "ownerAlerts": {
-    "73bf94c95c3b": "2026-11-16T21:16:19Z",
     "93db80ab9418": "2026-11-18T18:27:23Z",
-    "a2dedd18950f": "2026-11-19T18:40:38Z"
+    "a2dedd18950f": "2026-11-19T18:40:38Z",
+    "8b7fbceda863": "2026-11-20T11:01:25Z"
   },
   "lastWatchdog": {
     "tsUTC": "2026-11-18T23:34:46Z",
