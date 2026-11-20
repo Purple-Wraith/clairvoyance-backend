@@ -4,7 +4,7 @@ league scorecard + adjusted-line scorecard + Reddit ad + subscription card + pin
 glitch-reveal MP4s, and Reddit_Marketing_Pack.md.
 Run `git pull` first so docs/sport_performance.json, docs/engine_performance_subscriber.json and docs/picks_backup.json (adjusted-line card) are today's.
 
-The folder is ~/Desktop/Clairvoyance Ads 2026-11-17 (owner 2026-11-20: all social content lives in one Desktop folder, and an update rebuilds the files there in place --
+The folder is ~/Desktop/Clairvoyance Ads (owner 2026-11-20: all social content lives in one Desktop folder, and an update rebuilds the files there in place --
 same file names, overwritten).  Pass --out-dir to write somewhere else instead.
 Side effect: gen_pinned_card.py also rewrites scripts/assets/covers_card.png (the daily "What We Cover" card) in the repo, as it always does.
 Usage:  python3 scripts/refresh_ads.py
@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_OUT = Path.home() / "Desktop" / "Clairvoyance Ads 2026-11-17"
+DEFAULT_OUT = Path.home() / "Desktop" / "Clairvoyance Ads"
 SCRIPTS = ("gen_league_scorecard.py", "gen_adjusted_scorecard.py", "gen_reddit_ad_v1.py", "gen_subscription_card.py", "gen_pinned_card.py",
            "gen_reddit_ad_videos.py", "gen_reddit_pack.py")
 
