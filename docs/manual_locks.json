@@ -1,61 +1,6 @@
 {
- "updated_at": "2026-11-19T17:34:02.984Z",
+ "updated_at": "2026-11-20T21:37:20.641Z",
  "picks": [
-  {
-   "id": "2026-10-05_PIT_WPG_NHL_OVER5.5",
-   "date": "2026-10-05",
-   "hA": "PIT",
-   "awA": "WPG",
-   "sport": "NHL",
-   "league": "NHL",
-   "betType": "OU",
-   "betOn": "OVER 5.5",
-   "winProb": 0.5509999999999999,
-   "ml": "-172",
-   "decOdds": 1.58,
-   "wager": 0,
-   "outcome": "loss",
-   "lockedAt": 1791232642203,
-   "hScore": 2,
-   "aScore": 3,
-   "source": "manual",
-   "lockOrigin": "manual",
-   "priceSource": "market",
-   "startMs": 1791243000000,
-   "leadMin": 173,
-   "lockTiming": "pre",
-   "reasoning": null,
-   "settledAt": 1791253796429
-  },
-  {
-   "id": "2026-10-05_DAL_SJS_NHL_UNDER6.5",
-   "date": "2026-10-05",
-   "hA": "DAL",
-   "awA": "SJS",
-   "sport": "NHL",
-   "league": "NHL",
-   "betType": "OU",
-   "betOn": "UNDER 6.5",
-   "winProb": 0.542,
-   "ml": "-120",
-   "decOdds": 1.83,
-   "wager": 0,
-   "outcome": "win",
-   "lockedAt": 1791233474661,
-   "hScore": 5,
-   "aScore": 0,
-   "source": "manual",
-   "lockOrigin": "manual",
-   "priceSource": "market",
-   "modelProb": 0.6954,
-   "marketProb": 0.5222,
-   "blendAlpha": 0.89,
-   "startMs": 1791244800000,
-   "leadMin": 189,
-   "lockTiming": "pre",
-   "settledAt": 1791253796430,
-   "_rt": 1
-  },
   {
    "hA": "ANA",
    "id": "2026-10-07_ANA_EDM_NHL_OVER5.5",
@@ -11008,11 +10953,11 @@
    "outcome": "win",
    "winProb": 0.68,
    "lockedAt": 1794926714754,
-   "reasoning": "PICK: Cade Cunningham UNDER PTS 23.5 — OPTIMAL (62% model hit rate)\nMODEL: projection 20.83 PTS (season average 23.9, last-5 form 14.6, opponent adjustment -3.1) vs the 23.5 line, spread σ 8.75, from an exact normal distribution (not a simulation).\nWHY: Cade Cunningham averages 23.9 ppg across 64 games this season. Opp SA DRtg 111.3 vs a 115.7 league average computed from every currently-loaded team, a -4% reduction folded into the projection. Game pace 99.5 (+0.3%), DET offense 118.1 vs a 115.7 league average. No head-to-head history vs SA this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
    "priceSource": "estimated",
    "settledAt": 1794974003879,
    "playerResult": 27,
-   "playerMin": 38
+   "playerMin": 38,
+   "_rt": 1
   },
   {
    "hA": "TOR",
@@ -11060,11 +11005,11 @@
    "outcome": "win",
    "winProb": 0.68,
    "lockedAt": 1794926714413,
-   "reasoning": "PICK: Immanuel Quickley UNDER PTS 16.5 — OPTIMAL (63% model hit rate)\nMODEL: projection 14.08 PTS (season average 16.4, last-5 form 8.8, opponent adjustment -2.3) vs the 16.5 line, spread σ 7.03, from an exact normal distribution (not a simulation).\nWHY: Immanuel Quickley averages 16.4 ppg across 70 games this season. Opp NY DRtg 113.2 vs a 115.7 league average computed from every currently-loaded team, a -2% reduction folded into the projection. Game pace 97.5 (-0.8%), TOR offense 116.1 vs a 115.7 league average. No head-to-head history vs NY this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
    "priceSource": "estimated",
    "settledAt": 1794972330131,
    "playerResult": 14,
-   "playerMin": 34
+   "playerMin": 34,
+   "_rt": 1
   },
   {
    "hA": "GS",
@@ -11221,6 +11166,191 @@
    "settledAt": 1795057558981,
    "priceSource": "estimated",
    "playerResult": 6
+  },
+  {
+   "hA": "PHX",
+   "id": "prop_2026-11-20_NBA_DevinBooker_AST_3.5_O",
+   "ml": "-246",
+   "awA": "UTAH",
+   "conf": 0.68,
+   "date": "2026-11-20",
+   "line": 3.5,
+   "over": true,
+   "team": "PHX",
+   "betOn": "Devin Booker OVER AST 3.5",
+   "sport": "NBA",
+   "wager": 0,
+   "league": "NBA",
+   "player": "Devin Booker",
+   "pstats": {
+    "s": {
+     "AST": 5.4,
+     "PTS": 24.8,
+     "REB": 2.7
+    },
+    "gp": 14,
+    "l5": {
+     "n": 5,
+     "AST": 6.6,
+     "PTS": 22.6,
+     "REB": 2.8,
+     "cur": 5
+    },
+    "mpg": 33.7
+   },
+   "altLine": {
+    "line": 3.5,
+    "shift": 2,
+    "posted": 5.5,
+    "postedMl": "-171",
+    "postedDec": null,
+    "postedProb": 0.6314489413809161,
+    "postedLabel": "Devin Booker OVER AST 5.5",
+    "estimatedPrice": true
+   },
+   "betType": "PROP",
+   "decOdds": 1.4065040650406504,
+   "outcome": "pending",
+   "winProb": 0.68,
+   "lockedAt": 1795184029042,
+   "reasoning": "PICK: Devin Booker OVER AST 5.5 — OPTIMAL (63% model hit rate)\nMODEL: projection 6.19 AST (season average 5.4, last-5 form 6.6, opponent adjustment +0.8) vs the 5.5 line, spread σ 2.06, from an exact normal distribution (not a simulation).\nWHY: Devin Booker averages 5.4 apg across 14 games this season. Opp UTAH DRtg 122.0 vs a 115.7 league average computed from every currently-loaded team, a 5% boost folded into the projection. Game pace 99.8 (+3.0%), PHX offense 115.6 vs a 115.7 league average. No head-to-head history vs UTAH this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+   "priceSource": "estimated"
+  },
+  {
+   "hA": "CHI",
+   "id": "prop_2026-11-20_NBA_MatasBuzelis_PTS_9.5_O",
+   "ml": "-246",
+   "awA": "WSH",
+   "conf": 0.68,
+   "date": "2026-11-20",
+   "line": 9.5,
+   "over": true,
+   "team": "CHI",
+   "betOn": "Matas Buzelis OVER PTS 9.5",
+   "sport": "NBA",
+   "wager": 0,
+   "league": "NBA",
+   "player": "Matas Buzelis",
+   "pstats": {
+    "s": {
+     "AST": 2,
+     "PTS": 15.1,
+     "REB": 4.7
+    },
+    "gp": 14,
+    "l5": {
+     "n": 5,
+     "AST": 2,
+     "PTS": 18,
+     "REB": 5.2,
+     "cur": 5
+    },
+    "mpg": 27.4
+   },
+   "altLine": {
+    "line": 9.5,
+    "shift": 5,
+    "posted": 14.5,
+    "postedMl": "-180",
+    "postedDec": null,
+    "postedProb": 0.6431850876769861,
+    "postedLabel": "Matas Buzelis OVER PTS 14.5",
+    "estimatedPrice": true
+   },
+   "betType": "PROP",
+   "decOdds": 1.4065040650406504,
+   "outcome": "pending",
+   "winProb": 0.68,
+   "lockedAt": 1795184028497,
+   "reasoning": "PICK: Matas Buzelis OVER PTS 14.5 — OPTIMAL (64% model hit rate)\nMODEL: projection 16.69 PTS (season average 15.1, last-5 form 18, opponent adjustment +1.6) vs the 14.5 line, spread σ 5.97, from an exact normal distribution (not a simulation).\nWHY: Matas Buzelis averages 15.1 ppg across 14 games this season. Opp WSH DRtg 122.5 vs a 115.7 league average computed from every currently-loaded team, a 6% boost folded into the projection. Game pace 102.0 (-0.5%), CHI offense 112.9 vs a 115.7 league average. No head-to-head history vs WSH this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+   "priceSource": "estimated"
+  },
+  {
+   "hA": "CHI",
+   "id": "prop_2026-11-20_NBA_NormanPowell_PTS_15.5_O",
+   "ml": "-246",
+   "awA": "WSH",
+   "conf": 0.68,
+   "date": "2026-11-20",
+   "line": 15.5,
+   "over": true,
+   "team": "CHI",
+   "betOn": "Norman Powell OVER PTS 15.5",
+   "sport": "NBA",
+   "wager": 0,
+   "league": "NBA",
+   "player": "Norman Powell",
+   "pstats": {
+    "s": {
+     "AST": 2.4,
+     "PTS": 21.2,
+     "REB": 2.8
+    },
+    "gp": 12,
+    "l5": {
+     "n": 5,
+     "AST": 3.4,
+     "PTS": 22.6,
+     "REB": 3,
+     "cur": 5
+    },
+    "mpg": 29.2
+   },
+   "altLine": {
+    "line": 15.5,
+    "shift": 5,
+    "posted": 20.5,
+    "postedMl": "-174",
+    "postedDec": null,
+    "postedProb": 0.6345792378293529,
+    "postedLabel": "Norman Powell OVER PTS 20.5",
+    "estimatedPrice": true
+   },
+   "betType": "PROP",
+   "decOdds": 1.4065040650406504,
+   "outcome": "pending",
+   "winProb": 0.68,
+   "lockedAt": 1795184028728,
+   "reasoning": "PICK: Norman Powell OVER PTS 20.5 — OPTIMAL (63% model hit rate)\nMODEL: projection 22.73 PTS (season average 21.2, last-5 form 22.6, opponent adjustment +1.5) vs the 20.5 line, spread σ 6.48, from an exact normal distribution (not a simulation).\nWHY: Norman Powell averages 21.2 ppg across 12 games this season. Opp WSH DRtg 122.5 vs a 115.7 league average computed from every currently-loaded team, a 6% boost folded into the projection. Game pace 102.0 (-0.5%), CHI offense 112.9 vs a 115.7 league average. No head-to-head history vs WSH this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+   "priceSource": "estimated"
+  },
+  {
+   "hA": "LAL",
+   "id": "prop_2026-11-20_NBA_WalkerKessler_REB_10.5_O",
+   "ml": "-206",
+   "awA": "SAC",
+   "conf": 0.6733695711895042,
+   "date": "2026-11-20",
+   "line": 10.5,
+   "over": true,
+   "team": "LAL",
+   "betOn": "Walker Kessler OVER REB 10.5",
+   "sport": "NBA",
+   "wager": 0,
+   "league": "NBA",
+   "player": "Walker Kessler",
+   "pstats": {
+    "s": {
+     "AST": 1.8,
+     "PTS": 14.2,
+     "REB": 10.9
+    },
+    "gp": 15,
+    "l5": {
+     "n": 5,
+     "AST": 3,
+     "PTS": 13.4,
+     "REB": 12,
+     "cur": 5
+    },
+    "mpg": 30.9
+   },
+   "betType": "PROP",
+   "decOdds": 1.4854368932038835,
+   "outcome": "pending",
+   "winProb": 0.6733695711895042,
+   "lockedAt": 1795184028280,
+   "reasoning": "PICK: Walker Kessler OVER REB 10.5 — PREMIUM (67% model hit rate)\nMODEL: projection 11.79 REB (season average 10.9, last-5 form 12, opponent adjustment +0.9) vs the 10.5 line, spread σ 2.87, from an exact normal distribution (not a simulation).\nWHY: Walker Kessler averages 10.9 rpg across 15 games this season. Opp SAC DRtg 121.3 vs a 115.7 league average computed from every currently-loaded team, a 5% boost folded into the projection. Game pace 98.6 (+0.6%), LAL offense 118.1 vs a 115.7 league average. No head-to-head history vs SAC this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
   }
  ]
 }
