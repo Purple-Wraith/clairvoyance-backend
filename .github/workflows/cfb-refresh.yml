@@ -7,8 +7,9 @@ name: CFB Stats + Rankings Refresh
 # fallback until real 2026 box scores existed, and fetch_cfb.py's season auto-detect needs a refresh to notice); revert to Sun/Mon only once the
 # auto-detect has switched over and a normal week or two has passed.
 #
-# RANKINGS + FPI (Monday and Tuesday UTC, and manual runs only): AP Top 25 and FPI/Resume/Efficiencies update on ESPN's own schedule -- polls drop
-# Sunday evening / Monday / Tuesday -- so the daily run on those days also does rankings, as the separate weekly workflow did. This step needs
+# RANKINGS + FPI (Monday, Tuesday and Wednesday UTC, and manual runs only): the CFP committee rankings (the app's team rankings since 2026-11-21; the AP Top 25 is the
+# fallback when no CFP poll is current) and FPI/Resume/Efficiencies update on ESPN's own schedule -- the AP poll drops Sunday evening / Monday, the CFP poll Tuesday
+# evening Eastern, which is already WEDNESDAY in UTC -- so the daily run on those days also does rankings, as the separate weekly workflow did. This step needs
 # Playwright (www.espn.com sits behind an AWS WAF JS challenge a plain requests.get can never solve; before that fix it silently wrote 0 FPI rows
 # every run -- see fetch_cfb.py's _fetch_fpi_view), so the browser is only installed on the days it is needed.
 #
@@ -40,11 +41,11 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Plan (rankings only on Mon/Tue UTC or a manual run)
+      - name: Plan (rankings only on Mon/Tue/Wed UTC or a manual run)
         id: plan
         run: |
           DOW=$(date -u +%u)
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$DOW" = "1" ] || [ "$DOW" = "2" ]; then echo "rankings=1" >> "$GITHUB_OUTPUT"; else echo "rankings=0" >> "$GITHUB_OUTPUT"; fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$DOW" = "1" ] || [ "$DOW" = "2" ] || [ "$DOW" = "3" ]; then echo "rankings=1" >> "$GITHUB_OUTPUT"; else echo "rankings=0" >> "$GITHUB_OUTPUT"; fi
 
       - name: Set up Python
         uses: actions/setup-python@v5

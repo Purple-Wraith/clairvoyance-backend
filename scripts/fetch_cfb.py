@@ -392,21 +392,39 @@ def fetch_full_schedule(year: int, roster: dict) -> dict:
     return schedule
 
 
-def fetch_rankings() -> list[dict]:
-    """AP Top 25 — updates weekly (Mon/Tue during the season, once for the
-    preseason poll in mid-August). Defaults to whatever ESPN's own API
-    currently considers "latest" (last season's final poll until the 2026
-    preseason poll actually drops), which is expected/correct, not a bug —
-    it'll pick up the new poll automatically the moment ESPN publishes it."""
+POLL_CFP, POLL_AP = "CFP Rankings", "AP Poll"      # ESPN's shortName for each poll in the /rankings response
+
+
+def pick_poll(d: dict):
+    """Which poll feeds the app's team rankings -> ('CFP' | 'AP' | None, ESPN poll dict).
+    The College Football Playoff committee rankings (owner decision 2026-11-21); the AP Top 25 only when there is no CURRENT CFP poll: before the committee's first
+    release (late October / early November) and in the offseason, when ESPN still lists last season's final CFP poll next to the new season's AP preseason poll
+    (a CFP poll from an older season than the AP poll is last year's, not a current ranking)."""
+    polls = {p.get("shortName"): p for p in d.get("rankings", [])}
+    cfp, ap = polls.get(POLL_CFP), polls.get(POLL_AP)
+    if cfp and cfp.get("ranks"):
+        cy = (cfp.get("season") or {}).get("year")
+        ay = ((ap or {}).get("season") or {}).get("year")
+        if not (cy and ay and cy < ay):
+            return "CFP", cfp
+    if ap and ap.get("ranks"):
+        return "AP", ap
+    return None, None
+
+
+def fetch_rankings_poll() -> tuple[str | None, list[dict]]:
+    """Team rankings, top 25 -- the CFP committee poll when one is current, else the AP Top 25 (see pick_poll). Returns (poll label, rows).
+    The CFP poll drops Tuesday evening during the season (late Tuesday Eastern = Wednesday UTC), the AP poll Monday; the offseason keeps whatever ESPN calls
+    "latest" (last season's final poll until the new preseason poll drops), which is expected, not a bug."""
     r = requests.get(f"{ESPN_BASE}/rankings", headers=HEADERS, timeout=15)
     r.raise_for_status()
     d = r.json()
-    ap = next((p for p in d.get("rankings", []) if p.get("shortName") == "AP Poll"), None)
-    if not ap:
-        _log("  AP Poll not found in rankings response")
-        return []
+    label, poll = pick_poll(d)
+    if not poll:
+        _log("  neither the CFP rankings nor the AP Poll found in rankings response")
+        return None, []
     out = []
-    for entry in ap.get("ranks", []):
+    for entry in poll.get("ranks", []):
         t = entry.get("team", {})
         out.append({
             "rank": entry.get("current"),
@@ -424,8 +442,12 @@ def fetch_rankings() -> list[dict]:
             # name gives the correct "Indiana Hoosiers".
             "name": f"{t.get('location','')} {t.get('name','')}".strip(),
         })
-    _log(f"AP Top 25: {len(out)} teams, week={d.get('latestWeek',{}).get('displayValue')}")
-    return out
+    _log(f"{label} Top 25: {len(out)} teams, week={d.get('latestWeek',{}).get('displayValue')}")
+    return label, out
+
+
+def fetch_rankings() -> list[dict]:
+    return fetch_rankings_poll()[1]
 
 
 def _parse_fpi_blob(data: dict, view: str | None) -> dict:
@@ -488,11 +510,12 @@ def fetch_power_ratings() -> dict:
 
 
 def write_power(year: int | None = None) -> None:
-    rankings = fetch_rankings()
+    poll, rankings = fetch_rankings_poll()
     power = fetch_power_ratings()
     POWER_OUT_PATH.write_text(json.dumps({
         "generated_at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
         "rankings": rankings,
+        "rankingsPoll": poll,          # "CFP" (committee rankings) or "AP" (fallback) -- which poll the rank numbers come from
         "power": power,
     }, indent=2))
     _log(f"wrote {POWER_OUT_PATH}")

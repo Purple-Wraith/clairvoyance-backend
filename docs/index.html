@@ -8914,7 +8914,7 @@ function renderModelWeights(sport, containerId) {
 
 // ═══ CFB DATA LOADER + MC SIM ENGINE ══════════════════════════════════
 // Three source files (scripts/fetch_cfb.py): cfb_teams.json (conference
-// rosters), cfb_power.json (AP Top 25 + FPI/Resume/Efficiencies),
+// rosters), cfb_power.json (CFP committee rankings, AP Top 25 before the first CFP release + FPI/Resume/Efficiencies),
 // cfb_team_stats.json (offense/defense/special-teams per team, 2025
 // season until 2026 games post real numbers). Loaded once, flattened by
 // team abbreviation for O(1) lookups in the sim.
@@ -8954,7 +8954,7 @@ function loadCFBData(){
     _CFB_DATA={
       conferences, teamConf, venueCapacity, venueName, venueIndoorByAbbr,
       fpi:fpiByAbbr, resume:resumeByAbbr, efficiency:efficiencyByAbbr,
-      rankings:power?.rankings||[], rankByAbbr,
+      rankings:power?.rankings||[], rankByAbbr, rankingsPoll:power?.rankingsPoll||'AP',
       stats:stats?.teams||{},
       stats2025:stats2025?.teams||{},
       weeks,
@@ -9231,7 +9231,8 @@ function cfbMC(hA,awA,n,ouLine,g){
   if(hP20!=null&&aP20!=null)stMarginRaw+=(hP20-aP20)*0.08;
   const stMargin=hasST?Math.max(-10,Math.min(10,stMarginRaw)):null; // loosely bounded, not tightly capped -- the 3% blend weight is what keeps this small, not a point cap
 
-  // Top 25 ranking (AP Poll, already fetched weekly into rankByAbbr but
+  // Top 25 ranking (College Football Playoff committee rankings since 2026-11-21, AP Poll only until the committee's first release / in the offseason -- D.rankingsPoll
+  // says which; already fetched weekly into rankByAbbr but
   // only ever used for a display badge/filter before now): stays a flat
   // nudge, not a percentage blend -- FPI already reflects most of what
   // makes a team rank highly, so this only fills in the small remainder
@@ -10418,7 +10419,7 @@ function renderCFBConfig(){
   el.innerHTML=`<div class="sh" style="margin-bottom:8px">DATA SOURCES</div>
   <div style="font-family:var(--mono);font-size:15px;color:var(--t2);line-height:2">
     Rosters/Standings: ${D?.generatedAt?.teams||'not loaded'}<br>
-    Rankings/FPI/Resume/Efficiencies: ${D?.generatedAt?.power||'not loaded'}<br>
+    Rankings (${D?.rankingsPoll==='CFP'?'CFP committee':'AP Poll'})/FPI/Resume/Efficiencies: ${D?.generatedAt?.power||'not loaded'}<br>
     Team Stats (offense/defense/special teams): ${D?.generatedAt?.stats||'not loaded'}<br>
     Schedule/Lines: ${D?.generatedAt?.schedule||'not loaded'}<br>
     Weather: live, geocoded per-venue at render time (Nominatim + Open-Meteo, not a scheduled scrape)<br>
@@ -10426,7 +10427,7 @@ function renderCFBConfig(){
   </div>
   <div class="sh" style="margin-top:14px;margin-bottom:8px">MODEL SUMMARY</div>
   <div style="font-family:var(--mono);font-size:14px;color:var(--t3);line-height:1.8">
-    Refresh cadence: rankings/FPI weekly (Mon/Tue) · team stats Sunday evening + Monday morning · schedule/lines daily.<br><br>
+    Refresh cadence: rankings/FPI weekly (Mon/Tue/Wed) · team stats Sunday evening + Monday morning · schedule/lines daily.<br><br>
     Win probability: MC/Bayesian/Elo blend, currently weighted MC ${Math.round(W.mc*100)}% / BAY ${Math.round(W.bay*100)}% / ELO ${Math.round(W.elo*100)}% (adjustable on the MODEL tab). Elo's actual weight ramps in with real games played per matchup rather than applying the full slider value before there's any signal.<br><br>
     MC sim margin: FPI-driven (ESPN's expected-margin-vs-average-opponent-on-a-neutral-field rating) plus capped matchup-specific yardage, turnover, and real per-venue weather adjustments. When a team has no FPI (an FCS "buy game" opponent), the model falls back to the market's own spread instead of guessing.<br><br>
     Home-field advantage is team-specific, not one flat number for every stadium: base ${_cfbHFA()} pts (MODEL tab), nudged by that team's real scraped stadium capacity (bigger venue = small capped bump, a coarse crowd-impact proxy, not measured noise), and once real games are played, replaced by that team's own observed home-vs-away scoring margin split.<br><br>
