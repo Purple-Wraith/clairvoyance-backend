@@ -6,10 +6,10 @@
     "detail": "settle check ran -- nothing pending to settle"
   },
   "lastLock": {
-    "tsUTC": "2026-11-22T18:00:36Z",
-    "tsMT": "2026-11-22 11:00 AM MT",
+    "tsUTC": "2026-11-22T20:21:38Z",
+    "tsMT": "2026-11-22 01:21 PM MT",
     "ok": true,
-    "detail": "CFB lock pass completed, 0 locked this pass, 67 pick(s) verified for 2026-11-22"
+    "detail": "lock pass completed, 55 pick(s) verified for 2026-11-22; 11 leg(s) skipped: game already started"
   },
   "lastSoccerEveningLock": {
     "tsUTC": "2026-11-22T08:47:17Z",
@@ -30,31 +30,6 @@
     "detail": "SHL/Liiga/NLA/Extraliga rolling-horizon pass completed, 0 locked this pass, 41 pick(s) verified for 2026-11-22 + 2026-11-23"
   },
   "lockPasses": [
-    {
-      "key": "lastLock",
-      "kind": "euro-early-soccer",
-      "label": "SOCCER",
-      "tsUTC": "2026-11-16T19:53:25Z",
-      "tsMT": "2026-11-16 12:53 PM MT",
-      "dates": [
-        "2026-11-16"
-      ],
-      "live": true,
-      "complete": true,
-      "qualifying": 0,
-      "new": 0,
-      "already": 0,
-      "failed": 0,
-      "skippedStarted": 0,
-      "games": 0,
-      "started": 0,
-      "upcoming": 0,
-      "nextStartMs": null,
-      "nextStartMT": null,
-      "marginMin": null,
-      "noPriceGames": 0,
-      "late": false
-    },
     {
       "key": "lastLock",
       "kind": "euro-early-hockey",
@@ -1557,10 +1532,34 @@
       "marginMin": null,
       "noPriceGames": 0,
       "late": false
+    },
+    {
+      "key": "lastLock",
+      "kind": "main",
+      "label": "ALL PRODUCTS",
+      "tsUTC": "2026-11-22T20:21:38Z",
+      "tsMT": "2026-11-22 01:21 PM MT",
+      "dates": [
+        "2026-11-22"
+      ],
+      "live": true,
+      "complete": true,
+      "qualifying": 29,
+      "new": 2,
+      "already": 27,
+      "failed": 0,
+      "skippedStarted": 11,
+      "games": 24,
+      "started": 9,
+      "upcoming": 15,
+      "nextStartMs": 1795379400000.0,
+      "nextStartMT": "Sun 11-22 01:30 PM MT",
+      "marginMin": 8,
+      "noPriceGames": 0,
+      "late": true
     }
   ],
   "ownerAlerts": {
-    "a2dedd18950f": "2026-11-19T18:40:38Z",
     "8b7fbceda863": "2026-11-20T11:01:25Z",
     "adce3daafac3": "2026-11-20T18:03:45Z",
     "2e345aab18f6": "2026-11-21T13:40:20Z",
@@ -1568,7 +1567,8 @@
     "0a6050ecf82e": "2026-11-21T17:45:07Z",
     "005fdf72fa2c": "2026-11-21T20:07:10Z",
     "94dc8f0f870e": "2026-11-22T13:31:38Z",
-    "d02f439df90d": "2026-11-22T14:56:46Z"
+    "d02f439df90d": "2026-11-22T14:56:46Z",
+    "f0405d763346": "2026-11-22T20:21:38Z"
   },
   "lastWatchdog": {
     "tsUTC": "2026-11-22T10:55:23Z",
