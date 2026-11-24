@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-11-24 12:12 MT",
+  "generated_at": "2026-11-24 12:42 MT",
   "basis": "all locks (including picks locked after the game started)",
   "basis_note": "Figures count every settled pick in scope, including picks locked after the game had started. basis_detail shows how many of those there are.",
   "classifier": "scripts/lock_timing.py",
   "basis_detail": {
-    "settled_pre_start": 3836,
+    "settled_pre_start": 3842,
     "settled_locked_after_start_included": 211,
     "settled_unknown_timing_included": 399,
     "unknown_timing_by_league": {
@@ -19,20 +19,20 @@
     "label": "TODAY",
     "leagues": [
       {
+        "lbl": "EXTRALIGA",
+        "w": 5,
+        "l": 3,
+        "n": 8,
+        "pct": 0.625,
+        "units": -0.8799999999999999
+      },
+      {
         "lbl": "LIIGA",
         "w": 1,
         "l": 3,
         "n": 4,
         "pct": 0.25,
         "units": -2.62
-      },
-      {
-        "lbl": "EXTRALIGA",
-        "w": 2,
-        "l": 0,
-        "n": 2,
-        "pct": 1,
-        "units": 0.95
       }
     ],
     "excluded_late": 0
@@ -199,6 +199,14 @@
         "units": 8.375000000000005
       },
       {
+        "lbl": "EXTRALIGA",
+        "w": 32,
+        "l": 18,
+        "n": 50,
+        "pct": 0.64,
+        "units": -4.575000000000001
+      },
+      {
         "lbl": "Premier League",
         "w": 36,
         "l": 14,
@@ -221,14 +229,6 @@
         "n": 47,
         "pct": 0.723404255319149,
         "units": 5.585000000000003
-      },
-      {
-        "lbl": "EXTRALIGA",
-        "w": 29,
-        "l": 15,
-        "n": 44,
-        "pct": 0.6590909090909091,
-        "units": -2.745000000000002
       },
       {
         "lbl": "SHL",
@@ -285,6 +285,14 @@
         "units": 0.6100000000000017
       },
       {
+        "lbl": "EXTRALIGA",
+        "w": 16,
+        "l": 9,
+        "n": 25,
+        "pct": 0.64,
+        "units": -2.0900000000000003
+      },
+      {
         "lbl": "Premier League",
         "w": 15,
         "l": 10,
@@ -323,14 +331,6 @@
         "n": 19,
         "pct": 0.7368421052631579,
         "units": -0.244
-      },
-      {
-        "lbl": "EXTRALIGA",
-        "w": 13,
-        "l": 6,
-        "n": 19,
-        "pct": 0.6842105263157895,
-        "units": -0.26000000000000045
       }
     ],
     "excluded_late": 0
@@ -420,11 +420,11 @@
       },
       {
         "lbl": "EXTRALIGA",
-        "w": 103,
-        "l": 47,
-        "n": 150,
-        "pct": 0.6866666666666666,
-        "units": 7.836514422576268
+        "w": 106,
+        "l": 50,
+        "n": 156,
+        "pct": 0.6794871794871795,
+        "units": 6.006514422576268
       },
       {
         "lbl": "Champions League",
@@ -2126,6 +2126,36 @@
         1795425975447,
         1,
         0.54
+      ],
+      [
+        1795425975847,
+        1,
+        0.36
+      ],
+      [
+        1795425976198,
+        0,
+        -1
+      ],
+      [
+        1795425976604,
+        1,
+        0.58
+      ],
+      [
+        1795425976935,
+        0,
+        -1
+      ],
+      [
+        1795425978088,
+        1,
+        0.23
+      ],
+      [
+        1795425978487,
+        0,
+        -1
       ],
       [
         1795519192322,
