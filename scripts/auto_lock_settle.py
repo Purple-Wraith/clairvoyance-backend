@@ -1772,7 +1772,7 @@ def send_settlement_email(settled: list[dict], live: bool, forced_date: str | No
 # Until now only the OWNER got a results email. A subscriber now gets the previous day's results for exactly the products they are signed up for (someone on NFL gets NFL
 # results the next day; someone on NFL + Hockey gets one email with both), sent by the same once-daily digest, after the owner's copy. Rules:
 #   * one email per distinct set of products, BCC'd (never a visible list of other subscribers);
-#   * only picks that were sent to subscribers: pre-start locks (the digest already removes known-late ones), no removed picks, and no NBA player props while EMAIL_NBA_PROPS is off;
+#   * only picks that were sent to subscribers: pre-start locks (the digest already removes known-late ones), no removed picks, and NBA player props only for the stats in EMAIL_NBA_PROP_STATS (points only for now);
 #   * KHL and any other owner-only league never appear;
 #   * a subscriber whose products had no picks that day gets nothing;
 #   * the owner is not re-sent a customer copy (they have the full email), and a dry run sends nothing to customers;
@@ -1793,6 +1793,25 @@ def _is_nba_prop_row(b: dict) -> bool:
     return norm_sport_for_email(b.get("sport"), b.get("league")) == "NBA" and (str(b.get("betType") or "").upper() == "PROP" or bool(b.get("player")) or b.get("playerResult") is not None)
 
 
+_PROP_STAT_RE = re.compile(r"\b(?:OVER|UNDER)\s+([A-Z0-9+]+)\s+[-+]?\d+(?:\.\d+)?\s*$", re.I)
+
+
+def _nba_prop_row_stat(b: dict) -> str:
+    """The stat of a LEDGER prop row ("Victor Wembanyama OVER PTS 24.5" -> "PTS"), or "" when it cannot be read (an unreadable stat is never emailed)."""
+    m = _PROP_STAT_RE.search(str(b.get("betOn") or "").strip())
+    return m.group(1).upper() if m else str(b.get("stat") or b.get("statAbbr") or "").upper()
+
+
+def _nba_prop_leg_stat(q: dict) -> str:
+    """The stat of a qualifying LEG ({"kind": "PROP", "leg": {...}}): the real ESPN abbreviation the prop generator sets (`statAbbr`), else `stat`."""
+    leg = q.get("leg") or {}
+    return str(leg.get("statAbbr") or leg.get("stat") or q.get("statAbbr") or q.get("stat") or "").upper()
+
+
+def _nba_prop_stat_emailable(stat: str) -> bool:
+    return str(stat or "").upper() in EMAIL_NBA_PROP_STATS
+
+
 def customer_settlement_groups(settled: list[dict], unresolved: list[dict] | None = None) -> list[dict]:
     """[{products: (..), emails: [..], settled: [..], unresolved: [..]}] -- one entry per distinct set of products among the active subscribers (owner excluded) that
     has at least one pick to report. Pure: reads the subscriber list and the rows, sends nothing."""
@@ -1802,7 +1821,7 @@ def customer_settlement_groups(settled: list[dict], unresolved: list[dict] | Non
     def ok_row(b: dict) -> bool:
         if b.get("outcome") == "_removed":
             return False
-        return not (_is_nba_prop_row(b) and not EMAIL_NBA_PROPS)
+        return not _is_nba_prop_row(b) or _nba_prop_stat_emailable(_nba_prop_row_stat(b))
 
     by_product: dict[str, list[dict]] = {p: [] for p in PRODUCTS}
     pend_by_product: dict[str, list[dict]] = {p: [] for p in PRODUCTS}
@@ -3656,7 +3675,7 @@ def _leg_html(q: dict) -> str:
     return (f'<div style="padding:5px 0">'
             f'<span style="background:{color};color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
             f'border-radius:3px;display:inline-block;margin-bottom:3px">{_esc(grade)}</span>'
-            f'<div style="font-size:14px;color:#eee">{_esc(leg.get("player"))} {direction} {_esc(leg.get("line"))} {_esc(leg.get("stat"))} — {_prob_txt(prob, True)}</div>'
+            f'<div style="font-size:14px;color:#eee">{_esc(leg.get("player"))} {direction} {_esc(leg.get("line"))} {_esc(leg.get("statAbbr") or leg.get("stat"))} — {_prob_txt(prob, True)}</div>'
             + _skip_note_html(grade, prob, True)
             + '</div>')
 
@@ -4312,16 +4331,16 @@ def zero_pick_gate(product: str, *, qualifying: list[dict], guard: dict, complet
     return True, f"complete pass, games on {left}, nothing qualified", left
 
 
-# NBA PLAYER PROPS ARE OFF THE SUBSCRIBER EMAILS (owner 2026-10-25): they keep being generated, locked, settled and tracked by the backend exactly as before, but no locks email lists them
-# (and the per-pick email tracking never records them as sent).  Props resume once the season has ~20 games of data: flip this to True.  Only NBA props are affected.
-EMAIL_NBA_PROPS = False
+# NBA PLAYER PROPS ON THE SUBSCRIBER EMAILS: POINTS ONLY (owner 2026-11-24).  Every prop stat is still generated, locked, settled and tracked by the backend exactly as before; only the stats listed here
+# are written into a locks email or a customer settlement email.  Points props: 64-8 (88.9%, +27% at the ledger's prices) over 72 settled picks; assists (28-12, ~break-even at price) and rebounds
+# (13-5, 18 picks) are not proven yet.  To add one later, add its ESPN abbreviation ("AST", "REB") to this tuple once it shows better accuracy AND consistency (about 40+ settled picks at a clearly
+# positive return); an EMPTY tuple takes every NBA prop off the emails again.  Only NBA props are affected.  scripts/nba_props_report.py keeps tracking every stat for the weekly review.
+EMAIL_NBA_PROP_STATS: tuple[str, ...] = ("PTS",)
 
 
 def _emailable(qualifying: list[dict]) -> list[dict]:
-    """The legs a locks email may list: everything except NBA player props while EMAIL_NBA_PROPS is off.  Locking always uses the full list."""
-    if EMAIL_NBA_PROPS:
-        return list(qualifying)
-    return [q for q in qualifying if not (q.get("kind") == "PROP" and q.get("sport") == "NBA")]
+    """The legs a locks email may list: everything except NBA player props whose stat is not in EMAIL_NBA_PROP_STATS (a stat that cannot be read is left out).  Locking always uses the full list."""
+    return [q for q in qualifying if not (q.get("kind") == "PROP" and q.get("sport") == "NBA") or _nba_prop_stat_emailable(_nba_prop_leg_stat(q))]
 
 
 def send_locks_email(qualifying: list[dict], live: bool, locked_count: int | None = None,
@@ -4359,10 +4378,10 @@ def send_locks_email(qualifying: list[dict], live: bool, locked_count: int | Non
         _all = qualifying
         qualifying = _emailable(_all)
         if not qualifying:
-            log(f"Locks email ({label or 'ALL'}) skipped -- only NBA player props qualified, and props are not emailed (EMAIL_NBA_PROPS is off); they are locked and tracked as usual")
+            log(f"Locks email ({label or 'ALL'}) skipped -- only NBA player props outside EMAIL_NBA_PROP_STATS qualified; they are locked and tracked as usual")
             return False
         if len(qualifying) != len(_all):
-            log(f"  {len(_all) - len(qualifying)} NBA player prop(s) left out of the email (EMAIL_NBA_PROPS is off); they stay locked")
+            log(f"  {len(_all) - len(qualifying)} NBA player prop(s) left out of the email (stat not in EMAIL_NBA_PROP_STATS); they stay locked")
             if locked_count is not None:
                 locked_count = max(0, locked_count - (len(_all) - len(qualifying)))
     # date_str override: the evening-prior soccer lock passes the actual
@@ -4597,7 +4616,7 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
             leg = q["leg"]
             direction = "UNDER" if leg.get("over") is False else "OVER"
             log(f"  [{q['sport']} PROP] {leg.get('player')} {direction} {leg.get('line')} "
-                f"{leg.get('stat')} ({leg.get('grade')})")
+                f"{leg.get('statAbbr') or leg.get('stat')} ({leg.get('grade')})")
 
     product = _product_for_sports(only_sports)
     if not live:
@@ -4718,7 +4737,7 @@ def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
                 leg = q["leg"]
                 direction = "UNDER" if leg.get("over") is False else "OVER"
                 log(f"  [{q['sport']} PROP] {leg.get('player')} {direction} {leg.get('line')} "
-                    f"{leg.get('stat')} ({leg.get('grade')})")
+                    f"{leg.get('statAbbr') or leg.get('stat')} ({leg.get('grade')})")
 
         if not live:
             log(f"[DRY RUN] Would lock {len(qualifying)} {label} legs above (pass --live to write)")
@@ -5054,7 +5073,7 @@ def run_lock_segmented(page, live: bool, send_email: bool = True, only_new: bool
         # specifically, not the whole product's qualifying -- SHL/Liiga
         # being in-season shouldn't mask a real NHL off-season gap in
         # THIS run's own (NHL-only) email.
-        email_view = _emailable(email_qualifying)        # what the subscriber email may list (NBA player props are locked but not emailed -- EMAIL_NBA_PROPS)
+        email_view = _emailable(email_qualifying)        # what the subscriber email may list (NBA player props are locked but only the EMAIL_NBA_PROP_STATS stats are emailed)
         season_inactive = product in ("nba", "hockey") and not email_view
         if not live:
             # Same redundancy-skip as the live branch below (soccer/cfb

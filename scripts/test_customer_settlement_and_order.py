@@ -102,13 +102,24 @@ class CustomerGroups(Subscribers):
         self.seed({"cfb": [{"email": "free@x.com", "added": iso(1), "promo": True}]})
         self.assertEqual([x["emails"] for x in A.customer_settlement_groups([row("CFB", "CFB", "ALA -3")])], [["free@x.com"]])
 
-    def test_removed_picks_and_nba_props_never_reach_customers(self):
+    def test_removed_picks_and_non_points_nba_props_never_reach_customers(self):
         self.seed({"nba": [{"email": "n@x.com", "added": iso(1)}]})
-        rows = [row("NBA", "NBA", "BOS ML"), row("NBA", "NBA", "Brunson PTS OVER 27.5", betType="PROP", player="Brunson", playerResult="29"), row("NBA", "NBA", "gone", outcome="_removed")]
-        with mock.patch.object(A, "EMAIL_NBA_PROPS", False):
+        rows = [row("NBA", "NBA", "BOS ML"),
+                row("NBA", "NBA", "Jalen Brunson OVER PTS 27.5", betType="PROP", player="Brunson", playerResult="29"),
+                row("NBA", "NBA", "Jalen Brunson OVER AST 6.5", betType="PROP", player="Brunson", playerResult="7"),
+                row("NBA", "NBA", "Al Horford UNDER REB 6.5", betType="PROP", player="Horford", playerResult="5"),
+                row("NBA", "NBA", "gone", outcome="_removed")]
+        # points props reach customers; assists / rebounds stay off; a removed pick never does
+        self.assertEqual([b["betOn"] for b in A.customer_settlement_groups(rows)[0]["settled"]], ["BOS ML", "Jalen Brunson OVER PTS 27.5"])
+        with mock.patch.object(A, "EMAIL_NBA_PROP_STATS", ()):
             self.assertEqual([b["betOn"] for b in A.customer_settlement_groups(rows)[0]["settled"]], ["BOS ML"])
-        with mock.patch.object(A, "EMAIL_NBA_PROPS", True):
-            self.assertEqual(len(A.customer_settlement_groups(rows)[0]["settled"]), 2)           # props come back with the switch; a removed pick never does
+        with mock.patch.object(A, "EMAIL_NBA_PROP_STATS", ("PTS", "AST", "REB")):
+            self.assertEqual(len(A.customer_settlement_groups(rows)[0]["settled"]), 4)
+
+    def test_a_prop_row_stat_is_read_from_its_bet_text(self):
+        for bet, want in (("Victor Wembanyama OVER PTS 24.5", "PTS"), ("Cade Cunningham UNDER AST 10.5", "AST"), ("Deni Avdija UNDER REB 7.5", "REB"),
+                          ("Wemby OVER PTS+REB+AST 37.5", "PTS+REB+AST"), ("Wemby OVER 3PM 1.5", "3PM"), ("Wemby OVER 26.5", "")):
+            self.assertEqual(A._nba_prop_row_stat({"betOn": bet}), want, bet)
 
     def test_unresolved_picks_are_reported_for_their_products_only(self):
         self.seed({"nfl": [{"email": "n@x.com", "added": iso(1)}]})

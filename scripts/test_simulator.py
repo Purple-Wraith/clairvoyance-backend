@@ -23,6 +23,13 @@ PAIRS = {
     "liga": (("Real Madrid", "Barcelona"), ("Girona", "Getafe"), 2.5),
     "seriea": (("Inter Milan", "Napoli"), ("Genoa", "Cagliari"), 2.5),
 }
+# Extra matchups per league for the "mean total differs" check (added 2026-11-24): two fixed pairs can land less than the tolerance apart after a ratings refresh (NBA BOS-LAL vs OKC-WSH
+# came out 0.74 apart, NFL IND-TEN vs KC-BUF 0.09), which says nothing about the simulator.  The property is "matchups are not all the same", so it is measured across several.
+EXTRA_PAIRS = {
+    "nba": (("DEN", "MIA"), ("IND", "PHX"), ("DET", "UTA")),
+    "nfl": (("Detroit Lions", "Baltimore Ravens"), ("Chicago Bears", "Carolina Panthers"), ("Philadelphia Eagles", "Cleveland Browns")),
+    "cfb": (("Texas Longhorns", "Oklahoma Sooners"), ("Oregon Ducks", "Washington Huskies"), ("Florida State Seminoles", "Clemson Tigers")),
+}
 ALL = list(PAIRS) + ["liiga", "shl", "nla", "extraliga"]
 SPORT_LEAGUE = {"nba": ("basketball", "nba"), "nhl": ("hockey", "nhl"), "nfl": ("football", "nfl"), "cfb": ("football", "cfb"), "pl": ("soccer", "pl"), "liga": ("soccer", "liga"),
                 "seriea": ("soccer", "seriea"), "liiga": ("hockey", "liiga"), "shl": ("hockey", "shl"), "nla": ("hockey", "nla"), "extraliga": ("hockey", "extraliga")}
@@ -88,6 +95,29 @@ class Sim(unittest.TestCase):
         t = self.lg_teams(sport)
         return ((t[0], t[1]), (t[-1], t[-2]), 5.5)       # highest-scoring (G/M) teams vs lowest-scoring teams: a real scoring-environment gap
 
+    def matchups(self, sport, line):
+        """Results for the league's matchups (the two fixed pairs plus EXTRA_PAIRS); one with an unknown team name or no team model is skipped.  Cached per league."""
+        cache = self.__dict__.setdefault("_matchup_cache", {})
+        if (sport, line) not in cache:
+            out = []
+            for h, a in [PAIRS[sport][0], PAIRS[sport][1], *EXTRA_PAIRS.get(sport, ())]:
+                try:
+                    r = self.sim(sport, h, a, line)
+                except Exception:                              # a team name this data does not know: skip that matchup, never fail the check on it
+                    continue
+                if r["hasModel"]:
+                    out.append(r)
+            cache[(sport, line)] = out
+        return cache[(sport, line)]
+
+    def spread(self, sport, line, key):
+        """Largest gap in `key` across the league's matchups (0 when fewer than two have a model)."""
+        vals = [r[key] for r in self.matchups(sport, line)]
+        return max(vals) - min(vals) if len(vals) >= 2 else 0.0
+
+    def total_spread(self, sport, line):
+        return self.spread(sport, line, "totMean")
+
     # (i) different matchups -> different numbers ------------------------------------------------------------------------------
     def test_i_two_matchups_in_each_league_differ(self):
         for sp in ALL:
@@ -95,6 +125,14 @@ class Sim(unittest.TestCase):
             r1, r2 = self.sim(sp, h1, a1, line), self.sim(sp, h2, a2, line)
             self.assertTrue(r1["hasModel"] and r2["hasModel"], f"{sp}: team model missing {r1['hasModel']} {r2['hasModel']}")
             tol = 1.0 if sp in ("nba", "nfl", "cfb") else (0.1 if sp in ("liiga", "shl", "nla", "extraliga") else 0.15)
+            if sp in EXTRA_PAIRS:
+                # NBA / NFL / CFB: two fixed pairs can land almost level after a ratings refresh (NFL 2026-11-24: OVER% 0.5016 vs 0.4995), so every comparison is the largest gap across several matchups
+                self.assertGreater(self.spread(sp, line, "totMean"), tol, f"{sp}: mean total identical across matchups")
+                self.assertGreater(max(self.spread(sp, line, "hP"), self.spread(sp, line, "overP")), 0.01, f"{sp}: win% and OVER% both identical across matchups")
+                self.assertGreater(self.spread(sp, line, "hP"), 0.003, f"{sp}: win% identical across matchups")
+                self.assertGreater(self.spread(sp, line, "overP"), 0.01, f"{sp}: OVER% at the same line identical across matchups")
+                self.assertGreater(max(self.spread(sp, line, "hMean"), self.spread(sp, line, "aMean")), tol, f"{sp}: team scores identical across matchups")
+                continue
             self.assertGreater(abs(r1["totMean"] - r2["totMean"]), tol, f"{sp}: mean total identical {r1['totMean']} vs {r2['totMean']}")
             self.assertGreater(max(abs(r1["hP"] - r2["hP"]), abs(r1["overP"] - r2["overP"])), 0.01, f"{sp}: win% and OVER% both identical")
             if sp not in ("liiga", "shl", "nla", "extraliga"):
@@ -116,8 +154,7 @@ class Sim(unittest.TestCase):
         self.assertLess(out["dTot"], 1.0)         # => the "totals differ by > 1" predicate used in test_i is False for the old behaviour
         self.assertLess(out["dOver"], 0.02)
         (h1, a1), (h2, a2), line = PAIRS["nfl"]
-        r1, r2 = self.sim("nfl", h1, a1, line), self.sim("nfl", h2, a2, line)
-        self.assertGreater(abs(r1["totMean"] - r2["totMean"]), 1.0)                       # new behaviour satisfies it
+        self.assertGreater(self.total_spread("nfl", line), 1.0)                           # new behaviour satisfies it (measured across several matchups: see EXTRA_PAIRS)
 
     def test_engine_win_probability_is_kept(self):
         # one evaluate so the engine state (async-loaded calibration etc.) is identical for both sides
