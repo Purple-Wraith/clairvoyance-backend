@@ -357,10 +357,13 @@ class Browser(unittest.TestCase):
 
     # ── end to end: the real CFB card ─────────────────────────────────────────────────────────────────────────────────
     def test_cfb_card_end_to_end_stated_probabilities_never_exceed_the_ceiling(self):
-        r = self.ev("""async()=>{await loadCFBData();const D=_CFB_DATA;const games=[];Object.values(D.weeks).forEach(w=>(w||[]).forEach(g=>{if(g.state!=='post'&&games.length<16)games.push(g);}));
+        r = self.ev("""async()=>{await loadCFBData();const D=_CFB_DATA;const games=[];Object.values(D.weeks).forEach(w=>(w||[]).forEach(g=>{if(g.state==='pre'&&games.length<16)games.push(g);}));
           window._autoLockLegs=[];const html=games.map(g=>_cfbGameCard(g));
           return {n:games.length,html:html.join('').length,legs:window._autoLockLegs.map(l=>l.markets.map(m=>({s:m.side,p:m.prob,raw:m.rawProb,c:m.capCeil,t:m.tierN,r:m.reasoning})))}}""")
-        self.assertGreaterEqual(r["n"], 4)
+        # Only UPCOMING games ('pre'): a live game has no odds and produces no picks, so on a Saturday afternoon the first 16 unfinished games could all be live and this check
+        # would see nothing to cap (main failed that way on 2026-11-21, 0 not greater than 0).  With fewer than 4 upcoming games (offseason, bye week) there is nothing to test.
+        if r["n"] < 4:
+            self.skipTest(f"only {r['n']} upcoming CFB game(s) in the committed schedule")
         seen_capped = seen_ml = 0
         for mk in r["legs"]:
             for m in mk:
