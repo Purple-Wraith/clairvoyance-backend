@@ -18,7 +18,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 DEFAULT_OUT = Path.home() / "Desktop" / "Clairvoyance Ads"
 SCRIPTS = ("gen_league_scorecard.py", "gen_adjusted_scorecard.py", "gen_reddit_ad_v1.py", "gen_subscription_card.py", "gen_pinned_card.py",
-           "gen_reddit_ad_videos.py", "gen_reddit_pack.py")
+           "gen_reddit_ad_videos.py", "gen_reel_videos.py", "gen_reddit_pack.py")
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
