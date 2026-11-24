@@ -39,7 +39,8 @@ CSS_V = f"""
   .stage {{ width:{W}px; height:{H}px; }}
   .hr {{ width:840px; }}
   .sep {{ position:absolute; left:50%; width:760px; height:2px; transform:translateX(-50%); background:linear-gradient(90deg, transparent, rgba(240,0,255,.8), transparent); box-shadow:0 0 8px rgba(240,0,255,.35); opacity:0; animation: reveal .01s linear var(--t,2.5s) forwards; }}
-  .rule {{ left:70px; width:870px; }}
+  .rule {{ left:70px; width:880px; }}
+  .vsep {{ position:absolute; top:372px; height:980px; width:2px; transform:translateX(-50%); background:linear-gradient(180deg, transparent, rgba(240,0,255,.6) 8%, rgba(240,0,255,.6) 92%, transparent); box-shadow:0 0 8px rgba(240,0,255,.3); opacity:0; animation: reveal .01s linear var(--t,2.5s) forwards; }}
   .cta-box {{ top:1330px; width:820px; height:140px; border-radius:16px; }}
   .fbar {{ top:1500px; bottom:auto; height:90px; }}
   .fline1 {{ top:18px; font-size:20px; }}
@@ -114,7 +115,7 @@ def ad_duration() -> float:
 
 
 def scorecard_body(data: dict) -> str:
-    X_NAME, X_M_REC, X_M_PCT, X_A_REC, X_A_PCT = 70, 440, 575, 722, 890
+    X_NAME, X_M_REC, X_M_PCT, X_A_REC, X_A_PCT = 70, 430, 565, 752, 905
     out = [sq._logo(250, 60), '<div class="sub c mm" style="top:306px;font-size:24px;letter-spacing:3px">LEAGUE SCORECARD</div>',
            '<div class="hr" style="top:342px"></div>']
 
@@ -127,6 +128,7 @@ def scorecard_body(data: dict) -> str:
     for x, t in ((X_M_REC, "W-L"), (X_M_PCT, "WIN %"), (X_A_REC, "W-L"), (X_A_PCT, "WIN %")):
         out.append(f'<div class="a mono C ctr" style="left:{x}px;top:424px;font-size:17px;--t:2.9s;--d:.8s">{t}</div>')
     out.append('<div class="rule" style="top:448px;--t:2.9s;--d:.8s"></div>')
+    out.append(f'<div class="vsep" style="left:640px;--t:2.9s"></div>')     # November | ALL TIME divider, midway between the two record blocks
 
     y, row_h, t = 482, 52, 3.0
     for r in ad_perf.sport_rows(data):
