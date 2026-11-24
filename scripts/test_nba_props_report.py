@@ -220,7 +220,7 @@ class Milestone(unittest.TestCase):
         self.assertEqual(len(sent), 1)
         subj, to, html = sent[0]
         self.assertIn("20 games reached", subj)
-        self.assertIn("EMAIL_NBA_PROPS", html)                                        # says exactly what to flip
+        self.assertIn("EMAIL_NBA_PROP_STATS", html)                                        # says exactly what to flip
         self.assertEqual(json.loads((r / R.STATE_REL).read_text())["sent"], "2026-12-02")
 
     def test_a_failed_send_is_retried_next_time(self):

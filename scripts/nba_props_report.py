@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """NBA player-props REVIEW (owner request 2026-10-28: "observe how player props do until 20 games are played in the NBA season").
 
-NBA props are still generated, locked and settled by the engine, but they are OFF the subscriber emails (`EMAIL_NBA_PROPS = False` in auto_lock_settle.py) until the season has ~20 games of data.
+NBA props are still generated, locked and settled by the engine for EVERY stat, but only POINTS props are on the subscriber emails (`EMAIL_NBA_PROP_STATS = ("PTS",)` in auto_lock_settle.py, owner 2026-11-24); assists and rebounds join once they show better accuracy and consistency.
 This module is the observation side of that:
 
   * games_status()   how many games each team has played (docs/nba_schedule.json) and when the median team reaches TARGET_GAMES;
@@ -37,7 +37,7 @@ MAX_PER_GAME = 5                  # owner 2026-10-28: a game keeps at most 5 pro
 CAP_FROM = "2026-10-29"           # one prop per player per game applies to picks dated from here (rule set 2026-10-28; earlier doubles are history)
 MIN_SAMPLE = 50                   # the owner's rule of thumb before judging anything (project_nba_props_rules)
 STATE_REL = "data/nba_props_milestone.json"
-EMAIL_SWITCH = "EMAIL_NBA_PROPS = False  ->  True   (scripts/auto_lock_settle.py)"
+EMAIL_SWITCH = 'EMAIL_NBA_PROP_STATS = ("PTS",)  ->  add "AST" and/or "REB"   (scripts/auto_lock_settle.py)'
 
 
 # ── games played ───────────────────────────────────────────────────────────────────────────────────────────────────────────
