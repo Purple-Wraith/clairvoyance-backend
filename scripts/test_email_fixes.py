@@ -327,8 +327,9 @@ class Lifecycle(unittest.TestCase):
         rem, marked, sent = self.rem, [], []
         rows = [{"product": "nfl", "email": "a@x.com", "days_left": 2, "expires": "2026-10-06T03:00:00+00:00"},
                 {"product": "cfb", "email": "b@x.com", "days_left": 2, "expires": "2026-10-06T03:00:00+00:00"}]
-        orig = (rem.subscribers_needing_reminder, rem.mark_reminder_sent, rem.send_email, sys.argv)
+        orig = (rem.subscribers_needing_reminder, rem.mark_reminder_sent, rem.send_email, sys.argv, rem.subscribers_needing_ended_notice)
         rem.subscribers_needing_reminder = lambda days_before=3: rows
+        rem.subscribers_needing_ended_notice = lambda: []                  # never read (or mark) the real subscriber list from a test
         rem.mark_reminder_sent = lambda p, e: marked.append(e)
         rem.send_email = lambda subj, to, body: (sent.append(to) or (to in send_ok, "boom"))
         sys.argv = ["send_expiry_reminders.py"]
@@ -338,7 +339,7 @@ class Lifecycle(unittest.TestCase):
         except SystemExit as e:
             code = e.code
         finally:
-            rem.subscribers_needing_reminder, rem.mark_reminder_sent, rem.send_email, sys.argv = orig
+            rem.subscribers_needing_reminder, rem.mark_reminder_sent, rem.send_email, sys.argv, rem.subscribers_needing_ended_notice = orig
         return code, marked
 
     def test_failed_reminder_exits_nonzero_and_is_not_marked(self):

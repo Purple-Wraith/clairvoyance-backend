@@ -322,6 +322,7 @@ def add_subscriber(product: str, email: str, promo: bool = False) -> str:
             # leave reminder_sent=True carried over and they'd never get
             # warned before the NEW window's own expiry.
             entry["reminder_sent"] = False
+            entry.pop("ended_sent", None)            # a new window can end (and be told about) again
             if promo:
                 entry["promo"] = True
             else:
@@ -430,6 +431,7 @@ def grant_referral_reward(referrer: str, referred: str, reward_product: str) -> 
             if added is not None and now - added < timedelta(days=EXPIRY_DAYS):
                 entry["added"] = (added + timedelta(days=REFERRAL_BONUS_DAYS)).isoformat()      # the window now ends REFERRAL_BONUS_DAYS later
                 entry["reminder_sent"] = False
+                entry.pop("ended_sent", None)
                 save_subscribers(data)
                 ev = _load_events()
                 ev.append({"ts": now.isoformat(), "action": "referral", "product": reward_product, "email": referrer, "referred": referred, "extended": True})
@@ -467,6 +469,42 @@ def mark_reminder_sent(product: str, email: str) -> None:
     for entry in data.get(product, []):
         if entry.get("email", "").strip().lower() == email:
             entry["reminder_sent"] = True
+    save_subscribers(data)
+
+
+# ACCESS-ENDED NOTICE (owner 2026-11-24): one email when a 30-day window has run out -- paid or free month -- telling the person it has ended and how to start again.
+# Only windows that ended in the last ENDED_NOTICE_WINDOW_DAYS days are considered: nothing prunes a lapsed row, so without this limit the first run would email everyone
+# who ever lapsed.  `ended_sent` is the once-per-window flag (reset by every add / renew / referral extension, exactly like `reminder_sent`).
+ENDED_NOTICE_WINDOW_DAYS = 3
+
+
+def subscribers_needing_ended_notice(window_days: int = ENDED_NOTICE_WINDOW_DAYS) -> list[dict]:
+    """[{product, email, ended (ISO end of the window), promo}] for every (product, email) whose 30-day window ended within the last `window_days` days and who has not been
+    told yet.  Checking "within N days" (not "exactly today") means a run that misses a day still catches them.  The owner's own address is never emailed."""
+    now = _now()
+    owner = (OWNER_EMAIL or "").strip().lower()
+    out = []
+    for product in PRODUCTS:
+        for entry in load_subscribers().get(product, []):
+            email = _entry_email(product, entry)
+            if email is None or email.strip().lower() == owner:
+                continue
+            added = _parse(entry.get("added", ""))
+            if added is None or entry.get("ended_sent"):
+                continue
+            ends = added + timedelta(days=EXPIRY_DAYS)
+            if now < ends or now - ends >= timedelta(days=window_days):
+                continue
+            out.append({"product": product, "email": email, "ended": ends.isoformat(), "promo": bool(entry.get("promo"))})
+    return out
+
+
+def mark_ended_sent(product: str, email: str) -> None:
+    email = email.strip().lower()
+    data = load_subscribers()
+    for entry in data.get(product, []):
+        if isinstance(entry, dict) and entry.get("email", "").strip().lower() == email:
+            entry["ended_sent"] = True
     save_subscribers(data)
 
 

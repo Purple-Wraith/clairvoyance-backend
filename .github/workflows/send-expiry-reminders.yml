@@ -2,7 +2,7 @@ name: Send Expiry Reminders
 
 # Daily: warns any subscriber whose 30-day access window is within 3
 # days of lapsing (scripts/send_expiry_reminders.py), so losing access
-# isn't a surprise. Each (email, product) pair only gets warned once
+# isn't a surprise. It also sends ONE 'your access has ended' email (paid or free month, with the price for a free month) once a window has run out -- ended in the last 3 days, once per window (ended_sent). Each (email, product) pair only gets warned once
 # per window -- reminder_sent resets on every add/renew. No Playwright
 # needed (never touches the live app), just reads data/subscribers.json
 # and sends email -- runs shortly after the main lock email so the
@@ -79,7 +79,7 @@ jobs:
             --days-before "${{ inputs.days_before || 3 }}" \
             ${{ inputs.dry_run == true && '--dry-run' || '' }}
 
-      # reminder_sent flags live in data/subscribers.json, same file
+      # reminder_sent and ended_sent flags (the 'access ended' email, owner 2026-11-24) live in data/subscribers.json, same file
       # manage_subscribers.py/subscribers_admin.py write to locally --
       # has to be committed back or every run re-sends the same
       # reminder forever.
@@ -103,7 +103,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No state change"
           else
-            git commit -m "expiry-reminders: mark reminder_sent"
+            git commit -m "expiry-reminders: mark reminder_sent / ended_sent"
             if ! git push origin "$BRANCH"; then
               git fetch origin "$BRANCH"
               if git rebase "origin/$BRANCH"; then
