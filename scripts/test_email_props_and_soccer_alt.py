@@ -72,6 +72,22 @@ class Props(unittest.TestCase):
         self.assertIn("(2)", sent["subject"]); self.assertIn("Tatum", sent["body"])
         self.assertNotIn("Brown", sent["body"]); self.assertNotIn("Horford", sent["body"]); self.assertIn("OVER 3.5", sent["body"])
 
+    def real_prop(self, stat_abbr, player, stat_key):
+        """A prop leg shaped like the live generator's (docs/app.html _generateNBAProps): `stat` is the lower-case source key (ppg/rpg/apg), `statAbbr` the real PTS/REB/AST label."""
+        q = prop("NBA", player=player, stat=stat_abbr)
+        q["leg"]["stat"] = stat_key
+        return q
+
+    def test_a_live_shaped_points_prop_is_emailed_with_its_PTS_label_not_ppg(self):
+        r, sent = self.run_send([self.real_prop("PTS", "Jayson Tatum", "ppg"), self.real_prop("AST", "Jaylen Brown", "apg"), self.real_prop("REB", "Al Horford", "rpg")], locked_count=3)
+        self.assertTrue(r)
+        self.assertIn("Tatum", sent["body"]); self.assertIn("24.5 PTS", sent["body"]); self.assertNotIn("ppg", sent["body"])
+        self.assertNotIn("Brown", sent["body"]); self.assertNotIn("Horford", sent["body"]); self.assertIn("(1)", sent["subject"])
+
+    def test_a_live_shaped_prop_with_only_the_source_key_is_not_emailed(self):
+        q = self.real_prop("PTS", "Jayson Tatum", "ppg"); q["leg"].pop("statAbbr")
+        self.assertEqual(A._emailable([q]), [])                                       # 'ppg' is not an ESPN label: fail closed
+
     def test_adding_a_stat_brings_it_back(self):
         with mock.patch.object(A, "EMAIL_NBA_PROP_STATS", ("PTS", "AST")):
             r, sent = self.run_send([gameleg(), prop(stat="AST")], locked_count=2)

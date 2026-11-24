@@ -3675,7 +3675,7 @@ def _leg_html(q: dict) -> str:
     return (f'<div style="padding:5px 0">'
             f'<span style="background:{color};color:#000;font-weight:700;font-size:11px;padding:1px 7px;'
             f'border-radius:3px;display:inline-block;margin-bottom:3px">{_esc(grade)}</span>'
-            f'<div style="font-size:14px;color:#eee">{_esc(leg.get("player"))} {direction} {_esc(leg.get("line"))} {_esc(leg.get("stat"))} — {_prob_txt(prob, True)}</div>'
+            f'<div style="font-size:14px;color:#eee">{_esc(leg.get("player"))} {direction} {_esc(leg.get("line"))} {_esc(leg.get("statAbbr") or leg.get("stat"))} — {_prob_txt(prob, True)}</div>'
             + _skip_note_html(grade, prob, True)
             + '</div>')
 
@@ -4616,7 +4616,7 @@ def run_lock(page, live: bool, only_sports: frozenset[str] | None = None, label:
             leg = q["leg"]
             direction = "UNDER" if leg.get("over") is False else "OVER"
             log(f"  [{q['sport']} PROP] {leg.get('player')} {direction} {leg.get('line')} "
-                f"{leg.get('stat')} ({leg.get('grade')})")
+                f"{leg.get('statAbbr') or leg.get('stat')} ({leg.get('grade')})")
 
     product = _product_for_sports(only_sports)
     if not live:
@@ -4737,7 +4737,7 @@ def run_euro_early_lock(page, live: bool, send_email: bool = True) -> int:
                 leg = q["leg"]
                 direction = "UNDER" if leg.get("over") is False else "OVER"
                 log(f"  [{q['sport']} PROP] {leg.get('player')} {direction} {leg.get('line')} "
-                    f"{leg.get('stat')} ({leg.get('grade')})")
+                    f"{leg.get('statAbbr') or leg.get('stat')} ({leg.get('grade')})")
 
         if not live:
             log(f"[DRY RUN] Would lock {len(qualifying)} {label} legs above (pass --live to write)")
