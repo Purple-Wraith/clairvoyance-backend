@@ -38,6 +38,7 @@ CSS_V = f"""
   html,body {{ width:{W}px; height:{H}px; overflow:hidden; }}
   .stage {{ width:{W}px; height:{H}px; }}
   .hr {{ width:840px; }}
+  .sep {{ position:absolute; left:50%; width:760px; height:2px; transform:translateX(-50%); background:linear-gradient(90deg, transparent, rgba(240,0,255,.8), transparent); box-shadow:0 0 8px rgba(240,0,255,.35); opacity:0; animation: reveal .01s linear var(--t,2.5s) forwards; }}
   .rule {{ left:70px; width:870px; }}
   .cta-box {{ top:1330px; width:820px; height:140px; border-radius:16px; }}
   .fbar {{ top:1500px; bottom:auto; height:90px; }}
@@ -93,7 +94,7 @@ def ad_body(perf: dict) -> str:
         out.append(f'<div class="a orb M neon-m ctr c" style="top:{top}px;font-size:28px;letter-spacing:3px;--t:{t}s">{_e(lbl)}</div>')
         out.append(f'<div class="a orb M neon-m ctr c glitch" style="top:{top + 90}px;font-size:120px;--t:{t + .1}s">{ad_perf.fmt_pct(rec)}</div>')
         out.append(f'<div class="a orb C neon-c ctr c" style="top:{top + 170}px;font-size:34px;--t:{t + .4}s">{rec["w"]:,}W - {rec["l"]:,}L</div>')
-        out.append(f'<div class="hr" style="top:{top + 220}px;--t:{t + .2}s"></div>')
+        out.append(f'<div class="sep" style="top:{top + 220}px;--t:{t + .2}s"></div>')
     vp = ["Every pick uses mathematical precision,", "multi-layered ensemble models,", "and adaptive intelligence.",
           "Published live and graded on outcome —", "no cherry-picking, no deleted losses."]
     for i, ln in enumerate(vp):
