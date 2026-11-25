@@ -36,7 +36,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _subscribers import (
     PRODUCTS, add_subscriber, remove_subscriber, list_subscribers,
-    products_for_email, send_receipt_email, EXPIRY_DAYS, sync_subscribers_to_git,
+    products_for_email, send_receipt_email, EXPIRY_DAYS, sync_subscribers_to_git, refresh_subscribers_from_git,
     referral_problem, grant_referral_reward, log_pending_referral, pending_referral_problem, send_referral_notice_email,
 )
 
@@ -65,6 +65,14 @@ def main() -> None:
     if cmd == "products":
         print(", ".join(PRODUCTS))
         return
+
+    if cmd in ("add", "remove", "grant-referral", "list", "check"):      # work on GitHub's current list, not a stale local copy
+        ok, msg = refresh_subscribers_from_git()
+        if not ok and cmd in ("list", "check"):
+            print(f"WARNING: showing the local copy -- {msg}")
+        elif not ok:
+            print(f"Nothing was changed -- {msg}")
+            sys.exit(1)
 
     if cmd == "list":
         product = args[1] if len(args) > 1 else None
