@@ -177961,10 +177961,10 @@
     "ml": "-296",
     "decOdds": 1.338,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "loss",
     "lockedAt": 1795536237231,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 3,
+    "aScore": 5,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (70.3% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 45.9%; the 1-goal cushion is priced from the historical margin curve for this market (about 70% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
@@ -177982,7 +177982,8 @@
     },
     "startMs": 1795568400000,
     "leadMin": 536,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1795578694746
   },
   {
     "hA": "Feyenoord Rotterdam",
@@ -179811,10 +179812,10 @@
     "ml": "-266",
     "decOdds": 1.376,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1795536231975,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 116,
+    "aScore": 131,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: BOS -4.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted BOS -10.5 to BOS -4.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 52.7%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
@@ -179832,7 +179833,8 @@
     },
     "startMs": 1795568400000,
     "leadMin": 536,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1795578694555
   },
   {
     "id": "2026-11-24_WSH_BOS_NBA_BOSML",
@@ -179847,16 +179849,17 @@
     "ml": "-453",
     "decOdds": 1.2207505518763797,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1795536231801,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 116,
+    "aScore": 131,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: BOS ML \u2014 SKIP (79.8% win prob, EV -2.6%)\nMODEL: Projected 114.0\u2013102.8 (total 216.8), from an exact normal distribution (not a simulation).",
     "startMs": 1795568400000,
     "leadMin": 536,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1795578694556
   },
   {
     "id": "2026-11-24_WSH_BOS_NBA_UNDER225.5",
@@ -179871,10 +179874,10 @@
     "ml": "-251",
     "decOdds": 1.399,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "loss",
     "lockedAt": 1795536232442,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 116,
+    "aScore": 131,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: UNDER 225.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted UNDER 217.5 to UNDER 225.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 51.6%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
@@ -179892,7 +179895,8 @@
     },
     "startMs": 1795568400000,
     "leadMin": 536,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1795578694556
   },
   {
     "id": "2026-11-24_Zug_EHC Kloten_NLA_OVER4.5",
@@ -194645,7 +194649,7 @@
     "conf": 0.68,
     "ml": "-213",
     "lockedAt": 1795536233580,
-    "outcome": "pending",
+    "outcome": "loss",
     "date": "2026-11-24",
     "sport": "NBA",
     "league": "NBA",
@@ -194672,7 +194676,10 @@
         "AST": 5.4
       }
     },
-    "reasoning": "PICK: Jayson Tatum OVER REB 6.5 \u2014 PREMIUM (68% model hit rate)\nMODEL: projection 7.61 REB (season average 6.9, last-5 form 8.6, opponent adjustment +0.7) vs the 6.5 line, spread \u03c3 2.29, from an exact normal distribution (not a simulation).\nWHY: Jayson Tatum averages 6.9 rpg across 15 games this season. Opp WSH DRtg 116.7 vs a 114.6 league average computed from every currently-loaded team, a 2% boost folded into the projection. Game pace 96.6 (+2.0%), BOS offense 116.9 vs a 114.6 league average. No head-to-head history vs WSH this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
+    "reasoning": "PICK: Jayson Tatum OVER REB 6.5 \u2014 PREMIUM (68% model hit rate)\nMODEL: projection 7.61 REB (season average 6.9, last-5 form 8.6, opponent adjustment +0.7) vs the 6.5 line, spread \u03c3 2.29, from an exact normal distribution (not a simulation).\nWHY: Jayson Tatum averages 6.9 rpg across 15 games this season. Opp WSH DRtg 116.7 vs a 114.6 league average computed from every currently-loaded team, a 2% boost folded into the projection. Game pace 96.6 (+2.0%), BOS offense 116.9 vs a 114.6 league average. No head-to-head history vs WSH this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+    "settledAt": 1795578695104,
+    "playerResult": 6,
+    "playerMin": 37
   },
   {
     "hA": "SA",
