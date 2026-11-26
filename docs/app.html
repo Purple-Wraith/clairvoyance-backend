@@ -22148,13 +22148,36 @@ function renderHomePage(){
 // POSTs to the scheduler Worker (scheduler/worker.js, POST /trigger), which dispatches the real workflow with the GitHub token it holds. The browser only ever sends a shared
 // secret (TRIGGER_KEY, set on the Worker with `wrangler secret put TRIGGER_KEY`); it is asked for once and kept in this device's localStorage. Wrong key -> forgotten again.
 const _TRIGGER_URL='https://clairvoyance-scheduler.clairvoyance-reese.workers.dev/trigger';
+// Owner key box (replaces window.prompt: it hides the key, takes a paste on touch, and lets the device's password manager offer to save and fill it).
+let _okOpen=null;
+function _askOwnerKey(){
+  if(_okOpen)return _okOpen;
+  _okOpen=new Promise(resolve=>{
+    const ov=document.createElement('div');ov.id='ok-ov';
+    ov.innerHTML='<form id="ok-box" role="dialog" aria-modal="true" aria-labelledby="ok-title" action="#" method="post">'
+      +'<div id="ok-title">OWNER KEY</div>'
+      +'<p class="ok-note">One key for LOCK NOW, SETTLE NOW and SYNC NOW. It stays on this device.</p>'
+      +'<input type="text" class="ok-user" name="username" autocomplete="username" value="clairvoyance-owner" tabindex="-1" aria-hidden="true" readonly>'
+      +'<div class="ok-row"><input type="password" id="ok-key" name="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" placeholder="Paste or type the key" aria-label="Owner key"><button type="button" id="ok-show" aria-pressed="false">SHOW</button></div>'
+      +'<div class="ok-actions"><button type="button" id="ok-cancel">CANCEL</button><button type="submit" id="ok-save">CONTINUE</button></div></form>';
+    document.body.appendChild(ov);
+    const inp=ov.querySelector('#ok-key'),show=ov.querySelector('#ok-show');
+    const done=v=>{ov.remove();_okOpen=null;resolve(v);};
+    ov.querySelector('#ok-box').addEventListener('submit',e=>{e.preventDefault();const v=inp.value.trim();if(!v){inp.focus();return;}done(v);});
+    ov.querySelector('#ok-cancel').addEventListener('click',()=>done(null));
+    show.addEventListener('click',()=>{const on=inp.type==='password';inp.type=on?'text':'password';show.textContent=on?'HIDE':'SHOW';show.setAttribute('aria-pressed',String(on));});
+    ov.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape')done(null);});   // keep page shortcuts out of the box
+    inp.focus();
+  });
+  return _okOpen;
+}
 async function _hdrTrigger(kind){
   const label=kind==='lock'?'LOCK':'SETTLE';
   const btn=document.getElementById('hdr-trig-'+kind);
   const what=kind==='lock'?'Run a LOCK pass now? It locks every qualifying pick that has not started yet (no subscriber email).':'Run a SETTLE pass now? It grades every finished game.';
   if(!confirm(what))return;
   let key=null;try{key=localStorage.getItem('cv_trigger_key');}catch(e){}
-  if(!key){key=prompt('Owner trigger key (kept on this device):');if(!key)return;key=key.trim();}
+  if(!key){key=await _askOwnerKey();if(!key)return;}
   const orig=btn?btn.innerHTML:'';if(btn){btn.disabled=true;btn.textContent='\u2026 STARTING';}
   let msg,col='var(--hc)';
   try{
@@ -35133,6 +35156,19 @@ window._clvScanAllSports=_clvScanAllSports;
 .pt-stat>span{font-family:var(--mono);font-size:12px;letter-spacing:1px;padding:0 11px;white-space:nowrap}
 .pt-stat.local{color:var(--t2)}.pt-stat.ok{color:#00e644;border-color:rgba(0,230,68,.55)}.pt-stat.err{color:var(--hc);border-color:var(--hc);box-shadow:0 0 10px -3px var(--hc)}.pt-stat.busy{color:var(--gc);border-color:var(--gc)}
 .pt-warn{flex:1 1 100%;margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--gc);border:1px solid rgba(255,221,0,.4);background:rgba(255,221,0,.06);padding:6px 9px;border-radius:3px;line-height:1.5}
+/* owner key box */
+#ok-ov{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:flex-start;justify-content:center;overflow:auto;background:rgba(2,0,8,.88);padding:calc(12vh + env(safe-area-inset-top,0px)) 16px 16px}
+#ok-box{position:relative;width:100%;max-width:420px;box-sizing:border-box;background:#0a0416;border:1px solid var(--pc);border-radius:8px;padding:18px;box-shadow:0 0 30px -8px var(--pc);font-family:var(--mono)}
+#ok-title{color:var(--nc);font-size:16px;letter-spacing:2px;margin-bottom:8px}
+#ok-box .ok-note{color:var(--t2);font-size:13px;line-height:1.5;margin:0 0 12px}
+#ok-box .ok-user{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+#ok-box .ok-row,#ok-box .ok-actions{display:flex;gap:8px}
+#ok-box .ok-actions{margin-top:12px}
+#ok-box #ok-key{flex:1;min-width:0;height:48px;box-sizing:border-box;padding:0 12px;font-family:var(--mono);font-size:16px!important;background:#000;color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:4px}
+#ok-box button{min-height:48px;padding:0 14px;font-family:var(--mono);font-size:13px;letter-spacing:1px;border-radius:4px;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;cursor:pointer}
+#ok-box .ok-actions button{flex:1}
+#ok-box #ok-save{background:var(--pc);border-color:var(--pc);color:#000;font-weight:700}
+#ok-box :focus-visible{outline:2px solid var(--gc);outline-offset:2px}
 /* form */
 .pt-fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:4px}
 .pt-fld{display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -35880,8 +35916,8 @@ async function _ptSync(manual){
   let key=_ptKey(),fresh=false;
   if(!key){
     if(!manual)return;
-    key=prompt('Owner trigger key (the same key the LOCK NOW / SETTLE NOW buttons use; kept on this device):');
-    if(!key||!key.trim())return;key=key.trim();fresh=true;
+    key=await _askOwnerKey();
+    if(!key||_ptSyncing)return;fresh=true;
   }
   const url=_ptWorkerUrl();if(!url)return;
   _ptSyncing=true;_ptSy={state:'busy',t:_ptSy.t,msg:'Syncing…'};_ptSyncBar();
@@ -36034,7 +36070,7 @@ function _ptSyncBar(){
   else{label='LOCAL ONLY';cls='local';}
   const warn=(_ptMem||_ptSaveErr)?`<div class="pt-warn" role="alert">BROWSER STORAGE IS BLOCKED — entries live only until you close this tab. Use BACKUP (ENTRIES tab) to keep them.</div>`:'';
   const tip=s.msg||(cls==='local'?'Entries are stored in this browser only. SYNC NOW links this device to your other devices through the Worker.':'');
-  const first=(cls==='local'&&!_ptKey())?'<div class="pt-note">This device only. Tap SYNC NOW to share entries with your other devices.</div>':'';   // a hover tip is invisible on touch
+  const first=(cls==='local'&&!_ptKey())?'<div class="pt-note">This device only. Tap SYNC NOW to share entries with your other devices.</div>':(cls==='err'&&s.msg?`<div class="pt-note">${_ptEsc(s.msg)}</div>`:'');   // a hover tip is invisible on touch
   const h=`<div class="pt-sync"><button type="button" class="pt-stat ${cls}" data-ptact="syncchip" title="${_ptEsc(tip)}"><span>${label}</span></button>${_ptBtn('syncnow',null,'SYNC NOW','pt-b-sm',s.state==='busy'?' disabled':'')}</div>${first}${warn}`;
   document.querySelectorAll('.pt-syncbar').forEach(el=>{if(el.innerHTML!==h)el.innerHTML=h;});
 }
