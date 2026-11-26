@@ -38,6 +38,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import threading
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -170,6 +171,44 @@ REPO_ROOT = DATA_DIR if DATA_SOURCE != "legacy" else DATA_DIR.parent
 _SYNC_RELS = ["subscribers.json", "subscriber_events.json"] if DATA_SOURCE != "legacy" else ["data/subscribers.json", "data/subscriber_events.json"]
 
 
+GIT_LOCK = threading.RLock()        # one git operation (or list change) at a time: the admin server answers requests on several threads
+
+
+def _git(*args: str) -> subprocess.CompletedProcess:
+    """git in the data repo.  GIT_TERMINAL_PROMPT=0 so a credential/auth problem fails fast instead of waiting for input nobody will provide; a hung network
+    call comes back as a failed command (never an exception that would leave the admin page with no answer)."""
+    try:
+        return subprocess.run(["git", "-C", str(REPO_ROOT), *args], capture_output=True, text=True, timeout=30, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(args, 124, "", f"git {args[0]} timed out after 30 seconds")
+    except OSError as exc:
+        return subprocess.CompletedProcess(args, 127, "", f"git could not run: {exc}")
+
+
+def refresh_subscribers_from_git() -> tuple[bool, str]:
+    """Downloads the latest list BEFORE it is changed.  GitHub's workflows write to the same entries (reminder_sent, ended_sent), so a renewal made on a stale
+    copy collided with them and never reached GitHub (2026-11-25).  Every tool that changes the list calls this first and changes nothing when it returns False.
+    Only the private local clone is refreshed; anything else (the legacy file inside this repo, tests with their own files) is left alone."""
+    if DATA_SOURCE == "legacy" or SUBSCRIBERS_FILE.parent != REPO_ROOT or not (REPO_ROOT / ".git").exists():
+        return True, "no private clone to refresh"
+    with GIT_LOCK:
+        fetch = _git("fetch", "origin", "main")
+        if fetch.returncode != 0:
+            return False, f"could not download the latest list from GitHub: {fetch.stderr.strip()[:200]}"
+        behind = _git("rev-list", "--count", "HEAD..origin/main")
+        if behind.returncode != 0:
+            return False, f"could not compare with GitHub: {behind.stderr.strip()[:200]}"
+        if behind.stdout.strip() == "0":
+            return True, "already current"
+        if _git("status", "--porcelain", "--", *_SYNC_RELS).stdout.strip():
+            return sync_subscribers_to_git("Sync pending subscriber changes")       # half-finished batch: commit it, then pull, then push
+        pull = _git("pull", "--rebase", "--autostash", "origin", "main")
+        if pull.returncode != 0:
+            _git("rebase", "--abort")
+            return False, f"an earlier local change clashes with GitHub and needs resolving by hand in {REPO_ROOT}: {pull.stderr.strip()[:200]}"
+        return True, "downloaded the latest list"
+
+
 def sync_subscribers_to_git(message: str) -> tuple[bool, str]:
     """Commits + pushes subscribers.json (and subscriber_events.json -- in the private repo, or data/ in this one while legacy;
     the add/remove/renew history add_subscriber()/remove_subscriber() also
@@ -183,47 +222,39 @@ def sync_subscribers_to_git(message: str) -> tuple[bool, str]:
     session audit. Mirrors the same pull --rebase-then-push pattern
     send-expiry-reminders.yml already uses safely against subscribers.json
     (it flips reminder_sent daily), since that file is the only other
-    writer either of these can collide with. GIT_TERMINAL_PROMPT=0 so a
-    credential/auth problem fails fast instead of hanging this script
-    waiting for input nobody will provide."""
-    def run(*args: str) -> subprocess.CompletedProcess:
-        return subprocess.run(
-            ["git", "-C", str(REPO_ROOT), *args],
-            capture_output=True, text=True, timeout=30,
-            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
-        )
+    writer either of these can collide with."""
+    with GIT_LOCK:
+        rels = _SYNC_RELS
+        _git("add", *rels)
+        diff = _git("diff", "--cached", "--quiet", "--", *rels)
+        if diff.returncode == 0:
+            return True, "no changes to sync"
 
-    rels = _SYNC_RELS
-    run("add", *rels)
-    diff = run("diff", "--cached", "--quiet", "--", *rels)
-    if diff.returncode == 0:
-        return True, "no changes to sync"
+        commit = _git("commit", "-m", message)
+        if commit.returncode != 0:
+            return False, f"commit failed: {commit.stderr.strip() or commit.stdout.strip()}"
 
-    commit = run("commit", "-m", message)
-    if commit.returncode != 0:
-        return False, f"commit failed: {commit.stderr.strip() or commit.stdout.strip()}"
+        # --autostash: this repo almost always has *something* else dirty
+        # (in-progress edits, or automation's own docs/version.json churn) --
+        # without it, pull --rebase refuses to run at all over unrelated
+        # uncommitted files, even though our commit only touched
+        # subscribers.json. --autostash sets those aside and restores them
+        # after, whether the rebase succeeds or gets aborted below.
+        pull = _git("pull", "--rebase", "--autostash", "origin", "main")
+        if pull.returncode != 0:
+            _git("rebase", "--abort")
+            return False, (
+                "committed locally but couldn't sync with GitHub (pull --rebase failed) "
+                f"-- resolve manually: {pull.stderr.strip()[:200]}"
+            )
 
-    # --autostash: this repo almost always has *something* else dirty
-    # (in-progress edits, or automation's own docs/version.json churn) --
-    # without it, pull --rebase refuses to run at all over unrelated
-    # uncommitted files, even though our commit only touched
-    # subscribers.json. --autostash sets those aside and restores them
-    # after, whether the rebase succeeds or gets aborted below.
-    pull = run("pull", "--rebase", "--autostash", "origin", "main")
-    if pull.returncode != 0:
-        run("rebase", "--abort")
-        return False, (
-            "committed locally but couldn't sync with GitHub (pull --rebase failed) "
-            f"-- resolve manually: {pull.stderr.strip()[:200]}"
-        )
-
-    push = run("push", "origin", "main")
-    if push.returncode != 0:
-        return False, (
-            f"committed locally but push failed -- run `git -C {REPO_ROOT} push` "
-            f"manually: {push.stderr.strip()[:200]}"
-        )
-    return True, "synced to GitHub"
+        push = _git("push", "origin", "main")
+        if push.returncode != 0:
+            return False, (
+                f"committed locally but push failed -- run `git -C {REPO_ROOT} push` "
+                f"manually: {push.stderr.strip()[:200]}"
+            )
+        return True, "synced to GitHub"
 
 
 def _is_active(entry: dict, now: datetime) -> bool:

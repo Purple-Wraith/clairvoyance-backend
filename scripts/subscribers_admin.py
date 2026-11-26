@@ -28,6 +28,7 @@ import shutil
 import subprocess
 import sys
 import webbrowser
+import time
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -37,7 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _subscribers import (
     PRODUCTS, add_subscriber, remove_subscriber, active_subscribers,
     products_for_email, analytics_summary, send_receipt_email, EXPIRY_DAYS,
-    sync_subscribers_to_git, load_subscribers, referral_problem, grant_referral_reward, log_pending_referral, pending_referral_rewards, pending_referral_problem, send_referral_notice_email, _load_events, _parse, _now, PRICING_BY_COUNT, OWNER_EMAIL,
+    sync_subscribers_to_git, refresh_subscribers_from_git, GIT_LOCK, load_subscribers, referral_problem, grant_referral_reward, log_pending_referral, pending_referral_rewards, pending_referral_problem, send_referral_notice_email, _load_events, _parse, _now, PRICING_BY_COUNT, OWNER_EMAIL,
 )
 
 # ── ENGINE APP "MAILING LIST" TAB (2026-10-25) ────────────────────────────────────────────────────────────────────────────────
@@ -565,6 +566,12 @@ async function doAdd() {
     });
     const j = await res.json();
     results.push(j.message || j.error);
+    if (res.status === 409) {          // the latest list could not be downloaded: nothing changed, keep the form filled
+      msgEl.className = 'msg err';
+      msgEl.textContent = results.join(' · ');
+      loadAll();
+      return;
+    }
   }
   const receiptRes = await fetch('/api/receipt', {
     method: 'POST', headers: {'Content-Type':'application/json'},
@@ -582,11 +589,18 @@ async function doAdd() {
 }
 
 async function doRemove(product, email) {
-  await fetch('/api/remove', {
+  const res = await fetch('/api/remove', {
     method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify({product, email})
   });
   loadAll();
+  if (!res.ok) {
+    const j = await res.json();
+    const syncEl = document.getElementById('syncStatus');
+    syncEl.className = 'sync-status err';
+    syncEl.textContent = '⚠ ' + (j.error || 'not removed');
+    return;
+  }
   await syncNow(`Remove ${email} from ${product}`, null, null);
 }
 
@@ -636,6 +650,19 @@ loadAll();
 """
 
 
+VIEW_REFRESH_SECONDS = 60
+_last_view_refresh = 0.0
+
+
+def refresh_for_view() -> None:
+    """Page loads show GitHub's current list too, at most once a minute.  Best effort: offline, the local copy is shown."""
+    global _last_view_refresh
+    if time.monotonic() - _last_view_refresh < VIEW_REFRESH_SECONDS and _last_view_refresh:
+        return
+    _last_view_refresh = time.monotonic()
+    refresh_subscribers_from_git()
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
@@ -682,8 +709,17 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _latest_list(self) -> bool:
+        """Called before any change: False (and the refusal already sent) when GitHub's current list could not be downloaded."""
+        ok, msg = refresh_subscribers_from_git()
+        if not ok:
+            self._json({"error": f"nothing was changed -- {msg}"}, 409)
+        return ok
+
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path in ("/api/subscribers", "/api/check", "/api/analytics", "/api/overview"):
+            refresh_for_view()
         if parsed.path == "/":
             self._html(PAGE)
         elif parsed.path == "/home-icon.png":
@@ -728,9 +764,15 @@ class Handler(BaseHTTPRequestHandler):
         product = body.get("product")
         email = (body.get("email") or "").strip()
         parsed = urlparse(self.path)
+        with GIT_LOCK:          # download + change happen together, never interleaved with another request's git call
+            self._route_post(parsed, body, product, email)
+
+    def _route_post(self, parsed, body, product, email):
         if parsed.path == "/api/add":
             if product not in PRODUCTS or not email:
                 self._json({"error": "invalid product/email"}, 400)
+                return
+            if not self._latest_list():
                 return
             referred_by, reward = (body.get("referred_by") or "").strip(), body.get("reward") or None
             if referred_by:
@@ -753,6 +795,8 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/referral/grant":
             # the referrer has told us their sport: give them the free month that was waiting
             referrer, referred, sport = (body.get("referrer") or "").strip().lower(), (body.get("referred") or "").strip().lower(), body.get("reward")
+            if not self._latest_list():
+                return
             problem = pending_referral_problem(referrer, referred, sport)
             if problem:
                 self._json({"error": problem}, 400)
@@ -761,6 +805,8 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/remove":
             if product not in PRODUCTS or not email:
                 self._json({"error": "invalid product/email"}, 400)
+                return
+            if not self._latest_list():
                 return
             self._json({"ok": True, "message": remove_subscriber(product, email)})
         elif parsed.path == "/api/receipt":
