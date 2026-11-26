@@ -6,15 +6,18 @@ Covers game legs of every kind, the hockey high-probability lane, alternate-line
 """
 from __future__ import annotations
 
-import sys, time, unittest
+import sys, unittest
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
+from zoneinfo import ZoneInfo
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import auto_lock_settle as A  # noqa: E402
 
-T0 = int(time.time() * 1000)
+# Noon Mountain today, not the real clock: NBA locks same-day games only, so "now + 3h" crossed midnight and failed these tests from 9 PM MT on.
+T0 = int(datetime.now(ZoneInfo("America/Denver")).replace(hour=12, minute=0, second=0, microsecond=0).timestamp() * 1000)
 
 
 def game(sport, markets, h="H", a="A"):
