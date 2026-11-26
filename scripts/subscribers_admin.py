@@ -9,10 +9,10 @@ Run:
 Then open http://127.0.0.1:8899, or from a phone on the same Wi-Fi,
 http://<this Mac's LAN IP>:8899 (find it with `ipconfig getifaddr en0`).
 
-Binds to 0.0.0.0 -- reachable from any device on the same network, with
-NO auth. That's a deliberate choice for home-network convenience (so a
-phone can load and bookmark it), not an oversight -- do not run this on
-a network you don't trust every device on. Edits write straight to
+Binds to 0.0.0.0 -- reachable from any device on the same network. The Mac
+itself needs no password; every other device does (set it with
+--set-password; until then they are refused). Over plain http:// on a local
+network the password is not encrypted -- prefer the Tailscale https address. Edits write straight to
 subscribers.json on disk; nothing here talks to git, Supabase, or
 email. After editing, the usual workflow still applies: the file has to
 be committed and pushed for the change to actually reach the GitHub
@@ -20,6 +20,8 @@ Actions lock/email runs -- this tool only edits your local working copy,
 same as manage_subscribers.py does.
 """
 from __future__ import annotations
+import hashlib
+import hmac
 import json
 import math
 import os
@@ -27,12 +29,13 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import webbrowser
 import time
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _subscribers import (
@@ -52,6 +55,61 @@ APP_ORIGINS = {"https://purple-wraith.github.io"} | {o.strip() for o in os.envir
 _LOCAL_ORIGIN = re.compile(r"^http://(127\.0\.0\.1|localhost)(:\d+)?$")
 BACKEND_REPO = "Purple-Wraith/clairvoyance-backend"
 _RECEIPT_EMAIL = re.compile(r"^[^\s@<>\"',;]+@[^\s@<>\"',;]+\.[^\s@<>\"',;]+$")
+
+
+# ── PASSWORD FOR OTHER DEVICES (2026-11-25) ───────────────────────────────────────────────────────────────────────────────────
+# A browser on this Mac talking to http://127.0.0.1 needs no password.  EVERYTHING else (another device on the network, or the HTTPS address Tailscale serves) must send the password in the
+# X-CV-Admin-Key header on every /api/ request, and is refused while no password has been set.  Set or change it (no restart needed) with:
+#     python3 scripts/subscribers_admin.py --set-password
+# Only a salted hash is stored, outside the repo.
+PASSWORD_FILE = Path(os.environ.get("CV_ADMIN_PASSWORD_FILE") or (Path.home() / ".clairvoyance_admin_password"))
+MIN_PASSWORD = 8
+_PROXY_HEADERS = ("X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "Forwarded", "Tailscale-User-Login")
+_BAD_GUESS_LOCK = threading.Lock()
+BAD_GUESS_DELAY = 1.0
+
+
+def _hash_password(password: str, salt: bytes) -> bytes:
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 200_000)
+
+
+def save_password(password: str) -> None:
+    if len(password) < MIN_PASSWORD:
+        raise ValueError(f"use at least {MIN_PASSWORD} characters")
+    salt = os.urandom(16)
+    PASSWORD_FILE.write_text(salt.hex() + ":" + _hash_password(password, salt).hex() + "\n")
+    PASSWORD_FILE.chmod(0o600)
+
+
+def stored_password() -> tuple[bytes, bytes] | None:
+    try:
+        salt, digest = PASSWORD_FILE.read_text().strip().split(":")
+        return bytes.fromhex(salt), bytes.fromhex(digest)
+    except (OSError, ValueError):
+        return None
+
+
+def password_matches(given: str) -> bool:
+    rec = stored_password()
+    return bool(rec and given) and hmac.compare_digest(_hash_password(given, rec[0]), rec[1])
+
+
+def is_this_mac(client_ip: str, headers) -> bool:
+    """True only for a direct loopback request: not forwarded by a proxy (Tailscale serve connects from 127.0.0.1) and addressed to a loopback name (so another site cannot rebind DNS onto it)."""
+    host = (headers.get("Host") or "").strip().lower().rsplit(":", 1)[0]
+    return client_ip in ("127.0.0.1", "::1") and host in ("127.0.0.1", "localhost", "[::1]") and not any(headers.get(h) for h in _PROXY_HEADERS)
+
+
+def set_password_interactively() -> None:
+    import getpass
+    first = getpass.getpass("New admin password (typing stays hidden): ")
+    if getpass.getpass("Type it again: ") != first:
+        sys.exit("The two did not match -- nothing changed.")
+    try:
+        save_password(first)
+    except ValueError as e:
+        sys.exit(f"Not saved: {e}.")
+    print("Saved. Other devices will now be asked for this password.")
 
 
 def _gmail_ready() -> bool:
@@ -364,6 +422,34 @@ td{padding:9px 8px;border-bottom:1px solid rgba(255,255,255,.06);color:var(--t2)
 </div>
 
 <script>
+// On any device other than the Mac itself the server asks for the admin password; it is kept in this browser and sent with every /api/ request.
+const _plainFetch = window.fetch.bind(window);
+let _asking = null;
+window.fetch = async function (url, opts) {
+  if (!String(url).startsWith('/api/')) return _plainFetch(url, opts);
+  const send = () => {
+    const o = Object.assign({}, opts || {});
+    o.headers = Object.assign({}, o.headers || {});
+    const k = localStorage.getItem('cvAdminKey');
+    if (k) o.headers['X-CV-Admin-Key'] = encodeURIComponent(k);
+    return _plainFetch(url, o);
+  };
+  const used = localStorage.getItem('cvAdminKey');
+  let res = await send();
+  if (res.status === 403) {
+    const j = await res.clone().json().catch(() => ({}));
+    if (j.code === 'no_password' && !window._saidNoPassword) { window._saidNoPassword = true; alert(j.error); }
+  }
+  if (res.status !== 401) return res;
+  if (localStorage.getItem('cvAdminKey') !== used) return send();          // another request already got a new password
+  if (!_asking) _asking = Promise.resolve().then(() => {
+    const k = prompt(used ? 'Wrong password. Admin password:' : 'Admin password:');
+    if (k) localStorage.setItem('cvAdminKey', k);
+    return !!k;
+  }).finally(() => setTimeout(() => { _asking = null; }, 0));
+  return (await _asking) ? send() : res;
+};
+
 let PRODUCTS = [];
 let selectedProducts = new Set();
 
@@ -672,7 +758,7 @@ class Handler(BaseHTTPRequestHandler):
         if origin_allowed(origin):
             self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Vary", "Origin")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-CV-Admin")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-CV-Admin, X-CV-Admin-Key")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             self.send_header("Access-Control-Allow-Private-Network", "true")
             self.send_header("Access-Control-Max-Age", "600")
@@ -716,8 +802,26 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": f"nothing was changed -- {msg}"}, 409)
         return ok
 
+    def _allowed_in(self) -> bool:
+        """False (and the refusal already sent) when this request needs the password and does not have it."""
+        if is_this_mac(self.client_address[0], self.headers):
+            return True
+        if not stored_password():
+            self._json({"error": "no password is set yet -- on the Mac run: python3 scripts/subscribers_admin.py --set-password", "code": "no_password"}, 403)
+            return False
+        given = unquote(self.headers.get("X-CV-Admin-Key") or "")
+        if password_matches(given):
+            return True
+        if given:
+            with _BAD_GUESS_LOCK:          # one wrong guess at a time, each costing a pause
+                time.sleep(BAD_GUESS_DELAY)
+        self._json({"error": "wrong password" if given else "password needed", "code": "password"}, 401)
+        return False
+
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/") and not self._allowed_in():
+            return
         if parsed.path in ("/api/subscribers", "/api/check", "/api/analytics", "/api/overview"):
             refresh_for_view()
         if parsed.path == "/":
@@ -754,6 +858,8 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin")
         if origin and not (origin_allowed(origin) or self._same_origin(origin)):
             self._json({"error": "origin not allowed"}, 403)
+            return
+        if not self._allowed_in():
             return
         length = int(self.headers.get("Content-Length", 0) or 0)
         try:
@@ -831,11 +937,13 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    if "--set-password" in sys.argv:
+        set_password_interactively()
+        return
     url = f"http://127.0.0.1:{PORT}"
     try:
         # 0.0.0.0, not 127.0.0.1 -- deliberately reachable from other
-        # devices on the same network (e.g. a phone), see the module
-        # docstring for the no-auth trade-off that comes with that.
+        # devices (e.g. a phone); they must send the admin password.
         server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     except OSError:
         # Most likely cause: the LaunchAgent (see setup_launch_agent.sh) is

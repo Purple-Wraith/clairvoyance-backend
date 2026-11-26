@@ -35993,9 +35993,16 @@ function renderProfit(){
   if(!_ptCkKeyOk(_ptU.ck.view,_ptU.ck.key))_ptU.ck.key=_ptPeriodKey(_ptToday(),_ptU.ck.view);
   if(_ptU.sub==='dash'){_ptRenderAdd();_ptRenderDash();}else _ptRenderEntries();
   _ptSyncBar();
-  if(!renderProfit._once){renderProfit._once=1;if(_ptKey())_ptSync(false);}
+  _ptAutoSync();
 }
 window.renderProfit=renderProfit;
+// A Home Screen app stays open for days, so "sync once per page load" left it showing old entries.  Pull again when the tab is shown, at most once a minute (only if this device has the owner key).
+let _ptAutoAt=0;
+function _ptAutoSync(){
+  if(!_ptKey()||Date.now()-_ptAutoAt<60000)return;
+  _ptAutoAt=Date.now();_ptSync(false);
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&_ptIsVisible())_ptAutoSync();});
 function _ptSubTo(s){_ptU.sub=s;_ptU.anim=true;}
 function _ptRefreshAll(){
   if(!_ptIsVisible())return;
@@ -36027,7 +36034,8 @@ function _ptSyncBar(){
   else{label='LOCAL ONLY';cls='local';}
   const warn=(_ptMem||_ptSaveErr)?`<div class="pt-warn" role="alert">BROWSER STORAGE IS BLOCKED — entries live only until you close this tab. Use BACKUP (ENTRIES tab) to keep them.</div>`:'';
   const tip=s.msg||(cls==='local'?'Entries are stored in this browser only. SYNC NOW links this device to your other devices through the Worker.':'');
-  const h=`<div class="pt-sync"><button type="button" class="pt-stat ${cls}" data-ptact="syncchip" title="${_ptEsc(tip)}"><span>${label}</span></button>${_ptBtn('syncnow',null,'SYNC NOW','pt-b-sm',s.state==='busy'?' disabled':'')}</div>${warn}`;
+  const first=(cls==='local'&&!_ptKey())?'<div class="pt-note">This device only. Tap SYNC NOW to share entries with your other devices.</div>':'';   // a hover tip is invisible on touch
+  const h=`<div class="pt-sync"><button type="button" class="pt-stat ${cls}" data-ptact="syncchip" title="${_ptEsc(tip)}"><span>${label}</span></button>${_ptBtn('syncnow',null,'SYNC NOW','pt-b-sm',s.state==='busy'?' disabled':'')}</div>${first}${warn}`;
   document.querySelectorAll('.pt-syncbar').forEach(el=>{if(el.innerHTML!==h)el.innerHTML=h;});
 }
 
@@ -37772,16 +37780,27 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 // ── MAILING LIST tab (owner-only) ───────────────────────────────────────────────────────────────────────────────────────
 // The list lives in the PRIVATE repo and is served only by the local admin server on this Mac (scripts/subscribers_admin.py, a LaunchAgent). This tab fetches it live into the open page: nothing is put in
 // localStorage, Supabase or any public file. If the server is not reachable the tab says so and shows nothing.
-window.ML_BASE=window.ML_BASE||'http://127.0.0.1:8899';
+// On another device (iPad / phone) the owner types the Mac's https address and the admin password once; both stay in that browser only, never in this public file.
+const _ML_LOCAL='http://127.0.0.1:8899';
+function _mlGet(k){try{return localStorage.getItem(k)||'';}catch(e){return'';}}
+window.ML_BASE=window.ML_BASE||_mlGet('cv_ml_base')||_ML_LOCAL;
 window._ml=window._ml||{data:null,err:null,loading:false,list:'ALL',status:'ALL',q:'',sel:{},msg:null,sync:null,busy:false,loadedAt:0};
 async function mlFetch(path,opts){
   const o=Object.assign({},opts||{});o.headers=Object.assign({'X-CV-Admin':'1'},o.headers||{});
+  const key=_mlGet('cv_ml_key');if(key&&window.ML_BASE!==_ML_LOCAL)o.headers['X-CV-Admin-Key']=encodeURIComponent(key);
   if(o.body&&!o.headers['Content-Type'])o.headers['Content-Type']='application/json';
   const r=await fetch(window.ML_BASE+path,o);
   let j={};try{j=await r.json();}catch(e){}
   if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
   return j;
 }
+// A Home Screen app stays open for days: reload the open tab when the owner comes back to it (never while they are typing in it).
+document.addEventListener('visibilitychange',()=>{
+  const pane=document.getElementById('sp-mail');
+  if(document.hidden||!pane||!pane.classList.contains('act')||_ml.busy||!_ml.loadedAt||Date.now()-_ml.loadedAt<60000)return;
+  const el=document.activeElement;if(el&&pane.contains(el)&&/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))return;
+  mlLoad();
+});
 async function mlLoad(){
   if(_ml.loading)return;
   _ml.loading=true;
@@ -37802,14 +37821,38 @@ function mlRender(){
   else if(sub==='ana')_mlRenderAna();
   else _mlRenderAct();
 }
+function mlCleanBase(v){
+  let u=String(v||'').trim().replace(/\/+$/,'');
+  if(!u)return'';
+  if(!/^[a-z]+:\/\//i.test(u))u='https://'+u;
+  try{const x=new URL(u);return(x.protocol==='https:'||/^(127\.0\.0\.1|localhost)$/.test(x.hostname))?x.origin:null;}catch(e){return null;}
+}
+function mlConnect(){
+  const a=document.querySelector('#sp-mail .subp.act .ml-addr'),k=document.querySelector('#sp-mail .subp.act .ml-key');
+  const base=mlCleanBase(a&&a.value);
+  if(base===null){alert('Use the https:// address of your Mac (or leave it empty on the Mac itself).');return;}
+  try{
+    if(base)localStorage.setItem('cv_ml_base',base);else localStorage.removeItem('cv_ml_base');
+    if(k&&k.value)localStorage.setItem('cv_ml_key',k.value);
+  }catch(e){}
+  window.ML_BASE=base||_ML_LOCAL;_ml.err=null;mlLoad();
+}
 function _mlOffline(){
-  const msg=_ml.loading?'CONNECTING…':'MAILING LIST SERVER NOT REACHABLE';
+  const why=String(_ml.err&&_ml.err.message||'');
+  const msg=_ml.loading?'CONNECTING…':/password/i.test(why)?'PASSWORD NEEDED':'MAILING LIST SERVER NOT REACHABLE';
   return `<div class="ml-top"><div><div class="ml-h">MAILING LIST</div><div class="ml-hs">PAID SUBSCRIBERS · LISTS · TIME LEFT · ANALYTICS</div></div></div>
   <div class="ml-card"><div class="ml-ct" style="color:#ff2050">${msg}</div>
   <div class="ml-msg">This tab reads the subscriber list from the small server that runs on your Mac (${_escHtml(window.ML_BASE)}). It is private on purpose: the list is never stored in this public app.
   ${_ml.err?'<br>('+_escHtml(_ml.err.message||String(_ml.err))+')':''}</div>
-  <div class="ml-msg">Open this page in a browser on the Mac where it runs. To start it by hand: <span class="np">python3 scripts/subscribers_admin.py</span>. Safari blocks a secure page from talking to a local server: use Chrome or Edge.</div>
-  <div style="margin-top:10px"><button class="ml-btn go" onclick="mlLoad()">TRY AGAIN</button></div></div>`;
+  <div class="ml-msg">On the Mac: open this page in Chrome or Edge (Safari blocks it). To start the server by hand: <span class="np">python3 scripts/subscribers_admin.py</span>.</div>
+  <div style="margin-top:10px"><button class="ml-btn go" onclick="mlLoad()">TRY AGAIN</button></div></div>
+  <div class="ml-card"><div class="ml-ct">IPAD / PHONE</div>
+  <div class="ml-msg">Enter your Mac's https address and the admin password once. The Mac must be awake, and this device signed in to Tailscale.</div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+    <input class="ml-in ml-addr" style="flex:2 1 240px" type="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://your-mac.your-tailnet.ts.net:8443" value="${window.ML_BASE===_ML_LOCAL?'':_escHtml(window.ML_BASE)}">
+    <input class="ml-in ml-key" style="flex:1 1 160px" type="password" autocomplete="current-password" placeholder="${_mlGet('cv_ml_key')?'password saved':'admin password'}" onkeydown="if(event.key==='Enter')mlConnect()">
+    <button class="ml-btn go" onclick="mlConnect()">SAVE &amp; CONNECT</button>
+  </div></div>`;
 }
 function _mlStatCards(a,subs){
   const exp=subs.filter(s=>s.status==='expiring').length;
