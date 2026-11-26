@@ -29,7 +29,7 @@ class Trigger(unittest.TestCase):
     def tearDownClass(cls):
         cls.b.close(); cls.pw.stop(); cls.srv.shutdown()
 
-    def page(self, reply_status=200, reply=None, key_prompt="secret-key", stored_key=None, accept=True):
+    def page(self, reply_status=200, reply=None, stored_key=None, accept=True):
         pg = self.b.new_page(viewport={"width": 1300, "height": 900})
         self.calls, self.dialogs = [], []
         reply = reply if reply is not None else {"ok": True, "message": "LOCK started"}
@@ -44,10 +44,7 @@ class Trigger(unittest.TestCase):
 
         def on_dialog(d):
             self.dialogs.append((d.type, d.message))
-            if d.type == "prompt":
-                d.accept(key_prompt)
-            else:
-                d.accept() if accept else d.dismiss()
+            d.accept() if accept else d.dismiss()
         pg.on("dialog", on_dialog)
         pg.goto(f"http://127.0.0.1:{self.srv.server_address[1]}/app.html?nosb=1")
         pg.wait_for_function("typeof _hdrTrigger==='function'")
@@ -67,15 +64,48 @@ class Trigger(unittest.TestCase):
 
     def test_lock_sends_the_key_once_then_remembers_it(self):
         pg = self.page()
-        pg.click("#hdr-trig-lock"); pg.wait_for_timeout(800)
+        pg.click("#hdr-trig-lock"); pg.wait_for_selector("#ok-key")
+        self.assertEqual(self.calls, [])                                              # nothing is sent until the key is given
+        self.assertEqual(pg.get_attribute("#ok-key", "type"), "password")             # hidden on screen
+        pg.click("#ok-show"); self.assertEqual(pg.get_attribute("#ok-key", "type"), "text")
+        pg.fill("#ok-key", "  secret-key  "); pg.click("#ok-save"); pg.wait_for_timeout(800)
         self.assertEqual(self.calls, [{"action": "lock", "key": "secret-key"}])
-        self.assertEqual([d[0] for d in self.dialogs], ["confirm", "prompt"])
+        self.assertEqual([d[0] for d in self.dialogs], ["confirm"])
+        self.assertEqual(pg.locator("#ok-ov").count(), 0)
         self.assertEqual(pg.evaluate("localStorage.getItem('cv_trigger_key')"), "secret-key")
         self.dialogs.clear()
         pg.click("#hdr-trig-settle"); pg.wait_for_timeout(800)                       # key remembered: confirm only, no prompt
         self.assertEqual(self.calls[-1], {"action": "settle", "key": "secret-key"})
         self.assertEqual([d[0] for d in self.dialogs], ["confirm"])
         pg.close()
+
+    def test_cancelling_the_key_box_sends_nothing(self):
+        pg = self.page()
+        for close in (lambda: pg.click("#ok-cancel"), lambda: pg.press("#ok-key", "Escape")):
+            pg.click("#hdr-trig-lock"); pg.wait_for_selector("#ok-key")
+            pg.click("#ok-save")                                                     # empty key: the box stays
+            self.assertEqual(pg.locator("#ok-ov").count(), 1)
+            close(); pg.wait_for_timeout(200)
+            self.assertEqual(pg.locator("#ok-ov").count(), 0)
+        self.assertEqual(self.calls, [])
+        pg.close()
+
+    def test_key_box_fits_a_phone_and_an_ipad(self):
+        for w, h in ((375, 667), (390, 844), (820, 1180), (1180, 820)):
+            pg = self.b.new_page(viewport={"width": w, "height": h})
+            pg.goto(f"http://127.0.0.1:{self.srv.server_address[1]}/app.html?nosb=1")
+            pg.wait_for_function("typeof _askOwnerKey==='function'")
+            pg.evaluate("()=>{_askOwnerKey();}")
+            r = pg.evaluate("""()=>{const b=id=>document.getElementById(id).getBoundingClientRect();
+              const box=b('ok-box'),k=b('ok-key'),s=b('ok-save');
+              const top=document.elementFromPoint(s.left+s.width/2,s.top+s.height/2);
+              return {l:box.left,r:box.right,bottom:box.bottom,keyW:k.width,keyH:k.height,saveH:s.height,
+                      font:parseFloat(getComputedStyle(document.getElementById('ok-key')).fontSize),onTop:!!top&&top.id==='ok-save'}}""")
+            self.assertTrue(r["l"] >= 0 and r["r"] <= w and r["bottom"] <= h, (w, r))
+            self.assertGreaterEqual(r["keyW"], 180, (w, r)); self.assertGreaterEqual(r["keyH"], 44, (w, r)); self.assertGreaterEqual(r["saveH"], 44, (w, r))
+            self.assertGreaterEqual(r["font"], 16, (w, r))                           # under 16px iOS zooms the page on focus
+            self.assertTrue(r["onTop"], (w, r))
+            pg.close()
 
     def test_declining_the_confirmation_sends_nothing(self):
         pg = self.page(accept=False)

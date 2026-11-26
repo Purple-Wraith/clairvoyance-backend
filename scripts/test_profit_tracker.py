@@ -904,9 +904,9 @@ class Profit(unittest.TestCase):
         pg = self.open(data=dataset()[0][:6])
         self.route_worker(pg, fw)
         n0 = len(self.entries(pg))
-        # 1) no key: SYNC NOW asks for it (same prompt wording as the header buttons) and stores it only after a successful sync
-        pg.once("dialog", lambda d: (self.assertIn("Owner trigger key", d.message), d.accept("K-owner")))
+        # 1) no key: SYNC NOW asks for it (the same key box as the header buttons) and stores it only after a successful sync
         pg.click("#profit-dash [data-ptact=syncnow]")
+        pg.fill("#ok-key", "K-owner"); pg.click("#ok-save")
         self.wait_sync(pg)
         self.assertEqual(pg.evaluate("_ptSy.state"), "ok")
         self.assertEqual(pg.evaluate("localStorage.getItem('cv_trigger_key')"), "K-owner")
@@ -965,6 +965,7 @@ class Profit(unittest.TestCase):
         fw.key = "other"
         pg.click("#profit-dash [data-ptact=syncchip]"); self.wait_sync(pg)
         self.assertEqual(pg.evaluate("_ptSy.state"), "err"); self.assertIn("Wrong owner key", pg.evaluate("_ptSy.msg"))
+        self.assertIn("Wrong owner key", pg.inner_text("#profit-dash .pt-syncbar"))         # readable on touch, not only a hover tip
         self.assertEqual(pg.evaluate("localStorage.getItem('cv_trigger_key')"), None)
         pg.evaluate("localStorage.setItem('cv_trigger_key','other')"); fw.status_override = 503
         pg.click("#profit-dash [data-ptact=syncnow]"); self.wait_sync(pg)
