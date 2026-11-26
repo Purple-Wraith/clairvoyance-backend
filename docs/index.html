@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CLAIRVOYANCE">
 <meta name="theme-color" content="#020008">
-<script>/* iPad Home Screen app only (see html.cv-ipad-app in the styles) */if(window.navigator.standalone&&Math.min(screen.width,screen.height)>=700)document.documentElement.classList.add('cv-ipad-app');</script>
+<script>/* iPhone/iPad Home Screen app (see html.cv-ios-app / html.cv-ipad-app in the styles) */if(window.navigator.standalone){var cl=document.documentElement.classList;cl.add('cv-ios-app');if(Math.min(screen.width,screen.height)>=700)cl.add('cv-ipad-app');}</script>
 <link rel="manifest" href="manifest.json?v=2">
 <!-- ?v=2 cache-busts iOS's home-screen-icon cache, which is keyed off
      this exact URL and won't pick up a same-URL file change otherwise
@@ -837,6 +837,12 @@ html.cv-ipad-app #hdr{padding-top:calc(env(safe-area-inset-top,0px) + 16px)!impo
 @media (max-width:768px){html.cv-ipad-app #hdr{flex-basis:calc(48px + env(safe-area-inset-top,0px) + 16px)!important}}
 html.cv-ipad-app #gt-ov .gt-bar{height:calc(48px + env(safe-area-inset-top,0px) + 16px);padding-top:calc(env(safe-area-inset-top,0px) + 16px)}
 html.cv-ipad-app #gt-ov .gt-tabs{top:calc(48px + env(safe-area-inset-top,0px) + 16px)}
+/* iOS Home Screen app: with the see-through status bar, iOS sizes position:fixed/100% boxes short of the screen and leaves a black bar at the bottom (owner report 2026-11-25, WebKit 301108);
+   100vh is the full screen there. */
+html.cv-ios-app,html.cv-ios-app body{height:100vh}
+html.cv-ios-app body{bottom:auto}
+html.cv-ios-app #app{height:100%}
+@media (max-width:768px){html.cv-ios-app .tab{padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))!important}}   /* keeps the last card clear of the home indicator */
 #gt-ov .gt-body{flex:1 0 auto;padding:12px max(12px,env(safe-area-inset-left,0px)) calc(24px + env(safe-area-inset-bottom,0px));max-width:760px;width:100%;margin:0 auto;box-sizing:border-box}
 #gt-ov .gt-empty{text-align:center;color:var(--t3);padding:30px 10px;font-size:14px;letter-spacing:1px}
 #gt-ov .gt-seg{display:flex;gap:4px;margin-bottom:10px}#gt-ov .gt-seg button{font-family:var(--mono);font-size:12px;letter-spacing:1px;color:var(--t3);background:transparent;border:1px solid rgba(255,255,255,.18);border-radius:3px;padding:5px 10px;cursor:pointer}#gt-ov .gt-seg button.act{color:var(--nc);border-color:var(--nc)}
