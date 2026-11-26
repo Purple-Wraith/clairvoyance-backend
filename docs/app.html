@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CLAIRVOYANCE">
 <meta name="theme-color" content="#020008">
+<script>/* iPad Home Screen app only (see html.cv-ipad-app in the styles) */if(window.navigator.standalone&&Math.min(screen.width,screen.height)>=700)document.documentElement.classList.add('cv-ipad-app');</script>
 <link rel="manifest" href="manifest.json?v=2">
 <!-- ?v=2 cache-busts iOS's home-screen-icon cache, which is keyed off
      this exact URL and won't pick up a same-URL file change otherwise
@@ -831,6 +832,11 @@ body.gt-open{overflow:hidden}#cv-ticker .tk[data-gid]{cursor:pointer}
 #gt-ov .gt-stt{font-size:13px;letter-spacing:1px;color:var(--t2);margin-top:2px}#gt-ov .gt-stt.lv{color:var(--hc);font-weight:700}
 #gt-ov .gt-ls{margin:8px auto 0;border-collapse:collapse;font-size:13px}#gt-ov .gt-ls td,#gt-ov .gt-ls th{padding:2px 8px;text-align:center;color:var(--t2)}#gt-ov .gt-ls th{text-align:left;color:var(--t)}
 #gt-ov .gt-tabs{position:sticky;top:calc(48px + env(safe-area-inset-top,0px));z-index:3;flex:0 0 auto;display:flex;gap:4px;width:100%;box-sizing:border-box;padding:0 max(12px,env(safe-area-inset-left,0px));background:var(--b1);border-bottom:1px solid rgba(255,255,255,.1);overflow-x:auto;scrollbar-width:none}#gt-ov .gt-tabs::-webkit-scrollbar{display:none}#gt-ov .gt-tabs button{flex:1 0 auto;font-family:var(--mono);font-size:13px;letter-spacing:1px;color:var(--t3);background:transparent;border:0;border-bottom:2px solid transparent;padding:8px 10px;cursor:pointer;white-space:nowrap}#gt-ov .gt-tabs button.act{color:var(--nc);border-bottom-color:var(--nc)}
+/* iPad Home Screen app: the page is drawn behind the status bar and iPadOS blurs a strip along the top edge (owner report 2026-11-25), so the top bars start 16px lower there. */
+html.cv-ipad-app #hdr{padding-top:calc(env(safe-area-inset-top,0px) + 16px)!important;flex-basis:calc(90px + env(safe-area-inset-top,0px) + 16px)!important}
+@media (max-width:768px){html.cv-ipad-app #hdr{flex-basis:calc(48px + env(safe-area-inset-top,0px) + 16px)!important}}
+html.cv-ipad-app #gt-ov .gt-bar{height:calc(48px + env(safe-area-inset-top,0px) + 16px);padding-top:calc(env(safe-area-inset-top,0px) + 16px)}
+html.cv-ipad-app #gt-ov .gt-tabs{top:calc(48px + env(safe-area-inset-top,0px) + 16px)}
 #gt-ov .gt-body{flex:1 0 auto;padding:12px max(12px,env(safe-area-inset-left,0px)) calc(24px + env(safe-area-inset-bottom,0px));max-width:760px;width:100%;margin:0 auto;box-sizing:border-box}
 #gt-ov .gt-empty{text-align:center;color:var(--t3);padding:30px 10px;font-size:14px;letter-spacing:1px}
 #gt-ov .gt-seg{display:flex;gap:4px;margin-bottom:10px}#gt-ov .gt-seg button{font-family:var(--mono);font-size:12px;letter-spacing:1px;color:var(--t3);background:transparent;border:1px solid rgba(255,255,255,.18);border-radius:3px;padding:5px 10px;cursor:pointer}#gt-ov .gt-seg button.act{color:var(--nc);border-color:var(--nc)}
