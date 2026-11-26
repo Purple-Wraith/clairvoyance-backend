@@ -109,6 +109,15 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
   box-shadow:0 0 30px rgba(240,0,255,.15),0 0 60px rgba(77,121,255,.08);
   position:relative;z-index:100;flex-shrink:0}
 #hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--pc),var(--pc),var(--pc),transparent);box-shadow:0 0 12px rgba(240,0,255,.4)}
+/* Tablets and narrow desktop windows (769-1250px, e.g. iPad portrait 820px): the full-size header did not fit, so the LOCK/SETTLE times broke into 3-4 lines and ran into the clock row. */
+@media (min-width:769px) and (max-width:1250px){
+  #hdr{padding-left:10px!important;padding-right:10px!important;padding-bottom:5px!important;column-gap:8px}
+  #hdr-automation-status,#hdr-automation-status-left{font-size:11px!important;letter-spacing:0!important;white-space:nowrap}
+  #hdr-automation-status{text-align:right}
+  .hdr-st-t{display:block}
+  #hdr-clock-mt,#hdr-clock-et,#hdr-status-bar{font-size:13px!important;letter-spacing:.3px!important}
+  #hdr-dot-1,#hdr-dot-2{font-size:24px!important;padding:0 6px!important}
+}
 .logo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(20px,4.5vw,30px);letter-spacing:clamp(4px,2vw,10px);
   color:#f000ff !important;-webkit-text-fill-color:#f000ff !important;
   background:none !important;-webkit-background-clip:unset !important;background-clip:unset !important;
@@ -22201,7 +22210,7 @@ window._hdrTrigger=_hdrTrigger;
       // own strftime) -- stripping the leading date is safe and
       // deterministic, not a guess at the string's shape.
       const ts=isMobile?String(s.tsMT||'?').replace(/^\d{4}-\d{2}-\d{2}\s+/,''):(s.tsMT||'?');
-      el.innerHTML=`<div title="${_escHdr(s.detail||'')}" style="color:${color}">${icon} ${label}: ${_escHdr(ts)}${staleNote}</div>`;
+      el.innerHTML=`<div title="${_escHdr(s.detail||'')}" style="color:${color}"><span class="hdr-st-l">${icon} ${label}:</span> <span class="hdr-st-t">${_escHdr(ts)}${staleNote}</span></div>`;
     });
   }
   renderAutomationStatus();
