@@ -183935,10 +183935,10 @@
     "ml": "-238",
     "decOdds": 1.42,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1795793134021,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 0,
+    "aScore": 2,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: DET +1.5 \u2014 HIGH PROB (68.3% win prob, EV -3.0% \u00b7 MARKET PRICE -238 (EV at market -3.0%) \u00b7 MARKET-BLENDED: model 70.5% \u00b7 no-vig market 67.3% \u2192 68.3% (alpha 0.70))\nMODEL: Projected 2.5\u20132.6 (total 5.1) (OT/SO in 18% of outcomes) \u2014 underdog covers +1.5 in 70.5% of outcomes (incl. late-game empty-net margin calibration), from an exact Poisson distribution (not a simulation).\nWHY: Best market: DET +1.5 graded HIGH PROB (68.3%, EV -3.0%). Dog covers +1.5 in 68.3% of sims (proj 2.6\u20132.5). GSAx: +6.0 vs -7.7 keeps this within a goal. MC 52% / xGF 50% / hv -2.7pp / ST -0.6pp / SQ +0.2pp \u00b7 ML market blend (alpha 0.75): model 71.9% \u00b7 no-vig market 54.4% \u2192 59.1%; Puck line market blend (alpha 0.70): model 29.5% \u00b7 no-vig market 32.7% \u2192 31.7%; O/U market blend (alpha 0.65): model 38.7% \u00b7 no-vig market 52.4% \u2192 47.6%. Half-unit play \u00b7 Also: CBJ ML (LEAN).",
@@ -183948,7 +183948,8 @@
     "blendAlpha": 0.7,
     "startMs": 1795809600000,
     "leadMin": 274,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1795819905592
   },
   {
     "id": "2026-11-27_DET_MIL_NBA_DET-4.5",
@@ -184635,197 +184636,197 @@
     "settledAt": 1795814535738
   },
   {
-    "id": "2026-11-27_Levante_Racing Santander_LIGA_LevanteWin",
-    "date": "2026-11-27",
     "hA": "Levante",
-    "awA": "Racing Santander",
-    "sport": "LIGA",
-    "league": "LIGA",
-    "betType": "ML",
-    "betOn": "Levante Win",
-    "winProb": 0.7495003335214165,
+    "id": "2026-11-27_Levante_Racing Santander_LIGA_LevanteWin",
     "ml": "-110",
-    "decOdds": 1.91,
+    "awA": "Racing Santander",
+    "date": "2026-11-27",
+    "betOn": "Levante Win",
+    "sport": "LIGA",
     "wager": 0,
-    "outcome": "loss",
-    "lockedAt": 1795687272620,
-    "hScore": 1,
     "aScore": 3,
-    "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.962527491233264,
-        "away": 0.94
-      },
-      "form": {
-        "home": 1.0187142857142857,
-        "away": 1.0345454545454544
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 0.9541627689429373
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
-      }
-    },
-    "reasoning": "PICK: Levante Win \u2014 PREMIUM (75.0% win prob, EV +57.4%)\nMODEL: Projected 1.34\u20132.35 goals (xG 1.34/2.35), BTTS 67%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Levante 2.35 xG/G vs Racing Santander 1.34 xG/G. 3-way: Home 75% / Draw 27% / Away 29%. MC proj: 2.35 \u2013 1.34 (3.69 total vs 3.5 line, BTTS 67%). Goal spread: Levante -1.5 covers 39%, Racing Santander +1.5 covers 61% (proj margin Levante -1.02). Levante xG edge unpriced by market. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Racing Santander +1.5 (PREMIUM). Factors moving this pick: Standings -6%, Fbref -4%.",
+    "hScore": 1,
+    "league": "LIGA",
     "mktRef": {
       "p": 0.4556,
       "dec": 2.1
     },
-    "startMs": 1795809600000,
-    "leadMin": 2039,
-    "lockTiming": "pre",
-    "settledAt": 1795818101117
-  },
-  {
-    "id": "2026-11-27_Levante_Racing Santander_LIGA_OVER2.5",
-    "date": "2026-11-27",
-    "hA": "Levante",
-    "awA": "Racing Santander",
-    "sport": "LIGA",
-    "league": "LIGA",
-    "betType": "OU",
-    "betOn": "OVER 2.5",
-    "winProb": 0.736,
-    "ml": "-357",
-    "decOdds": 1.28,
-    "wager": 0,
-    "outcome": "win",
-    "lockedAt": 1795687273506,
-    "hScore": 1,
-    "aScore": 3,
     "source": "manual",
+    "betType": "ML",
+    "decOdds": 1.91,
+    "leadMin": 2039,
+    "outcome": "loss",
+    "startMs": 1795809600000,
+    "winProb": 0.7495003335214165,
+    "lockedAt": 1795687272620,
+    "reasoning": "PICK: Levante Win \u2014 PREMIUM (75.0% win prob, EV +57.4%)\nMODEL: Projected 1.34\u20132.35 goals (xG 1.34/2.35), BTTS 67%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).\nWHY: xG basis: Levante 2.35 xG/G vs Racing Santander 1.34 xG/G. 3-way: Home 75% / Draw 27% / Away 29%. MC proj: 2.35 \u2013 1.34 (3.69 total vs 3.5 line, BTTS 67%). Goal spread: Levante -1.5 covers 39%, Racing Santander +1.5 covers 61% (proj margin Levante -1.02). Levante xG edge unpriced by market. Kelly 30.0%. PREMIUM \u00b7 Full-unit play \u00b7 Also: Racing Santander +1.5 (PREMIUM). Factors moving this pick: Standings -6%, Fbref -4%.",
+    "settledAt": 1795816825978,
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.962527491233264,
-        "away": 0.94
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1.0187142857142857,
-        "away": 1.0345454545454544
+        "away": 1.0345454545454544,
+        "home": 1.0187142857142857
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.962527491233264
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.9541627689429373
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 0.9541627689429373,
+        "home": 0.94
       }
-    },
-    "reasoning": "PICK: OVER 2.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 3.5 to OVER 2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
-    "priceSource": "estimated",
+    }
+  },
+  {
+    "hA": "Levante",
+    "id": "2026-11-27_Levante_Racing Santander_LIGA_OVER2.5",
+    "ml": "-357",
+    "awA": "Racing Santander",
+    "date": "2026-11-27",
+    "betOn": "OVER 2.5",
+    "sport": "LIGA",
+    "wager": 0,
+    "aScore": 3,
+    "hScore": 1,
+    "league": "LIGA",
+    "source": "manual",
     "altLine": {
-      "posted": 3.5,
       "line": 2.5,
       "shift": 1,
-      "postedLabel": "OVER 3.5",
-      "postedProb": 0.5044806827616964,
-      "postedDec": null,
+      "posted": 3.5,
+      "product": true,
       "postedMl": null,
       "bestTotal": true,
-      "product": true
+      "postedDec": null,
+      "postedProb": 0.5044806827616964,
+      "postedLabel": "OVER 3.5"
     },
-    "startMs": 1795809600000,
+    "betType": "OU",
+    "decOdds": 1.28,
     "leadMin": 2039,
-    "lockTiming": "pre",
-    "settledAt": 1795818101118
-  },
-  {
-    "id": "2026-11-27_Levante_Racing Santander_LIGA_RacingSantander+2.5",
-    "date": "2026-11-27",
-    "hA": "Levante",
-    "awA": "Racing Santander",
-    "sport": "LIGA",
-    "league": "LIGA",
-    "betType": "SPREAD",
-    "betOn": "Racing Santander +2.5",
-    "winProb": 0.758,
-    "ml": "-408",
-    "decOdds": 1.245,
-    "wager": 0,
     "outcome": "win",
-    "lockedAt": 1795687273085,
-    "hScore": 1,
-    "aScore": 3,
-    "source": "manual",
+    "startMs": 1795809600000,
+    "winProb": 0.736,
+    "lockedAt": 1795687273506,
+    "reasoning": "PICK: OVER 2.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted OVER 3.5 to OVER 2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 50.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "settledAt": 1795816825980,
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.962527491233264,
-        "away": 0.94
+      "h2h": {
+        "away": 1,
+        "home": 1
       },
       "form": {
-        "home": 1.0187142857142857,
-        "away": 1.0345454545454544
+        "away": 1.0345454545454544,
+        "home": 1.0187142857142857
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.962527491233264
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 0.9541627689429373
-      },
-      "h2h": {
-        "home": 1,
-        "away": 1
+        "away": 0.9541627689429373,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: Racing Santander +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Racing Santander +1.5 to Racing Santander +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Levante",
+    "id": "2026-11-27_Levante_Racing Santander_LIGA_RacingSantander+2.5",
+    "ml": "-408",
+    "awA": "Racing Santander",
+    "date": "2026-11-27",
+    "betOn": "Racing Santander +2.5",
+    "sport": "LIGA",
+    "wager": 0,
+    "aScore": 3,
+    "hScore": 1,
+    "league": "LIGA",
+    "source": "manual",
     "altLine": {
-      "posted": 1.5,
       "line": 2.5,
       "shift": 1,
-      "postedLabel": "Racing Santander +1.5",
-      "postedProb": 0.6140304653648054,
-      "postedDec": null,
+      "posted": 1.5,
+      "product": true,
       "postedMl": null,
+      "postedDec": null,
       "bestOfGame": true,
-      "product": true
+      "postedProb": 0.6140304653648054,
+      "postedLabel": "Racing Santander +1.5"
     },
-    "startMs": 1795809600000,
+    "betType": "SPREAD",
+    "decOdds": 1.245,
     "leadMin": 2039,
+    "outcome": "win",
+    "startMs": 1795809600000,
+    "winProb": 0.758,
+    "lockedAt": 1795687273085,
+    "reasoning": "PICK: Racing Santander +2.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Racing Santander +1.5 to Racing Santander +2.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.4%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
+    "settledAt": 1795816825981,
+    "lockOrigin": "auto",
     "lockTiming": "pre",
-    "settledAt": 1795818101118
+    "socFactors": {
+      "h2h": {
+        "away": 1,
+        "home": 1
+      },
+      "form": {
+        "away": 1.0345454545454544,
+        "home": 1.0187142857142857
+      },
+      "fbref": {
+        "away": 0.94,
+        "home": 0.962527491233264
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 0.9541627689429373,
+        "home": 0.94
+      }
+    },
+    "priceSource": "estimated"
   },
   {
     "id": "2026-11-27_Litvinov_Mlada Boleslav_EXTRALIGA_UNDER5.5",
@@ -185514,136 +185515,136 @@
     "lockTiming": "pre"
   },
   {
-    "id": "2026-11-27_Nottingham Forest_Chelsea_PL_SOC_NottinghamForest+1.5",
-    "date": "2026-11-27",
     "hA": "Nottingham Forest",
-    "awA": "Chelsea",
-    "sport": "PL",
-    "league": "PL",
-    "betType": "SPREAD",
-    "betOn": "Nottingham Forest +1.5",
-    "winProb": 0.758,
+    "id": "2026-11-27_Nottingham Forest_Chelsea_PL_SOC_NottinghamForest+1.5",
     "ml": "-408",
-    "decOdds": 1.245,
+    "awA": "Chelsea",
+    "date": "2026-11-27",
+    "betOn": "Nottingham Forest +1.5",
+    "sport": "PL",
     "wager": 0,
-    "outcome": "win",
-    "lockedAt": 1795687271679,
-    "hScore": 3,
     "aScore": 2,
+    "hScore": 3,
+    "league": "PL",
     "source": "manual",
-    "lockOrigin": "auto",
-    "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "form": {
-        "home": 0.9968125,
-        "away": 0.9788
-      },
-      "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 0.98,
-        "away": 1.02
-      }
-    },
-    "reasoning": "PICK: Nottingham Forest +1.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Nottingham Forest +0.5 to Nottingham Forest +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 59.1%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nMODEL: Projected 1.24\u20131.00 goals (xG 1.24/1.00), BTTS 46%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).",
-    "priceSource": "estimated",
     "altLine": {
-      "posted": 0.5,
       "line": 1.5,
       "shift": 1,
-      "postedLabel": "Nottingham Forest +0.5",
-      "postedProb": 0.5905789788945782,
+      "posted": 0.5,
+      "postedMl": null,
       "postedDec": null,
-      "postedMl": null
+      "postedProb": 0.5905789788945782,
+      "postedLabel": "Nottingham Forest +0.5"
     },
-    "startMs": 1795809600000,
+    "betType": "SPREAD",
+    "decOdds": 1.245,
     "leadMin": 2039,
-    "lockTiming": "pre",
-    "settledAt": 1795818101061
-  },
-  {
-    "id": "2026-11-27_Nottingham Forest_Chelsea_PL_SOC_UNDER3.5",
-    "date": "2026-11-27",
-    "hA": "Nottingham Forest",
-    "awA": "Chelsea",
-    "sport": "PL",
-    "league": "PL",
-    "betType": "OU",
-    "betOn": "UNDER 3.5",
-    "winProb": 0.736,
-    "ml": "-357",
-    "decOdds": 1.28,
-    "wager": 0,
-    "outcome": "loss",
-    "lockedAt": 1795687272226,
-    "hScore": 3,
-    "aScore": 2,
-    "source": "manual",
+    "outcome": "win",
+    "startMs": 1795809600000,
+    "winProb": 0.758,
+    "lockedAt": 1795687271679,
+    "reasoning": "PICK: Nottingham Forest +1.5 \u2014 ADJUSTED LINE (75.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted Nottingham Forest +0.5 to Nottingham Forest +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 59.1%; the 1-goal cushion is priced from the historical margin curve for this market (about 76% to cover).\nMODEL: Projected 1.24\u20131.00 goals (xG 1.24/1.00), BTTS 46%, from an exact Poisson distribution with a Dixon-Coles draw adjustment (not a simulation).",
+    "settledAt": 1795816825465,
     "lockOrigin": "auto",
+    "lockTiming": "pre",
     "socFactors": {
-      "style": {
-        "home": 1,
-        "away": 1
-      },
-      "power": {
-        "home": 1,
-        "away": 1
-      },
-      "advanced": {
-        "home": 1,
-        "away": 1
-      },
-      "fbref": {
-        "home": 0.94,
-        "away": 1.06
+      "h2h": {
+        "away": 1.02,
+        "home": 0.98
       },
       "form": {
-        "home": 0.9968125,
-        "away": 0.9788
+        "away": 0.9788,
+        "home": 0.9968125
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
       },
       "standings": {
-        "home": 0.94,
-        "away": 1.06
-      },
-      "h2h": {
-        "home": 0.98,
-        "away": 1.02
+        "away": 1.06,
+        "home": 0.94
       }
     },
-    "reasoning": "PICK: UNDER 3.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 2.5 to UNDER 3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.3%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
-    "priceSource": "estimated",
+    "priceSource": "estimated"
+  },
+  {
+    "hA": "Nottingham Forest",
+    "id": "2026-11-27_Nottingham Forest_Chelsea_PL_SOC_UNDER3.5",
+    "ml": "-357",
+    "awA": "Chelsea",
+    "date": "2026-11-27",
+    "betOn": "UNDER 3.5",
+    "sport": "PL",
+    "wager": 0,
+    "aScore": 2,
+    "hScore": 3,
+    "league": "PL",
+    "source": "manual",
     "altLine": {
-      "posted": 2.5,
       "line": 3.5,
       "shift": 1,
-      "postedLabel": "UNDER 2.5",
-      "postedProb": 0.6127649346063818,
-      "postedDec": null,
+      "posted": 2.5,
+      "product": true,
       "postedMl": null,
       "bestTotal": true,
-      "product": true
+      "postedDec": null,
+      "postedProb": 0.6127649346063818,
+      "postedLabel": "UNDER 2.5"
     },
-    "startMs": 1795809600000,
+    "betType": "OU",
+    "decOdds": 1.28,
     "leadMin": 2039,
+    "outcome": "loss",
+    "startMs": 1795809600000,
+    "winProb": 0.736,
+    "lockedAt": 1795687272226,
+    "reasoning": "PICK: UNDER 3.5 \u2014 ADJUSTED LINE (73.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 2.5 to UNDER 3.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 61.3%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
+    "settledAt": 1795816825468,
+    "lockOrigin": "auto",
     "lockTiming": "pre",
-    "settledAt": 1795818101062
+    "socFactors": {
+      "h2h": {
+        "away": 1.02,
+        "home": 0.98
+      },
+      "form": {
+        "away": 0.9788,
+        "home": 0.9968125
+      },
+      "fbref": {
+        "away": 1.06,
+        "home": 0.94
+      },
+      "power": {
+        "away": 1,
+        "home": 1
+      },
+      "style": {
+        "away": 1,
+        "home": 1
+      },
+      "advanced": {
+        "away": 1,
+        "home": 1
+      },
+      "standings": {
+        "away": 1.06,
+        "home": 0.94
+      }
+    },
+    "priceSource": "estimated"
   },
   {
     "id": "2026-11-27_Olomouc_Mountfield HK_EXTRALIGA_UNDER5.5",
@@ -185687,10 +185688,10 @@
     "ml": "-250",
     "decOdds": 1.4,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1795793132641,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 5,
+    "aScore": 2,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: PHI ML \u2014 HIGH PROB (70.0% win prob, EV -1.9% \u00b7 MARKET PRICE -250 (EV at market -1.9%) \u00b7 MARKET-BLENDED: model 75.2% \u00b7 no-vig market 68.2% \u2192 70.0% (alpha 0.75))\nMODEL: Projected 2.7\u20133.2 (total 6.0) (OT/SO in 16% of outcomes), from an exact Poisson distribution (not a simulation).\nWHY: Best market: PHI ML graded HIGH PROB (70.0%, EV -1.9%). GSAx: -0.6 vs -2.9 favors PHI. MC 59% / xGF 50% / hv +1.3pp / ST +4.3pp / SQ +0.4pp \u00b7 ML market blend (alpha 0.75): model 75.2% \u00b7 no-vig market 68.2% \u2192 70.0%; Puck line market blend (alpha 0.70): model 38.4% \u00b7 no-vig market 46.8% \u2192 44.2%; O/U market blend (alpha 0.65): model 41.0% \u00b7 no-vig market 47.2% \u2192 45.0%. Half-unit play.",
@@ -185700,7 +185701,8 @@
     "blendAlpha": 0.75,
     "startMs": 1795809600000,
     "leadMin": 274,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1795819905591
   },
   {
     "id": "2026-11-27_PHI_VAN_NHL_UNDER7.5",
@@ -185715,10 +185717,10 @@
     "ml": "-383",
     "decOdds": 1.261,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1795793132822,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 5,
+    "aScore": 2,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (74.8% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 55.0%; the 1-goal cushion is priced from the historical margin curve for this market (about 75% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
@@ -185736,7 +185738,8 @@
     },
     "startMs": 1795809600000,
     "leadMin": 274,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1795819905591
   },
   {
     "id": "2026-11-27_PHX_DAL_NBA_DAL+8.5",
@@ -186399,8 +186402,8 @@
     "betOn": "UNDER 7.5",
     "sport": "NHL",
     "wager": 0,
-    "aScore": null,
-    "hScore": null,
+    "aScore": 6,
+    "hScore": 2,
     "league": "NHL",
     "source": "manual",
     "altLine": {
@@ -186417,14 +186420,15 @@
     "betType": "OU",
     "decOdds": 1.269,
     "leadMin": 115,
-    "outcome": "pending",
+    "outcome": "loss",
     "startMs": 1795809600000,
     "winProb": 0.7431,
     "lockedAt": 1795802728967,
     "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (74.3% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 54.0%; the 1-goal cushion is priced from the historical margin curve for this market (about 74% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
     "lockOrigin": "auto",
     "lockTiming": "pre",
-    "priceSource": "estimated"
+    "priceSource": "estimated",
+    "settledAt": 1795819905590
   },
   {
     "id": "2026-11-27_TOR_BKN_NBA_OVER211.5",
@@ -187226,10 +187230,10 @@
     "ml": "-286",
     "decOdds": 1.35,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1795793133330,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 2,
+    "aScore": 3,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: FLA +1.5 \u2014 HIGH PROB (70.0% win prob, EV -5.5% \u00b7 MARKET PRICE -286 (EV at market -5.5%) \u00b7 MARKET-BLENDED: model 70.0% \u00b7 no-vig market 70.0% \u2192 70.0% (alpha 0.70))\nMODEL: Projected 4.0\u20133.7 (total 7.8) (OT/SO in 15% of outcomes) \u2014 underdog covers +1.5 in 70.0% of outcomes (incl. late-game empty-net margin calibration), from an exact Poisson distribution (not a simulation).\nWHY: Best market: FLA +1.5 graded HIGH PROB (70.0%, EV -5.5%). Dog covers +1.5 in 70.0% of sims (proj 3.7\u20134.0). GSAx: -3.7 vs +2.7 (injury adj: WSH: Jordan Kyrou RW OUT -> scoring -2.4%) keeps this within a goal. MC 47% / xGF 50% / hv +1.4pp / ST -5.7pp / SQ +1.4pp \u00b7 ML market blend (alpha 0.75): model 69.9% \u00b7 no-vig market 48.8% \u2192 54.4%; Puck line market blend (alpha 0.70): model 30.0% \u00b7 no-vig market 30.0% \u2192 30.0%; O/U market blend (alpha 0.65): model 67.2% \u00b7 no-vig market 51.9% \u2192 57.5%. Half-unit play \u00b7 Also: OVER 6.5 (HIGH PROB).",
@@ -187239,7 +187243,8 @@
     "blendAlpha": 0.7,
     "startMs": 1795809600000,
     "leadMin": 274,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1795819905592
   },
   {
     "id": "2026-11-27_WSH_FLA_NHL_UNDER7.5",
@@ -187254,10 +187259,10 @@
     "ml": "-272",
     "decOdds": 1.368,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "win",
     "lockedAt": 1795793133512,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 2,
+    "aScore": 3,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: UNDER 7.5 \u2014 ADJUSTED LINE (68.6% estimated win prob at this line)\nADJUSTED LINE: moved 1 goal from the posted UNDER 6.5 to UNDER 7.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 42.5%; the 1-goal cushion is priced from the historical margin curve for this market (about 69% to cover).\nBEST ADJUSTED LINE OF THE GAME: the highest-probability adjusted option among the total and spread, either side (the option marked with the magenta border on the card).",
@@ -187275,7 +187280,8 @@
     },
     "startMs": 1795809600000,
     "leadMin": 274,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1795819905592
   },
   {
     "id": "2026-11-28_ALA_AUB_CFB_ALA-8.5",
