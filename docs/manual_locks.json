@@ -1,56 +1,6 @@
 {
- "updated_at": "2026-11-26T23:19:33.457Z",
+ "updated_at": "2026-11-27T20:54:23.596Z",
  "picks": [
-  {
-   "hA": "Arsenal",
-   "id": "2026-10-13_Arsenal_Lille_CL_Arsenal",
-   "ml": "-500",
-   "awA": "Lille",
-   "date": "2026-10-13",
-   "betOn": "Arsenal",
-   "sport": "CL",
-   "wager": 0,
-   "aScore": 0,
-   "hScore": 3,
-   "league": "CL",
-   "source": "manual",
-   "betType": "ML",
-   "decOdds": 1.2,
-   "leadMin": 38,
-   "outcome": "win",
-   "startMs": 1791918000000,
-   "winProb": 0.888,
-   "lockedAt": 1791915696533,
-   "reasoning": null,
-   "lockOrigin": "manual",
-   "lockTiming": "pre",
-   "settledAt": 1791924959197
-  },
-  {
-   "id": "2026-10-13_Sabah FK_Slavia Prague_CL_SabahFK+1.5",
-   "date": "2026-10-13",
-   "hA": "Sabah FK",
-   "awA": "Slavia Prague",
-   "sport": "CL",
-   "league": "CL",
-   "betType": "SPREAD",
-   "betOn": "Sabah FK +1.5",
-   "winProb": 0.6799999999999999,
-   "ml": "-110",
-   "decOdds": 1.909,
-   "wager": 0,
-   "outcome": "win",
-   "lockedAt": 1791921076974,
-   "hScore": 2,
-   "aScore": 0,
-   "source": "manual",
-   "lockOrigin": "manual",
-   "startMs": 1791909900000,
-   "leadMin": -186,
-   "lockTiming": "late-manual",
-   "settledAt": 1791921132571,
-   "_rt": 1
-  },
   {
    "hA": "PHI",
    "id": "2026-10-13_PHI_SEA_NHL_UNDER6.5",
@@ -9955,10 +9905,10 @@
    "outcome": "loss",
    "winProb": 0.68,
    "lockedAt": 1795536233580,
-   "reasoning": "PICK: Jayson Tatum OVER REB 6.5 — PREMIUM (68% model hit rate)\nMODEL: projection 7.61 REB (season average 6.9, last-5 form 8.6, opponent adjustment +0.7) vs the 6.5 line, spread σ 2.29, from an exact normal distribution (not a simulation).\nWHY: Jayson Tatum averages 6.9 rpg across 15 games this season. Opp WSH DRtg 116.7 vs a 114.6 league average computed from every currently-loaded team, a 2% boost folded into the projection. Game pace 96.6 (+2.0%), BOS offense 116.9 vs a 114.6 league average. No head-to-head history vs WSH this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
    "settledAt": 1795578695104,
    "playerResult": 6,
-   "playerMin": 37
+   "playerMin": 37,
+   "_rt": 1
   },
   {
    "id": "2026-11-24_SaiPa_Lukko_LIIGA_UNDER6.5",
@@ -9980,11 +9930,11 @@
    "source": "manual",
    "lockOrigin": "manual",
    "priceSource": "market",
-   "reasoning": "PICK: UNDER 6.5 — MANUAL LINE (67.8% estimated win prob at this line)\nLINE EDITED: the line was changed by hand from UNDER 5.5 to UNDER 6.5. The win probability is the card's 60.8% for UNDER 5.5, adjusted 7.0 points of probability per point of line for this O/U -- a simple estimate, not a re-run of the engine's model.\nPRICE: a standard assumed price, not a market quote.\nMODEL: Projected 2.7–2.5 (total 5.3) (OT/SO in 18% of outcomes), from an exact Poisson distribution (not a simulation).",
    "startMs": 1795537800000,
    "leadMin": 9,
    "lockTiming": "pre",
-   "settledAt": 1795547526460
+   "settledAt": 1795547526460,
+   "_rt": 1
   },
   {
    "hA": "HOU",
@@ -10223,6 +10173,240 @@
    "settledAt": 1795671707123,
    "playerResult": 9,
    "playerMin": 34
+  },
+  {
+   "hA": "MIA",
+   "id": "prop_2026-11-27_NBA_BamAdebayo_REB_10.5_U",
+   "ml": "-246",
+   "awA": "NY",
+   "conf": 0.68,
+   "date": "2026-11-27",
+   "line": 10.5,
+   "over": false,
+   "team": "MIA",
+   "betOn": "Bam Adebayo UNDER REB 10.5",
+   "sport": "NBA",
+   "wager": 0,
+   "league": "NBA",
+   "player": "Bam Adebayo",
+   "pstats": {
+    "s": {
+     "AST": 3.6,
+     "PTS": 19.1,
+     "REB": 8.4
+    },
+    "gp": 17,
+    "l5": {
+     "n": 5,
+     "AST": 4.6,
+     "PTS": 18.2,
+     "REB": 7.2,
+     "cur": 5
+    },
+    "mpg": 32.8
+   },
+   "altLine": {
+    "line": 10.5,
+    "shift": 2,
+    "posted": 8.5,
+    "postedMl": "-167",
+    "postedDec": null,
+    "postedProb": 0.6248656011244411,
+    "postedLabel": "Bam Adebayo UNDER REB 8.5",
+    "estimatedPrice": true
+   },
+   "betType": "PROP",
+   "decOdds": 1.4065040650406504,
+   "outcome": "pending",
+   "winProb": 0.68,
+   "lockedAt": 1795793126686,
+   "reasoning": "PICK: Bam Adebayo UNDER REB 8.5 — OPTIMAL (62% model hit rate)\nMODEL: projection 7.43 REB (season average 8.4, last-5 form 7.2, opponent adjustment -1) vs the 8.5 line, spread σ 3.37, from an exact normal distribution (not a simulation).\nWHY: Bam Adebayo averages 8.4 rpg across 17 games this season. Opp NY DRtg 108.8 vs a 114.6 league average computed from every currently-loaded team, a -5% reduction folded into the projection. Game pace 97.8 (-3.5%), MIA offense 117.6 vs a 114.5 league average. No head-to-head history vs NY this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+   "priceSource": "estimated"
+  },
+  {
+   "hA": "TOR",
+   "id": "prop_2026-11-27_NBA_ImmanuelQuickley_AST_5.5_O",
+   "ml": "-213",
+   "awA": "BKN",
+   "conf": 0.68,
+   "date": "2026-11-27",
+   "line": 5.5,
+   "over": true,
+   "team": "TOR",
+   "betOn": "Immanuel Quickley OVER AST 5.5",
+   "sport": "NBA",
+   "wager": 0,
+   "league": "NBA",
+   "player": "Immanuel Quickley",
+   "pstats": {
+    "s": {
+     "AST": 6,
+     "PTS": 17.5,
+     "REB": 3.5
+    },
+    "gp": 15,
+    "l5": {
+     "n": 5,
+     "AST": 6.8,
+     "PTS": 17.2,
+     "REB": 3.2,
+     "cur": 5
+    },
+    "mpg": 32
+   },
+   "betType": "PROP",
+   "decOdds": 1.4694835680751175,
+   "outcome": "pending",
+   "winProb": 0.68,
+   "lockedAt": 1795793125734,
+   "reasoning": "PICK: Immanuel Quickley OVER AST 5.5 — PREMIUM (68% model hit rate)\nMODEL: projection 6.54 AST (season average 6, last-5 form 6.8, opponent adjustment +0.5) vs the 5.5 line, spread σ 2.1, from an exact normal distribution (not a simulation).\nWHY: Immanuel Quickley averages 6.0 apg across 15 games this season. Opp BKN DRtg 119.8 vs a 114.6 league average computed from every currently-loaded team, a 5% boost folded into the projection. Game pace 97.8 (+0.9%), TOR offense 114.5 vs a 114.5 league average. No head-to-head history vs BKN this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
+  },
+  {
+   "hA": "BOS",
+   "id": "prop_2026-11-27_NBA_JaysonTatum_REB_4.5_O",
+   "ml": "-246",
+   "awA": "ATL",
+   "conf": 0.68,
+   "date": "2026-11-27",
+   "line": 4.5,
+   "over": true,
+   "team": "BOS",
+   "betOn": "Jayson Tatum OVER REB 4.5",
+   "sport": "NBA",
+   "wager": 0,
+   "league": "NBA",
+   "player": "Jayson Tatum",
+   "pstats": {
+    "s": {
+     "AST": 6.8,
+     "PTS": 27.3,
+     "REB": 6.8
+    },
+    "gp": 16,
+    "l5": {
+     "n": 5,
+     "AST": 5.4,
+     "PTS": 29.6,
+     "REB": 8.4,
+     "cur": 5
+    },
+    "mpg": 34.5
+   },
+   "altLine": {
+    "line": 4.5,
+    "shift": 2,
+    "posted": 6.5,
+    "postedMl": "-166",
+    "postedDec": null,
+    "postedProb": 0.6245886915878881,
+    "postedLabel": "Jayson Tatum OVER REB 6.5",
+    "estimatedPrice": true
+   },
+   "betType": "PROP",
+   "decOdds": 1.4065040650406504,
+   "outcome": "pending",
+   "winProb": 0.68,
+   "lockedAt": 1795793126911,
+   "reasoning": "PICK: Jayson Tatum OVER REB 6.5 — OPTIMAL (62% model hit rate)\nMODEL: projection 7.21 REB (season average 6.8, last-5 form 8.4, opponent adjustment +0.4) vs the 6.5 line, spread σ 2.23, from an exact normal distribution (not a simulation).\nWHY: Jayson Tatum averages 6.8 rpg across 16 games this season. Opp ATL DRtg 110.5 vs a 114.6 league average computed from every currently-loaded team, a -4% reduction folded into the projection. Game pace 98.7 (+3.8%), BOS offense 117.6 vs a 114.5 league average. No head-to-head history vs ATL this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+   "priceSource": "estimated"
+  },
+  {
+   "hA": "PHI",
+   "id": "prop_2026-11-27_NBA_LeBronJames_PTS_11.5_O",
+   "ml": "-246",
+   "awA": "IND",
+   "conf": 0.68,
+   "date": "2026-11-27",
+   "line": 11.5,
+   "over": true,
+   "team": "PHI",
+   "betOn": "LeBron James OVER PTS 11.5",
+   "sport": "NBA",
+   "wager": 0,
+   "league": "NBA",
+   "player": "LeBron James",
+   "pstats": {
+    "s": {
+     "AST": 6.9,
+     "PTS": 17.1,
+     "REB": 6.9
+    },
+    "gp": 15,
+    "l5": {
+     "n": 5,
+     "AST": 7.6,
+     "PTS": 21.2,
+     "REB": 6.4,
+     "cur": 5
+    },
+    "mpg": 32.7
+   },
+   "altLine": {
+    "line": 11.5,
+    "shift": 5,
+    "posted": 16.5,
+    "postedMl": "-184",
+    "postedDec": null,
+    "postedProb": 0.64756914315366,
+    "postedLabel": "LeBron James OVER PTS 16.5",
+    "estimatedPrice": true
+   },
+   "betType": "PROP",
+   "decOdds": 1.4065040650406504,
+   "outcome": "pending",
+   "winProb": 0.68,
+   "lockedAt": 1795793126279,
+   "reasoning": "PICK: LeBron James OVER PTS 16.5 — OPTIMAL (65% model hit rate)\nMODEL: projection 18.37 PTS (season average 17.1, last-5 form 21.2, opponent adjustment +1.3) vs the 16.5 line, spread σ 4.94, from an exact normal distribution (not a simulation).\nWHY: LeBron James averages 17.1 ppg across 15 games this season. Opp IND DRtg 115.3 vs a 114.6 league average computed from every currently-loaded team, a 1% boost folded into the projection. Game pace 99.1 (+0.7%), PHI offense 116.3 vs a 114.5 league average. No head-to-head history vs IND this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+   "priceSource": "estimated"
+  },
+  {
+   "hA": "ATL",
+   "id": "prop_2026-11-27_NBA_NickeilAlexander-Walker_PTS_26.5_U",
+   "ml": "-246",
+   "awA": "BOS",
+   "conf": 0.68,
+   "date": "2026-11-27",
+   "line": 26.5,
+   "over": false,
+   "team": "ATL",
+   "betOn": "Nickeil Alexander-Walker UNDER PTS 26.5",
+   "sport": "NBA",
+   "wager": 0,
+   "league": "NBA",
+   "player": "Nickeil Alexander-Walker",
+   "pstats": {
+    "s": {
+     "AST": 2.9,
+     "PTS": 21.3,
+     "REB": 3.5
+    },
+    "gp": 17,
+    "l5": {
+     "n": 5,
+     "AST": 3.6,
+     "PTS": 19.8,
+     "REB": 4.2,
+     "cur": 5
+    },
+    "mpg": 31.7
+   },
+   "altLine": {
+    "line": 26.5,
+    "shift": 5,
+    "posted": 21.5,
+    "postedMl": "-188",
+    "postedDec": null,
+    "postedProb": 0.6525685479031396,
+    "postedLabel": "Nickeil Alexander-Walker UNDER PTS 21.5",
+    "estimatedPrice": true
+   },
+   "betType": "PROP",
+   "decOdds": 1.4065040650406504,
+   "outcome": "pending",
+   "winProb": 0.68,
+   "lockedAt": 1795793126107,
+   "reasoning": "PICK: Nickeil Alexander-Walker UNDER PTS 21.5 — OPTIMAL (65% model hit rate)\nMODEL: projection 18.97 PTS (season average 21.3, last-5 form 19.8, opponent adjustment -2.3) vs the 21.5 line, spread σ 6.45, from an exact normal distribution (not a simulation).\nWHY: Nickeil Alexander-Walker averages 21.3 ppg across 17 games this season. Opp BOS DRtg 107.7 vs a 114.6 league average computed from every currently-loaded team, a -6% reduction folded into the projection. Game pace 98.7 (-3.5%), ATL offense 113.5 vs a 114.5 league average. No head-to-head history vs BOS this season or historically is factored in yet — likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+   "priceSource": "estimated"
   }
  ]
 }
