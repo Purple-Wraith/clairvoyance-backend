@@ -185465,10 +185465,10 @@
     "ml": "-266",
     "decOdds": 1.376,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "loss",
     "lockedAt": 1795793117075,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 105,
+    "aScore": 108,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: NY +1.5 \u2014 ADJUSTED LINE (68.2% estimated win prob at this line)\nADJUSTED LINE: moved 6 pts from the posted NY -4.5 to NY +1.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 63.8%; the 6-pt cushion is priced from the historical margin curve for this market (about 68% to cover).\nMODEL: Projected 108.3\u2013117.2 (total 225.5), from an exact normal distribution (not a simulation).",
@@ -185484,7 +185484,8 @@
     },
     "startMs": 1795824000000,
     "leadMin": 515,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1795834301389
   },
   {
     "id": "2026-11-27_NY_MIA_NBA_OVER214.5",
@@ -185499,10 +185500,10 @@
     "ml": "-251",
     "decOdds": 1.399,
     "wager": 0,
-    "outcome": "pending",
+    "outcome": "loss",
     "lockedAt": 1795793117239,
-    "hScore": null,
-    "aScore": null,
+    "hScore": 105,
+    "aScore": 108,
     "source": "manual",
     "lockOrigin": "auto",
     "reasoning": "PICK: OVER 214.5 \u2014 ADJUSTED LINE (67.0% estimated win prob at this line)\nADJUSTED LINE: moved 8 pts from the posted OVER 222.5 to OVER 214.5 for a safer cover. The price is an estimate (fair price + vig), not a bookmaker quote, so no edge or EV is claimed.\nWHY: at the posted line the model rated this side 56.3%; the 8-pt cushion is priced from the historical margin curve for this market (about 67% to cover).\nBEST ADJUSTED TOTAL OF THE GAME: the highest-probability adjusted total, either side, locked alongside the game's best adjusted line (a spread).",
@@ -185520,7 +185521,8 @@
     },
     "startMs": 1795824000000,
     "leadMin": 515,
-    "lockTiming": "pre"
+    "lockTiming": "pre",
+    "settledAt": 1795834301390
   },
   {
     "hA": "Nottingham Forest",
@@ -206750,7 +206752,7 @@
     "conf": 0.68,
     "ml": "-246",
     "lockedAt": 1795793126686,
-    "outcome": "pending",
+    "outcome": "win",
     "date": "2026-11-27",
     "sport": "NBA",
     "league": "NBA",
@@ -206788,7 +206790,10 @@
         "AST": 4.6
       }
     },
-    "reasoning": "PICK: Bam Adebayo UNDER REB 8.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 7.43 REB (season average 8.4, last-5 form 7.2, opponent adjustment -1) vs the 8.5 line, spread \u03c3 3.37, from an exact normal distribution (not a simulation).\nWHY: Bam Adebayo averages 8.4 rpg across 17 games this season. Opp NY DRtg 108.8 vs a 114.6 league average computed from every currently-loaded team, a -5% reduction folded into the projection. Game pace 97.8 (-3.5%), MIA offense 117.6 vs a 114.5 league average. No head-to-head history vs NY this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed."
+    "reasoning": "PICK: Bam Adebayo UNDER REB 8.5 \u2014 OPTIMAL (62% model hit rate)\nMODEL: projection 7.43 REB (season average 8.4, last-5 form 7.2, opponent adjustment -1) vs the 8.5 line, spread \u03c3 3.37, from an exact normal distribution (not a simulation).\nWHY: Bam Adebayo averages 8.4 rpg across 17 games this season. Opp NY DRtg 108.8 vs a 114.6 league average computed from every currently-loaded team, a -5% reduction folded into the projection. Game pace 97.8 (-3.5%), MIA offense 117.6 vs a 114.5 league average. No head-to-head history vs NY this season or historically is factored in yet \u2014 likelihood is directional (modeled variance assumption), not a market-calibrated probability.\nPRICE: the line is the player's own season average rounded to a half point (about where a book would post it) and the price is derived from the model's probability -- no sportsbook prop line or price is captured, so no edge or EV is claimed.",
+    "settledAt": 1795834301855,
+    "playerResult": 7,
+    "playerMin": 37
   },
   {
     "id": "prop_2026-11-27_NBA_ImmanuelQuickley_AST_5.5_O",
